@@ -499,12 +499,12 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, dbTx pgx.Tx) (
 	}
 	log.Warn("Trusted Reorg detected")
 	log.Debug("batch.BatchL2Data: ", hex.EncodeToString(batch.BatchL2Data))
-	log.Debug("batch.GlobalExitRoot: ", batch.GlobalExitRoot)
+	log.Debug("batch.globalExitRoot: ", batch.GlobalExitRoot)
 	log.Debug("batch.Timestamp: ", batch.Timestamp)
 	log.Debug("batch.Coinbase: ", batch.Coinbase)
 	log.Debug("newRoot: ", newRoot)
 	log.Debug("tBatch.BatchL2Data: ", hex.EncodeToString(tBatch.BatchL2Data))
-	log.Debug("tBatch.GlobalExitRoot: ", tBatch.GlobalExitRoot)
+	log.Debug("tBatch.globalExitRoot: ", tBatch.GlobalExitRoot)
 	log.Debug("tBatch.Timestamp: ", tBatch.Timestamp)
 	log.Debug("tBatch.Coinbase: ", tBatch.Coinbase)
 	log.Debug("tBatch.StateRoot: ", tBatch.StateRoot)
@@ -790,7 +790,7 @@ func (s *ClientSynchronizer) processForcedBatch(forcedBatch etherman.ForcedBatch
 }
 
 func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.GlobalExitRoot, dbTx pgx.Tx) {
-	// Store GlobalExitRoot
+	// Store globalExitRoot
 	ger := state.GlobalExitRoot{
 		BlockNumber:     globalExitRoot.BlockNumber,
 		Timestamp:       globalExitRoot.Timestamp,
@@ -800,12 +800,12 @@ func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.Globa
 	}
 	err := s.state.AddGlobalExitRoot(s.ctx, &ger, dbTx)
 	if err != nil {
-		log.Errorf("error storing the GlobalExitRoot in processGlobalExitRoot. BlockNumber: %d", globalExitRoot.BlockNumber)
+		log.Errorf("error storing the globalExitRoot in processGlobalExitRoot. BlockNumber: %d", globalExitRoot.BlockNumber)
 		rollbackErr := dbTx.Rollback(s.ctx)
 		if rollbackErr != nil {
 			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", globalExitRoot.BlockNumber, rollbackErr.Error(), err)
 		}
-		log.Fatalf("error storing the GlobalExitRoot in processGlobalExitRoot. BlockNumber: %d, error: %w", globalExitRoot.BlockNumber, err)
+		log.Fatalf("error storing the globalExitRoot in processGlobalExitRoot. BlockNumber: %d, error: %w", globalExitRoot.BlockNumber, err)
 	}
 }
 

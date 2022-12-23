@@ -4,6 +4,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -32,57 +34,9 @@ type Transaction struct {
 	types.Transaction
 	Status   TxStatus
 	IsClaims bool
-	ZkCounters
+	state.ZKCounters
 	FailedCounter uint64
 	ReceivedAt    time.Time
-}
-
-// ZkCounters counters for the tx
-type ZkCounters struct {
-	CumulativeGasUsed    uint64
-	UsedKeccakHashes     uint32
-	UsedPoseidonHashes   uint32
-	UsedPoseidonPaddings uint32
-	UsedMemAligns        uint32
-	UsedArithmetics      uint32
-	UsedBinaries         uint32
-	UsedSteps            uint32
-}
-
-// IsZkCountersBelowZero checks if any of the counters are below zero
-func (zkc *ZkCounters) IsZkCountersBelowZero() bool {
-	return zkc.CumulativeGasUsed < 0 ||
-		zkc.UsedArithmetics < 0 ||
-		zkc.UsedSteps < 0 ||
-		zkc.UsedBinaries < 0 ||
-		zkc.UsedMemAligns < 0 ||
-		zkc.UsedPoseidonPaddings < 0 ||
-		zkc.UsedPoseidonHashes < 0 ||
-		zkc.UsedKeccakHashes < 0
-}
-
-// SumUpZkCounters sum ups zk counters with passed tx zk counters
-func (zkc *ZkCounters) SumUpZkCounters(txZkCounters ZkCounters) {
-	zkc.CumulativeGasUsed += txZkCounters.CumulativeGasUsed
-	zkc.UsedKeccakHashes += txZkCounters.UsedKeccakHashes
-	zkc.UsedPoseidonHashes += txZkCounters.UsedPoseidonHashes
-	zkc.UsedPoseidonPaddings += txZkCounters.UsedPoseidonPaddings
-	zkc.UsedMemAligns += txZkCounters.UsedMemAligns
-	zkc.UsedArithmetics += txZkCounters.UsedArithmetics
-	zkc.UsedBinaries += txZkCounters.UsedBinaries
-	zkc.UsedSteps += txZkCounters.UsedSteps
-}
-
-// SubZkCounters subtract zk counters with passed zk counters (not safe)
-func (zkc *ZkCounters) SubZkCounters(txZkCounters ZkCounters) {
-	zkc.CumulativeGasUsed -= txZkCounters.CumulativeGasUsed
-	zkc.UsedKeccakHashes -= txZkCounters.UsedKeccakHashes
-	zkc.UsedPoseidonHashes -= txZkCounters.UsedPoseidonHashes
-	zkc.UsedPoseidonPaddings -= txZkCounters.UsedPoseidonPaddings
-	zkc.UsedMemAligns -= txZkCounters.UsedMemAligns
-	zkc.UsedArithmetics -= txZkCounters.UsedArithmetics
-	zkc.UsedBinaries -= txZkCounters.UsedBinaries
-	zkc.UsedSteps -= txZkCounters.UsedSteps
 }
 
 // IsClaimTx checks, if tx is a claim tx

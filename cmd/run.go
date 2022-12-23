@@ -24,7 +24,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
-	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
@@ -171,12 +170,12 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 
 func createSequencer(c config.Config, pool *pool.Pool, state *state.State, etherman *etherman.Client,
 	ethTxManager *ethtxmanager.Client, gpe gasPriceEstimator) *sequencer.Sequencer {
-	pg, err := pricegetter.NewClient(c.PriceGetter)
-	if err != nil {
-		log.Fatal(err)
-	}
+	//pg, err := pricegetter.NewClient(c.PriceGetter)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 
-	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, ethTxManager, gpe)
+	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, ethTxManager)
 	if err != nil {
 		log.Fatal(err)
 	}

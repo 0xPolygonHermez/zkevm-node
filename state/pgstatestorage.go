@@ -452,7 +452,7 @@ func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2
                                                           WHERE l2b.block_num = $1))
                /* OR if $1 is null, this means we want to get the most updated information from state, so it considers all the batches.
                 * this is generally used by estimate gas, process unsigned transactions and it is required by claim transactions to add
-                * the open batch to the result and get the most updated GER synced from L1 and stored in the current open batch when 
+                * the open batch to the result and get the most updated globalExitRoot synced from L1 and stored in the current open batch when 
                 * there was not transactions yet to create a l2 block with it */
             OR $1 IS NULL
          ORDER BY b.batch_num DESC
@@ -916,7 +916,7 @@ func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.H
 	}
 
 	if isBatchHasTxs {
-		return errors.New("batch has txs, can't change GER")
+		return errors.New("batch has txs, can't change globalExitRoot")
 	}
 
 	const updateGER = `

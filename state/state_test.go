@@ -145,7 +145,7 @@ func TestProcessCloseBatch(t *testing.T) {
 	// 	BatchNumber:    1,
 	// 	Coinbase:       common.HexToAddress("1"),
 	// 	Timestamp:      time.Now().UTC(),
-	// 	GlobalExitRoot: common.HexToHash("a"),
+	// 	globalExitRoot: common.HexToHash("a"),
 	// }
 	// Txs for batch #1
 	// rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
@@ -1513,7 +1513,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 // 		BatchNumber:    tv.Traces.NumBatch,
 // 		Coinbase:       common.HexToAddress(tv.Traces.SequencerAddr),
 // 		Timestamp:      time.Unix(int64(tv.Traces.Timestamp), 0),
-// 		GlobalExitRoot: common.HexToHash(tv.GlobalExitRoot),
+// 		globalExitRoot: common.HexToHash(tv.globalExitRoot),
 // 	}
 
 // 	if strings.HasPrefix(tv.BatchL2Data, "0x") { // nolint
@@ -1808,7 +1808,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 			Coinbase:         common.Address{}.String(),
 			BatchL2Data:      batchL2Data,
 			OldStateRoot:     stateRoot,
-			GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			globalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 			EthTimestamp:     uint64(0),
 			UpdateMerkleTree: 1,
@@ -1881,7 +1881,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 				Coinbase:         common.Address{}.String(),
 				BatchL2Data:      batchL2Data,
 				OldStateRoot:     stateRoot,
-				GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				globalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 				OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 				EthTimestamp:     uint64(0),
 				UpdateMerkleTree: 1,
@@ -1907,7 +1907,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 					Coinbase:         common.Address{}.String(),
 					BatchL2Data:      batchL2Data,
 					OldStateRoot:     processBatchResponse.NewStateRoot,
-					GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+					globalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 					OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 					EthTimestamp:     uint64(0),
 					UpdateMerkleTree: 1,
@@ -2163,7 +2163,7 @@ func TestExecutorGasRefund(t *testing.T) {
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     stateRoot,
-		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		globalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
@@ -2188,7 +2188,7 @@ func TestExecutorGasRefund(t *testing.T) {
 		BatchNumber:    processBatchRequest.BatchNum,
 		Coinbase:       common.Address{},
 		Timestamp:      time.Now(),
-		GlobalExitRoot: common.BytesToHash(processBatchRequest.GlobalExitRoot),
+		globalExitRoot: common.BytesToHash(processBatchRequest.globalExitRoot),
 	}
 
 	err = testState.OpenBatch(ctx, processingContext, dbTx)
@@ -2228,7 +2228,7 @@ func TestExecutorGasRefund(t *testing.T) {
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     processBatchResponse.NewStateRoot,
-		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		globalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,

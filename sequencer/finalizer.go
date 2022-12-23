@@ -6,10 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
-
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -41,30 +37,20 @@ func newFinalizer(worker workerInterface, dbManager dbManagerInterface, executor
 }
 
 type wipBatch struct {
-	batchNumber           uint64
-	initialStateRoot      common.Hash
-	intermediaryStateRoot common.Hash
-	timestamp             uint64
-	GER                   common.Hash // 0x000...0 (ZeroHash) means to not update
-	txs                   []TxTracker
-	remainingResources    RemainingResources
+	batchNumber        uint64
+	coinbase           common.Address
+	accInputHash       common.Hash
+	initialStateRoot   common.Hash
+	stateRoot          common.Hash
+	timestamp          uint64
+	globalExitRoot     common.Hash // 0x000...0 (ZeroHash) means to not update
+	txs                []TxTracker
+	remainingResources BatchResources
 }
 
-func (f *finalizer) Start(ctx context.Context) {
-	lastBatch, err := f.dbManager.GetLastBatch(ctx)
-	if err != nil {
-		log.Fatal("failed to get last batch")
-	}
-
-	wipBatch := wipBatch{
-		GER:                   lastBatch.GlobalExitRoot,
-		initialStateRoot:      lastBatch.StateRoot,
-		intermediaryStateRoot: lastBatch.StateRoot,
-		txs:                   make([]TxTracker, 0, f.maxTxsPerBatch),
-	}
-
-	// Most of this will need mutex since goroutines (Finalize txs, L1 requirements) can modify concurrently
+func (f *finalizer) Start(ctx context.Context, batch wipBatch, OldStateRoot, OldAccInputHash common.Hash) {
 	var (
+		// Most of this will need mutex since goroutines (Finalize txs, L1 requirements) can modify concurrently
 		nextGER                 common.Hash
 		nextGERDeadline         int64
 		nextGERMux              sync.RWMutex // TODO: Check all places where need to be used
@@ -72,10 +58,22 @@ func (f *finalizer) Start(ctx context.Context) {
 		nextForcedBatchDeadline int64
 		nextForcedBatchesMux    sync.RWMutex // TODO: Check all places where need to be used
 		//wipBatchMux             sync.RWMutex // TODO: Check all places where need to be used
+		err error
 	)
-
 	fmt.Printf(nextGER.Hex())
 
+	processRequest := state.ProcessSingleTxRequest{
+		BatchNumber:      batch.batchNumber,
+		StateRoot:        batch.stateRoot,
+		OldStateRoot:     OldStateRoot,
+		GlobalExitRoot:   batch.globalExitRoot,
+		OldAccInputHash:  OldAccInputHash,
+		SequencerAddress: f.sequencerAddress,
+		Timestamp:        batch.timestamp,
+		Caller:           state.SequencerCallerLabel,
+	}
+
+	// TODO: Finish all receivers handling!
 	// Closing signals receiver
 	go func() {
 		for {
@@ -86,7 +84,7 @@ func (f *finalizer) Start(ctx context.Context) {
 				if nextForcedBatchDeadline > 0 {
 					nextForcedBatchDeadline = time.Now().Unix() // + configurable delay
 				}
-			// GER ch
+			// globalExitRoot ch
 			case ger := <-f.GERCh:
 				nextGER = ger
 				if nextGERDeadline > 0 {
@@ -96,7 +94,7 @@ func (f *finalizer) Start(ctx context.Context) {
 			// L2 reorg ch: TODO: analyze how we handle L2 reorg. Needs work from Sync as well. Some considerations:
 			// - Txs that have been popped from the state should go back to the pool
 			// - Worker pool and efficiency list should be cleaned and updated
-			// - WIP batch should be discarded (taking care to not lose txs or GER update for later on)
+			// - WIP batch should be discarded (taking care to not lose txs or globalExitRoot update for later on)
 			// Too many time without batches in L1 ch
 			// Any other externality from the point of view of the sequencer should be captured using this pattern
 		}
@@ -104,84 +102,64 @@ func (f *finalizer) Start(ctx context.Context) {
 
 	// Finalize txs
 	go func() {
-		processBatchRequest := state.ProcessBatchRequest{}
 		for {
-			tx := f.worker.GetBestFittingTx(wipBatch.remainingResources)
+			tx := f.worker.GetBestFittingTx(batch.remainingResources)
 			if tx != nil {
-				lenOfTxs := len(wipBatch.txs)
-				isFirstTx := lenOfTxs == 1
-
 				var ger common.Hash
-				if isFirstTx {
-					ger = wipBatch.GER
+				if len(batch.txs) == 0 {
+					ger = batch.globalExitRoot
 				} else {
 					ger = state.ZeroHash
 				}
-
-				// TODO: Populate processBatchRequest dynamic fields
-				processBatchRequest.GlobalExitRoot = ger
-				processBatchRequest.IsFirstTx = isFirstTx
-				result := f.executor.ExecuteTransaction(processBatchRequest)
+				processRequest.GlobalExitRoot = ger
+				result := f.executor.ProcessSingleTx(processRequest)
 
 				// executionResult := execute tx (only passing to the executor this tx, starting at currentBatch.intermediaryRoot)
 				if result.Error != nil {
 					// // decide if we [MoveTxToNotReady, DeleteTx, UpdateTx]
-
 				} else {
 					processedTx := result.Responses[0]
-					from, err := types.Sender(types.NewEIP155Signer(processedTx.Tx.ChainId()), &processedTx.Tx)
-					if err != nil {
-						from, err = types.Sender(types.HomesteadSigner{}, &processedTx.Tx)
+					usedResources := BatchResources{
+						zKCounters: result.UsedZkCounters,
+						bytes:      uint64(processedTx.Tx.Size()),
+						gas:        processedTx.GasUsed,
 					}
-
-					err = wipBatch.remainingResources.Sub(RemainingResources{
-						remainingZKCounters: result.UsedZkCounters,
-						remainingBytes:      uint64(processedTx.Tx.Size()),
-						remainingGas:        processedTx.GasUsed,
-					})
+					err = batch.remainingResources.Sub(usedResources)
 					if err != nil {
-						f.worker.UpdateTx(processedTx.TxHash, from, wipBatch.remainingResources.remainingZKCounters)
+						f.worker.UpdateTx(processedTx.TxHash, tx.From, usedResources.zKCounters)
 						// (TODO: check the timeouts)
 						continue
 					}
 
 					// We have a successful processing if we are here
-					wipBatch.intermediaryStateRoot = result.NewStateRoot
-					processBatchRequest.StateRoot = result.NewStateRoot
-					processBatchRequest.OldAccInputHash = result.NewAccInputHash
+					batch.stateRoot = result.NewStateRoot
+					batch.accInputHash = result.NewAccInputHash
+					processRequest.StateRoot = result.NewStateRoot
+					processRequest.OldAccInputHash = result.NewAccInputHash
 					// We store the processed transaction, add it to the batch and delete from the pool atomically.
-					go f.dbManager.StoreProcessedTxAndDeleteFromPool(ctx, wipBatch.batchNumber, processedTx)
-					go f.worker.UpdateAfterSingleSuccessfulTxExecution(from, result.TouchedAddresses)
+					go f.dbManager.StoreProcessedTxAndDeleteFromPool(ctx, batch.batchNumber, processedTx)
+					f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.TouchedAddresses)
 				}
 			} else {
 				// TODO: check if the currentBatch is above a defined limit (almost full)
 				// TODO: if yes:
-				go func() {
-					ethTxs := make([]types.Transaction, 0, len(wipBatch.txs))
-					for _, txTracker := range wipBatch.txs {
-						tx, err := state.DecodeTx(string(txTracker.RawTx))
-						if err != nil {
-							log.Fatalf("failed to decode tx")
-						}
-						ethTxs = append(ethTxs, *tx)
-					}
-					receipt := state.ProcessingReceipt{
-						BatchNumber:   wipBatch.batchNumber,
-						AccInputHash:  processBatchRequest.OldAccInputHash,
-						StateRoot:     wipBatch.intermediaryStateRoot,
-						LocalExitRoot: processBatchRequest.GlobalExitRoot,
-						Txs:           ethTxs,
-					}
-					f.dbManager.CloseBatch(ctx, receipt)
-				}()
-				wipBatch.batchNumber += 1
-				wipBatch.txs = make([]TxTracker, 0, f.maxTxsPerBatch)
-				// TODO: Maybe to check the database for new GER and update the wipBatch?
+				receipt := ClosingBatchParameters{
+					BatchNumber:   batch.batchNumber,
+					AccInputHash:  processRequest.OldAccInputHash,
+					StateRoot:     batch.stateRoot,
+					LocalExitRoot: processRequest.GlobalExitRoot,
+					Txs:           batch.txs,
+				}
+				f.dbManager.CloseBatch(ctx, receipt)
+				batch.batchNumber += 1
+				batch.txs = make([]TxTracker, 0, f.maxTxsPerBatch)
+				// TODO: OPEN NEW BATCH IN DB
 
+				// TODO: Maybe to check the database for new globalExitRoot and update the batch?
 				// TODO:
 				// // go (decide if we need to execute the full batch as a sanity check, DO IT IN PARALLEL) ==> if error: log this txs somewhere and remove them from the pipeline
 				// // if there are pending forced batches, execute them
-				// // open batch: check if we have a new GER and update timestamp
+				// // open batch: check if we have a new globalExitRoot and update timestamp
 				// else: activate flag
 			}
 			// Check deadlines
@@ -200,7 +178,7 @@ func (f *finalizer) Start(ctx context.Context) {
 			if time.Now().Unix() >= nextGERDeadline {
 				nextGERMux.Lock()
 				// close batch
-				// open batch (with new GER)
+				// open batch (with new globalExitRoot)
 				nextGER = common.Hash{}
 				nextGERDeadline = 0
 				nextGERMux.Unlock()

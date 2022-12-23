@@ -184,7 +184,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 		if err != nil {
 			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 				return fmt.Errorf(
-					"failed to rollback dbTx when getting last GER that gave err: %s. Rollback err: %s",
+					"failed to rollback dbTx when getting last globalExitRoot that gave err: %s. Rollback err: %s",
 					rollbackErr.Error(), err.Error(),
 				)
 			}

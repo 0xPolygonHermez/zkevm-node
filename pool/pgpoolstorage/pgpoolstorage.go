@@ -228,10 +228,10 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 	var (
 		encoded, status   string
 		receivedAt        time.Time
-		cumulativeGasUsed int64
+		cumulativeGasUsed uint64
 
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
-		usedMemAligns, usedArithmetics, usedBinaries, usedSteps int32
+		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
 		nonce, failedCounter uint64
 	)
 
@@ -276,7 +276,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 
 		tx.Status = pool.TxStatus(status)
 		tx.ReceivedAt = receivedAt
-		tx.ZkCounters = pool.ZkCounters{
+		tx.ZKCounters = state.ZKCounters{
 			CumulativeGasUsed:    cumulativeGasUsed,
 			UsedKeccakHashes:     usedKeccakHashes,
 			UsedPoseidonHashes:   usedPoseidonHashes,

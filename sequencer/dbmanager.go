@@ -3,7 +3,9 @@ package sequencer
 import (
 	"context"
 	"errors"
+	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -22,6 +24,38 @@ func newDBManager(txPool txPool, state stateInterface, worker *Worker) *dbManage
 
 func (d *dbManager) Start() {
 	go d.loadFromPool()
+}
+
+func (d *dbManager) GetLastBatchNumber(ctx context.Context) (uint64, error) {
+	// TODO: Fetch last BatchNumber from database
+	return 0, errors.New("")
+}
+
+func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext {
+	processingCtx := state.ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       sequencerAddress,
+		Timestamp:      time.Now(),
+		GlobalExitRoot: state.ZeroHash,
+	}
+	dbTx, err := d.state.BeginStateTransaction(ctx)
+	if err != nil {
+		log.Fatalf("failed to begin state transaction for opening a batch, err: %v", err)
+	}
+	err = d.state.OpenBatch(ctx, processingCtx, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+			log.Fatalf(
+				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Fatalf("failed to open a batch, err: %v", err)
+	}
+	if err := dbTx.Commit(ctx); err != nil {
+		log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
+	}
+	return processingCtx
 }
 
 func (d *dbManager) loadFromPool() {
@@ -69,11 +103,49 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, batch
 	}
 }
 
-func (d *dbManager) CloseBatch(ctx context.Context, receipt state.ProcessingReceipt) {
+func (d *dbManager) GetWIPBatch(ctx context.Context) (wipBatch, error) {
+	// TODO: Make this method to return ready WIP batch it has following cases:
+	// if lastBatch IS OPEN - load data from it but set wipBatch.initialStateRoot to Last Closed Batch
+	// if lastBatch IS CLOSED - open new batch in the database and load all data from the closed one without the txs and increase batch number
+	return wipBatch{}, errors.New("")
+}
+
+func (d *dbManager) GetLastClosedBatch(ctx context.Context) (state.Batch, error) {
+	// TODO: Returns last closed batch
+	return state.Batch{}, errors.New("")
+}
+
+func (d *dbManager) GetLastBatch(ctx context.Context) (state.Batch, error) {
+	// TODO: Returns last batch
+	return state.Batch{}, errors.New("")
+
+}
+
+func (d *dbManager) IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error) {
+	// TODO: Returns if the batch with passed batchNum is closed
+	return false, errors.New("")
+}
+
+func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error) {
+	// TODO: Returns last N batches
+	return []*state.Batch{}, errors.New("")
+
+}
+
+// ClosingBatchParameters contains the necessary parameters to close a batch
+type ClosingBatchParameters struct {
+	BatchNumber   uint64
+	StateRoot     common.Hash
+	LocalExitRoot common.Hash
+	AccInputHash  common.Hash
+	Txs           []TxTracker
+}
+
+func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters) {
 	// TODO: Close current open batch
 }
 
-func (d *dbManager) GetLastBatch(ctx context.Context) (*state.Batch, error) {
-	// TODO: Get last batch
-	return nil, errors.New("")
+func (d *dbManager) MarkReorgedTxsAsPending(ctx context.Context) error {
+	// TODO: call pool.MarkReorgedTxsAsPending and return result
+	return errors.New("")
 }

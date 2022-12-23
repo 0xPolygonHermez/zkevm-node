@@ -9,7 +9,7 @@ import (
 )
 
 // shouldCloseSequenceInProgress checks if sequence should be closed or not
-// in case it's enough blocks since last GER update, long time since last batch and sequence is profitable
+// in case it's enough blocks since last globalExitRoot update, long time since last batch and sequence is profitable
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	// Check if sequence is full
 	if s.sequenceInProgress.IsSequenceTooBig {
@@ -21,7 +21,7 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		log.Infof("current sequence should be closed because it has reached the maximum capacity (%d txs)", s.cfg.MaxTxsPerBatch)
 		return true
 	}
-	// Check if there are any deposits or GER needs to be updated
+	// Check if there are any deposits or globalExitRoot needs to be updated
 	if isThereAnyDeposits, err := s.shouldCloseDueToNewDeposits(ctx); err != nil || isThereAnyDeposits {
 		return err == nil
 	}
@@ -58,7 +58,7 @@ func (s *Sequencer) shouldCloseDueToNewDeposits(ctx context.Context) (bool, erro
 
 		if latestBlockNumber-blockNum > s.cfg.WaitBlocksToUpdateGER &&
 			gerReceivedAt.Before(time.Now().Add(-s.cfg.ElapsedTimeToCloseBatchWithoutTxsDueToNewGER.Duration)) {
-			log.Info("current sequence should be closed because blocks have been mined since last GER")
+			log.Info("current sequence should be closed because blocks have been mined since last globalExitRoot")
 			return true, nil
 		}
 	}

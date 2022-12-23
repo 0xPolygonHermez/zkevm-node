@@ -328,7 +328,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return types.Sequence{}, fmt.Errorf(
-				"failed to rollback dbTx when getting last GER that gave err: %s. Rollback err: %s",
+				"failed to rollback dbTx when getting last globalExitRoot that gave err: %s. Rollback err: %s",
 				rollbackErr.Error(), err.Error(),
 			)
 		}

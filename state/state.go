@@ -170,7 +170,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		return 0, err
 	}
 
-	// Get latest batch from the database to get GER and Timestamp
+	// Get latest batch from the database to get globalExitRoot and Timestamp
 	lastBatch := lastBatches[0]
 
 	// Get batch before latest to get state root and local exit root
@@ -271,7 +271,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		// log.Debugf("EstimateGas[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 		log.Debugf("EstimateGas[processBatchRequest.From]: %v", processBatchRequest.From)
 		log.Debugf("EstimateGas[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-		log.Debugf("EstimateGas[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+		log.Debugf("EstimateGas[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
 		log.Debugf("EstimateGas[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
 		log.Debugf("EstimateGas[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 		log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
@@ -448,8 +448,8 @@ func (s *State) ProcessSequencerBatch(
 	return result, nil
 }
 
-func (s *State) ExecuteTransaction(processBatchRequest ProcessBatchRequest) ProcessBatchResponse {
-	// TODO: Implement
+func (s *State) ProcessSingleTx(request ProcessSingleTxRequest) ProcessBatchResponse {
+
 	return ProcessBatchResponse{}
 }
 
@@ -459,7 +459,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		return nil, ErrDBTxNil
 	}
 
-	// Get batch from the database to get GER and Timestamp
+	// Get batch from the database to get globalExitRoot and Timestamp
 	lastBatch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
 	if err != nil {
 		return nil, err
@@ -502,7 +502,7 @@ func (s *State) processBatch(
 		return nil, err
 	}
 
-	// Get latest batch from the database to get GER and Timestamp
+	// Get latest batch from the database to get globalExitRoot and Timestamp
 	lastBatch := lastBatches[0]
 
 	// Get batch before latest to get state root and local exit root
@@ -541,7 +541,7 @@ func (s *State) processBatch(
 	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("processBatch[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("processBatch[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-	log.Debugf("processBatch[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+	log.Debugf("processBatch[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
 	log.Debugf("processBatch[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
 	log.Debugf("processBatch[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("processBatch[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
@@ -834,7 +834,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	// The previous batch to get OldStateRoot and GlobalExitRoot
+	// The previous batch to get OldStateRoot and globalExitRoot
 	pBatch, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
 	if err != nil {
 		return nil, err
@@ -1125,7 +1125,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		return result
 	}
 
-	// Get latest batch from the database to get GER and Timestamp
+	// Get latest batch from the database to get globalExitRoot and Timestamp
 	lastBatch := lastBatches[0]
 
 	// Get batch before latest to get state root and local exit root
@@ -1163,7 +1163,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	// log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)

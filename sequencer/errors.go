@@ -3,6 +3,6 @@ package sequencer
 import "errors"
 
 var (
-	// ErrBatchRemainingResourcesOverflow error returned when the resources for the current batch are overflown
-	ErrBatchRemainingResourcesOverflow = errors.New("overflow of remaining resources for current batch %s")
+	// ErrBatchRemainingResourcesUnderflow error returned when there is underflow of the resources for the current batch
+	ErrBatchRemainingResourcesUnderflow = errors.New("underflow of remaining resources for current batch %s")
 )
