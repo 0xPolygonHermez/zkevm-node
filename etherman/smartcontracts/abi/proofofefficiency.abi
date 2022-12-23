@@ -1,6 +1,31 @@
 [
 	{
 		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "numBatch",
+				"type": "uint64"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "stateRoot",
+				"type": "bytes32"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "pendingStateNum",
+				"type": "uint64"
+			}
+		],
+		"name": "ConsolidatePendingState",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
 		"inputs": [],
 		"name": "EmergencyStateActivated",
 		"type": "event"
@@ -60,6 +85,31 @@
 		"inputs": [
 			{
 				"indexed": true,
+				"internalType": "uint64",
+				"name": "numBatch",
+				"type": "uint64"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "stateRoot",
+				"type": "bytes32"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "aggregator",
+				"type": "address"
+			}
+		],
+		"name": "OverridePendingState",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
 				"internalType": "address",
 				"name": "previousOwner",
 				"type": "address"
@@ -90,7 +140,7 @@
 				"type": "bytes32"
 			}
 		],
-		"name": "ProveNonDeterministicState",
+		"name": "ProveNonDeterministicPendingState",
 		"type": "event"
 	},
 	{
@@ -124,6 +174,19 @@
 		"inputs": [
 			{
 				"indexed": false,
+				"internalType": "address",
+				"name": "newAdmin",
+				"type": "address"
+			}
+		],
+		"name": "SetAdmin",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
 				"internalType": "bool",
 				"name": "newForceBatchAllowed",
 				"type": "bool"
@@ -137,12 +200,38 @@
 		"inputs": [
 			{
 				"indexed": false,
+				"internalType": "uint64",
+				"name": "newPendingStateTimeout",
+				"type": "uint64"
+			}
+		],
+		"name": "SetPendingStateTimeout",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
 				"internalType": "address",
-				"name": "newSecurityCouncil",
+				"name": "newTrustedAggregator",
 				"type": "address"
 			}
 		],
-		"name": "SetSecurityCouncil",
+		"name": "SetTrustedAggregator",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint64",
+				"name": "newTrustedAggregatorTimeout",
+				"type": "uint64"
+			}
+		],
+		"name": "SetTrustedAggregatorTimeout",
 		"type": "event"
 	},
 	{
@@ -193,6 +282,31 @@
 				"type": "address"
 			}
 		],
+		"name": "TrustedVerifyBatches",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "numBatch",
+				"type": "uint64"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "stateRoot",
+				"type": "bytes32"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "aggregator",
+				"type": "address"
+			}
+		],
 		"name": "VerifyBatches",
 		"type": "event"
 	},
@@ -211,7 +325,20 @@
 	},
 	{
 		"inputs": [],
-		"name": "MAX_BATCH_LENGTH",
+		"name": "HALT_AGGREGATION_TIMEOUT",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "MAX_TRANSACTIONS_BYTE_LENGTH",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -224,7 +351,20 @@
 	},
 	{
 		"inputs": [],
-		"name": "TRUSTED_SEQUENCER_FEE",
+		"name": "MAX_VERIFY_BATCHES",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "MULTIPLIER_BATCH_FEE",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -237,9 +377,54 @@
 	},
 	{
 		"inputs": [],
+		"name": "VERIFY_BATCH_TIME_TARGET",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "sequencedBatchNum",
+				"type": "uint64"
+			}
+		],
 		"name": "activateEmergencyState",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "admin",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "batchFee",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -276,19 +461,6 @@
 	},
 	{
 		"inputs": [],
-		"name": "calculateForceProverFee",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "calculateRewardPerBatch",
 		"outputs": [
 			{
@@ -311,6 +483,19 @@
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "pendingStateNum",
+				"type": "uint64"
+			}
+		],
+		"name": "consolidatePendingState",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -371,6 +556,19 @@
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "getCurrentBatchFee",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "uint64",
@@ -389,6 +587,11 @@
 			},
 			{
 				"internalType": "bytes32",
+				"name": "oldStateRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
 				"name": "newStateRoot",
 				"type": "bytes32"
 			}
@@ -399,6 +602,19 @@
 				"internalType": "bytes",
 				"name": "",
 				"type": "bytes"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getLastVerifiedBatch",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -435,19 +651,56 @@
 				"type": "address"
 			},
 			{
-				"internalType": "bytes32",
-				"name": "genesisRoot",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "address",
-				"name": "_trustedSequencer",
+				"internalType": "contract IBridge",
+				"name": "_bridgeAddress",
 				"type": "address"
 			},
 			{
-				"internalType": "bool",
-				"name": "_forceBatchAllowed",
-				"type": "bool"
+				"components": [
+					{
+						"internalType": "address",
+						"name": "admin",
+						"type": "address"
+					},
+					{
+						"internalType": "uint64",
+						"name": "chainID",
+						"type": "uint64"
+					},
+					{
+						"internalType": "address",
+						"name": "trustedSequencer",
+						"type": "address"
+					},
+					{
+						"internalType": "uint64",
+						"name": "pendingStateTimeout",
+						"type": "uint64"
+					},
+					{
+						"internalType": "bool",
+						"name": "forceBatchAllowed",
+						"type": "bool"
+					},
+					{
+						"internalType": "address",
+						"name": "trustedAggregator",
+						"type": "address"
+					},
+					{
+						"internalType": "uint64",
+						"name": "trustedAggregatorTimeout",
+						"type": "uint64"
+					}
+				],
+				"internalType": "struct ProofOfEfficiency.InitializePackedParameters",
+				"name": "initializePackedParameters",
+				"type": "tuple"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "genesisRoot",
+				"type": "bytes32"
 			},
 			{
 				"internalType": "string",
@@ -455,24 +708,9 @@
 				"type": "string"
 			},
 			{
-				"internalType": "uint64",
-				"name": "_chainID",
-				"type": "uint64"
-			},
-			{
 				"internalType": "string",
 				"name": "_networkName",
 				"type": "string"
-			},
-			{
-				"internalType": "contract IBridge",
-				"name": "_bridgeAddress",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_securityCouncil",
-				"type": "address"
 			}
 		],
 		"name": "initialize",
@@ -483,6 +721,25 @@
 	{
 		"inputs": [],
 		"name": "isEmergencyState",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "pendingStateNum",
+				"type": "uint64"
+			}
+		],
+		"name": "isPendingStateConsolidable",
 		"outputs": [
 			{
 				"internalType": "bool",
@@ -522,6 +779,32 @@
 	{
 		"inputs": [],
 		"name": "lastForceBatchSequenced",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "lastPendingState",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "lastPendingStateConsolidated",
 		"outputs": [
 			{
 				"internalType": "uint64",
@@ -585,20 +868,17 @@
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "owner",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "initPendingStateNum",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "finalPendingStateNum",
+				"type": "uint64"
+			},
 			{
 				"internalType": "uint64",
 				"name": "initNumBatch",
@@ -635,7 +915,120 @@
 				"type": "uint256[2]"
 			}
 		],
-		"name": "proveNonDeterministicState",
+		"name": "overridePendingState",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "pendingStateTimeout",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "pendingStateTransitions",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "timestamp",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "lastVerifiedBatch",
+				"type": "uint64"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "exitRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "stateRoot",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "initPendingStateNum",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "finalPendingStateNum",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "initNumBatch",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "finalNewBatch",
+				"type": "uint64"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "newLocalExitRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "newStateRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256[2]",
+				"name": "proofA",
+				"type": "uint256[2]"
+			},
+			{
+				"internalType": "uint256[2][2]",
+				"name": "proofB",
+				"type": "uint256[2][2]"
+			},
+			{
+				"internalType": "uint256[2]",
+				"name": "proofC",
+				"type": "uint256[2]"
+			}
+		],
+		"name": "proveNonDeterministicPendingState",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -653,19 +1046,6 @@
 		"outputs": [
 			{
 				"internalType": "contract IVerifierRollup",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "securityCouncil",
-		"outputs": [
-			{
-				"internalType": "address",
 				"name": "",
 				"type": "address"
 			}
@@ -728,7 +1108,7 @@
 						"type": "uint64"
 					}
 				],
-				"internalType": "struct ProofOfEfficiency.ForceBatchData[]",
+				"internalType": "struct ProofOfEfficiency.ForcedBatchData[]",
 				"name": "batches",
 				"type": "tuple[]"
 			}
@@ -750,11 +1130,34 @@
 		"outputs": [
 			{
 				"internalType": "bytes32",
-				"name": "",
+				"name": "accInputHash",
 				"type": "bytes32"
+			},
+			{
+				"internalType": "uint64",
+				"name": "sequencedTimestamp",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "previousLastBatchSequenced",
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newAdmin",
+				"type": "address"
+			}
+		],
+		"name": "setAdmin",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -773,12 +1176,38 @@
 	{
 		"inputs": [
 			{
+				"internalType": "uint64",
+				"name": "newPendingStateTimeout",
+				"type": "uint64"
+			}
+		],
+		"name": "setPendingStateTimeout",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "address",
-				"name": "newSecurityCouncil",
+				"name": "newTrustedAggregator",
 				"type": "address"
 			}
 		],
-		"name": "setSecurityCouncil",
+		"name": "setTrustedAggregator",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "newTrustedAggregatorTimeout",
+				"type": "uint64"
+			}
+		],
+		"name": "setTrustedAggregatorTimeout",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -824,6 +1253,32 @@
 	},
 	{
 		"inputs": [],
+		"name": "trustedAggregator",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "trustedAggregatorTimeout",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "trustedSequencer",
 		"outputs": [
 			{
@@ -850,6 +1305,59 @@
 	},
 	{
 		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "pendingStateNum",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "initNumBatch",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "finalNewBatch",
+				"type": "uint64"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "newLocalExitRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "newStateRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256[2]",
+				"name": "proofA",
+				"type": "uint256[2]"
+			},
+			{
+				"internalType": "uint256[2][2]",
+				"name": "proofB",
+				"type": "uint256[2][2]"
+			},
+			{
+				"internalType": "uint256[2]",
+				"name": "proofC",
+				"type": "uint256[2]"
+			}
+		],
+		"name": "trustedVerifyBatches",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "pendingStateNum",
+				"type": "uint64"
+			},
 			{
 				"internalType": "uint64",
 				"name": "initNumBatch",

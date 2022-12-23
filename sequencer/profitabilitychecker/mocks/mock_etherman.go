@@ -13,13 +13,13 @@ type EthermanMock struct {
 	mock.Mock
 }
 
-// GetSendSequenceFee provides a mock function with given fields:
-func (_m *EthermanMock) GetSendSequenceFee() (*big.Int, error) {
-	ret := _m.Called()
+// GetSendSequenceFee provides a mock function with given fields: numBatches
+func (_m *EthermanMock) GetSendSequenceFee(numBatches uint64) (*big.Int, error) {
+	ret := _m.Called(numBatches)
 
 	var r0 *big.Int
-	if rf, ok := ret.Get(0).(func() *big.Int); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(uint64) *big.Int); ok {
+		r0 = rf(numBatches)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*big.Int)
@@ -27,8 +27,8 @@ func (_m *EthermanMock) GetSendSequenceFee() (*big.Int, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(uint64) error); ok {
+		r1 = rf(numBatches)
 	} else {
 		r1 = ret.Error(1)
 	}

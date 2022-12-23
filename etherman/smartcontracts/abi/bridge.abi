@@ -161,19 +161,6 @@
 		"type": "event"
 	},
 	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "newClaimTimeout",
-				"type": "uint256"
-			}
-		],
-		"name": "SetClaimTimeout",
-		"type": "event"
-	},
-	{
 		"inputs": [],
 		"name": "LEAF_TYPE_ASSET",
 		"outputs": [
@@ -399,20 +386,7 @@
 				"type": "uint256"
 			}
 		],
-		"name": "claimNullifier",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "claimTimeout",
+		"name": "claimedBitMap",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -558,16 +532,30 @@
 				"internalType": "address",
 				"name": "_poeAddress",
 				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_claimTimeout",
-				"type": "uint256"
 			}
 		],
 		"name": "initialize",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
+			}
+		],
+		"name": "isClaimed",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -664,19 +652,6 @@
 	{
 		"inputs": [],
 		"name": "renounceOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "newClaimTimeout",
-				"type": "uint256"
-			}
-		],
-		"name": "setClaimTimeout",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"

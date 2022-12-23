@@ -9,7 +9,7 @@ import (
 
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
-	GetSendSequenceFee() (*big.Int, error)
+	GetSendSequenceFee(numBatches uint64) (*big.Int, error)
 }
 
 // priceGetter is for getting eth/matic price, used for the base tx profitability checker
