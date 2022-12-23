@@ -34,7 +34,7 @@ func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Seque
 		return true, nil
 	}
 	// fee - it's collateral for batch, get from SC in matic
-	fee, err := c.EthMan.GetSendSequenceFee()
+	fee, err := c.EthMan.GetSendSequenceFee(1)
 	if err != nil {
 		return false, err
 	}

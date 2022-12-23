@@ -71,11 +71,21 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = br.Initialize(auth, 0, exitManagerAddr, poeAddr, big.NewInt(0))
+	_, err = br.Initialize(auth, 0, exitManagerAddr, poeAddr)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = poe.Initialize(auth, exitManagerAddr, maticAddr, rollupVerifierAddr, genesis, auth.From, true, "http://localhost", 1000, "L2", bridgeAddr, auth.From) //nolint:gomnd
+
+	poeParams := proofofefficiency.ProofOfEfficiencyInitializePackedParameters{
+		Admin:                    auth.From,
+		ChainID:                  1000, //nolint:gomnd
+		TrustedSequencer:         auth.From,
+		PendingStateTimeout:      10000, //nolint:gomnd
+		ForceBatchAllowed:        true,
+		TrustedAggregator:        auth.From,
+		TrustedAggregatorTimeout: 10000, //nolint:gomnd
+	}
+	_, err = poe.Initialize(auth, exitManagerAddr, maticAddr, rollupVerifierAddr, bridgeAddr, poeParams, genesis, "http://localhost", "L2") //nolint:gomnd
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
