@@ -151,7 +151,7 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 		if !mined {
 			// review tx and increase gas and gas price if needed
 			if mTx.status == MonitoredTxStatusSent {
-				err := c.ReviewMonitoredTx(mTx)
+				err := c.ReviewMonitoredTx(ctx, mTx)
 				if err != nil {
 					mTxLog.Errorf("failed to review monitored tx: %v", err)
 					continue
@@ -245,8 +245,33 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 // ReviewMonitoredTx checks if some field needs to be updated
 // accordingly to the current information stored and the current
 // state of the network
-func (c *Client) ReviewMonitoredTx(mTx monitoredTx) error {
-	panic("not implemented yet")
+func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx monitoredTx) error {
+	// get gas
+	gas, err := c.etherman.EstimateGas(ctx, mTx.from, mTx.to, mTx.value, mTx.data)
+	if err != nil {
+		err := fmt.Errorf("failed to estimate gas: %w", err)
+		log.Errorf(err.Error())
+		return err
+	}
+
+	// check gas
+	if gas > mTx.gas {
+		mTx.gas = gas
+	}
+
+	// get gas price
+	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
+	if err != nil {
+		err := fmt.Errorf("failed to get suggested gas price: %w", err)
+		log.Errorf(err.Error())
+		return err
+	}
+
+	// check gas price
+	if gasPrice.Cmp(mTx.gasPrice) == 1 {
+		mTx.gasPrice = gasPrice
+	}
+	return nil
 }
 
 // logErrorAndWait used when an error is detected before trying again
