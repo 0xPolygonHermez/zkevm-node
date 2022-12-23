@@ -21,24 +21,25 @@ func TestSend(t *testing.T) {
 		WaitTxToBeMined:                types.NewDuration(1 * time.Minute),
 	}
 	dbCfg := dbutils.NewStateConfigFromEnv()
+	require.NoError(t, dbutils.InitOrResetState(dbCfg))
 
 	etherman := newSimulatedEtherman(t)
-	storage, err := NewPostgresStorage(cfg, dbCfg)
+	storage, err := NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
 	ethTxManagerClient := New(cfg, etherman, storage)
 
 	id := "unique_id"
 	from := common.HexToAddress("")
-	to := common.HexToAddress("")
-	value := big.NewInt(0)
-	data := []byte{}
+	var to *common.Address
+	var value *big.Int
+	var data []byte = nil
 
 	ctx := context.Background()
 
-	require.NoError(t, ethTxManagerClient.Add(ctx, id, from, &to, value, data))
+	require.NoError(t, ethTxManagerClient.Add(ctx, id, from, to, value, data, nil))
 
-	status, err := ethTxManagerClient.Status(ctx, id)
+	status, err := ethTxManagerClient.Status(ctx, id, nil)
 	require.NoError(t, err)
 	require.NotNil(t, status)
 }

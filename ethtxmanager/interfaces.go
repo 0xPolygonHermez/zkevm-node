@@ -8,6 +8,7 @@ import (
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/jackc/pgx/v4"
 )
 
 type ethermanInterface interface {
@@ -27,8 +28,8 @@ type ethermanInterface interface {
 }
 
 type storageInterface interface {
-	Add(ctx context.Context, mTx monitoredTx) error
-	Get(ctx context.Context, id string) (monitoredTx, error)
-	GetByStatus(ctx context.Context, statuses ...MonitoredTxStatus) ([]monitoredTx, error)
-	Update(ctx context.Context, mTx monitoredTx) error
+	Add(ctx context.Context, mTx monitoredTx, dbTx pgx.Tx) error
+	Get(ctx context.Context, id string, dbTx pgx.Tx) (monitoredTx, error)
+	GetByStatus(ctx context.Context, statuses []MonitoredTxStatus, dbTx pgx.Tx) ([]monitoredTx, error)
+	Update(ctx context.Context, mTx monitoredTx, dbTx pgx.Tx) error
 }

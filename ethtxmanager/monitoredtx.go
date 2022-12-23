@@ -1,7 +1,9 @@
 package ethtxmanager
 
 import (
+	"encoding/hex"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -57,10 +59,16 @@ type monitoredTx struct {
 	// status of this monitoring
 	status MonitoredTxStatus
 
-	// History represent all transaction hashes from
+	// history represent all transaction hashes from
 	// transactions created using this struct data and
 	// sent to the network
 	history map[common.Hash]bool
+
+	// createdAt date time it was created
+	createdAt time.Time
+
+	// updatedAt last date time it was updated
+	updatedAt time.Time
 }
 
 // Tx uses the current information to build a tx
@@ -83,4 +91,43 @@ func (mTx monitoredTx) AddHistory(tx *types.Transaction) error {
 	}
 	mTx.history[tx.Hash()] = true
 	return nil
+}
+
+// toStringPtr returns the current to field as a string pointer
+func (mTx *monitoredTx) toStringPtr() *string {
+	var to *string
+	if mTx.to != nil {
+		s := mTx.to.String()
+		to = &s
+	}
+	return to
+}
+
+// valueU64Ptr returns the current value field as a uint64 pointer
+func (mTx *monitoredTx) valueU64Ptr() *uint64 {
+	var value *uint64
+	if mTx.value != nil {
+		tmp := mTx.value.Uint64()
+		value = &tmp
+	}
+	return value
+}
+
+// dataStringPtr returns the current data field as a string pointer
+func (mTx *monitoredTx) dataStringPtr() *string {
+	var data *string
+	if mTx.data != nil {
+		tmp := hex.EncodeToString(mTx.data)
+		data = &tmp
+	}
+	return data
+}
+
+// historyStringSlice returns the current history field as a string slice
+func (mTx *monitoredTx) historyStringSlice() []string {
+	history := make([]string, 0, len(mTx.history))
+	for h := range mTx.history {
+		history = append(history, h.String())
+	}
+	return history
 }

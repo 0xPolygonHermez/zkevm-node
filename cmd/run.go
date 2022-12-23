@@ -79,7 +79,7 @@ func start(cliCtx *cli.Context) error {
 	ctx := context.Background()
 	st := newState(ctx, c, l2ChainID, stateSqlDB)
 
-	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.EthTxManager, c.StateDB)
+	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/jackc/pgx/v4"
 )
 
 const failureIntervalInSeconds = 5
@@ -58,7 +59,7 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, ba
 }
 
 // Add a transaction to be sent and monitored
-func (c *Client) Add(ctx context.Context, id string, from common.Address, to *common.Address, value *big.Int, data []byte) error {
+func (c *Client) Add(ctx context.Context, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error {
 	// get next nonce
 	nonce, err := c.etherman.CurrentNonce(ctx)
 	if err != nil {
@@ -90,7 +91,7 @@ func (c *Client) Add(ctx context.Context, id string, from common.Address, to *co
 	}
 
 	// add to storage
-	err = c.storage.Add(ctx, mTx)
+	err = c.storage.Add(ctx, mTx, dbTx)
 	if err != nil {
 		err := fmt.Errorf("failed to add tx to get monitored: %w", err)
 		log.Errorf(err.Error())
@@ -101,8 +102,8 @@ func (c *Client) Add(ctx context.Context, id string, from common.Address, to *co
 }
 
 // Status returns the current status of the transaction
-func (c *Client) Status(ctx context.Context, id string) (MonitoredTxStatus, error) {
-	mTx, err := c.storage.Get(ctx, id)
+func (c *Client) Status(ctx context.Context, id string, dbTx pgx.Tx) (MonitoredTxStatus, error) {
+	mTx, err := c.storage.Get(ctx, id, dbTx)
 	if err != nil {
 		return MonitoredTxStatus(""), err
 	}
@@ -121,12 +122,14 @@ func (c *Client) manageTxs() {
 		if err != nil {
 			c.logErrorAndWait("failed to process created monitored txs: %v", err)
 		}
+		time.Sleep(time.Second)
 	}
 }
 
 // processMonitoredTxs process all monitored tx with Created and Sent status
 func (c *Client) processMonitoredTxs(ctx context.Context) error {
-	mTxs, err := c.storage.GetByStatus(ctx, MonitoredTxStatusCreated, MonitoredTxStatusSent)
+	statusesFilter := []MonitoredTxStatus{MonitoredTxStatusCreated, MonitoredTxStatusSent}
+	mTxs, err := c.storage.GetByStatus(ctx, statusesFilter, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get created monitored txs: %v", err)
 	}
@@ -197,7 +200,7 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 					mTx.status = MonitoredTxStatusSent
 					mTxLog.Debugf("status changed to %v", string(mTx.status))
 					// update monitored tx changes into storage
-					err = c.storage.Update(ctx, mTx)
+					err = c.storage.Update(ctx, mTx, nil)
 					if err != nil {
 						mTxLog.Errorf("failed to update monitored tx changes: %v", err)
 						continue
@@ -231,7 +234,7 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 		}
 
 		// update monitored tx changes into storage
-		err = c.storage.Update(ctx, mTx)
+		err = c.storage.Update(ctx, mTx, nil)
 		if err != nil {
 			mTxLog.Errorf("failed to update monitored tx changes: %v", err)
 			continue
