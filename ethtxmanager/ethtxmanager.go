@@ -22,9 +22,9 @@ const failureIntervalInSeconds = 5
 
 var (
 	// ErrNotFound when the object is not found
-	ErrNotFound = errors.New("Not Found")
+	ErrNotFound = errors.New("not found")
 	// ErrAlreadyExists when the object already exists
-	ErrAlreadyExists = errors.New("Already Exists")
+	ErrAlreadyExists = errors.New("already exists")
 )
 
 // Client for eth tx manager

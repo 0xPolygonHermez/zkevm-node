@@ -132,7 +132,7 @@ benchmark-sequencer: stop
 	$(RUNL1NETWORK)
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB); sleep 5
+	sleep 5
 	$(RUNZKPROVER)
 	$(RUNJSONRPC)
 	$(RUNSYNC)

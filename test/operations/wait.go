@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"google.golang.org/grpc"
@@ -116,9 +117,7 @@ func revertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blo
 		return "", err
 	}
 
-	reasonOffset := new(big.Int).SetBytes(hex[4 : 4+32])
-	reason := string(hex[4+32+int(reasonOffset.Uint64()):])
-	return reason, nil
+	return abi.UnpackRevert(hex)
 }
 
 // WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
