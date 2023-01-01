@@ -47,6 +47,7 @@ func start(cliCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	log.Info(">> loaded config: %+v", c)
 	setupLog(c.Log)
 	if c.Metrics.Enabled {
 		metrics.Init()
@@ -147,6 +148,9 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Infof("etherman - Client: %o", etherman.EtherClient)
+	log.Infof("etherman - SCAddresses: %s", etherman.SCAddresses)
+	log.Infof("ethereum - %+v\n", etherman)
 	return etherman, nil
 }
 

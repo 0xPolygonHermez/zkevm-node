@@ -24,6 +24,18 @@ EnableLog = false
 MaxConns = 200
 
 [Etherman]
+URL = "http://172.17.0.1:18545"
+L1ChainID = 1001
+PrivateKeyPath = "/pk/keystore"
+PrivateKeyPassword = "testonly"
+PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+MultiGasProvider = false
+	[Etherscan]
+		ApiKey = ""
+
+[Etherman-original]
 URL = "http://your.L1node.url"
 L1ChainID = 5
 PrivateKeyPath = "/pk/keystore"
@@ -32,8 +44,6 @@ PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
 MultiGasProvider = false
-	[Etherman.Etherscan]
-		ApiKey = ""
 
 [EthTxManager]
 MaxSendBatchTxRetries = 10
@@ -47,12 +57,12 @@ PercentageToIncreaseGasLimit = 10
 
 [RPC]
 Host = "0.0.0.0"
-Port = 8545
+Port = 8123
 ReadTimeoutInSec = 60
 WriteTimeoutInSec = 60
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://internal.zkevm-test.net:2083/"
-BroadcastURI = "internal.zkevm-test.net:61090"
+BroadcastURI = "zkevm-broadcast:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 	[RPC.WebSockets]
 		Enabled = true
@@ -97,6 +107,7 @@ IntervalToSendFinalProof = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 IntervalFrequencyToGetProofGenerationState = "5s"
+ChainID = 1337
 
 [GasPriceEstimator]
 Type = "default"

@@ -32,6 +32,28 @@ build-docker: ## Builds a docker image with the node binary
 build-docker-nc: ## Builds a docker image with the node binary - but without build cache
 	docker build --no-cache=true -t zkevm-node -f ./Dockerfile .
 
+run-dbs:
+	docker-compose up -d zkevm-state-db zkevm-pool-db zkevm-rpc-db
+	
+run-nodes:
+	docker-compose up -d zkevm-broadcast
+	sleep 2
+	docker-compose up -d zkevm-sequencer zkevm-aggregator zkevm-json-rpc zkevm-sync
+
+# run-explorers:
+# 	docker-compose up -d zkevm-explorer-l1-db zkevm-explorer-l2-db
+# 	sleep 2
+# 	docker-compose up -d zkevm-explorer-json-rpc
+# 	sleep 2
+# 	docker-compose up -d zkevm-explorer-
+
+run-node-no-prover:
+	docker-compose up -d zkevm-state-db zkevm-rpc-db zkevm-pool-db
+	sleep 2
+	docker-compose up -d zkevm-prover
+	sleep 5
+	docker-compose up -d zkevm-json-rpc zkevm-sync zkevm-broadcast 
+
 .PHONY: run-rpc
 run-rpc: ## Runs all the services need to run a local zkEMV RPC node
 	docker-compose up -d zkevm-state-db zkevm-pool-db
