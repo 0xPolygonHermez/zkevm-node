@@ -916,3 +916,19 @@ func (etherMan *Client) SignTx(ctx context.Context, tx *types.Transaction) (*typ
 	}
 	return signedTx, nil
 }
+
+// GetRevertMessage tries to get a revert message of a transaction
+func (etherMan *Client) GetRevertMessage(ctx context.Context, tx types.Transaction) (string, error) {
+	receipt, err := etherMan.GetTxReceipt(ctx, tx.Hash())
+	if err != nil {
+		return "", err
+	}
+	if receipt.Status == types.ReceiptStatusFailed {
+		revertMessage, err := operations.RevertReason(ctx, etherMan.EthClient, &tx, receipt.BlockNumber)
+		if err != nil {
+			return "", err
+		}
+		return revertMessage, nil
+	}
+	return "", nil
+}

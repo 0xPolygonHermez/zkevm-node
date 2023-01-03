@@ -30,6 +30,9 @@ var (
 
 // Client for eth tx manager
 type Client struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	cfg      Config
 	etherman ethermanInterface
 	storage  storageInterface
@@ -43,14 +46,7 @@ func New(cfg Config, ethMan ethermanInterface, storage storageInterface) *Client
 		storage:  storage,
 	}
 
-	go c.manageTxs()
-
 	return c
-}
-
-// SequenceBatches deprecated
-func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error {
-	panic("deprecated")
 }
 
 // VerifyBatches deprecated
@@ -59,7 +55,7 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, ba
 }
 
 // Add a transaction to be sent and monitored
-func (c *Client) Add(ctx context.Context, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error {
+func (c *Client) Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error {
 	// get next nonce
 	nonce, err := c.etherman.CurrentNonce(ctx)
 	if err != nil {
@@ -84,7 +80,7 @@ func (c *Client) Add(ctx context.Context, id string, from common.Address, to *co
 
 	// create monitored tx
 	mTx := monitoredTx{
-		id: id, from: from, to: to,
+		owner: owner, id: id, from: from, to: to,
 		nonce: nonce, value: value, data: data,
 		gas: gas, gasPrice: gasPrice,
 		status: MonitoredTxStatusCreated,
@@ -101,35 +97,121 @@ func (c *Client) Add(ctx context.Context, id string, from common.Address, to *co
 	return nil
 }
 
-// Status returns the current status of the transaction
-func (c *Client) Status(ctx context.Context, id string, dbTx pgx.Tx) (MonitoredTxStatus, error) {
-	mTx, err := c.storage.Get(ctx, id, dbTx)
+// ResultsByStatus returns all the results for all the monitored txs related to the owner and matching the provided statuses
+// if the statuses are empty, all the statuses are considered.
+//
+// the slice is returned is in order by created_at field ascending
+func (c *Client) ResultsByStatus(ctx context.Context, owner string, statuses []MonitoredTxStatus, dbTx pgx.Tx) ([]MonitoredTxResult, error) {
+	mTxs, err := c.storage.GetByStatus(ctx, &owner, statuses, dbTx)
 	if err != nil {
-		return MonitoredTxStatus(""), err
+		return nil, err
 	}
 
-	return mTx.status, nil
+	results := make([]MonitoredTxResult, 0, len(mTxs))
+
+	for _, mTx := range mTxs {
+		result, err := c.buildResult(ctx, mTx)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
+	}
+
+	return results, nil
 }
 
-// manageTxs will read txs from storage, send then to L1
-// and keep monitoring tham until they get mined, so the
-// next one can be sent
-func (c *Client) manageTxs() {
-	// infinite loop to manage txs as they arrive
-	for {
-		ctx := context.Background()
-		err := c.processMonitoredTxs(ctx)
-		if err != nil {
-			c.logErrorAndWait("failed to process created monitored txs: %v", err)
-		}
-		time.Sleep(time.Second)
+// Result returns the current result of the transaction execution with all the details
+func (c *Client) Result(ctx context.Context, owner, id string, dbTx pgx.Tx) (MonitoredTxResult, error) {
+	mTx, err := c.storage.Get(ctx, owner, id, dbTx)
+	if err != nil {
+		return MonitoredTxResult{}, err
 	}
+
+	return c.buildResult(ctx, mTx)
+}
+
+// SetStatusDone sets the status of a monitored tx to MonitoredStatusDone.
+// this method is provided to the callers to decide when a monitored tx should be
+// considered done, so they can start to ignore it when querying it by Status.
+func (c *Client) SetStatusDone(ctx context.Context, owner, id string, dbTx pgx.Tx) error {
+	mTx, err := c.storage.Get(ctx, owner, id, nil)
+	if err != nil {
+		return err
+	}
+
+	mTx.status = MonitoredTxStatusDone
+
+	return c.storage.Update(ctx, mTx, dbTx)
+}
+
+func (c *Client) buildResult(ctx context.Context, mTx monitoredTx) (MonitoredTxResult, error) {
+	history := mTx.historyHashSlice()
+	txs := make(map[common.Hash]TxResult, len(history))
+
+	for _, txHash := range history {
+		tx, _, err := c.etherman.GetTx(ctx, txHash)
+		if errors.Is(err, ethereum.NotFound) {
+			continue
+		} else if err != nil {
+			return MonitoredTxResult{}, err
+		}
+
+		receipt, err := c.etherman.GetTxReceipt(ctx, txHash)
+		if errors.Is(err, ethereum.NotFound) {
+			continue
+		} else if err != nil {
+			return MonitoredTxResult{}, err
+		}
+
+		revertMessage, err := c.etherman.GetRevertMessage(ctx, *tx)
+		if err != nil {
+			return MonitoredTxResult{}, err
+		}
+
+		txs[txHash] = TxResult{
+			Tx:            *tx,
+			Receipt:       receipt,
+			RevertMessage: revertMessage,
+		}
+	}
+
+	result := MonitoredTxResult{
+		ID:     mTx.id,
+		Status: mTx.status,
+		Txs:    txs,
+	}
+
+	return result, nil
+}
+
+// ManageTxs will read txs from storage, send then to L1
+// and keep monitoring them until they get mined, so the
+// next one can be sent
+func (c *Client) ManageTxs() {
+	// infinite loop to manage txs as they arrive
+	c.ctx, c.cancel = context.WithCancel(context.Background())
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-time.After(time.Second):
+			err := c.processMonitoredTxs(context.Background())
+			if err != nil {
+				c.logErrorAndWait("failed to process created monitored txs: %v", err)
+			}
+		}
+	}
+}
+
+// Stop will stops the monitored tx management
+func (c *Client) Stop() {
+	c.cancel()
 }
 
 // processMonitoredTxs process all monitored tx with Created and Sent status
 func (c *Client) processMonitoredTxs(ctx context.Context) error {
 	statusesFilter := []MonitoredTxStatus{MonitoredTxStatusCreated, MonitoredTxStatusSent}
-	mTxs, err := c.storage.GetByStatus(ctx, statusesFilter, nil)
+	mTxs, err := c.storage.GetByStatus(ctx, nil, statusesFilter, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get created monitored txs: %v", err)
 	}

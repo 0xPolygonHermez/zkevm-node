@@ -6,6 +6,7 @@ import (
 	"time"
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
+	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -69,7 +70,10 @@ type stateInterface interface {
 }
 
 type txManager interface {
-	SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error
+	Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error
+	Result(ctx context.Context, owner, id string, dbTx pgx.Tx) (ethtxmanager.MonitoredTxResult, error)
+	ResultsByStatus(ctx context.Context, owner string, statuses []ethtxmanager.MonitoredTxStatus, dbTx pgx.Tx) ([]ethtxmanager.MonitoredTxResult, error)
+	SetStatusDone(ctx context.Context, owner, id string, dbTx pgx.Tx) error
 }
 
 // priceGetter is for getting eth/matic price, used for the tx profitability checker

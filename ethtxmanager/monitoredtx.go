@@ -17,13 +17,16 @@ const (
 	MonitoredTxStatusSent = MonitoredTxStatus("sent")
 
 	// MonitoredTxStatusFailed means the tx was already mined and failed with an
-	// error that can be recovered automatically, ex: the data in the tx is invalid
+	// error that can't be recovered automatically, ex: the data in the tx is invalid
 	// and the tx gets reverted
 	MonitoredTxStatusFailed = MonitoredTxStatus("failed")
 
 	// MonitoredTxStatusConfirmed means the tx was already mined and the receipt
 	// status is Successful
 	MonitoredTxStatusConfirmed = MonitoredTxStatus("confirmed")
+
+	// MonitoredTxStatusDone means the tx was set by the owner as done
+	MonitoredTxStatusDone = MonitoredTxStatus("done")
 )
 
 // MonitoredTxStatus represents the status of a monitored tx
@@ -32,6 +35,12 @@ type MonitoredTxStatus string
 // monitoredTx represents a set of information used to build tx
 // plus information to monitor if the transactions was sent successfully
 type monitoredTx struct {
+	// owner is the common identifier among all the monitored tx to identify who
+	// created this, it's a identification provided by the caller in order to be
+	// used in the future to query the monitored tx by the owner, this allows the
+	// caller to be free of implementing a persistence layer to monitor the txs
+	owner string
+
 	// id is the tx identifier controller by the caller
 	id string
 
@@ -130,4 +139,27 @@ func (mTx *monitoredTx) historyStringSlice() []string {
 		history = append(history, h.String())
 	}
 	return history
+}
+
+// historyHashSlice returns the current history field as a string slice
+func (mTx *monitoredTx) historyHashSlice() []common.Hash {
+	history := make([]common.Hash, 0, len(mTx.history))
+	for h := range mTx.history {
+		history = append(history, h)
+	}
+	return history
+}
+
+// MonitoredTxResult represents the result of a execution of a monitored tx
+type MonitoredTxResult struct {
+	ID     string
+	Status MonitoredTxStatus
+	Txs    map[common.Hash]TxResult
+}
+
+// TxResult represents the result of a execution of a ethereum transaction in the block chain
+type TxResult struct {
+	Tx            types.Transaction
+	Receipt       *types.Receipt
+	RevertMessage string
 }

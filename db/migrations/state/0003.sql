@@ -6,7 +6,8 @@ CREATE SCHEMA txman;
 
 CREATE TABLE txman.monitored_txs
 (
-    id         VARCHAR NOT NULL PRIMARY KEY,
+    owner      VARCHAR NOT NULL,
+    id         VARCHAR NOT NULL,
     from_addr  VARCHAR NOT NULL,
     to_addr    VARCHAR,
     nonce      DECIMAL(78, 0) NOT NULL,
@@ -17,5 +18,6 @@ CREATE TABLE txman.monitored_txs
     status     VARCHAR,
     history    VARCHAR[],
     created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    updated_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (owner, id)
 );

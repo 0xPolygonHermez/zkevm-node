@@ -19,6 +19,7 @@ func TestAddGetAndUpdate(t *testing.T) {
 	storage, err := NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
+	owner := "owner"
 	id := "id"
 	from := common.HexToAddress("0x1")
 	to := common.HexToAddress("0x2")
@@ -31,15 +32,16 @@ func TestAddGetAndUpdate(t *testing.T) {
 	history := map[common.Hash]bool{common.HexToHash("0x3"): true, common.HexToHash("0x4"): true}
 
 	mTx := monitoredTx{
-		id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
+		owner: owner, id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
 		gas: gas, gasPrice: gasPrice, status: status, history: history,
 	}
 	err = storage.Add(context.Background(), mTx, nil)
 	require.NoError(t, err)
 
-	returnedMtx, err := storage.Get(context.Background(), id, nil)
+	returnedMtx, err := storage.Get(context.Background(), owner, id, nil)
 	require.NoError(t, err)
 
+	assert.Equal(t, owner, returnedMtx.owner)
 	assert.Equal(t, id, returnedMtx.id)
 	assert.Equal(t, from.String(), returnedMtx.from.String())
 	assert.Equal(t, to.String(), returnedMtx.to.String())
@@ -66,15 +68,16 @@ func TestAddGetAndUpdate(t *testing.T) {
 	history = map[common.Hash]bool{common.HexToHash("0x33"): true, common.HexToHash("0x44"): true}
 
 	mTx = monitoredTx{
-		id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
+		owner: owner, id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
 		gas: gas, gasPrice: gasPrice, status: status, history: history,
 	}
 	err = storage.Update(context.Background(), mTx, nil)
 	require.NoError(t, err)
 
-	returnedMtx, err = storage.Get(context.Background(), id, nil)
+	returnedMtx, err = storage.Get(context.Background(), owner, id, nil)
 	require.NoError(t, err)
 
+	assert.Equal(t, owner, returnedMtx.owner)
 	assert.Equal(t, id, returnedMtx.id)
 	assert.Equal(t, from.String(), returnedMtx.from.String())
 	assert.Equal(t, to.String(), returnedMtx.to.String())
@@ -100,7 +103,7 @@ func TestAddAndGetByStatus(t *testing.T) {
 
 	to := common.HexToAddress("0x2")
 	baseMtx := monitoredTx{
-		from: common.HexToAddress("0x1"), to: &to, nonce: uint64(1), value: big.NewInt(2), data: []byte("data"),
+		owner: "owner", from: common.HexToAddress("0x1"), to: &to, nonce: uint64(1), value: big.NewInt(2), data: []byte("data"),
 		gas: uint64(3), gasPrice: big.NewInt(4), history: map[common.Hash]bool{common.HexToHash("0x3"): true, common.HexToHash("0x4"): true},
 	}
 
@@ -129,13 +132,13 @@ func TestAddAndGetByStatus(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	mTxs, err := storage.GetByStatus(context.Background(), []MonitoredTxStatus{MonitoredTxStatusConfirmed}, nil)
+	mTxs, err := storage.GetByStatus(context.Background(), nil, []MonitoredTxStatus{MonitoredTxStatusConfirmed}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(mTxs))
 	assert.Equal(t, "confirmed1", mTxs[0].id)
 	assert.Equal(t, "confirmed2", mTxs[1].id)
 
-	mTxs, err = storage.GetByStatus(context.Background(), []MonitoredTxStatus{MonitoredTxStatusSent, MonitoredTxStatusCreated}, nil)
+	mTxs, err = storage.GetByStatus(context.Background(), nil, []MonitoredTxStatus{MonitoredTxStatusSent, MonitoredTxStatusCreated}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 4, len(mTxs))
 	assert.Equal(t, "created1", mTxs[0].id)
@@ -143,7 +146,7 @@ func TestAddAndGetByStatus(t *testing.T) {
 	assert.Equal(t, "created2", mTxs[2].id)
 	assert.Equal(t, "sent2", mTxs[3].id)
 
-	mTxs, err = storage.GetByStatus(context.Background(), []MonitoredTxStatus{}, nil)
+	mTxs, err = storage.GetByStatus(context.Background(), nil, []MonitoredTxStatus{}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 8, len(mTxs))
 	assert.Equal(t, "created1", mTxs[0].id)
@@ -163,6 +166,7 @@ func TestAddRepeated(t *testing.T) {
 	storage, err := NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
+	owner := "owner"
 	id := "id"
 	from := common.HexToAddress("0x1")
 	to := common.HexToAddress("0x2")
@@ -175,7 +179,7 @@ func TestAddRepeated(t *testing.T) {
 	history := map[common.Hash]bool{common.HexToHash("0x3"): true, common.HexToHash("0x4"): true}
 
 	mTx := monitoredTx{
-		id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
+		owner: owner, id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
 		gas: gas, gasPrice: gasPrice, status: status, history: history,
 	}
 	err = storage.Add(context.Background(), mTx, nil)
@@ -192,7 +196,7 @@ func TestGetNotFound(t *testing.T) {
 	storage, err := NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
-	_, err = storage.Get(context.Background(), "not found id", nil)
+	_, err = storage.Get(context.Background(), "not found owner", "not found id", nil)
 	require.Equal(t, ErrNotFound, err)
 }
 
@@ -203,7 +207,7 @@ func TestGetByStatusNoRows(t *testing.T) {
 	storage, err := NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
-	mTxs, err := storage.GetByStatus(context.Background(), []MonitoredTxStatus{}, nil)
+	mTxs, err := storage.GetByStatus(context.Background(), nil, []MonitoredTxStatus{}, nil)
 	require.NoError(t, err)
 	require.Empty(t, mTxs)
 }

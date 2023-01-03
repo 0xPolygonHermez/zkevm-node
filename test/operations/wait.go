@@ -85,7 +85,7 @@ func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Tr
 	}
 	if receipt.Status == types.ReceiptStatusFailed {
 		// Get revert reason
-		reason, reasonErr := revertReason(ctx, client, tx, receipt.BlockNumber)
+		reason, reasonErr := RevertReason(ctx, client, tx, receipt.BlockNumber)
 		if reasonErr != nil {
 			reason = reasonErr.Error()
 		}
@@ -95,7 +95,8 @@ func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Tr
 	return nil
 }
 
-func revertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blockNumber *big.Int) (string, error) {
+// RevertReason returns the revert reason for a tx that has a receipt with failed status
+func RevertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blockNumber *big.Int) (string, error) {
 	from, err := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
 	if err != nil {
 		signer := types.LatestSignerForChainID(tx.ChainId())

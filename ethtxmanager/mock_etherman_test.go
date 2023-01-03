@@ -138,6 +138,27 @@ func (_m *ethermanMock) EstimateGasSequenceBatches(sequences []ethermantypes.Seq
 	return r0, r1
 }
 
+// GetRevertMessage provides a mock function with given fields: ctx, tx
+func (_m *ethermanMock) GetRevertMessage(ctx context.Context, tx types.Transaction) (string, error) {
+	ret := _m.Called(ctx, tx)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(context.Context, types.Transaction) string); ok {
+		r0 = rf(ctx, tx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, types.Transaction) error); ok {
+		r1 = rf(ctx, tx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetTx provides a mock function with given fields: ctx, txHash
 func (_m *ethermanMock) GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
 	ret := _m.Called(ctx, txHash)

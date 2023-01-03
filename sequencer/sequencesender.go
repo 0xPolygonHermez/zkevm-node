@@ -9,14 +9,21 @@ import (
 
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
+	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/core"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/google/uuid"
 )
 
+const txManagerOwner = "sequencer"
+
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+	// process monitored sequences before starting a next cycle
+	s.processMonitoredSequences(ctx)
+
 	// This sleep waits for the synchronizer and for txs in L1
 	time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
 	// Check if synchronizer is up to date
@@ -41,7 +48,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
-		log.Errorf("failed to get last virtual batch num, err: %w", err)
+		log.Errorf("failed to get last virtual batch num, err: %v", err)
 		return
 	}
 
@@ -52,9 +59,72 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(sequenceCount),
 	)
 	metrics.SequencesSentToL1(float64(sequenceCount))
-	err = s.txManager.SequenceBatches(ctx, sequences)
+
+	// add sequence to be monitored
+	tx, err := s.etherman.EstimateGasSequenceBatches(sequences)
 	if err != nil {
-		log.Error("error sending new sequenceBatches: ", err)
+		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
+	}
+	sender, err := state.GetSender(*tx)
+	if err != nil {
+		log.Error("error getting tx sender to add to eth tx manager: ", err)
+	}
+
+	sequenceID := uuid.New()
+	err = s.txManager.Add(ctx, txManagerOwner, sequenceID.String(), sender, tx.To(), tx.Value(), tx.Data(), nil)
+	if err != nil {
+		log.Error("error to add tx to eth tx manager: ", err)
+	}
+}
+
+// processMonitoredSequences will check all monitored txs status and wait
+// until all of them are either confirmed or failed before continuing
+func (s *Sequencer) processMonitoredSequences(ctx context.Context) {
+	// check for pending monitored sequences before getting into a new cycle
+	statusesFilter := []ethtxmanager.MonitoredTxStatus{
+		ethtxmanager.MonitoredTxStatusCreated,
+		ethtxmanager.MonitoredTxStatusSent,
+		ethtxmanager.MonitoredTxStatusFailed,
+		ethtxmanager.MonitoredTxStatusConfirmed,
+	}
+	results, err := s.txManager.ResultsByStatus(ctx, txManagerOwner, statusesFilter, nil)
+	if err != nil {
+		log.Error("failed to get results by statuses from eth tx manager to monitored txs err: ", err)
+	}
+	for _, result := range results {
+		// if the result is confirmed, we set it as done do stop looking into this sequence
+		if result.Status == ethtxmanager.MonitoredTxStatusConfirmed {
+			err := s.txManager.SetStatusDone(ctx, txManagerOwner, result.ID, nil)
+			if err != nil {
+				log.Errorf("failed to set monitored tx as done, owner: %v, id: %v, err: %v", txManagerOwner, result.ID, err)
+			}
+			continue
+		}
+
+		// if the result is failed, we need to go around it and rebuild a sequence
+		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
+			log.Fatal("failed to send sequence, TODO: review this fatal and define what to do in this case")
+		}
+
+		// if the result is either created of sent, it means we need to wait until it gets confirmed of failed.
+		if result.Status == ethtxmanager.MonitoredTxStatusCreated || result.Status == ethtxmanager.MonitoredTxStatusSent {
+			// wait
+			for {
+				// wait before refreshing the result info
+				time.Sleep(time.Second)
+
+				// refresh the result info
+				result, err := s.txManager.Result(ctx, txManagerOwner, result.ID, nil)
+				if err != nil {
+					log.Errorf("failed to set monitored tx as done, owner: %v, id: %v, err: %v", txManagerOwner, result.ID, err)
+				}
+
+				// if the result status has changed, breaks the infinite loop
+				if result.Status != ethtxmanager.MonitoredTxStatusCreated && result.Status != ethtxmanager.MonitoredTxStatusSent {
+					break
+				}
+			}
+		}
 	}
 }
 

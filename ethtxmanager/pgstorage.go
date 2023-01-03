@@ -36,10 +36,10 @@ func NewPostgresStorage(dbCfg db.Config) (storageInterface, error) {
 func (s *PostgresStorage) Add(ctx context.Context, mTx monitoredTx, dbTx pgx.Tx) error {
 	conn := s.dbConn(dbTx)
 	cmd := `
-        INSERT INTO txman.monitored_txs (id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, history, created_at, updated_at)
-                                 VALUES ($1,        $2,      $3,    $4,    $5,   $6,  $7,       $8,      $9,     $10,        $11,        $12)`
+        INSERT INTO txman.monitored_txs (owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, history, created_at, updated_at)
+                                 VALUES (   $1, $2,        $3,      $4,    $5,    $6,   $7,  $8,        $9,    $10,     $11,        $12,        $13)`
 
-	_, err := conn.Exec(ctx, cmd,
+	_, err := conn.Exec(ctx, cmd, mTx.owner,
 		mTx.id, mTx.from.String(), mTx.toStringPtr(),
 		mTx.nonce, mTx.valueU64Ptr(), mTx.dataStringPtr(),
 		mTx.gas, mTx.gasPrice.Uint64(), string(mTx.status),
@@ -58,16 +58,17 @@ func (s *PostgresStorage) Add(ctx context.Context, mTx monitoredTx, dbTx pgx.Tx)
 }
 
 // Get loads a persisted monitored tx
-func (s *PostgresStorage) Get(ctx context.Context, id string, dbTx pgx.Tx) (monitoredTx, error) {
+func (s *PostgresStorage) Get(ctx context.Context, owner, id string, dbTx pgx.Tx) (monitoredTx, error) {
 	conn := s.dbConn(dbTx)
 	cmd := `
-        SELECT id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, history, created_at, updated_at
+        SELECT owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, history, created_at, updated_at
           FROM txman.monitored_txs
-         WHERE id = $1`
+         WHERE owner = $1 
+           AND id = $2`
 
 	mTx := monitoredTx{}
 
-	row := conn.QueryRow(ctx, cmd, id)
+	row := conn.QueryRow(ctx, cmd, owner, id)
 	err := s.scanMtx(row, &mTx)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return mTx, ErrNotFound
@@ -79,16 +80,17 @@ func (s *PostgresStorage) Get(ctx context.Context, id string, dbTx pgx.Tx) (moni
 }
 
 // GetByStatus loads all monitored tx that match the provided status
-func (s *PostgresStorage) GetByStatus(ctx context.Context, statuses []MonitoredTxStatus, dbTx pgx.Tx) ([]monitoredTx, error) {
+func (s *PostgresStorage) GetByStatus(ctx context.Context, owner *string, statuses []MonitoredTxStatus, dbTx pgx.Tx) ([]monitoredTx, error) {
 	hasStatusToFilter := len(statuses) > 0
 
 	conn := s.dbConn(dbTx)
 	cmd := `
-        SELECT id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, history, created_at, updated_at
-          FROM txman.monitored_txs`
+        SELECT owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, history, created_at, updated_at
+          FROM txman.monitored_txs
+         WHERE (owner = $1 OR $1 IS NULL)`
 	if hasStatusToFilter {
 		cmd += `
-         WHERE status = ANY($1)`
+           AND status = ANY($2)`
 	}
 	cmd += `
          ORDER BY created_at`
@@ -98,9 +100,9 @@ func (s *PostgresStorage) GetByStatus(ctx context.Context, statuses []MonitoredT
 	var rows pgx.Rows
 	var err error
 	if hasStatusToFilter {
-		rows, err = conn.Query(ctx, cmd, statuses)
+		rows, err = conn.Query(ctx, cmd, owner, statuses)
 	} else {
-		rows, err = conn.Query(ctx, cmd)
+		rows, err = conn.Query(ctx, cmd, owner)
 	}
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -126,19 +128,20 @@ func (s *PostgresStorage) Update(ctx context.Context, mTx monitoredTx, dbTx pgx.
 	conn := s.dbConn(dbTx)
 	cmd := `
         UPDATE txman.monitored_txs
-           SET from_addr = $2
-             , to_addr = $3
-             , nonce = $4
-             , value = $5
-             , data = $6
-             , gas = $7
-             , gas_price = $8
-             , status = $9
-             , history = $10
-             , updated_at = $11
-         WHERE id = $1`
+           SET from_addr = $3
+             , to_addr = $4
+             , nonce = $5
+             , value = $6
+             , data = $7
+             , gas = $8
+             , gas_price = $9
+             , status = $10
+             , history = $11
+             , updated_at = $12
+         WHERE owner = $1
+		   AND id = $2`
 
-	_, err := conn.Exec(ctx, cmd,
+	_, err := conn.Exec(ctx, cmd, mTx.owner,
 		mTx.id, mTx.from.String(), mTx.toStringPtr(),
 		mTx.nonce, mTx.valueU64Ptr(), mTx.dataStringPtr(),
 		mTx.gas, mTx.gasPrice.Uint64(), string(mTx.status),
@@ -161,7 +164,7 @@ func (s *PostgresStorage) scanMtx(row pgx.Row, mTx *monitoredTx) error {
 	var value *uint64
 	var gasPrice uint64
 
-	err := row.Scan(&mTx.id, &from, &to, &mTx.nonce, &value, &data, &mTx.gas, &gasPrice, &status, &history, &mTx.createdAt, &mTx.updatedAt)
+	err := row.Scan(&mTx.owner, &mTx.id, &from, &to, &mTx.nonce, &value, &data, &mTx.gas, &gasPrice, &status, &history, &mTx.createdAt, &mTx.updatedAt)
 	if err != nil {
 		return err
 	}
