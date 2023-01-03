@@ -477,7 +477,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 				log.Errorf("error committing dbTx, err: %w", errC)
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
-					log.Errorf("error rolling back state. RollbackErr: %w, err: %w", rollbackErr, errC)
+					log.Errorf("error rolling back state. RollbackErr: %w", rollbackErr)
 					return nil, rollbackErr
 				}
 				log.Errorf("error committing dbTx, err: %w", errC)
@@ -637,12 +637,12 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				}
 				status = true
 			} else {
+				log.Error("error checking trusted state: ", err)
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
-					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %w", batch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %w", batch.BatchNumber, blockNumber, rollbackErr)
 					return rollbackErr
 				}
-				log.Error("error checking trusted state: ", err)
 				return err
 			}
 		}
