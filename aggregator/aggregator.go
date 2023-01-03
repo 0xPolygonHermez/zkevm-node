@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -94,6 +95,8 @@ func (a *Aggregator) Start(ctx context.Context) error {
 	a.ctx = ctx
 	a.exit = cancel
 
+	metrics.Register()
+
 	// Delete ungenerated recursive proofs
 	err := a.State.DeleteUngeneratedProofs(ctx, nil)
 	if err != nil {
@@ -137,6 +140,9 @@ func (a *Aggregator) Stop() {
 // Channel implements the bi-directional communication channel between the
 // Prover client and the Aggregator server.
 func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
+	metrics.ConnectedProver()
+	defer metrics.DisconnectedProver()
+
 	ctx := stream.Context()
 	var proverAddr net.Addr
 	p, ok := peer.FromContext(ctx)
