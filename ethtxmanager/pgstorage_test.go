@@ -155,3 +155,55 @@ func TestAddAndGetByStatus(t *testing.T) {
 	assert.Equal(t, "failed2", mTxs[6].id)
 	assert.Equal(t, "confirmed2", mTxs[7].id)
 }
+
+func TestAddRepeated(t *testing.T) {
+	dbCfg := dbutils.NewStateConfigFromEnv()
+	require.NoError(t, dbutils.InitOrResetState(dbCfg))
+
+	storage, err := NewPostgresStorage(dbCfg)
+	require.NoError(t, err)
+
+	id := "id"
+	from := common.HexToAddress("0x1")
+	to := common.HexToAddress("0x2")
+	nonce := uint64(1)
+	value := big.NewInt(2)
+	data := []byte("data")
+	gas := uint64(3)
+	gasPrice := big.NewInt(4)
+	status := MonitoredTxStatusCreated
+	history := map[common.Hash]bool{common.HexToHash("0x3"): true, common.HexToHash("0x4"): true}
+
+	mTx := monitoredTx{
+		id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
+		gas: gas, gasPrice: gasPrice, status: status, history: history,
+	}
+	err = storage.Add(context.Background(), mTx, nil)
+	require.NoError(t, err)
+
+	err = storage.Add(context.Background(), mTx, nil)
+	require.Equal(t, ErrAlreadyExists, err)
+}
+
+func TestGetNotFound(t *testing.T) {
+	dbCfg := dbutils.NewStateConfigFromEnv()
+	require.NoError(t, dbutils.InitOrResetState(dbCfg))
+
+	storage, err := NewPostgresStorage(dbCfg)
+	require.NoError(t, err)
+
+	_, err = storage.Get(context.Background(), "not found id", nil)
+	require.Equal(t, ErrNotFound, err)
+}
+
+func TestGetByStatusNoRows(t *testing.T) {
+	dbCfg := dbutils.NewStateConfigFromEnv()
+	require.NoError(t, dbutils.InitOrResetState(dbCfg))
+
+	storage, err := NewPostgresStorage(dbCfg)
+	require.NoError(t, err)
+
+	mTxs, err := storage.GetByStatus(context.Background(), []MonitoredTxStatus{}, nil)
+	require.NoError(t, err)
+	require.Empty(t, mTxs)
+}

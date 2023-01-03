@@ -181,7 +181,7 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 				mTxLog.Errorf("failed to add signed tx to monitored tx %v history: %v", mTx.id, err)
 				continue
 			} else {
-				mTxLog.Debugf("signed tx added to the history")
+				mTxLog.Debugf("signed tx added to the monitored tx history")
 			}
 
 			// check if the tx is already in the network, if not, send it

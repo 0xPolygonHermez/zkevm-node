@@ -105,6 +105,8 @@ func (s *PostgresStorage) GetByStatus(ctx context.Context, statuses []MonitoredT
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return []monitoredTx{}, nil
+	} else if err != nil {
+		return nil, err
 	}
 
 	for rows.Next() {
