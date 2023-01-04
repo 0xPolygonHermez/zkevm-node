@@ -13,8 +13,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
+	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/davecgh/go-spew/spew"
 	"google.golang.org/grpc"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/peer"
@@ -23,6 +25,7 @@ import (
 const (
 	mockedStateRoot     = "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"
 	mockedLocalExitRoot = "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"
+	txManagerOwner      = "aggregator"
 )
 
 type finalProofMsg struct {
@@ -59,7 +62,7 @@ func New(
 	stateInterface stateInterface,
 	ethTxManager ethTxManager,
 	etherman etherman,
-) (Aggregator, error) {
+) (*Aggregator, error) {
 	var profitabilityChecker aggregatorTxProfitabilityChecker
 	switch cfg.TxProfitabilityCheckerType {
 	case ProfitabilityBase:
@@ -81,7 +84,7 @@ func New(
 		finalProof: make(chan finalProofMsg),
 	}
 
-	return a, nil
+	return &a, nil
 }
 
 // Start starts the aggregator
@@ -195,6 +198,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 // - wait for the synchronizer to catch up
 // - clean up the cache of recursive proofs
 func (a *Aggregator) sendFinalProof() {
+mainFinalLoop:
 	for {
 		select {
 		case <-a.ctx.Done():
@@ -220,18 +224,64 @@ func (a *Aggregator) sendFinalProof() {
 
 			log.Infof("Final proof inputs: NewLocalExitRoot [%#x], NewStateRoot [%#x]", inputs.NewLocalExitRoot, inputs.NewStateRoot)
 
-			err = a.EthTxManager.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
+			tx, err := a.Ethman.EstimateGasForTrustedVerifyBatches(proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
 			if err != nil {
-				log.Errorf("Error verifiying final proof for batches [%d-%d], err: %v", proof.BatchNumber, proof.BatchNumberFinal, err)
+				log.Errorf("Error estimating gas for final proof verification: %v", err)
+			}
+			pubAddr, err := a.Ethman.GetPublicAddress()
+			if err != nil {
+				log.Errorf("Failed to get public address, %v", err)
+			}
+			txID := fmt.Sprintf("%d-%d", proof.BatchNumber, proof.BatchNumberFinal)
 
-				// unlock the underlying proof (generating=false)
-				proof.Generating = false
-				err := a.State.UpdateGeneratedProof(ctx, proof, nil)
+			err = a.EthTxManager.Add(ctx, txManagerOwner, txID, pubAddr, tx.To(), tx.Value(), tx.Data(), nil)
+			if err != nil {
+				log.Errorf("Failed to add final proof transaction to the tx manager, %v", err)
+			}
+
+			go a.EthTxManager.ManageTxs()
+
+			// wait for the tx to be confirmed
+		txResultLoop:
+			for {
+				res, err := a.EthTxManager.Result(ctx, txManagerOwner, txID, nil)
 				if err != nil {
-					log.Errorf("Rollback failed updating proof state (false) for proof ID [%v], err: %v", proof.ProofID, err)
+					log.Errorf("Failed to get final proof transaction result for batches [%s]: %v", txID, err)
+					continue mainFinalLoop
 				}
-				a.enableProofVerification()
-				continue
+				spew.Dump(res)
+
+				switch res.Status {
+				case ethtxmanager.MonitoredTxStatusCreated, ethtxmanager.MonitoredTxStatusSent:
+					// wait for tx to be confirmed
+					time.Sleep(a.cfg.RetryTime.Duration)
+
+				case ethtxmanager.MonitoredTxStatusConfirmed:
+					log.Infof("Final proof for batches [%s] verified in tx %v", txID, tx.Hash())
+
+					// stop monitoring this tx
+					err := a.EthTxManager.SetStatusDone(ctx, txManagerOwner, txID, nil)
+					if err != nil {
+						log.Errorf("Failed to set monitored tx as done, owner: %v, id: %v, err: %v", txManagerOwner, res.ID, err)
+					}
+
+					break txResultLoop
+
+				case ethtxmanager.MonitoredTxStatusDone:
+					break txResultLoop
+
+				case ethtxmanager.MonitoredTxStatusFailed:
+					log.Errorf("Error verifiying final proof for batches [%d-%d], err: %v", proof.BatchNumber, proof.BatchNumberFinal, err)
+
+					// unlock the underlying proof (generating=false)
+					proof.Generating = false
+					err := a.State.UpdateGeneratedProof(ctx, proof, nil)
+					if err != nil {
+						log.Errorf("Rollback failed updating proof state (false) for proof ID [%v], err: %v", proof.ProofID, err)
+					}
+					a.enableProofVerification()
+					continue mainFinalLoop
+				}
 			}
 
 			// wait for the synchronizer to catch up the verified batches

@@ -6,8 +6,10 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
+	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -28,12 +30,17 @@ type proverInterface interface {
 // ethereum.
 type ethTxManager interface {
 	VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, batchNum uint64, inputs *ethmanTypes.FinalProofInputs) error
+	Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error
+	ManageTxs()
+	Result(ctx context.Context, owner, id string, dbTx pgx.Tx) (ethtxmanager.MonitoredTxResult, error)
+	SetStatusDone(ctx context.Context, owner, id string, dbTx pgx.Tx) error
 }
 
 // etherman contains the methods required to interact with ethereum
 type etherman interface {
 	GetLatestVerifiedBatchNum() (uint64, error)
 	GetPublicAddress() (common.Address, error)
+	EstimateGasForTrustedVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (*types.Transaction, error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability
