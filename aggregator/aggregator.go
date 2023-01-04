@@ -205,10 +205,12 @@ func (a *Aggregator) sendFinalProof() {
 
 			log.Infof("Verifying final proof with ethereum smart contract, batches %d-%d", proof.BatchNumber, proof.BatchNumberFinal)
 
+			a.startProofVerification()
+
 			finalBatch, err := a.State.GetBatchByNumber(ctx, proof.BatchNumberFinal, nil)
 			if err != nil {
 				log.Errorf("Failed to retrieve batch with number [%d]", proof.BatchNumberFinal)
-				a.enableProofVerification()
+				a.endProofVerification()
 				continue
 			}
 
@@ -230,7 +232,7 @@ func (a *Aggregator) sendFinalProof() {
 				if err != nil {
 					log.Errorf("Rollback failed updating proof state (false) for proof ID [%v], err: %v", proof.ProofID, err)
 				}
-				a.enableProofVerification()
+				a.endProofVerification()
 				continue
 			}
 
@@ -244,11 +246,12 @@ func (a *Aggregator) sendFinalProof() {
 			}
 
 			a.resetVerifyProofTime()
+			a.endProofVerification()
 
 			// network is synced with the final proof, we can safely delete the recursive proofs
 			err = a.State.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
 			if err != nil {
-				log.Errorf("Failed to store proof aggregation result, err: %v", err)
+				log.Errorf("Failed to delete verified proof, err: %v", err)
 			}
 		}
 	}
@@ -307,16 +310,10 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 
 	var err error
 	if !a.canVerifyProof() {
-		log.Debug("Time to verify proof not reached")
+		log.Debug("Time to verify proof not reached or proof verification in progress")
 		return false, nil
 	}
 	log.Debug("Send final proof time reached")
-
-	defer func() {
-		if err != nil {
-			a.enableProofVerification()
-		}
-	}()
 
 	for !a.isSynced(ctx) {
 		log.Info("Waiting for synchronizer to sync...")
@@ -361,8 +358,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 		// we do have a proof generating at the moment, check if it is
 		// eligible to be verified
 
-		var eligible bool // we need this to keep using err from the outer scope and trigger the defer func
-		eligible, err = a.validateEligibleFinalProof(ctx, proof, lastVerifiedBatchNum)
+		eligible, err := a.validateEligibleFinalProof(ctx, proof, lastVerifiedBatchNum)
 		if err != nil {
 			return false, fmt.Errorf("Failed to validate eligible final proof, %w", err)
 		}
@@ -403,13 +399,26 @@ func (a *Aggregator) validateEligibleFinalProof(ctx context.Context, proof *stat
 	batchNumberToVerify := lastVerifiedBatchNum + 1
 
 	if proof.BatchNumber != batchNumberToVerify {
-		log.Infof("Proof batch number %d is not the following to last verfied batch number %d", proof.BatchNumber, lastVerifiedBatchNum)
-		return false, nil
+		if proof.BatchNumber < batchNumberToVerify && proof.BatchNumberFinal >= batchNumberToVerify {
+			// We have a proof that contains some batches below the last batch verified, anyway can be eligible as final proof
+			log.Warnf("Proof %d-%d contains some batches lower than last batch verified %d. Check anyway if it is eligible", proof.BatchNumber, lastVerifiedBatchNum, batchNumberToVerify)
+		} else if proof.BatchNumberFinal < batchNumberToVerify {
+			// We have a proof that contains batches below that the last batch verified, we need to delete this proof
+			log.Warnf("Proof %d-%d lower than last batch verified %d. Delete it", proof.BatchNumber, lastVerifiedBatchNum, batchNumberToVerify)
+			err := a.State.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
+			if err != nil {
+				return false, fmt.Errorf("Failed to delete discarded proof, err: %v", err)
+			}
+			return false, nil
+		} else {
+			log.Debugf("Proof batch number %d is not the following to last verfied batch number %d", proof.BatchNumber, lastVerifiedBatchNum)
+			return false, nil
+		}
 	}
 
 	bComplete, err := a.State.CheckProofContainsCompleteSequences(ctx, proof, nil)
 	if err != nil {
-		return false, fmt.Errorf("Failed to check if proof contains compete sequences, %w", err)
+		return false, fmt.Errorf("Failed to check if proof contains complete sequences, %w", err)
 	}
 	if !bComplete {
 		log.Infof("Recursive proof %d-%d not eligible to be verified: not containing complete sequences", proof.BatchNumber, proof.BatchNumberFinal)
@@ -744,21 +753,22 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 }
 
 // canVerifyProof returns true if we have reached the timeout to verify a proof
-// and no other prover is verifying a proof.
+// and no other prover is verifying a proof (verifyingProof = false).
 func (a *Aggregator) canVerifyProof() bool {
-	a.TimeSendFinalProofMutex.Lock()
-	defer a.TimeSendFinalProofMutex.Unlock()
-	if a.TimeSendFinalProof.Before(time.Now()) {
-		if a.verifyingProof {
-			return false
-		}
-		a.verifyingProof = true
-		return true
-	}
-	return false
+	a.TimeSendFinalProofMutex.RLock()
+	defer a.TimeSendFinalProofMutex.RUnlock()
+	return a.TimeSendFinalProof.Before(time.Now()) && !a.verifyingProof
 }
 
-func (a *Aggregator) enableProofVerification() {
+// startProofVerification sets to true the verifyingProof variable to indicate that there is a proof verification in progress
+func (a *Aggregator) startProofVerification() {
+	a.TimeSendFinalProofMutex.Lock()
+	defer a.TimeSendFinalProofMutex.Unlock()
+	a.verifyingProof = true
+}
+
+// endProofVerification set verifyingProof to false to indicate that there is not proof verification in progress
+func (a *Aggregator) endProofVerification() {
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
 	a.verifyingProof = false
@@ -768,7 +778,6 @@ func (a *Aggregator) enableProofVerification() {
 func (a *Aggregator) resetVerifyProofTime() {
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
-	a.verifyingProof = false
 	a.TimeSendFinalProof = time.Now().Add(a.cfg.VerifyProofInterval.Duration)
 }
 
