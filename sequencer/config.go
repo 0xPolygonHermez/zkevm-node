@@ -30,6 +30,9 @@ type Config struct {
 	// ElapsedTimeToCloseBatchWithoutTxsDueToNewGER it's time to close a batch bcs new GER appeared
 	ElapsedTimeToCloseBatchWithoutTxsDueToNewGER types.Duration `mapstructure:"ElapsedTimeToCloseBatchWithoutTxsDueToNewGER"`
 
+	// MinTimeToCloseBatch enough time passed to close a batch.
+	MinTimeToCloseBatch types.Duration `mapstructure:"MinTimeToCloseBatch"`
+
 	// MaxTimeForBatchToBeOpen is time after which new batch should be closed
 	MaxTimeForBatchToBeOpen types.Duration `mapstructure:"MaxTimeForBatchToBeOpen"`
 
