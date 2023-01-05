@@ -36,13 +36,13 @@ func NewPostgresStorage(dbCfg db.Config) (storageInterface, error) {
 func (s *PostgresStorage) Add(ctx context.Context, mTx monitoredTx, dbTx pgx.Tx) error {
 	conn := s.dbConn(dbTx)
 	cmd := `
-        INSERT INTO txman.monitored_txs (owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, history, created_at, updated_at)
-                                 VALUES (   $1, $2,        $3,      $4,    $5,    $6,   $7,  $8,        $9,    $10,     $11,        $12,        $13)`
+        INSERT INTO state.monitored_txs (owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, block_num, history, created_at, updated_at)
+                                 VALUES (   $1, $2,        $3,      $4,    $5,    $6,   $7,  $8,        $9,    $10,       $11,     $12,        $13,        $14)`
 
 	_, err := conn.Exec(ctx, cmd, mTx.owner,
 		mTx.id, mTx.from.String(), mTx.toStringPtr(),
 		mTx.nonce, mTx.valueU64Ptr(), mTx.dataStringPtr(),
-		mTx.gas, mTx.gasPrice.Uint64(), string(mTx.status),
+		mTx.gas, mTx.gasPrice.Uint64(), string(mTx.status), mTx.blockNumberU64Ptr(),
 		mTx.historyStringSlice(), time.Now().UTC().Round(time.Microsecond),
 		time.Now().UTC().Round(time.Microsecond))
 
@@ -61,8 +61,8 @@ func (s *PostgresStorage) Add(ctx context.Context, mTx monitoredTx, dbTx pgx.Tx)
 func (s *PostgresStorage) Get(ctx context.Context, owner, id string, dbTx pgx.Tx) (monitoredTx, error) {
 	conn := s.dbConn(dbTx)
 	cmd := `
-        SELECT owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, history, created_at, updated_at
-          FROM txman.monitored_txs
+        SELECT owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, block_num, history, created_at, updated_at
+          FROM state.monitored_txs
          WHERE owner = $1 
            AND id = $2`
 
@@ -85,8 +85,8 @@ func (s *PostgresStorage) GetByStatus(ctx context.Context, owner *string, status
 
 	conn := s.dbConn(dbTx)
 	cmd := `
-        SELECT owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, history, created_at, updated_at
-          FROM txman.monitored_txs
+        SELECT owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, block_num, history, created_at, updated_at
+          FROM state.monitored_txs
          WHERE (owner = $1 OR $1 IS NULL)`
 	if hasStatusToFilter {
 		cmd += `
@@ -123,11 +123,44 @@ func (s *PostgresStorage) GetByStatus(ctx context.Context, owner *string, status
 	return mTxs, nil
 }
 
+// GetByBlock loads all monitored tx that have the blockNumber between
+// fromBlock and toBlock
+func (s *PostgresStorage) GetByBlock(ctx context.Context, fromBlock, toBlock *uint64, dbTx pgx.Tx) ([]monitoredTx, error) {
+	conn := s.dbConn(dbTx)
+	cmd := `
+        SELECT owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, block_num, history, created_at, updated_at
+          FROM state.monitored_txs
+         WHERE (block_num >= $1 OR $1 IS NULL)
+           AND (block_num <= $2 OR $2 IS NULL)
+           AND block_num IS NOT NULL
+         ORDER BY created_at`
+
+	mTxs := []monitoredTx{}
+	rows, err := conn.Query(ctx, cmd, fromBlock, toBlock)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return []monitoredTx{}, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		mTx := monitoredTx{}
+		err := s.scanMtx(rows, &mTx)
+		if err != nil {
+			return nil, err
+		}
+		mTxs = append(mTxs, mTx)
+	}
+
+	return mTxs, nil
+}
+
 // Update a persisted monitored tx
 func (s *PostgresStorage) Update(ctx context.Context, mTx monitoredTx, dbTx pgx.Tx) error {
 	conn := s.dbConn(dbTx)
 	cmd := `
-        UPDATE txman.monitored_txs
+        UPDATE state.monitored_txs
            SET from_addr = $3
              , to_addr = $4
              , nonce = $5
@@ -136,15 +169,22 @@ func (s *PostgresStorage) Update(ctx context.Context, mTx monitoredTx, dbTx pgx.
              , gas = $8
              , gas_price = $9
              , status = $10
-             , history = $11
-             , updated_at = $12
+             , block_num = $11
+             , history = $12
+             , updated_at = $13
          WHERE owner = $1
-		   AND id = $2`
+           AND id = $2`
+
+	var bn *uint64
+	if mTx.blockNumber != nil {
+		tmp := mTx.blockNumber.Uint64()
+		bn = &tmp
+	}
 
 	_, err := conn.Exec(ctx, cmd, mTx.owner,
 		mTx.id, mTx.from.String(), mTx.toStringPtr(),
 		mTx.nonce, mTx.valueU64Ptr(), mTx.dataStringPtr(),
-		mTx.gas, mTx.gasPrice.Uint64(), string(mTx.status),
+		mTx.gas, mTx.gasPrice.Uint64(), string(mTx.status), bn,
 		mTx.historyStringSlice(), time.Now().UTC().Round(time.Microsecond))
 
 	if err != nil {
@@ -161,15 +201,20 @@ func (s *PostgresStorage) scanMtx(row pgx.Row, mTx *monitoredTx) error {
 	var from, status string
 	var to, data *string
 	var history []string
-	var value *uint64
+	var value, blockNumber *uint64
 	var gasPrice uint64
 
-	err := row.Scan(&mTx.owner, &mTx.id, &from, &to, &mTx.nonce, &value, &data, &mTx.gas, &gasPrice, &status, &history, &mTx.createdAt, &mTx.updatedAt)
+	err := row.Scan(&mTx.owner, &mTx.id, &from, &to, &mTx.nonce, &value,
+		&data, &mTx.gas, &gasPrice, &status, &blockNumber, &history,
+		&mTx.createdAt, &mTx.updatedAt)
 	if err != nil {
 		return err
 	}
 
 	mTx.from = common.HexToAddress(from)
+	mTx.gasPrice = big.NewInt(0).SetUint64(gasPrice)
+	mTx.status = MonitoredTxStatus(status)
+
 	if to != nil {
 		tmp := common.HexToAddress(*to)
 		mTx.to = &tmp
@@ -186,8 +231,11 @@ func (s *PostgresStorage) scanMtx(row pgx.Row, mTx *monitoredTx) error {
 		}
 		mTx.data = bytes
 	}
-	mTx.gasPrice = big.NewInt(0).SetUint64(gasPrice)
-	mTx.status = MonitoredTxStatus(status)
+	if blockNumber != nil {
+		tmp := *blockNumber
+		mTx.blockNumber = big.NewInt(0).SetUint64(tmp)
+	}
+
 	h := make(map[common.Hash]bool, len(history))
 	for _, txHash := range history {
 		h[common.HexToHash(txHash)] = true

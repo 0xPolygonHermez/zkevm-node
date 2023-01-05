@@ -21,7 +21,7 @@ type Sequencer struct {
 
 	pool      txPool
 	state     stateInterface
-	txManager txManager
+	txManager ethTxManager
 	etherman  etherman
 	checker   *profitabilitychecker.Checker
 	gpe       gasPriceEstimator
@@ -38,7 +38,7 @@ func New(
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
-	manager txManager,
+	manager ethTxManager,
 	gpe gasPriceEstimator) (*Sequencer, error) {
 	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
 
@@ -210,6 +210,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 		s.sequenceInProgress = types.Sequence{
 			GlobalExitRoot: processingCtx.GlobalExitRoot,
 			Timestamp:      processingCtx.Timestamp.Unix(),
+			BatchNumber:    processingCtx.BatchNumber,
 		}
 	} else {
 		txs, err := s.state.GetTransactionsByBatchNumber(ctx, lastBatch.BatchNumber, nil)
@@ -220,6 +221,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 			GlobalExitRoot: lastBatch.GlobalExitRoot,
 			Timestamp:      lastBatch.Timestamp.Unix(),
 			Txs:            txs,
+			BatchNumber:    lastBatch.BatchNumber,
 		}
 		// TODO: execute to get state root and LER or change open/closed logic so we always store state root and LER and add an open flag
 	}
@@ -259,5 +261,6 @@ func (s *Sequencer) createFirstBatch(ctx context.Context) {
 		GlobalExitRoot: processingCtx.GlobalExitRoot,
 		Timestamp:      processingCtx.Timestamp.Unix(),
 		Txs:            []ethTypes.Transaction{},
+		BatchNumber:    processingCtx.BatchNumber,
 	}
 }

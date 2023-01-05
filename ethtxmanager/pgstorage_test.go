@@ -29,11 +29,12 @@ func TestAddGetAndUpdate(t *testing.T) {
 	gas := uint64(3)
 	gasPrice := big.NewInt(4)
 	status := MonitoredTxStatusCreated
+	blockNumber := big.NewInt(5)
 	history := map[common.Hash]bool{common.HexToHash("0x3"): true, common.HexToHash("0x4"): true}
 
 	mTx := monitoredTx{
 		owner: owner, id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
-		gas: gas, gasPrice: gasPrice, status: status, history: history,
+		blockNumber: blockNumber, gas: gas, gasPrice: gasPrice, status: status, history: history,
 	}
 	err = storage.Add(context.Background(), mTx, nil)
 	require.NoError(t, err)
@@ -51,6 +52,7 @@ func TestAddGetAndUpdate(t *testing.T) {
 	assert.Equal(t, gas, returnedMtx.gas)
 	assert.Equal(t, gasPrice, returnedMtx.gasPrice)
 	assert.Equal(t, status, returnedMtx.status)
+	assert.Equal(t, 0, blockNumber.Cmp(returnedMtx.blockNumber))
 	assert.Equal(t, history, returnedMtx.history)
 	assert.Greater(t, time.Now().UTC().Round(time.Microsecond), returnedMtx.createdAt)
 	assert.Less(t, time.Time{}, returnedMtx.createdAt)
@@ -65,11 +67,12 @@ func TestAddGetAndUpdate(t *testing.T) {
 	gas = uint64(33)
 	gasPrice = big.NewInt(44)
 	status = MonitoredTxStatusFailed
+	blockNumber = big.NewInt(55)
 	history = map[common.Hash]bool{common.HexToHash("0x33"): true, common.HexToHash("0x44"): true}
 
 	mTx = monitoredTx{
 		owner: owner, id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
-		gas: gas, gasPrice: gasPrice, status: status, history: history,
+		blockNumber: blockNumber, gas: gas, gasPrice: gasPrice, status: status, history: history,
 	}
 	err = storage.Update(context.Background(), mTx, nil)
 	require.NoError(t, err)
@@ -87,6 +90,7 @@ func TestAddGetAndUpdate(t *testing.T) {
 	assert.Equal(t, gas, returnedMtx.gas)
 	assert.Equal(t, gasPrice, returnedMtx.gasPrice)
 	assert.Equal(t, status, returnedMtx.status)
+	assert.Equal(t, 0, blockNumber.Cmp(returnedMtx.blockNumber))
 	assert.Equal(t, history, returnedMtx.history)
 	assert.Greater(t, time.Now().UTC().Round(time.Microsecond), returnedMtx.createdAt)
 	assert.Less(t, time.Time{}, returnedMtx.createdAt)
@@ -103,7 +107,7 @@ func TestAddAndGetByStatus(t *testing.T) {
 
 	to := common.HexToAddress("0x2")
 	baseMtx := monitoredTx{
-		owner: "owner", from: common.HexToAddress("0x1"), to: &to, nonce: uint64(1), value: big.NewInt(2), data: []byte("data"),
+		owner: "owner", from: common.HexToAddress("0x1"), to: &to, nonce: uint64(1), value: big.NewInt(2), data: []byte("data"), blockNumber: big.NewInt(1),
 		gas: uint64(3), gasPrice: big.NewInt(4), history: map[common.Hash]bool{common.HexToHash("0x3"): true, common.HexToHash("0x4"): true},
 	}
 
@@ -175,12 +179,13 @@ func TestAddRepeated(t *testing.T) {
 	data := []byte("data")
 	gas := uint64(3)
 	gasPrice := big.NewInt(4)
+	blockNumber := big.NewInt(5)
 	status := MonitoredTxStatusCreated
 	history := map[common.Hash]bool{common.HexToHash("0x3"): true, common.HexToHash("0x4"): true}
 
 	mTx := monitoredTx{
 		owner: owner, id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
-		gas: gas, gasPrice: gasPrice, status: status, history: history,
+		blockNumber: blockNumber, gas: gas, gasPrice: gasPrice, status: status, history: history,
 	}
 	err = storage.Add(context.Background(), mTx, nil)
 	require.NoError(t, err)
@@ -210,4 +215,86 @@ func TestGetByStatusNoRows(t *testing.T) {
 	mTxs, err := storage.GetByStatus(context.Background(), nil, []MonitoredTxStatus{}, nil)
 	require.NoError(t, err)
 	require.Empty(t, mTxs)
+}
+
+func TestAddAndGetByBlock(t *testing.T) {
+	dbCfg := dbutils.NewStateConfigFromEnv()
+	require.NoError(t, dbutils.InitOrResetState(dbCfg))
+
+	storage, err := NewPostgresStorage(dbCfg)
+	require.NoError(t, err)
+
+	to := common.HexToAddress("0x2")
+	baseMtx := monitoredTx{
+		owner: "owner", from: common.HexToAddress("0x1"), to: &to, nonce: uint64(1), value: big.NewInt(2), data: []byte("data"), blockNumber: big.NewInt(1),
+		gas: uint64(3), gasPrice: big.NewInt(4), history: map[common.Hash]bool{common.HexToHash("0x3"): true, common.HexToHash("0x4"): true},
+	}
+
+	type mTxReplaceInfo struct {
+		id          string
+		blockNumber *big.Int
+	}
+
+	mTxsReplaceInfo := []mTxReplaceInfo{
+		{id: "1", blockNumber: nil},
+		{id: "2", blockNumber: big.NewInt(2)},
+		{id: "3", blockNumber: big.NewInt(3)},
+		{id: "4", blockNumber: big.NewInt(4)},
+		{id: "5", blockNumber: big.NewInt(5)},
+	}
+
+	for _, replaceInfo := range mTxsReplaceInfo {
+		baseMtx.id = replaceInfo.id
+		baseMtx.blockNumber = replaceInfo.blockNumber
+		baseMtx.createdAt = baseMtx.createdAt.Add(time.Microsecond)
+		baseMtx.updatedAt = baseMtx.updatedAt.Add(time.Microsecond)
+		err = storage.Add(context.Background(), baseMtx, nil)
+		require.NoError(t, err)
+	}
+
+	// all monitored txs
+	mTxs, err := storage.GetByBlock(context.Background(), nil, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 4, len(mTxs))
+	assert.Equal(t, "2", mTxs[0].id)
+	assert.Equal(t, 0, big.NewInt(2).Cmp(mTxs[0].blockNumber))
+	assert.Equal(t, "3", mTxs[1].id)
+	assert.Equal(t, 0, big.NewInt(3).Cmp(mTxs[1].blockNumber))
+	assert.Equal(t, "4", mTxs[2].id)
+	assert.Equal(t, 0, big.NewInt(4).Cmp(mTxs[2].blockNumber))
+	assert.Equal(t, "5", mTxs[3].id)
+	assert.Equal(t, 0, big.NewInt(5).Cmp(mTxs[3].blockNumber))
+
+	// all monitored tx with block number less or equal 3
+	toBlock := uint64(3)
+	mTxs, err = storage.GetByBlock(context.Background(), nil, &toBlock, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(mTxs))
+	assert.Equal(t, "2", mTxs[0].id)
+	assert.Equal(t, 0, big.NewInt(2).Cmp(mTxs[0].blockNumber))
+	assert.Equal(t, "3", mTxs[1].id)
+	assert.Equal(t, 0, big.NewInt(3).Cmp(mTxs[1].blockNumber))
+
+	// all monitored tx with block number greater or equal 2
+	fromBlock := uint64(3)
+	mTxs, err = storage.GetByBlock(context.Background(), &fromBlock, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 3, len(mTxs))
+	assert.Equal(t, "3", mTxs[0].id)
+	assert.Equal(t, 0, big.NewInt(3).Cmp(mTxs[0].blockNumber))
+	assert.Equal(t, "4", mTxs[1].id)
+	assert.Equal(t, 0, big.NewInt(4).Cmp(mTxs[1].blockNumber))
+	assert.Equal(t, "5", mTxs[2].id)
+	assert.Equal(t, 0, big.NewInt(5).Cmp(mTxs[2].blockNumber))
+
+	// all monitored txs with block number between 3 and 4 inclusive
+	fromBlock = uint64(3)
+	toBlock = uint64(4)
+	mTxs, err = storage.GetByBlock(context.Background(), &fromBlock, &toBlock, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(mTxs))
+	assert.Equal(t, "3", mTxs[0].id)
+	assert.Equal(t, 0, big.NewInt(3).Cmp(mTxs[0].blockNumber))
+	assert.Equal(t, "4", mTxs[1].id)
+	assert.Equal(t, 0, big.NewInt(4).Cmp(mTxs[1].blockNumber))
 }

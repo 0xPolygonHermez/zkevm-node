@@ -14,11 +14,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/core"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/google/uuid"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
-const txManagerOwner = "sequencer"
+const ethTxManagerOwner = "sequencer"
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
 	// process monitored sequences before starting a next cycle
@@ -64,16 +63,21 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	tx, err := s.etherman.EstimateGasSequenceBatches(sequences)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
+		return
 	}
 	sender, err := state.GetSender(*tx)
 	if err != nil {
 		log.Error("error getting tx sender to add to eth tx manager: ", err)
+		return
 	}
 
-	sequenceID := uuid.New()
-	err = s.txManager.Add(ctx, txManagerOwner, sequenceID.String(), sender, tx.To(), tx.Value(), tx.Data(), nil)
+	firstSequence := sequences[0]
+	lastSequence := sequences[len(sequences)-1]
+	sequenceID := fmt.Sprintf("sequence-from-%v-to-%v", firstSequence.BatchNumber, lastSequence.BatchNumber)
+	err = s.txManager.Add(ctx, ethTxManagerOwner, sequenceID, sender, tx.To(), tx.Value(), tx.Data(), nil)
 	if err != nil {
 		log.Error("error to add tx to eth tx manager: ", err)
+		return
 	}
 }
 
@@ -86,43 +90,48 @@ func (s *Sequencer) processMonitoredSequences(ctx context.Context) {
 		ethtxmanager.MonitoredTxStatusSent,
 		ethtxmanager.MonitoredTxStatusFailed,
 		ethtxmanager.MonitoredTxStatusConfirmed,
+		ethtxmanager.MonitoredTxStatusReorged,
 	}
-	results, err := s.txManager.ResultsByStatus(ctx, txManagerOwner, statusesFilter, nil)
+	results, err := s.txManager.ResultsByStatus(ctx, ethTxManagerOwner, statusesFilter, nil)
 	if err != nil {
 		log.Error("failed to get results by statuses from eth tx manager to monitored txs err: ", err)
 	}
 	for _, result := range results {
+		resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
+
 		// if the result is confirmed, we set it as done do stop looking into this sequence
 		if result.Status == ethtxmanager.MonitoredTxStatusConfirmed {
-			err := s.txManager.SetStatusDone(ctx, txManagerOwner, result.ID, nil)
+			err := s.txManager.SetStatusDone(ctx, ethTxManagerOwner, result.ID, nil)
 			if err != nil {
-				log.Errorf("failed to set monitored tx as done, owner: %v, id: %v, err: %v", txManagerOwner, result.ID, err)
+				resultLog.Errorf("failed to set monitored tx as done, err: %v", err)
+			} else {
+				resultLog.Infof("monitored tx confirmed")
 			}
 			continue
 		}
 
 		// if the result is failed, we need to go around it and rebuild a sequence
 		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
-			log.Fatal("failed to send sequence, TODO: review this fatal and define what to do in this case")
+			resultLog.Fatal("failed to send sequence, TODO: review this fatal and define what to do in this case")
 		}
 
-		// if the result is either created of sent, it means we need to wait until it gets confirmed of failed.
-		if result.Status == ethtxmanager.MonitoredTxStatusCreated || result.Status == ethtxmanager.MonitoredTxStatusSent {
-			// wait
-			for {
-				// wait before refreshing the result info
-				time.Sleep(time.Second)
+		// if the result is either not confirmed or failed, it means we need to wait until it gets confirmed of failed.
+		for {
+			resultLog.Infof("waiting for monitored tx to get confirmed, status: %v", result.Status.String())
 
-				// refresh the result info
-				result, err := s.txManager.Result(ctx, txManagerOwner, result.ID, nil)
-				if err != nil {
-					log.Errorf("failed to set monitored tx as done, owner: %v, id: %v, err: %v", txManagerOwner, result.ID, err)
-				}
+			// wait before refreshing the result info
+			time.Sleep(time.Second)
 
-				// if the result status has changed, breaks the infinite loop
-				if result.Status != ethtxmanager.MonitoredTxStatusCreated && result.Status != ethtxmanager.MonitoredTxStatusSent {
-					break
-				}
+			// refresh the result info
+			result, err := s.txManager.Result(ctx, ethTxManagerOwner, result.ID, nil)
+			if err != nil {
+				resultLog.Errorf("failed to get monitored tx result, err: %v", err)
+				continue
+			}
+
+			// if the result status is confirmed or failed, breaks the wait loop
+			if result.Status == ethtxmanager.MonitoredTxStatusConfirmed || result.Status == ethtxmanager.MonitoredTxStatusFailed {
+				break
 			}
 		}
 	}
@@ -141,7 +150,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 	sequences := []types.Sequence{}
 	var estimatedGas uint64
 
-	var tx *ethtypes.Transaction
+	var tx *ethTypes.Transaction
 
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	for {
@@ -167,7 +176,8 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 			GlobalExitRoot: batch.GlobalExitRoot,
 			Timestamp:      batch.Timestamp.Unix(),
 			// ForceBatchesNum: TODO,
-			Txs: txs,
+			Txs:         txs,
+			BatchNumber: batch.BatchNumber,
 		})
 
 		// Check if can be send

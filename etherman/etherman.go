@@ -307,6 +307,15 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 	}
 	noSendOpts := *etherMan.auth
 	noSendOpts.NoSend = true
+
+	// setting the gas price forces the code to generate a legacy
+	// transaction, so we can extract the sender after
+	gasPrice, err := etherMan.EthClient.SuggestGasPrice(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	noSendOpts.GasPrice = gasPrice
+
 	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
 	if err != nil {
 		return nil, err
@@ -918,13 +927,18 @@ func (etherMan *Client) SignTx(ctx context.Context, tx *types.Transaction) (*typ
 }
 
 // GetRevertMessage tries to get a revert message of a transaction
-func (etherMan *Client) GetRevertMessage(ctx context.Context, tx types.Transaction) (string, error) {
+func (etherMan *Client) GetRevertMessage(ctx context.Context, tx *types.Transaction) (string, error) {
+	if tx == nil {
+		return "", nil
+	}
+
 	receipt, err := etherMan.GetTxReceipt(ctx, tx.Hash())
 	if err != nil {
 		return "", err
 	}
+
 	if receipt.Status == types.ReceiptStatusFailed {
-		revertMessage, err := operations.RevertReason(ctx, etherMan.EthClient, &tx, receipt.BlockNumber)
+		revertMessage, err := operations.RevertReason(ctx, etherMan.EthClient, tx, receipt.BlockNumber)
 		if err != nil {
 			return "", err
 		}

@@ -19,9 +19,10 @@ import (
 )
 
 type mocks struct {
-	Etherman *ethermanMock
-	State    *stateMock
-	DbTx     *dbTxMock
+	Etherman     *ethermanMock
+	State        *stateMock
+	EthTxManager *ethTxManagerMock
+	DbTx         *dbTxMock
 }
 
 func TestTrustedStateReorg(t *testing.T) {
@@ -37,7 +38,7 @@ func TestTrustedStateReorg(t *testing.T) {
 			SyncChunkSize:  10,
 			GenBlockNumber: uint64(123456),
 		}
-		sync, err := NewSynchronizer(true, m.Etherman, m.State, genesis, cfg)
+		sync, err := NewSynchronizer(true, m.Etherman, m.State, m.EthTxManager, genesis, cfg)
 		require.NoError(t, err)
 
 		// state preparation
@@ -244,9 +245,10 @@ func TestTrustedStateReorg(t *testing.T) {
 	}
 
 	m := mocks{
-		Etherman: newEthermanMock(t),
-		State:    newStateMock(t),
-		DbTx:     newDbTxMock(t),
+		Etherman:     newEthermanMock(t),
+		State:        newStateMock(t),
+		EthTxManager: newEthTxManagerMock(t),
+		DbTx:         newDbTxMock(t),
 	}
 
 	// start synchronizing

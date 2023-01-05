@@ -1,10 +1,8 @@
 -- +migrate Down
-DROP SCHEMA IF EXISTS txman CASCADE;
+DROP TABLE IF EXISTS state.monitored_txs;
 
 -- +migrate Up
-CREATE SCHEMA txman;
-
-CREATE TABLE txman.monitored_txs
+CREATE TABLE state.monitored_txs
 (
     owner      VARCHAR NOT NULL,
     id         VARCHAR NOT NULL,
@@ -15,8 +13,9 @@ CREATE TABLE txman.monitored_txs
     data       VARCHAR,
     gas        DECIMAL(78, 0) NOT NULL,
     gas_price  DECIMAL(78, 0) NOT NULL,
-    status     VARCHAR,
+    status     VARCHAR NOT NULL,
     history    VARCHAR[],
+    block_num  BIGINT,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     PRIMARY KEY (owner, id)

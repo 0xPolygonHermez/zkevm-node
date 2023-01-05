@@ -13,6 +13,7 @@ import (
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -36,14 +37,16 @@ type Client struct {
 	cfg      Config
 	etherman ethermanInterface
 	storage  storageInterface
+	state    stateInterface
 }
 
 // New creates new eth tx manager
-func New(cfg Config, ethMan ethermanInterface, storage storageInterface) *Client {
+func New(cfg Config, ethMan ethermanInterface, storage storageInterface, state stateInterface) *Client {
 	c := &Client{
 		cfg:      cfg,
 		etherman: ethMan,
 		storage:  storage,
+		state:    state,
 	}
 
 	return c
@@ -150,26 +153,22 @@ func (c *Client) buildResult(ctx context.Context, mTx monitoredTx) (MonitoredTxR
 
 	for _, txHash := range history {
 		tx, _, err := c.etherman.GetTx(ctx, txHash)
-		if errors.Is(err, ethereum.NotFound) {
-			continue
-		} else if err != nil {
+		if !errors.Is(err, ethereum.NotFound) && err != nil {
 			return MonitoredTxResult{}, err
 		}
 
 		receipt, err := c.etherman.GetTxReceipt(ctx, txHash)
-		if errors.Is(err, ethereum.NotFound) {
-			continue
-		} else if err != nil {
+		if !errors.Is(err, ethereum.NotFound) && err != nil {
 			return MonitoredTxResult{}, err
 		}
 
-		revertMessage, err := c.etherman.GetRevertMessage(ctx, *tx)
+		revertMessage, err := c.etherman.GetRevertMessage(ctx, tx)
 		if err != nil {
 			return MonitoredTxResult{}, err
 		}
 
 		txs[txHash] = TxResult{
-			Tx:            *tx,
+			Tx:            tx,
 			Receipt:       receipt,
 			RevertMessage: revertMessage,
 		}
@@ -184,10 +183,10 @@ func (c *Client) buildResult(ctx context.Context, mTx monitoredTx) (MonitoredTxR
 	return result, nil
 }
 
-// ManageTxs will read txs from storage, send then to L1
-// and keep monitoring them until they get mined, so the
-// next one can be sent
-func (c *Client) ManageTxs() {
+// Start will start the tx management, reading txs from storage,
+// send then to the blockchain and keep monitoring them until they
+// get mined
+func (c *Client) Start() {
 	// infinite loop to manage txs as they arrive
 	c.ctx, c.cancel = context.WithCancel(context.Background())
 	for {
@@ -208,9 +207,29 @@ func (c *Client) Stop() {
 	c.cancel()
 }
 
+// ProcessReorg updates all monitored txs from block 0 to provided block number to
+// Reorged status, allowing it to be reprocessed by the monitored tx management
+func (c *Client) ProcessReorg(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
+	mTxs, err := c.storage.GetByBlock(ctx, nil, &blockNumber, dbTx)
+	if err != nil {
+		return err
+	}
+	for _, mTx := range mTxs {
+		mTx.blockNumber = nil
+		mTx.status = MonitoredTxStatusReorged
+
+		err = c.storage.Update(ctx, mTx, nil)
+		if err != nil {
+			log.Errorf("failed to update monitored tx to reorg status: %v", err)
+			return err
+		}
+	}
+	return nil
+}
+
 // processMonitoredTxs process all monitored tx with Created and Sent status
 func (c *Client) processMonitoredTxs(ctx context.Context) error {
-	statusesFilter := []MonitoredTxStatus{MonitoredTxStatusCreated, MonitoredTxStatusSent}
+	statusesFilter := []MonitoredTxStatus{MonitoredTxStatusCreated, MonitoredTxStatusSent, MonitoredTxStatusReorged}
 	mTxs, err := c.storage.GetByStatus(ctx, nil, statusesFilter, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get created monitored txs: %v", err)
@@ -234,6 +253,11 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 		}
 
 		if !mined {
+			// if is a reorged, move to the next
+			if mTx.status == MonitoredTxStatusReorged {
+				continue
+			}
+
 			// review tx and increase gas and gas price if needed
 			if mTx.status == MonitoredTxStatusSent {
 				err := c.ReviewMonitoredTx(ctx, mTx)
@@ -292,7 +316,6 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 			} else {
 				mTxLog.Debugf("signed tx already found in the network")
 			}
-
 			// wait tx to get mined
 			err = c.etherman.WaitTxToBeMined(ctx, signedTx, c.cfg.WaitTxToBeMined.Duration)
 			if err != nil {
@@ -308,9 +331,26 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 			}
 		}
 
+		mTx.blockNumber = receipt.BlockNumber
+
 		// if mined, check receipt and mark as Failed or Confirmed
 		if receipt.Status == types.ReceiptStatusSuccessful {
-			mTx.status = MonitoredTxStatusConfirmed
+			receiptBlockNum := receipt.BlockNumber.Uint64()
+
+			// check block synced
+			block, err := c.state.GetLastBlock(ctx, nil)
+			if errors.Is(err, state.ErrStateNotSynchronized) {
+				mTxLog.Debugf("state not synchronized yet, waiting for L1 block %v to be synced", receiptBlockNum, err)
+				continue
+			} else if err != nil {
+				mTxLog.Errorf("failed to check if L1 block %v is already synced: %v", receiptBlockNum, err)
+				continue
+			} else if block.BlockNumber < receiptBlockNum {
+				mTxLog.Debugf("L1 block %v not synchronized yet, waiting for L1 block to be synced in order to confirm monitored tx", receiptBlockNum, err)
+				continue
+			} else {
+				mTx.status = MonitoredTxStatusConfirmed
+			}
 		} else {
 			mTx.status = MonitoredTxStatusFailed
 		}
@@ -318,7 +358,7 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 		// update monitored tx changes into storage
 		err = c.storage.Update(ctx, mTx, nil)
 		if err != nil {
-			mTxLog.Errorf("failed to update monitored tx changes: %v", err)
+			mTxLog.Errorf("failed to update monitored tx: %v", err)
 			continue
 		}
 		mTxLog.Debugf("storage updated")

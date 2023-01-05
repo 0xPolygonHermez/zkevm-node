@@ -25,12 +25,23 @@ const (
 	// status is Successful
 	MonitoredTxStatusConfirmed = MonitoredTxStatus("confirmed")
 
+	// MonitoredTxStatusReorged is used when a monitored tx was already confirmed but
+	// the L1 block where this tx was confirmed has been reorged, in this situation
+	// the caller needs to review this information and wait until it gets confirmed
+	// again in a future block
+	MonitoredTxStatusReorged = MonitoredTxStatus("reorged")
+
 	// MonitoredTxStatusDone means the tx was set by the owner as done
 	MonitoredTxStatusDone = MonitoredTxStatus("done")
 )
 
 // MonitoredTxStatus represents the status of a monitored tx
 type MonitoredTxStatus string
+
+// String returns a string representation of the status
+func (s MonitoredTxStatus) String() string {
+	return string(s)
+}
 
 // monitoredTx represents a set of information used to build tx
 // plus information to monitor if the transactions was sent successfully
@@ -67,6 +78,11 @@ type monitoredTx struct {
 
 	// status of this monitoring
 	status MonitoredTxStatus
+
+	// blockNumber represents the block where the tx was identified
+	// to be mined, it's the same as the block number found in the
+	// tx receipt, this is used to control reorged monitored txs
+	blockNumber *big.Int
 
 	// history represent all transaction hashes from
 	// transactions created using this struct data and
@@ -150,6 +166,16 @@ func (mTx *monitoredTx) historyHashSlice() []common.Hash {
 	return history
 }
 
+// blockNumberU64Ptr returns the current blockNumber as a uint64 pointer
+func (mTx *monitoredTx) blockNumberU64Ptr() *uint64 {
+	var blockNumber *uint64
+	if mTx.blockNumber != nil {
+		tmp := mTx.blockNumber.Uint64()
+		blockNumber = &tmp
+	}
+	return blockNumber
+}
+
 // MonitoredTxResult represents the result of a execution of a monitored tx
 type MonitoredTxResult struct {
 	ID     string
@@ -159,7 +185,7 @@ type MonitoredTxResult struct {
 
 // TxResult represents the result of a execution of a ethereum transaction in the block chain
 type TxResult struct {
-	Tx            types.Transaction
+	Tx            *types.Transaction
 	Receipt       *types.Receipt
 	RevertMessage string
 }

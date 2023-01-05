@@ -84,7 +84,7 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman, ethTxManagerStorage)
+	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman, ethTxManagerStorage, st)
 
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {
@@ -108,7 +108,7 @@ func start(cliCtx *cli.Context) error {
 			go runJSONRPCServer(*c, poolInstance, st, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
-			go runSynchronizer(*c, etherman, st)
+			go runSynchronizer(*c, etherman, st, ethTxManager)
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, st)
@@ -155,8 +155,8 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman, nil
 }
 
-func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.State) {
-	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
+func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.State, ethTxManager *ethtxmanager.Client) {
+	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, ethTxManager, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
 	}
