@@ -15,6 +15,8 @@ type finalizer struct {
 	GERCh                chan common.Hash
 	L2ReorgCh            chan struct{}
 	SendingToL1TimeoutCh chan bool
+	TxsToStoreCh         chan *txToStore
+	WgTxsToStore         *sync.WaitGroup
 	sequencerAddress     common.Address
 	worker               workerInterface
 	dbManager            dbManagerInterface
@@ -28,12 +30,20 @@ func newFinalizer(worker workerInterface, dbManager dbManagerInterface, executor
 		GERCh:                make(chan common.Hash),
 		L2ReorgCh:            make(chan struct{}),
 		SendingToL1TimeoutCh: make(chan bool),
+		TxsToStoreCh:         make(chan *txToStore, maxTxsPerBatch),
+		WgTxsToStore:         &sync.WaitGroup{},
 		sequencerAddress:     sequencerAddr,
 		worker:               worker,
 		dbManager:            dbManager,
 		executor:             executor,
 		maxTxsPerBatch:       maxTxsPerBatch,
 	}
+}
+
+type txToStore struct {
+	txResponse               *state.ProcessTransactionResponse
+	batchNumber              uint64
+	previousL2BlockStateRoot common.Hash
 }
 
 type wipBatch struct {
@@ -132,12 +142,14 @@ func (f *finalizer) Start(ctx context.Context, batch wipBatch, OldStateRoot, Old
 					}
 
 					// We have a successful processing if we are here
+					previousL2BlockStateRoot := batch.stateRoot
 					batch.stateRoot = result.NewStateRoot
 					batch.accInputHash = result.NewAccInputHash
 					processRequest.StateRoot = result.NewStateRoot
 					processRequest.OldAccInputHash = result.NewAccInputHash
 					// We store the processed transaction, add it to the batch and delete from the pool atomically.
-					go f.dbManager.StoreProcessedTxAndDeleteFromPool(ctx, batch.batchNumber, processedTx)
+					f.WgTxsToStore.Add(1)
+					f.TxsToStoreCh <- &txToStore{batchNumber: batch.batchNumber, txResponse: processedTx, previousL2BlockStateRoot: previousL2BlockStateRoot}
 					f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.TouchedAddresses)
 				}
 			} else {
@@ -150,6 +162,7 @@ func (f *finalizer) Start(ctx context.Context, batch wipBatch, OldStateRoot, Old
 					LocalExitRoot: processRequest.GlobalExitRoot,
 					Txs:           batch.txs,
 				}
+				f.WgTxsToStore.Wait()
 				f.dbManager.CloseBatch(ctx, receipt)
 				batch.batchNumber += 1
 				batch.txs = make([]TxTracker, 0, f.maxTxsPerBatch)

@@ -29,6 +29,12 @@ func (w *Worker) AddTx(tx TxTracker) {
 	// // B) There was a tx ready (and it's worst than the new one) => delete from pool and efficiency list, add new one
 }
 
+func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
+	// 1. Delete related txs from w.efficiencyList
+	// 2. Mark the affected addresses as "reorged" in w.Pool
+	// 3. Update these addresses (go to MT, update nonce and balance and go to the pool to check for valid txs to move them into the efficiency list)
+}
+
 func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress) {
 	fromNonce, fromBalance := touchedAddresses[from].Nonce, touchedAddresses[from].Balance
 	w.ApplyAddressUpdate(from, fromNonce, fromBalance)

@@ -18,6 +18,7 @@ type Sequencer struct {
 
 	pool      txPool
 	state     stateInterface
+	dbManager dbManagerStateInterface
 	txManager txManager
 	etherman  etherman
 
@@ -25,7 +26,7 @@ type Sequencer struct {
 }
 
 // New init sequencer
-func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager txManager) (*Sequencer, error) {
+func New(cfg Config, txPool txPool, state stateInterface, dbManager dbManagerStateInterface, etherman etherman, manager txManager) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
@@ -35,6 +36,7 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 		cfg:       cfg,
 		pool:      txPool,
 		state:     state,
+		dbManager: dbManager,
 		etherman:  etherman,
 		txManager: manager,
 		address:   addr,
@@ -50,12 +52,17 @@ func (s *Sequencer) Start(ctx context.Context) {
 	metrics.Register()
 
 	worker := newWorker()
-	dbManager := newDBManager(s.pool, s.state, worker)
+	dbManager := newDBManager(s.pool, s.dbManager, worker)
 	go dbManager.Start()
 
-	currBatch, OldAccInputHash, OldStateRoot := s.bootstrap(ctx, dbManager)
+	currBatch, OldAccInputHash, OldStateRoot, err := s.bootstrap(ctx, dbManager)
+
+	if err != nil {
+		log.Fatal("could not bootstrap the sequencer")
+	}
+
 	finalizer := newFinalizer(worker, dbManager, s.state, s.address, s.cfg.MaxTxsPerBatch)
-	go finalizer.Start(ctx, currBatch, OldStateRoot, OldAccInputHash)
+	go finalizer.Start(ctx, *currBatch, *OldStateRoot, *OldAccInputHash)
 
 	closingSignalsManager := newClosingSignalsManager(finalizer)
 	go closingSignalsManager.Start()
@@ -75,9 +82,9 @@ func (s *Sequencer) Start(ctx context.Context) {
 	<-ctx.Done()
 }
 
-func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (wipBatch, common.Hash, common.Hash) {
+func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (*wipBatch, *common.Hash, *common.Hash, error) {
 	var (
-		currBatch                     wipBatch
+		currBatch                     *wipBatch
 		oldAccInputHash, oldStateRoot common.Hash
 	)
 	batchNum, err := dbManager.GetLastBatchNumber(ctx)
@@ -94,13 +101,17 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (wipBat
 		///////////////////
 		// GENESIS Batch //
 		///////////////////
-		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
-		currBatch = wipBatch{
+		processingCtx, err := dbManager.CreateFirstBatch(ctx, s.address)
+		currBatch = &wipBatch{
 			globalExitRoot: processingCtx.GlobalExitRoot,
 			batchNumber:    processingCtx.BatchNumber,
 			coinbase:       processingCtx.Coinbase,
 			timestamp:      uint64(processingCtx.Timestamp.Unix()),
 			txs:            make([]TxTracker, 0, s.cfg.MaxTxsPerBatch),
+		}
+
+		if err != nil {
+			return nil, nil, nil, err
 		}
 	} else {
 		// Check if synchronizer is up to date
@@ -110,21 +121,25 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (wipBat
 		}
 		// Revert reorged txs to pending
 		if err = dbManager.MarkReorgedTxsAsPending(ctx); err != nil {
-			log.Fatal(fmt.Errorf("failed to mark reorged txs as pending, err: %w", err))
+			log.Error(fmt.Errorf("failed to mark reorged txs as pending, err: %w", err))
+			return nil, nil, nil, err
 		}
 		// Get current wip batch
 		currBatch, err = dbManager.GetWIPBatch(ctx)
 		if err != nil {
-			log.Fatal(fmt.Errorf("failed to load batch from the state, err: %w", err))
+			log.Error(fmt.Errorf("failed to load batch from the state, err: %w", err))
+			return nil, nil, nil, err
 		}
 		// Get data for prevBatch
 		lastBatch, err := dbManager.GetLastBatch(ctx)
 		if err != nil {
-			log.Fatal(fmt.Errorf("failed to get last batch. err: %w", err))
+			log.Error(fmt.Errorf("failed to get last batch. err: %w", err))
+			return nil, nil, nil, err
 		}
 		isClosed, err := dbManager.IsBatchClosed(ctx, lastBatch.BatchNumber)
 		if err != nil {
-			log.Fatal(fmt.Errorf("failed to check is batch closed or not, err: %w", err))
+			log.Error(fmt.Errorf("failed to check is batch closed or not, err: %w", err))
+			return nil, nil, nil, err
 		}
 		if isClosed {
 			//ger, _, err := s.getLatestGer(ctx, dbTx)
@@ -137,7 +152,8 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (wipBat
 				n := uint(2)
 				batches, err := dbManager.GetLastNBatches(ctx, n)
 				if err != nil {
-					log.Fatal(fmt.Errorf("failed to get last %d batches, err: %w", n, err))
+					log.Error(fmt.Errorf("failed to get last %d batches, err: %w", n, err))
+					return nil, nil, nil, err
 				}
 				oldAccInputHash = batches[1].AccInputHash
 				oldStateRoot = batches[1].StateRoot
@@ -145,7 +161,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (wipBat
 
 		}
 	}
-	return currBatch, oldAccInputHash, oldStateRoot
+	return currBatch, &oldAccInputHash, &oldStateRoot, nil
 }
 
 func (s *Sequencer) trackOldTxs(ctx context.Context) {
