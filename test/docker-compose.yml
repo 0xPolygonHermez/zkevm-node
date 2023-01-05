@@ -104,6 +104,7 @@ services:
     image: zkevm-node
     ports:
       - 50081:50081
+      - 9093:9091 # needed if metrics enabled
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     volumes:

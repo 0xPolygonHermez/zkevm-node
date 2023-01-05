@@ -96,6 +96,31 @@ func TestGaugeSet(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func TestGaugeInc(t *testing.T) {
+	setup()
+	defer cleanup()
+	gauges[gaugeName] = gauge
+	expected := float64(1)
+
+	GaugeInc(gaugeName)
+	actual := testutil.ToFloat64(gauge)
+
+	assert.Equal(t, expected, actual)
+}
+
+func TestGaugeDec(t *testing.T) {
+	setup()
+	defer cleanup()
+	gauges[gaugeName] = gauge
+	gauge.Set(2)
+	expected := float64(1)
+
+	GaugeDec(gaugeName)
+	actual := testutil.ToFloat64(gauge)
+
+	assert.Equal(t, expected, actual)
+}
+
 func TestUnregisterGauges(t *testing.T) {
 	setup()
 	defer cleanup()
