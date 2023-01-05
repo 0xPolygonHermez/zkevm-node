@@ -32,7 +32,7 @@ func (w *Worker) AddTx(tx TxTracker) {
 func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
 	// 1. Delete related txs from w.efficiencyList
 	// 2. Mark the affected addresses as "reorged" in w.Pool
-	// 3. Update these addresses (go to MT, update nonce and balance and go to the pool to check for valid txs to move them into the efficiency list)
+	// 3. Update these addresses (go to MT, update nonce and balance into w.Pool)
 }
 
 func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress) {
