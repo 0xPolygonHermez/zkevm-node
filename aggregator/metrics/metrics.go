@@ -8,6 +8,7 @@ import (
 const (
 	prefix                      = "aggregator_"
 	currentConnectedProversName = prefix + "current_connected_provers"
+	currentWorkingProversName   = prefix + "current_working_provers"
 )
 
 // Register the metrics for the sequencer package.
@@ -16,6 +17,10 @@ func Register() {
 		{
 			Name: currentConnectedProversName,
 			Help: "[AGGREGATOR] current connected provers",
+		},
+		{
+			Name: currentWorkingProversName,
+			Help: "[AGGREGATOR] current working provers",
 		},
 	}
 
@@ -32,4 +37,15 @@ func ConnectedProver() {
 // provers.
 func DisconnectedProver() {
 	metrics.GaugeDec(currentConnectedProversName)
+}
+
+// WorkingProver increments the gauge for the current number of working
+// provers.
+func WorkingProver() {
+	metrics.GaugeInc(currentWorkingProversName)
+}
+
+// IdlingProver decrements the gauge for the current number of working provers.
+func IdlingProver() {
+	metrics.GaugeDec(currentWorkingProversName)
 }

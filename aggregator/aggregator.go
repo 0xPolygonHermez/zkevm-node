@@ -284,7 +284,6 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 		return nil, fmt.Errorf("Failed to get final proof from prover, %w", err)
 	}
 
-	//b, err := json.Marshal(resGetProof.FinalProof)
 	log.Infof("Final proof [%s] generated", *proof.ProofID)
 
 	// mock prover sanity check
