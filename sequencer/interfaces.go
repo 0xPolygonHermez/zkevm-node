@@ -52,7 +52,7 @@ type workerInterface interface {
 }
 
 // The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.
-// Also if dbTx is missing this needs also to be handled ion the dbManager
+// Also if dbTx is missing this needs also to be handled in the dbManager
 type dbManagerInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext
