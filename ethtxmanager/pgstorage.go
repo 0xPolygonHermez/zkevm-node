@@ -135,7 +135,8 @@ func (s *PostgresStorage) GetByBlock(ctx context.Context, fromBlock, toBlock *ui
            AND block_num IS NOT NULL
          ORDER BY created_at`
 
-	args := make([]interface{}, 0, 2)
+	const numberOfArgs = 2
+	args := make([]interface{}, 0, numberOfArgs)
 
 	if fromBlock != nil {
 		args = append(args, *fromBlock)

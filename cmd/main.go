@@ -24,7 +24,7 @@ const (
 	SYNCHRONIZER = "synchronizer"
 	// BROADCAST is the broadcast component identifier.
 	BROADCAST = "broadcast-trusted-state"
-	// ETH TX MANAGER is the service that controls the tx sent to L1
+	// ETHTXMANAGER is the service that manages the tx sent to L1
 	ETHTXMANAGER = "eth-tx-manager"
 )
 
