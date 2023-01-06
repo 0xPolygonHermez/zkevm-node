@@ -111,6 +111,28 @@ func GaugeSet(name string, value float64) {
 	}
 }
 
+// GaugeInc increments the gauge with the given name.
+func GaugeInc(name string) {
+	if !initialized {
+		return
+	}
+
+	if g, ok := Gauge(name); ok {
+		g.Inc()
+	}
+}
+
+// GaugeDec decrements the gauge with the given name.
+func GaugeDec(name string) {
+	if !initialized {
+		return
+	}
+
+	if g, ok := Gauge(name); ok {
+		g.Dec()
+	}
+}
+
 // RegisterCounters registers the provided counter metrics to the Prometheus
 // registerer.
 func RegisterCounters(opts ...prometheus.CounterOpts) {

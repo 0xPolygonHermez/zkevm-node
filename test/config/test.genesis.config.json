@@ -12,7 +12,7 @@
         "0x0000000000000000000000000000000000000000000000000000000000000087": "0x01",
         "0x000000000000000000000000000000000000000000000000000000000000008b": "0xae4bb80be56b819606589de61d5ec3b522eeb032"
       },
-      "contractName": "Bridge"
+      "contractName": "PolygonZkEVMBridge"
     },
     {
       "balance": "0",
@@ -34,7 +34,7 @@
       "storage": {
         "0x0000000000000000000000000000000000000000000000000000000000000002": "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"
       },
-      "contractName": "GlobalExitRootManagerL2"
+      "contractName": "PolygonZkEVMGlobalExitRootL2"
     }
   ]
 }
