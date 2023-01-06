@@ -207,10 +207,10 @@ func (c *Client) Stop() {
 	c.cancel()
 }
 
-// ProcessReorg updates all monitored txs from block 0 to provided block number to
-// Reorged status, allowing it to be reprocessed by the monitored tx management
-func (c *Client) ProcessReorg(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
-	mTxs, err := c.storage.GetByBlock(ctx, nil, &blockNumber, dbTx)
+// ProcessReorg updates all monitored txs from provided block number until the last one to
+// Reorged status, allowing it to be reprocessed by the tx monitoring
+func (c *Client) ProcessReorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx) error {
+	mTxs, err := c.storage.GetByBlock(ctx, &fromBlockNumber, nil, dbTx)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func (c *Client) ProcessReorg(ctx context.Context, blockNumber uint64, dbTx pgx.
 		mTx.blockNumber = nil
 		mTx.status = MonitoredTxStatusReorged
 
-		err = c.storage.Update(ctx, mTx, nil)
+		err = c.storage.Update(ctx, mTx, dbTx)
 		if err != nil {
 			log.Errorf("failed to update monitored tx to reorg status: %v", err)
 			return err
@@ -340,13 +340,13 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 			// check block synced
 			block, err := c.state.GetLastBlock(ctx, nil)
 			if errors.Is(err, state.ErrStateNotSynchronized) {
-				mTxLog.Debugf("state not synchronized yet, waiting for L1 block %v to be synced", receiptBlockNum, err)
+				mTxLog.Debugf("state not synchronized yet, waiting for L1 block %v to be synced", receiptBlockNum)
 				continue
 			} else if err != nil {
 				mTxLog.Errorf("failed to check if L1 block %v is already synced: %v", receiptBlockNum, err)
 				continue
 			} else if block.BlockNumber < receiptBlockNum {
-				mTxLog.Debugf("L1 block %v not synchronized yet, waiting for L1 block to be synced in order to confirm monitored tx", receiptBlockNum, err)
+				mTxLog.Debugf("L1 block %v not synchronized yet, waiting for L1 block to be synced in order to confirm monitored tx", receiptBlockNum)
 				continue
 			} else {
 				mTx.status = MonitoredTxStatusConfirmed

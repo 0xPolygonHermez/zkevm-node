@@ -145,6 +145,22 @@ services:
       - "-c"
       - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components broadcast-trusted-state"
 
+  zkevm-eth-tx-manager:
+    container_name: zkevm-eth-tx-manager
+    image: zkevm-node
+    ports:
+      - 9093:9091 # needed if metrics enabled
+    environment:
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+    volumes:
+      - ./test.keystore:/pk/keystore
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components eth-tx-manager"
+
   zkevm-state-db:
     container_name: zkevm-state-db
     image: postgres

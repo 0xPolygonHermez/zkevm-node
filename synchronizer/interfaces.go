@@ -53,5 +53,5 @@ type stateInterface interface {
 }
 
 type ethTxManager interface {
-	ProcessReorg(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error
+	ProcessReorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx) error
 }

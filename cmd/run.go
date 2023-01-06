@@ -112,6 +112,9 @@ func start(cliCtx *cli.Context) error {
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, st)
+		case ETHTXMANAGER:
+			log.Info("Running eth tx manager service")
+			go ethTxManager.Start()
 		}
 	}
 

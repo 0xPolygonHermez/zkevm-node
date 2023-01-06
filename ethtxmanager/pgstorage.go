@@ -135,8 +135,22 @@ func (s *PostgresStorage) GetByBlock(ctx context.Context, fromBlock, toBlock *ui
            AND block_num IS NOT NULL
          ORDER BY created_at`
 
+	args := make([]interface{}, 0, 2)
+
+	if fromBlock != nil {
+		args = append(args, *fromBlock)
+	} else {
+		args = append(args, fromBlock)
+	}
+
+	if toBlock != nil {
+		args = append(args, *toBlock)
+	} else {
+		args = append(args, toBlock)
+	}
+
 	mTxs := []monitoredTx{}
-	rows, err := conn.Query(ctx, cmd, fromBlock, toBlock)
+	rows, err := conn.Query(ctx, cmd, args...)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return []monitoredTx{}, nil

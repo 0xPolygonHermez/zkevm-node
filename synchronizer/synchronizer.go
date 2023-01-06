@@ -55,6 +55,7 @@ func NewSynchronizer(
 		etherMan:           ethMan,
 		ctx:                ctx,
 		cancelCtx:          cancel,
+		txManager:          txManager,
 		genesis:            genesis,
 		cfg:                cfg,
 	}, nil
@@ -390,7 +391,7 @@ func (s *ClientSynchronizer) resetState(blockNumber uint64) error {
 		log.Error("error resetting the state. Error: ", err)
 		return err
 	}
-	err = s.txManager.ProcessReorg(s.ctx, blockNumber, dbTx)
+	err = s.txManager.ProcessReorg(s.ctx, blockNumber+1, dbTx)
 	if err != nil {
 		rollbackErr := dbTx.Rollback(s.ctx)
 		if rollbackErr != nil {

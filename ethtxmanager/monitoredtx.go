@@ -99,6 +99,7 @@ type monitoredTx struct {
 // Tx uses the current information to build a tx
 func (mTx monitoredTx) Tx() *types.Transaction {
 	tx := types.NewTx(&types.LegacyTx{
+		To:       mTx.to,
 		Nonce:    mTx.nonce,
 		Value:    mTx.value,
 		Data:     mTx.data,

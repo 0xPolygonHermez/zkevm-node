@@ -24,6 +24,8 @@ const (
 	SYNCHRONIZER = "synchronizer"
 	// BROADCAST is the broadcast component identifier.
 	BROADCAST = "broadcast-trusted-state"
+	// ETH TX MANAGER is the service that controls the tx sent to L1
+	ETHTXMANAGER = "eth-tx-manager"
 )
 
 var (
@@ -50,7 +52,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER),
+		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, ETHTXMANAGER),
 	}
 	httpAPIFlag = cli.StringSliceFlag{
 		Name:     config.FlagHTTPAPI,

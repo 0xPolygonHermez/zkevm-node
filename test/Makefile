@@ -4,6 +4,7 @@ DOCKERCOMPOSEAPPAGG := zkevm-aggregator
 DOCKERCOMPOSEAPPRPC := zkevm-json-rpc
 DOCKERCOMPOSEAPPSYNC := zkevm-sync
 DOCKERCOMPOSEAPPBROADCAST := zkevm-broadcast
+DOCKERCOMPOSEAPPETHTXMANAGER := zkevm-eth-tx-manager
 DOCKERCOMPOSESTATEDB := zkevm-state-db
 DOCKERCOMPOSEPOOLDB := zkevm-pool-db
 DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
@@ -27,6 +28,7 @@ RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
 RUNSYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
 RUNBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
+RUNETHTXMANAGER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPETHTXMANAGER)
 RUNGRAFANA := DOCKERGID=`stat -c '%g' /var/run/docker.sock` $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEGRAFANA)
 
 RUNL1NETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
@@ -54,6 +56,7 @@ STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOS
 STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
 STOPSYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
 STOPBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
+STOPETHTXMANAGER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPETHTXMANAGER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPETHTXMANAGER)
 STOPGRAFANA := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEGRAFANA) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEGRAFANA)
 
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
@@ -93,6 +96,7 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
@@ -103,6 +107,7 @@ test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
@@ -113,6 +118,7 @@ test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
@@ -123,6 +129,7 @@ test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
@@ -257,6 +264,14 @@ run-broadcast: ## Runs the broadcast service
 stop-broadcast: ## Stops the broadcast service
 	$(STOPBROADCAST)
 
+.PHONY: run-eth-tx-manager
+run-eth-tx-manager: ## Runs the eth tx manager service
+	$(RUNETHTXMANAGER)
+
+.PHONY: stop-eth-tx-manager
+stop-eth-tx-manager: ## Stops the eth tx manager service
+	$(STOPETHTXMANAGER)
+
 .PHONY: run-grafana
 run-grafana: ## Runs the grafana service
 	$(RUNGRAFANA)
@@ -295,6 +310,7 @@ run: ## Runs a full node
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
 	$(RUNSYNC)
+	$(RUNETHTXMANAGER)
 
 .PHONY: stop
 stop: ## Stops all services

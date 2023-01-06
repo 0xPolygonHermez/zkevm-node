@@ -373,7 +373,7 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 		Return(nil).
 		Once()
 
-	blockNumber := big.NewInt(1)
+	blockNumber := big.NewInt(10)
 
 	receipt := &ethTypes.Receipt{
 		BlockNumber: blockNumber,
@@ -468,7 +468,7 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 	require.Equal(t, receipt, result.Txs[signedTx.Hash()].Receipt)
 	require.Equal(t, "", result.Txs[signedTx.Hash()].RevertMessage)
 
-	err = ethTxManagerClient.ProcessReorg(ctx, blockNumber.Uint64(), nil)
+	err = ethTxManagerClient.ProcessReorg(ctx, blockNumber.Uint64()-3, nil)
 	require.NoError(t, err)
 
 	result, err = ethTxManagerClient.Result(ctx, owner, id, nil)
