@@ -31,6 +31,11 @@ func (d *dbManager) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 	return 0, errors.New("")
 }
 
+func (d *dbManager) OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error {
+	//TODO: Use state interface to OpenBatch in the DB
+	panic("implement me")
+}
+
 func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext {
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    1,
@@ -70,12 +75,12 @@ func (d *dbManager) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-func (d *dbManager) StoreProcessedTransaction(ctx context.Context, dbTx pgx.Tx, batchNumber uint64, processedTx *state.ProcessTransactionResponse) error {
+func (d *dbManager) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error {
 	// TODO: Implement store of transaction and adding it to the batch
 	return errors.New("")
 }
 
-func (d *dbManager) DeleteTxFromPool(ctx context.Context, dbTx pgx.Tx, txHash common.Hash) error {
+func (d *dbManager) DeleteTxFromPool(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) error {
 	// TODO: Delete transaction from Pool DB
 	return errors.New("")
 }
@@ -86,14 +91,14 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, batch
 		if err != nil {
 			// TODO: handle
 		}
-		err = d.StoreProcessedTransaction(ctx, dbTx, batchNumber, processedTx)
+		err = d.StoreProcessedTransaction(ctx, batchNumber, processedTx, dbTx)
 		if err != nil {
 			err = dbTx.Rollback(ctx)
 			if err != nil {
 				// TODO: handle
 			}
 		}
-		err = d.DeleteTxFromPool(ctx, dbTx, processedTx.TxHash)
+		err = d.DeleteTxFromPool(ctx, processedTx.TxHash, dbTx)
 		if err != nil {
 			err = dbTx.Rollback(ctx)
 			if err != nil {
@@ -103,11 +108,11 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, batch
 	}
 }
 
-func (d *dbManager) GetWIPBatch(ctx context.Context) (wipBatch, error) {
+func (d *dbManager) GetWIPBatch(ctx context.Context) (WipBatch, error) {
 	// TODO: Make this method to return ready WIP batch it has following cases:
-	// if lastBatch IS OPEN - load data from it but set wipBatch.initialStateRoot to Last Closed Batch
+	// if lastBatch IS OPEN - load data from it but set WipBatch.initialStateRoot to Last Closed Batch
 	// if lastBatch IS CLOSED - open new batch in the database and load all data from the closed one without the txs and increase batch number
-	return wipBatch{}, errors.New("")
+	return WipBatch{}, errors.New("")
 }
 
 func (d *dbManager) GetLastClosedBatch(ctx context.Context) (state.Batch, error) {
@@ -131,6 +136,10 @@ func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*st
 	return []*state.Batch{}, errors.New("")
 
 }
+func (d *dbManager) GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error) {
+	// TODO: Get implementation from old sequencer's batchbuilder
+	return state.GlobalExitRoot{}, time.Now(), nil
+}
 
 // ClosingBatchParameters contains the necessary parameters to close a batch
 type ClosingBatchParameters struct {
@@ -141,7 +150,7 @@ type ClosingBatchParameters struct {
 	Txs           []TxTracker
 }
 
-func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters) {
+func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters, dbTx pgx.Tx) {
 	// TODO: Close current open batch
 }
 

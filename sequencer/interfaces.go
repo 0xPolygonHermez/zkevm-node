@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"math/big"
 	"time"
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -37,8 +38,8 @@ type stateInterface interface {
 	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error)
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	Begin(ctx context.Context) (pgx.Tx, error)
-	ProcessSingleTx(request state.ProcessSingleTxRequest) state.ProcessBatchResponse
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
+	ProcessSingleTransaction(ctx context.Context, request state.ProcessSingleTxRequest, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 }
 
 type txManager interface {
@@ -49,22 +50,27 @@ type workerInterface interface {
 	GetBestFittingTx(resources BatchResources) *TxTracker
 	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress)
 	UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters)
+	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int)
+	DeleteTx(txHash common.Hash, from common.Address, actualFromNonce *uint64, actualFromBalance *big.Int)
+	HandleL2Reorg(txHashes []common.Hash)
 }
 
 // The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.
 // Also if dbTx is missing this needs also to be handled in the dbManager
 type dbManagerInterface interface {
+	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
-	StoreProcessedTransaction(ctx context.Context, dbTx pgx.Tx, batchNumber uint64, processedTx *state.ProcessTransactionResponse) error
-	DeleteTxFromPool(ctx context.Context, dbTx pgx.Tx, txHash common.Hash) error
+	StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error
+	DeleteTxFromPool(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) error
 	StoreProcessedTxAndDeleteFromPool(ctx context.Context, batchNumber uint64, response *state.ProcessTransactionResponse)
-	CloseBatch(ctx context.Context, params ClosingBatchParameters)
-	GetWIPBatch(ctx context.Context) (wipBatch, error)
+	CloseBatch(ctx context.Context, params ClosingBatchParameters, dbTx pgx.Tx)
+	GetWIPBatch(ctx context.Context) (WipBatch, error)
 	GetLastBatch(ctx context.Context) (state.Batch, error)
 	GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error)
 	GetLastClosedBatch(ctx context.Context) (state.Batch, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
 	MarkReorgedTxsAsPending(ctx context.Context) error
+	GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error)
 }

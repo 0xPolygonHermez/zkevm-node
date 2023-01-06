@@ -54,7 +54,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	go dbManager.Start()
 
 	currBatch, OldAccInputHash, OldStateRoot := s.bootstrap(ctx, dbManager)
-	finalizer := newFinalizer(worker, dbManager, s.state, s.address, s.cfg.MaxTxsPerBatch)
+	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, s.cfg.MaxTxsPerBatch)
 	go finalizer.Start(ctx, currBatch, OldStateRoot, OldAccInputHash)
 
 	closingSignalsManager := newClosingSignalsManager(finalizer)
@@ -75,9 +75,9 @@ func (s *Sequencer) Start(ctx context.Context) {
 	<-ctx.Done()
 }
 
-func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (wipBatch, common.Hash, common.Hash) {
+func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (WipBatch, common.Hash, common.Hash) {
 	var (
-		currBatch                     wipBatch
+		currBatch                     WipBatch
 		oldAccInputHash, oldStateRoot common.Hash
 	)
 	batchNum, err := dbManager.GetLastBatchNumber(ctx)
@@ -95,7 +95,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (wipBat
 		// GENESIS Batch //
 		///////////////////
 		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
-		currBatch = wipBatch{
+		currBatch = WipBatch{
 			globalExitRoot: processingCtx.GlobalExitRoot,
 			batchNumber:    processingCtx.BatchNumber,
 			coinbase:       processingCtx.Coinbase,
@@ -128,7 +128,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (wipBat
 		}
 		if isClosed {
 			//ger, _, err := s.getLatestGer(ctx, dbTx)
-			// TODO: Open New batch and create wipBatch (currBatch)
+			// TODO: Open New batch and create WipBatch (currBatch)
 		} else {
 			if lastBatch.BatchNumber == 1 {
 				oldAccInputHash = lastBatch.AccInputHash

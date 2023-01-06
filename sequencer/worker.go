@@ -50,9 +50,8 @@ func (w *Worker) ApplyAddressUpdate(from common.Address, fromNonce *uint64, from
 }
 
 // MoveTxToNotReady Assume that finalizer detected that a tx was not ready and decides to move to not ready after it fails to execute AND DOESN'T MODIFY THE STATE
-func (w *Worker) MoveTxToNotReady(from common.Address, txHash common.Hash, actualNonce *uint64, actualBalance *big.Int) {
+func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) {
 	// TODO: Update this
-	w.ApplyAddressUpdate(from, actualNonce, actualBalance)
 }
 
 // DeleteTx Assume that finalizer decides to delete the tx after it fails to execute AND DOESN'T MODIFY THE STATE
@@ -174,7 +173,7 @@ func (w *Worker) GetBestFittingTx(resources BatchResources) *TxTracker {
 	nGoRoutines := 4 // nCores - K // TODO: Think about this
 
 	// Each go routine looks for a fitting tx
-	foundAt := -1 // TODO: add mutex
+	foundAt := -1 // TODO: add sharedResourcesMux
 	wg := sync.WaitGroup{}
 	wg.Add(nGoRoutines)
 	for i := 0; i < nGoRoutines; i++ {
@@ -205,4 +204,10 @@ func (w *Worker) GetBestFittingTx(resources BatchResources) *TxTracker {
 	}
 	wg.Wait()
 	return tx
+}
+
+func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
+	// 1. Delete related txs from w.efficiencyList
+	// 2. Mark the affected addresses as "reorged" in w.Pool
+	// 3. Update these addresses (go to MT, update nonce and balance into w.Pool)
 }
