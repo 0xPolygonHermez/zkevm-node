@@ -34,12 +34,6 @@ MultiGasProvider = false
 	[Etherscan]
 		ApiKey = ""
 
-[EthTxManager]
-FrequencyForResendingFailedTxs = "1s"
-WaitTxToBeMined = "2m"
-PercentageToIncreaseGasPrice = 10
-PercentageToIncreaseGasLimit = 10
-
 [RPC]
 Host = "0.0.0.0"
 Port = 8123

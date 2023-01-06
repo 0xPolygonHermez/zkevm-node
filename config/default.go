@@ -38,7 +38,7 @@ MultiGasProvider = true
 		ApiKey = ""
 
 [EthTxManager]
-FrequencyForResendingFailedTxs = "1s"
+FrequencyToMonitorTxs = "1s"
 WaitTxToBeMined = "2m"
 
 [RPC]

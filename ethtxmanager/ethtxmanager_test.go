@@ -19,8 +19,8 @@ import (
 
 func TestTxGetMined(t *testing.T) {
 	cfg := Config{
-		FrequencyForResendingFailedTxs: types.NewDuration(time.Second),
-		WaitTxToBeMined:                types.NewDuration(1 * time.Minute),
+		FrequencyToMonitorTxs: types.NewDuration(time.Second),
+		WaitTxToBeMined:       types.NewDuration(1 * time.Minute),
 	}
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
@@ -138,8 +138,8 @@ func TestTxGetMined(t *testing.T) {
 
 func TestTxGetMinedAfterReviewed(t *testing.T) {
 	cfg := Config{
-		FrequencyForResendingFailedTxs: types.NewDuration(time.Second),
-		WaitTxToBeMined:                types.NewDuration(1 * time.Minute),
+		FrequencyToMonitorTxs: types.NewDuration(time.Second),
+		WaitTxToBeMined:       types.NewDuration(1 * time.Minute),
 	}
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
@@ -306,8 +306,8 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 
 func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 	cfg := Config{
-		FrequencyForResendingFailedTxs: types.NewDuration(time.Second),
-		WaitTxToBeMined:                types.NewDuration(1 * time.Minute),
+		FrequencyToMonitorTxs: types.NewDuration(time.Second),
+		WaitTxToBeMined:       types.NewDuration(1 * time.Minute),
 	}
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))

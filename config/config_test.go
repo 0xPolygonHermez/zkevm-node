@@ -165,20 +165,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
-			path:          "EthTxManager.FrequencyForResendingFailedTxs",
+			path:          "EthTxManager.FrequencyToMonitorTxs",
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
 			path:          "EthTxManager.WaitTxToBeMined",
 			expectedValue: types.NewDuration(2 * time.Minute),
-		},
-		{
-			path:          "EthTxManager.PercentageToIncreaseGasPrice",
-			expectedValue: uint64(10),
-		},
-		{
-			path:          "EthTxManager.PercentageToIncreaseGasLimit",
-			expectedValue: uint64(10),
 		},
 		{
 			path:          "PriceGetter.Type",

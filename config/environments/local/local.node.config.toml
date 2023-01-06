@@ -35,10 +35,6 @@ MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""
 
-[EthTxManager]
-FrequencyForResendingFailedTxs = "1s"
-WaitTxToBeMined = "2m"
-
 [RPC]
 Host = "0.0.0.0"
 Port = 8545

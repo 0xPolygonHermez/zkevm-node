@@ -193,7 +193,7 @@ func (c *Client) Start() {
 		select {
 		case <-c.ctx.Done():
 			return
-		case <-time.After(time.Second):
+		case <-time.After(c.cfg.FrequencyToMonitorTxs.Duration):
 			err := c.processMonitoredTxs(context.Background())
 			if err != nil {
 				c.logErrorAndWait("failed to process created monitored txs: %v", err)
