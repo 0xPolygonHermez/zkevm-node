@@ -88,7 +88,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNL1NETWORK)
 	sleep 15
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ../...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -timeout 60s ../...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
@@ -99,7 +99,7 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
 
 .PHONY: test-e2e-group-2
 test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
@@ -110,7 +110,7 @@ test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
 
 .PHONY: test-e2e-group-3
 test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
@@ -121,7 +121,7 @@ test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
 
 .PHONY: test-e2e-group-4
 test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
@@ -132,7 +132,7 @@ test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
 
 .PHONY: benchmark-sequencer
 benchmark-sequencer: stop

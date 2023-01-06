@@ -17,11 +17,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var defaultEthTxmanagerConfigForTests = Config{
+	FrequencyToMonitorTxs: types.NewDuration(time.Millisecond),
+	WaitTxToBeMined:       types.NewDuration(time.Second),
+}
+
 func TestTxGetMined(t *testing.T) {
-	cfg := Config{
-		FrequencyToMonitorTxs: types.NewDuration(time.Second),
-		WaitTxToBeMined:       types.NewDuration(1 * time.Minute),
-	}
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
 
@@ -30,7 +31,7 @@ func TestTxGetMined(t *testing.T) {
 	storage, err := NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
-	ethTxManagerClient := New(cfg, etherman, storage, st)
+	ethTxManagerClient := New(defaultEthTxmanagerConfigForTests, etherman, storage, st)
 
 	owner := "owner"
 	id := "unique_id"
@@ -125,7 +126,7 @@ func TestTxGetMined(t *testing.T) {
 
 	go ethTxManagerClient.Start()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Second)
 	result, err := ethTxManagerClient.Result(ctx, owner, id, nil)
 	require.NoError(t, err)
 	require.Equal(t, id, result.ID)
@@ -137,10 +138,6 @@ func TestTxGetMined(t *testing.T) {
 }
 
 func TestTxGetMinedAfterReviewed(t *testing.T) {
-	cfg := Config{
-		FrequencyToMonitorTxs: types.NewDuration(time.Second),
-		WaitTxToBeMined:       types.NewDuration(1 * time.Minute),
-	}
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
 
@@ -149,7 +146,7 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 	storage, err := NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
-	ethTxManagerClient := New(cfg, etherman, storage, st)
+	ethTxManagerClient := New(defaultEthTxmanagerConfigForTests, etherman, storage, st)
 
 	ctx := context.Background()
 
@@ -298,17 +295,13 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 
 	go ethTxManagerClient.Start()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Second)
 	result, err := ethTxManagerClient.Result(ctx, owner, id, nil)
 	require.NoError(t, err)
 	require.Equal(t, MonitoredTxStatusConfirmed, result.Status)
 }
 
 func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
-	cfg := Config{
-		FrequencyToMonitorTxs: types.NewDuration(time.Second),
-		WaitTxToBeMined:       types.NewDuration(1 * time.Minute),
-	}
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
 
@@ -317,7 +310,7 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 	storage, err := NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
-	ethTxManagerClient := New(cfg, etherman, storage, st)
+	ethTxManagerClient := New(defaultEthTxmanagerConfigForTests, etherman, storage, st)
 
 	owner := "owner"
 	id := "unique_id"
@@ -458,7 +451,7 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 
 	go ethTxManagerClient.Start()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Second)
 	result, err := ethTxManagerClient.Result(ctx, owner, id, nil)
 	require.NoError(t, err)
 	require.Equal(t, id, result.ID)
@@ -480,9 +473,12 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 	require.Nil(t, result.Txs[signedTx.Hash()].Receipt)
 	require.Equal(t, "", result.Txs[signedTx.Hash()].RevertMessage)
 
+	// creates a new instance of client to avoid a race condition in the test code
+	ethTxManagerClient = New(defaultEthTxmanagerConfigForTests, etherman, storage, st)
+
 	go ethTxManagerClient.Start()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Second)
 	result, err = ethTxManagerClient.Result(ctx, owner, id, nil)
 	require.NoError(t, err)
 	require.Equal(t, id, result.ID)

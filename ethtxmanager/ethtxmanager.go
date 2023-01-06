@@ -189,6 +189,7 @@ func (c *Client) buildResult(ctx context.Context, mTx monitoredTx) (MonitoredTxR
 func (c *Client) Start() {
 	// infinite loop to manage txs as they arrive
 	c.ctx, c.cancel = context.WithCancel(context.Background())
+
 	for {
 		select {
 		case <-c.ctx.Done():
