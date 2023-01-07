@@ -34,6 +34,11 @@ func (_m *EthTxManager) Add(ctx context.Context, owner string, id string, from c
 	return r0
 }
 
+// ProcessPendingMonitoredTxs provides a mock function with given fields: ctx, owner, failedResultHandler
+func (_m *EthTxManager) ProcessPendingMonitoredTxs(ctx context.Context, owner string, failedResultHandler ethtxmanager.ResultHandler) {
+	_m.Called(ctx, owner, failedResultHandler)
+}
+
 // Result provides a mock function with given fields: ctx, owner, id, dbTx
 func (_m *EthTxManager) Result(ctx context.Context, owner string, id string, dbTx pgx.Tx) (ethtxmanager.MonitoredTxResult, error) {
 	ret := _m.Called(ctx, owner, id, dbTx)
@@ -76,20 +81,6 @@ func (_m *EthTxManager) ResultsByStatus(ctx context.Context, owner string, statu
 	}
 
 	return r0, r1
-}
-
-// SetStatusDone provides a mock function with given fields: ctx, owner, id, dbTx
-func (_m *EthTxManager) SetStatusDone(ctx context.Context, owner string, id string, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, owner, id, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, pgx.Tx) error); ok {
-		r0 = rf(ctx, owner, id, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }
 
 type mockConstructorTestingTNewEthTxManager interface {

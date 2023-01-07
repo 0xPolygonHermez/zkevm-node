@@ -19,12 +19,12 @@ import (
 type Sequencer struct {
 	cfg Config
 
-	pool      txPool
-	state     stateInterface
-	txManager ethTxManager
-	etherman  etherman
-	checker   *profitabilitychecker.Checker
-	gpe       gasPriceEstimator
+	pool         txPool
+	state        stateInterface
+	ethTxManager ethTxManager
+	etherman     etherman
+	checker      *profitabilitychecker.Checker
+	gpe          gasPriceEstimator
 
 	address common.Address
 
@@ -49,14 +49,14 @@ func New(
 	// TODO: check that private key used in etherman matches addr
 
 	return &Sequencer{
-		cfg:       cfg,
-		pool:      txPool,
-		state:     state,
-		etherman:  etherman,
-		checker:   checker,
-		txManager: manager,
-		gpe:       gpe,
-		address:   addr,
+		cfg:          cfg,
+		pool:         txPool,
+		state:        state,
+		etherman:     etherman,
+		checker:      checker,
+		ethTxManager: manager,
+		gpe:          gpe,
+		address:      addr,
 	}, nil
 }
 

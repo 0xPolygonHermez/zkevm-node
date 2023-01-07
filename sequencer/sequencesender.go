@@ -21,7 +21,12 @@ const ethTxManagerOwner = "sequencer"
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
 	// process monitored sequences before starting a next cycle
-	s.processMonitoredSequences(ctx)
+	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult) {
+		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
+			resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
+			resultLog.Fatal("failed to send sequence, TODO: review this fatal and define what to do in this case")
+		}
+	})
 
 	// This sleep waits for the synchronizer and for txs in L1
 	time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
@@ -67,73 +72,17 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	}
 	sender, err := state.GetSender(*tx)
 	if err != nil {
-		log.Error("error getting tx sender to add to eth tx manager: ", err)
+		log.Error("error getting tx sender to add sequences to eth tx manager: ", err)
 		return
 	}
 
 	firstSequence := sequences[0]
 	lastSequence := sequences[len(sequences)-1]
 	sequenceID := fmt.Sprintf("sequence-from-%v-to-%v", firstSequence.BatchNumber, lastSequence.BatchNumber)
-	err = s.txManager.Add(ctx, ethTxManagerOwner, sequenceID, sender, tx.To(), tx.Value(), tx.Data(), nil)
+	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, sequenceID, sender, tx.To(), tx.Value(), tx.Data(), nil)
 	if err != nil {
-		log.Error("error to add tx to eth tx manager: ", err)
+		log.Error("error to add sequences tx to eth tx manager: ", err)
 		return
-	}
-}
-
-// processMonitoredSequences will check all monitored txs status and wait
-// until all of them are either confirmed or failed before continuing
-func (s *Sequencer) processMonitoredSequences(ctx context.Context) {
-	// check for pending monitored sequences before getting into a new cycle
-	statusesFilter := []ethtxmanager.MonitoredTxStatus{
-		ethtxmanager.MonitoredTxStatusCreated,
-		ethtxmanager.MonitoredTxStatusSent,
-		ethtxmanager.MonitoredTxStatusFailed,
-		ethtxmanager.MonitoredTxStatusConfirmed,
-		ethtxmanager.MonitoredTxStatusReorged,
-	}
-	results, err := s.txManager.ResultsByStatus(ctx, ethTxManagerOwner, statusesFilter, nil)
-	if err != nil {
-		log.Error("failed to get results by statuses from eth tx manager to monitored txs err: ", err)
-	}
-	for _, result := range results {
-		resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
-
-		// if the result is confirmed, we set it as done do stop looking into this sequence
-		if result.Status == ethtxmanager.MonitoredTxStatusConfirmed {
-			err := s.txManager.SetStatusDone(ctx, ethTxManagerOwner, result.ID, nil)
-			if err != nil {
-				resultLog.Errorf("failed to set monitored tx as done, err: %v", err)
-			} else {
-				resultLog.Infof("monitored tx confirmed")
-			}
-			continue
-		}
-
-		// if the result is failed, we need to go around it and rebuild a sequence
-		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
-			resultLog.Fatal("failed to send sequence, TODO: review this fatal and define what to do in this case")
-		}
-
-		// if the result is either not confirmed or failed, it means we need to wait until it gets confirmed of failed.
-		for {
-			resultLog.Infof("waiting for monitored tx to get confirmed, status: %v", result.Status.String())
-
-			// wait before refreshing the result info
-			time.Sleep(time.Second)
-
-			// refresh the result info
-			result, err := s.txManager.Result(ctx, ethTxManagerOwner, result.ID, nil)
-			if err != nil {
-				resultLog.Errorf("failed to get monitored tx result, err: %v", err)
-				continue
-			}
-
-			// if the result status is confirmed or failed, breaks the wait loop
-			if result.Status == ethtxmanager.MonitoredTxStatusConfirmed || result.Status == ethtxmanager.MonitoredTxStatusFailed {
-				break
-			}
-		}
 	}
 }
 

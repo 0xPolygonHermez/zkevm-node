@@ -32,7 +32,7 @@ type ClientSynchronizer struct {
 	isTrustedSequencer bool
 	etherMan           ethermanInterface
 	state              stateInterface
-	txManager          ethTxManager
+	ethTxManager       ethTxManager
 	ctx                context.Context
 	cancelCtx          context.CancelFunc
 	genesis            state.Genesis
@@ -44,7 +44,7 @@ func NewSynchronizer(
 	isTrustedSequencer bool,
 	ethMan ethermanInterface,
 	st stateInterface,
-	txManager ethTxManager,
+	ethTxManager ethTxManager,
 	genesis state.Genesis,
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -55,7 +55,7 @@ func NewSynchronizer(
 		etherMan:           ethMan,
 		ctx:                ctx,
 		cancelCtx:          cancel,
-		txManager:          txManager,
+		ethTxManager:       ethTxManager,
 		genesis:            genesis,
 		cfg:                cfg,
 	}, nil
@@ -420,14 +420,14 @@ func (s *ClientSynchronizer) resetState(blockNumber uint64) error {
 		log.Error("error resetting the state. Error: ", err)
 		return err
 	}
-	err = s.txManager.ProcessReorg(s.ctx, blockNumber+1, dbTx)
+	err = s.ethTxManager.Reorg(s.ctx, blockNumber+1, dbTx)
 	if err != nil {
 		rollbackErr := dbTx.Rollback(s.ctx)
 		if rollbackErr != nil {
-			log.Errorf("error rolling back txManager when reorg detected. BlockNumber: %d, rollbackErr: %s, error : %w", blockNumber, rollbackErr.Error(), err)
+			log.Errorf("error rolling back eth tx manager when reorg detected. BlockNumber: %d, rollbackErr: %s, error : %w", blockNumber, rollbackErr.Error(), err)
 			return rollbackErr
 		}
-		log.Error("error processing reorg on tx manager. Error: ", err)
+		log.Error("error processing reorg on eth tx manager. Error: ", err)
 		return err
 	}
 	err = dbTx.Commit(s.ctx)

@@ -371,17 +371,24 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 }
 
 // EstimateGasForTrustedVerifyBatches estimates gas for trusted verify batches smart contract call.
-func (etherMan *Client) EstimateGasForTrustedVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (uint64, error) {
+func (etherMan *Client) EstimateGasForTrustedVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (*types.Transaction, error) {
 	if etherMan.IsReadOnly() {
-		return 0, ErrIsReadOnlyMode
+		return nil, ErrIsReadOnlyMode
 	}
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.NoSend = true
+	// setting the gas price forces the code to generate a legacy
+	// transaction, so we can extract the sender after
+	gasPrice, err := etherMan.EthClient.SuggestGasPrice(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	verifyBatchOpts.GasPrice = gasPrice
 	tx, err := etherMan.trustedVerifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, inputs)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return tx.Gas(), nil
+	return tx, nil
 }
 
 // TrustedVerifyBatches function allows the aggregator send the final proof to L1.

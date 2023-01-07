@@ -14,13 +14,13 @@ type ethTxManagerMock struct {
 	mock.Mock
 }
 
-// ProcessReorg provides a mock function with given fields: ctx, blockNumber, dbTx
-func (_m *ethTxManagerMock) ProcessReorg(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, blockNumber, dbTx)
+// Reorg provides a mock function with given fields: ctx, fromBlockNumber, dbTx
+func (_m *ethTxManagerMock) Reorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, fromBlockNumber, dbTx)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, blockNumber, dbTx)
+		r0 = rf(ctx, fromBlockNumber, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

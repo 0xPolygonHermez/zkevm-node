@@ -11,7 +11,6 @@ import (
 	"math/big"
 	"time"
 
-	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum"
@@ -50,11 +49,6 @@ func New(cfg Config, ethMan ethermanInterface, storage storageInterface, state s
 	}
 
 	return c
-}
-
-// VerifyBatches deprecated
-func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, batchNum uint64, inputs *ethmanTypes.FinalProofInputs) error {
-	panic("deprecated")
 }
 
 // Add a transaction to be sent and monitored
@@ -136,7 +130,7 @@ func (c *Client) Result(ctx context.Context, owner, id string, dbTx pgx.Tx) (Mon
 // SetStatusDone sets the status of a monitored tx to MonitoredStatusDone.
 // this method is provided to the callers to decide when a monitored tx should be
 // considered done, so they can start to ignore it when querying it by Status.
-func (c *Client) SetStatusDone(ctx context.Context, owner, id string, dbTx pgx.Tx) error {
+func (c *Client) setStatusDone(ctx context.Context, owner, id string, dbTx pgx.Tx) error {
 	mTx, err := c.storage.Get(ctx, owner, id, nil)
 	if err != nil {
 		return err
@@ -195,9 +189,9 @@ func (c *Client) Start() {
 		case <-c.ctx.Done():
 			return
 		case <-time.After(c.cfg.FrequencyToMonitorTxs.Duration):
-			err := c.processMonitoredTxs(context.Background())
+			err := c.monitorTxs(context.Background())
 			if err != nil {
-				c.logErrorAndWait("failed to process created monitored txs: %v", err)
+				c.logErrorAndWait("failed to monitor txs: %v", err)
 			}
 		}
 	}
@@ -208,9 +202,9 @@ func (c *Client) Stop() {
 	c.cancel()
 }
 
-// ProcessReorg updates all monitored txs from provided block number until the last one to
+// Reorg updates all monitored txs from provided block number until the last one to
 // Reorged status, allowing it to be reprocessed by the tx monitoring
-func (c *Client) ProcessReorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx) error {
+func (c *Client) Reorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx) error {
 	mTxs, err := c.storage.GetByBlock(ctx, &fromBlockNumber, nil, dbTx)
 	if err != nil {
 		return err
@@ -228,8 +222,8 @@ func (c *Client) ProcessReorg(ctx context.Context, fromBlockNumber uint64, dbTx 
 	return nil
 }
 
-// processMonitoredTxs process all monitored tx with Created and Sent status
-func (c *Client) processMonitoredTxs(ctx context.Context) error {
+// monitorTxs process all pending monitored tx
+func (c *Client) monitorTxs(ctx context.Context) error {
 	statusesFilter := []MonitoredTxStatus{MonitoredTxStatusCreated, MonitoredTxStatusSent, MonitoredTxStatusReorged}
 	mTxs, err := c.storage.GetByStatus(ctx, nil, statusesFilter, nil)
 	if err != nil {
@@ -404,4 +398,67 @@ func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx monitoredTx) error {
 func (c *Client) logErrorAndWait(msg string, err error) {
 	log.Errorf(msg, err)
 	time.Sleep(failureIntervalInSeconds * time.Second)
+}
+
+// ResultHandler used by the caller to handle results
+// when processing monitored txs
+type ResultHandler func(MonitoredTxResult)
+
+// ProcessPendingMonitoredTxs will check all monitored txs of this owner
+// and wait until all of them are either confirmed or failed before continuing
+//
+// for the confirmed and failed ones, the resultHandler will be triggered
+func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, resultHandler ResultHandler) {
+	statusesFilter := []MonitoredTxStatus{
+		MonitoredTxStatusCreated,
+		MonitoredTxStatusSent,
+		MonitoredTxStatusFailed,
+		MonitoredTxStatusConfirmed,
+		MonitoredTxStatusReorged,
+	}
+	results, err := c.ResultsByStatus(ctx, owner, statusesFilter, nil)
+	if err != nil {
+		log.Error("failed to get results by statuses from eth tx manager to monitored txs err: ", err)
+	}
+	for _, result := range results {
+		resultLog := log.WithFields("owner", owner, "id", result.ID)
+
+		// if the result is confirmed, we set it as done do stop looking into this monitored tx
+		if result.Status == MonitoredTxStatusConfirmed {
+			err := c.setStatusDone(ctx, owner, result.ID, nil)
+			if err != nil {
+				resultLog.Errorf("failed to set monitored tx as done, err: %v", err)
+			} else {
+				resultLog.Infof("monitored tx confirmed")
+			}
+			resultHandler(result)
+			continue
+		}
+
+		// if the result is failed, we need to go around it and rebuild a batch verification
+		if result.Status == MonitoredTxStatusFailed {
+			resultHandler(result)
+			continue
+		}
+
+		// if the result is either not confirmed or failed, it means we need to wait until it gets confirmed of failed.
+		for {
+			resultLog.Infof("waiting for monitored tx to get confirmed, status: %v", result.Status.String())
+
+			// wait before refreshing the result info
+			time.Sleep(time.Second)
+
+			// refresh the result info
+			result, err := c.Result(ctx, owner, result.ID, nil)
+			if err != nil {
+				resultLog.Errorf("failed to get monitored tx result, err: %v", err)
+				continue
+			}
+
+			// if the result status is confirmed or failed, breaks the wait loop
+			if result.Status == MonitoredTxStatusConfirmed || result.Status == MonitoredTxStatusFailed {
+				break
+			}
+		}
+	}
 }

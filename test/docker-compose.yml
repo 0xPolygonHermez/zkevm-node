@@ -150,7 +150,7 @@ services:
     container_name: zkevm-eth-tx-manager
     image: zkevm-node
     ports:
-      - 9093:9091 # needed if metrics enabled
+      - 9094:9091 # needed if metrics enabled
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     volumes:

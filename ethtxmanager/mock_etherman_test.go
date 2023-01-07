@@ -8,8 +8,6 @@ import (
 
 	common "github.com/ethereum/go-ethereum/common"
 
-	ethermantypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
-
 	mock "github.com/stretchr/testify/mock"
 
 	time "time"
@@ -87,50 +85,6 @@ func (_m *ethermanMock) EstimateGas(ctx context.Context, from common.Address, to
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, common.Address, *common.Address, *big.Int, []byte) error); ok {
 		r1 = rf(ctx, from, to, value, data)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// EstimateGasForTrustedVerifyBatches provides a mock function with given fields: lastVerifiedBatch, newVerifiedBatch, inputs
-func (_m *ethermanMock) EstimateGasForTrustedVerifyBatches(lastVerifiedBatch uint64, newVerifiedBatch uint64, inputs *ethermantypes.FinalProofInputs) (uint64, error) {
-	ret := _m.Called(lastVerifiedBatch, newVerifiedBatch, inputs)
-
-	var r0 uint64
-	if rf, ok := ret.Get(0).(func(uint64, uint64, *ethermantypes.FinalProofInputs) uint64); ok {
-		r0 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
-	} else {
-		r0 = ret.Get(0).(uint64)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(uint64, uint64, *ethermantypes.FinalProofInputs) error); ok {
-		r1 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// EstimateGasSequenceBatches provides a mock function with given fields: sequences
-func (_m *ethermanMock) EstimateGasSequenceBatches(sequences []ethermantypes.Sequence) (*types.Transaction, error) {
-	ret := _m.Called(sequences)
-
-	var r0 *types.Transaction
-	if rf, ok := ret.Get(0).(func([]ethermantypes.Sequence) *types.Transaction); ok {
-		r0 = rf(sequences)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Transaction)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func([]ethermantypes.Sequence) error); ok {
-		r1 = rf(sequences)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -226,29 +180,6 @@ func (_m *ethermanMock) SendTx(ctx context.Context, tx *types.Transaction) error
 	return r0
 }
 
-// SequenceBatches provides a mock function with given fields: ctx, sequences, gasLimit, gasPrice, nonce, noSend
-func (_m *ethermanMock) SequenceBatches(ctx context.Context, sequences []ethermantypes.Sequence, gasLimit uint64, gasPrice *big.Int, nonce *big.Int, noSend bool) (*types.Transaction, error) {
-	ret := _m.Called(ctx, sequences, gasLimit, gasPrice, nonce, noSend)
-
-	var r0 *types.Transaction
-	if rf, ok := ret.Get(0).(func(context.Context, []ethermantypes.Sequence, uint64, *big.Int, *big.Int, bool) *types.Transaction); ok {
-		r0 = rf(ctx, sequences, gasLimit, gasPrice, nonce, noSend)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Transaction)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, []ethermantypes.Sequence, uint64, *big.Int, *big.Int, bool) error); ok {
-		r1 = rf(ctx, sequences, gasLimit, gasPrice, nonce, noSend)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // SignTx provides a mock function with given fields: ctx, tx
 func (_m *ethermanMock) SignTx(ctx context.Context, tx *types.Transaction) (*types.Transaction, error) {
 	ret := _m.Called(ctx, tx)
@@ -288,29 +219,6 @@ func (_m *ethermanMock) SuggestedGasPrice(ctx context.Context) (*big.Int, error)
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
 		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// TrustedVerifyBatches provides a mock function with given fields: ctx, lastVerifiedBatch, newVerifiedBatch, inputs, gasLimit, gasPrice, nonce, noSend
-func (_m *ethermanMock) TrustedVerifyBatches(ctx context.Context, lastVerifiedBatch uint64, newVerifiedBatch uint64, inputs *ethermantypes.FinalProofInputs, gasLimit uint64, gasPrice *big.Int, nonce *big.Int, noSend bool) (*types.Transaction, error) {
-	ret := _m.Called(ctx, lastVerifiedBatch, newVerifiedBatch, inputs, gasLimit, gasPrice, nonce, noSend)
-
-	var r0 *types.Transaction
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, *ethermantypes.FinalProofInputs, uint64, *big.Int, *big.Int, bool) *types.Transaction); ok {
-		r0 = rf(ctx, lastVerifiedBatch, newVerifiedBatch, inputs, gasLimit, gasPrice, nonce, noSend)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Transaction)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, *ethermantypes.FinalProofInputs, uint64, *big.Int, *big.Int, bool) error); ok {
-		r1 = rf(ctx, lastVerifiedBatch, newVerifiedBatch, inputs, gasLimit, gasPrice, nonce, noSend)
 	} else {
 		r1 = ret.Error(1)
 	}
