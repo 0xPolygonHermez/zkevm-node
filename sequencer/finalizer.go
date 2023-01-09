@@ -93,12 +93,14 @@ func newFinalizer(cfg FinalizerCfg, worker workerInterface, dbManager dbManagerI
 }
 
 // Start starts the finalizer.
-func (f *finalizer) Start(ctx context.Context, batch WipBatch, OldStateRoot, OldAccInputHash common.Hash) {
+func (f *finalizer) Start(ctx context.Context, batch *WipBatch, OldStateRoot, OldAccInputHash common.Hash) {
 	var (
 		err error
 	)
 
-	f.batch = batch
+	if batch != nil {
+		f.batch = *batch
+	}
 	f.processRequest = state.ProcessSingleTxRequest{
 		BatchNumber:      f.batch.batchNumber,
 		StateRoot:        f.batch.stateRoot,
