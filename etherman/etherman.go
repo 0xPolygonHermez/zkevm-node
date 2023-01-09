@@ -883,7 +883,7 @@ func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
 			gasPrice = gp
 		}
 	}
-	log.Debug("gasPrice choosed: ", gasPrice)
+	log.Debug("gasPrice chose: ", gasPrice)
 	return gasPrice
 }
 
@@ -899,7 +899,11 @@ func (etherMan *Client) CurrentNonce(ctx context.Context) (uint64, error) {
 
 // SuggestedGasPrice returns the suggest nonce for the network at the moment
 func (etherMan *Client) SuggestedGasPrice(ctx context.Context) (*big.Int, error) {
-	return etherMan.EthClient.SuggestGasPrice(ctx)
+	suggestedGasPrice := etherMan.getGasPrice(ctx)
+	if suggestedGasPrice.Cmp(big.NewInt(0)) == 0 {
+		return nil, errors.New("failed to get the suggested gas price")
+	}
+	return suggestedGasPrice, nil
 }
 
 // EstimateGas returns the estimated gas for the tx
