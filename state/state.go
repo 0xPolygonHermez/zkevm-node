@@ -494,6 +494,8 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
 		log.Errorf("Error s.executorClient.ProcessBatch: %v", err)
+		log.Errorf("Error s.executorClient.ProcessBatch: %s", err.Error())
+		log.Errorf("Error s.executorClient.ProcessBatch response: %v", res)
 	}
 
 	log.Infof("It took %v for the executor to process the request", time.Since(now))

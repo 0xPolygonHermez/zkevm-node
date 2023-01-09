@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -57,9 +58,22 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 			tx, err = c.ethMan.SequenceBatches(ctx, sequences, gas, gasPrice, nil)
 		}
 		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
-			log.Errorf("failed to sequence batches, trying once again, retry #%d, err: %w", attempts, 0, err)
+			log.Errorf("failed to sequence batches, trying once again, retry #%d, err: %v", attempts, err)
+			if tx != nil {
+				log.Errorf("Hash: %v, Nonce: %v, Gas: %v", tx.Hash(), tx.Nonce(), tx.Gas())
+			} else {
+				log.Error("Tx is nil")
+			}
 			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 			attempts++
+			if strings.Contains(err.Error(), "underpriced") {
+				if gasPrice == nil {
+					gasPrice = big.NewInt(31000000000)
+				} else {
+					gasPrice = gasPrice.Mul(gasPrice, big.NewInt(2))
+				}
+				log.Infof("Setting gas price to %v", gasPrice.String())
+			}
 			if nonce.Uint64() > 0 {
 				tx, err = c.ethMan.SequenceBatches(ctx, sequences, gas, gasPrice, nonce)
 			} else {
@@ -67,8 +81,8 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 			}
 		}
 		if err != nil {
-			log.Errorf("failed to sequence batches, maximum attempts exceeded, err: %w", err)
-			return fmt.Errorf("failed to sequence batches, maximum attempts exceeded, err: %w", err)
+			log.Errorf("failed to sequence batches, maximum attempts exceeded, err: %v", err)
+			return fmt.Errorf("failed to sequence batches, maximum attempts exceeded, err: %v", err)
 		}
 		// Wait for tx to be mined
 		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
@@ -85,8 +99,8 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
 				continue
 			}
-			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+			log.Errorf("tx %s failed, err: %v", tx.Hash(), err)
+			return fmt.Errorf("tx %s failed, err: %v", tx.Hash(), err)
 		}
 
 		log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
@@ -117,7 +131,7 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 			tx, err = c.ethMan.TrustedVerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, gas, gasPrice, nil)
 		}
 		for err != nil && attempts < c.cfg.MaxVerifyBatchTxRetries {
-			log.Errorf("failed to send batch verification, trying once again, retry #%d, err: %w", attempts, err)
+			log.Errorf("failed to send batch verification, trying once again, retry #%d, err: %v", attempts, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
 
 			if nonce.Uint64() > 0 {
@@ -129,8 +143,8 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 			attempts++
 		}
 		if err != nil {
-			log.Errorf("failed to send batch verification, maximum attempts exceeded, err: %w", err)
-			return nil, fmt.Errorf("failed to send batch verification, maximum attempts exceeded, err: %w", err)
+			log.Errorf("failed to send batch verification, maximum attempts exceeded, err: %v", err)
+			return nil, fmt.Errorf("failed to send batch verification, maximum attempts exceeded, err: %v", err)
 		}
 		// Wait for tx to be mined
 		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
@@ -146,8 +160,8 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
 				continue
 			}
-			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-			return nil, fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+			log.Errorf("tx %s failed, err: %v", tx.Hash(), err)
+			return nil, fmt.Errorf("tx %s failed, err: %v", tx.Hash(), err)
 		}
 
 		log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
