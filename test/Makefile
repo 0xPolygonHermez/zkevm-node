@@ -162,6 +162,7 @@ stop-db: ## Stops the node database
 
 .PHONY: run-node
 run-node: ## Runs the node
+	$(RUNETHTXMANAGER)
 	$(RUNSYNC)
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
