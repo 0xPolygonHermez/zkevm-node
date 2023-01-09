@@ -462,7 +462,7 @@ func (f *finalizer) reopenBatch(ctx context.Context) {
 	var err error
 	f.batch, err = f.newWIPBatch(ctx)
 	for err != nil {
-		log.Errorf("failed to create new sequence, Err: %s", err)
+		log.Errorf("failed to create new work-in-progress batch, Err: %s", err)
 		f.batch, err = f.newWIPBatch(ctx)
 	}
 }
