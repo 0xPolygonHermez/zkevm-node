@@ -120,10 +120,8 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (*wipBa
 			time.Sleep(time.Second)
 		}
 		// Revert reorged txs to pending
-		if err = dbManager.MarkReorgedTxsAsPending(ctx); err != nil {
-			log.Error(fmt.Errorf("failed to mark reorged txs as pending, err: %w", err))
-			return nil, nil, nil, err
-		}
+		dbManager.MarkReorgedTxsAsPending(ctx)
+
 		// Get current wip batch
 		currBatch, err = dbManager.GetWIPBatch(ctx)
 		if err != nil {

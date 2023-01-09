@@ -21,11 +21,12 @@ type dbManager struct {
 	worker       workerInterface
 	txsToStoreCh chan *txToStore
 	wgTxsToStore *sync.WaitGroup
+	l2ReorgCh    chan struct{}
 	ctx          context.Context
 }
 
-func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, txsToStoreCh chan *txToStore, wgTxsToStore *sync.WaitGroup) *dbManager {
-	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsToStoreCh: txsToStoreCh, wgTxsToStore: wgTxsToStore}
+func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, txsToStoreCh chan *txToStore, wgTxsToStore *sync.WaitGroup, l2ReorgCh chan struct{}) *dbManager {
+	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsToStoreCh: txsToStoreCh, wgTxsToStore: wgTxsToStore, l2ReorgCh: l2ReorgCh}
 }
 
 func (d *dbManager) Start() {
@@ -75,7 +76,6 @@ func (d *dbManager) loadFromPool() {
 		// TODO: Define how to do this
 		time.Sleep(5 * time.Second)
 
-		// TODO: Decide about the creation of a new GetPending function
 		poolTransactions, err := d.txPool.GetPendingTxs(ctx, false, 0)
 
 		if err != nil && err != pgpoolstorage.ErrNotFound {
@@ -103,10 +103,8 @@ func (d *dbManager) loadFromPool() {
 				// TODO: Complete
 			}
 			d.worker.AddTx(txTracker)
-			// TODO: Redefine pool tx statuses
-			d.txPool.UpdateTxStatus(ctx, tx.Hash(), pool.TxStatusSelected)
+			d.txPool.UpdateTxStatus(ctx, tx.Hash(), pool.TxStatusWIP)
 		}
-
 	}
 }
 
@@ -140,17 +138,15 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool() {
 		}
 
 		// Check if the Tx is still valid in the state to detect reorgs
-		// TODO: GetLatestL2Block from database and compare with txToStore.previousL2BlockStateRoot
-		// Send signal to L2ReorgCh            chan struct{}
-
-		// TODO: Change this to update status to selected
-		err = d.DeleteTransactionFromPool(d.ctx, txToStore.txResponse.TxHash)
-		if err != nil {
-			err = dbTx.Rollback(d.ctx)
-			if err != nil {
-				log.Errorf("StoreProcessedTxAndDeleteFromPool :%v", err)
-			}
+		latestL2Block, err := d.state.GetLastL2Block(d.ctx, dbTx)
+		if latestL2Block.Root() != txToStore.previousL2BlockStateRoot {
+			log.Info("L2 reorg detected. Old state root: %v New state root: %v", latestL2Block.Root(), txToStore.previousL2BlockStateRoot)
+			d.l2ReorgCh <- struct{}{}
+			continue
 		}
+
+		// Change Tx status to selected
+		d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected)
 
 		err = dbTx.Commit(d.ctx)
 		if err != nil {
@@ -236,12 +232,11 @@ func (d *dbManager) GetLastClosedBatch(ctx context.Context) (*state.Batch, error
 }
 
 func (d *dbManager) GetLastBatch(ctx context.Context) (*state.Batch, error) {
-	// TODO: Implement new method in state
-	batches, err := d.state.GetLastNBatches(ctx, 1, nil)
+	batch, err := d.state.GetLastBatch(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	return batches[0], nil
+	return batch, nil
 }
 
 func (d *dbManager) IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error) {
@@ -263,7 +258,7 @@ type ClosingBatchParameters struct {
 
 func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters) error {
 
-	// Create new type txManagerArray and refactor CloseBatch method in state
+	// TODO: Create new type txManagerArray and refactor CloseBatch method in state
 
 	processingReceipt := state.ProcessingReceipt{
 		BatchNumber:   params.BatchNumber,
@@ -310,6 +305,8 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 }
 
 func (d *dbManager) MarkReorgedTxsAsPending(ctx context.Context) {
-	// TODO: Handle error
 	err := d.txPool.MarkReorgedTxsAsPending(ctx)
+	if err != nil {
+		log.Errorf("error marking reorged txs as pending: %v", err)
+	}
 }

@@ -38,7 +38,7 @@ type stateInterface interface {
 	GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error)
-	ProcessSingleTx(request state.ProcessSingleTxRequest) state.ProcessBatchResponse
+	ProcessSingleTx(ctx context.Context, request state.ProcessSingleTxRequest) (state.ProcessBatchResponse, error)
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
@@ -83,4 +83,6 @@ type dbManagerStateInterface interface {
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
+	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
 }

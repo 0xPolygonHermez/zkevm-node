@@ -122,10 +122,10 @@ func (f *finalizer) Start(ctx context.Context, batch wipBatch, OldStateRoot, Old
 					ger = state.ZeroHash
 				}
 				processRequest.GlobalExitRoot = ger
-				result := f.executor.ProcessSingleTx(processRequest)
+				result, err := f.executor.ProcessSingleTx(ctx, processRequest)
 
 				// executionResult := execute tx (only passing to the executor this tx, starting at currentBatch.intermediaryRoot)
-				if result.Error != nil {
+				if err != nil || result.Error != nil {
 					// // decide if we [MoveTxToNotReady, DeleteTx, UpdateTx]
 				} else {
 					processedTx := result.Responses[0]

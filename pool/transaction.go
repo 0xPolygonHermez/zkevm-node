@@ -15,10 +15,12 @@ const (
 	TxStatusPending TxStatus = "pending"
 	// TxStatusInvalid represents an invalid tx
 	TxStatusInvalid TxStatus = "invalid"
-	// TxStatusSelected represents a tx that has been	 selected
+	// TxStatusSelected represents a tx that has been selected
 	TxStatusSelected TxStatus = "selected"
 	// TxStatusFailed represents a tx that has been failed after processing, but can be processed in the future
 	TxStatusFailed TxStatus = "failed"
+	// TxStatusWIP represents a tx that is in a sequencer worker memory
+	TxStatusWIP TxStatus = "wip"
 )
 
 // TxStatus represents the state of a tx

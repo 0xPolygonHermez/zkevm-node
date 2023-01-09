@@ -448,9 +448,32 @@ func (s *State) ProcessSequencerBatch(
 	return result, nil
 }
 
-func (s *State) ProcessSingleTx(request ProcessSingleTxRequest) ProcessBatchResponse {
-	// TODO: Implement
-	return ProcessBatchResponse{}
+func (s *State) ProcessSingleTx(ctx context.Context, request ProcessSingleTxRequest) (*ProcessBatchResponse, error) {
+	decoded, _, err := DecodeTxs(request.TxData)
+	if err != nil {
+		return nil, err
+	}
+
+	processBatchRequest := &pb.ProcessBatchRequest{
+		OldBatchNum:      request.BatchNumber - 1,
+		Coinbase:         request.SequencerAddress.String(),
+		BatchL2Data:      request.TxData,
+		OldStateRoot:     request.OldStateRoot.Bytes(),
+		GlobalExitRoot:   request.GlobalExitRoot.Bytes(),
+		OldAccInputHash:  request.OldAccInputHash.Bytes(),
+		EthTimestamp:     request.Timestamp,
+		UpdateMerkleTree: cTrue,
+		ChainId:          s.cfg.ChainID,
+	}
+
+	processed, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+
+	processedBatch, err := convertToProcessBatchResponse(decoded, processed)
+	if err != nil {
+		return nil, err
+	}
+
+	return processedBatch, nil
 }
 
 // ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
@@ -661,19 +684,6 @@ func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingRe
 	if err != nil {
 		return err
 	}
-
-	// TODO: Modification done to bypass situation detected during testnet testing
-	// Further analysis is needed
-	/*
-		if len(txs) == 0 {
-			return ErrClosingBatchWithoutTxs
-		}
-	*/
-
-	// batchL2Data, err := EncodeTransactions(txs)
-	// if err != nil {
-	// 	return err
-	// }
 
 	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
 }
