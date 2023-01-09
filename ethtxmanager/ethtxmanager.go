@@ -68,9 +68,9 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 			attempts++
 			if strings.Contains(err.Error(), "underpriced") {
 				if gasPrice == nil {
-					gasPrice = big.NewInt(31000000000)
+					gasPrice = big.NewInt(31000000000) //nolint
 				} else {
-					gasPrice = gasPrice.Mul(gasPrice, big.NewInt(2))
+					gasPrice = gasPrice.Mul(gasPrice, big.NewInt(2)) //nolint
 				}
 				log.Infof("Setting gas price to %v", gasPrice.String())
 			}
