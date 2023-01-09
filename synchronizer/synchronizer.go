@@ -562,7 +562,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			BatchL2Data:    sbatch.Transactions,
 		}
 		// ForcedBatch must be processed
-		if sbatch.MinForcedTimestamp > 0 {
+		if sbatch.MinForcedTimestamp > 0 { // If this is true means that the batch is forced
 			// Read forcedBatches from db
 			forcedBatches, err := s.state.GetNextForcedBatches(s.ctx, 1, dbTx)
 			if err != nil {
@@ -581,20 +581,17 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %w", sbatch.BatchNumber, blockNumber, rollbackErr)
 					return rollbackErr
 				}
-				log.Errorf("error: empty forcedBatches array read from db. BatchNumber: %d", sbatch.BatchNumber)
 				return fmt.Errorf("error: empty forcedBatches array read from db. BatchNumber: %d", sbatch.BatchNumber)
 			}
 			if uint64(forcedBatches[0].ForcedAt.Unix()) != sbatch.MinForcedTimestamp ||
 				forcedBatches[0].GlobalExitRoot != sbatch.GlobalExitRoot ||
-				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(sbatch.Transactions) ||
-				forcedBatches[0].Sequencer != sbatch.Coinbase {
+				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(sbatch.Transactions) {
 				log.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
 					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %w", virtualBatch.BatchNumber, blockNumber, rollbackErr)
 					return rollbackErr
 				}
-				log.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
 				return fmt.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
 			}
 			// Store batchNumber in forced_batch table
@@ -758,15 +755,13 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 	for i, fbatch := range sequenceForceBatch {
 		if uint64(forcedBatches[i].ForcedAt.Unix()) != fbatch.MinForcedTimestamp ||
 			forcedBatches[i].GlobalExitRoot != fbatch.GlobalExitRoot ||
-			common.Bytes2Hex(forcedBatches[i].RawTxsData) != common.Bytes2Hex(fbatch.Transactions) ||
-			forcedBatches[i].Sequencer != fbatch.Coinbase {
+			common.Bytes2Hex(forcedBatches[i].RawTxsData) != common.Bytes2Hex(fbatch.Transactions) {
 			log.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches[i], fbatch)
 			rollbackErr := dbTx.Rollback(s.ctx)
 			if rollbackErr != nil {
 				log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %w", fbatch.BatchNumber, block.BlockNumber, rollbackErr)
 				return rollbackErr
 			}
-			log.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches[i], fbatch)
 			return fmt.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches[i], fbatch)
 		}
 		virtualBatch := state.VirtualBatch{
