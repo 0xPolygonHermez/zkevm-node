@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -16,17 +15,16 @@ import (
 
 // Pool Loader and DB Updater
 type dbManager struct {
-	txPool       txPool
-	state        dbManagerStateInterface
-	worker       workerInterface
-	txsToStoreCh chan *txToStore
-	wgTxsToStore *sync.WaitGroup
-	l2ReorgCh    chan L2ReorgEvent
-	ctx          context.Context
+	txPool    txPool
+	state     dbManagerStateInterface
+	worker    workerInterface
+	txsStore  TxsStore
+	l2ReorgCh chan L2ReorgEvent
+	ctx       context.Context
 }
 
 func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore) *dbManager {
-	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsToStoreCh: txsStore.Ch, wgTxsToStore: txsStore.Wg, l2ReorgCh: closingSignalCh.L2ReorgCh}
+	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsStore: txsStore, l2ReorgCh: closingSignalCh.L2ReorgCh}
 }
 
 func (d *dbManager) Start() {
@@ -75,7 +73,6 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 }
 
 func (d *dbManager) loadFromPool() {
-
 	ctx := context.Background()
 
 	for {
@@ -115,7 +112,7 @@ func (d *dbManager) loadFromPool() {
 }
 
 func (d *dbManager) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
-	return d.BeginStateTransaction(ctx)
+	return d.state.BeginStateTransaction(ctx)
 }
 
 func (d *dbManager) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error {
@@ -129,7 +126,7 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 func (d *dbManager) StoreProcessedTxAndDeleteFromPool() {
 	// TODO: Finish the retry mechanism and error handling
 	for {
-		txToStore := <-d.txsToStoreCh
+		txToStore := <-d.txsStore.Ch
 
 		dbTx, err := d.BeginStateTransaction(d.ctx)
 		if err != nil {
@@ -145,6 +142,9 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool() {
 
 		// Check if the Tx is still valid in the state to detect reorgs
 		latestL2Block, err := d.state.GetLastL2Block(d.ctx, dbTx)
+		if err != nil {
+			log.Errorf("StoreProcessedTxAndDeleteFromPool :%v", err)
+		}
 		if latestL2Block.Root() != txToStore.previousL2BlockStateRoot {
 			log.Info("L2 reorg detected. Old state root: %v New state root: %v", latestL2Block.Root(), txToStore.previousL2BlockStateRoot)
 			d.l2ReorgCh <- L2ReorgEvent{}
@@ -159,7 +159,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool() {
 			log.Errorf("StoreProcessedTxAndDeleteFromPool error committing: %v", err)
 		}
 
-		d.wgTxsToStore.Done()
+		d.txsStore.Wg.Done()
 	}
 }
 
