@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygonHermez/zkevm-node/pool"
-
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -21,8 +19,8 @@ func TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.Pro
 	return convertToProcessBatchResponse(txs, response)
 }
 
-func ConvertToCounters(resp *pb.ProcessBatchResponse) pool.ZkCounters {
-	return pool.ZkCounters{
+func ConvertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
+	return ZKCounters{
 		CumulativeGasUsed:    resp.CumulativeGasUsed,
 		UsedKeccakHashes:     resp.CntKeccakHashes,
 		UsedPoseidonHashes:   resp.CntPoseidonHashes,

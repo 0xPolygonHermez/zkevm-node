@@ -14,6 +14,7 @@ type Config struct {
 	// WaitPeriodSendSequence is the time the sequencer waits until
 	// trying to send a sequence to L1
 	WaitPeriodSendSequence types.Duration `mapstructure:"WaitPeriodSendSequence"`
+
 	// WaitPeriodPoolIsEmpty is the time the sequencer waits until
 	// trying to add new txs to the state
 	WaitPeriodPoolIsEmpty types.Duration `mapstructure:"WaitPeriodPoolIsEmpty"`
@@ -77,6 +78,17 @@ type Config struct {
 
 	// Maximum allowed failed counter for the tx before it becomes invalid
 	MaxAllowedFailedCounter uint64 `mapstructure:"MaxAllowedFailedCounter"`
+
+	// Finalizer's specific config properties
+	Finalizer FinalizerCfg `mapstructure:"FinalizerCfg"`
+}
+
+// FinalizerCfg contains the finalizer's configuration properties
+type FinalizerCfg struct {
+	NextGERDeadlineTimeoutInSec         types.Duration `mapstructure:"NextGERDeadlineTimeoutInSec"`
+	NextForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"NextForcedBatchDeadlineTimeoutInSec"`
+	SleepDurationInMs                   types.Duration `mapstructure:"SleepDurationInMs"`
+	ResourcePercentageToCloseBatch      int            `mapstructure:"ResourcePercentageToCloseBatch"`
 }
 
 // MaxSequenceSize is a wrapper type that parses token amount to big int

@@ -21,12 +21,12 @@ type dbManager struct {
 	worker       workerInterface
 	txsToStoreCh chan *txToStore
 	wgTxsToStore *sync.WaitGroup
-	l2ReorgCh    chan struct{}
+	l2ReorgCh    chan L2ReorgEvent
 	ctx          context.Context
 }
 
-func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, txsToStoreCh chan *txToStore, wgTxsToStore *sync.WaitGroup, l2ReorgCh chan struct{}) *dbManager {
-	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsToStoreCh: txsToStoreCh, wgTxsToStore: wgTxsToStore, l2ReorgCh: l2ReorgCh}
+func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore) *dbManager {
+	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsToStoreCh: txsStore.Ch, wgTxsToStore: txsStore.Wg, l2ReorgCh: closingSignalCh.L2ReorgCh}
 }
 
 func (d *dbManager) Start() {
@@ -38,8 +38,14 @@ func (d *dbManager) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 	return d.state.GetLastBatchNumber(ctx, nil)
 }
 
-func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) (*state.ProcessingContext, error) {
-	processingCtx := &state.ProcessingContext{
+func (d *dbManager) OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error {
+	//TODO: Use state interface to OpenBatch in the DB
+	panic("implement me")
+}
+
+func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext {
+	// TODO: Retry in case of error
+	processingCtx := state.ProcessingContext{
 		BatchNumber:    1,
 		Coinbase:       sequencerAddress,
 		Timestamp:      time.Now(),
@@ -48,9 +54,9 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 	dbTx, err := d.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for opening a batch, err: %v", err)
-		return nil, err
+		return processingCtx
 	}
-	err = d.state.OpenBatch(ctx, *processingCtx, dbTx)
+	err = d.state.OpenBatch(ctx, processingCtx, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			log.Errorf(
@@ -59,13 +65,13 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 			)
 		}
 		log.Errorf("failed to open a batch, err: %v", err)
-		return nil, err
+		return processingCtx
 	}
 	if err := dbTx.Commit(ctx); err != nil {
 		log.Errorf("failed to commit dbTx when opening batch, err: %v", err)
-		return nil, err
+		return processingCtx
 	}
-	return processingCtx, nil
+	return processingCtx
 }
 
 func (d *dbManager) loadFromPool() {
@@ -141,7 +147,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool() {
 		latestL2Block, err := d.state.GetLastL2Block(d.ctx, dbTx)
 		if latestL2Block.Root() != txToStore.previousL2BlockStateRoot {
 			log.Info("L2 reorg detected. Old state root: %v New state root: %v", latestL2Block.Root(), txToStore.previousL2BlockStateRoot)
-			d.l2ReorgCh <- struct{}{}
+			d.l2ReorgCh <- L2ReorgEvent{}
 			continue
 		}
 
@@ -160,20 +166,20 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool() {
 // GetWIPBatch returns ready WIP batch
 // if lastBatch IS OPEN - load data from it but set wipBatch.initialStateRoot to Last Closed Batch
 // if lastBatch IS CLOSED - open new batch in the database and load all data from the closed one without the txs and increase batch number
-func (d *dbManager) GetWIPBatch(ctx context.Context) (*wipBatch, error) {
+func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	lastBatch, err := d.GetLastBatch(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	wipBatch := &wipBatch{
-		batchNumber:      lastBatch.BatchNumber,
-		coinbase:         lastBatch.Coinbase,
-		accInputHash:     lastBatch.AccInputHash,
-		initialStateRoot: lastBatch.StateRoot,
-		stateRoot:        lastBatch.StateRoot,
-		timestamp:        uint64(lastBatch.Timestamp.Unix()),
-		globalExitRoot:   lastBatch.GlobalExitRoot,
+	wipBatch := &WipBatch{
+		batchNumber:  lastBatch.BatchNumber,
+		coinbase:     lastBatch.Coinbase,
+		accInputHash: lastBatch.AccInputHash,
+		// initialStateRoot: lastBatch.StateRoot,
+		stateRoot:      lastBatch.StateRoot,
+		timestamp:      uint64(lastBatch.Timestamp.Unix()),
+		globalExitRoot: lastBatch.GlobalExitRoot,
 
 		// TODO: txs
 		// TODO: remainingResources
@@ -221,7 +227,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*wipBatch, error) {
 			return nil, err
 		}
 
-		wipBatch.initialStateRoot = lastClosedBatch.StateRoot
+		wipBatch.stateRoot = lastClosedBatch.StateRoot
 	}
 
 	return wipBatch, nil
@@ -232,7 +238,7 @@ func (d *dbManager) GetLastClosedBatch(ctx context.Context) (*state.Batch, error
 }
 
 func (d *dbManager) GetLastBatch(ctx context.Context) (*state.Batch, error) {
-	batch, err := d.state.GetLastBatch(ctx, nil)
+	batch, err := d.state.GetLastBatch(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -245,6 +251,10 @@ func (d *dbManager) IsBatchClosed(ctx context.Context, batchNum uint64) (bool, e
 
 func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error) {
 	return d.state.GetLastNBatches(ctx, numBatches, nil)
+}
+func (d *dbManager) GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error) {
+	// TODO: Get implementation from old sequencer's batchbuilder
+	return state.GlobalExitRoot{}, time.Now(), nil
 }
 
 // ClosingBatchParameters contains the necessary parameters to close a batch

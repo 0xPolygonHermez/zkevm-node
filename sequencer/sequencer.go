@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -11,6 +12,18 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 )
+
+type ClosingSignalCh struct {
+	ForcedBatchCh        chan state.Batch
+	GERCh                chan common.Hash
+	L2ReorgCh            chan L2ReorgEvent
+	SendingToL1TimeoutCh chan bool
+}
+
+type TxsStore struct {
+	Ch chan *txToStore
+	Wg *sync.WaitGroup
+}
 
 // Sequencer represents a sequencer
 type Sequencer struct {
@@ -51,18 +64,25 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 	metrics.Register()
 
-	worker := newWorker()
-	dbManager := newDBManager(s.pool, s.dbManager, worker)
-	go dbManager.Start()
-
-	currBatch, OldAccInputHash, OldStateRoot, err := s.bootstrap(ctx, dbManager)
-
-	if err != nil {
-		log.Fatal("could not bootstrap the sequencer")
+	closingSignalCh := ClosingSignalCh{
+		ForcedBatchCh:        make(chan state.Batch),
+		GERCh:                make(chan common.Hash),
+		L2ReorgCh:            make(chan L2ReorgEvent),
+		SendingToL1TimeoutCh: make(chan bool),
 	}
 
-	finalizer := newFinalizer(worker, dbManager, s.state, s.address, s.cfg.MaxTxsPerBatch)
-	go finalizer.Start(ctx, *currBatch, *OldStateRoot, *OldAccInputHash)
+	txsStore := TxsStore{
+		Ch: make(chan *txToStore),
+		Wg: new(sync.WaitGroup),
+	}
+
+	worker := newWorker()
+	dbManager := newDBManager(ctx, s.pool, s.dbManager, worker, closingSignalCh, txsStore)
+	go dbManager.Start()
+
+	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, s.cfg.MaxTxsPerBatch, closingSignalCh, txsStore)
+	currBatch, OldAccInputHash, OldStateRoot := s.bootstrap(ctx, dbManager, finalizer)
+	go finalizer.Start(ctx, currBatch, OldStateRoot, OldAccInputHash)
 
 	closingSignalsManager := newClosingSignalsManager(finalizer)
 	go closingSignalsManager.Start()
@@ -82,9 +102,9 @@ func (s *Sequencer) Start(ctx context.Context) {
 	<-ctx.Done()
 }
 
-func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (*wipBatch, *common.Hash, *common.Hash, error) {
+func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) (*WipBatch, common.Hash, common.Hash) {
 	var (
-		currBatch                     *wipBatch
+		currBatch                     *WipBatch
 		oldAccInputHash, oldStateRoot common.Hash
 	)
 	batchNum, err := dbManager.GetLastBatchNumber(ctx)
@@ -101,8 +121,8 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (*wipBa
 		///////////////////
 		// GENESIS Batch //
 		///////////////////
-		processingCtx, err := dbManager.CreateFirstBatch(ctx, s.address)
-		currBatch = &wipBatch{
+		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
+		currBatch = &WipBatch{
 			globalExitRoot: processingCtx.GlobalExitRoot,
 			batchNumber:    processingCtx.BatchNumber,
 			coinbase:       processingCtx.Coinbase,
@@ -111,55 +131,17 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager) (*wipBa
 		}
 
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, common.Hash{}, common.Hash{}
 		}
 	} else {
-		// Check if synchronizer is up to date
+		// Check if synchronizer is up-to-date
 		for !s.isSynced(ctx) {
 			log.Info("wait for synchronizer to sync last batch")
 			time.Sleep(time.Second)
 		}
-		// Revert reorged txs to pending
-		dbManager.MarkReorgedTxsAsPending(ctx)
-
-		// Get current wip batch
-		currBatch, err = dbManager.GetWIPBatch(ctx)
-		if err != nil {
-			log.Error(fmt.Errorf("failed to load batch from the state, err: %w", err))
-			return nil, nil, nil, err
-		}
-		// Get data for prevBatch
-		lastBatch, err := dbManager.GetLastBatch(ctx)
-		if err != nil {
-			log.Error(fmt.Errorf("failed to get last batch. err: %w", err))
-			return nil, nil, nil, err
-		}
-		isClosed, err := dbManager.IsBatchClosed(ctx, lastBatch.BatchNumber)
-		if err != nil {
-			log.Error(fmt.Errorf("failed to check is batch closed or not, err: %w", err))
-			return nil, nil, nil, err
-		}
-		if isClosed {
-			//ger, _, err := s.getLatestGer(ctx, dbTx)
-			// TODO: Open New batch and create wipBatch (currBatch)
-		} else {
-			if lastBatch.BatchNumber == 1 {
-				oldAccInputHash = lastBatch.AccInputHash
-				oldStateRoot = lastBatch.StateRoot
-			} else {
-				n := uint(2)
-				batches, err := dbManager.GetLastNBatches(ctx, n)
-				if err != nil {
-					log.Error(fmt.Errorf("failed to get last %d batches, err: %w", n, err))
-					return nil, nil, nil, err
-				}
-				oldAccInputHash = batches[1].AccInputHash
-				oldStateRoot = batches[1].StateRoot
-			}
-
-		}
+		finalizer.reopenBatch(ctx)
 	}
-	return currBatch, &oldAccInputHash, &oldStateRoot, nil
+	return currBatch, oldAccInputHash, oldStateRoot
 }
 
 func (s *Sequencer) trackOldTxs(ctx context.Context) {
@@ -209,77 +191,3 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 
 	return true
 }
-
-/*
-func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
-	// Check if synchronizer is up to date
-	for !s.isSynced(ctx) {
-		log.Info("wait for synchronizer to sync last batch")
-		time.Sleep(time.Second)
-	}
-	// Revert reorged txs to pending
-	if err := s.pool.MarkReorgedTxsAsPending(ctx); err != nil {
-		return fmt.Errorf("failed to mark reorged txs as pending, err: %w", err)
-	}
-	// Get latest info from the state
-	lastBatch, err := s.state.GetWIPBatch(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to get last batch, err: %w", err)
-	}
-	isClosed, err := s.state.IsBatchClosed(ctx, lastBatch.BatchNumber, nil)
-	if err != nil {
-		return fmt.Errorf("failed to check is batch closed or not, err: %w", err)
-	}
-	if isClosed {
-		dbTx, err := s.state.BeginStateTransaction(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to begin state tx to open a batch, err: %w", err)
-		}
-		ger, _, err := s.getLatestGer(ctx, dbTx)
-		if err != nil {
-			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-				return fmt.Errorf(
-					"failed to rollback dbTx when getting last globalExitRoot that gave err: %s. Rollback err: %s",
-					rollbackErr.Error(), err.Error(),
-				)
-			}
-			return fmt.Errorf("failed to get latest global exit root, err: %w", err)
-		}
-		processingCtx := state.ProcessingContext{
-			BatchNumber:    lastBatch.BatchNumber + 1,
-			Coinbase:       s.address,
-			Timestamp:      time.Now(),
-			globalExitRoot: ger.globalExitRoot,
-		}
-		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
-		if err != nil {
-			rollErr := dbTx.Rollback(ctx)
-			if rollErr != nil {
-				err = fmt.Errorf("failed to open a batch, err: %w. Rollback err: %v", err, rollErr)
-			}
-			return err
-		}
-		if err = dbTx.Commit(ctx); err != nil {
-			return fmt.Errorf("failed to commit a state tx to open a batch, err: %w", err)
-		}
-		s.sequenceInProgress = types.Sequence{
-			globalExitRoot: processingCtx.globalExitRoot,
-			Timestamp:      processingCtx.Timestamp.Unix(),
-		}
-	} else {
-		txs, err := s.state.GetTransactionsByBatchNumber(ctx, lastBatch.BatchNumber, nil)
-		if err != nil {
-			return fmt.Errorf("failed to get tx by batch number, err: %w", err)
-		}
-		s.sequenceInProgress = types.Sequence{
-			globalExitRoot: lastBatch.globalExitRoot,
-			Timestamp:      lastBatch.Timestamp.Unix(),
-			Txs:            txs,
-		}
-		// TODO: execute to get state root and LER or change open/closed logic so we always store state root and LER and add an open flag
-	}
-
-	return nil
-
-}
-*/

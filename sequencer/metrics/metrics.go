@@ -8,14 +8,14 @@ import (
 )
 
 const (
-	prefix                         = "sequencer_"
-	sequencesSentToL1CountName     = prefix + "sequences_sent_to_L1_count"
-	gasPriceEstimatedAverageName   = prefix + "gas_price_estimated_average"
-	txProcessed                    = prefix + "transaction_processed"
-	sequencesOvesizedDataErrorName = prefix + "sequences_oversized_data_error"
-	ethToMaticPriceName            = prefix + "eth_to_matic_price"
-	sequenceRewardInMaticName      = prefix + "sequence_reward_in_matic"
-	processingTime                 = prefix + "processing_time"
+	prefix                          = "sequencer_"
+	sequencesSentToL1CountName      = prefix + "sequences_sent_to_L1_count"
+	gasPriceEstimatedAverageName    = prefix + "gas_price_estimated_average"
+	txProcessed                     = prefix + "transaction_processed"
+	sequencesOversizedDataErrorName = prefix + "sequences_oversized_data_error"
+	ethToMaticPriceName             = prefix + "eth_to_matic_price"
+	sequenceRewardInMaticName       = prefix + "sequence_reward_in_matic"
+	processingTime                  = prefix + "processing_time"
 
 	txProcessedLabelName = "status"
 )
@@ -48,7 +48,7 @@ func Register() {
 			Help: "[SEQUENCER] total count of sequences sent to L1",
 		},
 		{
-			Name: sequencesOvesizedDataErrorName,
+			Name: sequencesOversizedDataErrorName,
 			Help: "[SEQUENCER] total count of sequences with oversized data error",
 		},
 	}
@@ -111,7 +111,7 @@ func TxProcessed(status TxProcessedLabel, count float64) {
 // SequencesOvesizedDataError increases the counter for sequences that
 // encounter a OversizedData error.
 func SequencesOvesizedDataError() {
-	metrics.CounterInc(sequencesOvesizedDataErrorName)
+	metrics.CounterInc(sequencesOversizedDataErrorName)
 }
 
 // EthToMaticPrice sets the gauge for the Ethereum to Matic price.

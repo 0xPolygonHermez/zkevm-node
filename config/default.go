@@ -90,6 +90,11 @@ MaxSteps = 8388608
 MaxAllowedFailedCounter = 50
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = true
+	[Sequencer.Finalizer]
+		NextGERDeadlineTimeoutInSec = 60
+		NextForcedBatchDeadlineTimeoutInSec = 60
+		SleepDurationInMs = 100
+		ResourcePercentageToCloseBatch = 90
 
 [PriceGetter]
 Type = "default"

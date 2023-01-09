@@ -448,12 +448,22 @@ func (s *State) ProcessSequencerBatch(
 	return result, nil
 }
 
-func (s *State) ProcessSingleTx(ctx context.Context, request ProcessSingleTxRequest) (*ProcessBatchResponse, error) {
-	decoded, _, err := DecodeTxs(request.TxData)
+func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessSingleTxRequest, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	log.Debugf("*******************************************")
+	log.Debugf("ProcessSingleTransaction start")
+	if dbTx == nil {
+		return nil, ErrDBTxNil
+	}
+
+	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, request.BatchNumber, dbTx)
 	if err != nil {
 		return nil, err
 	}
+	if isBatchClosed {
+		return nil, ErrBatchAlreadyClosed
+	}
 
+	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      request.BatchNumber - 1,
 		Coinbase:         request.SequencerAddress.String(),
@@ -465,15 +475,26 @@ func (s *State) ProcessSingleTx(ctx context.Context, request ProcessSingleTxRequ
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 	}
-
-	processed, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-
-	processedBatch, err := convertToProcessBatchResponse(decoded, processed)
+	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, request.Caller)
 	if err != nil {
 		return nil, err
 	}
+	var result *ProcessBatchResponse
+	if len(request.TxData) > 0 {
+		txs, _, err := DecodeTxs(request.TxData)
+		if err != nil {
+			return nil, err
+		}
+		result, err = convertToProcessBatchResponse(txs, res)
 
-	return processedBatch, nil
+		if err != nil {
+			return nil, err
+		}
+	}
+	log.Debugf("ProcessSingleTransaction end")
+	log.Debugf("*******************************************")
+
+	return result, nil
 }
 
 // ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
@@ -559,12 +580,18 @@ func (s *State) processBatch(
 		ChainId:          s.cfg.ChainID,
 	}
 
+	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, caller)
+
+	return res, err
+}
+
+func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequest *pb.ProcessBatchRequest, caller CallerLabel) (*pb.ProcessBatchResponse, error) {
 	// Send Batch to the Executor
 	log.Debugf("processBatch[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
 	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("processBatch[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("processBatch[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-	log.Debugf("processBatch[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+	log.Debugf("processBatch[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
 	log.Debugf("processBatch[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
 	log.Debugf("processBatch[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("processBatch[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
@@ -575,6 +602,7 @@ func (s *State) processBatch(
 	elapsed := time.Since(now)
 	metrics.ExecutorProcessingTime(string(caller), elapsed)
 	log.Infof("It took %v for the executor to process the request", elapsed)
+
 	return res, err
 }
 

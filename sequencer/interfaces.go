@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"math/big"
 	"time"
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -43,6 +44,8 @@ type stateInterface interface {
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	GetSender(tx types.Transaction) (common.Address, error)
+	Begin(ctx context.Context) (pgx.Tx, error)
+	ProcessSingleTransaction(ctx context.Context, request state.ProcessSingleTxRequest, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 }
 
 type txManager interface {
@@ -54,23 +57,28 @@ type workerInterface interface {
 	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress)
 	UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters)
 	AddTx(tx TxTracker)
+	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int)
+	DeleteTx(txHash common.Hash, from common.Address, actualFromNonce *uint64, actualFromBalance *big.Int)
+	HandleL2Reorg(txHashes []common.Hash)
 }
 
 // The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.
-// Also if dbTx is missing this needs also to be handled ion the dbManager
+// Also if dbTx is missing this needs also to be handled in the dbManager
 type dbManagerInterface interface {
+	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
-	CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) (*state.ProcessingContext, error)
+	CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
 	StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error
 	DeleteTransactionFromPool(ctx context.Context, txHash common.Hash) error
 	CloseBatch(ctx context.Context, params ClosingBatchParameters) error
-	GetWIPBatch(ctx context.Context) (*wipBatch, error)
+	GetWIPBatch(ctx context.Context) (*WipBatch, error)
 	GetLastBatch(ctx context.Context) (*state.Batch, error)
 	GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error)
 	GetLastClosedBatch(ctx context.Context) (*state.Batch, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
 	MarkReorgedTxsAsPending(ctx context.Context)
+	GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error)
 }
 
 type dbManagerStateInterface interface {
@@ -83,6 +91,8 @@ type dbManagerStateInterface interface {
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
+	GetLastBatch(ctx context.Context) (*state.Batch, error)
 	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
+	MarkReorgedTxsAsPending(ctx context.Context) error
+	GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error)
 }
