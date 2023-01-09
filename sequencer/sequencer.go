@@ -13,18 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type ClosingSignalCh struct {
-	ForcedBatchCh        chan state.Batch
-	GERCh                chan common.Hash
-	L2ReorgCh            chan L2ReorgEvent
-	SendingToL1TimeoutCh chan bool
-}
-
-type TxsStore struct {
-	Ch chan *txToStore
-	Wg *sync.WaitGroup
-}
-
 // Sequencer represents a sequencer
 type Sequencer struct {
 	cfg Config
@@ -36,6 +24,32 @@ type Sequencer struct {
 	etherman  etherman
 
 	address common.Address
+}
+
+// L2ReorgEvent is the event that is triggered when a reorg happens in the L2
+type L2ReorgEvent struct {
+	TxHashes []common.Hash
+}
+
+// ClosingSignalCh is a struct that contains all the channels that are used to receive batch closing signals
+type ClosingSignalCh struct {
+	ForcedBatchCh        chan state.Batch
+	GERCh                chan common.Hash
+	L2ReorgCh            chan L2ReorgEvent
+	SendingToL1TimeoutCh chan bool
+}
+
+// TxsStore is a struct that contains the channel and the wait group for the txs to be stored in order
+type TxsStore struct {
+	Ch chan *txToStore
+	Wg *sync.WaitGroup
+}
+
+// txToStore represents a transaction to store.
+type txToStore struct {
+	txResponse               *state.ProcessTransactionResponse
+	batchNumber              uint64
+	previousL2BlockStateRoot common.Hash
 }
 
 // New init sequencer
@@ -79,13 +93,21 @@ func (s *Sequencer) Start(ctx context.Context) {
 	worker := newWorker()
 	dbManager := newDBManager(ctx, s.pool, s.dbManager, worker, closingSignalCh, txsStore)
 	go dbManager.Start()
-
-	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, s.cfg.MaxTxsPerBatch, closingSignalCh, txsStore)
+	batchConstraints := batchConstraints{
+		MaxTxsPerBatch:       s.cfg.MaxTxsPerBatch,
+		MaxBatchBytesSize:    s.cfg.MaxBatchBytesSize,
+		MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed,
+		MaxKeccakHashes:      s.cfg.MaxKeccakHashes,
+		MaxPoseidonHashes:    s.cfg.MaxPoseidonHashes,
+		MaxPoseidonPaddings:  s.cfg.MaxPoseidonPaddings,
+		MaxMemAligns:         s.cfg.MaxMemAligns,
+		MaxArithmetics:       s.cfg.MaxArithmetics,
+		MaxBinaries:          s.cfg.MaxBinaries,
+		MaxSteps:             s.cfg.MaxSteps,
+	}
+	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints)
 	currBatch, OldAccInputHash, OldStateRoot := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, OldStateRoot, OldAccInputHash)
-
-	closingSignalsManager := newClosingSignalsManager(finalizer)
-	go closingSignalsManager.Start()
 
 	go s.trackOldTxs(ctx)
 	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
