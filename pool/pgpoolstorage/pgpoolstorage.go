@@ -533,3 +533,12 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 
 	return tx, nil
 }
+
+// DeleteTransactionByHash deletes tx by its hash
+func (p *PostgresPoolStorage) DeleteTransactionByHash(ctx context.Context, hash common.Hash) error {
+	query := "DELETE FROM pool.txs WHERE hash = $1"
+	if _, err := p.db.Exec(ctx, query, hash); err != nil {
+		return err
+	}
+	return nil
+}

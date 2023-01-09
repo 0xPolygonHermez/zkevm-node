@@ -240,6 +240,8 @@ func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx typ
 
 // MarkReorgedTxsAsPending updated reorged txs status from selected to pending
 func (p *Pool) MarkReorgedTxsAsPending(ctx context.Context) error {
+	// TODO: Change status to "reorged"
+
 	// get selected transactions from pool
 	selectedTxs, err := p.GetSelectedTxs(ctx, 0)
 	if err != nil {
@@ -266,3 +268,5 @@ func (p *Pool) MarkReorgedTxsAsPending(ctx context.Context) error {
 
 	return nil
 }
+
+// TODO: Create a method for the synchronizer to update Tx Statuses to "pending" or "reorged"

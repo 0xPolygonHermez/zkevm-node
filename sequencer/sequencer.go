@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -12,12 +13,25 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+type ClosingSignalCh struct {
+	ForcedBatchCh        chan state.Batch
+	GERCh                chan common.Hash
+	L2ReorgCh            chan L2ReorgEvent
+	SendingToL1TimeoutCh chan bool
+}
+
+type TxsStore struct {
+	Ch chan *txToStore
+	Wg *sync.WaitGroup
+}
+
 // Sequencer represents a sequencer
 type Sequencer struct {
 	cfg Config
 
 	pool      txPool
 	state     stateInterface
+	dbManager dbManagerStateInterface
 	txManager txManager
 	etherman  etherman
 
@@ -25,7 +39,7 @@ type Sequencer struct {
 }
 
 // New init sequencer
-func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager txManager) (*Sequencer, error) {
+func New(cfg Config, txPool txPool, state stateInterface, dbManager dbManagerStateInterface, etherman etherman, manager txManager) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
@@ -35,6 +49,7 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 		cfg:       cfg,
 		pool:      txPool,
 		state:     state,
+		dbManager: dbManager,
 		etherman:  etherman,
 		txManager: manager,
 		address:   addr,
@@ -49,11 +64,23 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 	metrics.Register()
 
+	closingSignalCh := ClosingSignalCh{
+		ForcedBatchCh:        make(chan state.Batch),
+		GERCh:                make(chan common.Hash),
+		L2ReorgCh:            make(chan L2ReorgEvent),
+		SendingToL1TimeoutCh: make(chan bool),
+	}
+
+	txsStore := TxsStore{
+		Ch: make(chan *txToStore),
+		Wg: new(sync.WaitGroup),
+	}
+
 	worker := newWorker()
-	dbManager := newDBManager(s.pool, s.state, worker)
+	dbManager := newDBManager(ctx, s.pool, s.dbManager, worker, closingSignalCh, txsStore)
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, s.cfg.MaxTxsPerBatch)
+	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, s.cfg.MaxTxsPerBatch, closingSignalCh, txsStore)
 	currBatch, OldAccInputHash, OldStateRoot := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, OldStateRoot, OldAccInputHash)
 
@@ -101,6 +128,10 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 			coinbase:       processingCtx.Coinbase,
 			timestamp:      uint64(processingCtx.Timestamp.Unix()),
 			txs:            make([]TxTracker, 0, s.cfg.MaxTxsPerBatch),
+		}
+
+		if err != nil {
+			return nil, common.Hash{}, common.Hash{}
 		}
 	} else {
 		// Check if synchronizer is up-to-date

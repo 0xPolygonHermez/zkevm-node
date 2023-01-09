@@ -19,22 +19,18 @@ import (
 
 // finalizer represents the finalizer component of the sequencer.
 type finalizer struct {
-	ForcedBatchCh        chan state.Batch
-	GERCh                chan common.Hash
-	L2ReorgCh            chan L2ReorgEvent
-	SendingToL1TimeoutCh chan bool
-	TxsToStoreCh         chan *txToStore
-	WgTxsToStore         *sync.WaitGroup
-	cfg                  FinalizerCfg
-	maxTxsPerBatch       uint64
-	isSynced             func(ctx context.Context) bool
-	sequencerAddress     common.Address
-	worker               workerInterface
-	dbManager            dbManagerInterface
-	executor             stateInterface
-	batch                WipBatch
-	processRequest       state.ProcessSingleTxRequest
-	sharedResourcesMux   *sync.RWMutex
+	closingSignalCh    ClosingSignalCh
+	txsStore           TxsStore
+	cfg                FinalizerCfg
+	maxTxsPerBatch     uint64
+	isSynced           func(ctx context.Context) bool
+	sequencerAddress   common.Address
+	worker             workerInterface
+	dbManager          dbManagerInterface
+	executor           stateInterface
+	batch              *WipBatch
+	processRequest     state.ProcessSingleTxRequest
+	sharedResourcesMux *sync.RWMutex
 	// closing signals
 	nextGER                 common.Hash
 	nextGERDeadline         int64
@@ -65,23 +61,19 @@ type WipBatch struct {
 }
 
 // newFinalizer returns a new instance of Finalizer.
-func newFinalizer(cfg FinalizerCfg, worker workerInterface, dbManager dbManagerInterface, executor stateInterface, sequencerAddr common.Address, isSynced func(ctx context.Context) bool, maxTxsPerBatch uint64) *finalizer {
+func newFinalizer(cfg FinalizerCfg, worker workerInterface, dbManager dbManagerInterface, executor stateInterface, sequencerAddr common.Address, isSynced func(ctx context.Context) bool, maxTxsPerBatch uint64, closingSignalCh ClosingSignalCh, txsStore TxsStore) *finalizer {
 	return &finalizer{
-		ForcedBatchCh:        make(chan state.Batch),
-		GERCh:                make(chan common.Hash),
-		L2ReorgCh:            make(chan L2ReorgEvent),
-		SendingToL1TimeoutCh: make(chan bool),
-		TxsToStoreCh:         make(chan *txToStore),
-		WgTxsToStore:         &sync.WaitGroup{},
-		cfg:                  cfg,
-		isSynced:             isSynced,
-		sequencerAddress:     sequencerAddr,
-		worker:               worker,
-		dbManager:            dbManager,
-		executor:             executor,
-		maxTxsPerBatch:       maxTxsPerBatch,
-		batch:                WipBatch{},
-		processRequest:       state.ProcessSingleTxRequest{},
+		closingSignalCh:  closingSignalCh,
+		txsStore:         txsStore,
+		cfg:              cfg,
+		isSynced:         isSynced,
+		sequencerAddress: sequencerAddr,
+		worker:           worker,
+		dbManager:        dbManager,
+		executor:         executor,
+		maxTxsPerBatch:   maxTxsPerBatch,
+		batch:            &WipBatch{},
+		processRequest:   state.ProcessSingleTxRequest{},
 		// closing signals
 		nextGER:                 common.Hash{},
 		nextGERDeadline:         getNextGERDeadline(cfg),
@@ -99,7 +91,7 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, OldStateRoot, Ol
 	)
 
 	if batch != nil {
-		f.batch = *batch
+		f.batch = batch
 	}
 	f.processRequest = state.ProcessSingleTxRequest{
 		BatchNumber:      f.batch.batchNumber,
@@ -125,7 +117,7 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, OldStateRoot, Ol
 				}
 			} else {
 				if f.isCurrBatchAboveLimitWindow() {
-					f.WgTxsToStore.Wait()
+					f.txsStore.Wg.Wait()
 					f.reopenBatch(ctx)
 					// // go (decide if we need to execute the full batch as a sanity check, DO IT IN PARALLEL) ==> if error: log this txs somewhere and remove them from the pipeline
 					if len(f.nextForcedBatches) > 0 {
@@ -225,8 +217,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (succ
 		f.processRequest.OldAccInputHash = result.NewAccInputHash
 
 		// Store the processed transaction, add it to the batch and update status in the pool atomically
-		f.WgTxsToStore.Add(1)
-		f.TxsToStoreCh <- &txToStore{
+		f.txsStore.Wg.Add(1)
+		f.txsStore.Ch <- &txToStore{
 			batchNumber:              f.batch.batchNumber,
 			txResponse:               txResponse,
 			previousL2BlockStateRoot: previousL2BlockStateRoot,
@@ -263,7 +255,7 @@ func (f *finalizer) checkDeadlines(ctx context.Context) {
 		}
 		// React only if the GER has changed
 		if ger.GlobalExitRoot != f.batch.globalExitRoot {
-			f.GERCh <- ger.GlobalExitRoot
+			f.closingSignalCh.GERCh <- ger.GlobalExitRoot
 		}
 		f.nextGERMux.Unlock()
 	}
@@ -273,7 +265,7 @@ func (f *finalizer) handleClosingSignals(ctx context.Context, err error) {
 	for {
 		select {
 		// Forced  batch ch
-		case fb := <-f.ForcedBatchCh:
+		case fb := <-f.closingSignalCh.ForcedBatchCh:
 			f.sharedResourcesMux.Lock()
 			f.nextForcedBatchMux.Lock()
 			f.nextForcedBatches = append(f.nextForcedBatches, fb)
@@ -282,7 +274,7 @@ func (f *finalizer) handleClosingSignals(ctx context.Context, err error) {
 			f.nextForcedBatchMux.Unlock()
 			f.sharedResourcesMux.Unlock()
 		// globalExitRoot ch
-		case ger := <-f.GERCh:
+		case ger := <-f.closingSignalCh.GERCh:
 			f.sharedResourcesMux.Lock()
 			f.nextGERMux.Lock()
 			f.nextGER = ger
@@ -291,7 +283,7 @@ func (f *finalizer) handleClosingSignals(ctx context.Context, err error) {
 			f.nextGERMux.Unlock()
 			f.sharedResourcesMux.Unlock()
 		// L2Reorg ch
-		case l2ReorgEvent := <-f.L2ReorgCh:
+		case l2ReorgEvent := <-f.closingSignalCh.L2ReorgCh:
 			f.sharedResourcesMux.Lock()
 			go f.worker.HandleL2Reorg(l2ReorgEvent.TxHashes)
 			// Get current wip batch
@@ -373,16 +365,24 @@ func (f *finalizer) isCurrBatchAboveLimitWindow() bool {
 	return false
 }
 
-func (f *finalizer) backupWIPBatch() WipBatch {
-	backup := new(WipBatch)
-	*backup = f.batch
+func (f *finalizer) backupWIPBatch() *WipBatch {
+	backup := &WipBatch{
+		batchNumber:        f.batch.batchNumber,
+		coinbase:           f.batch.coinbase,
+		accInputHash:       f.batch.accInputHash,
+		stateRoot:          f.batch.stateRoot,
+		localExitRoot:      f.batch.localExitRoot,
+		timestamp:          f.batch.timestamp,
+		globalExitRoot:     f.batch.localExitRoot,
+		remainingResources: f.batch.remainingResources,
+	}
 	backup.txs = make([]TxTracker, 0, len(f.batch.txs))
 	backup.txs = append(backup.txs, f.batch.txs...)
 
-	return *backup
+	return backup
 }
 
-func (f *finalizer) newWIPBatch(ctx context.Context) (WipBatch, error) {
+func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	var (
 		dbTx pgx.Tx
 		err  error
@@ -399,36 +399,39 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (WipBatch, error) {
 	}
 
 	if f.batch.stateRoot.String() == "" || f.batch.localExitRoot.String() == "" {
-		return WipBatch{}, errors.New("state root and local exit root must have value to close batch")
+		return nil, errors.New("state root and local exit root must have value to close batch")
 	}
 	dbTx, err = f.dbManager.BeginStateTransaction(ctx)
 	if err != nil {
-		return WipBatch{}, fmt.Errorf("failed to begin state transaction to close batch, err: %w", err)
+		return nil, fmt.Errorf("failed to begin state transaction to close batch, err: %w", err)
 	}
-	f.closeBatch(ctx, dbTx)
+	err = f.closeBatch(ctx, dbTx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to close batch, err: %w", err)
+	}
 
 	return f.openWIPBatch(ctx, dbTx)
 }
 
-func (f *finalizer) openWIPBatch(ctx context.Context, dbTx pgx.Tx) (WipBatch, error) {
+func (f *finalizer) openWIPBatch(ctx context.Context, dbTx pgx.Tx) (*WipBatch, error) {
 	// open next batch
 	gerHash, err := f.getGERHash(ctx, dbTx)
 	if err != nil {
-		return WipBatch{}, err
+		return nil, err
 	}
 
 	_, err = f.openBatch(ctx, gerHash, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			return WipBatch{}, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"failed to rollback dbTx when getting last batch num that gave err: %s. Rollback err: %s",
 				rollbackErr.Error(), err.Error(),
 			)
 		}
-		return WipBatch{}, err
+		return nil, err
 	}
 	if err := dbTx.Commit(ctx); err != nil {
-		return WipBatch{}, err
+		return nil, err
 	}
 
 	// Check if synchronizer is up-to-date
@@ -467,7 +470,7 @@ func (f *finalizer) reopenBatch(ctx context.Context) {
 	}
 }
 
-func (f *finalizer) closeBatch(ctx context.Context, dbTx pgx.Tx) {
+func (f *finalizer) closeBatch(ctx context.Context, dbTx pgx.Tx) error {
 	receipt := ClosingBatchParameters{
 		BatchNumber:   f.batch.batchNumber,
 		AccInputHash:  f.processRequest.OldAccInputHash,
@@ -475,7 +478,7 @@ func (f *finalizer) closeBatch(ctx context.Context, dbTx pgx.Tx) {
 		LocalExitRoot: f.processRequest.GlobalExitRoot,
 		Txs:           f.batch.txs,
 	}
-	f.dbManager.CloseBatch(ctx, receipt, dbTx)
+	return f.dbManager.CloseBatch(ctx, receipt)
 }
 
 func (f *finalizer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx.Tx) (state.ProcessingContext, error) {

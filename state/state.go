@@ -481,14 +481,15 @@ func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessSin
 	}
 	var result *ProcessBatchResponse
 	if len(request.TxData) > 0 {
-		tx, err := DecodeTx(string(request.TxData))
+		txs, _, err := DecodeTxs(request.TxData)
 		if err != nil {
 			return nil, err
 		}
-		result, err = convertToProcessBatchResponse([]types.Transaction{*tx}, res)
-	}
-	if err != nil {
-		return nil, err
+		result, err = convertToProcessBatchResponse(txs, res)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 	log.Debugf("ProcessSingleTransaction end")
 	log.Debugf("*******************************************")
@@ -711,19 +712,6 @@ func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingRe
 	if err != nil {
 		return err
 	}
-
-	// TODO: Modification done to bypass situation detected during testnet testing
-	// Further analysis is needed
-	/*
-		if len(txs) == 0 {
-			return ErrClosingBatchWithoutTxs
-		}
-	*/
-
-	// batchL2Data, err := EncodeTransactions(txs)
-	// if err != nil {
-	// 	return err
-	// }
 
 	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
 }
@@ -1550,4 +1538,64 @@ type NewL2BlockEvent struct {
 // that will be triggered when a new l2 block event is triggered
 func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
 	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
+}
+
+// StoreTransactions is used by the sequencer to add processed transactions into
+// an open batch.
+func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+
+	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
+	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+	if isBatchClosed {
+		return ErrBatchAlreadyClosed
+	}
+
+	processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// if the transaction has an intrinsic invalid tx error it means
+	// the transaction has not changed the state, so we don't store it
+	if executor.IsIntrinsicError(executor.ErrorCode(processedTx.Error)) {
+		return nil
+	}
+
+	lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
+	if err != nil {
+		return err
+	}
+
+	header := &types.Header{
+		Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
+		ParentHash: lastL2Block.Hash(),
+		Coinbase:   processingContext.Coinbase,
+		Root:       processedTx.StateRoot,
+		GasUsed:    processedTx.GasUsed,
+		GasLimit:   s.cfg.MaxCumulativeGasUsed,
+		Time:       uint64(processingContext.Timestamp.Unix()),
+	}
+	transactions := []*types.Transaction{&processedTx.Tx}
+
+	receipt := generateReceipt(header.Number, processedTx)
+	receipts := []*types.Receipt{receipt}
+
+	// Create block to be able to calculate its hash
+	block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+	block.ReceivedAt = processingContext.Timestamp
+
+	receipt.BlockHash = block.Hash()
+
+	// Store L2 block and its transaction
+	if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
+		return err
+	}
+
+	return nil
 }
