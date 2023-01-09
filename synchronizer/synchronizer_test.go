@@ -459,3 +459,207 @@ func TestForcedBatch(t *testing.T) {
 	err = sync.Sync()
 	require.NoError(t, err)
 }
+
+func TestSequenceForcedBatch(t *testing.T) {
+	genesis := state.Genesis{}
+	cfg := Config{
+		SyncInterval:   cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:  10,
+		GenBlockNumber: uint64(123456),
+	}
+
+	m := mocks{
+		Etherman: newEthermanMock(t),
+		State:    newStateMock(t),
+		DbTx:     newDbTxMock(t),
+	}
+
+	sync, err := NewSynchronizer(true, m.Etherman, m.State, genesis, cfg)
+	require.NoError(t, err)
+	
+	// state preparation
+	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
+	m.State.
+		On("BeginStateTransaction", ctxMatchBy).
+		Run(func(args mock.Arguments) {
+			ctx := args[0].(context.Context)
+			parentHash := common.HexToHash("0x111")
+			ethHeader := &types.Header{Number: big.NewInt(1), ParentHash: parentHash}
+			ethBlock := types.NewBlockWithHeader(ethHeader)
+			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
+
+			m.State.
+				On("GetLastBlock", ctx, m.DbTx).
+				Return(lastBlock, nil).
+				Once()
+
+			m.DbTx.
+				On("Commit", ctx).
+				Return(nil).
+				Once()
+
+			m.Etherman.
+				On("EthBlockByNumber", ctx, lastBlock.BlockNumber).
+				Return(ethBlock, nil).
+				Once()
+
+			var n *big.Int
+			m.Etherman.
+				On("HeaderByNumber", ctx, n).
+				Return(ethHeader, nil).
+				Once()
+
+			sequencedForceBatch := etherman.SequencedForceBatch{
+				BatchNumber: uint64(2),
+				Coinbase:    common.HexToAddress("0x222"),
+				TxHash:      common.HexToHash("0x333"),
+				ProofOfEfficiencyForcedBatchData: proofofefficiency.ProofOfEfficiencyForcedBatchData{
+					Transactions:       []byte{},
+					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+					MinForcedTimestamp: 1000, //ForcedBatch
+				},
+			}
+
+			forceb := []etherman.ForcedBatch{{
+				BlockNumber: lastBlock.BlockNumber,
+				ForcedBatchNumber: 1,
+				Sequencer: sequencedForceBatch.Coinbase,
+				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
+				RawTxsData: sequencedForceBatch.Transactions,
+				ForcedAt: time.Unix(int64(sequencedForceBatch.MinForcedTimestamp), 0),
+			}}
+
+			ethermanBlock := etherman.Block{
+				BlockHash:        ethBlock.Hash(),
+				SequencedForceBatches: [][]etherman.SequencedForceBatch{{sequencedForceBatch}},
+				ForcedBatches:    forceb,
+			}
+			blocks := []etherman.Block{ethermanBlock}
+			order := map[common.Hash][]etherman.Order{
+				ethBlock.Hash(): {
+					{
+						Name: etherman.ForcedBatchesOrder,
+						Pos:  0,
+					},
+					{
+						Name: etherman.SequenceForceBatchesOrder,
+						Pos:  0,
+					},
+				},
+			}
+
+			fromBlock := ethBlock.NumberU64() + 1
+			toBlock := fromBlock + cfg.SyncChunkSize
+
+			m.Etherman.
+				On("GetRollupInfoByBlockRange", ctx, fromBlock, &toBlock).
+				Return(blocks, order, nil).
+				Once()
+
+			m.State.
+				On("BeginStateTransaction", ctx).
+				Return(m.DbTx, nil).
+				Once()
+
+			stateBlock := &state.Block{
+				BlockNumber: ethermanBlock.BlockNumber,
+				BlockHash:   ethermanBlock.BlockHash,
+				ParentHash:  ethermanBlock.ParentHash,
+				ReceivedAt:  ethermanBlock.ReceivedAt,
+			}
+
+			m.State.
+				On("AddBlock", ctx, stateBlock, m.DbTx).
+				Return(nil).
+				Once()
+
+			fb := []state.ForcedBatch{{
+				BlockNumber: lastBlock.BlockNumber,
+				ForcedBatchNumber: 1,
+				Sequencer: sequencedForceBatch.Coinbase,
+				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
+				RawTxsData: sequencedForceBatch.Transactions,
+				ForcedAt: time.Unix(int64(sequencedForceBatch.MinForcedTimestamp), 0),
+			}}
+
+			m.State.
+				On("AddForcedBatch", ctx, &fb[0], m.DbTx).
+				Return(nil).
+				Once()
+
+			m.State.
+				On("GetLastVirtualBatchNum", ctx, m.DbTx).
+				Return(uint64(1), nil).
+				Once()
+
+			m.State.
+				On("ResetTrustedState", ctx, uint64(1), m.DbTx).
+				Return(nil).
+				Once()
+
+			m.State.
+				On("GetNextForcedBatches", ctx, 1, m.DbTx).
+				Return(fb, nil).
+				Once()
+
+			processingContext := state.ProcessingContext{
+				BatchNumber:    sequencedForceBatch.BatchNumber,
+				Coinbase:       sequencedForceBatch.Coinbase,
+				Timestamp:      ethBlock.ReceivedAt,
+				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
+			}
+
+			m.State.
+				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
+				Return(nil).
+				Once()
+
+			virtualBatch := &state.VirtualBatch{
+				BatchNumber: sequencedForceBatch.BatchNumber,
+				TxHash:      sequencedForceBatch.TxHash,
+				Coinbase:    sequencedForceBatch.Coinbase,
+				BlockNumber: ethermanBlock.BlockNumber,
+			}
+
+			m.State.
+				On("AddVirtualBatch", ctx, virtualBatch, m.DbTx).
+				Return(nil).
+				Once()
+
+			m.State.
+				On("AddBatchNumberInForcedBatch", ctx, fb[0].ForcedBatchNumber, sequencedForceBatch.BatchNumber, m.DbTx).
+				Return(nil).
+				Once()
+
+			seq := state.Sequence{
+				FromBatchNumber: 2,
+				ToBatchNumber:   2,
+			}
+			m.State.
+				On("AddSequence", ctx, seq, m.DbTx).
+				Return(nil).
+				Once()
+
+			m.DbTx.
+				On("Commit", ctx).
+				Run(func(args mock.Arguments) { sync.Stop() }).
+				Return(nil).
+				Once()
+
+			m.Etherman.
+				On("GetLatestBatchNumber").
+				Return(uint64(10), nil).
+				Once()
+
+			var nilDbTx pgx.Tx
+			m.State.
+				On("GetLastBatchNumber", ctx, nilDbTx).
+				Return(uint64(10), nil).
+				Once()
+		}).
+		Return(m.DbTx, nil).
+		Once()
+
+	err = sync.Sync()
+	require.NoError(t, err)
+}
