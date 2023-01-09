@@ -276,7 +276,7 @@ func TestForcedBatch(t *testing.T) {
 
 	sync, err := NewSynchronizer(true, m.Etherman, m.State, genesis, cfg)
 	require.NoError(t, err)
-	
+
 	// state preparation
 	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
 	m.State.
@@ -322,12 +322,12 @@ func TestForcedBatch(t *testing.T) {
 			}
 
 			forceb := []etherman.ForcedBatch{{
-				BlockNumber: lastBlock.BlockNumber,
+				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
-				Sequencer: sequencedBatch.Coinbase,
-				GlobalExitRoot: sequencedBatch.GlobalExitRoot,
-				RawTxsData: sequencedBatch.Transactions,
-				ForcedAt: time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
+				Sequencer:         sequencedBatch.Coinbase,
+				GlobalExitRoot:    sequencedBatch.GlobalExitRoot,
+				RawTxsData:        sequencedBatch.Transactions,
+				ForcedAt:          time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
 			}}
 
 			ethermanBlock := etherman.Block{
@@ -375,12 +375,12 @@ func TestForcedBatch(t *testing.T) {
 				Once()
 
 			fb := []state.ForcedBatch{{
-				BlockNumber: lastBlock.BlockNumber,
+				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
-				Sequencer: sequencedBatch.Coinbase,
-				GlobalExitRoot: sequencedBatch.GlobalExitRoot,
-				RawTxsData: sequencedBatch.Transactions,
-				ForcedAt: time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
+				Sequencer:         sequencedBatch.Coinbase,
+				GlobalExitRoot:    sequencedBatch.GlobalExitRoot,
+				RawTxsData:        sequencedBatch.Transactions,
+				ForcedAt:          time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
 			}}
 
 			m.State.
@@ -476,7 +476,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 	sync, err := NewSynchronizer(true, m.Etherman, m.State, genesis, cfg)
 	require.NoError(t, err)
-	
+
 	// state preparation
 	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
 	m.State.
@@ -521,18 +521,18 @@ func TestSequenceForcedBatch(t *testing.T) {
 			}
 
 			forceb := []etherman.ForcedBatch{{
-				BlockNumber: lastBlock.BlockNumber,
+				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
-				Sequencer: sequencedForceBatch.Coinbase,
-				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
-				RawTxsData: sequencedForceBatch.Transactions,
-				ForcedAt: time.Unix(int64(sequencedForceBatch.MinForcedTimestamp), 0),
+				Sequencer:         sequencedForceBatch.Coinbase,
+				GlobalExitRoot:    sequencedForceBatch.GlobalExitRoot,
+				RawTxsData:        sequencedForceBatch.Transactions,
+				ForcedAt:          time.Unix(int64(sequencedForceBatch.MinForcedTimestamp), 0),
 			}}
 
 			ethermanBlock := etherman.Block{
-				BlockHash:        ethBlock.Hash(),
+				BlockHash:             ethBlock.Hash(),
 				SequencedForceBatches: [][]etherman.SequencedForceBatch{{sequencedForceBatch}},
-				ForcedBatches:    forceb,
+				ForcedBatches:         forceb,
 			}
 			blocks := []etherman.Block{ethermanBlock}
 			order := map[common.Hash][]etherman.Order{
@@ -574,12 +574,12 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Once()
 
 			fb := []state.ForcedBatch{{
-				BlockNumber: lastBlock.BlockNumber,
+				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
-				Sequencer: sequencedForceBatch.Coinbase,
-				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
-				RawTxsData: sequencedForceBatch.Transactions,
-				ForcedAt: time.Unix(int64(sequencedForceBatch.MinForcedTimestamp), 0),
+				Sequencer:         sequencedForceBatch.Coinbase,
+				GlobalExitRoot:    sequencedForceBatch.GlobalExitRoot,
+				RawTxsData:        sequencedForceBatch.Transactions,
+				ForcedAt:          time.Unix(int64(sequencedForceBatch.MinForcedTimestamp), 0),
 			}}
 
 			m.State.
