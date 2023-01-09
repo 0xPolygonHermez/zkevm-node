@@ -19,16 +19,16 @@ import (
 
 // finalizer represents the finalizer component of the sequencer.
 type finalizer struct {
-	closingSignalCh    ClosingSignalCh
-	txsStore           TxsStore
 	cfg                FinalizerCfg
-	maxTxsPerBatch     uint64
+	txsStore           TxsStore
+	closingSignalCh    ClosingSignalCh
 	isSynced           func(ctx context.Context) bool
 	sequencerAddress   common.Address
 	worker             workerInterface
 	dbManager          dbManagerInterface
 	executor           stateInterface
 	batch              *WipBatch
+	batchConstraints   batchConstraints
 	processRequest     state.ProcessSingleTxRequest
 	sharedResourcesMux *sync.RWMutex
 	// closing signals
@@ -38,13 +38,6 @@ type finalizer struct {
 	nextForcedBatches       []state.Batch
 	nextForcedBatchDeadline int64
 	nextForcedBatchMux      *sync.RWMutex
-}
-
-// txToStore represents a transaction to store.
-type txToStore struct {
-	txResponse               *state.ProcessTransactionResponse
-	batchNumber              uint64
-	previousL2BlockStateRoot common.Hash
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -60,19 +53,42 @@ type WipBatch struct {
 	remainingResources BatchResources
 }
 
+type batchConstraints struct {
+	MaxTxsPerBatch       uint64
+	MaxBatchBytesSize    uint64
+	MaxCumulativeGasUsed uint64
+	MaxKeccakHashes      uint32
+	MaxPoseidonHashes    uint32
+	MaxPoseidonPaddings  uint32
+	MaxMemAligns         uint32
+	MaxArithmetics       uint32
+	MaxBinaries          uint32
+	MaxSteps             uint32
+}
+
 // newFinalizer returns a new instance of Finalizer.
-func newFinalizer(cfg FinalizerCfg, worker workerInterface, dbManager dbManagerInterface, executor stateInterface, sequencerAddr common.Address, isSynced func(ctx context.Context) bool, maxTxsPerBatch uint64, closingSignalCh ClosingSignalCh, txsStore TxsStore) *finalizer {
+func newFinalizer(
+	cfg FinalizerCfg,
+	worker workerInterface,
+	dbManager dbManagerInterface,
+	executor stateInterface,
+	sequencerAddr common.Address,
+	isSynced func(ctx context.Context) bool,
+	closingSignalCh ClosingSignalCh,
+	txsStore TxsStore,
+	batchConstraints batchConstraints,
+) *finalizer {
 	return &finalizer{
-		closingSignalCh:  closingSignalCh,
-		txsStore:         txsStore,
 		cfg:              cfg,
+		txsStore:         txsStore,
+		closingSignalCh:  closingSignalCh,
 		isSynced:         isSynced,
 		sequencerAddress: sequencerAddr,
 		worker:           worker,
 		dbManager:        dbManager,
 		executor:         executor,
-		maxTxsPerBatch:   maxTxsPerBatch,
 		batch:            &WipBatch{},
+		batchConstraints: batchConstraints,
 		processRequest:   state.ProcessSingleTxRequest{},
 		// closing signals
 		nextGER:                 common.Hash{},
@@ -359,12 +375,6 @@ func (f *finalizer) syncWIPBatchWithState(ctx context.Context) error {
 	return nil
 }
 
-func (f *finalizer) isCurrBatchAboveLimitWindow() bool {
-	// TODO: use the new config param f.cfg.ResourcePercentageToCloseBatch for each resource to do the check
-	panic("Implement me")
-	return false
-}
-
 func (f *finalizer) backupWIPBatch() *WipBatch {
 	backup := &WipBatch{
 		batchNumber:        f.batch.batchNumber,
@@ -405,7 +415,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin state transaction to close batch, err: %w", err)
 	}
-	err = f.closeBatch(ctx, dbTx)
+	err = f.closeBatch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
@@ -470,7 +480,7 @@ func (f *finalizer) reopenBatch(ctx context.Context) {
 	}
 }
 
-func (f *finalizer) closeBatch(ctx context.Context, dbTx pgx.Tx) error {
+func (f *finalizer) closeBatch(ctx context.Context) error {
 	receipt := ClosingBatchParameters{
 		BatchNumber:   f.batch.batchNumber,
 		AccInputHash:  f.processRequest.OldAccInputHash,
@@ -499,4 +509,42 @@ func (f *finalizer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	}
 
 	return processingCtx, nil
+}
+
+func (f *finalizer) isCurrBatchAboveLimitWindow() bool {
+	resources := f.batch.remainingResources
+	zkCounters := resources.zKCounters
+	if resources.bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
+		return true
+	}
+	if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
+		return true
+	}
+	if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
+		return true
+	}
+	if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
+		return true
+	}
+	if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
+		return true
+	}
+	if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
+		return true
+	}
+	if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
+		return true
+	}
+	if zkCounters.CumulativeGasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
+		return true
+	}
+	return false
+}
+
+func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
+	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / 100
+}
+
+func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
+	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / 100
 }

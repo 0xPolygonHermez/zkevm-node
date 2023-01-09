@@ -6,7 +6,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	base "github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer_old/profitabilitychecker"
 )
 
 // Config represents the configuration of a sequencer
@@ -44,34 +43,31 @@ type Config struct {
 	MaxTxsPerBatch uint64 `mapstructure:"MaxTxsPerBatch"`
 
 	// MaxBatchBytesSize is the maximum batch size in bytes
-	MaxBatchBytesSize int `mapstructure:"MaxBatchBytesSize"`
+	MaxBatchBytesSize uint64 `mapstructure:"MaxBatchBytesSize"`
 
 	// MaxCumulativeGasUsed is max gas amount used by batch
 	MaxCumulativeGasUsed uint64 `mapstructure:"MaxCumulativeGasUsed"`
 
 	// MaxKeccakHashes is max keccak hashes used by batch
-	MaxKeccakHashes int32 `mapstructure:"MaxKeccakHashes"`
+	MaxKeccakHashes uint32 `mapstructure:"MaxKeccakHashes"`
 
 	// MaxPoseidonHashes is max poseidon hashes batch can handle
-	MaxPoseidonHashes int32 `mapstructure:"MaxPoseidonHashes"`
+	MaxPoseidonHashes uint32 `mapstructure:"MaxPoseidonHashes"`
 
 	// MaxPoseidonPaddings is max poseidon paddings batch can handle
-	MaxPoseidonPaddings int32 `mapstructure:"MaxPoseidonPaddings"`
+	MaxPoseidonPaddings uint32 `mapstructure:"MaxPoseidonPaddings"`
 
 	// MaxMemAligns is max mem aligns batch can handle
-	MaxMemAligns int32 `mapstructure:"MaxMemAligns"`
+	MaxMemAligns uint32 `mapstructure:"MaxMemAligns"`
 
 	// MaxArithmetics is max arithmetics batch can handle
-	MaxArithmetics int32 `mapstructure:"MaxArithmetics"`
+	MaxArithmetics uint32 `mapstructure:"MaxArithmetics"`
 
 	// MaxBinaries is max binaries batch can handle
-	MaxBinaries int32 `mapstructure:"MaxBinaries"`
+	MaxBinaries uint32 `mapstructure:"MaxBinaries"`
 
 	// MaxSteps is max steps batch can handle
-	MaxSteps int32 `mapstructure:"MaxSteps"`
-
-	// ProfitabilityChecker configuration
-	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`
+	MaxSteps uint32 `mapstructure:"MaxSteps"`
 
 	// Maximum size, in gas size, a sequence can reach
 	MaxSequenceSize MaxSequenceSize `mapstructure:"MaxSequenceSize"`
@@ -88,7 +84,7 @@ type FinalizerCfg struct {
 	NextGERDeadlineTimeoutInSec         types.Duration `mapstructure:"NextGERDeadlineTimeoutInSec"`
 	NextForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"NextForcedBatchDeadlineTimeoutInSec"`
 	SleepDurationInMs                   types.Duration `mapstructure:"SleepDurationInMs"`
-	ResourcePercentageToCloseBatch      int            `mapstructure:"ResourcePercentageToCloseBatch"`
+	ResourcePercentageToCloseBatch      uint32         `mapstructure:"ResourcePercentageToCloseBatch"`
 }
 
 // MaxSequenceSize is a wrapper type that parses token amount to big int
