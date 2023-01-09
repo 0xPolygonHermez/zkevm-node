@@ -82,7 +82,7 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 		}
 		if err != nil {
 			log.Errorf("failed to sequence batches, maximum attempts exceeded, err: %v", err)
-			return fmt.Errorf("failed to sequence batches, maximum attempts exceeded, err: %v", err)
+			return fmt.Errorf("failed to sequence batches, maximum attempts exceeded, err: %w", err)
 		}
 		// Wait for tx to be mined
 		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
@@ -100,7 +100,7 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 				continue
 			}
 			log.Errorf("tx %s failed, err: %v", tx.Hash(), err)
-			return fmt.Errorf("tx %s failed, err: %v", tx.Hash(), err)
+			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 		}
 
 		log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
