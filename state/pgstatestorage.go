@@ -452,7 +452,7 @@ func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2
                                                           WHERE l2b.block_num = $1))
                /* OR if $1 is null, this means we want to get the most updated information from state, so it considers all the batches.
                 * this is generally used by estimate gas, process unsigned transactions and it is required by claim transactions to add
-                * the open batch to the result and get the most updated GER synced from L1 and stored in the current open batch when 
+                * the open batch to the result and get the most updated globalExitRoot synced from L1 and stored in the current open batch when 
                 * there was not transactions yet to create a l2 block with it */
             OR $1 IS NULL
          ORDER BY b.batch_num DESC
@@ -916,7 +916,7 @@ func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.H
 	}
 
 	if isBatchHasTxs {
-		return errors.New("batch has txs, can't change GER")
+		return errors.New("batch has txs, can't change globalExitRoot")
 	}
 
 	const updateGER = `
@@ -1965,4 +1965,25 @@ func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
 	return err
+}
+
+// GetLastClosedBatch returns the latest closed batch
+func (p *PostgresStorage) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
+	const getLastClosedBatchSQL = `
+		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data 
+			FROM state.batch bt
+			WHERE global_exit_root IS NOT NULL AND state_root IS NOT NULL
+			ORDER BY bt.batch_num DESC
+			LIMIT 1;`
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getLastClosedBatchSQL)
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+	return &batch, nil
 }

@@ -170,7 +170,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		return 0, err
 	}
 
-	// Get latest batch from the database to get GER and Timestamp
+	// Get latest batch from the database to get globalExitRoot and Timestamp
 	lastBatch := lastBatches[0]
 
 	// Get batch before latest to get state root and local exit root
@@ -271,7 +271,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		// log.Debugf("EstimateGas[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 		log.Debugf("EstimateGas[processBatchRequest.From]: %v", processBatchRequest.From)
 		log.Debugf("EstimateGas[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-		log.Debugf("EstimateGas[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+		log.Debugf("EstimateGas[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
 		log.Debugf("EstimateGas[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
 		log.Debugf("EstimateGas[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 		log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
@@ -448,13 +448,52 @@ func (s *State) ProcessSequencerBatch(
 	return result, nil
 }
 
+func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessRequest) (*ProcessBatchResponse, error) {
+	log.Debugf("*******************************************")
+	log.Debugf("ProcessSingleTransaction start")
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		OldBatchNum:      request.BatchNumber - 1,
+		Coinbase:         request.SequencerAddress.String(),
+		BatchL2Data:      request.Transactions,
+		OldStateRoot:     request.OldStateRoot.Bytes(),
+		GlobalExitRoot:   request.GlobalExitRoot.Bytes(),
+		OldAccInputHash:  request.OldAccInputHash.Bytes(),
+		EthTimestamp:     request.Timestamp,
+		UpdateMerkleTree: cTrue,
+		ChainId:          s.cfg.ChainID,
+	}
+	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, request.Caller)
+	if err != nil {
+		return nil, err
+	}
+	var result *ProcessBatchResponse
+	// TODO: refactor not to be needed to Decode
+	if len(request.Transactions) > 0 {
+		txs, _, err := DecodeTxs(request.Transactions)
+		if err != nil {
+			return nil, err
+		}
+		result, err = convertToProcessBatchResponse(txs, res)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+	log.Debugf("ProcessSingleTransaction end")
+	log.Debugf("*******************************************")
+
+	return result, nil
+}
+
 // ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
 func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
 
-	// Get batch from the database to get GER and Timestamp
+	// Get batch from the database to get globalExitRoot and Timestamp
 	lastBatch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
 	if err != nil {
 		return nil, err
@@ -497,7 +536,7 @@ func (s *State) processBatch(
 		return nil, err
 	}
 
-	// Get latest batch from the database to get GER and Timestamp
+	// Get latest batch from the database to get globalExitRoot and Timestamp
 	lastBatch := lastBatches[0]
 
 	// Get batch before latest to get state root and local exit root
@@ -531,6 +570,12 @@ func (s *State) processBatch(
 		ChainId:          s.cfg.ChainID,
 	}
 
+	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, caller)
+
+	return res, err
+}
+
+func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequest *pb.ProcessBatchRequest, caller CallerLabel) (*pb.ProcessBatchResponse, error) {
 	// Send Batch to the Executor
 	log.Debugf("processBatch[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
 	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
@@ -547,6 +592,7 @@ func (s *State) processBatch(
 	elapsed := time.Since(now)
 	metrics.ExecutorProcessingTime(string(caller), elapsed)
 	log.Infof("It took %v for the executor to process the request", elapsed)
+
 	return res, err
 }
 
@@ -656,19 +702,6 @@ func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingRe
 	if err != nil {
 		return err
 	}
-
-	// TODO: Modification done to bypass situation detected during testnet testing
-	// Further analysis is needed
-	/*
-		if len(txs) == 0 {
-			return ErrClosingBatchWithoutTxs
-		}
-	*/
-
-	// batchL2Data, err := EncodeTransactions(txs)
-	// if err != nil {
-	// 	return err
-	// }
 
 	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
 }
@@ -829,7 +862,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	// The previous batch to get OldStateRoot and GlobalExitRoot
+	// The previous batch to get OldStateRoot and globalExitRoot
 	pBatch, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
 	if err != nil {
 		return nil, err
@@ -1120,7 +1153,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		return result
 	}
 
-	// Get latest batch from the database to get GER and Timestamp
+	// Get latest batch from the database to get globalExitRoot and Timestamp
 	lastBatch := lastBatches[0]
 
 	// Get batch before latest to get state root and local exit root
@@ -1158,7 +1191,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	// log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
@@ -1495,4 +1528,64 @@ type NewL2BlockEvent struct {
 // that will be triggered when a new l2 block event is triggered
 func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
 	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
+}
+
+// StoreTransactions is used by the sequencer to add processed transactions into
+// an open batch.
+func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+
+	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
+	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+	if isBatchClosed {
+		return ErrBatchAlreadyClosed
+	}
+
+	processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// if the transaction has an intrinsic invalid tx error it means
+	// the transaction has not changed the state, so we don't store it
+	if executor.IsIntrinsicError(executor.ErrorCode(processedTx.Error)) {
+		return nil
+	}
+
+	lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
+	if err != nil {
+		return err
+	}
+
+	header := &types.Header{
+		Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
+		ParentHash: lastL2Block.Hash(),
+		Coinbase:   processingContext.Coinbase,
+		Root:       processedTx.StateRoot,
+		GasUsed:    processedTx.GasUsed,
+		GasLimit:   s.cfg.MaxCumulativeGasUsed,
+		Time:       uint64(processingContext.Timestamp.Unix()),
+	}
+	transactions := []*types.Transaction{&processedTx.Tx}
+
+	receipt := generateReceipt(header.Number, processedTx)
+	receipts := []*types.Receipt{receipt}
+
+	// Create block to be able to calculate its hash
+	block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+	block.ReceivedAt = processingContext.Timestamp
+
+	receipt.BlockHash = block.Hash()
+
+	// Store L2 block and its transaction
+	if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
+		return err
+	}
+
+	return nil
 }

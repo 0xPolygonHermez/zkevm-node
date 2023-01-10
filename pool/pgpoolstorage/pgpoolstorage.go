@@ -228,10 +228,10 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 	var (
 		encoded, status   string
 		receivedAt        time.Time
-		cumulativeGasUsed int64
+		cumulativeGasUsed uint64
 
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
-		usedMemAligns, usedArithmetics, usedBinaries, usedSteps int32
+		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
 		nonce, failedCounter uint64
 	)
 
@@ -276,7 +276,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 
 		tx.Status = pool.TxStatus(status)
 		tx.ReceivedAt = receivedAt
-		tx.ZkCounters = pool.ZkCounters{
+		tx.ZKCounters = state.ZKCounters{
 			CumulativeGasUsed:    cumulativeGasUsed,
 			UsedKeccakHashes:     usedKeccakHashes,
 			UsedPoseidonHashes:   usedPoseidonHashes,
@@ -532,4 +532,13 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	tx.ReceivedAt = receivedAt
 
 	return tx, nil
+}
+
+// DeleteTransactionByHash deletes tx by its hash
+func (p *PostgresPoolStorage) DeleteTransactionByHash(ctx context.Context, hash common.Hash) error {
+	query := "DELETE FROM pool.txs WHERE hash = $1"
+	if _, err := p.db.Exec(ctx, query, hash); err != nil {
+		return err
+	}
+	return nil
 }

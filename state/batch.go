@@ -36,6 +36,7 @@ type ProcessingReceipt struct {
 	LocalExitRoot common.Hash
 	AccInputHash  common.Hash
 	Txs           []types.Transaction
+	BatchL2Data   []byte
 }
 
 // VerifiedBatch represents a VerifiedBatch

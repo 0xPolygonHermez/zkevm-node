@@ -19,6 +19,19 @@ func TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.Pro
 	return convertToProcessBatchResponse(txs, response)
 }
 
+func ConvertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
+	return ZKCounters{
+		CumulativeGasUsed:    resp.CumulativeGasUsed,
+		UsedKeccakHashes:     resp.CntKeccakHashes,
+		UsedPoseidonHashes:   resp.CntPoseidonHashes,
+		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
+		UsedMemAligns:        resp.CntMemAligns,
+		UsedArithmetics:      resp.CntArithmetics,
+		UsedBinaries:         resp.CntBinaries,
+		UsedSteps:            resp.CntSteps,
+	}
+}
+
 func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
 	responses, err := convertToProcessTransactionResponse(txs, response.Responses)
 	if err != nil {
@@ -33,21 +46,15 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 	}
 
 	return &ProcessBatchResponse{
-		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
-		NewAccInputHash:     common.BytesToHash(response.NewAccInputHash),
-		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
-		NewBatchNumber:      response.NewBatchNum,
-		CntKeccakHashes:     response.CntKeccakHashes,
-		CntPoseidonHashes:   response.CntPoseidonHashes,
-		CntPoseidonPaddings: response.CntPoseidonPaddings,
-		CntMemAligns:        response.CntMemAligns,
-		CntArithmetics:      response.CntArithmetics,
-		CntBinaries:         response.CntBinaries,
-		CntSteps:            response.CntSteps,
-		CumulativeGasUsed:   response.CumulativeGasUsed,
-		Responses:           responses,
-		Error:               executor.Err(response.Error),
-		IsBatchProcessed:    isBatchProcessed,
+		NewStateRoot:     common.BytesToHash(response.NewStateRoot),
+		NewAccInputHash:  common.BytesToHash(response.NewAccInputHash),
+		NewLocalExitRoot: common.BytesToHash(response.NewLocalExitRoot),
+		NewBatchNumber:   response.NewBatchNum,
+		UsedZkCounters:   ConvertToCounters(response),
+		Responses:        responses,
+		Error:            executor.Err(response.Error),
+		IsBatchProcessed: isBatchProcessed,
+		TouchedAddresses: convertToTouchedAddresses(response.TouchedAddresses),
 	}, nil
 }
 
@@ -91,6 +98,24 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 	}
 
 	return results, nil
+}
+
+func convertToTouchedAddresses(touchedAddresses []*pb.TouchedAddresses) map[common.Address]*TouchedAddress {
+	result := make(map[common.Address]*TouchedAddress)
+	for _, info := range touchedAddresses {
+		parsedAddress := common.HexToAddress(info.Address)
+		balance := &big.Int{}
+		if info.Balance != nil {
+			balance.SetString(*info.Balance, 10)
+		}
+		result[parsedAddress] = &TouchedAddress{
+			Address: parsedAddress,
+			Nonce:   info.Nonce,
+			Balance: balance,
+		}
+	}
+
+	return result
 }
 
 func convertToLog(protoLogs []*pb.Log) []*types.Log {

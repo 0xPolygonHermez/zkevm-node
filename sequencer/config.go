@@ -6,7 +6,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	base "github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer_old/profitabilitychecker"
 )
 
 // Config represents the configuration of a sequencer
@@ -14,6 +13,7 @@ type Config struct {
 	// WaitPeriodSendSequence is the time the sequencer waits until
 	// trying to send a sequence to L1
 	WaitPeriodSendSequence types.Duration `mapstructure:"WaitPeriodSendSequence"`
+
 	// WaitPeriodPoolIsEmpty is the time the sequencer waits until
 	// trying to add new txs to the state
 	WaitPeriodPoolIsEmpty types.Duration `mapstructure:"WaitPeriodPoolIsEmpty"`
@@ -24,10 +24,10 @@ type Config struct {
 	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
 	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`
 
-	// WaitBlocksToConsiderGerFinal is number of blocks for sequencer to consider GER final
+	// WaitBlocksToConsiderGerFinal is number of blocks for sequencer to consider globalExitRoot final
 	WaitBlocksToConsiderGerFinal uint64 `mapstructure:"WaitBlocksToConsiderGerFinal"`
 
-	// ElapsedTimeToCloseBatchWithoutTxsDueToNewGER it's time to close a batch bcs new GER appeared
+	// ElapsedTimeToCloseBatchWithoutTxsDueToNewGER it's time to close a batch bcs new globalExitRoot appeared
 	ElapsedTimeToCloseBatchWithoutTxsDueToNewGER types.Duration `mapstructure:"ElapsedTimeToCloseBatchWithoutTxsDueToNewGER"`
 
 	// MaxTimeForBatchToBeOpen is time after which new batch should be closed
@@ -43,40 +43,48 @@ type Config struct {
 	MaxTxsPerBatch uint64 `mapstructure:"MaxTxsPerBatch"`
 
 	// MaxBatchBytesSize is the maximum batch size in bytes
-	MaxBatchBytesSize int `mapstructure:"MaxBatchBytesSize"`
+	MaxBatchBytesSize uint64 `mapstructure:"MaxBatchBytesSize"`
 
 	// MaxCumulativeGasUsed is max gas amount used by batch
 	MaxCumulativeGasUsed uint64 `mapstructure:"MaxCumulativeGasUsed"`
 
 	// MaxKeccakHashes is max keccak hashes used by batch
-	MaxKeccakHashes int32 `mapstructure:"MaxKeccakHashes"`
+	MaxKeccakHashes uint32 `mapstructure:"MaxKeccakHashes"`
 
 	// MaxPoseidonHashes is max poseidon hashes batch can handle
-	MaxPoseidonHashes int32 `mapstructure:"MaxPoseidonHashes"`
+	MaxPoseidonHashes uint32 `mapstructure:"MaxPoseidonHashes"`
 
 	// MaxPoseidonPaddings is max poseidon paddings batch can handle
-	MaxPoseidonPaddings int32 `mapstructure:"MaxPoseidonPaddings"`
+	MaxPoseidonPaddings uint32 `mapstructure:"MaxPoseidonPaddings"`
 
 	// MaxMemAligns is max mem aligns batch can handle
-	MaxMemAligns int32 `mapstructure:"MaxMemAligns"`
+	MaxMemAligns uint32 `mapstructure:"MaxMemAligns"`
 
 	// MaxArithmetics is max arithmetics batch can handle
-	MaxArithmetics int32 `mapstructure:"MaxArithmetics"`
+	MaxArithmetics uint32 `mapstructure:"MaxArithmetics"`
 
 	// MaxBinaries is max binaries batch can handle
-	MaxBinaries int32 `mapstructure:"MaxBinaries"`
+	MaxBinaries uint32 `mapstructure:"MaxBinaries"`
 
 	// MaxSteps is max steps batch can handle
-	MaxSteps int32 `mapstructure:"MaxSteps"`
-
-	// ProfitabilityChecker configuration
-	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`
+	MaxSteps uint32 `mapstructure:"MaxSteps"`
 
 	// Maximum size, in gas size, a sequence can reach
 	MaxSequenceSize MaxSequenceSize `mapstructure:"MaxSequenceSize"`
 
 	// Maximum allowed failed counter for the tx before it becomes invalid
 	MaxAllowedFailedCounter uint64 `mapstructure:"MaxAllowedFailedCounter"`
+
+	// Finalizer's specific config properties
+	Finalizer FinalizerCfg `mapstructure:"FinalizerCfg"`
+}
+
+// FinalizerCfg contains the finalizer's configuration properties
+type FinalizerCfg struct {
+	NextGERDeadlineTimeoutInSec         types.Duration `mapstructure:"NextGERDeadlineTimeoutInSec"`
+	NextForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"NextForcedBatchDeadlineTimeoutInSec"`
+	SleepDurationInMs                   types.Duration `mapstructure:"SleepDurationInMs"`
+	ResourcePercentageToCloseBatch      uint32         `mapstructure:"ResourcePercentageToCloseBatch"`
 }
 
 // MaxSequenceSize is a wrapper type that parses token amount to big int

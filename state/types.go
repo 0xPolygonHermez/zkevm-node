@@ -1,28 +1,44 @@
 package state
 
 import (
+	"errors"
+	"math/big"
+
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// TouchedAddress represents affected address after executor processing one or multiple txs
+type TouchedAddress struct {
+	Address common.Address
+	Nonce   *uint64
+	Balance *big.Int
+}
+
+// ProcessRequest represents the request of a batch process.
+type ProcessRequest struct {
+	BatchNumber      uint64
+	GlobalExitRoot   common.Hash
+	OldStateRoot     common.Hash
+	OldAccInputHash  common.Hash
+	Transactions     []byte
+	SequencerAddress common.Address
+	Timestamp        uint64
+	Caller           CallerLabel
+}
+
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot        common.Hash
-	NewAccInputHash     common.Hash
-	NewLocalExitRoot    common.Hash
-	NewBatchNumber      uint64
-	CntKeccakHashes     uint32
-	CntPoseidonHashes   uint32
-	CntPoseidonPaddings uint32
-	CntMemAligns        uint32
-	CntArithmetics      uint32
-	CntBinaries         uint32
-	CntSteps            uint32
-	CumulativeGasUsed   uint64
-	Responses           []*ProcessTransactionResponse
-	Error               error
-	IsBatchProcessed    bool
+	NewStateRoot     common.Hash
+	NewAccInputHash  common.Hash
+	NewLocalExitRoot common.Hash
+	NewBatchNumber   uint64
+	UsedZkCounters   ZKCounters
+	Responses        []*ProcessTransactionResponse
+	Error            error
+	IsBatchProcessed bool
+	TouchedAddresses map[common.Address]*TouchedAddress
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
@@ -56,4 +72,81 @@ type ProcessTransactionResponse struct {
 	ExecutionTrace []instrumentation.StructLog
 	// CallTrace contains the call trace.
 	CallTrace instrumentation.ExecutorTrace
+}
+
+// ZKCounters counters for the tx
+type ZKCounters struct {
+	CumulativeGasUsed    uint64
+	UsedKeccakHashes     uint32
+	UsedPoseidonHashes   uint32
+	UsedPoseidonPaddings uint32
+	UsedMemAligns        uint32
+	UsedArithmetics      uint32
+	UsedBinaries         uint32
+	UsedSteps            uint32
+}
+
+// IsZkCountersBelowZero checks if any of the counters are below zero
+func (z *ZKCounters) IsZkCountersBelowZero() bool {
+	return z.CumulativeGasUsed < 0 ||
+		z.UsedArithmetics < 0 ||
+		z.UsedSteps < 0 ||
+		z.UsedBinaries < 0 ||
+		z.UsedMemAligns < 0 ||
+		z.UsedPoseidonPaddings < 0 ||
+		z.UsedPoseidonHashes < 0 ||
+		z.UsedKeccakHashes < 0
+}
+
+// SumUp sum ups zk counters with passed tx zk counters
+func (z *ZKCounters) SumUp(other ZKCounters) {
+	z.CumulativeGasUsed += other.CumulativeGasUsed
+	z.UsedKeccakHashes += other.UsedKeccakHashes
+	z.UsedPoseidonHashes += other.UsedPoseidonHashes
+	z.UsedPoseidonPaddings += other.UsedPoseidonPaddings
+	z.UsedMemAligns += other.UsedMemAligns
+	z.UsedArithmetics += other.UsedArithmetics
+	z.UsedBinaries += other.UsedBinaries
+	z.UsedSteps += other.UsedSteps
+}
+
+// Sub subtract zk counters with passed zk counters (not safe)
+func (z *ZKCounters) Sub(other ZKCounters) error {
+
+	// ZKCounters
+	if other.CumulativeGasUsed > z.CumulativeGasUsed {
+		return errors.New("underflow ZKCounter: CumulativeGasUsed")
+	}
+	if other.UsedKeccakHashes > z.UsedKeccakHashes {
+		return errors.New("underflow ZKCounter: UsedKeccakHashes")
+	}
+	if other.UsedPoseidonHashes > z.UsedPoseidonHashes {
+		return errors.New("underflow ZKCounter: UsedPoseidonHashes")
+	}
+	if other.UsedPoseidonPaddings > z.UsedPoseidonPaddings {
+		return errors.New("underflow ZKCounter: UsedPoseidonPaddings")
+	}
+	if other.UsedMemAligns > z.UsedMemAligns {
+		return errors.New("underflow ZKCounter: UsedMemAligns")
+	}
+	if other.UsedArithmetics > z.UsedArithmetics {
+		return errors.New("underflow ZKCounter: UsedArithmetics")
+	}
+	if other.UsedBinaries > z.UsedBinaries {
+		return errors.New("underflow ZKCounter: UsedBinaries")
+	}
+	if other.UsedSteps > z.UsedSteps {
+		return errors.New("underflow ZKCounter: UsedSteps")
+	}
+
+	z.CumulativeGasUsed -= other.CumulativeGasUsed
+	z.UsedKeccakHashes -= other.UsedKeccakHashes
+	z.UsedPoseidonHashes -= other.UsedPoseidonHashes
+	z.UsedPoseidonPaddings -= other.UsedPoseidonPaddings
+	z.UsedMemAligns -= other.UsedMemAligns
+	z.UsedArithmetics -= other.UsedArithmetics
+	z.UsedBinaries -= other.UsedBinaries
+	z.UsedSteps -= other.UsedSteps
+
+	return nil
 }
