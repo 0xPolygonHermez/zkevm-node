@@ -29,7 +29,7 @@ type finalizer struct {
 	executor           stateInterface
 	batch              *WipBatch
 	batchConstraints   batchConstraints
-	processRequest     state.ProcessSingleTxRequest
+	processRequest     state.ProcessRequest
 	sharedResourcesMux *sync.RWMutex
 	// closing signals
 	nextGER                 common.Hash
@@ -42,15 +42,17 @@ type finalizer struct {
 
 // WipBatch represents a work-in-progress batch.
 type WipBatch struct {
-	batchNumber        uint64
-	coinbase           common.Address
-	accInputHash       common.Hash
-	stateRoot          common.Hash
-	localExitRoot      common.Hash
-	timestamp          uint64
-	globalExitRoot     common.Hash // 0x000...0 (ZeroHash) means to not update
-	txs                []TxTracker
-	remainingResources BatchResources
+	batchNumber         uint64
+	coinbase            common.Address
+	initialAccInputHash common.Hash
+	accInputHash        common.Hash
+	initialStateRoot    common.Hash
+	stateRoot           common.Hash
+	localExitRoot       common.Hash
+	timestamp           uint64
+	globalExitRoot      common.Hash // 0x000...0 (ZeroHash) means to not update
+	txs                 []TxTracker
+	remainingResources  BatchResources
 }
 
 type batchConstraints struct {
@@ -89,13 +91,13 @@ func newFinalizer(
 		executor:         executor,
 		batch:            &WipBatch{},
 		batchConstraints: batchConstraints,
-		processRequest:   state.ProcessSingleTxRequest{},
+		processRequest:   state.ProcessRequest{},
 		// closing signals
 		nextGER:                 common.Hash{},
-		nextGERDeadline:         getNextGERDeadline(cfg),
+		nextGERDeadline:         0,
 		nextGERMux:              &sync.RWMutex{},
 		nextForcedBatches:       make([]state.ForcedBatch, 0),
-		nextForcedBatchDeadline: getNextForcedBatchDeadline(cfg),
+		nextForcedBatchDeadline: 0,
 		nextForcedBatchesMux:    &sync.RWMutex{},
 	}
 }
@@ -109,9 +111,8 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, OldStateRoot, Ol
 	if batch != nil {
 		f.batch = batch
 	}
-	f.processRequest = state.ProcessSingleTxRequest{
+	f.processRequest = state.ProcessRequest{
 		BatchNumber:      f.batch.batchNumber,
-		StateRoot:        f.batch.stateRoot,
 		OldStateRoot:     OldStateRoot,
 		GlobalExitRoot:   f.batch.globalExitRoot,
 		OldAccInputHash:  OldAccInputHash,
@@ -142,8 +143,7 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, OldStateRoot, Ol
 				}
 			}
 
-			deadline := f.isDeadlineEncountered()
-			if deadline {
+			if f.isDeadlineEncountered() {
 				f.closeAndOpenNewBatch(ctx)
 			}
 		}
@@ -167,7 +167,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (succ
 	if err != nil {
 		log.Errorf("failed to create dbTx. Err: %w", err)
 	}
-	result, err := f.executor.ProcessSingleTransaction(ctx, f.processRequest, dbTx)
+	result, err := f.executor.ProcessSingleTransaction(ctx, f.processRequest)
 
 	if result.Error != nil {
 		if err == state.ErrBatchAlreadyClosed || err == state.ErrInvalidBatchNumber {
@@ -209,7 +209,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (succ
 		usedResources := BatchResources{
 			zKCounters: result.UsedZkCounters,
 			bytes:      uint64(len(tx.RawTx)),
-			gas:        txResponse.GasUsed,
 		}
 		err = f.batch.remainingResources.Sub(usedResources)
 		if err != nil {
@@ -218,11 +217,11 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (succ
 		}
 
 		// We have a successful processing if we are here
-		previousL2BlockStateRoot := f.batch.stateRoot
+		f.processRequest.OldStateRoot = f.batch.stateRoot
+		f.processRequest.OldAccInputHash = f.batch.accInputHash
 		f.batch.stateRoot = result.NewStateRoot
 		f.batch.localExitRoot = result.NewLocalExitRoot
 		f.batch.accInputHash = result.NewAccInputHash
-		f.processRequest.StateRoot = result.NewStateRoot
 		f.processRequest.OldAccInputHash = result.NewAccInputHash
 
 		// Store the processed transaction, add it to the batch and update status in the pool atomically
@@ -230,7 +229,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (succ
 		f.txsStore.Ch <- &txToStore{
 			batchNumber:              f.batch.batchNumber,
 			txResponse:               txResponse,
-			previousL2BlockStateRoot: previousL2BlockStateRoot,
+			previousL2BlockStateRoot: f.batch.stateRoot,
 		}
 		f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.TouchedAddresses)
 	}
@@ -248,18 +247,12 @@ func getNextGERDeadline(cfg FinalizerCfg) int64 {
 func (f *finalizer) isDeadlineEncountered() bool {
 
 	// Forced batch deadline
-	if time.Now().Unix() >= f.nextForcedBatchDeadline {
-		f.nextForcedBatchesMux.Lock()
-		f.nextForcedBatchDeadline = getNextForcedBatchDeadline(f.cfg)
-		f.nextForcedBatchesMux.Unlock()
+	if time.Now().Unix() >= f.nextForcedBatchDeadline && f.nextForcedBatchDeadline != 0 {
 		return true
 	}
 
 	// Global Exit Root deadline
-	if time.Now().Unix() >= f.nextGERDeadline {
-		f.nextGERMux.Lock()
-		f.nextGERDeadline = getNextGERDeadline(f.cfg)
-		f.nextGERMux.Unlock()
+	if time.Now().Unix() >= f.nextGERDeadline && f.nextGERDeadline != 0 {
 		return true
 	}
 
@@ -273,11 +266,17 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context, err error) {
 		case fb := <-f.closingSignalCh.ForcedBatchCh:
 			f.nextForcedBatchesMux.Lock()
 			f.nextForcedBatches = append(f.nextForcedBatches, fb)
+			if f.nextForcedBatchDeadline == 0 {
+				f.nextForcedBatchDeadline = getNextForcedBatchDeadline(f.cfg)
+			}
 			f.nextForcedBatchesMux.Unlock()
 		// globalExitRoot ch
 		case ger := <-f.closingSignalCh.GERCh:
 			f.nextGERMux.Lock()
 			f.nextGER = ger
+			if f.nextGERDeadline == 0 {
+				f.nextGERDeadline = getNextGERDeadline(f.cfg)
+			}
 			f.nextGERMux.Unlock()
 		// L2Reorg ch
 		case l2ReorgEvent := <-f.closingSignalCh.L2ReorgCh:
@@ -323,7 +322,7 @@ func (f *finalizer) syncWIPBatchWithState(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to begin state transaction to close batch, err: %w", err)
 		}
-		f.batch, err = f.openWIPBatch(ctx, dbTx)
+		f.batch, err = f.openWIPBatch(ctx, 0, lastBatch.StateRoot, lastBatch.GlobalExitRoot, lastBatch.AccInputHash, dbTx)
 		if err != nil {
 			return fmt.Errorf("failed to recreate WIP batch from state. err: %w", err)
 		}
@@ -342,9 +341,8 @@ func (f *finalizer) syncWIPBatchWithState(ctx context.Context) error {
 		}
 	}
 
-	f.processRequest = state.ProcessSingleTxRequest{
+	f.processRequest = state.ProcessRequest{
 		BatchNumber:      f.batch.batchNumber,
-		StateRoot:        f.batch.stateRoot,
 		OldStateRoot:     oldStateRoot,
 		GlobalExitRoot:   f.batch.globalExitRoot,
 		OldAccInputHash:  oldAccInputHash,
@@ -378,10 +376,6 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		dbTx pgx.Tx
 		err  error
 	)
-	f.nextGERMux.Lock()
-	defer f.nextGERMux.Unlock()
-	f.nextForcedBatchesMux.Lock()
-	defer f.nextForcedBatchesMux.Unlock()
 
 	// It is necessary to pass the batch without txs to the executor in order to update the State
 	if len(f.batch.txs) == 0 {
@@ -405,30 +399,50 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
 
-	// Update metadata
-	f.batch.globalExitRoot = f.nextGER
-	if f.nextGER != state.ZeroHash {
-		f.nextGERDeadline = getNextGERDeadline(f.cfg)
-		f.nextGER = state.ZeroHash
-	}
+	stateRoot := f.batch.stateRoot
+	batchNumber := f.batch.batchNumber
+	accInputHash := f.batch.accInputHash
 
 	// Process Forced Batches
 	if len(f.nextForcedBatches) > 0 {
+		f.nextForcedBatchesMux.Lock()
 		for _, forcedBatch := range f.nextForcedBatches {
-			err := f.dbManager.ProcessForcedBatch(forcedBatch)
+			batchNumber += 1
+			processRequest := state.ProcessRequest{
+				BatchNumber:      batchNumber,
+				OldStateRoot:     stateRoot,
+				OldAccInputHash:  accInputHash,
+				GlobalExitRoot:   forcedBatch.GlobalExitRoot,
+				Transactions:     forcedBatch.RawTxsData,
+				SequencerAddress: f.sequencerAddress,
+				Timestamp:        uint64(time.Now().Unix()),
+				Caller:           state.SequencerCallerLabel,
+			}
+			response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, processRequest)
+			// TODO: design error handling for forced batches
 			if err != nil {
 				log.Errorf("failed to process forced batch, err: %s", err)
+			} else {
+				stateRoot = response.NewStateRoot
 			}
 		}
 		f.nextForcedBatches = make([]state.ForcedBatch, 0)
+		f.nextForcedBatchesMux.Unlock()
 	}
 
-	return f.openWIPBatch(ctx, dbTx)
+	// Update metadata
+	f.nextGERMux.Lock()
+	ger := f.nextGER
+	f.nextGER = state.ZeroHash
+	f.nextGERDeadline = 0
+	f.nextGERMux.Unlock()
+
+	return f.openWIPBatch(ctx, batchNumber, ger, stateRoot, accInputHash, dbTx)
 }
 
-func (f *finalizer) openWIPBatch(ctx context.Context, dbTx pgx.Tx) (*WipBatch, error) {
+func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, accInputHash, stateRoot common.Hash, dbTx pgx.Tx) (*WipBatch, error) {
 	// open next batch
-	_, err := f.openBatch(ctx, f.nextGER, dbTx)
+	openBatchResp, err := f.openBatch(ctx, ger, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return nil, fmt.Errorf(
@@ -448,7 +462,34 @@ func (f *finalizer) openWIPBatch(ctx context.Context, dbTx pgx.Tx) (*WipBatch, e
 		time.Sleep(time.Second)
 	}
 
-	return f.dbManager.GetWIPBatch(ctx)
+	return &WipBatch{
+		batchNumber:         batchNum,
+		coinbase:            f.sequencerAddress,
+		initialAccInputHash: accInputHash,
+		accInputHash:        accInputHash,
+		initialStateRoot:    stateRoot,
+		stateRoot:           stateRoot,
+		timestamp:           uint64(openBatchResp.Timestamp.Unix()),
+		globalExitRoot:      ger,
+		txs:                 make([]TxTracker, 0, f.batchConstraints.MaxTxsPerBatch),
+		remainingResources:  f.getMaxRemainingResources(),
+	}, err
+}
+
+func (f *finalizer) getMaxRemainingResources() BatchResources {
+	return BatchResources{
+		zKCounters: state.ZKCounters{
+			CumulativeGasUsed:    f.batchConstraints.MaxCumulativeGasUsed,
+			UsedKeccakHashes:     f.batchConstraints.MaxKeccakHashes,
+			UsedPoseidonHashes:   f.batchConstraints.MaxPoseidonHashes,
+			UsedPoseidonPaddings: f.batchConstraints.MaxPoseidonPaddings,
+			UsedMemAligns:        f.batchConstraints.MaxMemAligns,
+			UsedArithmetics:      f.batchConstraints.MaxArithmetics,
+			UsedBinaries:         f.batchConstraints.MaxBinaries,
+			UsedSteps:            f.batchConstraints.MaxSteps,
+		},
+		bytes: f.batchConstraints.MaxBatchBytesSize,
+	}
 }
 
 func (f *finalizer) getGERHash(ctx context.Context, dbTx pgx.Tx) (gerHash common.Hash, err error) {
@@ -472,6 +513,7 @@ func (f *finalizer) getGERHash(ctx context.Context, dbTx pgx.Tx) (gerHash common
 	return gerHash, nil
 }
 
+// closeAndOpenNewBatch closes the current batch and opens a new one
 func (f *finalizer) closeAndOpenNewBatch(ctx context.Context) {
 	var err error
 	f.batch, err = f.newWIPBatch(ctx)
@@ -492,7 +534,7 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 	return f.dbManager.CloseBatch(ctx, receipt)
 }
 
-func (f *finalizer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx.Tx) (state.ProcessingContext, error) {
+func (f *finalizer) openBatch(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (state.ProcessingContext, error) {
 	lastBatchNum, err := f.dbManager.GetLastBatchNumber(ctx)
 	if err != nil {
 		return state.ProcessingContext{}, fmt.Errorf("failed to get last batch number, err: %w", err)
@@ -502,7 +544,7 @@ func (f *finalizer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 		BatchNumber:    newBatchNum,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      time.Now(),
-		GlobalExitRoot: gerHash,
+		GlobalExitRoot: ger,
 	}
 	err = f.dbManager.OpenBatch(ctx, processingCtx, dbTx)
 	if err != nil {

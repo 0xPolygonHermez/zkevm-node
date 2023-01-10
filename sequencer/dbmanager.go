@@ -25,6 +25,11 @@ type dbManager struct {
 	ctx          context.Context
 }
 
+func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore) *dbManager {
 	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsToStoreCh: txsStore.Ch, wgTxsToStore: txsStore.Wg, l2ReorgCh: closingSignalCh.L2ReorgCh}
 }
@@ -72,11 +77,6 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 		return processingCtx
 	}
 	return processingCtx
-}
-
-func (d *dbManager) ProcessForcedBatch(batch state.ForcedBatch) error {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (d *dbManager) loadFromPool() {

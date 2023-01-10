@@ -216,11 +216,11 @@ func (_m *StateMock) OpenBatch(ctx context.Context, processingContext state.Proc
 }
 
 // ProcessSingleTransaction provides a mock function with given fields: ctx, request, dbTx
-func (_m *StateMock) ProcessSingleTransaction(ctx context.Context, request state.ProcessSingleTxRequest, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
+func (_m *StateMock) ProcessSingleTransaction(ctx context.Context, request state.ProcessRequest, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
 	ret := _m.Called(ctx, request, dbTx)
 
 	var r0 *state.ProcessBatchResponse
-	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessSingleTxRequest, pgx.Tx) *state.ProcessBatchResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, pgx.Tx) *state.ProcessBatchResponse); ok {
 		r0 = rf(ctx, request, dbTx)
 	} else {
 		if ret.Get(0) != nil {
@@ -229,7 +229,7 @@ func (_m *StateMock) ProcessSingleTransaction(ctx context.Context, request state
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessSingleTxRequest, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest, pgx.Tx) error); ok {
 		r1 = rf(ctx, request, dbTx)
 	} else {
 		r1 = ret.Error(1)

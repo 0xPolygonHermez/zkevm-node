@@ -16,14 +16,13 @@ type TouchedAddress struct {
 	Balance *big.Int
 }
 
-// ProcessSingleTxRequest represents the request of a batch process.
-type ProcessSingleTxRequest struct {
+// ProcessRequest represents the request of a batch process.
+type ProcessRequest struct {
 	BatchNumber      uint64
-	StateRoot        common.Hash
-	OldStateRoot     common.Hash
 	GlobalExitRoot   common.Hash
+	OldStateRoot     common.Hash
 	OldAccInputHash  common.Hash
-	TxData           []byte
+	Transactions     []byte
 	SequencerAddress common.Address
 	Timestamp        uint64
 	Caller           CallerLabel

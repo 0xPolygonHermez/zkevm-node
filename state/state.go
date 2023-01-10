@@ -448,26 +448,15 @@ func (s *State) ProcessSequencerBatch(
 	return result, nil
 }
 
-func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessSingleTxRequest, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessRequest) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSingleTransaction start")
-	if dbTx == nil {
-		return nil, ErrDBTxNil
-	}
-
-	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, request.BatchNumber, dbTx)
-	if err != nil {
-		return nil, err
-	}
-	if isBatchClosed {
-		return nil, ErrBatchAlreadyClosed
-	}
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      request.BatchNumber - 1,
 		Coinbase:         request.SequencerAddress.String(),
-		BatchL2Data:      request.TxData,
+		BatchL2Data:      request.Transactions,
 		OldStateRoot:     request.OldStateRoot.Bytes(),
 		GlobalExitRoot:   request.GlobalExitRoot.Bytes(),
 		OldAccInputHash:  request.OldAccInputHash.Bytes(),
@@ -480,8 +469,9 @@ func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessSin
 		return nil, err
 	}
 	var result *ProcessBatchResponse
-	if len(request.TxData) > 0 {
-		txs, _, err := DecodeTxs(request.TxData)
+	// TODO: refactor not to be needed to Decode
+	if len(request.Transactions) > 0 {
+		txs, _, err := DecodeTxs(request.Transactions)
 		if err != nil {
 			return nil, err
 		}

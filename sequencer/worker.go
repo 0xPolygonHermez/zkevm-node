@@ -108,28 +108,20 @@ func (e *efficiencyList) GetMostEfficientByIndex(i int) *TxTracker {
 type BatchResources struct {
 	zKCounters state.ZKCounters
 	bytes      uint64
-	gas        uint64
 }
 
 func (r *BatchResources) Sub(other BatchResources) error {
-	// Gas
-	if other.gas > r.gas {
-		return fmt.Errorf("%w. Resource: Gas", ErrBatchRemainingResourcesUnderflow)
-	}
 	// Bytes
 	if other.bytes > r.bytes {
 		return fmt.Errorf("%w. Resource: Bytes", ErrBatchRemainingResourcesUnderflow)
 	}
 	bytesBackup := r.bytes
-	gasBackup := r.gas
 	r.bytes -= other.bytes
-	r.gas -= other.gas
 	err := r.zKCounters.Sub(other.zKCounters)
 	if err != nil {
 		return fmt.Errorf("%w. %s", ErrBatchRemainingResourcesUnderflow, err)
 	}
 	r.bytes = bytesBackup
-	r.gas = gasBackup
 
 	return err
 }
@@ -193,7 +185,6 @@ func (w *Worker) GetBestFittingTx(resources BatchResources) *TxTracker {
 				err := resources.Sub(BatchResources{
 					zKCounters: txCandidate.ZKCounters,
 					bytes:      uint64(len(txCandidate.RawTx)),
-					gas:        txCandidate.Gas,
 				})
 				if err != nil {
 					// We don't add this Tx
