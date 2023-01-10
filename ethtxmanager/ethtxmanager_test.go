@@ -44,7 +44,7 @@ func TestTxGetMined(t *testing.T) {
 
 	currentNonce := uint64(1)
 	etherman.
-		On("CurrentNonce", ctx).
+		On("CurrentNonce", ctx, from).
 		Return(currentNonce, nil).
 		Once()
 
@@ -69,7 +69,7 @@ func TestTxGetMined(t *testing.T) {
 		Data:     data,
 	})
 	etherman.
-		On("SignTx", ctx, mock.IsType(&ethTypes.Transaction{})).
+		On("SignTx", ctx, from, mock.IsType(&ethTypes.Transaction{})).
 		Return(signedTx, nil).
 		Once()
 
@@ -160,7 +160,7 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 	// Add
 	currentNonce := uint64(1)
 	etherman.
-		On("CurrentNonce", ctx).
+		On("CurrentNonce", ctx, from).
 		Return(currentNonce, nil).
 		Once()
 
@@ -186,7 +186,7 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 		Data:     data,
 	})
 	etherman.
-		On("SignTx", ctx, mock.IsType(&ethTypes.Transaction{})).
+		On("SignTx", ctx, from, mock.IsType(&ethTypes.Transaction{})).
 		Return(firstSignedTx, nil).
 		Once()
 	etherman.
@@ -228,7 +228,7 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 		Data:     data,
 	})
 	etherman.
-		On("SignTx", ctx, mock.IsType(&ethTypes.Transaction{})).
+		On("SignTx", ctx, from, mock.IsType(&ethTypes.Transaction{})).
 		Return(secondSignedTx, nil).
 		Once()
 	etherman.
@@ -324,7 +324,7 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 	// Add
 	currentNonce := uint64(1)
 	etherman.
-		On("CurrentNonce", ctx).
+		On("CurrentNonce", ctx, from).
 		Return(currentNonce, nil).
 		Once()
 
@@ -350,7 +350,7 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 		Data:     data,
 	})
 	etherman.
-		On("SignTx", ctx, mock.IsType(&ethTypes.Transaction{})).
+		On("SignTx", ctx, from, mock.IsType(&ethTypes.Transaction{})).
 		Return(signedTx, nil).
 		Once()
 	etherman.

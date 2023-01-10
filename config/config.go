@@ -39,6 +39,10 @@ const (
 	FlagComponents = "components"
 	// FlagHTTPAPI is the flag for http.api.
 	FlagHTTPAPI = "http.api"
+	// FlagKeyStorePath is the path of the key store file containing the private key of the account going to sing and approve the tokens
+	FlagKeyStorePath = "key-store-path"
+	// FlagKeyStorePassword is the password needed to decrypt the key store
+	FlagPassword = "password"
 )
 
 // Config represents the configuration of the entire Hermez Node

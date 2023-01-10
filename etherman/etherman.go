@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -107,11 +110,12 @@ type Client struct {
 
 	GasProviders externalGasProviders
 
-	auth *bind.TransactOpts // nil in case of read-only client
+	cfg  Config
+	auth map[common.Address]bind.TransactOpts // empty in case of read-only client
 }
 
 // NewClient creates a new etherman.
-func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
+func NewClient(cfg Config) (*Client, error) {
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -155,13 +159,10 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 			MultiGasProvider: cfg.MultiGasProvider,
 			Providers:        gProviders,
 		},
-		auth: auth,
+		cfg:  cfg,
+		auth: map[common.Address]bind.TransactOpts{},
 	}, nil
 }
-
-// IsReadOnly returns whether the EtherMan client is in read-only mode.
-// Call this before trying to access the `auth` field.
-func (c *Client) IsReadOnly() bool { return c.auth == nil }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
 // from block x to block y.
@@ -302,21 +303,13 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 
 // EstimateGasSequenceBatches estimates gas for sending batches
 func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
-	if etherMan.IsReadOnly() {
-		return nil, ErrIsReadOnlyMode
-	}
-	noSendOpts := *etherMan.auth
-	noSendOpts.NoSend = true
-
-	// setting the gas price forces the code to generate a legacy
-	// transaction, so we can extract the sender after
-	gasPrice, err := etherMan.EthClient.SuggestGasPrice(context.Background())
+	opts, err := etherMan.generateFakeAuth()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to estimate sequence batches, err: %w", err)
 	}
-	noSendOpts.GasPrice = gasPrice
+	opts.NoSend = true
 
-	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
+	tx, err := etherMan.sequenceBatches(opts, sequences)
 	if err != nil {
 		return nil, err
 	}
@@ -324,23 +317,24 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 	return tx, nil
 }
 
-// SequenceBatches send sequences of batches to the ethereum
-func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int, noSend bool) (*types.Transaction, error) {
-	if etherMan.IsReadOnly() {
-		return nil, ErrIsReadOnlyMode
+// BuildSequenceBatchesTxData builds a []bytes to be sent to the PoE SC method SequenceBatches.
+func (etherMan *Client) BuildSequenceBatchesTxData(sequences []ethmanTypes.Sequence) (to *common.Address, value *big.Int, data []byte, err error) {
+	opts, err := etherMan.generateFakeAuth()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", err)
 	}
-	sendSequencesOpts := *etherMan.auth
-	sendSequencesOpts.GasLimit = gasLimit
-	if gasPrice != nil {
-		sendSequencesOpts.GasPrice = gasPrice
-	} else if etherMan.GasProviders.MultiGasProvider {
-		sendSequencesOpts.GasPrice = etherMan.getGasPrice(ctx)
+	opts.NoSend = true
+	// force nonce, gas limit and gas price to avoid querying it from the chain
+	opts.Nonce = big.NewInt(1)
+	opts.GasLimit = uint64(1)
+	opts.GasPrice = big.NewInt(1)
+
+	tx, err := etherMan.sequenceBatches(opts, sequences)
+	if err != nil {
+		return nil, nil, nil, err
 	}
-	if nonce != nil {
-		sendSequencesOpts.Nonce = nonce
-	}
-	sendSequencesOpts.NoSend = noSend
-	return etherMan.sequenceBatches(&sendSequencesOpts, sequences)
+
+	return tx.To(), tx.Value(), tx.Data(), nil
 }
 
 func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
@@ -354,63 +348,34 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 			Transactions:       batchL2Data,
 			GlobalExitRoot:     seq.GlobalExitRoot,
 			Timestamp:          uint64(seq.Timestamp),
-			MinForcedTimestamp: 0, // TODO If this batch is forced, this value must be different to zero. If it is a non forced sequence, then the valio will be valid
+			MinForcedTimestamp: 0, // TODO If this batch is forced, this value must be different than zero. If it is a non forced sequence, then the value will be valid
 		}
 
 		batches = append(batches, batch)
 	}
 
-	transaction, err := etherMan.PoE.SequenceBatches(opts, batches)
+	tx, err := etherMan.PoE.SequenceBatches(opts, batches)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
 		}
 	}
 
-	return transaction, err
+	return tx, err
 }
 
-// EstimateGasForTrustedVerifyBatches estimates gas for trusted verify batches smart contract call.
-func (etherMan *Client) EstimateGasForTrustedVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (*types.Transaction, error) {
-	if etherMan.IsReadOnly() {
-		return nil, ErrIsReadOnlyMode
-	}
-	verifyBatchOpts := *etherMan.auth
-	verifyBatchOpts.NoSend = true
-	// setting the gas price forces the code to generate a legacy
-	// transaction, so we can extract the sender after
-	gasPrice, err := etherMan.EthClient.SuggestGasPrice(context.Background())
+// BuildTrustedVerifyBatchesTxData builds a []bytes to be sent to the PoE SC method TrustedVerifyBatches.
+func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (to *common.Address, value *big.Int, data []byte, err error) {
+	opts, err := etherMan.generateFakeAuth()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", err)
 	}
-	verifyBatchOpts.GasPrice = gasPrice
-	tx, err := etherMan.trustedVerifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, inputs)
-	if err != nil {
-		return nil, err
-	}
-	return tx, nil
-}
+	opts.NoSend = true
+	// force nonce, gas limit and gas price to avoid querying it from the chain
+	opts.Nonce = big.NewInt(1)
+	opts.GasLimit = uint64(1)
+	opts.GasPrice = big.NewInt(1)
 
-// TrustedVerifyBatches function allows the aggregator send the final proof to L1.
-func (etherMan *Client) TrustedVerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, gasLimit uint64, gasPrice, nonce *big.Int, noSend bool) (*types.Transaction, error) {
-	if etherMan.IsReadOnly() {
-		return nil, ErrIsReadOnlyMode
-	}
-	verifyBatchOpts := *etherMan.auth
-	verifyBatchOpts.GasLimit = gasLimit
-	if gasPrice != nil {
-		verifyBatchOpts.GasPrice = gasPrice
-	} else if etherMan.GasProviders.MultiGasProvider {
-		verifyBatchOpts.GasPrice = etherMan.getGasPrice(ctx)
-	}
-	if nonce != nil {
-		verifyBatchOpts.Nonce = nonce
-	}
-	verifyBatchOpts.NoSend = noSend
-	return etherMan.trustedVerifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, inputs)
-}
-
-func (etherMan *Client) trustedVerifyBatches(opts *bind.TransactOpts, lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (*types.Transaction, error) {
 	var newLocalExitRoot [32]byte
 	copy(newLocalExitRoot[:], inputs.NewLocalExitRoot)
 
@@ -419,15 +384,15 @@ func (etherMan *Client) trustedVerifyBatches(opts *bind.TransactOpts, lastVerifi
 
 	proofA, err := strSliceToBigIntArray(inputs.FinalProof.Proof.ProofA)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	proofB, err := proofSlcToIntArray(inputs.FinalProof.Proof.ProofB)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	proofC, err := strSliceToBigIntArray(inputs.FinalProof.Proof.ProofC)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	const pendStateNum = 0 // TODO hardcoded for now until we implement the pending state feature
@@ -447,10 +412,10 @@ func (etherMan *Client) trustedVerifyBatches(opts *bind.TransactOpts, lastVerifi
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
 		}
-		return nil, err
+		return nil, nil, nil, err
 	}
 
-	return tx, nil
+	return tx.To(), tx.Value(), tx.Data(), nil
 }
 
 // GetSendSequenceFee get super/trusted sequencer fee
@@ -835,15 +800,15 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 }
 
 // ApproveMatic function allow to approve tokens in matic smc
-func (etherMan *Client) ApproveMatic(ctx context.Context, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
-	if etherMan.IsReadOnly() {
-		return nil, ErrIsReadOnlyMode
+func (etherMan *Client) ApproveMatic(ctx context.Context, account common.Address, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+	opts, err := etherMan.getAuthByAddress(account)
+	if err == ErrNotFound {
+		return nil, errors.New("can't find account private key to sign tx")
 	}
-	opts := *etherMan.auth
 	if etherMan.GasProviders.MultiGasProvider {
 		opts.GasPrice = etherMan.getGasPrice(ctx)
 	}
-	tx, err := etherMan.Matic.Approve(&opts, etherMan.SCAddresses[0], maticAmount)
+	tx, err := etherMan.Matic.Approve(&opts, etherMan.cfg.PoEAddr, maticAmount)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
@@ -857,14 +822,6 @@ func (etherMan *Client) ApproveMatic(ctx context.Context, maticAmount *big.Int, 
 // GetTrustedSequencerURL Gets the trusted sequencer url from rollup smc
 func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 	return etherMan.PoE.TrustedSequencerURL(&bind.CallOpts{Pending: false})
-}
-
-// GetPublicAddress returns eth client public address
-func (etherMan *Client) GetPublicAddress() (common.Address, error) {
-	if etherMan.IsReadOnly() {
-		return common.Address{}, ErrIsReadOnlyMode
-	}
-	return etherMan.auth.From, nil
 }
 
 // GetL2ChainID returns L2 Chain ID
@@ -892,9 +849,9 @@ func (etherMan *Client) SendTx(ctx context.Context, tx *types.Transaction) error
 	return etherMan.EthClient.SendTransaction(ctx, tx)
 }
 
-// CurrentNonce returns the current nonce for the account signing the L1 txs
-func (etherMan *Client) CurrentNonce(ctx context.Context) (uint64, error) {
-	return etherMan.EthClient.NonceAt(ctx, etherMan.auth.From, nil)
+// CurrentNonce returns the current nonce for the provided account
+func (etherMan *Client) CurrentNonce(ctx context.Context, account common.Address) (uint64, error) {
+	return etherMan.EthClient.NonceAt(ctx, account, nil)
 }
 
 // SuggestedGasPrice returns the suggest nonce for the network at the moment
@@ -929,8 +886,12 @@ func (etherMan *Client) CheckTxWasMined(ctx context.Context, txHash common.Hash)
 }
 
 // SignTx tries to sign a transaction accordingly to the provided sender
-func (etherMan *Client) SignTx(ctx context.Context, tx *types.Transaction) (*types.Transaction, error) {
-	signedTx, err := etherMan.auth.Signer(etherMan.auth.From, tx)
+func (etherMan *Client) SignTx(ctx context.Context, sender common.Address, tx *types.Transaction) (*types.Transaction, error) {
+	auth, err := etherMan.getAuthByAddress(sender)
+	if err == ErrNotFound {
+		return nil, errors.New("can't find sender private key to sign tx")
+	}
+	signedTx, err := auth.Signer(auth.From, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -956,4 +917,83 @@ func (etherMan *Client) GetRevertMessage(ctx context.Context, tx *types.Transact
 		return revertMessage, nil
 	}
 	return "", nil
+}
+
+// AddOrReplaceAuth adds an authorization or replace an existent one to the same account
+func (etherMan *Client) AddOrReplaceAuth(auth bind.TransactOpts) error {
+	log.Infof("added or replaced authorization for address: %v", auth.From.String())
+	etherMan.auth[auth.From] = auth
+	return nil
+}
+
+// LoadAuthFromKeyStore loads an authorization from a key store file
+func (etherMan *Client) LoadAuthFromKeyStore(path, password string) (*bind.TransactOpts, error) {
+	auth, err := newAuthFromKeystore(path, password, etherMan.cfg.L1ChainID)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("loaded authorization for address: %v", auth.From.String())
+	etherMan.auth[auth.From] = auth
+	return &auth, nil
+}
+
+// newKeyFromKeystore creates an instance of a keystore key from a keystore file
+func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
+	if path == "" && password == "" {
+		return nil, nil
+	}
+	keystoreEncrypted, err := ioutil.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("decrypting key from: %v", path)
+	key, err := keystore.DecryptKey(keystoreEncrypted, password)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
+// newAuthFromKeystore an authorization instance from a keystore file
+func newAuthFromKeystore(path, password string, chainID uint64) (bind.TransactOpts, error) {
+	log.Infof("reading key from: %v", path)
+	key, err := newKeyFromKeystore(path, password)
+	if err != nil {
+		return bind.TransactOpts{}, err
+	}
+	if key == nil {
+		return bind.TransactOpts{}, nil
+	}
+	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, new(big.Int).SetUint64(chainID))
+	if err != nil {
+		return bind.TransactOpts{}, err
+	}
+	return *auth, nil
+}
+
+// getAuthByAddress tries to get an authorization from the authorizations map
+func (etherMan *Client) getAuthByAddress(addr common.Address) (bind.TransactOpts, error) {
+	auth, found := etherMan.auth[addr]
+	if !found {
+		return bind.TransactOpts{}, ErrNotFound
+	}
+	return auth, nil
+}
+
+// generateFakeAuth generates an authorization instance from a
+// randomly generated private key
+func (etherMan *Client) generateFakeAuth() (*bind.TransactOpts, error) {
+	// privateKey, err := crypto.GenerateKey()
+	// TODO: REMOVE LINE BELLOW WHEN WE FIGURE OUT HOW TO ESTIMATE SEQUENCES WITHOUT HAVING
+	privateKey, err := crypto.HexToECDSA("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+	if err != nil {
+		return nil, errors.New("failed to generate a private key to estimate L1 txs")
+	}
+	chainID := big.NewInt(0).SetUint64(etherMan.cfg.L1ChainID)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return nil, errors.New("failed to generate an authorization to estimate L1 txs")
+	}
+	return auth, nil
 }

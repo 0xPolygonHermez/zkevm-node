@@ -3,9 +3,9 @@
 package mocks
 
 import (
-	common "github.com/ethereum/go-ethereum/common"
-	coretypes "github.com/ethereum/go-ethereum/core/types"
+	big "math/big"
 
+	common "github.com/ethereum/go-ethereum/common"
 	mock "github.com/stretchr/testify/mock"
 
 	types "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -16,27 +16,45 @@ type Etherman struct {
 	mock.Mock
 }
 
-// EstimateGasForTrustedVerifyBatches provides a mock function with given fields: lastVerifiedBatch, newVerifiedBatch, inputs
-func (_m *Etherman) EstimateGasForTrustedVerifyBatches(lastVerifiedBatch uint64, newVerifiedBatch uint64, inputs *types.FinalProofInputs) (*coretypes.Transaction, error) {
+// BuildTrustedVerifyBatchesTxData provides a mock function with given fields: lastVerifiedBatch, newVerifiedBatch, inputs
+func (_m *Etherman) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch uint64, newVerifiedBatch uint64, inputs *types.FinalProofInputs) (*common.Address, *big.Int, []byte, error) {
 	ret := _m.Called(lastVerifiedBatch, newVerifiedBatch, inputs)
 
-	var r0 *coretypes.Transaction
-	if rf, ok := ret.Get(0).(func(uint64, uint64, *types.FinalProofInputs) *coretypes.Transaction); ok {
+	var r0 *common.Address
+	if rf, ok := ret.Get(0).(func(uint64, uint64, *types.FinalProofInputs) *common.Address); ok {
 		r0 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*coretypes.Transaction)
+			r0 = ret.Get(0).(*common.Address)
 		}
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(uint64, uint64, *types.FinalProofInputs) error); ok {
+	var r1 *big.Int
+	if rf, ok := ret.Get(1).(func(uint64, uint64, *types.FinalProofInputs) *big.Int); ok {
 		r1 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*big.Int)
+		}
 	}
 
-	return r0, r1
+	var r2 []byte
+	if rf, ok := ret.Get(2).(func(uint64, uint64, *types.FinalProofInputs) []byte); ok {
+		r2 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
+	} else {
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).([]byte)
+		}
+	}
+
+	var r3 error
+	if rf, ok := ret.Get(3).(func(uint64, uint64, *types.FinalProofInputs) error); ok {
+		r3 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // GetLatestVerifiedBatchNum provides a mock function with given fields:
@@ -48,29 +66,6 @@ func (_m *Etherman) GetLatestVerifiedBatchNum() (uint64, error) {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(uint64)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetPublicAddress provides a mock function with given fields:
-func (_m *Etherman) GetPublicAddress() (common.Address, error) {
-	ret := _m.Called()
-
-	var r0 common.Address
-	if rf, ok := ret.Get(0).(func() common.Address); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(common.Address)
-		}
 	}
 
 	var r1 error

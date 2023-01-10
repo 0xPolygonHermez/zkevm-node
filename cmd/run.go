@@ -3,13 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
@@ -31,8 +29,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -84,18 +80,22 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman, ethTxManagerStorage, st)
+	etmStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
+	if err != nil {
+		log.Fatal(err)
+	}
+	etm := ethtxmanager.New(c.EthTxManager, etherman, etmStorage, st)
 
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
-			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st)
+			go runAggregator(ctx, c.Aggregator, etherman, etm, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
-			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager, gpe)
+			seq := createSequencer(*c, poolInstance, etherman, etm, st, gpe)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
@@ -108,13 +108,14 @@ func start(cliCtx *cli.Context) error {
 			go runJSONRPCServer(*c, poolInstance, st, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
-			go runSynchronizer(*c, etherman, st, ethTxManager)
+			go runSynchronizer(*c, etherman, etm, st)
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, st)
 		case ETHTXMANAGER:
 			log.Info("Running eth tx manager service")
-			go ethTxManager.Start()
+			etm := createEthTxManager(*c, ethTxManagerStorage, st)
+			go etm.Start()
 		}
 	}
 
@@ -147,18 +148,14 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.Etherman.L1ChainID)
-	if err != nil {
-		return nil, err
-	}
-	etherman, err := etherman.NewClient(c.Etherman, auth)
+	etherman, err := etherman.NewClient(c.Etherman)
 	if err != nil {
 		return nil, err
 	}
 	return etherman, nil
 }
 
-func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.State, ethTxManager *ethtxmanager.Client) {
+func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
 	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, ethTxManager, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
@@ -177,8 +174,7 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 	}
 }
 
-func createSequencer(c config.Config, pool *pool.Pool, state *state.State, etherman *etherman.Client,
-	ethTxManager *ethtxmanager.Client, gpe gasPriceEstimator) *sequencer.Sequencer {
+func createSequencer(c config.Config, pool *pool.Pool, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, state *state.State, gpe gasPriceEstimator) *sequencer.Sequencer {
 	pg, err := pricegetter.NewClient(c.PriceGetter)
 	if err != nil {
 		log.Fatal(err)
@@ -191,8 +187,8 @@ func createSequencer(c config.Config, pool *pool.Pool, state *state.State, ether
 	return seq
 }
 
-func runAggregator(ctx context.Context, c aggregator.Config, ethman *etherman.Client, ethTxManager *ethtxmanager.Client, state *state.State) {
-	agg, err := aggregator.New(c, state, ethTxManager, ethman)
+func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, state *state.State) {
+	agg, err := aggregator.New(c, state, ethTxManager, etherman)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -248,37 +244,6 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
-	if path == "" && password == "" {
-		return nil, nil
-	}
-	keystoreEncrypted, err := ioutil.ReadFile(filepath.Clean(path))
-	if err != nil {
-		return nil, err
-	}
-	key, err := keystore.DecryptKey(keystoreEncrypted, password)
-	if err != nil {
-		return nil, err
-	}
-	return key, nil
-}
-
-func newAuthFromKeystore(path, password string, chainID uint64) (*bind.TransactOpts, error) {
-	key, err := newKeyFromKeystore(path, password)
-	if err != nil {
-		return nil, err
-	}
-	if key == nil {
-		return nil, nil
-	}
-	log.Info("addr: ", key.Address.Hex())
-	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, new(big.Int).SetUint64(chainID))
-	if err != nil {
-		return nil, err
-	}
-	return auth, nil
-}
-
 func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
@@ -302,6 +267,22 @@ func createPool(poolDBConfig db.Config, l2BridgeAddr common.Address, l2ChainID u
 	}
 	poolInstance := pool.NewPool(poolStorage, st, l2BridgeAddr, l2ChainID)
 	return poolInstance
+}
+
+func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStorage, st *state.State) *ethtxmanager.Client {
+	etherman, err := newEtherman(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, privateKey := range cfg.EthTxManager.PrivateKeys {
+		_, err := etherman.LoadAuthFromKeyStore(privateKey.Path, privateKey.Password)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	etm := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
+	return etm
 }
 
 func startMetricsHttpServer(c *config.Config) {

@@ -20,6 +20,47 @@ type EthermanMock struct {
 	mock.Mock
 }
 
+// BuildSequenceBatchesTxData provides a mock function with given fields: sequences
+func (_m *EthermanMock) BuildSequenceBatchesTxData(sequences []types.Sequence) (*common.Address, *big.Int, []byte, error) {
+	ret := _m.Called(sequences)
+
+	var r0 *common.Address
+	if rf, ok := ret.Get(0).(func([]types.Sequence) *common.Address); ok {
+		r0 = rf(sequences)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*common.Address)
+		}
+	}
+
+	var r1 *big.Int
+	if rf, ok := ret.Get(1).(func([]types.Sequence) *big.Int); ok {
+		r1 = rf(sequences)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*big.Int)
+		}
+	}
+
+	var r2 []byte
+	if rf, ok := ret.Get(2).(func([]types.Sequence) []byte); ok {
+		r2 = rf(sequences)
+	} else {
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).([]byte)
+		}
+	}
+
+	var r3 error
+	if rf, ok := ret.Get(3).(func([]types.Sequence) error); ok {
+		r3 = rf(sequences)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
+}
+
 // EstimateGasSequenceBatches provides a mock function with given fields: sequences
 func (_m *EthermanMock) EstimateGasSequenceBatches(sequences []types.Sequence) (*coretypes.Transaction, error) {
 	ret := _m.Called(sequences)

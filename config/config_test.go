@@ -141,14 +141,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(1337),
 		},
 		{
-			path:          "Etherman.PrivateKeyPath",
-			expectedValue: "",
-		},
-		{
-			path:          "Etherman.PrivateKeyPassword",
-			expectedValue: "",
-		},
-		{
 			path:          "Etherman.PoEAddr",
 			expectedValue: common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
 		},

@@ -34,9 +34,9 @@ func (_m *EthTxManager) Add(ctx context.Context, owner string, id string, from c
 	return r0
 }
 
-// ProcessPendingMonitoredTxs provides a mock function with given fields: ctx, owner, failedResultHandler
-func (_m *EthTxManager) ProcessPendingMonitoredTxs(ctx context.Context, owner string, failedResultHandler ethtxmanager.ResultHandler) {
-	_m.Called(ctx, owner, failedResultHandler)
+// ProcessPendingMonitoredTxs provides a mock function with given fields: ctx, owner, failedResultHandler, dbTx
+func (_m *EthTxManager) ProcessPendingMonitoredTxs(ctx context.Context, owner string, failedResultHandler ethtxmanager.ResultHandler, dbTx pgx.Tx) {
+	_m.Called(ctx, owner, failedResultHandler, dbTx)
 }
 
 // Result provides a mock function with given fields: ctx, owner, id, dbTx

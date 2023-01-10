@@ -16,11 +16,11 @@ type ethermanInterface interface {
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) error
 	SendTx(ctx context.Context, tx *types.Transaction) error
-	CurrentNonce(ctx context.Context) (uint64, error)
+	CurrentNonce(ctx context.Context, account common.Address) (uint64, error)
 	SuggestedGasPrice(ctx context.Context) (*big.Int, error)
 	EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error)
 	CheckTxWasMined(ctx context.Context, txHash common.Hash) (bool, *types.Receipt, error)
-	SignTx(ctx context.Context, tx *types.Transaction) (*types.Transaction, error)
+	SignTx(ctx context.Context, sender common.Address, tx *types.Transaction) (*types.Transaction, error)
 	GetRevertMessage(ctx context.Context, tx *types.Transaction) (string, error)
 }
 

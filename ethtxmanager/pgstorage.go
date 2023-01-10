@@ -21,7 +21,7 @@ type PostgresStorage struct {
 
 // NewPostgresStorage creates a new instance of storage that use
 // postgres to store data
-func NewPostgresStorage(dbCfg db.Config) (storageInterface, error) {
+func NewPostgresStorage(dbCfg db.Config) (*PostgresStorage, error) {
 	db, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		return nil, err

@@ -26,8 +26,6 @@ MaxConns = 200
 [Etherman]
 URL = "http://your.L1node.url"
 L1ChainID = 5
-PrivateKeyPath = "/pk/keystore"
-PrivateKeyPassword = "testonly"
 PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
@@ -75,6 +73,7 @@ MaxMemAligns = 262144
 MaxArithmetics = 262144
 MaxBinaries = 262144
 MaxSteps = 8388608
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 MaxAllowedFailedCounter = 50
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
@@ -83,10 +82,19 @@ MaxAllowedFailedCounter = 50
 Host = "0.0.0.0"
 Port = 50081
 IntervalToConsolidateState = "10s"
-IntervalToSendFinalProof = "90s"
+IntervalToSendFinalProof = "30s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 IntervalFrequencyToGetProofGenerationState = "5s"
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+
+[EthTxManager]
+	[[PrivateKeys]]
+		Path = "./test/sequencer.keystore"
+		Password = "testonly"
+	[[PrivateKeys]]
+		Path = "./test/aggregator.keystore"
+		Password = "testonly"
 
 [GasPriceEstimator]
 Type = "default"

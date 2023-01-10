@@ -50,20 +50,20 @@ func (_m *ethermanMock) CheckTxWasMined(ctx context.Context, txHash common.Hash)
 	return r0, r1, r2
 }
 
-// CurrentNonce provides a mock function with given fields: ctx
-func (_m *ethermanMock) CurrentNonce(ctx context.Context) (uint64, error) {
-	ret := _m.Called(ctx)
+// CurrentNonce provides a mock function with given fields: ctx, account
+func (_m *ethermanMock) CurrentNonce(ctx context.Context, account common.Address) (uint64, error) {
+	ret := _m.Called(ctx, account)
 
 	var r0 uint64
-	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address) uint64); ok {
+		r0 = rf(ctx, account)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address) error); ok {
+		r1 = rf(ctx, account)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -180,13 +180,13 @@ func (_m *ethermanMock) SendTx(ctx context.Context, tx *types.Transaction) error
 	return r0
 }
 
-// SignTx provides a mock function with given fields: ctx, tx
-func (_m *ethermanMock) SignTx(ctx context.Context, tx *types.Transaction) (*types.Transaction, error) {
-	ret := _m.Called(ctx, tx)
+// SignTx provides a mock function with given fields: ctx, sender, tx
+func (_m *ethermanMock) SignTx(ctx context.Context, sender common.Address, tx *types.Transaction) (*types.Transaction, error) {
+	ret := _m.Called(ctx, sender, tx)
 
 	var r0 *types.Transaction
-	if rf, ok := ret.Get(0).(func(context.Context, *types.Transaction) *types.Transaction); ok {
-		r0 = rf(ctx, tx)
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address, *types.Transaction) *types.Transaction); ok {
+		r0 = rf(ctx, sender, tx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*types.Transaction)
@@ -194,8 +194,8 @@ func (_m *ethermanMock) SignTx(ctx context.Context, tx *types.Transaction) (*typ
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *types.Transaction) error); ok {
-		r1 = rf(ctx, tx)
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address, *types.Transaction) error); ok {
+		r1 = rf(ctx, sender, tx)
 	} else {
 		r1 = ret.Error(1)
 	}

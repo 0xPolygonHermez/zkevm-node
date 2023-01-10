@@ -38,6 +38,7 @@ type etherman interface {
 	GetLatestBlockNumber(ctx context.Context) (uint64, error)
 	GetLastBatchTimestamp() (uint64, error)
 	GetLatestBlockTimestamp(ctx context.Context) (uint64, error)
+	BuildSequenceBatchesTxData(sequences []ethmanTypes.Sequence) (to *common.Address, value *big.Int, data []byte, err error)
 }
 
 // stateInterface gathers the methods required to interact with the state.
@@ -73,7 +74,7 @@ type ethTxManager interface {
 	Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error
 	Result(ctx context.Context, owner, id string, dbTx pgx.Tx) (ethtxmanager.MonitoredTxResult, error)
 	ResultsByStatus(ctx context.Context, owner string, statuses []ethtxmanager.MonitoredTxStatus, dbTx pgx.Tx) ([]ethtxmanager.MonitoredTxResult, error)
-	ProcessPendingMonitoredTxs(ctx context.Context, owner string, failedResultHandler ethtxmanager.ResultHandler)
+	ProcessPendingMonitoredTxs(ctx context.Context, owner string, failedResultHandler ethtxmanager.ResultHandler, dbTx pgx.Tx)
 }
 
 // priceGetter is for getting eth/matic price, used for the tx profitability checker

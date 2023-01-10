@@ -92,12 +92,25 @@ func main() {
 			Aliases: []string{"ap"},
 			Usage:   "Approve tokens to be spent by the smart contract",
 			Action:  approveTokens,
-			Flags: append(flags, &cli.StringFlag{
-				Name:     config.FlagAmount,
-				Aliases:  []string{"am"},
-				Usage:    "Amount that is gonna be approved",
-				Required: true,
-			},
+			Flags: append(flags,
+				&cli.StringFlag{
+					Name:     config.FlagKeyStorePath,
+					Aliases:  []string{""},
+					Usage:    "the path of the key store file containing the private key of the account going to sign and approve the tokens",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     config.FlagPassword,
+					Aliases:  []string{"pw"},
+					Usage:    "the password do decrypt the key store file",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     config.FlagAmount,
+					Aliases:  []string{"am"},
+					Usage:    "Amount that is gonna be approved",
+					Required: true,
+				},
 			),
 		},
 		{

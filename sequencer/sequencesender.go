@@ -13,20 +13,22 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/jackc/pgx/v4"
 )
 
 const ethTxManagerOwner = "sequencer"
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
 	// process monitored sequences before starting a next cycle
-	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult) {
+	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
 		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
 			resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
 			resultLog.Fatal("failed to send sequence, TODO: review this fatal and define what to do in this case")
 		}
-	})
+	}, nil)
 
 	// This sleep waits for the synchronizer and for txs in L1
 	time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
@@ -65,21 +67,16 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// add sequence to be monitored
-	tx, err := s.etherman.EstimateGasSequenceBatches(sequences)
+	to, value, data, err := s.etherman.BuildSequenceBatchesTxData(sequences)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
 		return
 	}
-	sender, err := state.GetSender(*tx)
-	if err != nil {
-		log.Error("error getting tx sender to add sequences to eth tx manager: ", err)
-		return
-	}
-
 	firstSequence := sequences[0]
 	lastSequence := sequences[len(sequences)-1]
-	sequenceID := fmt.Sprintf("sequence-from-%v-to-%v", firstSequence.BatchNumber, lastSequence.BatchNumber)
-	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, sequenceID, sender, tx.To(), tx.Value(), tx.Data(), nil)
+	monitoredTxID := fmt.Sprintf("sequence-from-%v-to-%v", firstSequence.BatchNumber, lastSequence.BatchNumber)
+	sender := common.HexToAddress(s.cfg.SenderAddress)
+	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, value, data, nil)
 	if err != nil {
 		log.Error("error to add sequences tx to eth tx manager: ", err)
 		return
