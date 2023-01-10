@@ -492,27 +492,6 @@ func (f *finalizer) getMaxRemainingResources() BatchResources {
 	}
 }
 
-func (f *finalizer) getGERHash(ctx context.Context, dbTx pgx.Tx) (gerHash common.Hash, err error) {
-	if f.nextGER == state.ZeroHash {
-		gerHash = f.nextGER
-	}
-	if f.batch.globalExitRoot != f.nextGER {
-		gerHash = f.nextGER
-	} else {
-		ger, _, err := f.dbManager.GetLatestGer(ctx)
-		if err != nil {
-			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-				return common.Hash{}, fmt.Errorf(
-					"failed to rollback dbTx when getting last globalExitRoot that gave err: %s. Rollback err: %s",
-					rollbackErr.Error(), err.Error())
-			}
-			return common.Hash{}, err
-		}
-		gerHash = ger.GlobalExitRoot
-	}
-	return gerHash, nil
-}
-
 // closeAndOpenNewBatch closes the current batch and opens a new one
 func (f *finalizer) closeAndOpenNewBatch(ctx context.Context) {
 	var err error
