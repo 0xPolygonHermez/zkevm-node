@@ -2,6 +2,8 @@ package sequencer
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -11,6 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
+)
+
+const (
+	waitSeconds time.Duration = 5
 )
 
 // Pool Loader and DB Updater
@@ -23,26 +29,37 @@ type dbManager struct {
 	ctx       context.Context
 }
 
+// ClosingBatchParameters contains the necessary parameters to close a batch
+type ClosingBatchParameters struct {
+	BatchNumber   uint64
+	StateRoot     common.Hash
+	LocalExitRoot common.Hash
+	AccInputHash  common.Hash
+	Txs           []TxTracker
+}
+
 func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore) *dbManager {
 	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsStore: txsStore, l2ReorgCh: closingSignalCh.L2ReorgCh}
 }
 
+// Start stars the dbManager routines
 func (d *dbManager) Start() {
 	go d.loadFromPool()
-	go d.StoreProcessedTxAndDeleteFromPool()
+	go d.storeProcessedTxAndDeleteFromPool()
 }
 
+// GetLastBatchNumber get the latest batch number from state
 func (d *dbManager) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 	return d.state.GetLastBatchNumber(ctx, nil)
 }
 
+// OpenBatch opens a new batch to star processing transactions
 func (d *dbManager) OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error {
-	//TODO: Use state interface to OpenBatch in the DB
-	panic("implement me")
+	return d.state.OpenBatch(ctx, processingContext, dbTx)
 }
 
+// CreateFirstBatch is using during genesis
 func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext {
-	// TODO: Retry in case of error
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    1,
 		Coinbase:       sequencerAddress,
@@ -72,21 +89,20 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 	return processingCtx
 }
 
+// loadFromPool keeps loading transaction from the pool
 func (d *dbManager) loadFromPool() {
-	ctx := context.Background()
-
 	for {
-		// TODO: Define how to do this
-		time.Sleep(5 * time.Second)
+		// TODO: Move this to a config parameter
+		time.Sleep(waitSeconds * time.Second)
 
-		poolTransactions, err := d.txPool.GetPendingTxs(ctx, false, 0)
+		poolTransactions, err := d.txPool.GetPendingTxs(d.ctx, false, 0)
 
 		if err != nil && err != pgpoolstorage.ErrNotFound {
 			log.Errorf("loadFromPool: %v", err)
 			continue
 		}
 
-		poolClaims, err := d.txPool.GetPendingTxs(ctx, true, 0)
+		poolClaims, err := d.txPool.GetPendingTxs(d.ctx, true, 0)
 
 		if err != nil && err != pgpoolstorage.ErrNotFound {
 			log.Errorf("loadFromPool: %v", err)
@@ -106,24 +122,28 @@ func (d *dbManager) loadFromPool() {
 				// TODO: Complete
 			}
 			d.worker.AddTx(txTracker)
-			d.txPool.UpdateTxStatus(ctx, tx.Hash(), pool.TxStatusWIP)
+			d.txPool.UpdateTxStatus(d.ctx, tx.Hash(), pool.TxStatusWIP)
 		}
 	}
 }
 
+// BeginStateTransaction starts a db transaction in the state
 func (d *dbManager) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	return d.state.BeginStateTransaction(ctx)
 }
 
+// StoreProcessedTransaction stores a transaction in the state
 func (d *dbManager) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error {
 	return d.state.StoreTransaction(ctx, batchNumber, processedTx, dbTx)
 }
 
+// DeleteTransactionFromPool deletes a transaction from the pool
 func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common.Hash) error {
 	return d.txPool.DeleteTransactionByHash(ctx, txHash)
 }
 
-func (d *dbManager) StoreProcessedTxAndDeleteFromPool() {
+// storeProcessedTxAndDeleteFromPool stores a tx into the state and changes it status in the pool
+func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 	// TODO: Finish the retry mechanism and error handling
 	for {
 		txToStore := <-d.txsStore.Ch
@@ -173,17 +193,52 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	}
 
 	wipBatch := &WipBatch{
-		batchNumber:  lastBatch.BatchNumber,
-		coinbase:     lastBatch.Coinbase,
-		accInputHash: lastBatch.AccInputHash,
-		// initialStateRoot: lastBatch.StateRoot,
+		batchNumber:    lastBatch.BatchNumber,
+		coinbase:       lastBatch.Coinbase,
+		accInputHash:   lastBatch.AccInputHash,
 		stateRoot:      lastBatch.StateRoot,
+		localExitRoot:  lastBatch.LocalExitRoot,
 		timestamp:      uint64(lastBatch.Timestamp.Unix()),
 		globalExitRoot: lastBatch.GlobalExitRoot,
-
 		// TODO: txs
 		// TODO: remainingResources
 	}
+
+	txs, _, err := state.DecodeTxs(lastBatch.BatchL2Data)
+	if err != nil {
+		return nil, err
+	}
+
+	txTrackerArray := make([]TxTracker, len(txs), len(txs))
+
+	for _, tx := range txs {
+		zkCounters := state.GetTxZkCounters(ctx, tx.Hash())
+		txTracker := d.worker.NewTxTracker(tx, zkCounters)
+
+		/*
+			sender, err := d.state.GetSender(tx)
+			if err != nil {
+				return nil, err
+			}
+				txTracker := TxTracker{
+					Hash:    tx.Hash(),
+					From:    sender,
+					Nonce:   tx.Nonce(),
+					Benefit: tx.GasPrice().Mul(tx.GasPrice(), big.NewInt(int64(tx.Gas()))),
+					// ZKCounters
+					Size:     uint64(tx.Size()),
+					Gas:      tx.Gas(),
+					GasPrice: tx.GasPrice().Int64(),
+					// TODO: Define how to calculate efficiency
+					// Efficiency:
+					RawTx: tx.Data(),
+				}
+		*/
+
+		txTrackerArray = append(txTrackerArray, *txTracker)
+	}
+
+	wipBatch.txs = txTrackerArray
 
 	isClosed, err := d.IsBatchClosed(ctx, lastBatch.BatchNumber)
 	if err != nil {
@@ -220,7 +275,6 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			log.Errorf("failed to commit dbTx when opening batch, err: %v", err)
 			return nil, err
 		}
-
 	} else {
 		lastClosedBatch, err := d.GetLastClosedBatch(ctx)
 		if err != nil {
@@ -233,10 +287,12 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	return wipBatch, nil
 }
 
+// GetLastClosedBatch gets the latest closed batch from state
 func (d *dbManager) GetLastClosedBatch(ctx context.Context) (*state.Batch, error) {
 	return d.state.GetLastClosedBatch(ctx, nil)
 }
 
+// GetLastBatch gets the latest batch from state
 func (d *dbManager) GetLastBatch(ctx context.Context) (*state.Batch, error) {
 	batch, err := d.state.GetLastBatch(ctx)
 	if err != nil {
@@ -245,29 +301,30 @@ func (d *dbManager) GetLastBatch(ctx context.Context) (*state.Batch, error) {
 	return batch, nil
 }
 
+// IsBatchClosed checks if a batch is closed
 func (d *dbManager) IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error) {
 	return d.state.IsBatchClosed(ctx, batchNum, nil)
 }
 
+// GetLastNBatches gets the latest N batches from state
 func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error) {
 	return d.state.GetLastNBatches(ctx, numBatches, nil)
 }
-func (d *dbManager) GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error) {
-	// TODO: Get implementation from old sequencer's batchbuilder
-	return state.GlobalExitRoot{}, time.Now(), nil
+
+// GetLatestGer gets the latest global exit root
+func (d *dbManager) GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error) {
+	ger, receivedAt, err := d.state.GetLatestGlobalExitRoot(ctx, maxBlockNumber, nil)
+	if err != nil && errors.Is(err, state.ErrNotFound) {
+		return state.GlobalExitRoot{}, time.Time{}, nil
+	} else if err != nil {
+		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
+	} else {
+		return ger, receivedAt, nil
+	}
 }
 
-// ClosingBatchParameters contains the necessary parameters to close a batch
-type ClosingBatchParameters struct {
-	BatchNumber   uint64
-	StateRoot     common.Hash
-	LocalExitRoot common.Hash
-	AccInputHash  common.Hash
-	Txs           []TxTracker
-}
-
+// CloseBatch closes a batch in the state
 func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters) error {
-
 	// TODO: Create new type txManagerArray and refactor CloseBatch method in state
 
 	processingReceipt := state.ProcessingReceipt{
@@ -314,6 +371,7 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 	return nil
 }
 
+// MarkReorgedTxsAsPending marks all reorged tx as pending in the pool
 func (d *dbManager) MarkReorgedTxsAsPending(ctx context.Context) {
 	err := d.txPool.MarkReorgedTxsAsPending(ctx)
 	if err != nil {

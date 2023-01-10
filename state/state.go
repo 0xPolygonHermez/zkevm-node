@@ -387,9 +387,9 @@ func isEVMRevertError(err error) bool {
 }
 
 // OpenBatch adds a new batch into the state, with the necessary data to start processing transactions within it.
-// It's meant to be used by sequencers, since they don't necessarely know what transactions are going to be added
+// It's meant to be used by sequencers, since they don't necessarily know what transactions are going to be added
 // in this batch yet. In other words it's the creation of a WIP batch.
-// Note that this will add a batch with batch number N + 1, where N it's the greates batch number on the state.
+// Note that this will add a batch with batch number N + 1, where N it's the greatest batch number on the state.
 func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingContext, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil

@@ -148,7 +148,7 @@ type TxTracker struct {
 	RawTx      []byte
 }
 
-func NewTxTracker(tx types.Transaction, counters state.ZKCounters) *TxTracker {
+func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters) *TxTracker {
 	txTracker := &TxTracker{
 		// Set values
 	}

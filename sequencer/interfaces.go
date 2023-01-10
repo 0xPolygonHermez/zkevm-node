@@ -31,6 +31,7 @@ type etherman interface {
 	GetLatestBatchNumber() (uint64, error)
 	GetLastBatchTimestamp() (uint64, error)
 	GetLatestBlockTimestamp(ctx context.Context) (uint64, error)
+	GetLatestBlockNumber(ctx context.Context) (uint64, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.
@@ -60,6 +61,7 @@ type workerInterface interface {
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int)
 	DeleteTx(txHash common.Hash, from common.Address, actualFromNonce *uint64, actualFromBalance *big.Int)
 	HandleL2Reorg(txHashes []common.Hash)
+	NewTxTracker(tx types.Transaction, counters state.ZKCounters) *TxTracker
 }
 
 // The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.
@@ -78,7 +80,7 @@ type dbManagerInterface interface {
 	GetLastClosedBatch(ctx context.Context) (*state.Batch, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
 	MarkReorgedTxsAsPending(ctx context.Context)
-	GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error)
+	GetLatestGer(ctx context.Context, waitBlocksToConsiderGERFinal uint64) (state.GlobalExitRoot, time.Time, error)
 }
 
 type dbManagerStateInterface interface {
@@ -95,4 +97,6 @@ type dbManagerStateInterface interface {
 	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
 	MarkReorgedTxsAsPending(ctx context.Context) error
 	GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error)
+	GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error)
+	GetSender(tx types.Transaction) (common.Address, error)
 }
