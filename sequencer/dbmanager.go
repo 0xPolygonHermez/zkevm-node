@@ -74,6 +74,11 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 	return processingCtx
 }
 
+func (d *dbManager) ProcessForcedBatch(batch state.ForcedBatch) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (d *dbManager) loadFromPool() {
 
 	ctx := context.Background()

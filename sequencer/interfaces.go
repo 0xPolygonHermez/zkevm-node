@@ -79,6 +79,7 @@ type dbManagerInterface interface {
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
 	MarkReorgedTxsAsPending(ctx context.Context)
 	GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error)
+	ProcessForcedBatch(batch state.ForcedBatch) error
 }
 
 type dbManagerStateInterface interface {
