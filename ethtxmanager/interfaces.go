@@ -14,7 +14,7 @@ import (
 type ethermanInterface interface {
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
-	WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) error
+	WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) (bool, error)
 	SendTx(ctx context.Context, tx *types.Transaction) error
 	CurrentNonce(ctx context.Context, account common.Address) (uint64, error)
 	SuggestedGasPrice(ctx context.Context) (*big.Int, error)

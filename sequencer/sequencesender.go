@@ -30,8 +30,6 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 		}
 	}, nil)
 
-	// This sleep waits for the synchronizer and for txs in L1
-	time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
@@ -67,7 +65,8 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// add sequence to be monitored
-	to, value, data, err := s.etherman.BuildSequenceBatchesTxData(sequences)
+	sender := common.HexToAddress(s.cfg.SenderAddress)
+	to, value, data, err := s.etherman.BuildSequenceBatchesTxData(sender, sequences)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
 		return
@@ -75,7 +74,6 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	firstSequence := sequences[0]
 	lastSequence := sequences[len(sequences)-1]
 	monitoredTxID := fmt.Sprintf("sequence-from-%v-to-%v", firstSequence.BatchNumber, lastSequence.BatchNumber)
-	sender := common.HexToAddress(s.cfg.SenderAddress)
 	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, value, data, nil)
 	if err != nil {
 		log.Error("error to add sequences tx to eth tx manager: ", err)
@@ -127,7 +125,8 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		})
 
 		// Check if can be send
-		tx, err = s.etherman.EstimateGasSequenceBatches(sequences)
+		sender := common.HexToAddress(s.cfg.SenderAddress)
+		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
 
 		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
 			metrics.SequencesOvesizedDataError()
@@ -139,7 +138,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
 				// Handling the error gracefully, re-processing the sequence as a sanity check
-				_, err = s.etherman.EstimateGasSequenceBatches(sequences)
+				_, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
 				return sequences, err
 			}
 			return sequences, err

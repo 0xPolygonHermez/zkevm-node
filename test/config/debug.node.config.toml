@@ -73,8 +73,9 @@ MaxMemAligns = 262144
 MaxArithmetics = 262144
 MaxBinaries = 262144
 MaxSteps = 8388608
-SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 MaxAllowedFailedCounter = 50
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKeys = [{Path = "../test/sequencer.keystore", Password = "testonly"}]
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 

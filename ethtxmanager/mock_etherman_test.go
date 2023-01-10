@@ -227,17 +227,24 @@ func (_m *ethermanMock) SuggestedGasPrice(ctx context.Context) (*big.Int, error)
 }
 
 // WaitTxToBeMined provides a mock function with given fields: ctx, tx, timeout
-func (_m *ethermanMock) WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) error {
+func (_m *ethermanMock) WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) (bool, error) {
 	ret := _m.Called(ctx, tx, timeout)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *types.Transaction, time.Duration) error); ok {
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, *types.Transaction, time.Duration) bool); ok {
 		r0 = rf(ctx, tx, timeout)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *types.Transaction, time.Duration) error); ok {
+		r1 = rf(ctx, tx, timeout)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 type mockConstructorTestingTnewEthermanMock interface {

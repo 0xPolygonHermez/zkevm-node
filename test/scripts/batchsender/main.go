@@ -172,7 +172,7 @@ func sendBatches(cliCtx *cli.Context) error {
 		}
 
 		// send to L1
-		to, value, data, err := ethMan.BuildSequenceBatchesTxData(seqs)
+		to, value, data, err := ethMan.BuildSequenceBatchesTxData(auth.From, seqs)
 		if err != nil {
 			return err
 		}

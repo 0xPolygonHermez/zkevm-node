@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -79,7 +80,9 @@ func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Tr
 	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
 	receipt, err := bind.WaitMined(ctx, client, tx)
-	if err != nil {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return err
+	} else if err != nil {
 		log.Errorf("error waiting tx %s to be mined: %w", tx.Hash(), err)
 		return err
 	}

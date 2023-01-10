@@ -16,13 +16,13 @@ type Etherman struct {
 	mock.Mock
 }
 
-// BuildTrustedVerifyBatchesTxData provides a mock function with given fields: lastVerifiedBatch, newVerifiedBatch, inputs
-func (_m *Etherman) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch uint64, newVerifiedBatch uint64, inputs *types.FinalProofInputs) (*common.Address, *big.Int, []byte, error) {
-	ret := _m.Called(lastVerifiedBatch, newVerifiedBatch, inputs)
+// BuildTrustedVerifyBatchesTxData provides a mock function with given fields: sender, lastVerifiedBatch, newVerifiedBatch, inputs
+func (_m *Etherman) BuildTrustedVerifyBatchesTxData(sender common.Address, lastVerifiedBatch uint64, newVerifiedBatch uint64, inputs *types.FinalProofInputs) (*common.Address, *big.Int, []byte, error) {
+	ret := _m.Called(sender, lastVerifiedBatch, newVerifiedBatch, inputs)
 
 	var r0 *common.Address
-	if rf, ok := ret.Get(0).(func(uint64, uint64, *types.FinalProofInputs) *common.Address); ok {
-		r0 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
+	if rf, ok := ret.Get(0).(func(common.Address, uint64, uint64, *types.FinalProofInputs) *common.Address); ok {
+		r0 = rf(sender, lastVerifiedBatch, newVerifiedBatch, inputs)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*common.Address)
@@ -30,8 +30,8 @@ func (_m *Etherman) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch uint64, ne
 	}
 
 	var r1 *big.Int
-	if rf, ok := ret.Get(1).(func(uint64, uint64, *types.FinalProofInputs) *big.Int); ok {
-		r1 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
+	if rf, ok := ret.Get(1).(func(common.Address, uint64, uint64, *types.FinalProofInputs) *big.Int); ok {
+		r1 = rf(sender, lastVerifiedBatch, newVerifiedBatch, inputs)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(*big.Int)
@@ -39,8 +39,8 @@ func (_m *Etherman) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch uint64, ne
 	}
 
 	var r2 []byte
-	if rf, ok := ret.Get(2).(func(uint64, uint64, *types.FinalProofInputs) []byte); ok {
-		r2 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
+	if rf, ok := ret.Get(2).(func(common.Address, uint64, uint64, *types.FinalProofInputs) []byte); ok {
+		r2 = rf(sender, lastVerifiedBatch, newVerifiedBatch, inputs)
 	} else {
 		if ret.Get(2) != nil {
 			r2 = ret.Get(2).([]byte)
@@ -48,8 +48,8 @@ func (_m *Etherman) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch uint64, ne
 	}
 
 	var r3 error
-	if rf, ok := ret.Get(3).(func(uint64, uint64, *types.FinalProofInputs) error); ok {
-		r3 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
+	if rf, ok := ret.Get(3).(func(common.Address, uint64, uint64, *types.FinalProofInputs) error); ok {
+		r3 = rf(sender, lastVerifiedBatch, newVerifiedBatch, inputs)
 	} else {
 		r3 = ret.Error(3)
 	}

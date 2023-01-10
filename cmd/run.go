@@ -95,7 +95,7 @@ func start(cliCtx *cli.Context) error {
 			log.Info("Running sequencer")
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
-			seq := createSequencer(*c, poolInstance, etherman, etm, st, gpe)
+			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st, gpe)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
@@ -174,21 +174,35 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 	}
 }
 
-func createSequencer(c config.Config, pool *pool.Pool, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, state *state.State, gpe gasPriceEstimator) *sequencer.Sequencer {
-	pg, err := pricegetter.NewClient(c.PriceGetter)
+func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, gpe gasPriceEstimator) *sequencer.Sequencer {
+	pg, err := pricegetter.NewClient(cfg.PriceGetter)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, ethTxManager, gpe)
+	etherman, err := newEtherman(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, privateKey := range cfg.Sequencer.PrivateKeys {
+		_, err := etherman.LoadAuthFromKeyStore(privateKey.Path, privateKey.Password)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
+
+	seq, err := sequencer.New(cfg.Sequencer, pool, st, etherman, pg, ethTxManager, gpe)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return seq
 }
 
-func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, state *state.State) {
-	agg, err := aggregator.New(c, state, ethTxManager, etherman)
+func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
+	agg, err := aggregator.New(c, st, ethTxManager, etherman)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -214,12 +228,12 @@ type gasPriceEstimator interface {
 }
 
 // createGasPriceEstimator init gas price gasPriceEstimator based on type in config.
-func createGasPriceEstimator(cfg gasprice.Config, state *state.State, pool *pool.Pool) gasPriceEstimator {
+func createGasPriceEstimator(cfg gasprice.Config, st *state.State, pool *pool.Pool) gasPriceEstimator {
 	switch cfg.Type {
 	case gasprice.AllBatchesType:
 		return gasprice.NewEstimatorAllBatches()
 	case gasprice.LastNBatchesType:
-		return gasprice.NewEstimatorLastNL2Blocks(cfg, state)
+		return gasprice.NewEstimatorLastNL2Blocks(cfg, st)
 	case gasprice.DefaultType:
 		return gasprice.NewDefaultEstimator(cfg, pool)
 	}

@@ -241,14 +241,14 @@ func (a *Aggregator) sendFinalProof() {
 			log.Infof("Final proof inputs: NewLocalExitRoot [%#x], NewStateRoot [%#x]", inputs.NewLocalExitRoot, inputs.NewStateRoot)
 
 			// add batch verification to be monitored
-			to, value, data, err := a.Ethman.BuildTrustedVerifyBatchesTxData(proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
+			sender := common.HexToAddress(a.cfg.SenderAddress)
+			to, value, data, err := a.Ethman.BuildTrustedVerifyBatchesTxData(sender, proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
 			if err != nil {
 				log.Error("error estimating batch verification to add to eth tx manager: ", err)
 				a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
 				continue
 			}
 			monitoredTxID := fmt.Sprintf(monitoredIDFormat, proof.BatchNumber, proof.BatchNumberFinal)
-			sender := common.HexToAddress(a.cfg.SenderAddress)
 			err = a.EthTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, value, data, nil)
 			if err != nil {
 				log.Error("error to add batch verification tx to eth tx manager: ", err)

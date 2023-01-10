@@ -19,13 +19,20 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-const failureIntervalInSeconds = 5
+const (
+	failureIntervalInSeconds = 5
+	maxHistorySize           = 10
+)
 
 var (
 	// ErrNotFound when the object is not found
 	ErrNotFound = errors.New("not found")
 	// ErrAlreadyExists when the object already exists
 	ErrAlreadyExists = errors.New("already exists")
+
+	// ErrExecutionReverted returned when trying to get the revert message
+	// but the call fails without revealing the revert reason
+	ErrExecutionReverted = errors.New("execution reverted")
 )
 
 // Client for eth tx manager
@@ -61,7 +68,7 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 		return err
 	}
 	// get gas
-	gas, err := c.etherman.EstimateGas(ctx, from, to, nil, data)
+	gas, err := c.etherman.EstimateGas(ctx, from, to, value, data)
 	if err != nil {
 		err := fmt.Errorf("failed to estimate gas: %w", err)
 		log.Errorf(err.Error())
@@ -157,7 +164,7 @@ func (c *Client) buildResult(ctx context.Context, mTx monitoredTx) (MonitoredTxR
 		}
 
 		revertMessage, err := c.etherman.GetRevertMessage(ctx, tx)
-		if err != nil {
+		if !errors.Is(err, ethereum.NotFound) && err != nil && err.Error() != ErrExecutionReverted.Error() {
 			return MonitoredTxResult{}, err
 		}
 
@@ -234,19 +241,78 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 	for _, mTx := range mTxs {
 		mTxLog := log.WithFields("monitored tx", mTx.id)
-		mTxLog.Debug("processing")
+		mTxLog.Info("processing")
 
 		// check if any of the txs in the history was mined
 		mined := false
 		var receipt *types.Receipt
+		hasFailedReceipts := false
+		allHistoryTxMined := true
 		for txHash := range mTx.history {
 			mined, receipt, err = c.etherman.CheckTxWasMined(ctx, txHash)
 			if err != nil {
 				mTxLog.Errorf("failed to check if tx %v was mined: %v", txHash.String(), err)
 				continue
 			}
+
+			// if the tx is not mined yet, check that not all the tx were mined and go to the next
+			if !mined {
+				allHistoryTxMined = false
+				continue
+			}
+
+			// if the tx was mined successfully we can break the loop and proceed
+			if receipt.Status == types.ReceiptStatusSuccessful {
+				break
+			}
+
+			// if the tx was mined but failed, we continue to consider it was not mined
+			// and store the failed receipt to be used to check if nonce needs to be reviewed
+			mined = false
+			hasFailedReceipts = true
 		}
 
+		// we need to check if we need to review the nonce carefully, to avoid sending
+		// duplicated data to the block chain.
+		//
+		// if we have failed receipts, this means at least one of the generated txs was mined
+		// so maybe the current nonce was already consumed, then we need to check if there are
+		// tx that were not mined yet, if so, we just need to wait, because maybe one of them
+		// will get mined successfully
+		//
+		// in case of all tx were mined and none of them were mined successfully, we need to
+		// update the nonce
+		if hasFailedReceipts && allHistoryTxMined {
+			mTxLog.Infof("nonce needs to be updated")
+			mTx := mTx
+			err := c.ReviewMonitoredTxNonce(ctx, &mTx)
+			if err != nil {
+				mTxLog.Errorf("failed to review monitored tx nonce: %v", err)
+				continue
+			}
+			err = c.storage.Update(ctx, mTx, nil)
+			if err != nil {
+				mTxLog.Errorf("failed to update monitored tx nonce change: %v", err)
+				continue
+			}
+		}
+
+		// if the history size reaches the max history size, this means something is really wrong with
+		// this Tx and we are not able to identify automatically, so we mark this as failed to let the
+		// caller know something is not right and needs to be review and to avoid to monitor this
+		// tx infinitely
+		if len(mTx.history) == maxHistorySize {
+			mTx.status = MonitoredTxStatusFailed
+			mTxLog.Infof("marked as failed because reached the history size limit: %v", err)
+			// update monitored tx changes into storage
+			err = c.storage.Update(ctx, mTx, nil)
+			if err != nil {
+				mTxLog.Errorf("failed to update monitored tx when max history size limit reached: %v", err)
+				continue
+			}
+		}
+
+		var signedTx *types.Transaction
 		if !mined {
 			// if is a reorged, move to the next
 			if mTx.status == MonitoredTxStatusReorged {
@@ -255,7 +321,8 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 			// review tx and increase gas and gas price if needed
 			if mTx.status == MonitoredTxStatusSent {
-				err := c.ReviewMonitoredTx(ctx, mTx)
+				mTx := mTx
+				err := c.ReviewMonitoredTx(ctx, &mTx)
 				if err != nil {
 					mTxLog.Errorf("failed to review monitored tx: %v", err)
 					continue
@@ -267,7 +334,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 			mTxLog.Debugf("unsigned tx %v created", tx.Hash().String(), mTx.id)
 
 			// sign tx
-			signedTx, err := c.etherman.SignTx(ctx, mTx.from, tx)
+			signedTx, err = c.etherman.SignTx(ctx, mTx.from, tx)
 			if err != nil {
 				mTxLog.Errorf("failed to sign tx %v created from monitored tx %v: %v", tx.Hash().String(), mTx.id, err)
 				continue
@@ -277,11 +344,17 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 			// add tx to monitored tx history
 			err = mTx.AddHistory(signedTx)
 			if errors.Is(err, ErrAlreadyExists) {
-				mTxLog.Debugf("signed tx already existed in the history")
+				mTxLog.Infof("signed tx already existed in the history")
 			} else if err != nil {
 				mTxLog.Errorf("failed to add signed tx to monitored tx %v history: %v", mTx.id, err)
 				continue
 			} else {
+				// update monitored tx changes into storage
+				err = c.storage.Update(ctx, mTx, nil)
+				if err != nil {
+					mTxLog.Errorf("failed to update monitored tx: %v", err)
+					continue
+				}
 				mTxLog.Debugf("signed tx added to the monitored tx history")
 			}
 
@@ -295,7 +368,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 					mTxLog.Errorf("failed to send tx %v to network: %v", signedTx.Hash().String(), err)
 					continue
 				}
-				mTxLog.Debugf("signed tx sent to the network")
+				mTxLog.Infof("signed tx sent to the network: %v", signedTx.Hash().String())
 				if mTx.status == MonitoredTxStatusCreated {
 					// update tx status to sent
 					mTx.status = MonitoredTxStatusSent
@@ -306,15 +379,21 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 						mTxLog.Errorf("failed to update monitored tx changes: %v", err)
 						continue
 					}
-					mTxLog.Debugf("storage updated")
 				}
 			} else {
-				mTxLog.Debugf("signed tx already found in the network")
+				mTxLog.Infof("signed tx already found in the network")
 			}
+
+			log.Infof("waiting signedTx to be mined...")
+
 			// wait tx to get mined
-			err = c.etherman.WaitTxToBeMined(ctx, signedTx, c.cfg.WaitTxToBeMined.Duration)
+			mined, err = c.etherman.WaitTxToBeMined(ctx, signedTx, c.cfg.WaitTxToBeMined.Duration)
 			if err != nil {
 				mTxLog.Errorf("failed to wait tx to be mined: %v", err)
+				continue
+			}
+			if !mined {
+				log.Infof("signedTx not mined yet and timeout has been reached")
 				continue
 			}
 
@@ -344,9 +423,17 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 				mTxLog.Debugf("L1 block %v not synchronized yet, waiting for L1 block to be synced in order to confirm monitored tx", receiptBlockNum)
 				continue
 			} else {
+				mTxLog.Info("confirmed")
 				mTx.status = MonitoredTxStatusConfirmed
 			}
 		} else {
+			// if we should continue to monitor, we move to the next one and this will
+			// be reviewed in the next monitoring cycle
+			if c.shouldContinueToMonitorThisTx(ctx, receipt) {
+				continue
+			}
+			mTxLog.Info("failed")
+			// otherwise we understand this monitored tx has failed
 			mTx.status = MonitoredTxStatusFailed
 		}
 
@@ -356,26 +443,53 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 			mTxLog.Errorf("failed to update monitored tx: %v", err)
 			continue
 		}
-		mTxLog.Debugf("storage updated")
 	}
 
 	return nil
 }
 
+// shouldContinueToMonitorThisTx checks the the tx receipt and decides if it should
+// continue or not to monitor the monitored tx related to the tx from this receipt
+func (c *Client) shouldContinueToMonitorThisTx(ctx context.Context, receipt *types.Receipt) bool {
+	// if the receipt has a is successful result, stop monitoring
+	if receipt.Status == types.ReceiptStatusSuccessful {
+		return false
+	}
+
+	receiptTx, _, err := c.etherman.GetTx(ctx, receipt.TxHash)
+	if err != nil {
+		log.Errorf("failed to get tx when monitored tx identified as failed, tx : %v", receipt.TxHash.String(), err)
+	}
+	_, err = c.etherman.GetRevertMessage(ctx, receiptTx)
+	if err != nil {
+		// if the error when getting the revert message is not identified, continue to monitor
+		if err.Error() == ErrExecutionReverted.Error() {
+			return true
+		} else {
+			log.Errorf("failed to get revert message for monitored tx identified as failed, tx %v: %v", receipt.TxHash.String(), err)
+		}
+	}
+	// if nothing weird was found, stop monitoring
+	return false
+}
+
 // ReviewMonitoredTx checks if some field needs to be updated
 // accordingly to the current information stored and the current
 // state of the network
-func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx monitoredTx) error {
+func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error {
+	mTxLog := log.WithFields("monitored tx", mTx.id)
+	mTxLog.Debug("reviewing")
 	// get gas
 	gas, err := c.etherman.EstimateGas(ctx, mTx.from, mTx.to, mTx.value, mTx.data)
 	if err != nil {
 		err := fmt.Errorf("failed to estimate gas: %w", err)
-		log.Errorf(err.Error())
+		mTxLog.Errorf(err.Error())
 		return err
 	}
 
 	// check gas
 	if gas > mTx.gas {
+		mTxLog.Infof("monitored tx gas updated from %v to %v", mTx.gas, gas)
 		mTx.gas = gas
 	}
 
@@ -383,14 +497,39 @@ func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx monitoredTx) error {
 	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
 	if err != nil {
 		err := fmt.Errorf("failed to get suggested gas price: %w", err)
-		log.Errorf(err.Error())
+		mTxLog.Errorf(err.Error())
 		return err
 	}
 
 	// check gas price
 	if gasPrice.Cmp(mTx.gasPrice) == 1 {
+		mTxLog.Infof("monitored tx gas price updated from %v to %v", mTx.gasPrice.String(), gasPrice.String())
 		mTx.gasPrice = gasPrice
 	}
+	return nil
+}
+
+// ReviewMonitoredTxNonce checks if the nonce needs to be updated accordingly to
+// the current nonce of the sender account.
+//
+// IMPORTANT: Nonce is reviewed apart from the other fields because it is a very
+// sensible information and can make duplicated data to be sent to the blockchain,
+// causing possible side effects and wasting resources on taxes.
+func (c *Client) ReviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx) error {
+	mTxLog := log.WithFields("monitored tx", mTx.id)
+	mTxLog.Debug("reviewing nonce")
+	nonce, err := c.etherman.CurrentNonce(ctx, mTx.from)
+	if err != nil {
+		err := fmt.Errorf("failed to estimate gas: %w", err)
+		mTxLog.Errorf(err.Error())
+		return err
+	}
+
+	if nonce > mTx.nonce {
+		mTxLog.Infof("monitored tx nonce updated from %v to %v", mTx.nonce, nonce)
+		mTx.nonce = nonce
+	}
+
 	return nil
 }
 
