@@ -26,8 +26,6 @@ const (
 	addBlockSQL                              = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	getLastBlockSQL                          = "SELECT block_num, block_hash, parent_hash, received_at FROM state.block ORDER BY block_num DESC LIMIT 1"
 	getPreviousBlockSQL                      = "SELECT block_num, block_hash, parent_hash, received_at FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
-	resetSQL                                 = "DELETE FROM state.block WHERE block_num > $1"
-	resetTrustedStateSQL                     = "DELETE FROM state.batch WHERE batch_num > $1"
 	addVerifiedBatchSQL                      = "INSERT INTO state.verified_batch (block_num, batch_num, tx_hash, aggregator, state_root) VALUES ($1, $2, $3, $4, $5)"
 	getVerifiedBatchSQL                      = "SELECT block_num, batch_num, tx_hash, aggregator, state_root FROM state.verified_batch WHERE batch_num = $1"
 	getLastBatchNumberSQL                    = "SELECT batch_num FROM state.batch ORDER BY batch_num DESC LIMIT 1"
@@ -44,7 +42,6 @@ const (
 	getTransactionHashesByBatchNumberSQL     = "SELECT hash FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
 	getLastBatchSeenSQL                      = "SELECT last_batch_num_seen FROM state.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                   = "UPDATE state.sync_info SET last_batch_num_seen = $1"
-	resetTrustedBatchSQL                     = "DELETE FROM state.batch WHERE batch_num > $1"
 	isBatchClosedSQL                         = "SELECT global_exit_root IS NOT NULL AND state_root IS NOT NULL FROM state.batch WHERE batch_num = $1 LIMIT 1"
 	addGenesisBatchSQL                       = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
 	openBatchSQL                             = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase) VALUES ($1, $2, $3, $4)"
@@ -112,21 +109,34 @@ func (p *PostgresStorage) getExecQuerier(dbTx pgx.Tx) execQuerier {
 // Reset resets the state to a block for the given DB tx
 func (p *PostgresStorage) Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
+	const resetForcedBatchSQL = `
+		UPDATE state.forced_batch 
+		SET batch_num = null
+		FROM state.virtual_batch 
+		INNER JOIN state.block ON state.block.block_num = state.virtual_batch.block_num
+		WHERE state.block.block_num > $1 AND state.forced_batch.batch_num = state.virtual_batch.batch_num;
+	`
+	if _, err := e.Exec(ctx, resetForcedBatchSQL, blockNumber); err != nil {
+		return err
+	}
+
+	const resetSQL = "DELETE FROM state.block WHERE block_num > $1"
 	if _, err := e.Exec(ctx, resetSQL, blockNumber); err != nil {
 		return err
 	}
-	// TODO: Remove consolidations
+
 	return nil
 }
 
 // ResetTrustedState removes the batches with number greater than the given one
 // from the database.
 func (p *PostgresStorage) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
+	const resetTrustedStateSQL = "DELETE FROM state.batch WHERE batch_num > $1"
 	e := p.getExecQuerier(dbTx)
 	if _, err := e.Exec(ctx, resetTrustedStateSQL, batchNum); err != nil {
 		return err
 	}
-	// TODO: Remove consolidations
+	// TODO Find a way to put txs in the pool again
 	return nil
 }
 
@@ -834,13 +844,6 @@ func (p *PostgresStorage) GetTxsHashesByBatchNumber(ctx context.Context, batchNu
 		txs = append(txs, common.HexToHash(hexHash))
 	}
 	return txs, nil
-}
-
-// ResetTrustedBatch resets the batches which the batch number is higher than the input.
-func (p *PostgresStorage) ResetTrustedBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, resetTrustedBatchSQL, batchNumber)
-	return err
 }
 
 // AddVirtualBatch adds a new virtual batch to the storage.
