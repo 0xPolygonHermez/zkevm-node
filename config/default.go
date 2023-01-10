@@ -72,6 +72,7 @@ WaitPeriodPoolIsEmpty = "1s"
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "300s"
 WaitBlocksToUpdateGER = 10
+WaitBlocksToConsiderGerFinal = 10
 ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
 MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
@@ -94,7 +95,6 @@ MaxAllowedFailedCounter = 50
 		NextForcedBatchDeadlineTimeoutInSec = 60
 		SleepDurationInMs = 100
 		ResourcePercentageToCloseBatch = 90
-		WaitBlocksToConsiderGerFinal = 64
 
 [PriceGetter]
 Type = "default"
