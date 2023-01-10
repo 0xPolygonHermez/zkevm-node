@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	waitSeconds time.Duration = 5
+	wait time.Duration = 5
 )
 
 // Pool Loader and DB Updater
@@ -36,6 +36,11 @@ type ClosingBatchParameters struct {
 	LocalExitRoot common.Hash
 	AccInputHash  common.Hash
 	Txs           []TxTracker
+}
+
+func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore) *dbManager {
@@ -93,7 +98,7 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 func (d *dbManager) loadFromPool() {
 	for {
 		// TODO: Move this to a config parameter
-		time.Sleep(waitSeconds * time.Second)
+		time.Sleep(wait * time.Second)
 
 		poolTransactions, err := d.txPool.GetPendingTxs(d.ctx, false, 0)
 
@@ -204,11 +209,10 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		return nil, err
 	}
 
-	txTrackerArray := make([]TxTracker, len(txs), len(txs))
+	txTrackerArray := make([]TxTracker, len(txs))
 
 	// TODO: Init counters and totals to MAX values
 	var totalBytes uint64
-	var totalGas uint64
 	var batchZkCounters state.ZKCounters
 
 	for _, tx := range txs {
@@ -229,17 +233,11 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			return nil, fmt.Errorf("tx does not fit into the batch because of byte size")
 		}
 
-		if zkCounters.CumulativeGasUsed <= totalGas {
-			totalGas -= zkCounters.CumulativeGasUsed
-		} else {
-			return nil, fmt.Errorf("tx does not fit into the batch because of gas")
-		}
-
 		txTrackerArray = append(txTrackerArray, *txTracker)
 	}
 
 	wipBatch.txs = txTrackerArray
-	wipBatch.remainingResources = BatchResources{zKCounters: batchZkCounters, bytes: totalBytes, gas: totalGas}
+	wipBatch.remainingResources = BatchResources{zKCounters: batchZkCounters, bytes: totalBytes}
 
 	isClosed, err := d.IsBatchClosed(ctx, lastBatch.BatchNumber)
 	if err != nil {

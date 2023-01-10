@@ -41,13 +41,13 @@ type stateInterface interface {
 	GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error)
-	ProcessSingleTx(ctx context.Context, request state.ProcessSingleTxRequest) (state.ProcessBatchResponse, error)
+	ProcessSingleTx(ctx context.Context, request state.ProcessRequest) (state.ProcessBatchResponse, error)
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	GetSender(tx types.Transaction) (common.Address, error)
 	Begin(ctx context.Context) (pgx.Tx, error)
-	ProcessSingleTransaction(ctx context.Context, request state.ProcessSingleTxRequest, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
+	ProcessSingleTransaction(ctx context.Context, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 }
 
 type txManager interface {
@@ -82,6 +82,7 @@ type dbManagerInterface interface {
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
 	MarkReorgedTxsAsPending(ctx context.Context)
 	GetLatestGer(ctx context.Context, waitBlocksToConsiderGERFinal uint64) (state.GlobalExitRoot, time.Time, error)
+	ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 }
 
 type dbManagerStateInterface interface {

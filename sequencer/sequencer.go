@@ -33,7 +33,7 @@ type L2ReorgEvent struct {
 
 // ClosingSignalCh is a struct that contains all the channels that are used to receive batch closing signals
 type ClosingSignalCh struct {
-	ForcedBatchCh        chan state.Batch
+	ForcedBatchCh        chan state.ForcedBatch
 	GERCh                chan common.Hash
 	L2ReorgCh            chan L2ReorgEvent
 	SendingToL1TimeoutCh chan bool
@@ -79,7 +79,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	metrics.Register()
 
 	closingSignalCh := ClosingSignalCh{
-		ForcedBatchCh:        make(chan state.Batch),
+		ForcedBatchCh:        make(chan state.ForcedBatch),
 		GERCh:                make(chan common.Hash),
 		L2ReorgCh:            make(chan L2ReorgEvent),
 		SendingToL1TimeoutCh: make(chan bool),
@@ -161,7 +161,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 			log.Info("wait for synchronizer to sync last batch")
 			time.Sleep(time.Second)
 		}
-		finalizer.reopenBatch(ctx)
+		finalizer.closeAndOpenNewBatch(ctx)
 	}
 	return currBatch, oldAccInputHash, oldStateRoot
 }
