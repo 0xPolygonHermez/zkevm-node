@@ -117,11 +117,8 @@ func (d *dbManager) loadFromPool() {
 				continue
 			}
 
-			txTracker := TxTracker{
-				Hash: tx.Hash(),
-				// TODO: Complete
-			}
-			d.worker.AddTx(txTracker)
+			txTracker := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters)
+			d.worker.AddTx(*txTracker)
 			d.txPool.UpdateTxStatus(d.ctx, tx.Hash(), pool.TxStatusWIP)
 		}
 	}
@@ -200,8 +197,6 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		localExitRoot:  lastBatch.LocalExitRoot,
 		timestamp:      uint64(lastBatch.Timestamp.Unix()),
 		globalExitRoot: lastBatch.GlobalExitRoot,
-		// TODO: txs
-		// TODO: remainingResources
 	}
 
 	txs, _, err := state.DecodeTxs(lastBatch.BatchL2Data)
@@ -211,34 +206,40 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	txTrackerArray := make([]TxTracker, len(txs), len(txs))
 
-	for _, tx := range txs {
-		zkCounters := state.GetTxZkCounters(ctx, tx.Hash())
-		txTracker := d.worker.NewTxTracker(tx, zkCounters)
+	// TODO: Init counters and totals to MAX values
+	var totalBytes uint64
+	var totalGas uint64
+	var batchZkCounters state.ZKCounters
 
-		/*
-			sender, err := d.state.GetSender(tx)
-			if err != nil {
-				return nil, err
-			}
-				txTracker := TxTracker{
-					Hash:    tx.Hash(),
-					From:    sender,
-					Nonce:   tx.Nonce(),
-					Benefit: tx.GasPrice().Mul(tx.GasPrice(), big.NewInt(int64(tx.Gas()))),
-					// ZKCounters
-					Size:     uint64(tx.Size()),
-					Gas:      tx.Gas(),
-					GasPrice: tx.GasPrice().Int64(),
-					// TODO: Define how to calculate efficiency
-					// Efficiency:
-					RawTx: tx.Data(),
-				}
-		*/
+	for _, tx := range txs {
+		zkCounters, err := d.txPool.GetTxZkCountersByHash(ctx, tx.Hash())
+		if err != nil {
+			return nil, err
+		}
+		txTracker := d.worker.NewTxTracker(tx, *zkCounters)
+
+		err = batchZkCounters.Sub(*zkCounters)
+		if err != nil {
+			return nil, err
+		}
+
+		if uint64(tx.Size()) <= totalBytes {
+			totalBytes -= uint64(tx.Size())
+		} else {
+			return nil, fmt.Errorf("tx does not fit into the batch because of byte size")
+		}
+
+		if zkCounters.CumulativeGasUsed <= totalGas {
+			totalGas -= zkCounters.CumulativeGasUsed
+		} else {
+			return nil, fmt.Errorf("tx does not fit into the batch because of gas")
+		}
 
 		txTrackerArray = append(txTrackerArray, *txTracker)
 	}
 
 	wipBatch.txs = txTrackerArray
+	wipBatch.remainingResources = BatchResources{zKCounters: batchZkCounters, bytes: totalBytes, gas: totalGas}
 
 	isClosed, err := d.IsBatchClosed(ctx, lastBatch.BatchNumber)
 	if err != nil {

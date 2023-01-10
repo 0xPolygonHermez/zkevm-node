@@ -22,6 +22,7 @@ type txPool interface {
 	MarkReorgedTxsAsPending(ctx context.Context) error
 	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus)
+	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 }
 
 // etherman contains the methods required to interact with ethereum.

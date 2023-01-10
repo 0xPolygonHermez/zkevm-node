@@ -1540,8 +1540,7 @@ func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
 	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
 }
 
-// StoreTransactions is used by the sequencer to add processed transactions into
-// an open batch.
+// StoreTransaction is used by the sequencer to add process a transaction
 func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil

@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -149,8 +150,23 @@ type TxTracker struct {
 }
 
 func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters) *TxTracker {
+	sender, err := state.GetSender(tx)
+	if err != nil {
+		log.Errorf("error retrieving tx sender: %v", err)
+	}
+
 	txTracker := &TxTracker{
-		// Set values
+		Hash:       tx.Hash(),
+		From:       sender,
+		Nonce:      tx.Nonce(),
+		Benefit:    tx.GasPrice().Mul(tx.GasPrice(), big.NewInt(int64(tx.Gas()))),
+		ZKCounters: counters,
+		Size:       uint64(tx.Size()),
+		Gas:        tx.Gas(),
+		GasPrice:   tx.GasPrice().Int64(),
+		// TODO: Define how to calculate efficiency
+		// Efficiency:
+		RawTx: tx.Data(),
 	}
 	txTracker.CalculateEfficiency()
 	return txTracker
