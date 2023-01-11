@@ -100,7 +100,8 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		// Check if can be send
 		tx, err = s.etherman.EstimateGasSequenceBatches(sequences)
 
-		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
+		if err == nil && (new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 ||
+			tx.Size() > 124000) { // TODO: make this a config param
 			log.Infof("oversized Data on TX hash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
 			err = core.ErrOversizedData
 		}
