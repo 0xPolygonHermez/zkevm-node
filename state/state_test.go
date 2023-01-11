@@ -150,7 +150,7 @@ func TestProcessCloseBatch(t *testing.T) {
 	// Txs for batch #1
 	// rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
 	//TODO Finish and fix this test
-	// err = testState.ProcessAndStoreClosedBatch(ctx, processingCtx1, common.Hex2Bytes(rawTxs), dbTx)
+	// err = testState.ProcessAndStoreClosedBatch(ctx, processingCtx1, common.Hex2Bytes(rawTxs), dbTx, state.SynchronizerCallerLabel)
 	// require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 }
@@ -409,14 +409,14 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit(ctx))
 
-	_, err = testState.Exec(ctx, "INSERT INTO state.l2block (block_num, block_hash, received_at, batch_num) VALUES ($1, $2, $3, $4)", 1, "0x423", time.Now(), 1)
+	_, err = testState.Exec(ctx, "INSERT INTO state.l2block (block_num, block_hash, received_at, batch_num, created_at) VALUES ($1, $2, $3, $4, $5)", 1, "0x423", time.Now(), 1, time.Now().UTC())
 	require.NoError(t, err)
 	l2Tx1 := types.NewTransaction(1, common.Address{}, big.NewInt(10), 21000, big.NewInt(1), []byte{})
 	_, err = testState.Exec(ctx, "INSERT INTO state.transaction (l2_block_num, encoded, hash) VALUES ($1, $2, $3)",
 		virtualBatch1.BatchNumber, fmt.Sprintf("encoded-%d", virtualBatch1.BatchNumber), l2Tx1.Hash().Hex())
 	require.NoError(t, err)
 
-	_, err = testState.Exec(ctx, "INSERT INTO state.l2block (block_num, block_hash, received_at, batch_num) VALUES ($1, $2, $3, $4)", 2, "0x423", time.Now(), 2)
+	_, err = testState.Exec(ctx, "INSERT INTO state.l2block (block_num, block_hash, received_at, batch_num, created_at) VALUES ($1, $2, $3, $4, $5)", 2, "0x423", time.Now(), 2, time.Now().UTC())
 	require.NoError(t, err)
 	l2Tx2 := types.NewTransaction(2, common.Address{}, big.NewInt(10), 21000, big.NewInt(1), []byte{})
 	_, err = testState.Exec(ctx, "INSERT INTO state.transaction (l2_block_num, encoded, hash) VALUES ($1, $2, $3)",
@@ -1613,7 +1613,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		*signedTxFirstIncrement,
 		*signedTxFirstRetrieve,
 	}
-	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx)
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx, state.SequencerCallerLabel)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
 	assert.Nil(t, processBatchResponse.Responses[0].Error)

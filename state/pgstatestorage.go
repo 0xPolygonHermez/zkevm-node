@@ -64,7 +64,7 @@ const (
 	getLastL2BlockSQL                        = "SELECT header, uncles, received_at FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockHeaderByHashSQL                = "SELECT header FROM state.l2block b WHERE b.block_hash = $1"
 	getTxsByBlockNumSQL                      = "SELECT encoded FROM state.transaction WHERE l2_block_num = $1"
-	getL2BlockHashesSinceSQL                 = "SELECT block_hash FROM state.l2block WHERE received_at >= $1"
+	getL2BlockHashesSinceSQL                 = "SELECT block_hash FROM state.l2block WHERE created_at >= $1"
 	getSyncingInfoSQL                        = `
 		SELECT coalesce(MIN(initial_blocks.block_num), 0) as init_sync_block
 			 , coalesce(MAX(virtual_blocks.block_num), 0) as last_block_num_seen
@@ -1242,8 +1242,8 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	e := p.getExecQuerier(dbTx)
 
 	const addL2BlockSQL = `
-        INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num)
-                           VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8)`
+        INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
+                           VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9)`
 
 	var header = "{}"
 	if l2Block.Header() != nil {
@@ -1266,7 +1266,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	if _, err := e.Exec(ctx, addL2BlockSQL,
 		l2Block.Number().Uint64(), l2Block.Hash().String(), header, uncles,
 		l2Block.ParentHash().String(), l2Block.Root().String(),
-		l2Block.ReceivedAt, batchNumber); err != nil {
+		l2Block.ReceivedAt, batchNumber, time.Now().UTC()); err != nil {
 		return err
 	}
 
@@ -1626,7 +1626,7 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		 AND (l.topic1 = any($5) OR $5 IS NULL)
 		 AND (l.topic2 = any($6) OR $6 IS NULL)
 		 AND (l.topic3 = any($7) OR $7 IS NULL)
-		 AND (b.received_at >= $8 OR $8 IS NULL)
+		 AND (b.created_at >= $8 OR $8 IS NULL)
 		ORDER BY b.block_num ASC`
 
 	var err error

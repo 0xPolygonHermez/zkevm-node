@@ -8,12 +8,14 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
@@ -40,28 +42,65 @@ const (
 )
 
 var (
+	once sync.Once
+)
+
+// CallerLabel is used to point which entity is the caller of a given function
+type CallerLabel string
+
+const (
+	// SequencerCallerLabel is used when sequencer is calling the function
+	SequencerCallerLabel CallerLabel = "sequencer"
+	// SynchronizerCallerLabel is used when synchronizer is calling the function
+	SynchronizerCallerLabel CallerLabel = "synchronizer"
+)
+
+var (
 	// ZeroHash is the hash 0x0000000000000000000000000000000000000000000000000000000000000000
 	ZeroHash = common.Hash{}
 	// ZeroAddress is the address 0x0000000000000000000000000000000000000000
 	ZeroAddress = common.Address{}
 )
 
-// State is a implementation of the state
+// State is an implementation of the state
 type State struct {
 	cfg Config
 	*PostgresStorage
 	executorClient pb.ExecutorServiceClient
 	tree           *merkletree.StateTree
+
+	lastL2BlockSeen         types.Block
+	newL2BlockEvents        chan NewL2BlockEvent
+	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
 
 // NewState creates a new State
 func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree) *State {
-	return &State{
-		cfg:             cfg,
-		PostgresStorage: storage,
-		executorClient:  executorClient,
-		tree:            stateTree,
+	once.Do(func() {
+		metrics.Register()
+	})
+
+	lastL2Block, err := storage.GetLastL2Block(context.Background(), nil)
+	if errors.Is(err, ErrStateNotSynchronized) {
+		lastL2Block = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0)})
+	} else if err != nil {
+		log.Fatalf("failed to load the last l2 block: %v", err)
 	}
+
+	s := &State{
+		cfg:                     cfg,
+		PostgresStorage:         storage,
+		executorClient:          executorClient,
+		tree:                    stateTree,
+		lastL2BlockSeen:         *lastL2Block,
+		newL2BlockEvents:        make(chan NewL2BlockEvent),
+		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
+	}
+
+	go s.monitorNewL2Blocks()
+	go s.handleEvents()
+
+	return s
 }
 
 // BeginStateTransaction starts a state transaction
@@ -382,14 +421,20 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 }
 
 // ProcessSequencerBatch is used by the sequencers to process transactions into an open batch
-func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) ProcessSequencerBatch(
+	ctx context.Context,
+	batchNumber uint64,
+	txs []types.Transaction,
+	dbTx pgx.Tx,
+	caller CallerLabel,
+) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSequencerBatch start")
 	batchL2Data, err := EncodeTransactions(txs)
 	if err != nil {
 		return nil, err
 	}
-	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, dbTx)
+	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, dbTx, caller)
 	if err != nil {
 		return nil, err
 	}
@@ -436,7 +481,13 @@ func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
 }
 
-func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+func (s *State) processBatch(
+	ctx context.Context,
+	batchNumber uint64,
+	batchL2Data []byte,
+	dbTx pgx.Tx,
+	caller CallerLabel,
+) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -498,7 +549,9 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		log.Errorf("Error s.executorClient.ProcessBatch response: %v", res)
 	}
 
-	log.Infof("It took %v for the executor to process the request", time.Since(now))
+	elapsed := time.Since(now)
+	metrics.ExecutorProcessingTime(string(caller), elapsed)
+	log.Infof("It took %v for the executor to process the request", elapsed)
 	return res, err
 }
 
@@ -679,7 +732,13 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 }
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
-func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error {
+func (s *State) ProcessAndStoreClosedBatch(
+	ctx context.Context,
+	processingCtx ProcessingContext,
+	encodedTxs []byte,
+	dbTx pgx.Tx,
+	caller CallerLabel,
+) error {
 	// Decode transactions
 	decodedTransactions, _, err := DecodeTxs(encodedTxs)
 	if err != nil {
@@ -694,7 +753,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
 		return err
 	}
-	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx)
+	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx, caller)
 	if err != nil {
 		return err
 	}
@@ -1363,4 +1422,82 @@ func (s *State) WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumb
 
 	log.Debug("Verified batch successfully synced: ", batchNumber)
 	return nil
+}
+
+func (s *State) monitorNewL2Blocks() {
+	waitNextCycle := func() {
+		time.Sleep(1 * time.Second)
+	}
+
+	for {
+		lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
+		if errors.Is(err, ErrStateNotSynchronized) {
+			waitNextCycle()
+			continue
+		} else if err != nil {
+			log.Errorf("failed to get last l2 block while monitoring new blocks: %v", err)
+			waitNextCycle()
+			continue
+		}
+
+		// not updates until now
+		if lastL2Block == nil || s.lastL2BlockSeen.NumberU64() >= lastL2Block.NumberU64() {
+			waitNextCycle()
+			continue
+		}
+
+		for bn := s.lastL2BlockSeen.NumberU64() + uint64(1); bn <= lastL2Block.NumberU64(); bn++ {
+			block, err := s.GetL2BlockByNumber(context.Background(), bn, nil)
+			if err != nil {
+				log.Errorf("failed to l2 block while monitoring new blocks: %v", err)
+				break
+			}
+
+			s.newL2BlockEvents <- NewL2BlockEvent{
+				Block: *block,
+			}
+			log.Infof("new l2 blocks detected, Number %v, Hash %v", block.NumberU64(), block.Hash().String())
+			s.lastL2BlockSeen = *block
+		}
+
+		// interval to check for new l2 blocks
+		waitNextCycle()
+	}
+}
+
+func (s *State) handleEvents() {
+	for newL2BlockEvent := range s.newL2BlockEvents {
+		log.Infof("reacting to new l2 block, Number %v, Hash %v", newL2BlockEvent.Block.NumberU64(), newL2BlockEvent.Block.Hash().String())
+		wg := sync.WaitGroup{}
+		for index, handler := range s.newL2BlockEventHandlers {
+			log.Infof("executing new l2 block event handler for block, Number %v, Hash %v, Handler Index: %v", newL2BlockEvent.Block.NumberU64(), newL2BlockEvent.Block.Hash().String(), index)
+			wg.Add(1)
+			go func(h NewL2BlockEventHandler) {
+				defer func() {
+					wg.Done()
+					if r := recover(); r != nil {
+						log.Errorf("failed and recovered in NewL2BlockEventHandler: %v", r)
+					}
+				}()
+				h(newL2BlockEvent)
+			}(handler)
+		}
+		wg.Wait()
+	}
+}
+
+// NewL2BlockEventHandler represent a func that will be called by the
+// state when a NewL2BlockEvent is triggered
+type NewL2BlockEventHandler func(e NewL2BlockEvent)
+
+// NewL2BlockEvent is a struct provided from the state to the NewL2BlockEventHandler
+// when a new l2 block is detected with data related to this new l2 block.
+type NewL2BlockEvent struct {
+	Block types.Block
+}
+
+// RegisterNewL2BlockEventHandler add the provided handler to the list of handlers
+// that will be triggered when a new l2 block event is triggered
+func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
+	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
 }

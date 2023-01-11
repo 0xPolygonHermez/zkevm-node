@@ -184,25 +184,6 @@ services:
       - POSTGRES_PASSWORD=pool_password
       - POSTGRES_DB=pool_db
     command: ["postgres", "-N", "500"]
-
-  zkevm-rpc-db:
-    container_name: zkevm-rpc-db
-    image: postgres
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
-    ports:
-      - 5434:5432
-    volumes:
-      - /$HOME/zkevm-node/.postgres-rpc:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=rpc_user
-      - POSTGRES_PASSWORD=rpc_password
-      - POSTGRES_DB=rpc_db
-    command: ["postgres", "-N", "500"]
 ```
 
 To run the postgres instance, go to the `zkevm-node` directory in your terminal and run the following command:
@@ -298,7 +279,6 @@ Add the following entries to the `docker-compose.yml` file
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_BROADCASTURI=public-grpc.zkevm-test.net:61090
     volumes:
       - ./config.toml:/app/config.toml
@@ -384,7 +364,6 @@ services:
       environment:
         - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
         - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-        - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
         - ZKEVM_NODE_RPC_PORT=8124
       volumes:
         - ./config/test.node.config.toml:/app/config.toml

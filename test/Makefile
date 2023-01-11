@@ -6,7 +6,6 @@ DOCKERCOMPOSEAPPSYNC := zkevm-sync
 DOCKERCOMPOSEAPPBROADCAST := zkevm-broadcast
 DOCKERCOMPOSESTATEDB := zkevm-state-db
 DOCKERCOMPOSEPOOLDB := zkevm-pool-db
-DOCKERCOMPOSERPCDB := zkevm-rpc-db
 DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
 DOCKERCOMPOSEEXPLORERL1 := zkevm-explorer-l1
 DOCKERCOMPOSEEXPLORERL1DB := zkevm-explorer-l1-db
@@ -19,15 +18,16 @@ DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
 DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
 DOCKERCOMPOSENODEAPPROVE := zkevm-approve
 DOCKERCOMPOSEMETRICS := zkevm-metrics
+DOCKERCOMPOSEGRAFANA := grafana
 
 RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
 RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
-RUNRPCDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSERPCDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
 RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
 RUNSYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
 RUNBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
+RUNGRAFANA := DOCKERGID=`stat -c '%g' /var/run/docker.sock` $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEGRAFANA)
 
 RUNL1NETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
 RUNEXPLORERL1 := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL1)
@@ -49,12 +49,12 @@ RUN := $(DOCKERCOMPOSE) up -d
 
 STOPSTATEDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSESTATEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSESTATEDB)
 STOPPOOLDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPOOLDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPOOLDB)
-STOPRPCDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSERPCDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSERPCDB)
 STOPSEQUENCER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
 STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
 STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
 STOPSYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
 STOPBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
+STOPGRAFANA := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEGRAFANA) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEGRAFANA)
 
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
 STOPEXPLORERL1 := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL1) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL1)
@@ -78,7 +78,6 @@ STOP := $(DOCKERCOMPOSE) down --remove-orphans
 test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB)
 	$(RUNZKPROVER)
 	sleep 5
 	$(RUNZKPROVERMOCK)
@@ -92,7 +91,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB); sleep 5
+	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
@@ -102,7 +101,7 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB); sleep 5
+	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
@@ -112,21 +111,45 @@ test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB); sleep 5
+	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
 
+.PHONY: test-e2e-group-4
+test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
+
+.PHONY: benchmark-sequencer
+benchmark-sequencer: stop
+	$(RUNL1NETWORK)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	sleep 5
+	$(RUNZKPROVER)
+	$(RUNJSONRPC)
+	$(RUNSYNC)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	@ cd benchmarks/sequencer ; \
+ 	mkdir -p results ; \
+ 	touch ./results/out.dat ; \
+	go test -bench=. -timeout=600m | tee ./results/out.dat ;
+
 .PHONY: run-db
 run-db: ## Runs the node database
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB)
 
 .PHONY: stop-db
 stop-db: ## Stops the node database
-	$(STOPRPCDB)
 	$(STOPPOOLDB)
 	$(STOPSTATEDB)
 
@@ -200,7 +223,23 @@ run-seq: ## runs the sequencer
 
 .PHONY: stop-seq
 stop-seq: ## stops the sequencer
-	$(RUNSEQUENCER)
+	$(STOPSEQUENCER)
+
+.PHONY: run-sync
+run-sync: ## runs the synchronizer
+	$(RUNSYNC)
+
+.PHONY: stop-sync
+stop-sync: ## stops the synchronizer
+	$(STOPSYNC)
+
+.PHONY: run-json-rpc
+run-json-rpc: ## runs the JSON-RPC
+	$(RUNJSONRPC)
+
+.PHONY: stop-json-rpc
+stop-json-rpc: ## stops the JSON-RPC
+	$(STOPJSONRPC)
 
 .PHONY: run-broadcast
 run-broadcast: ## Runs the broadcast service
@@ -209,6 +248,14 @@ run-broadcast: ## Runs the broadcast service
 .PHONY: stop-broadcast
 stop-broadcast: ## Stops the broadcast service
 	$(STOPBROADCAST)
+
+.PHONY: run-grafana
+run-grafana: ## Runs the grafana service
+	$(RUNGRAFANA)
+
+.PHONY: stop-grafana
+stop-grafana: ## Stops the grafana service
+	$(STOPGRAFANA)
 
 .PHONY: run-permissionless
 run-permissionless: ## Runs the permissionless node
@@ -232,11 +279,10 @@ stop-approve-matic: ## Stops approve in node container
 run: ## Runs a full node
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB)
 	$(RUNL1NETWORK)
-	sleep 2
+	sleep 1
 	$(RUNZKPROVER)
-	sleep 5
+	sleep 3
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
@@ -245,6 +291,13 @@ run: ## Runs a full node
 .PHONY: stop
 stop: ## Stops all services
 	$(STOP)
+
+.PHONY: sail
+sail: ## Builds docker images and run them
+	cd .. && make build-docker && cd ./test && make run
+
+.PHONY: resail
+resail: stop sail ## Executes `make stop` and `make sail` commands
 
 .PHONY: restart
 restart: stop run ## Executes `make stop` and `make run` commands

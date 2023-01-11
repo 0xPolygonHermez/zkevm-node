@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -45,7 +46,8 @@ type Aggregator struct {
 	StateDBMutex            *sync.Mutex
 	TimeSendFinalProofMutex *sync.RWMutex
 
-	finalProof chan finalProofMsg
+	finalProof     chan finalProofMsg
+	verifyingProof bool
 
 	srv  *grpc.Server
 	ctx  context.Context
@@ -93,6 +95,8 @@ func (a *Aggregator) Start(ctx context.Context) error {
 	a.ctx = ctx
 	a.exit = cancel
 
+	metrics.Register()
+
 	// Delete ungenerated recursive proofs
 	err := a.State.DeleteUngeneratedProofs(ctx, nil)
 	if err != nil {
@@ -136,6 +140,9 @@ func (a *Aggregator) Stop() {
 // Channel implements the bi-directional communication channel between the
 // Prover client and the Aggregator server.
 func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
+	metrics.ConnectedProver()
+	defer metrics.DisconnectedProver()
+
 	ctx := stream.Context()
 	var proverAddr net.Addr
 	p, ok := peer.FromContext(ctx)
@@ -228,6 +235,7 @@ func (a *Aggregator) sendFinalProof() {
 				if err != nil {
 					log.Errorf("Rollback failed updating proof state (false) for proof ID [%v], err: %v", proof.ProofID, err)
 				}
+				a.enableProofVerification()
 				continue
 			}
 
@@ -275,7 +283,6 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 		return nil, fmt.Errorf("Failed to get final proof from prover, %w", err)
 	}
 
-	//b, err := json.Marshal(resGetProof.FinalProof)
 	log.Infof("Final proof [%s] generated", *proof.ProofID)
 
 	// mock prover sanity check
@@ -302,11 +309,18 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (bool, error) {
 	log.Debugf("tryBuildFinalProof start prover { ID [%s], addr [%s] }", prover.ID(), prover.Addr())
 
-	if !a.verifyProofTimeReached() {
+	var err error
+	if !a.canVerifyProof() {
 		log.Debug("Time to verify proof not reached")
 		return false, nil
 	}
 	log.Debug("Send final proof time reached")
+
+	defer func() {
+		if err != nil {
+			a.enableProofVerification()
+		}
+	}()
 
 	for !a.isSynced(ctx) {
 		log.Info("Waiting for synchronizer to sync...")
@@ -351,7 +365,8 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 		// we do have a proof generating at the moment, check if it is
 		// eligible to be verified
 
-		eligible, err := a.validateEligibleFinalProof(ctx, proof, lastVerifiedBatchNum)
+		var eligible bool // we need this to keep using err from the outer scope and trigger the defer func
+		eligible, err = a.validateEligibleFinalProof(ctx, proof, lastVerifiedBatchNum)
 		if err != nil {
 			return false, fmt.Errorf("Failed to validate eligible final proof, %w", err)
 		}
@@ -732,18 +747,32 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 	return true, nil
 }
 
-// verifyProofTimeReached returns if we have reached the timeout to verify a
-// proof.
-func (a *Aggregator) verifyProofTimeReached() bool {
-	a.TimeSendFinalProofMutex.RLock()
-	defer a.TimeSendFinalProofMutex.RUnlock()
-	return a.TimeSendFinalProof.Before(time.Now())
+// canVerifyProof returns true if we have reached the timeout to verify a proof
+// and no other prover is verifying a proof.
+func (a *Aggregator) canVerifyProof() bool {
+	a.TimeSendFinalProofMutex.Lock()
+	defer a.TimeSendFinalProofMutex.Unlock()
+	if a.TimeSendFinalProof.Before(time.Now()) {
+		if a.verifyingProof {
+			return false
+		}
+		a.verifyingProof = true
+		return true
+	}
+	return false
+}
+
+func (a *Aggregator) enableProofVerification() {
+	a.TimeSendFinalProofMutex.Lock()
+	defer a.TimeSendFinalProofMutex.Unlock()
+	a.verifyingProof = false
 }
 
 // resetVerifyProofTime updates the timeout to verify a proof.
 func (a *Aggregator) resetVerifyProofTime() {
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
+	a.verifyingProof = false
 	a.TimeSendFinalProof = time.Now().Add(a.cfg.VerifyProofInterval.Duration)
 }
 

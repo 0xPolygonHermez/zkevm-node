@@ -1,8 +1,9 @@
 IsTrustedSequencer = true
 
 [Log]
+Environment = "development" # "production" or "development"
 Level = "debug"
-Outputs = ["stdout"]
+Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
@@ -51,14 +52,9 @@ MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
-	[RPC.DB]
-		User = "rpc_user"
-		Password = "rpc_password"
-		Name = "rpc_db"
-		Host = "zkevm-rpc-db"
-		Port = "5432"
-		EnableLog = false
-		MaxConns = 10
+	[RPC.WebSockets]
+		Enabled = true
+		Port = 8133
 
 [Synchronizer]
 SyncInterval = "1s"
@@ -77,7 +73,7 @@ MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
-MaxBatchBytesSize = 30000
+MaxBatchBytesSize = 150000
 MaxCumulativeGasUsed = 30000000
 MaxKeccakHashes = 468
 MaxPoseidonHashes = 279620

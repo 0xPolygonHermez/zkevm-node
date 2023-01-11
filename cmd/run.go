@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 
+	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
@@ -40,6 +41,8 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
+	zkevm.PrintVersion(os.Stdout)
+
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		return err
@@ -91,7 +94,6 @@ func start(cliCtx *cli.Context) error {
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
-			runRPCMigrations(c.RPC.DB)
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			apis := map[string]bool{}
@@ -129,10 +131,6 @@ func runPoolMigrations(c db.Config) {
 	runMigrations(c, db.PoolMigrationName)
 }
 
-func runRPCMigrations(c db.Config) {
-	runMigrations(c, db.RPCMigrationName)
-}
-
 func runMigrations(c db.Config, name string) {
 	err := db.RunMigrationsUp(c, name)
 	if err != nil {
@@ -163,11 +161,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.Sta
 }
 
 func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gasPriceEstimator, apis map[string]bool) {
-	storage, err := jsonrpc.NewPostgresStorage(c.RPC.DB)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
 
 	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {
@@ -310,7 +304,7 @@ func startMetricsHttpServer(c *config.Config) {
 		log.Errorf("failed to create tcp listener for metrics: %v", err)
 		return
 	}
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle(metrics.Endpoint, promhttp.Handler())
 	metricsServer := &http.Server{
 		Handler: mux,
 	}

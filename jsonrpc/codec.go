@@ -49,10 +49,10 @@ type ErrorObject struct {
 }
 
 // NewResponse returns Success/Error response object
-func NewResponse(req Request, reply *[]byte, err rpcError) Response {
+func NewResponse(req Request, reply []byte, err rpcError) Response {
 	var result json.RawMessage
 	if reply != nil {
-		result = *reply
+		result = reply
 	}
 
 	var errorObj *ErrorObject
@@ -91,6 +91,30 @@ func (r Response) MarshalJSON() ([]byte, error) {
 		ID:      r.ID,
 		Result:  r.Result,
 	})
+}
+
+// Bytes return the serialized response
+func (s Response) Bytes() ([]byte, error) {
+	return json.Marshal(s)
+}
+
+// SubscriptionResponse used to push response for filters
+// that have an active web socket connection
+type SubscriptionResponse struct {
+	JSONRPC string                     `json:"jsonrpc"`
+	Method  string                     `json:"method"`
+	Params  SubscriptionResponseParams `json:"params"`
+}
+
+// SubscriptionResponseParams parameters for subscription responses
+type SubscriptionResponseParams struct {
+	Subscription string          `json:"subscription"`
+	Result       json.RawMessage `json:"result"`
+}
+
+// Bytes return the serialized response
+func (s SubscriptionResponse) Bytes() ([]byte, error) {
+	return json.Marshal(s)
 }
 
 // BlockNumber is the number of a ethereum block

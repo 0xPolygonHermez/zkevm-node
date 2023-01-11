@@ -2,12 +2,15 @@ package testutils
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"runtime"
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	ioprometheusclient "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/expfmt"
 	"github.com/spf13/afero"
 )
 
@@ -31,6 +34,16 @@ func CreateTestFiles(appFs afero.Fs, files map[string]string) error {
 		}
 	}
 	return nil
+}
+
+// ParseMetricFamilies parsing prometheus response from http endpoint
+func ParseMetricFamilies(content io.Reader) (map[string]*ioprometheusclient.MetricFamily, error) {
+	var parser expfmt.TextParser
+	mf, err := parser.TextToMetricFamilies(content)
+	if err != nil {
+		return nil, err
+	}
+	return mf, nil
 }
 
 // CheckError checks the given error taking into account if it was expected and
