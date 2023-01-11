@@ -1322,6 +1322,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		Timestamp:      block.ReceivedAt,
 		Transactions:   []types.Transaction{},
 		GlobalExitRoot: ZeroHash,
+		ForcedBatchNum: nil,
 	}
 
 	err = s.storeGenesisBatch(ctx, batch, dbTx)

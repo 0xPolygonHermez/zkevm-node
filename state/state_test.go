@@ -278,11 +278,9 @@ func TestAddForcedBatch(t *testing.T) {
 	assert.NoError(t, err)
 	b := common.Hex2Bytes("0x617b3a3528F9")
 	assert.NoError(t, err)
-	var bN uint64 = 3
 	forcedBatch := state.ForcedBatch{
 		BlockNumber:       1,
 		ForcedBatchNumber: 2,
-		BatchNumber:       &bN,
 		GlobalExitRoot:    common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		Sequencer:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 		RawTxsData:        b,
@@ -295,7 +293,6 @@ func TestAddForcedBatch(t *testing.T) {
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, forcedBatch.BlockNumber, fb.BlockNumber)
-	assert.Equal(t, forcedBatch.BatchNumber, fb.BatchNumber)
 	assert.Equal(t, forcedBatch.ForcedBatchNumber, fb.ForcedBatchNumber)
 	assert.NotEqual(t, time.Time{}, fb.ForcedAt)
 	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
@@ -306,7 +303,6 @@ func TestAddForcedBatch(t *testing.T) {
 	forcedBatch = state.ForcedBatch{
 		BlockNumber:       1,
 		ForcedBatchNumber: 3,
-		BatchNumber:       nil,
 		GlobalExitRoot:    common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		Sequencer:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 		RawTxsData:        b,
@@ -314,23 +310,25 @@ func TestAddForcedBatch(t *testing.T) {
 	}
 	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
 	require.NoError(t, err)
+
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num, forced_batch_num) VALUES (2, 2)")
+	assert.NoError(t, err)
+	virtualBatch := state.VirtualBatch{
+		BlockNumber: 1,
+		BatchNumber: 2,
+		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		Coinbase:    common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, tx)
+	require.NoError(t, err)
+
 	batches, err := testState.GetNextForcedBatches(ctx, 1, tx)
 	require.NoError(t, err)
-	require.NoError(t, tx.Commit(ctx))
 	assert.Equal(t, forcedBatch.BlockNumber, batches[0].BlockNumber)
-	assert.Equal(t, forcedBatch.BatchNumber, batches[0].BatchNumber)
 	assert.Equal(t, forcedBatch.ForcedBatchNumber, batches[0].ForcedBatchNumber)
 	assert.NotEqual(t, time.Time{}, batches[0].ForcedAt)
 	assert.Equal(t, forcedBatch.GlobalExitRoot, batches[0].GlobalExitRoot)
 	assert.Equal(t, forcedBatch.RawTxsData, batches[0].RawTxsData)
-	// Test AddBatchNumberInForcedBatch
-	tx, err = testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	err = testState.AddBatchNumberInForcedBatch(ctx, 3, 2, tx)
-	require.NoError(t, err)
-	fb, err = testState.GetForcedBatch(ctx, 3, tx)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(2), *fb.BatchNumber)
 	require.NoError(t, tx.Commit(ctx))
 }
 

@@ -145,7 +145,6 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 			}
 			st.On("GetBatchByNumber", mock.AnythingOfType("*context.valueCtx"), tc.inputBatchNumber, nil).Return(tc.expectedBatch, err)
 			st.On("GetEncodedTransactionsByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.inputBatchNumber, nil).Return(tc.expectedEncodedTxs, err)
-			st.On("GetForcedBatchByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.inputBatchNumber, nil).Return(tc.expectedForcedBatch, err)
 			if tc.expectedBatch != nil {
 				st.On("GetExitRootByGlobalExitRoot", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.GlobalExitRoot, nil).Return(tc.expectedGER, err)
 			}
@@ -217,7 +216,6 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 			st.On("GetLastBatch", mock.AnythingOfType("*context.valueCtx"), nil).Return(tc.expectedBatch, err)
 			if tc.expectedBatch != nil {
 				st.On("GetEncodedTransactionsByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.BatchNumber, nil).Return(tc.expectedEncodedTxs, err)
-				st.On("GetForcedBatchByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.BatchNumber, nil).Return(tc.expectedForcedBatch, err)
 				st.On("GetExitRootByGlobalExitRoot", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.GlobalExitRoot, nil).Return(tc.expectedGER, err)
 			}
 
