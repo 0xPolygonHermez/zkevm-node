@@ -1968,6 +1968,36 @@ func (p *PostgresStorage) DeleteGeneratedProofs(ctx context.Context, batchNumber
 	return err
 }
 
+// DeleteReservedProof deletes from the storage the proof matching the batches
+// range and only if it is currently generating.
+func (p *PostgresStorage) DeleteReservedProof(ctx context.Context, proverID, proofID string, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
+	// const deleteGeneratedProofSQL = `
+	// 	DELETE
+	// 	FROM
+	// 		state.proof
+	// 	WHERE
+	// 		prover = $1 AND
+	// 		proof_id = $2 AND
+	// 		batch_num = $3 AND
+	// 		batch_num_final = $4 AND
+	// 		generating IS TRUE
+	// 	`
+	const deleteGeneratedProofSQL = `
+		DELETE 
+		FROM 
+			state.proof 
+		WHERE 
+			proof_id = $1 AND
+			batch_num = $2 AND
+			batch_num_final = $3 AND 
+			generating IS TRUE
+		`
+	e := p.getExecQuerier(dbTx)
+	// _, err := e.Exec(ctx, deleteGeneratedProofSQL, proverID, proofID, batchNumber, batchNumberFinal)
+	_, err := e.Exec(ctx, deleteGeneratedProofSQL, proofID, batchNumber, batchNumberFinal)
+	return err
+}
+
 // DeleteUngeneratedProofs deletes ungenerated proofs.
 // This method is meant to be use during aggregator boot-up sequence
 func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error {
