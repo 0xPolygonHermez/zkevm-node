@@ -1936,3 +1936,12 @@ func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.
 	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
 	return err
 }
+
+// AddDebugInfo is used to store debug info useful during runtime
+func (p *PostgresStorage) AddDebugInfo(ctx context.Context, info *DebugInfo, dbTx pgx.Tx) error {
+	const insertDebugInfoSQL = "INSERT INTO state.debug (error_type, timestamp, payload) VALUES ($1, $2, $3)"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, insertDebugInfoSQL, info.ErrorType, info.Timestamp, info.Payload)
+	return err
+}

@@ -25,9 +25,9 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 		return nil, err
 	}
 
-	isBatchProcessed := true
-	if len(response.Responses) > 0 {
-		// Check out of counters
+	// Check out of counters ROM and regular
+	isBatchProcessed := !executor.IsOutOfCountersError(response.Error)
+	if isBatchProcessed && len(response.Responses) > 0 {
 		errorToCheck := response.Responses[len(response.Responses)-1].Error
 		isBatchProcessed = !executor.IsOutOfCountersError(errorToCheck)
 	}
