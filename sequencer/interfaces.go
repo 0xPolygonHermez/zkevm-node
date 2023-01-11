@@ -45,7 +45,6 @@ type stateInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
-	GetSender(tx types.Transaction) (common.Address, error)
 	Begin(ctx context.Context) (pgx.Tx, error)
 	ProcessSingleTransaction(ctx context.Context, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 }
@@ -98,7 +97,5 @@ type dbManagerStateInterface interface {
 	GetLastBatch(ctx context.Context) (*state.Batch, error)
 	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
 	MarkReorgedTxsAsPending(ctx context.Context) error
-	GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error)
 	GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error)
-	GetSender(tx types.Transaction) (common.Address, error)
 }
