@@ -2599,7 +2599,11 @@ func TestStoreDebugInfo(t *testing.T) {
 	testState.LogROMOutOfCountersError(executorclientpb.Error_ERROR_OUT_OF_COUNTERS_KECCAK, processBatchRequest)
 	require.NoError(t, err)
 
+	payload, err := json.Marshal(processBatchRequest)
+	require.NoError(t, err)
+
 	err = testState.PostgresStorage.QueryRow(ctx, "SELECT * FROM state.debug").Scan(&debugInfo.ErrorType, &debugInfo.Timestamp, &debugInfo.Payload)
 	assert.NoError(t, err)
 	assert.Equal(t, state.DebugInfoErrorType_ROM_OOC, debugInfo.ErrorType)
+	assert.Equal(t, string(payload), debugInfo.Payload)
 }
