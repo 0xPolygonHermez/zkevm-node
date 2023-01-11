@@ -283,8 +283,14 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		gasUsed = processBatchResponse.Responses[0].GasUsed
 		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
-			log.Errorf("error processing unsigned transaction ", err)
+			log.Errorf("error processing gas estimation ", err)
 			return false, false, gasUsed, err
+		}
+
+		if executor.IsOutOfCountersError(processBatchResponse.Error) {
+			log.Errorf("ROM OOC error processing gas estimation ", executor.Err(processBatchResponse.Error))
+			s.LogROMOutOfCountersError(processBatchResponse.Error, processBatchRequest)
+			return false, false, gasUsed, executor.Err(processBatchResponse.Error)
 		}
 
 		// Check if an out of gas error happened during EVM execution
@@ -438,6 +444,11 @@ func (s *State) ProcessSequencerBatch(
 	if err != nil {
 		return nil, err
 	}
+
+	if executor.IsOutOfCountersError(processBatchResponse.Error) {
+		return nil, executor.Err(processBatchResponse.Error)
+	}
+
 	result, err := convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
@@ -478,7 +489,13 @@ func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		ChainId:          s.cfg.ChainID,
 	}
 
-	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+
+	if executor.IsOutOfCountersError(processBatchResponse.Error) {
+		s.LogROMOutOfCountersError(processBatchResponse.Error, processBatchRequest)
+	}
+
+	return processBatchResponse, err
 }
 
 func (s *State) processBatch(
@@ -543,6 +560,12 @@ func (s *State) processBatch(
 	log.Debugf("processBatch[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+
+	// Check OOC in the executor ROM
+	if executor.IsOutOfCountersError(res.Error) {
+		s.LogROMOutOfCountersError(res.Error, processBatchRequest)
+	}
+
 	elapsed := time.Since(now)
 	metrics.ExecutorProcessingTime(string(caller), elapsed)
 	log.Infof("It took %v for the executor to process the request", elapsed)
@@ -752,29 +775,33 @@ func (s *State) ProcessAndStoreClosedBatch(
 		return err
 	}
 
-	// Sanity check
-	if len(decodedTransactions) != len(processed.Responses) {
-		log.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
-	}
+	if executor.IsOutOfCountersError(processed.Error) {
+		processed.Responses = []*pb.ProcessTransactionResponse{}
+	} else {
+		// Sanity check
+		if len(decodedTransactions) != len(processed.Responses) {
+			log.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
+		}
 
-	// Filter unprocessed txs and decode txs to store metadata
-	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
-	for i := 0; i < len(processed.Responses); i++ {
-		if !isProcessed(processed.Responses[i].Error) {
-			if executor.IsOutOfCountersError(processed.Responses[i].Error) {
-				processed.Responses = []*pb.ProcessTransactionResponse{}
-				break
-			}
+		// Filter unprocessed txs and decode txs to store metadata
+		// note that if the batch is not well encoded it will result in an empty batch (with no txs)
+		for i := 0; i < len(processed.Responses); i++ {
+			if !isProcessed(processed.Responses[i].Error) {
+				if executor.IsOutOfCountersError(processed.Responses[i].Error) {
+					processed.Responses = []*pb.ProcessTransactionResponse{}
+					break
+				}
 
-			// Remove unprocessed tx
-			if i == len(processed.Responses)-1 {
-				processed.Responses = processed.Responses[:i]
-				decodedTransactions = decodedTransactions[:i]
-			} else {
-				processed.Responses = append(processed.Responses[:i], processed.Responses[i+1:]...)
-				decodedTransactions = append(decodedTransactions[:i], decodedTransactions[i+1:]...)
+				// Remove unprocessed tx
+				if i == len(processed.Responses)-1 {
+					processed.Responses = processed.Responses[:i]
+					decodedTransactions = decodedTransactions[:i]
+				} else {
+					processed.Responses = append(processed.Responses[:i], processed.Responses[i+1:]...)
+					decodedTransactions = append(decodedTransactions[:i], decodedTransactions[i+1:]...)
+				}
+				i--
 			}
-			i--
 		}
 	}
 
@@ -872,6 +899,12 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	if err != nil {
 		return nil, err
 	}
+
+	if executor.IsOutOfCountersError(processBatchResponse.Error) {
+		s.LogROMOutOfCountersError(processBatchResponse.Error, processBatchRequest)
+		return nil, executor.Err(processBatchResponse.Error)
+	}
+
 	endTime := time.Now()
 
 	txs, _, err := DecodeTxs(batchL2Data)
@@ -1171,6 +1204,14 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		result.Err = err
 		return result
 	}
+
+	if executor.IsOutOfCountersError(processBatchResponse.Error) {
+		log.Errorf("error processing unsigned transaction: ROM OOC %v", processBatchResponse.Error)
+		s.LogROMOutOfCountersError(processBatchResponse.Error, processBatchRequest)
+		result.Err = executor.Err(processBatchResponse.Error)
+		return result
+	}
+
 	response, err := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
 	if err != nil {
 		result.Err = err
@@ -1494,4 +1535,24 @@ type NewL2BlockEvent struct {
 // that will be triggered when a new l2 block event is triggered
 func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
 	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
+}
+
+// LogROMOutOfCountersError is used to store ROM OOC error for runtime debugging
+func (s *State) LogROMOutOfCountersError(responseError pb.Error, processBatchRequest *pb.ProcessBatchRequest) {
+	timestamp := time.Now()
+	log.Errorf("OOC error found in the ROM: %v at %v", responseError, timestamp)
+	payload, err := json.Marshal(processBatchRequest)
+	if err != nil {
+		log.Errorf("error marshaling payload: %v", err)
+	} else {
+		debugInfo := &DebugInfo{
+			ErrorType: DebugInfoErrorType_ROM_OOC,
+			Timestamp: timestamp,
+			Payload:   string(payload),
+		}
+		err = s.AddDebugInfo(context.Background(), debugInfo, nil)
+		if err != nil {
+			log.Errorf("error storing payload: %v", err)
+		}
+	}
 }
