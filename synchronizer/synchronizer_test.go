@@ -276,7 +276,7 @@ func TestForcedBatch(t *testing.T) {
 		DbTx:     newDbTxMock(t),
 	}
 
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, genesis, cfg)
+	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.EthTxManager, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -471,7 +471,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 		DbTx:     newDbTxMock(t),
 	}
 
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, genesis, cfg)
+	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.EthTxManager, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
