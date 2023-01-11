@@ -1,6 +1,8 @@
 package state
 
 import (
+	"time"
+
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -56,4 +58,16 @@ type ProcessTransactionResponse struct {
 	ExecutionTrace []instrumentation.StructLog
 	// CallTrace contains the call trace.
 	CallTrace instrumentation.ExecutorTrace
+}
+
+const (
+	// DebugInfoErrorType_ROM_OOC indicates a not handled OOC error by the ROM
+	DebugInfoErrorType_ROM_OOC = "ROM OOC"
+)
+
+// DebugInfo allows handling runtime debug info
+type DebugInfo struct {
+	ErrorType string
+	Timestamp time.Time
+	Payload   string
 }
