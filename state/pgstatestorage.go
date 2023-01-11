@@ -21,36 +21,28 @@ const (
 	addGlobalExitRootSQL                     = "INSERT INTO state.exit_root (block_num, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4)"
 	getLatestExitRootBlockNumSQL             = "SELECT block_num FROM state.exit_root ORDER BY id DESC LIMIT 1"
 	addVirtualBatchSQL                       = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num) VALUES ($1, $2, $3, $4)"
-	addForcedBatchSQL                        = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
-	getForcedBatchSQL                        = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num FROM state.forced_batch WHERE forced_batch_num = $1"
 	addBlockSQL                              = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	getLastBlockSQL                          = "SELECT block_num, block_hash, parent_hash, received_at FROM state.block ORDER BY block_num DESC LIMIT 1"
 	getPreviousBlockSQL                      = "SELECT block_num, block_hash, parent_hash, received_at FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
-	resetSQL                                 = "DELETE FROM state.block WHERE block_num > $1"
-	resetTrustedStateSQL                     = "DELETE FROM state.batch WHERE batch_num > $1"
 	addVerifiedBatchSQL                      = "INSERT INTO state.verified_batch (block_num, batch_num, tx_hash, aggregator, state_root) VALUES ($1, $2, $3, $4, $5)"
 	getVerifiedBatchSQL                      = "SELECT block_num, batch_num, tx_hash, aggregator, state_root FROM state.verified_batch WHERE batch_num = $1"
 	getLastBatchNumberSQL                    = "SELECT batch_num FROM state.batch ORDER BY batch_num DESC LIMIT 1"
-	getLastNBatchesSQL                       = "SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data from state.batch ORDER BY batch_num DESC LIMIT $1"
+	getLastNBatchesSQL                       = "SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num from state.batch ORDER BY batch_num DESC LIMIT $1"
 	getLastBatchTimeSQL                      = "SELECT timestamp FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchNumSQL                = "SELECT COALESCE(MAX(batch_num), 0) FROM state.virtual_batch"
 	getLastVirtualBatchBlockNumSQL           = "SELECT block_num FROM state.virtual_batch ORDER BY batch_num DESC LIMIT 1"
 	getLastBlockNumSQL                       = "SELECT block_num FROM state.block ORDER BY block_num DESC LIMIT 1"
 	getLastL2BlockNumber                     = "SELECT block_num FROM state.l2block ORDER BY block_num DESC LIMIT 1"
 	getBlockTimeByNumSQL                     = "SELECT received_at FROM state.block WHERE block_num = $1"
-	getForcedBatchByBatchNumSQL              = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num from state.forced_batch WHERE batch_num = $1"
-	getProcessingContextSQL                  = "SELECT batch_num, global_exit_root, timestamp, coinbase from state.batch WHERE batch_num = $1"
+	getProcessingContextSQL                  = "SELECT batch_num, global_exit_root, timestamp, coinbase, forced_batch_num from state.batch WHERE batch_num = $1"
 	getEncodedTransactionsByBatchNumberSQL   = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
 	getTransactionHashesByBatchNumberSQL     = "SELECT hash FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
 	getLastBatchSeenSQL                      = "SELECT last_batch_num_seen FROM state.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                   = "UPDATE state.sync_info SET last_batch_num_seen = $1"
-	resetTrustedBatchSQL                     = "DELETE FROM state.batch WHERE batch_num > $1"
 	isBatchClosedSQL                         = "SELECT global_exit_root IS NOT NULL AND state_root IS NOT NULL FROM state.batch WHERE batch_num = $1 LIMIT 1"
-	addGenesisBatchSQL                       = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
-	openBatchSQL                             = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase) VALUES ($1, $2, $3, $4)"
+	addGenesisBatchSQL                       = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	openBatchSQL                             = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, forced_batch_num) VALUES ($1, $2, $3, $4, $5)"
 	closeBatchSQL                            = "UPDATE state.batch SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4 WHERE batch_num = $5"
-	getNextForcedBatchesSQL                  = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num FROM state.forced_batch WHERE batch_num IS NULL ORDER BY forced_batch_num ASC LIMIT $1"
-	addBatchNumberInForcedBatchSQL           = "UPDATE state.forced_batch SET batch_num = $2 WHERE forced_batch_num = $1"
 	getL2BlockByNumberSQL                    = "SELECT header, uncles, received_at FROM state.l2block b WHERE b.block_num = $1"
 	getL2BlockHeaderByNumberSQL              = "SELECT header FROM state.l2block b WHERE b.block_num = $1"
 	getTransactionByHashSQL                  = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
@@ -112,21 +104,23 @@ func (p *PostgresStorage) getExecQuerier(dbTx pgx.Tx) execQuerier {
 // Reset resets the state to a block for the given DB tx
 func (p *PostgresStorage) Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
+	const resetSQL = "DELETE FROM state.block WHERE block_num > $1"
 	if _, err := e.Exec(ctx, resetSQL, blockNumber); err != nil {
 		return err
 	}
-	// TODO: Remove consolidations
+
 	return nil
 }
 
 // ResetTrustedState removes the batches with number greater than the given one
 // from the database.
 func (p *PostgresStorage) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
+	const resetTrustedStateSQL = "DELETE FROM state.batch WHERE batch_num > $1"
 	e := p.getExecQuerier(dbTx)
 	if _, err := e.Exec(ctx, resetTrustedStateSQL, batchNum); err != nil {
 		return err
 	}
-	// TODO: Remove consolidations
+	// TODO Find a way to put txs in the pool again
 	return nil
 }
 
@@ -322,7 +316,8 @@ func (p *PostgresStorage) GetTimeForLatestBatchVirtualization(ctx context.Contex
 
 // AddForcedBatch adds a new ForcedBatch to the db
 func (p *PostgresStorage) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, tx pgx.Tx) error {
-	_, err := tx.Exec(ctx, addForcedBatchSQL, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, forcedBatch.RawTxsData, forcedBatch.Sequencer.String(), forcedBatch.BatchNumber, forcedBatch.BlockNumber)
+	const addForcedBatchSQL = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, block_num) VALUES ($1, $2, $3, $4, $5, $6)"
+	_, err := tx.Exec(ctx, addForcedBatchSQL, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, forcedBatch.RawTxsData, forcedBatch.Sequencer.String(), forcedBatch.BlockNumber)
 	return err
 }
 
@@ -334,32 +329,9 @@ func (p *PostgresStorage) GetForcedBatch(ctx context.Context, forcedBatchNumber 
 		rawTxs         string
 		seq            string
 	)
+	const getForcedBatchSQL = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, block_num FROM state.forced_batch WHERE forced_batch_num = $1"
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getForcedBatchSQL, forcedBatchNumber).Scan(&forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq, &forcedBatch.BatchNumber, &forcedBatch.BlockNumber)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
-	forcedBatch.RawTxsData, err = hex.DecodeString(rawTxs)
-	if err != nil {
-		return nil, err
-	}
-	forcedBatch.Sequencer = common.HexToAddress(seq)
-	forcedBatch.GlobalExitRoot = common.HexToHash(globalExitRoot)
-	return &forcedBatch, nil
-}
-
-// GetForcedBatchByBatchNumber gets an L1 forcedBatch by batch number.
-func (p *PostgresStorage) GetForcedBatchByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*ForcedBatch, error) {
-	var (
-		forcedBatch    ForcedBatch
-		globalExitRoot string
-		rawTxs         string
-		seq            string
-	)
-	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getForcedBatchByBatchNumSQL, batchNumber).Scan(&forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq, &forcedBatch.BatchNumber, &forcedBatch.BlockNumber)
+	err := e.QueryRow(ctx, getForcedBatchSQL, forcedBatchNumber).Scan(&forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq, &forcedBatch.BlockNumber)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -557,7 +529,7 @@ func (p *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 // GetBatchByNumber returns the batch with the given number.
 func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
 	const getBatchByNumberSQL = `
-		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data
+		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num
 		  FROM state.batch 
 		 WHERE batch_num = $1`
 
@@ -576,7 +548,7 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 // GetBatchByTxHash returns the batch including the given tx
 func (p *PostgresStorage) GetBatchByTxHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*Batch, error) {
 	const getBatchByTxHashSQL = `
-		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data
+		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num
 		  FROM state.transaction t, state.batch b, state.l2block l 
 		  WHERE t.hash = $1 AND l.block_num = t.l2_block_num AND b.batch_num = l.batch_num`
 
@@ -595,7 +567,7 @@ func (p *PostgresStorage) GetBatchByTxHash(ctx context.Context, transactionHash 
 // GetBatchByL2BlockNumber returns the batch related to the l2 block accordingly to the provided l2 block number.
 func (p *PostgresStorage) GetBatchByL2BlockNumber(ctx context.Context, l2BlockNumber uint64, dbTx pgx.Tx) (*Batch, error) {
 	const getBatchByL2BlockNumberSQL = `
-		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data 
+		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data, bt.forced_batch_num
 		  FROM state.batch bt
 		 INNER JOIN state.l2block bl
 		    ON bt.batch_num = bl.batch_num
@@ -625,7 +597,8 @@ func (p *PostgresStorage) GetVirtualBatchByNumber(ctx context.Context, batchNumb
 			state_root,
 			timestamp,
 			coinbase,
-			raw_txs_data
+			raw_txs_data,
+			forced_batch_num
 		FROM
 			state.batch
 		WHERE
@@ -682,6 +655,7 @@ func (p *PostgresStorage) GetProcessingContext(ctx context.Context, batchNumber 
 		&gerStr,
 		&processingContext.Timestamp,
 		&coinbaseStr,
+		&processingContext.ForcedBatchNum,
 	); errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
 	} else if err != nil {
@@ -711,6 +685,7 @@ func scanBatch(row pgx.Row) (Batch, error) {
 		&batch.Timestamp,
 		&coinbaseStr,
 		&batch.BatchL2Data,
+		&batch.ForcedBatchNum,
 	); err != nil {
 		return batch, err
 	}
@@ -836,13 +811,6 @@ func (p *PostgresStorage) GetTxsHashesByBatchNumber(ctx context.Context, batchNu
 	return txs, nil
 }
 
-// ResetTrustedBatch resets the batches which the batch number is higher than the input.
-func (p *PostgresStorage) ResetTrustedBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, resetTrustedBatchSQL, batchNumber)
-	return err
-}
-
 // AddVirtualBatch adds a new virtual batch to the storage.
 func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
@@ -866,6 +834,7 @@ func (p *PostgresStorage) storeGenesisBatch(ctx context.Context, batch Batch, db
 		batch.Timestamp.UTC(),
 		batch.Coinbase.String(),
 		batch.BatchL2Data,
+		batch.ForcedBatchNum,
 	)
 
 	return err
@@ -883,6 +852,7 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 		batchContext.GlobalExitRoot.String(),
 		batchContext.Timestamp.UTC(),
 		batchContext.Coinbase.String(),
+		batchContext.ForcedBatchNum,
 	)
 	return err
 }
@@ -939,6 +909,12 @@ func (p *PostgresStorage) IsBatchClosed(ctx context.Context, batchNum uint64, db
 
 // GetNextForcedBatches gets the next forced batches from the queue.
 func (p *PostgresStorage) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]ForcedBatch, error) {
+	const getNextForcedBatchesSQL = `
+		SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, block_num 
+		FROM state.forced_batch
+		WHERE forced_batch_num > (Select coalesce(max(forced_batch_num),0) as forced_batch_num from state.batch INNER JOIN state.virtual_batch ON state.virtual_batch.batch_num = state.batch.batch_num)
+		ORDER BY forced_batch_num ASC LIMIT $1;
+	`
 	q := p.getExecQuerier(dbTx)
 	// Get the next forced batches
 	rows, err := q.Query(ctx, getNextForcedBatchesSQL, nextForcedBatches)
@@ -959,7 +935,7 @@ func (p *PostgresStorage) GetNextForcedBatches(ctx context.Context, nextForcedBa
 			rawTxs         string
 			seq            string
 		)
-		err := rows.Scan(&forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq, &forcedBatch.BatchNumber, &forcedBatch.BlockNumber)
+		err := rows.Scan(&forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq, &forcedBatch.BlockNumber)
 		if err != nil {
 			return nil, err
 		}
@@ -973,13 +949,6 @@ func (p *PostgresStorage) GetNextForcedBatches(ctx context.Context, nextForcedBa
 	}
 
 	return batches, nil
-}
-
-// AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber.
-func (p *PostgresStorage) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, dbTx pgx.Tx) error {
-	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addBatchNumberInForcedBatchSQL, forceBatchNumber, batchNumber)
-	return err
 }
 
 // GetBatchNumberOfL2Block gets a batch number for l2 block by its number
@@ -1803,7 +1772,8 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 			b.state_root,
 			b.timestamp,
 			b.coinbase,
-			b.raw_txs_data
+			b.raw_txs_data,
+			b.forced_batch_num
 		FROM
 			state.batch b,
 			state.virtual_batch v
