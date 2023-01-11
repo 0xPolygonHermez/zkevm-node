@@ -89,7 +89,7 @@ func TestTxGetMined(t *testing.T) {
 
 	etherman.
 		On("WaitTxToBeMined", ctx, signedTx, mock.IsType(time.Second)).
-		Return(nil).
+		Return(true, nil).
 		Once()
 
 	blockNumber := big.NewInt(1)
@@ -199,7 +199,7 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 		Once()
 	etherman.
 		On("WaitTxToBeMined", ctx, firstSignedTx, mock.IsType(time.Second)).
-		Return(errors.New("tx not mined yet")).
+		Return(false, errors.New("tx not mined yet")).
 		Once()
 
 	// Monitoring Cycle 2
@@ -242,7 +242,7 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 	etherman.
 		On("WaitTxToBeMined", ctx, secondSignedTx, mock.IsType(time.Second)).
 		Run(func(args mock.Arguments) { ethTxManagerClient.Stop() }). // stops the management cycle to avoid problems with mocks
-		Return(nil).
+		Return(true, nil).
 		Once()
 
 	blockNumber := big.NewInt(1)
@@ -363,7 +363,7 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 		Once()
 	etherman.
 		On("WaitTxToBeMined", ctx, signedTx, mock.IsType(time.Second)).
-		Return(nil).
+		Return(true, nil).
 		Once()
 
 	blockNumber := big.NewInt(10)
