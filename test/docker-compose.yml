@@ -55,6 +55,7 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_SEQUENCER_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
     volumes:
+      - ./sequencer.keystore:/pk/sequencer.keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
     command:

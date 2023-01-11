@@ -281,7 +281,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 		// will get mined successfully
 		//
 		// in case of all tx were mined and none of them were mined successfully, we need to
-		// update the nonce
+		// review the nonce
 		if hasFailedReceipts && allHistoryTxMined {
 			mTxLog.Infof("nonce needs to be updated")
 			mTx := mTx
@@ -459,6 +459,7 @@ func (c *Client) shouldContinueToMonitorThisTx(ctx context.Context, receipt *typ
 	receiptTx, _, err := c.etherman.GetTx(ctx, receipt.TxHash)
 	if err != nil {
 		log.Errorf("failed to get tx when monitored tx identified as failed, tx : %v", receipt.TxHash.String(), err)
+		return false
 	}
 	_, err = c.etherman.GetRevertMessage(ctx, receiptTx)
 	if err != nil {
@@ -475,7 +476,7 @@ func (c *Client) shouldContinueToMonitorThisTx(ctx context.Context, receipt *typ
 
 // ReviewMonitoredTx checks if some field needs to be updated
 // accordingly to the current information stored and the current
-// state of the network
+// state of the blockchain
 func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error {
 	mTxLog := log.WithFields("monitored tx", mTx.id)
 	mTxLog.Debug("reviewing")

@@ -37,7 +37,7 @@ type ethTxManager interface {
 // etherman contains the methods required to interact with ethereum
 type etherman interface {
 	GetLatestVerifiedBatchNum() (uint64, error)
-	BuildTrustedVerifyBatchesTxData(sender common.Address, lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (to *common.Address, value *big.Int, data []byte, err error)
+	BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (to *common.Address, value *big.Int, data []byte, err error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability

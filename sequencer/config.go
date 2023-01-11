@@ -81,6 +81,7 @@ type Config struct {
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
 	SenderAddress string `mapstructure:"SenderAddress"`
+
 	// PrivateKeys defines all the key store files that are going
 	// to be read in order to provide the private keys to sign the L1 txs
 	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`

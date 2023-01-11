@@ -44,11 +44,13 @@ func NewSQLDB(cfg Config) (*pgxpool.Pool, error) {
 
 // RunMigrationsUp runs migrate-up for the given config.
 func RunMigrationsUp(cfg Config, name string) error {
+	log.Info("running migrations up")
 	return runMigrations(cfg, name, migrate.Up)
 }
 
 // RunMigrationsDown runs migrate-down for the given config.
 func RunMigrationsDown(cfg Config, name string) error {
+	log.Info("running migrations down")
 	return runMigrations(cfg, name, migrate.Down)
 }
 

@@ -141,6 +141,7 @@ func runPoolMigrations(c db.Config) {
 }
 
 func runMigrations(c db.Config, name string) {
+	log.Infof("running migrations for %v", name)
 	err := db.RunMigrationsUp(c, name)
 	if err != nil {
 		log.Fatal(err)

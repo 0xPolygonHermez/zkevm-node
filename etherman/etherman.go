@@ -374,10 +374,10 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 }
 
 // BuildTrustedVerifyBatchesTxData builds a []bytes to be sent to the PoE SC method TrustedVerifyBatches.
-func (etherMan *Client) BuildTrustedVerifyBatchesTxData(sender common.Address, lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (to *common.Address, value *big.Int, data []byte, err error) {
-	opts, err := etherMan.getAuthByAddress(sender)
-	if err == ErrNotFound {
-		return nil, nil, nil, fmt.Errorf("failed to build trusted verify batches, err: %w", ErrPrivateKeyNotFound)
+func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (to *common.Address, value *big.Int, data []byte, err error) {
+	opts, err := etherMan.generateRandomAuth()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to build trusted verify batches, err: %w", err)
 	}
 	opts.NoSend = true
 	// force nonce, gas limit and gas price to avoid querying it from the chain
@@ -988,4 +988,21 @@ func (etherMan *Client) getAuthByAddress(addr common.Address) (bind.TransactOpts
 		return bind.TransactOpts{}, ErrNotFound
 	}
 	return auth, nil
+}
+
+// generateRandomAuth generates an authorization instance from a
+// randomly generated private key to be used to estimate gas for PoE
+// operations NOT restricted to the Trusted Sequencer
+func (etherMan *Client) generateRandomAuth() (bind.TransactOpts, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		return bind.TransactOpts{}, errors.New("failed to generate a private key to estimate L1 txs")
+	}
+	chainID := big.NewInt(0).SetUint64(etherMan.cfg.L1ChainID)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return bind.TransactOpts{}, errors.New("failed to generate a fake authorization to estimate L1 txs")
+	}
+
+	return *auth, nil
 }
