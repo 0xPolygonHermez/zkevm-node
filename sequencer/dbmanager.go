@@ -128,7 +128,7 @@ func (d *dbManager) loadFromPool() {
 				continue
 			}
 
-			txTracker := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters)
+			txTracker := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IsClaims)
 			d.worker.AddTx(*txTracker)
 			d.txPool.UpdateTxStatus(d.ctx, tx.Hash(), pool.TxStatusWIP)
 		}
@@ -141,8 +141,8 @@ func (d *dbManager) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 }
 
 // StoreProcessedTransaction stores a transaction in the state
-func (d *dbManager) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error {
-	return d.state.StoreTransaction(ctx, batchNumber, processedTx, dbTx)
+func (d *dbManager) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
+	return d.state.StoreTransaction(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
 }
 
 // DeleteTransactionFromPool deletes a transaction from the pool
@@ -160,7 +160,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		if err != nil {
 			log.Errorf("StoreProcessedTxAndDeleteFromPool :%v", err)
 		}
-		err = d.StoreProcessedTransaction(d.ctx, txToStore.batchNumber, txToStore.txResponse, dbTx)
+		err = d.StoreProcessedTransaction(d.ctx, txToStore.batchNumber, txToStore.txResponse, txToStore.coinbase, txToStore.timestamp, dbTx)
 		if err != nil {
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
@@ -195,17 +195,24 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 // if lastBatch IS OPEN - load data from it but set wipBatch.initialStateRoot to Last Closed Batch
 // if lastBatch IS CLOSED - open new batch in the database and load all data from the closed one without the txs and increase batch number
 func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
-	// si ultimo batch no está cerrado
-	// 1: Ultimo bloque L2 -> Stateroot
-	// 2: Penúltimo batch -> initialStateRoot
+	// TODO:
+	// keep batchl2data update every time we add a tx
+	// Reexecute the actual batch to recalculate de zkcounters used and remaining resource
+	// refactor is batch data
 
-	// Si ultimo batch está cerrado
-	// 1: Ultimo bloque L2 -> Stateroot
-	// 2: Penúltimo batch -> initialStateRoot
+	var lastBatch, previousLastBatch *state.Batch
 
-	initialaccInputHash
+	lastBatches, err := d.state.GetLastNBatches(ctx, 2, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	lastBatch, err := d.GetLastBatch(ctx)
+	lastBatch = lastBatches[0]
+	if len(lastBatches) > 1 {
+		previousLastBatch = lastBatches[1]
+	}
+
+	lastL2BlockHeader, err := d.state.GetLastL2BlockHeader(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -213,47 +220,15 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	wipBatch := &WipBatch{
 		batchNumber:    lastBatch.BatchNumber,
 		coinbase:       lastBatch.Coinbase,
-		accInputHash:   lastBatch.AccInputHash,
-		stateRoot:      lastBatch.StateRoot,
 		localExitRoot:  lastBatch.LocalExitRoot,
 		timestamp:      uint64(lastBatch.Timestamp.Unix()),
 		globalExitRoot: lastBatch.GlobalExitRoot,
+		isEmptyBatch:   len(lastBatch.BatchL2Data) == 0,
 	}
-
-	txs, _, err := state.DecodeTxs(lastBatch.BatchL2Data)
-	if err != nil {
-		return nil, err
-	}
-
-	txTrackerArray := make([]TxTracker, len(txs))
 
 	// TODO: Init counters and totals to MAX values
 	var totalBytes uint64
 	var batchZkCounters state.ZKCounters
-
-	for _, tx := range txs {
-		zkCounters, err := d.txPool.GetTxZkCountersByHash(ctx, tx.Hash())
-		if err != nil {
-			return nil, err
-		}
-		txTracker := d.worker.NewTxTracker(tx, *zkCounters)
-
-		err = batchZkCounters.Sub(*zkCounters)
-		if err != nil {
-			return nil, err
-		}
-
-		if uint64(tx.Size()) <= totalBytes {
-			totalBytes -= uint64(tx.Size())
-		} else {
-			return nil, fmt.Errorf("tx does not fit into the batch because of byte size")
-		}
-
-		txTrackerArray = append(txTrackerArray, *txTracker)
-	}
-
-	wipBatch.txs = txTrackerArray
-	wipBatch.remainingResources = BatchResources{zKCounters: batchZkCounters, bytes: totalBytes}
 
 	isClosed, err := d.IsBatchClosed(ctx, lastBatch.BatchNumber)
 	if err != nil {
@@ -262,6 +237,8 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	if isClosed {
 		wipBatch.batchNumber = lastBatch.BatchNumber + 1
+		wipBatch.stateRoot = lastBatch.StateRoot
+		wipBatch.initialStateRoot = lastBatch.StateRoot
 
 		processingContext := &state.ProcessingContext{
 			BatchNumber:    wipBatch.batchNumber,
@@ -291,14 +268,42 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			return nil, err
 		}
 	} else {
-		lastClosedBatch, err := d.GetLastClosedBatch(ctx)
-		if err != nil {
-			return nil, err
-		}
+		wipBatch.stateRoot = lastL2BlockHeader.Root
+		wipBatch.stateRoot = previousLastBatch.StateRoot
+		batchL2DataLen := len(lastBatch.BatchL2Data)
 
-		wipBatch.stateRoot = lastClosedBatch.StateRoot
+		if batchL2DataLen > 0 {
+			wipBatch.isEmptyBatch = false
+
+			batchResponse, err := d.state.ExecuteBatch(ctx, wipBatch.batchNumber, lastBatch.BatchL2Data, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			zkCounters := &state.ZKCounters{
+				CumulativeGasUsed:    batchResponse.GetCumulativeGasUsed(),
+				UsedKeccakHashes:     batchResponse.CntKeccakHashes,
+				UsedPoseidonHashes:   batchResponse.CntPoseidonHashes,
+				UsedPoseidonPaddings: batchResponse.CntPoseidonPaddings,
+				UsedMemAligns:        batchResponse.CntMemAligns,
+				UsedArithmetics:      batchResponse.CntArithmetics,
+				UsedBinaries:         batchResponse.CntBinaries,
+				UsedSteps:            batchResponse.CntSteps,
+			}
+
+			err = batchZkCounters.Sub(*zkCounters)
+			if err != nil {
+				return nil, err
+			}
+
+			totalBytes -= uint64(batchL2DataLen)
+
+		} else {
+			wipBatch.isEmptyBatch = true
+		}
 	}
 
+	wipBatch.remainingResources = BatchResources{zKCounters: batchZkCounters, bytes: totalBytes}
 	return wipBatch, nil
 }
 
@@ -340,8 +345,6 @@ func (d *dbManager) GetLatestGer(ctx context.Context, maxBlockNumber uint64) (st
 
 // CloseBatch closes a batch in the state
 func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters) error {
-	// TODO: Create new type txManagerArray and refactor CloseBatch method in state
-
 	processingReceipt := state.ProcessingReceipt{
 		BatchNumber:   params.BatchNumber,
 		StateRoot:     params.StateRoot,

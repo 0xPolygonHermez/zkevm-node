@@ -455,7 +455,7 @@ func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessReq
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      request.BatchNumber - 1,
-		Coinbase:         request.SequencerAddress.String(),
+		Coinbase:         request.Coinbase.String(),
 		BatchL2Data:      request.Transactions,
 		OldStateRoot:     request.OldStateRoot.Bytes(),
 		GlobalExitRoot:   request.GlobalExitRoot.Bytes(),
@@ -488,6 +488,7 @@ func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessReq
 }
 
 // ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
+// It is also used by the sequencer in order to calculate used zkCounter of a WIPBatch
 func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
@@ -1269,7 +1270,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		case int(merkletree.LeafTypeCode):
 			code, err := hex.DecodeHex(action.Bytecode)
 			if err != nil {
-				return newRoot, fmt.Errorf("Could not decode SC bytecode for address %q: %v", address, err)
+				return newRoot, fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
 			}
 			newRoot, _, err = s.tree.SetCode(ctx, address, code, newRoot)
 			if err != nil {
@@ -1293,7 +1294,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		case int(merkletree.LeafTypeSCLength):
 			log.Debug("Skipped genesis action of type merkletree.LeafTypeSCLength, these actions will be handled as part of merkletree.LeafTypeCode actions")
 		default:
-			return newRoot, fmt.Errorf("Unknown genesis action type %q", action.Type)
+			return newRoot, fmt.Errorf("unknown genesis action type %q", action.Type)
 		}
 	}
 
@@ -1531,25 +1532,26 @@ func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
 }
 
 // StoreTransaction is used by the sequencer to add process a transaction
-func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, dbTx pgx.Tx) error {
+func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
 
 	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
-	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
-	if err != nil {
-		return err
-	}
-	if isBatchClosed {
-		return ErrBatchAlreadyClosed
-	}
+	/*
+			isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
+			if err != nil {
+				return err
+			}
+			if isBatchClosed {
+				return ErrBatchAlreadyClosed
+			}
 
-	processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
-	if err != nil {
-		return err
-	}
-
+		processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
+		if err != nil {
+			return err
+		}
+	*/
 	// if the transaction has an intrinsic invalid tx error it means
 	// the transaction has not changed the state, so we don't store it
 	if executor.IsIntrinsicError(executor.ErrorCode(processedTx.Error)) {
@@ -1564,11 +1566,11 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	header := &types.Header{
 		Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
 		ParentHash: lastL2Block.Hash(),
-		Coinbase:   processingContext.Coinbase,
+		Coinbase:   coinbase,
 		Root:       processedTx.StateRoot,
 		GasUsed:    processedTx.GasUsed,
 		GasLimit:   s.cfg.MaxCumulativeGasUsed,
-		Time:       uint64(processingContext.Timestamp.Unix()),
+		Time:       timestamp,
 	}
 	transactions := []*types.Transaction{&processedTx.Tx}
 
@@ -1577,7 +1579,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 
 	// Create block to be able to calculate its hash
 	block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
-	block.ReceivedAt = processingContext.Timestamp
+	block.ReceivedAt = time.Unix(int64(timestamp), 0)
 
 	receipt.BlockHash = block.Hash()
 

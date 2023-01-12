@@ -42,17 +42,15 @@ type finalizer struct {
 
 // WipBatch represents a work-in-progress batch.
 type WipBatch struct {
-	batchNumber         uint64
-	coinbase            common.Address
-	initialAccInputHash common.Hash
-	accInputHash        common.Hash
-	initialStateRoot    common.Hash
-	stateRoot           common.Hash
-	localExitRoot       common.Hash
-	timestamp           uint64
-	globalExitRoot      common.Hash // 0x000...0 (ZeroHash) means to not update
-	txs                 []TxTracker
-	remainingResources  BatchResources
+	batchNumber        uint64
+	coinbase           common.Address
+	initialStateRoot   common.Hash
+	stateRoot          common.Hash
+	localExitRoot      common.Hash
+	timestamp          uint64
+	globalExitRoot     common.Hash // 0x000...0 (ZeroHash) means to not update
+	isEmptyBatch       bool
+	remainingResources BatchResources
 }
 
 type batchConstraints struct {
@@ -112,13 +110,13 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, OldStateRoot, Ol
 		f.batch = batch
 	}
 	f.processRequest = state.ProcessRequest{
-		BatchNumber:      f.batch.batchNumber,
-		OldStateRoot:     OldStateRoot,
-		GlobalExitRoot:   f.batch.globalExitRoot,
-		OldAccInputHash:  OldAccInputHash,
-		SequencerAddress: f.sequencerAddress,
-		Timestamp:        f.batch.timestamp,
-		Caller:           state.SequencerCallerLabel,
+		BatchNumber:     f.batch.batchNumber,
+		OldStateRoot:    OldStateRoot,
+		GlobalExitRoot:  f.batch.globalExitRoot,
+		OldAccInputHash: OldAccInputHash,
+		Coinbase:        f.sequencerAddress,
+		Timestamp:       f.batch.timestamp,
+		Caller:          state.SequencerCallerLabel,
 	}
 
 	// Closing signals receiver

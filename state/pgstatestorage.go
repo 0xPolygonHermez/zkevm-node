@@ -1970,7 +1970,7 @@ func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.
 // GetLastClosedBatch returns the latest closed batch
 func (p *PostgresStorage) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 	const getLastClosedBatchSQL = `
-		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data 
+		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data
 			FROM state.batch bt
 			WHERE global_exit_root IS NOT NULL AND state_root IS NOT NULL
 			ORDER BY bt.batch_num DESC

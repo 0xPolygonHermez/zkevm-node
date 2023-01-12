@@ -49,6 +49,8 @@ type TxsStore struct {
 type txToStore struct {
 	txResponse               *state.ProcessTransactionResponse
 	batchNumber              uint64
+	coinbase                 common.Address
+	timestamp                uint64
 	previousL2BlockStateRoot common.Hash
 }
 
@@ -149,7 +151,6 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 			batchNumber:    processingCtx.BatchNumber,
 			coinbase:       processingCtx.Coinbase,
 			timestamp:      uint64(processingCtx.Timestamp.Unix()),
-			txs:            make([]TxTracker, 0, s.cfg.MaxTxsPerBatch),
 		}
 
 		if err != nil {
