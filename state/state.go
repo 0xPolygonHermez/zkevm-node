@@ -92,6 +92,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorSe
 	return s
 }
 
+// PrepareWebSocket allows the RPC to prepare ws
 func (s *State) PrepareWebSocket() {
 	lastL2Block, err := s.PostgresStorage.GetLastL2Block(context.Background(), nil)
 	if errors.Is(err, ErrStateNotSynchronized) {
