@@ -240,6 +240,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 	log.Debugf("found %v monitored tx to process", len(mTxs))
 
 	for _, mTx := range mTxs {
+		mTx := mTx // force variable shadowing to avoid pointer conflicts
 		mTxLog := log.WithFields("monitored tx", mTx.id)
 		mTxLog.Info("processing")
 
@@ -284,7 +285,6 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 		// review the nonce
 		if hasFailedReceipts && allHistoryTxMined {
 			mTxLog.Infof("nonce needs to be updated")
-			mTx := mTx
 			err := c.ReviewMonitoredTxNonce(ctx, &mTx)
 			if err != nil {
 				mTxLog.Errorf("failed to review monitored tx nonce: %v", err)
@@ -321,10 +321,14 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 			// review tx and increase gas and gas price if needed
 			if mTx.status == MonitoredTxStatusSent {
-				mTx := mTx
 				err := c.ReviewMonitoredTx(ctx, &mTx)
 				if err != nil {
 					mTxLog.Errorf("failed to review monitored tx: %v", err)
+					continue
+				}
+				err = c.storage.Update(ctx, mTx, nil)
+				if err != nil {
+					mTxLog.Errorf("failed to update monitored tx review change: %v", err)
 					continue
 				}
 			}
