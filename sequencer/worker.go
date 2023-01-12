@@ -132,6 +132,7 @@ type TxTracker struct {
 	From       common.Address
 	addrQueue  *AddrQueue
 	Nonce      uint64
+	IsClaim    bool             // Needed to calculate efficiency
 	Benefit    *big.Int         // GasLimit * GasPrice
 	ZKCounters state.ZKCounters // To check if it fits into a batch
 	Size       uint64           // To check if it fits into a batch
@@ -141,7 +142,7 @@ type TxTracker struct {
 	RawTx      []byte
 }
 
-func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters) *TxTracker {
+func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, isClaim bool) *TxTracker {
 	sender, err := state.GetSender(tx)
 	if err != nil {
 		log.Errorf("error retrieving tx sender: %v", err)
@@ -151,6 +152,7 @@ func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters) *
 		Hash:       tx.Hash(),
 		From:       sender,
 		Nonce:      tx.Nonce(),
+		IsClaim:    isClaim,
 		Benefit:    tx.GasPrice().Mul(tx.GasPrice(), big.NewInt(int64(tx.Gas()))),
 		ZKCounters: counters,
 		Size:       uint64(tx.Size()),

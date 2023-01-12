@@ -40,6 +40,12 @@ type ClosingBatchParameters struct {
 
 func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
 	//TODO implement me
+
+	// Open Batch
+	// Process full batch
+	// Informar forced_batch_num
+	// Close Batch
+
 	panic("implement me")
 }
 
@@ -189,6 +195,16 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 // if lastBatch IS OPEN - load data from it but set wipBatch.initialStateRoot to Last Closed Batch
 // if lastBatch IS CLOSED - open new batch in the database and load all data from the closed one without the txs and increase batch number
 func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
+	// si ultimo batch no está cerrado
+	// 1: Ultimo bloque L2 -> Stateroot
+	// 2: Penúltimo batch -> initialStateRoot
+
+	// Si ultimo batch está cerrado
+	// 1: Ultimo bloque L2 -> Stateroot
+	// 2: Penúltimo batch -> initialStateRoot
+
+	initialaccInputHash
+
 	lastBatch, err := d.GetLastBatch(ctx)
 	if err != nil {
 		return nil, err
