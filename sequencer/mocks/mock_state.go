@@ -113,6 +113,29 @@ func (_m *StateMock) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (u
 	return r0, r1
 }
 
+// GetSender provides a mock function with given fields: tx
+func (_m *StateMock) GetSender(tx types.Transaction) (common.Address, error) {
+	ret := _m.Called(tx)
+
+	var r0 common.Address
+	if rf, ok := ret.Get(0).(func(types.Transaction) common.Address); ok {
+		r0 = rf(tx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Address)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(types.Transaction) error); ok {
+		r1 = rf(tx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetTimeForLatestBatchVirtualization provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -201,27 +224,13 @@ func (_m *StateMock) IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pg
 	return r0, r1
 }
 
-// OpenBatch provides a mock function with given fields: ctx, processingContext, dbTx
-func (_m *StateMock) OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, processingContext, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, pgx.Tx) error); ok {
-		r0 = rf(ctx, processingContext, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// ProcessSingleTransaction provides a mock function with given fields: ctx, request, dbTx
-func (_m *StateMock) ProcessSingleTransaction(ctx context.Context, request state.ProcessRequest, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
-	ret := _m.Called(ctx, request, dbTx)
+// ProcessSingleTransaction provides a mock function with given fields: ctx, request
+func (_m *StateMock) ProcessSingleTransaction(ctx context.Context, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, request)
 
 	var r0 *state.ProcessBatchResponse
-	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, pgx.Tx) *state.ProcessBatchResponse); ok {
-		r0 = rf(ctx, request, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, request)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.ProcessBatchResponse)
@@ -229,8 +238,29 @@ func (_m *StateMock) ProcessSingleTransaction(ctx context.Context, request state
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest, pgx.Tx) error); ok {
-		r1 = rf(ctx, request, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest) error); ok {
+		r1 = rf(ctx, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProcessSingleTx provides a mock function with given fields: ctx, request
+func (_m *StateMock) ProcessSingleTx(ctx context.Context, request state.ProcessRequest) (state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, request)
+
+	var r0 state.ProcessBatchResponse
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest) state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, request)
+	} else {
+		r0 = ret.Get(0).(state.ProcessBatchResponse)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest) error); ok {
+		r1 = rf(ctx, request)
 	} else {
 		r1 = ret.Error(1)
 	}

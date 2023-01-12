@@ -1987,3 +1987,11 @@ func (p *PostgresStorage) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (
 	}
 	return &batch, nil
 }
+
+// AddAccumulatedInputHash adds the accumulated input hash
+func (p *PostgresStorage) AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error {
+	AddAccInputHashBatchSQL := "UPDATE state.batch SET acc_input_hash = $1 WHERE batch_num = $2"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, AddAccInputHashBatchSQL, accInputHash.String(), batchNum)
+	return err
+}

@@ -249,3 +249,37 @@ func TestVerifiedBatch(t *testing.T) {
 
 	require.NoError(t, dbTx.Commit(ctx))
 }
+
+func TestAddAccumulatedInputHash(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, dbTx)
+	assert.NoError(t, err)
+
+	_, err = testState.PostgresStorage.Exec(ctx, `INSERT INTO state.batch
+	(batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data)
+	VALUES(1, '0x0000000000000000000000000000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000000000000000000000000000', '0xbf34f9a52a63229e90d1016011655bc12140bba5b771817b88cbf340d08dcbde', '2022-12-19 08:17:45.000', '0x0000000000000000000000000000000000000000', NULL);
+	`)
+	require.NoError(t, err)
+
+	accInputHash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
+	batchNum := uint64(1)
+	err = testState.AddAccumulatedInputHash(ctx, batchNum, accInputHash, dbTx)
+	require.NoError(t, err)
+
+	b, err := testState.GetBatchByNumber(ctx, batchNum, dbTx)
+	require.NoError(t, err)
+	assert.Equal(t, b.BatchNumber, batchNum)
+	assert.Equal(t, b.AccInputHash, accInputHash)
+	require.NoError(t, dbTx.Commit(ctx))
+}

@@ -23,6 +23,20 @@ type stateMock struct {
 	mock.Mock
 }
 
+// AddAccumulatedInputHash provides a mock function with given fields: ctx, batchNum, accInputHash, dbTx
+func (_m *stateMock) AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNum, accInputHash, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, common.Hash, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNum, accInputHash, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // AddBatchNumberInForcedBatch provides a mock function with given fields: ctx, forceBatchNumber, batchNumber, dbTx
 func (_m *stateMock) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber uint64, batchNumber uint64, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, forceBatchNumber, batchNumber, dbTx)

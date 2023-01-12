@@ -48,6 +48,7 @@ type stateInterface interface {
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
+	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }
