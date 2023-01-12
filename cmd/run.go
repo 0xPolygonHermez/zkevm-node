@@ -51,7 +51,6 @@ func start(cliCtx *cli.Context) error {
 	if c.Metrics.Enabled {
 		metrics.Init()
 	}
-	runStateMigrations(c.StateDB)
 	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
 		log.Fatal(err)
@@ -85,9 +84,11 @@ func start(cliCtx *cli.Context) error {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
+			runStateMigrations(c.StateDB)
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
+			runStateMigrations(c.StateDB)
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager, gpe)
@@ -103,6 +104,7 @@ func start(cliCtx *cli.Context) error {
 			go runJSONRPCServer(*c, poolInstance, st, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
+			runStateMigrations(c.StateDB)
 			go runSynchronizer(*c, etherman, st)
 		case BROADCAST:
 			log.Info("Running broadcast service")

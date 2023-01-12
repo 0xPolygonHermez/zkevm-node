@@ -134,8 +134,9 @@ benchmark-sequencer: stop
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNJSONRPC)
 	$(RUNSYNC)
+	sleep 2
+	$(RUNJSONRPC)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	@ cd benchmarks/sequencer ; \
@@ -158,6 +159,7 @@ run-node: ## Runs the node
 	$(RUNSYNC)
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
+	sleep 2
 	$(RUNJSONRPC)
 
 .PHONY: stop-node
@@ -285,8 +287,9 @@ run: ## Runs a full node
 	sleep 3
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
-	$(RUNJSONRPC)
 	$(RUNSYNC)
+	sleep 2
+	$(RUNJSONRPC)
 
 .PHONY: stop
 stop: ## Stops all services
