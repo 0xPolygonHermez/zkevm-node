@@ -251,6 +251,14 @@ run-broadcast: ## Runs the broadcast service
 stop-broadcast: ## Stops the broadcast service
 	$(STOPBROADCAST)
 
+.PHONY: run-aggregator
+run-aggregator: ## Runs the aggregator service
+	$(RUNAGGREGATOR)
+
+.PHONY: stop-aggregator
+stop-aggregator: ## Stops the aggregator service
+	$(STOPAGGREGATOR)
+
 .PHONY: run-grafana
 run-grafana: ## Runs the grafana service
 	$(RUNGRAFANA)
