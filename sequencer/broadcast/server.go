@@ -92,18 +92,7 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *state.Batch) (*pb.G
 		}
 	}
 
-	var forcedBatchNum uint64
-	forcedBatch, err := s.state.GetForcedBatchByBatchNumber(ctx, batch.BatchNumber, nil)
-	if err == nil {
-		forcedBatchNum = forcedBatch.ForcedBatchNumber
-	} else if err != state.ErrNotFound {
-		return nil, err
-	}
-
-	var (
-		mainnetExitRoot, rollupExitRoot string
-		globalExitRootTimestamp         uint64
-	)
+	var mainnetExitRoot, rollupExitRoot string
 	ger, err := s.state.GetExitRootByGlobalExitRoot(ctx, batch.GlobalExitRoot, nil)
 	if err == nil {
 		mainnetExitRoot = ger.MainnetExitRoot.String()
@@ -112,19 +101,22 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *state.Batch) (*pb.G
 	} else if err != state.ErrNotFound {
 		return nil, err
 	}
+	var fb uint64
+	if batch.ForcedBatchNum != nil {
+		fb = *batch.ForcedBatchNum
+	}
 
 	return &pb.GetBatchResponse{
-		BatchNumber:             batch.BatchNumber,
-		GlobalExitRoot:          batch.GlobalExitRoot.String(),
-		Sequencer:               batch.Coinbase.String(),
-		LocalExitRoot:           batch.LocalExitRoot.String(),
-		StateRoot:               batch.StateRoot.String(),
-		MainnetExitRoot:         mainnetExitRoot,
-		RollupExitRoot:          rollupExitRoot,
-		GlobalExitRootTimestamp: globalExitRootTimestamp,
-		Timestamp:               uint64(batch.Timestamp.Unix()),
-		Transactions:            transactions,
-		ForcedBatchNumber:       forcedBatchNum,
+		BatchNumber:       batch.BatchNumber,
+		GlobalExitRoot:    batch.GlobalExitRoot.String(),
+		Sequencer:         batch.Coinbase.String(),
+		LocalExitRoot:     batch.LocalExitRoot.String(),
+		StateRoot:         batch.StateRoot.String(),
+		MainnetExitRoot:   mainnetExitRoot,
+		RollupExitRoot:    rollupExitRoot,
+		Timestamp:         uint64(batch.Timestamp.Unix()),
+		Transactions:      transactions,
+		ForcedBatchNumber: fb,
 	}, nil
 }
 

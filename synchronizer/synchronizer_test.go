@@ -393,11 +393,6 @@ func TestForcedBatch(t *testing.T) {
 				Return(fb, nil).
 				Once()
 
-			m.State.
-				On("AddBatchNumberInForcedBatch", ctx, fb[0].ForcedBatchNumber, sequencedBatch.BatchNumber, m.DbTx).
-				Return(nil).
-				Once()
-
 			trustedBatch := &state.Batch{
 				BatchL2Data:    sequencedBatch.Transactions,
 				GlobalExitRoot: sequencedBatch.GlobalExitRoot,
@@ -602,11 +597,13 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Return(fb, nil).
 				Once()
 
+			f := uint64(1)
 			processingContext := state.ProcessingContext{
 				BatchNumber:    sequencedForceBatch.BatchNumber,
 				Coinbase:       sequencedForceBatch.Coinbase,
 				Timestamp:      ethBlock.ReceivedAt,
 				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
+				ForcedBatchNum: &f,
 			}
 
 			m.State.
@@ -623,11 +620,6 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 			m.State.
 				On("AddVirtualBatch", ctx, virtualBatch, m.DbTx).
-				Return(nil).
-				Once()
-
-			m.State.
-				On("AddBatchNumberInForcedBatch", ctx, fb[0].ForcedBatchNumber, sequencedForceBatch.BatchNumber, m.DbTx).
 				Return(nil).
 				Once()
 

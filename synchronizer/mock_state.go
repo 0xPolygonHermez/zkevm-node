@@ -23,20 +23,6 @@ type stateMock struct {
 	mock.Mock
 }
 
-// AddBatchNumberInForcedBatch provides a mock function with given fields: ctx, forceBatchNumber, batchNumber, dbTx
-func (_m *stateMock) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber uint64, batchNumber uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, forceBatchNumber, batchNumber, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, forceBatchNumber, batchNumber, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // AddBlock provides a mock function with given fields: ctx, block, dbTx
 func (_m *stateMock) AddBlock(ctx context.Context, block *state.Block, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, block, dbTx)
