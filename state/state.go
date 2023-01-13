@@ -74,11 +74,6 @@ type State struct {
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
 
-func (s *State) MarkReorgedTxsAsPending(ctx context.Context) error {
-	//TODO implement me
-	panic("implement me")
-}
-
 // NewState creates a new State
 func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree) *State {
 	once.Do(func() {

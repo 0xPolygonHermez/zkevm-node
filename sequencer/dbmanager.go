@@ -120,7 +120,7 @@ func (d *dbManager) loadFromPool() {
 }
 
 func (d *dbManager) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
-	return d.state.BeginStateTransaction(ctx)
+	return d.BeginStateTransaction(ctx)
 }
 
 func (d *dbManager) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error {
