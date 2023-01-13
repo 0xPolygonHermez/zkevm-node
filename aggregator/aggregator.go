@@ -178,7 +178,6 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 		return err
 	}
 
-	log := log.WithFields("proverId", prover.ID, "proverAddr", proverAddr.String())
 	log.Debug("Establishing stream connection with prover")
 
 	for {
@@ -232,12 +231,12 @@ func (a *Aggregator) tryRecoverProof(ctx context.Context, prover proverInterface
 	a.proverProofMutex.RUnlock()
 
 	if stale {
-		log := log.WithFields(
-			"proverId", prover.ID(),
-			"proverAddr", prover.Addr(),
-			"proofId", proof.ID,
-			"batches", fmt.Sprintf("%d-%d", proof.batchNum, proof.batchNumFinal),
-		)
+		// log := log.WithFields(
+		// 	"proverId", prover.ID(),
+		// 	"proverAddr", prover.Addr(),
+		// 	"proofId", proof.ID,
+		// 	"batches", fmt.Sprintf("%d-%d", proof.batchNum, proof.batchNumFinal),
+		// )
 
 		log.Warn("detected stale proof")
 
