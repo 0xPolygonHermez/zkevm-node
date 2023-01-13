@@ -454,14 +454,14 @@ func (s *State) ProcessSequencerBatch(
 	return result, nil
 }
 
-func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessRequest) (*ProcessBatchResponse, error) {
+func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
-	log.Debugf("ProcessSingleTransaction start")
+	log.Debugf("ProcessBatch start")
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      request.BatchNumber - 1,
-		Coinbase:         request.SequencerAddress.String(),
+		Coinbase:         request.Coinbase.String(),
 		BatchL2Data:      request.Transactions,
 		OldStateRoot:     request.OldStateRoot.Bytes(),
 		GlobalExitRoot:   request.GlobalExitRoot.Bytes(),
@@ -487,7 +487,7 @@ func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessReq
 			return nil, err
 		}
 	}
-	log.Debugf("ProcessSingleTransaction end")
+	log.Debugf("ProcessBatch end")
 	log.Debugf("*******************************************")
 
 	return result, nil

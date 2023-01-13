@@ -169,7 +169,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool() {
 }
 
 // GetWIPBatch returns ready WIP batch
-// if lastBatch IS OPEN - load data from it but set wipBatch.initialStateRoot to Last Closed Batch
+// if lastBatch IS OPEN - load data from it but set batch.initialStateRoot to Last Closed Batch
 // if lastBatch IS CLOSED - open new batch in the database and load all data from the closed one without the txs and increase batch number
 func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	lastBatch, err := d.GetLastBatch(ctx)
@@ -178,9 +178,8 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	}
 
 	wipBatch := &WipBatch{
-		batchNumber:  lastBatch.BatchNumber,
-		coinbase:     lastBatch.Coinbase,
-		accInputHash: lastBatch.AccInputHash,
+		batchNumber: lastBatch.BatchNumber,
+		coinbase:    lastBatch.Coinbase,
 		// initialStateRoot: lastBatch.StateRoot,
 		stateRoot:      lastBatch.StateRoot,
 		timestamp:      uint64(lastBatch.Timestamp.Unix()),
@@ -272,9 +271,7 @@ type ClosingBatchParameters struct {
 }
 
 func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters) error {
-
 	// TODO: Create new type txManagerArray and refactor CloseBatch method in state
-
 	processingReceipt := state.ProcessingReceipt{
 		BatchNumber:   params.BatchNumber,
 		StateRoot:     params.StateRoot,

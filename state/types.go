@@ -18,14 +18,14 @@ type TouchedAddress struct {
 
 // ProcessRequest represents the request of a batch process.
 type ProcessRequest struct {
-	BatchNumber      uint64
-	GlobalExitRoot   common.Hash
-	OldStateRoot     common.Hash
-	OldAccInputHash  common.Hash
-	Transactions     []byte
-	SequencerAddress common.Address
-	Timestamp        uint64
-	Caller           CallerLabel
+	BatchNumber     uint64
+	GlobalExitRoot  common.Hash
+	OldStateRoot    common.Hash
+	OldAccInputHash common.Hash
+	Transactions    []byte
+	Coinbase        common.Address
+	Timestamp       uint64
+	Caller          CallerLabel
 }
 
 // ProcessBatchResponse represents the response of a batch process.
