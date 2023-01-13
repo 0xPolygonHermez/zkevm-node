@@ -26,6 +26,7 @@ type Sequencer struct {
 	address common.Address
 }
 
+// batchConstraints represents the constraints for a batch
 type batchConstraints struct {
 	MaxTxsPerBatch       uint64
 	MaxBatchBytesSize    uint64
@@ -115,7 +116,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 		Ch: make(chan *txToStore),
 		Wg: new(sync.WaitGroup),
 	}
-
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       s.cfg.MaxTxsPerBatch,
 		MaxBatchBytesSize:    s.cfg.MaxBatchBytesSize,

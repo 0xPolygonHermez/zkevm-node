@@ -120,7 +120,7 @@ func (d *dbManager) loadFromPool() {
 }
 
 func (d *dbManager) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
-	return d.BeginStateTransaction(ctx)
+	return d.state.BeginStateTransaction(ctx)
 }
 
 func (d *dbManager) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error {
@@ -271,9 +271,7 @@ type ClosingBatchParameters struct {
 }
 
 func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters) error {
-
 	// TODO: Create new type txManagerArray and refactor CloseBatch method in state
-
 	processingReceipt := state.ProcessingReceipt{
 		BatchNumber:   params.BatchNumber,
 		StateRoot:     params.StateRoot,

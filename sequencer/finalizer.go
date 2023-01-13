@@ -264,7 +264,6 @@ func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.P
 	f.processRequest.OldStateRoot = f.batch.stateRoot
 	f.batch.stateRoot = result.NewStateRoot
 	f.batch.localExitRoot = result.NewLocalExitRoot
-	f.processRequest.OldAccInputHash = result.NewAccInputHash
 
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
 	f.txsStore.Wg.Add(1)
@@ -480,7 +479,6 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 func (f *finalizer) closeBatch(ctx context.Context) error {
 	receipt := ClosingBatchParameters{
 		BatchNumber:   f.batch.batchNumber,
-		AccInputHash:  f.processRequest.OldAccInputHash,
 		StateRoot:     f.batch.stateRoot,
 		LocalExitRoot: f.processRequest.GlobalExitRoot,
 	}
@@ -521,7 +519,7 @@ func (f *finalizer) reprocessBatch(ctx context.Context) error {
 
 func (f *finalizer) prepareProcessRequestFromState(ctx context.Context) (state.ProcessRequest, error) {
 	var (
-		oldStateRoot, oldAccInputHash common.Hash
+		oldStateRoot common.Hash
 	)
 
 	n := uint(2)
@@ -532,21 +530,18 @@ func (f *finalizer) prepareProcessRequestFromState(ctx context.Context) (state.P
 	}
 
 	if len(batches) == 1 {
-		oldAccInputHash = lastBatch.AccInputHash
 		oldStateRoot = lastBatch.StateRoot
 	} else if len(batches) == 2 {
-		oldAccInputHash = batches[1].AccInputHash
 		oldStateRoot = batches[1].StateRoot
 	}
 
 	return state.ProcessRequest{
-		BatchNumber:     f.batch.batchNumber,
-		OldStateRoot:    oldStateRoot,
-		GlobalExitRoot:  f.batch.globalExitRoot,
-		OldAccInputHash: oldAccInputHash,
-		Coinbase:        f.sequencerAddress,
-		Timestamp:       f.batch.timestamp,
-		Caller:          state.SequencerCallerLabel,
+		BatchNumber:    f.batch.batchNumber,
+		OldStateRoot:   oldStateRoot,
+		GlobalExitRoot: f.batch.globalExitRoot,
+		Coinbase:       f.sequencerAddress,
+		Timestamp:      f.batch.timestamp,
+		Caller:         state.SequencerCallerLabel,
 	}, nil
 }
 
