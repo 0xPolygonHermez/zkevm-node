@@ -460,12 +460,12 @@ func (c *Client) shouldContinueToMonitorThisTx(ctx context.Context, receipt *typ
 		return false
 	}
 
-	receiptTx, _, err := c.etherman.GetTx(ctx, receipt.TxHash)
+	tx, _, err := c.etherman.GetTx(ctx, receipt.TxHash)
 	if err != nil {
 		log.Errorf("failed to get tx when monitored tx identified as failed, tx : %v", receipt.TxHash.String(), err)
 		return false
 	}
-	_, err = c.etherman.GetRevertMessage(ctx, receiptTx)
+	_, err = c.etherman.GetRevertMessage(ctx, tx)
 	if err != nil {
 		// if the error when getting the revert message is not identified, continue to monitor
 		if err.Error() == ErrExecutionReverted.Error() {
@@ -560,48 +560,57 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 		MonitoredTxStatusConfirmed,
 		MonitoredTxStatusReorged,
 	}
-	results, err := c.ResultsByStatus(ctx, owner, statusesFilter, dbTx)
-	if err != nil {
-		log.Error("failed to get results by statuses from eth tx manager to monitored txs err: ", err)
-	}
-	for _, result := range results {
-		resultLog := log.WithFields("owner", owner, "id", result.ID)
-
-		// if the result is confirmed, we set it as done do stop looking into this monitored tx
-		if result.Status == MonitoredTxStatusConfirmed {
-			err := c.setStatusDone(ctx, owner, result.ID, dbTx)
-			if err != nil {
-				resultLog.Errorf("failed to set monitored tx as done, err: %v", err)
-			} else {
-				resultLog.Infof("monitored tx confirmed")
-			}
-			resultHandler(result, dbTx)
-			continue
+	// keep running until there ware pending monitored txs
+	for {
+		results, err := c.ResultsByStatus(ctx, owner, statusesFilter, dbTx)
+		if err != nil {
+			log.Error("failed to get results by statuses from eth tx manager to monitored txs err: ", err)
 		}
 
-		// if the result is failed, we need to go around it and rebuild a batch verification
-		if result.Status == MonitoredTxStatusFailed {
-			resultHandler(result, dbTx)
-			continue
+		if len(results) == 0 {
+			// if there are not pending monitored txs, stop
+			return
 		}
 
-		// if the result is either not confirmed or failed, it means we need to wait until it gets confirmed of failed.
-		for {
-			resultLog.Infof("waiting for monitored tx to get confirmed, id: %v status: %v", result.ID, result.Status.String())
+		for _, result := range results {
+			resultLog := log.WithFields("owner", owner, "id", result.ID)
 
-			// wait before refreshing the result info
-			time.Sleep(time.Second)
-
-			// refresh the result info
-			result, err := c.Result(ctx, owner, result.ID, dbTx)
-			if err != nil {
-				resultLog.Errorf("failed to get monitored tx result, err: %v", err)
+			// if the result is confirmed, we set it as done do stop looking into this monitored tx
+			if result.Status == MonitoredTxStatusConfirmed {
+				err := c.setStatusDone(ctx, owner, result.ID, dbTx)
+				if err != nil {
+					resultLog.Errorf("failed to set monitored tx as done, err: %v", err)
+				} else {
+					resultLog.Infof("monitored tx confirmed")
+				}
+				resultHandler(result, dbTx)
 				continue
 			}
 
-			// if the result status is confirmed or failed, breaks the wait loop
-			if result.Status == MonitoredTxStatusConfirmed || result.Status == MonitoredTxStatusFailed {
-				break
+			// if the result is failed, we need to go around it and rebuild a batch verification
+			if result.Status == MonitoredTxStatusFailed {
+				resultHandler(result, dbTx)
+				continue
+			}
+
+			// if the result is either not confirmed or failed, it means we need to wait until it gets confirmed of failed.
+			for {
+				// wait before refreshing the result info
+				time.Sleep(time.Second)
+
+				// refresh the result info
+				result, err := c.Result(ctx, owner, result.ID, dbTx)
+				if err != nil {
+					resultLog.Errorf("failed to get monitored tx result, err: %v", err)
+					continue
+				}
+
+				// if the result status is confirmed or failed, breaks the wait loop
+				if result.Status == MonitoredTxStatusConfirmed || result.Status == MonitoredTxStatusFailed {
+					break
+				}
+
+				resultLog.Infof("waiting for monitored tx to get confirmed, id: %v status: %v", result.ID, result.Status.String())
 			}
 		}
 	}

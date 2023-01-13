@@ -488,3 +488,191 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 	require.Equal(t, receipt, result.Txs[signedTx.Hash()].Receipt)
 	require.Equal(t, "", result.Txs[signedTx.Hash()].RevertMessage)
 }
+
+func TestExecutionReverted(t *testing.T) {
+	dbCfg := dbutils.NewStateConfigFromEnv()
+	require.NoError(t, dbutils.InitOrResetState(dbCfg))
+
+	etherman := newEthermanMock(t)
+	st := newStateMock(t)
+	storage, err := NewPostgresStorage(dbCfg)
+	require.NoError(t, err)
+
+	ethTxManagerClient := New(defaultEthTxmanagerConfigForTests, etherman, storage, st)
+
+	ctx := context.Background()
+
+	owner := "owner"
+	id := "unique_id"
+	from := common.HexToAddress("")
+	var to *common.Address
+	var value *big.Int
+	var data []byte = nil
+
+	// Add
+	currentNonce := uint64(1)
+	etherman.
+		On("CurrentNonce", ctx, from).
+		Return(currentNonce, nil).
+		Once()
+
+	firstGasEstimation := uint64(1)
+	etherman.
+		On("EstimateGas", ctx, from, to, value, data).
+		Return(firstGasEstimation, nil).
+		Once()
+
+	firstGasPriceSuggestion := big.NewInt(1)
+	etherman.
+		On("SuggestedGasPrice", ctx).
+		Return(firstGasPriceSuggestion, nil).
+		Once()
+
+	// Monitoring Cycle 1
+	firstSignedTx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    currentNonce,
+		To:       to,
+		Value:    value,
+		Gas:      firstGasEstimation,
+		GasPrice: firstGasPriceSuggestion,
+		Data:     data,
+	})
+	etherman.
+		On("SignTx", ctx, from, mock.IsType(&ethTypes.Transaction{})).
+		Return(firstSignedTx, nil).
+		Once()
+	etherman.
+		On("GetTx", ctx, firstSignedTx.Hash()).
+		Return(nil, false, ethereum.NotFound).
+		Once()
+	etherman.
+		On("SendTx", ctx, firstSignedTx).
+		Return(nil).
+		Once()
+	etherman.
+		On("WaitTxToBeMined", ctx, firstSignedTx, mock.IsType(time.Second)).
+		Return(true, nil).
+		Once()
+
+	blockNumber := big.NewInt(1)
+	failedReceipt := &ethTypes.Receipt{
+		BlockNumber: blockNumber,
+		Status:      ethTypes.ReceiptStatusFailed,
+		TxHash:      firstSignedTx.Hash(),
+	}
+
+	etherman.
+		On("GetTxReceipt", ctx, firstSignedTx.Hash()).
+		Return(failedReceipt, nil).
+		Once()
+	etherman.
+		On("GetTx", ctx, firstSignedTx.Hash()).
+		Return(firstSignedTx, false, nil).
+		Once()
+	etherman.
+		On("GetRevertMessage", ctx, firstSignedTx).
+		Return("", ErrExecutionReverted).
+		Once()
+
+	// Monitoring Cycle 2
+	etherman.
+		On("CheckTxWasMined", ctx, firstSignedTx.Hash()).
+		Return(true, failedReceipt, nil).
+		Once()
+
+	currentNonce = uint64(2)
+	etherman.
+		On("CurrentNonce", ctx, from).
+		Return(currentNonce, nil).
+		Once()
+	secondGasEstimation := uint64(2)
+	etherman.
+		On("EstimateGas", ctx, from, to, value, data).
+		Return(secondGasEstimation, nil).
+		Once()
+	secondGasPriceSuggestion := big.NewInt(2)
+	etherman.
+		On("SuggestedGasPrice", ctx).
+		Return(secondGasPriceSuggestion, nil).
+		Once()
+
+	secondSignedTx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    currentNonce,
+		To:       to,
+		Value:    value,
+		Gas:      secondGasEstimation,
+		GasPrice: secondGasPriceSuggestion,
+		Data:     data,
+	})
+	etherman.
+		On("SignTx", ctx, from, mock.IsType(&ethTypes.Transaction{})).
+		Return(secondSignedTx, nil).
+		Once()
+	etherman.
+		On("GetTx", ctx, secondSignedTx.Hash()).
+		Return(nil, false, ethereum.NotFound).
+		Once()
+	etherman.
+		On("SendTx", ctx, secondSignedTx).
+		Return(nil).
+		Once()
+	etherman.
+		On("WaitTxToBeMined", ctx, secondSignedTx, mock.IsType(time.Second)).
+		Run(func(args mock.Arguments) { ethTxManagerClient.Stop() }). // stops the management cycle to avoid problems with mocks
+		Return(true, nil).
+		Once()
+
+	blockNumber = big.NewInt(2)
+	receipt := &ethTypes.Receipt{
+		BlockNumber: blockNumber,
+		Status:      ethTypes.ReceiptStatusSuccessful,
+	}
+	etherman.
+		On("GetTxReceipt", ctx, secondSignedTx.Hash()).
+		Return(receipt, nil).
+		Once()
+
+	block := &state.Block{
+		BlockNumber: blockNumber.Uint64(),
+	}
+	st.
+		On("GetLastBlock", ctx, nil).
+		Return(block, nil).
+		Once()
+
+	// Build result
+	etherman.
+		On("GetTx", ctx, firstSignedTx.Hash()).
+		Return(firstSignedTx, false, nil).
+		Once()
+	etherman.
+		On("GetTxReceipt", ctx, firstSignedTx.Hash()).
+		Return(nil, ethereum.NotFound).
+		Once()
+	etherman.
+		On("GetRevertMessage", ctx, firstSignedTx).
+		Return("", nil).
+		Once()
+	etherman.
+		On("GetTx", ctx, secondSignedTx.Hash()).
+		Return(secondSignedTx, false, nil).
+		Once()
+	etherman.
+		On("GetTxReceipt", ctx, secondSignedTx.Hash()).
+		Return(receipt, nil).
+		Once()
+	etherman.
+		On("GetRevertMessage", ctx, secondSignedTx).
+		Return("", nil).
+		Once()
+
+	err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, nil)
+	require.NoError(t, err)
+
+	go ethTxManagerClient.Start()
+
+	time.Sleep(time.Second)
+	result, err := ethTxManagerClient.Result(ctx, owner, id, nil)
+	require.NoError(t, err)
+	require.Equal(t, MonitoredTxStatusConfirmed, result.Status)
+}
