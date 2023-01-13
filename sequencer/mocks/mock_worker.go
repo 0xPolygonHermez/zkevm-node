@@ -18,6 +18,11 @@ type WorkerMock struct {
 	mock.Mock
 }
 
+// AddTx provides a mock function with given fields: tx
+func (_m *WorkerMock) AddTx(tx sequencer.TxTracker) {
+	_m.Called(tx)
+}
+
 // DeleteTx provides a mock function with given fields: txHash, from, actualFromNonce, actualFromBalance
 func (_m *WorkerMock) DeleteTx(txHash common.Hash, from common.Address, actualFromNonce *uint64, actualFromBalance *big.Int) {
 	_m.Called(txHash, from, actualFromNonce, actualFromBalance)

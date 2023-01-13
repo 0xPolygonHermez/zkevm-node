@@ -46,9 +46,18 @@ func (_m *DbManagerMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, err
 	return r0, r1
 }
 
-// CloseBatch provides a mock function with given fields: ctx, params, dbTx
-func (_m *DbManagerMock) CloseBatch(ctx context.Context, params sequencer.ClosingBatchParameters, dbTx pgx.Tx) {
-	_m.Called(ctx, params, dbTx)
+// CloseBatch provides a mock function with given fields: ctx, params
+func (_m *DbManagerMock) CloseBatch(ctx context.Context, params sequencer.ClosingBatchParameters) error {
+	ret := _m.Called(ctx, params)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, sequencer.ClosingBatchParameters) error); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // CreateFirstBatch provides a mock function with given fields: ctx, sequencerAddress
@@ -65,13 +74,13 @@ func (_m *DbManagerMock) CreateFirstBatch(ctx context.Context, sequencerAddress 
 	return r0
 }
 
-// DeleteTxFromPool provides a mock function with given fields: ctx, txHash, dbTx
-func (_m *DbManagerMock) DeleteTxFromPool(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, txHash, dbTx)
+// DeleteTransactionFromPool provides a mock function with given fields: ctx, txHash
+func (_m *DbManagerMock) DeleteTransactionFromPool(ctx context.Context, txHash common.Hash) error {
+	ret := _m.Called(ctx, txHash)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) error); ok {
-		r0 = rf(ctx, txHash, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) error); ok {
+		r0 = rf(ctx, txHash)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -80,14 +89,16 @@ func (_m *DbManagerMock) DeleteTxFromPool(ctx context.Context, txHash common.Has
 }
 
 // GetLastBatch provides a mock function with given fields: ctx
-func (_m *DbManagerMock) GetLastBatch(ctx context.Context) (state.Batch, error) {
+func (_m *DbManagerMock) GetLastBatch(ctx context.Context) (*state.Batch, error) {
 	ret := _m.Called(ctx)
 
-	var r0 state.Batch
-	if rf, ok := ret.Get(0).(func(context.Context) state.Batch); ok {
+	var r0 *state.Batch
+	if rf, ok := ret.Get(0).(func(context.Context) *state.Batch); ok {
 		r0 = rf(ctx)
 	} else {
-		r0 = ret.Get(0).(state.Batch)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.Batch)
+		}
 	}
 
 	var r1 error
@@ -122,14 +133,16 @@ func (_m *DbManagerMock) GetLastBatchNumber(ctx context.Context) (uint64, error)
 }
 
 // GetLastClosedBatch provides a mock function with given fields: ctx
-func (_m *DbManagerMock) GetLastClosedBatch(ctx context.Context) (state.Batch, error) {
+func (_m *DbManagerMock) GetLastClosedBatch(ctx context.Context) (*state.Batch, error) {
 	ret := _m.Called(ctx)
 
-	var r0 state.Batch
-	if rf, ok := ret.Get(0).(func(context.Context) state.Batch); ok {
+	var r0 *state.Batch
+	if rf, ok := ret.Get(0).(func(context.Context) *state.Batch); ok {
 		r0 = rf(ctx)
 	} else {
-		r0 = ret.Get(0).(state.Batch)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.Batch)
+		}
 	}
 
 	var r1 error
@@ -194,14 +207,16 @@ func (_m *DbManagerMock) GetLatestGer(ctx context.Context) (state.GlobalExitRoot
 }
 
 // GetWIPBatch provides a mock function with given fields: ctx
-func (_m *DbManagerMock) GetWIPBatch(ctx context.Context) (sequencer.WipBatch, error) {
+func (_m *DbManagerMock) GetWIPBatch(ctx context.Context) (*sequencer.WipBatch, error) {
 	ret := _m.Called(ctx)
 
-	var r0 sequencer.WipBatch
-	if rf, ok := ret.Get(0).(func(context.Context) sequencer.WipBatch); ok {
+	var r0 *sequencer.WipBatch
+	if rf, ok := ret.Get(0).(func(context.Context) *sequencer.WipBatch); ok {
 		r0 = rf(ctx)
 	} else {
-		r0 = ret.Get(0).(sequencer.WipBatch)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*sequencer.WipBatch)
+		}
 	}
 
 	var r1 error
@@ -236,17 +251,8 @@ func (_m *DbManagerMock) IsBatchClosed(ctx context.Context, batchNum uint64) (bo
 }
 
 // MarkReorgedTxsAsPending provides a mock function with given fields: ctx
-func (_m *DbManagerMock) MarkReorgedTxsAsPending(ctx context.Context) error {
-	ret := _m.Called(ctx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
+func (_m *DbManagerMock) MarkReorgedTxsAsPending(ctx context.Context) {
+	_m.Called(ctx)
 }
 
 // OpenBatch provides a mock function with given fields: ctx, processingContext, dbTx
@@ -263,6 +269,29 @@ func (_m *DbManagerMock) OpenBatch(ctx context.Context, processingContext state.
 	return r0
 }
 
+// ProcessForcedBatch provides a mock function with given fields: forcedBatchNum, request
+func (_m *DbManagerMock) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(forcedBatchNum, request)
+
+	var r0 *state.ProcessBatchResponse
+	if rf, ok := ret.Get(0).(func(uint64, state.ProcessRequest) *state.ProcessBatchResponse); ok {
+		r0 = rf(forcedBatchNum, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.ProcessBatchResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(uint64, state.ProcessRequest) error); ok {
+		r1 = rf(forcedBatchNum, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // StoreProcessedTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, dbTx
 func (_m *DbManagerMock) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, processedTx, dbTx)
@@ -275,11 +304,6 @@ func (_m *DbManagerMock) StoreProcessedTransaction(ctx context.Context, batchNum
 	}
 
 	return r0
-}
-
-// StoreProcessedTxAndDeleteFromPool provides a mock function with given fields: ctx, batchNumber, response
-func (_m *DbManagerMock) StoreProcessedTxAndDeleteFromPool(ctx context.Context, batchNumber uint64, response *state.ProcessTransactionResponse) {
-	_m.Called(ctx, batchNumber, response)
 }
 
 type mockConstructorTestingTNewDbManagerMock interface {

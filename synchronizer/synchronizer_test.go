@@ -135,6 +135,12 @@ func TestTrustedStateReorg(t *testing.T) {
 						Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
 						Once()
 
+				accInputHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+				m.State.
+					On("AddAccumulatedInputHash", ctx, sequencedBatch.BatchNumber, accInputHash, m.DbTx).
+					Return(nil).
+					Once()
+
 				seq := state.Sequence{
 					FromBatchNumber: 1,
 					ToBatchNumber:   1,
