@@ -158,24 +158,64 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 
 		dbTx, err := d.BeginStateTransaction(d.ctx)
 		if err != nil {
-			log.Errorf("StoreProcessedTxAndDeleteFromPool :%v", err)
+			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
 		err = d.StoreProcessedTransaction(d.ctx, txToStore.batchNumber, txToStore.txResponse, txToStore.coinbase, txToStore.timestamp, dbTx)
 		if err != nil {
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
-				log.Errorf("StoreProcessedTxAndDeleteFromPool :%v", err)
+				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 			}
+			d.txsStore.Wg.Done()
+			continue
+		}
+
+		// Update batch l2 data
+		batch, err := d.state.GetBatchByNumber(d.ctx, txToStore.batchNumber, dbTx)
+		if err != nil {
+			err = dbTx.Rollback(d.ctx)
+			if err != nil {
+				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
+			}
+			d.txsStore.Wg.Done()
+			continue
+		}
+
+		txData, err := state.EncodeTransaction(txToStore.txResponse.Tx)
+		if err != nil {
+			err = dbTx.Rollback(d.ctx)
+			if err != nil {
+				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
+			}
+			d.txsStore.Wg.Done()
+			continue
+		}
+		batch.BatchL2Data = append(batch.BatchL2Data, txData...)
+
+		err = d.state.UpdateBatchL2Data(d.ctx, txToStore.batchNumber, batch.BatchL2Data, dbTx)
+		if err != nil {
+			err = dbTx.Rollback(d.ctx)
+			if err != nil {
+				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
+			}
+			d.txsStore.Wg.Done()
+			continue
 		}
 
 		// Check if the Tx is still valid in the state to detect reorgs
 		latestL2Block, err := d.state.GetLastL2Block(d.ctx, dbTx)
 		if err != nil {
-			log.Errorf("StoreProcessedTxAndDeleteFromPool :%v", err)
+			err = dbTx.Rollback(d.ctx)
+			if err != nil {
+				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
+			}
+			d.txsStore.Wg.Done()
+			continue
 		}
 		if latestL2Block.Root() != txToStore.previousL2BlockStateRoot {
 			log.Info("L2 reorg detected. Old state root: %v New state root: %v", latestL2Block.Root(), txToStore.previousL2BlockStateRoot)
 			d.l2ReorgCh <- L2ReorgEvent{}
+			d.txsStore.Wg.Done()
 			continue
 		}
 
@@ -184,7 +224,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 
 		err = dbTx.Commit(d.ctx)
 		if err != nil {
-			log.Errorf("StoreProcessedTxAndDeleteFromPool error committing: %v", err)
+			log.Errorf("StoreProcessedTxAndDeleteFromPool error committing : %v", err)
 		}
 
 		d.txsStore.Wg.Done()
@@ -195,11 +235,6 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 // if lastBatch IS OPEN - load data from it but set wipBatch.initialStateRoot to Last Closed Batch
 // if lastBatch IS CLOSED - open new batch in the database and load all data from the closed one without the txs and increase batch number
 func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
-	// TODO:
-	// keep batchl2data update every time we add a tx
-	// Reexecute the actual batch to recalculate de zkcounters used and remaining resource
-	// refactor is batch data
-
 	var lastBatch, previousLastBatch *state.Batch
 
 	lastBatches, err := d.state.GetLastNBatches(ctx, 2, nil)
@@ -227,6 +262,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	}
 
 	// TODO: Init counters and totals to MAX values
+	// Once getMaxRemainingResources is a shared function
 	var totalBytes uint64
 	var batchZkCounters state.ZKCounters
 

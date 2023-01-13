@@ -14,36 +14,12 @@ import (
 
 const ether155V = 27
 
-// EncodeTransactions RLP encodes the given transactions.
+// EncodeTransactions RLP encodes the given transactions
 func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	var batchL2Data []byte
 
 	for _, tx := range txs {
-		v, r, s := tx.RawSignatureValues()
-		sign := 1 - (v.Uint64() & 1)
-
-		nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
-		log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID)
-
-		txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
-			nonce,
-			gasPrice,
-			gas,
-			to,
-			value,
-			data,
-			chainID, uint(0), uint(0),
-		})
-
-		if err != nil {
-			return nil, err
-		}
-
-		newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
-		newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
-		newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
-		newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
-		txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+		txData, err := EncodeTransaction(tx)
 		if err != nil {
 			return nil, err
 		}
@@ -52,6 +28,40 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	}
 
 	return batchL2Data, nil
+}
+
+// EncodeTransaction RLP encodes the given transaction
+func EncodeTransaction(tx types.Transaction) ([]byte, error) {
+	v, r, s := tx.RawSignatureValues()
+	sign := 1 - (v.Uint64() & 1)
+
+	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
+	log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID)
+
+	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+		nonce,
+		gasPrice,
+		gas,
+		to,
+		value,
+		data,
+		chainID, uint(0), uint(0),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
+	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
+	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
+	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+	if err != nil {
+		return nil, err
+	}
+
+	return txData, nil
 }
 
 // EncodeUnsignedTransaction RLP encodes the given unsigned transaction
