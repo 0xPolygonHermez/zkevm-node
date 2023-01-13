@@ -90,9 +90,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 		Wg: new(sync.WaitGroup),
 	}
 
-	worker := newWorker()
-	dbManager := newDBManager(ctx, s.pool, s.dbManager, worker, closingSignalCh, txsStore)
-	go dbManager.Start()
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       s.cfg.MaxTxsPerBatch,
 		MaxBatchBytesSize:    s.cfg.MaxBatchBytesSize,
@@ -105,6 +102,23 @@ func (s *Sequencer) Start(ctx context.Context) {
 		MaxBinaries:          s.cfg.MaxBinaries,
 		MaxSteps:             s.cfg.MaxSteps,
 	}
+
+	batchResourceWeights := batchResourceWeights{
+		WeightBatchBytesSize:    s.cfg.WeightBatchBytesSize,
+		WeightCumulativeGasUsed: s.cfg.WeightCumulativeGasUsed,
+		WeightKeccakHashes:      s.cfg.WeightKeccakHashes,
+		WeightPoseidonHashes:    s.cfg.WeightPoseidonHashes,
+		WeightPoseidonPaddings:  s.cfg.WeightPoseidonPaddings,
+		WeightMemAligns:         s.cfg.WeightMemAligns,
+		WeightArithmetics:       s.cfg.WeightArithmetics,
+		WeightBinaries:          s.cfg.WeightBinaries,
+		WeightSteps:             s.cfg.WeightSteps,
+	}
+
+	worker := NewWorker(s.cfg, s.state, batchConstraints, batchResourceWeights)
+	dbManager := newDBManager(ctx, s.pool, s.dbManager, worker, closingSignalCh, txsStore)
+	go dbManager.Start()
+
 	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints)
 	currBatch, OldAccInputHash, OldStateRoot := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, OldStateRoot, OldAccInputHash)

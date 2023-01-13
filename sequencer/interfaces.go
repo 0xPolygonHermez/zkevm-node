@@ -46,6 +46,9 @@ type stateInterface interface {
 	GetSender(tx types.Transaction) (common.Address, error)
 	Begin(ctx context.Context) (pgx.Tx, error)
 	ProcessSingleTransaction(ctx context.Context, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
+	GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
+	GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
+	GetLastStateRoot(ctx context.Context) ([]byte, error)
 }
 
 type txManager interface {
@@ -53,10 +56,11 @@ type txManager interface {
 }
 
 type workerInterface interface {
-	GetBestFittingTx(resources BatchResources) *TxTracker
+	GetBestFittingTx(resources batchResources) *TxTracker
 	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress)
 	UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters)
-	AddTx(tx TxTracker)
+	NewTx(tx types.Transaction, counters state.ZKCounters) (*TxTracker, error)
+	AddTx(ctx context.Context, txTracker *TxTracker)
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int)
 	DeleteTx(txHash common.Hash, from common.Address, actualFromNonce *uint64, actualFromBalance *big.Int)
 	HandleL2Reorg(txHashes []common.Hash)

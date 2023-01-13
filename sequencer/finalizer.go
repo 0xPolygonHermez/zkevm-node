@@ -52,7 +52,7 @@ type WipBatch struct {
 	timestamp           uint64
 	globalExitRoot      common.Hash // 0x000...0 (ZeroHash) means to not update
 	txs                 []TxTracker
-	remainingResources  BatchResources
+	remainingResources  batchResources
 }
 
 type batchConstraints struct {
@@ -66,6 +66,19 @@ type batchConstraints struct {
 	MaxArithmetics       uint32
 	MaxBinaries          uint32
 	MaxSteps             uint32
+}
+
+// TODO: Add tests to config_test.go
+type batchResourceWeights struct {
+	WeightBatchBytesSize    int
+	WeightCumulativeGasUsed int
+	WeightKeccakHashes      int
+	WeightPoseidonHashes    int
+	WeightPoseidonPaddings  int
+	WeightMemAligns         int
+	WeightArithmetics       int
+	WeightBinaries          int
+	WeightSteps             int
 }
 
 // newFinalizer returns a new instance of Finalizer.
@@ -206,11 +219,11 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (succ
 		}
 
 		// Check remaining resources
-		usedResources := BatchResources{
+		usedResources := batchResources{
 			zKCounters: result.UsedZkCounters,
 			bytes:      uint64(len(tx.RawTx)),
 		}
-		err = f.batch.remainingResources.Sub(usedResources)
+		err = f.batch.remainingResources.sub(usedResources)
 		if err != nil {
 			f.worker.UpdateTx(txResponse.TxHash, tx.From, usedResources.zKCounters)
 			return false, err
@@ -476,8 +489,8 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, accI
 	}, err
 }
 
-func (f *finalizer) getMaxRemainingResources() BatchResources {
-	return BatchResources{
+func (f *finalizer) getMaxRemainingResources() batchResources {
+	return batchResources{
 		zKCounters: state.ZKCounters{
 			CumulativeGasUsed:    f.batchConstraints.MaxCumulativeGasUsed,
 			UsedKeccakHashes:     f.batchConstraints.MaxKeccakHashes,
