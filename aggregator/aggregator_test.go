@@ -252,7 +252,9 @@ func TestTryAggregateProofs(t *testing.T) {
 	proverID := "proverID"
 	recursiveProof := "recursiveProof"
 	errBanana := errors.New("banana")
-	ctx := context.Background()
+	proverCtx := context.WithValue(context.Background(), "owner", "prover")
+	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
+	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "aggregator" }
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
 	proof1 := state.Proof{
@@ -273,7 +275,7 @@ func TestTryAggregateProofs(t *testing.T) {
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(nil, nil, errBanana).Once()
+				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, nil, errBanana).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -287,7 +289,7 @@ func TestTryAggregateProofs(t *testing.T) {
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(nil, nil, state.ErrNotFound).Once()
+				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, nil, state.ErrNotFound).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -299,29 +301,30 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "AggregatedProof prover error",
 			setup: func(m mox, a *Aggregator) {
-				dbTx := &mocks.DbTxMock{}
-				m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Twice()
-				dbTx.On("Commit", mock.Anything).Return(nil).Twice()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(&proof1, &proof2, nil).Once()
-				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(nil, errBanana).Once()
+				dbTx := &mocks.DbTxMock{}
+				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
+				lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
 				proof1GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.True(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once()
 				proof2GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.True(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once()
+				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(nil, errBanana).Once()
+				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchAggregatorCtxFn)).Return(dbTx, nil).Once().NotBefore(lockProofsTxBegin)
 				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.False(args[1].(*state.Proof).Generating)
 					}).
@@ -329,13 +332,14 @@ func TestTryAggregateProofs(t *testing.T) {
 					Once().
 					NotBefore(proof1GeneratingTrueCall)
 				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.False(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once().
 					NotBefore(proof2GeneratingTrueCall)
+				dbTx.On("Commit", mock.MatchedBy(matchAggregatorCtxFn)).Return(nil).Once().NotBefore(lockProofsTxCommit)
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -347,30 +351,31 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
-				dbTx := &mocks.DbTxMock{}
-				m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Twice()
-				dbTx.On("Commit", mock.Anything).Return(nil).Twice()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(&proof1, &proof2, nil).Once()
-				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
-				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return("", errBanana).Once()
+				dbTx := &mocks.DbTxMock{}
+				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
+				lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
 				proof1GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.True(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once()
 				proof2GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.True(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once()
+				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", errBanana).Once()
+				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchAggregatorCtxFn)).Return(dbTx, nil).Once().NotBefore(lockProofsTxBegin)
 				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.False(args[1].(*state.Proof).Generating)
 					}).
@@ -378,13 +383,14 @@ func TestTryAggregateProofs(t *testing.T) {
 					Once().
 					NotBefore(proof1GeneratingTrueCall)
 				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.False(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once().
 					NotBefore(proof2GeneratingTrueCall)
+				dbTx.On("Commit", mock.MatchedBy(matchAggregatorCtxFn)).Return(nil).Once().NotBefore(lockProofsTxCommit)
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -396,37 +402,38 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "unlockProofsToAggregate error after WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
-				dbTx := &mocks.DbTxMock{}
-				m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Twice()
-				dbTx.On("Commit", mock.Anything).Return(nil).Once()
-				dbTx.On("Rollback", mock.Anything).Return(nil).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID)
-				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(&proof1, &proof2, nil).Once()
-				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
-				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return("", errBanana).Once()
+				dbTx := &mocks.DbTxMock{}
+				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
+				dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
 				proof1GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.True(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once()
 				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.True(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once()
+				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", errBanana).Once()
+				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchAggregatorCtxFn)).Return(dbTx, nil).Once().NotBefore(lockProofsTxBegin)
 				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.False(args[1].(*state.Proof).Generating)
 					}).
 					Return(errBanana).
 					Once().
 					NotBefore(proof1GeneratingTrueCall)
+				dbTx.On("Rollback", mock.MatchedBy(matchAggregatorCtxFn)).Return(nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -443,32 +450,33 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "rollback after DeleteGeneratedProofs error in db transaction",
 			setup: func(m mox, a *Aggregator) {
-				dbTx := &mocks.DbTxMock{}
-				m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Times(3)
-				dbTx.On("Commit", mock.Anything).Return(nil).Twice()
-				dbTx.On("Rollback", mock.Anything).Return(nil).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(&proof1, &proof2, nil).Once()
-				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
-				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return(recursiveProof, nil).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(errBanana).Once()
+				dbTx := &mocks.DbTxMock{}
+				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
+				lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
 				proof1GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.True(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once()
 				proof2GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.True(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once()
+				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, nil).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(errBanana).Once()
+				dbTx.On("Rollback", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchAggregatorCtxFn)).Return(dbTx, nil).Once().NotBefore(lockProofsTxBegin)
 				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.False(args[1].(*state.Proof).Generating)
 					}).
@@ -476,13 +484,14 @@ func TestTryAggregateProofs(t *testing.T) {
 					Once().
 					NotBefore(proof1GeneratingTrueCall)
 				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.False(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once().
 					NotBefore(proof2GeneratingTrueCall)
+				dbTx.On("Commit", mock.MatchedBy(matchAggregatorCtxFn)).Return(nil).Once().NotBefore(lockProofsTxCommit)
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -494,33 +503,34 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "rollback after AddGeneratedProof error in db transaction",
 			setup: func(m mox, a *Aggregator) {
-				dbTx := &mocks.DbTxMock{}
-				m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Times(3)
-				dbTx.On("Commit", mock.Anything).Return(nil).Twice()
-				dbTx.On("Rollback", mock.Anything).Return(nil).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(&proof1, &proof2, nil).Once()
-				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
-				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return(recursiveProof, nil).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(nil).Once()
-				m.stateMock.On("AddGeneratedProof", mock.Anything, mock.Anything, dbTx).Return(errBanana).Once()
+				dbTx := &mocks.DbTxMock{}
+				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
+				lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
 				proof1GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.True(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once()
 				proof2GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.True(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once()
+				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, nil).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, dbTx).Return(errBanana).Once()
+				dbTx.On("Rollback", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchAggregatorCtxFn)).Return(dbTx, nil).Once().NotBefore(lockProofsTxBegin)
 				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.False(args[1].(*state.Proof).Generating)
 					}).
@@ -528,13 +538,14 @@ func TestTryAggregateProofs(t *testing.T) {
 					Once().
 					NotBefore(proof1GeneratingTrueCall)
 				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
 						assert.False(args[1].(*state.Proof).Generating)
 					}).
 					Return(nil).
 					Once().
 					NotBefore(proof2GeneratingTrueCall)
+				dbTx.On("Commit", mock.MatchedBy(matchAggregatorCtxFn)).Return(nil).Once().NotBefore(lockProofsTxCommit)
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -546,29 +557,29 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "not time to send final ok",
 			setup: func(m mox, a *Aggregator) {
-				dbTx := &mocks.DbTxMock{}
-				m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Twice()
-				dbTx.On("Commit", mock.Anything).Return(nil).Twice()
-				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(&proof1, &proof2, nil).Once()
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
-					Run(func(args mock.Arguments) {
-						assert.True(args[1].(*state.Proof).Generating)
-					}).
-					Return(nil).
-					Once()
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
-					Run(func(args mock.Arguments) {
-						assert.True(args[1].(*state.Proof).Generating)
-					}).
-					Return(nil).
-					Once()
 				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr")
+				dbTx := &mocks.DbTxMock{}
+				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
+				dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Twice()
+				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once()
 				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
-				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return(recursiveProof, nil).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, nil).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(nil).Once()
 				expectedInputProver := map[string]interface{}{
 					"recursive_proof_1": proof1.Proof,
 					"recursive_proof_2": proof2.Proof,
@@ -584,7 +595,7 @@ func TestTryAggregateProofs(t *testing.T) {
 					Proof:            recursiveProof,
 					Generating:       true,
 				}
-				m.stateMock.On("AddGeneratedProof", mock.Anything, &expectedGenProof, dbTx).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), &expectedGenProof, dbTx).Return(nil).Once()
 				expectedUngenProof := state.Proof{
 					BatchNumber:      proof1.BatchNumber,
 					BatchNumberFinal: proof2.BatchNumberFinal,
@@ -594,7 +605,7 @@ func TestTryAggregateProofs(t *testing.T) {
 					Proof:            recursiveProof,
 					Generating:       false,
 				}
-				m.stateMock.On("UpdateGeneratedProof", mock.Anything, &expectedUngenProof, nil).Return(nil).Once()
+				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &expectedUngenProof, nil).Return(nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.True(result)
@@ -613,7 +624,8 @@ func TestTryAggregateProofs(t *testing.T) {
 			proverMock := mocks.NewProverMock(t)
 			a, err := New(cfg, stateMock, ethTxManager, etherman)
 			require.NoError(err)
-			a.ctx, a.exit = context.WithCancel(context.Background())
+			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator")
+			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 			m := mox{
 				stateMock:    stateMock,
 				ethTxManager: ethTxManager,
@@ -625,7 +637,7 @@ func TestTryAggregateProofs(t *testing.T) {
 			}
 			a.resetVerifyProofTime()
 
-			result, err := a.tryAggregateProofs(ctx, proverMock)
+			result, err := a.tryAggregateProofs(proverCtx, proverMock)
 
 			if tc.asserts != nil {
 				tc.asserts(result, &a, err)
@@ -657,7 +669,9 @@ func TestTryGenerateBatchProof(t *testing.T) {
 	proverID := "proverID"
 	recursiveProof := "recursiveProof"
 	errBanana := errors.New("banana")
-	ctx := context.Background()
+	proverCtx := context.WithValue(context.Background(), "owner", "prover")
+	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
+	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "aggregator" }
 	testCases := []struct {
 		name    string
 		setup   func(mox, *Aggregator)
@@ -668,7 +682,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(nil, errBanana).Once()
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, errBanana).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -682,7 +696,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(nil, state.ErrNotFound).Once()
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, state.ErrNotFound).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -696,21 +710,21 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&lastVerifiedBatch, nil).Once()
-				m.stateMock.On("GetVirtualBatchToProve", mock.Anything, lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
 				expectedGenProof := state.Proof{
 					BatchNumber:      batchToProve.BatchNumber,
 					BatchNumberFinal: batchToProve.BatchNumber,
 					Prover:           &proverID,
 					Generating:       true,
 				}
-				m.stateMock.On("AddGeneratedProof", mock.Anything, &expectedGenProof, nil).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), &expectedGenProof, nil).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
 				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(nil, errBanana).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, expectedGenProof.BatchNumber, expectedGenProof.BatchNumberFinal, nil).Return(nil).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), expectedGenProof.BatchNumber, expectedGenProof.BatchNumberFinal, nil).Return(nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -724,22 +738,22 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&lastVerifiedBatch, nil).Once()
-				m.stateMock.On("GetVirtualBatchToProve", mock.Anything, lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
 				expectedGenProof := state.Proof{
 					BatchNumber:      batchToProve.BatchNumber,
 					BatchNumberFinal: batchToProve.BatchNumber,
 					Prover:           &proverID,
 					Generating:       true,
 				}
-				m.stateMock.On("AddGeneratedProof", mock.Anything, &expectedGenProof, nil).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), &expectedGenProof, nil).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
 				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
-				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return("", errBanana).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, expectedGenProof.BatchNumber, expectedGenProof.BatchNumberFinal, nil).Return(nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", errBanana).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), expectedGenProof.BatchNumber, expectedGenProof.BatchNumberFinal, nil).Return(nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -753,22 +767,22 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return(proverID)
-				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&lastVerifiedBatch, nil).Once()
-				m.stateMock.On("GetVirtualBatchToProve", mock.Anything, lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
 				expectedGenProof := state.Proof{
 					BatchNumber:      batchToProve.BatchNumber,
 					BatchNumberFinal: batchToProve.BatchNumber,
 					Prover:           &proverID,
 					Generating:       true,
 				}
-				m.stateMock.On("AddGeneratedProof", mock.Anything, &expectedGenProof, nil).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), &expectedGenProof, nil).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
 				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
-				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return("", errBanana).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, expectedGenProof.BatchNumber, expectedGenProof.BatchNumberFinal, nil).Return(errBanana).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", errBanana).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), expectedGenProof.BatchNumber, expectedGenProof.BatchNumberFinal, nil).Return(errBanana).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -785,23 +799,23 @@ func TestTryGenerateBatchProof(t *testing.T) {
 		{
 			name: "not time to send final ok",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Times(3)
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&lastVerifiedBatch, nil).Once()
-				m.stateMock.On("GetVirtualBatchToProve", mock.Anything, lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
 				expectedGenProof := state.Proof{
 					BatchNumber:      batchToProve.BatchNumber,
 					BatchNumberFinal: batchToProve.BatchNumber,
 					Prover:           &proverID,
 					Generating:       true,
 				}
-				m.stateMock.On("AddGeneratedProof", mock.Anything, &expectedGenProof, nil).Return(nil).Once()
-				m.proverMock.On("ID").Return(proverID).Times(3)
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), &expectedGenProof, nil).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
 				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
-				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return(recursiveProof, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, nil).Once()
 				b, err := json.Marshal(expectedInputProver)
 				require.NoError(err)
 				expectedUngenProof := state.Proof{
@@ -813,7 +827,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					Proof:            recursiveProof,
 					Generating:       false,
 				}
-				m.stateMock.On("UpdateGeneratedProof", mock.Anything, &expectedUngenProof, nil).Return(nil).Once()
+				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &expectedUngenProof, nil).Return(nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.True(result)
@@ -832,7 +846,8 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			proverMock := mocks.NewProverMock(t)
 			a, err := New(cfg, stateMock, ethTxManager, etherman)
 			require.NoError(err)
-			a.ctx, a.exit = context.WithCancel(context.Background())
+			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator")
+			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 			m := mox{
 				stateMock:    stateMock,
 				ethTxManager: ethTxManager,
@@ -844,7 +859,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			}
 			a.resetVerifyProofTime()
 
-			result, err := a.tryGenerateBatchProof(ctx, proverMock)
+			result, err := a.tryGenerateBatchProof(proverCtx, proverMock)
 
 			if tc.asserts != nil {
 				tc.asserts(result, &a, err)
