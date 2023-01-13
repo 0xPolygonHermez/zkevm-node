@@ -85,6 +85,15 @@ MaxMemAligns = 262144
 MaxArithmetics = 262144
 MaxBinaries = 262144
 MaxSteps = 8388608
+WeightBatchBytesSize = 1
+WeightCumulativeGasUsed = 1
+WeightKeccakHashes = 1
+WeightPoseidonHashes = 1
+WeightPoseidonPaddings = 1
+WeightMemAligns = 1
+WeightArithmetics = 1
+WeightBinaries = 1
+WeightSteps = 1
 MaxAllowedFailedCounter = 50
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"

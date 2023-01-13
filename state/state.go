@@ -146,6 +146,12 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumbe
 	return nonce.Uint64(), nil
 }
 
+// GetLastStateRoot returns the last state root
+func (s *State) GetLastStateRoot(ctx context.Context) ([]byte, error) {
+	// TODO: WIP
+	return []byte{}, nil
+}
+
 // GetStorageAt from a given address
 func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
 	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)

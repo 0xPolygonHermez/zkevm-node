@@ -109,11 +109,11 @@ func (d *dbManager) loadFromPool() {
 				continue
 			}
 
-			txTracker := TxTracker{
-				Hash: tx.Hash(),
-				// TODO: Complete
+			txTracker, err := d.worker.NewTx(tx.Transaction, tx.ZKCounters)
+			if err != nil {
+				// TODO: How to handle this error?
 			}
-			d.worker.AddTx(txTracker)
+			d.worker.AddTx(ctx, txTracker)
 			d.txPool.UpdateTxStatus(ctx, tx.Hash(), pool.TxStatusWIP)
 		}
 	}
