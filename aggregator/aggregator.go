@@ -703,7 +703,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	return true, nil
 }
 
-func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover *prover.Prover) (*state.Batch, *state.Proof, error) {
+func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverInterface) (*state.Batch, *state.Proof, error) {
 	a.StateDBMutex.Lock()
 	defer a.StateDBMutex.Unlock()
 
@@ -752,8 +752,9 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover *prover.
 	return batchToVerify, proof, nil
 }
 
-func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.Prover) (bool, error) {
-	log.Debugf("tryGenerateBatchProof start prover { ID [%s], addr [%s] }", prover.ID(), prover.Addr())
+func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInterface) (bool, error) {
+	proverID := prover.ID()
+	log.Debugf("tryGenerateBatchProof start prover { ID [%s], addr [%s] }", proverID, prover.Addr())
 
 	batchToProve, proof, err0 := a.getAndLockBatchToProve(ctx, prover)
 	if errors.Is(err0, state.ErrNotFound) {
@@ -776,13 +777,15 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 			if err2 != nil {
 				log.Errorf("Failed to delete proof in progress, err: %v", err2)
 			} else {
-				a.unsetProverProof(prover.Addr(), *genProofID, batchToProve.BatchNumber, batchToProve.BatchNumber) // TODO(pg): switch to prover ID once it's unique across prover restarts
+				if genProofID != nil {
+					a.unsetProverProof(prover.Addr(), *genProofID, batchToProve.BatchNumber, batchToProve.BatchNumber) // TODO(pg): switch to prover ID once it's unique across prover restarts
+				}
 			}
 		}
 		log.Debug("tryGenerateBatchProof end")
 	}()
 
-	log.Infof("Prover { ID [%s], addr [%s] } is going to be used to generate proof from batch [%d]", prover.ID(), prover.Addr(), batchToProve.BatchNumber)
+	log.Infof("Prover { ID [%s], addr [%s] } is going to be used to generate proof from batch [%d]", proverID, prover.Addr(), batchToProve.BatchNumber)
 
 	log.Infof("Sending zki + batch to the prover, batchNumber [%d]", batchToProve.BatchNumber)
 	inputProver, err := a.buildInputProver(ctx, batchToProve)
@@ -834,8 +837,9 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 		if err != nil {
 			log.Errorf("Failed to store batch proof result, err %v", err)
 			return false, err
+		} else {
+			a.unsetProverProof(prover.Addr(), *genProofID, batchToProve.BatchNumber, batchToProve.BatchNumber) // TODO(pg): switch to prover ID once it's unique across prover restarts
 		}
-		a.unsetProverProof(prover.Addr(), *genProofID, batchToProve.BatchNumber, batchToProve.BatchNumber) // TODO(pg): switch to prover ID once it's unique across prover restarts
 	}
 
 	return true, nil

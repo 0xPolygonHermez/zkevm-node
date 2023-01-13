@@ -633,3 +633,222 @@ func TestTryAggregateProofs(t *testing.T) {
 		})
 	}
 }
+
+func TestTryGenerateBatchProof(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	cfg := Config{
+		VerifyProofInterval:        configTypes.NewDuration(10000000),
+		TxProfitabilityCheckerType: ProfitabilityAcceptAll,
+	}
+	pubAddr := common.BytesToAddress([]byte("pubAdddr"))
+	lastVerifiedBatchNum := uint64(22)
+	batchNum := uint64(23)
+	lastVerifiedBatch := state.VerifiedBatch{
+		BatchNumber: lastVerifiedBatchNum,
+	}
+	latestBatch := state.Batch{
+		BatchNumber: lastVerifiedBatchNum,
+	}
+	batchToProve := state.Batch{
+		BatchNumber: batchNum,
+	}
+	proofID := "proofId"
+	proverID := "proverID"
+	recursiveProof := "recursiveProof"
+	errBanana := errors.New("banana")
+	ctx := context.Background()
+	testCases := []struct {
+		name    string
+		setup   func(mox, *Aggregator)
+		asserts func(bool, *Aggregator, error)
+	}{
+		{
+			name: "getAndLockBatchToProve returns generic error",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return("addr")
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(nil, errBanana).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
+			},
+		},
+		{
+			name: "getAndLockBatchToProve returns ErrNotFound",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return("addr")
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(nil, state.ErrNotFound).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.NoError(err)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
+			},
+		},
+		{
+			name: "BatchProof prover error",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr")
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&lastVerifiedBatch, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.Anything, lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				expectedGenProof := state.Proof{
+					BatchNumber:      batchToProve.BatchNumber,
+					BatchNumberFinal: batchToProve.BatchNumber,
+					Prover:           &proverID,
+					Generating:       true,
+				}
+				m.stateMock.On("AddGeneratedProof", mock.Anything, &expectedGenProof, nil).Return(nil).Once()
+				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
+				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
+				require.NoError(err)
+				m.proverMock.On("BatchProof", expectedInputProver).Return(nil, errBanana).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, expectedGenProof.BatchNumber, expectedGenProof.BatchNumberFinal, nil).Return(nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
+			},
+		},
+		{
+			name: "WaitRecursiveProof prover error",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr")
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&lastVerifiedBatch, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.Anything, lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				expectedGenProof := state.Proof{
+					BatchNumber:      batchToProve.BatchNumber,
+					BatchNumberFinal: batchToProve.BatchNumber,
+					Prover:           &proverID,
+					Generating:       true,
+				}
+				m.stateMock.On("AddGeneratedProof", mock.Anything, &expectedGenProof, nil).Return(nil).Once()
+				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
+				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
+				require.NoError(err)
+				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return("", errBanana).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, expectedGenProof.BatchNumber, expectedGenProof.BatchNumberFinal, nil).Return(nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
+			},
+		},
+		{
+			name: "DeleteGeneratedProofs error after WaitRecursiveProof prover error",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return(proverID)
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&lastVerifiedBatch, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.Anything, lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				expectedGenProof := state.Proof{
+					BatchNumber:      batchToProve.BatchNumber,
+					BatchNumberFinal: batchToProve.BatchNumber,
+					Prover:           &proverID,
+					Generating:       true,
+				}
+				m.stateMock.On("AddGeneratedProof", mock.Anything, &expectedGenProof, nil).Return(nil).Once()
+				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
+				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
+				require.NoError(err)
+				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return("", errBanana).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, expectedGenProof.BatchNumber, expectedGenProof.BatchNumberFinal, nil).Return(errBanana).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+				proof, ok := a.proverProofs[proverID]
+				if assert.True(ok) {
+					assert.Equal(proofID, proof.ID)
+					assert.Equal(batchNum, proof.batchNum)
+					assert.Equal(batchNum, proof.batchNumFinal)
+
+				}
+			},
+		},
+		{
+			name: "not time to send final ok",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Addr").Return("addr")
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&lastVerifiedBatch, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.Anything, lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				expectedGenProof := state.Proof{
+					BatchNumber:      batchToProve.BatchNumber,
+					BatchNumberFinal: batchToProve.BatchNumber,
+					Prover:           &proverID,
+					Generating:       true,
+				}
+				m.stateMock.On("AddGeneratedProof", mock.Anything, &expectedGenProof, nil).Return(nil).Once()
+				m.proverMock.On("ID").Return(proverID).Times(3)
+				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
+				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
+				require.NoError(err)
+				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return(recursiveProof, nil).Once()
+				b, err := json.Marshal(expectedInputProver)
+				require.NoError(err)
+				expectedUngenProof := state.Proof{
+					BatchNumber:      batchToProve.BatchNumber,
+					BatchNumberFinal: batchToProve.BatchNumber,
+					Prover:           &proverID,
+					InputProver:      string(b),
+					ProofID:          &proofID,
+					Proof:            recursiveProof,
+					Generating:       false,
+				}
+				m.stateMock.On("UpdateGeneratedProof", mock.Anything, &expectedUngenProof, nil).Return(nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.True(result)
+				assert.NoError(err)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stateMock := mocks.NewStateMock(t)
+			ethTxManager := mocks.NewEthTxManager(t)
+			etherman := mocks.NewEtherman(t)
+			proverMock := mocks.NewProverMock(t)
+			a, err := New(cfg, stateMock, ethTxManager, etherman)
+			require.NoError(err)
+			a.ctx, a.exit = context.WithCancel(context.Background())
+			m := mox{
+				stateMock:    stateMock,
+				ethTxManager: ethTxManager,
+				etherman:     etherman,
+				proverMock:   proverMock,
+			}
+			if tc.setup != nil {
+				tc.setup(m, &a)
+			}
+			a.resetVerifyProofTime()
+
+			result, err := a.tryGenerateBatchProof(ctx, proverMock)
+
+			if tc.asserts != nil {
+				tc.asserts(result, &a, err)
+			}
+		})
+	}
+}
