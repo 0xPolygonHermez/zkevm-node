@@ -9,7 +9,6 @@
     "runAggregatorServer": false,
     "runAggregatorClient": false,
     "runAggregatorClientMock": true, 
-    "aggregatorClientMockTimeout": 15000000,
     
     "runFileGenBatchProof": false,
     "runFileGenAggregatedProof": false,
