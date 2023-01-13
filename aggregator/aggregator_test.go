@@ -253,13 +253,15 @@ func TestTryAggregateProofs(t *testing.T) {
 	recursiveProof := "recursiveProof"
 	errBanana := errors.New("banana")
 	ctx := context.Background()
+	batchNum := uint64(23)
+	batchNumFinal := uint64(42)
 	proof1 := state.Proof{
 		Proof:       "proof1",
-		BatchNumber: uint64(23),
+		BatchNumber: batchNum,
 	}
 	proof2 := state.Proof{
 		Proof:            "proof2",
-		BatchNumberFinal: uint64(42),
+		BatchNumberFinal: batchNumFinal,
 	}
 	testCases := []struct {
 		name    string
@@ -276,6 +278,8 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
 			},
 		},
 		{
@@ -288,6 +292,8 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.NoError(err)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
 			},
 		},
 		{
@@ -334,6 +340,207 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
+			},
+		},
+		{
+			name: "WaitRecursiveProof prover error",
+			setup: func(m mox, a *Aggregator) {
+				dbTx := &mocks.DbTxMock{}
+				m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Twice()
+				dbTx.On("Commit", mock.Anything).Return(nil).Twice()
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return("addr")
+				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(&proof1, &proof2, nil).Once()
+				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return("", errBanana).Once()
+				proof1GeneratingTrueCall := m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once()
+				proof2GeneratingTrueCall := m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.False(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once().
+					NotBefore(proof1GeneratingTrueCall)
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.False(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once().
+					NotBefore(proof2GeneratingTrueCall)
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
+			},
+		},
+		{
+			name: "unlockProofsToAggregate error after WaitRecursiveProof prover error",
+			setup: func(m mox, a *Aggregator) {
+				dbTx := &mocks.DbTxMock{}
+				m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Twice()
+				dbTx.On("Commit", mock.Anything).Return(nil).Once()
+				dbTx.On("Rollback", mock.Anything).Return(nil).Once()
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return(proverID)
+				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(&proof1, &proof2, nil).Once()
+				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return("", errBanana).Once()
+				proof1GeneratingTrueCall := m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.False(args[1].(*state.Proof).Generating)
+					}).
+					Return(errBanana).
+					Once().
+					NotBefore(proof1GeneratingTrueCall)
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+				proof, ok := a.proverProofs[proverID]
+				if assert.True(ok) {
+					assert.Equal(proofID, proof.ID)
+					assert.Equal(batchNum, proof.batchNum)
+					assert.Equal(batchNumFinal, proof.batchNumFinal)
+
+				}
+			},
+		},
+		{
+			name: "rollback after DeleteGeneratedProofs error in db transaction",
+			setup: func(m mox, a *Aggregator) {
+				dbTx := &mocks.DbTxMock{}
+				m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Times(3)
+				dbTx.On("Commit", mock.Anything).Return(nil).Twice()
+				dbTx.On("Rollback", mock.Anything).Return(nil).Once()
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return("addr")
+				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(&proof1, &proof2, nil).Once()
+				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return(recursiveProof, nil).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(errBanana).Once()
+				proof1GeneratingTrueCall := m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once()
+				proof2GeneratingTrueCall := m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.False(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once().
+					NotBefore(proof1GeneratingTrueCall)
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.False(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once().
+					NotBefore(proof2GeneratingTrueCall)
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
+			},
+		},
+		{
+			name: "rollback after AddGeneratedProof error in db transaction",
+			setup: func(m mox, a *Aggregator) {
+				dbTx := &mocks.DbTxMock{}
+				m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Times(3)
+				dbTx.On("Commit", mock.Anything).Return(nil).Twice()
+				dbTx.On("Rollback", mock.Anything).Return(nil).Once()
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return("addr")
+				m.stateMock.On("GetProofsToAggregate", mock.Anything, nil).Return(&proof1, &proof2, nil).Once()
+				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.Anything, proofID).Return(recursiveProof, nil).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.Anything, mock.Anything, dbTx).Return(errBanana).Once()
+				proof1GeneratingTrueCall := m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once()
+				proof2GeneratingTrueCall := m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.False(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once().
+					NotBefore(proof1GeneratingTrueCall)
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.Anything, &proof2, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.False(args[1].(*state.Proof).Generating)
+					}).
+					Return(nil).
+					Once().
+					NotBefore(proof2GeneratingTrueCall)
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
 			},
 		},
 		{
@@ -392,6 +599,8 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.True(result)
 				assert.NoError(err)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
 			},
 		},
 	}
