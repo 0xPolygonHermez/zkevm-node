@@ -51,6 +51,18 @@ func start(cliCtx *cli.Context) error {
 	if c.Metrics.Enabled {
 		metrics.Init()
 	}
+	components := cliCtx.StringSlice(config.FlagComponents)
+
+	// Only runs migration if the component is the synchronizer and if the flag is deactivated
+	if !cliCtx.Bool(config.FlagMigrations) {
+		for _, comp := range components {
+			if comp == SYNCHRONIZER {
+				runStateMigrations(c.StateDB)
+			}
+		}
+	}
+	checkStateMigrations(c.StateDB)
+
 	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
 		log.Fatal(err)
@@ -80,15 +92,13 @@ func start(cliCtx *cli.Context) error {
 
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman, st)
 
-	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
-		switch item {
+	for _, component := range components {
+		switch component {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
-			runStateMigrations(c.StateDB)
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			runStateMigrations(c.StateDB)
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager, gpe)
@@ -104,7 +114,6 @@ func start(cliCtx *cli.Context) error {
 			go runJSONRPCServer(*c, poolInstance, st, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
-			runStateMigrations(c.StateDB)
 			go runSynchronizer(*c, etherman, st)
 		case BROADCAST:
 			log.Info("Running broadcast service")
@@ -127,6 +136,13 @@ func setupLog(c log.Config) {
 
 func runStateMigrations(c db.Config) {
 	runMigrations(c, db.StateMigrationName)
+}
+
+func checkStateMigrations(c db.Config) {
+	err := db.CheckMigrations(c, db.StateMigrationName)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func runPoolMigrations(c db.Config) {

@@ -157,9 +157,9 @@ stop-db: ## Stops the node database
 .PHONY: run-node
 run-node: ## Runs the node
 	$(RUNSYNC)
+	sleep 2
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
-	sleep 2
 	$(RUNJSONRPC)
 
 .PHONY: stop-node
@@ -285,10 +285,10 @@ run: ## Runs a full node
 	sleep 1
 	$(RUNZKPROVER)
 	sleep 3
-	$(RUNSEQUENCER)
-	$(RUNAGGREGATOR)
 	$(RUNSYNC)
 	sleep 2
+	$(RUNSEQUENCER)
+	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
 
 .PHONY: stop
