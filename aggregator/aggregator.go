@@ -47,7 +47,7 @@ type Aggregator struct {
 
 	finalProof     chan finalProofMsg
 	verifyingProof bool
- 
+
 	srv  *grpc.Server
 	ctx  context.Context
 	exit context.CancelFunc
