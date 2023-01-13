@@ -26,6 +26,32 @@ type Sequencer struct {
 	address common.Address
 }
 
+type batchConstraints struct {
+	MaxTxsPerBatch       uint64
+	MaxBatchBytesSize    uint64
+	MaxCumulativeGasUsed uint64
+	MaxKeccakHashes      uint32
+	MaxPoseidonHashes    uint32
+	MaxPoseidonPaddings  uint32
+	MaxMemAligns         uint32
+	MaxArithmetics       uint32
+	MaxBinaries          uint32
+	MaxSteps             uint32
+}
+
+// TODO: Add tests to config_test.go
+type batchResourceWeights struct {
+	WeightBatchBytesSize    int
+	WeightCumulativeGasUsed int
+	WeightKeccakHashes      int
+	WeightPoseidonHashes    int
+	WeightPoseidonPaddings  int
+	WeightMemAligns         int
+	WeightArithmetics       int
+	WeightBinaries          int
+	WeightSteps             int
+}
+
 // L2ReorgEvent is the event that is triggered when a reorg happens in the L2
 type L2ReorgEvent struct {
 	TxHashes []common.Hash
@@ -120,8 +146,8 @@ func (s *Sequencer) Start(ctx context.Context) {
 	go dbManager.Start()
 
 	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints)
-	currBatch, OldAccInputHash, OldStateRoot := s.bootstrap(ctx, dbManager, finalizer)
-	go finalizer.Start(ctx, currBatch, OldStateRoot, OldAccInputHash)
+	currBatch, OldStateRoot := s.bootstrap(ctx, dbManager, finalizer)
+	go finalizer.Start(ctx, currBatch, OldStateRoot)
 
 	go s.trackOldTxs(ctx)
 	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
@@ -138,10 +164,10 @@ func (s *Sequencer) Start(ctx context.Context) {
 	<-ctx.Done()
 }
 
-func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) (*WipBatch, common.Hash, common.Hash) {
+func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) (*WipBatch, common.Hash) {
 	var (
-		currBatch                     *WipBatch
-		oldAccInputHash, oldStateRoot common.Hash
+		currBatch    *WipBatch
+		oldStateRoot common.Hash
 	)
 	batchNum, err := dbManager.GetLastBatchNumber(ctx)
 	for err != nil {
@@ -163,11 +189,10 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 			batchNumber:    processingCtx.BatchNumber,
 			coinbase:       processingCtx.Coinbase,
 			timestamp:      uint64(processingCtx.Timestamp.Unix()),
-			txs:            make([]TxTracker, 0, s.cfg.MaxTxsPerBatch),
 		}
 
 		if err != nil {
-			return nil, common.Hash{}, common.Hash{}
+			return nil, common.Hash{}
 		}
 	} else {
 		// Check if synchronizer is up-to-date
@@ -175,9 +200,14 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 			log.Info("wait for synchronizer to sync last batch")
 			time.Sleep(time.Second)
 		}
-		finalizer.closeAndOpenNewBatch(ctx)
+		finalizer.batch, err = finalizer.dbManager.GetWIPBatch(ctx)
+		if err != nil {
+			log.Fatalf("failed to get work-in-progress batch, err: %v", err)
+		}
+		finalizer.finalizeBatch(ctx)
+		currBatch = finalizer.batch
 	}
-	return currBatch, oldAccInputHash, oldStateRoot
+	return currBatch, oldStateRoot
 }
 
 func (s *Sequencer) trackOldTxs(ctx context.Context) {
@@ -226,4 +256,20 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	}
 
 	return true
+}
+
+func getMaxRemainingResources(constraints batchConstraints) batchResources {
+	return batchResources{
+		zKCounters: state.ZKCounters{
+			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed,
+			UsedKeccakHashes:     constraints.MaxKeccakHashes,
+			UsedPoseidonHashes:   constraints.MaxPoseidonHashes,
+			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings,
+			UsedMemAligns:        constraints.MaxMemAligns,
+			UsedArithmetics:      constraints.MaxArithmetics,
+			UsedBinaries:         constraints.MaxBinaries,
+			UsedSteps:            constraints.MaxSteps,
+		},
+		bytes: constraints.MaxBatchBytesSize,
+	}
 }

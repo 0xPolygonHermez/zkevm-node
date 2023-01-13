@@ -108,10 +108,11 @@ type Config struct {
 
 // FinalizerCfg contains the finalizer's configuration properties
 type FinalizerCfg struct {
-	NextGERDeadlineTimeoutInSec         types.Duration `mapstructure:"NextGERDeadlineTimeoutInSec"`
-	NextForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"NextForcedBatchDeadlineTimeoutInSec"`
-	SleepDurationInMs                   types.Duration `mapstructure:"SleepDurationInMs"`
-	ResourcePercentageToCloseBatch      uint32         `mapstructure:"ResourcePercentageToCloseBatch"`
+	GERDeadlineTimeoutInSec         types.Duration `mapstructure:"GERDeadlineTimeoutInSec"`
+	ForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"ForcedBatchDeadlineTimeoutInSec"`
+	SendingToL1DeadlineTimeoutInSec types.Duration `mapstructure:"SendingToL1DeadlineTimeoutInSec"`
+	SleepDurationInMs               types.Duration `mapstructure:"SleepDurationInMs"`
+	ResourcePercentageToCloseBatch  uint32         `mapstructure:"ResourcePercentageToCloseBatch"`
 }
 
 // MaxSequenceSize is a wrapper type that parses token amount to big int

@@ -33,26 +33,24 @@ type etherman interface {
 	GetLatestBlockTimestamp(ctx context.Context) (uint64, error)
 }
 
+type txManager interface {
+	SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error
+}
+
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
 	GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error)
-	ProcessSingleTx(ctx context.Context, request state.ProcessRequest) (state.ProcessBatchResponse, error)
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
-	GetSender(tx types.Transaction) (common.Address, error)
 	Begin(ctx context.Context) (pgx.Tx, error)
-	ProcessSingleTransaction(ctx context.Context, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 	GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
 	GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
 	GetLastStateRoot(ctx context.Context) ([]byte, error)
-}
-
-type txManager interface {
-	SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error
+	ProcessBatch(ctx context.Context, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 }
 
 type workerInterface interface {
@@ -81,7 +79,6 @@ type dbManagerInterface interface {
 	GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error)
 	GetLastClosedBatch(ctx context.Context) (*state.Batch, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
-	MarkReorgedTxsAsPending(ctx context.Context)
 	GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error)
 	ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 }
@@ -99,5 +96,4 @@ type dbManagerStateInterface interface {
 	GetLastBatch(ctx context.Context) (*state.Batch, error)
 	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
 	MarkReorgedTxsAsPending(ctx context.Context) error
-	GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error)
 }

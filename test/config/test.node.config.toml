@@ -95,8 +95,9 @@ MaxAllowedFailedCounter = 50
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 	[Sequencer.Finalizer]
-		NextGERDeadlineTimeoutInSec = 60
-		NextForcedBatchDeadlineTimeoutInSec = 60
+		GERDeadlineTimeoutInSec = 60
+		ForcedBatchDeadlineTimeoutInSec = 60
+		SendingToL1DeadlineTimeoutInSec = 60
 		SleepDurationInMs = 100
 	    ResourcePercentageToCloseBatch = 90
 
