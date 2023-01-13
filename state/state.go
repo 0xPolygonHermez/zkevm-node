@@ -422,24 +422,15 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 }
 
 // ProcessSequencerBatch is used by the sequencers to process transactions into an open batch
-func (s *State) ProcessSequencerBatch(
-	ctx context.Context,
-	batchNumber uint64,
-	txs []types.Transaction,
-	dbTx pgx.Tx,
-	caller CallerLabel,
-) (*ProcessBatchResponse, error) {
+func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller CallerLabel, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSequencerBatch start")
-	batchL2Data, err := EncodeTransactions(txs)
+
+	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, caller, dbTx)
 	if err != nil {
 		return nil, err
 	}
-	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, dbTx, caller)
-	if err != nil {
-		return nil, err
-	}
-	result, err := convertToProcessBatchResponse(txs, processBatchResponse)
+	result, err := convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -469,14 +460,9 @@ func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessReq
 		return nil, err
 	}
 	var result *ProcessBatchResponse
-	// TODO: refactor not to be needed to Decode
-	if len(request.Transactions) > 0 {
-		txs, _, err := DecodeTxs(request.Transactions)
-		if err != nil {
-			return nil, err
-		}
-		result, err = convertToProcessBatchResponse(txs, res)
 
+	if len(request.Transactions) > 0 {
+		result, err = convertToProcessBatchResponse(res)
 		if err != nil {
 			return nil, err
 		}
@@ -526,8 +512,8 @@ func (s *State) processBatch(
 	ctx context.Context,
 	batchNumber uint64,
 	batchL2Data []byte,
-	dbTx pgx.Tx,
 	caller CallerLabel,
+	dbTx pgx.Tx,
 ) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
@@ -693,25 +679,8 @@ func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, 
 	return nil
 }
 
-// closeSynchronizedBatch is used by Synchronizer to close the current batch.
-func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, batchL2Data []byte, dbTx pgx.Tx) error {
-	if dbTx == nil {
-		return ErrDBTxNil
-	}
-
-	err := s.isBatchClosable(ctx, receipt, dbTx)
-	if err != nil {
-		return err
-	}
-
-	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
-}
-
-// CloseBatch is used by sequencer to close the current batch. It will set the processing receipt and
-// the raw txs data based on the txs included on that batch that are already in the state
+// CloseBatch is used by sequencer to close the current batch
 func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error {
-	// TODO: differentiate the case where sequencer / sync calls the function so it's possible
-	// to use L2BatchData from L1 rather than from stored txs
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
@@ -721,43 +690,7 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 		return err
 	}
 
-	// Generate raw txs data
-	encodedTxsArray, err := s.GetEncodedTransactionsByBatchNumber(ctx, receipt.BatchNumber, dbTx)
-	if err != nil {
-		return err
-	}
-	txs := []types.Transaction{}
-	for i := 0; i < len(encodedTxsArray); i++ {
-		tx, err := DecodeTx(encodedTxsArray[i])
-		if err != nil {
-			return err
-		}
-		txs = append(txs, *tx)
-	}
-
-	// todo: temporary check, remove if don't face this error anymore https://github.com/0xPolygonHermez/zkevm-node/issues/1303
-	// check the order of the txs
-	if len(receipt.Txs) != len(txs) {
-		log.Warnf("when closing a batch amount of txs in memory: %d is differs from amount in db: %d",
-			len(receipt.Txs), len(txs))
-	}
-	var isOrderNotCorrect bool
-	for i, tx := range receipt.Txs {
-		if tx.Hash().Hex() != txs[i].Hash().Hex() {
-			isOrderNotCorrect = true
-		}
-	}
-	if isOrderNotCorrect {
-		log.Warnf("order in memory of the sequence and order in data from request database is different," +
-			" change to the order in memory")
-		txs = receipt.Txs
-	}
-	batchL2Data, err := EncodeTransactions(txs)
-	if err != nil {
-		return err
-	}
-
-	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
+	return s.PostgresStorage.closeBatch(ctx, receipt, dbTx)
 }
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
@@ -782,7 +715,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
 		return err
 	}
-	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx, caller)
+	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, caller, dbTx)
 	if err != nil {
 		return err
 	}
@@ -813,7 +746,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 		}
 	}
 
-	processedBatch, err := convertToProcessBatchResponse(decodedTransactions, processed)
+	processedBatch, err := convertToProcessBatchResponse(processed)
 	if err != nil {
 		return err
 	}
@@ -827,12 +760,13 @@ func (s *State) ProcessAndStoreClosedBatch(
 	}
 
 	// Close batch
-	return s.closeSynchronizedBatch(ctx, ProcessingReceipt{
+	return s.closeBatch(ctx, ProcessingReceipt{
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
 		AccInputHash:  processedBatch.NewAccInputHash,
-	}, encodedTxs, dbTx)
+		BatchL2Data:   encodedTxs,
+	}, dbTx)
 }
 
 // GetLastBatch gets latest batch (closed or not) on the data base
@@ -909,16 +843,11 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 	endTime := time.Now()
 
-	txs, _, err := DecodeTxs(batchL2Data)
-	if err != nil {
-		return nil, err
+	for _, response := range processBatchResponse.Responses {
+		log.Debugf(string(response.TxHash))
 	}
 
-	for _, tx := range txs {
-		log.Debugf(tx.Hash().String())
-	}
-
-	convertedResponse, err := convertToProcessBatchResponse(txs, processBatchResponse)
+	convertedResponse, err := convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -1206,12 +1135,12 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		result.Err = err
 		return result
 	}
-	response, err := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
+	response, err := convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
 		result.Err = err
 		return result
 	}
-	// Todo populate result
+
 	r := response.Responses[0]
 	result.ReturnValue = r.ReturnValue
 	result.GasLeft = r.GasLeft

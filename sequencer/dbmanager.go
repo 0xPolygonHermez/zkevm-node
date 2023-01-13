@@ -11,7 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -39,14 +38,86 @@ type ClosingBatchParameters struct {
 }
 
 func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
-	//TODO implement me
-
 	// Open Batch
-	// Process full batch
-	// Informar forced_batch_num
-	// Close Batch
+	processingCtx := state.ProcessingContext{
+		BatchNumber:    request.BatchNumber,
+		Coinbase:       request.Coinbase,
+		Timestamp:      time.Unix(int64(request.Timestamp), 0),
+		GlobalExitRoot: request.GlobalExitRoot,
+		ForcedBatchNum: &forcedBatchNum,
+	}
+	dbTx, err := d.state.BeginStateTransaction(d.ctx)
+	if err != nil {
+		log.Errorf("failed to begin state transaction for opening a batch, err: %v", err)
+		return nil, err
+	}
 
-	panic("implement me")
+	err = d.state.OpenBatch(d.ctx, processingCtx, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Errorf("failed to open a batch, err: %v", err)
+		return nil, err
+	}
+
+	// Process Batch
+	forcedBatch, err := d.state.GetForcedBatch(d.ctx, forcedBatchNum, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when getting forced batch err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Errorf("failed to get a forced batch, err: %v", err)
+		return nil, err
+	}
+
+	// TODO: callerLabel
+	processBatchResponse, err := d.state.ProcessSequencerBatch(d.ctx, request.BatchNumber, forcedBatch.RawTxsData, "", dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx processing forced batch err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Errorf("failed to process a batch, err: %v", err)
+		return nil, err
+	}
+
+	// Close Batch
+	processingReceipt := state.ProcessingReceipt{
+		BatchNumber:   request.BatchNumber,
+		StateRoot:     processBatchResponse.NewStateRoot,
+		LocalExitRoot: processBatchResponse.NewLocalExitRoot,
+		AccInputHash:  processBatchResponse.NewAccInputHash,
+		BatchL2Data:   forcedBatch.RawTxsData,
+	}
+
+	err = d.state.CloseBatch(d.ctx, processingReceipt, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Errorf("failed to close a batch, err: %v", err)
+		return nil, err
+	}
+
+	// All done
+	if err := dbTx.Commit(d.ctx); err != nil {
+		log.Errorf("failed to commit dbTx when opening batch, err: %v", err)
+		return nil, err
+	}
+
+	return processBatchResponse, nil
 }
 
 func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore) *dbManager {
@@ -388,19 +459,14 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 		AccInputHash:  params.AccInputHash,
 	}
 
-	transactions := make([]types.Transaction, len(params.Txs))
+	var batchL2Data []byte
 
+	// TODO: Check if this concatenation is correct
 	for _, tx := range params.Txs {
-		transaction, err := state.DecodeTx(string(tx.RawTx))
-
-		if err != nil {
-			return err
-		}
-
-		transactions = append(transactions, *transaction)
+		batchL2Data = append(batchL2Data, tx.RawTx...)
 	}
 
-	processingReceipt.Txs = transactions
+	processingReceipt.BatchL2Data = batchL2Data
 
 	dbTx, err := d.BeginStateTransaction(ctx)
 	if err != nil {

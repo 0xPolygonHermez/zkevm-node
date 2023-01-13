@@ -1611,7 +1611,11 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		*signedTxFirstIncrement,
 		*signedTxFirstRetrieve,
 	}
-	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx, state.SequencerCallerLabel)
+
+	batchL2Data, err := state.EncodeTransactions(signedTxs)
+	require.NoError(t, err)
+
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, state.SequencerCallerLabel, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
 	assert.Nil(t, processBatchResponse.Responses[0].Error)
@@ -2026,7 +2030,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
 
-	convertedResponse, err := state.TestConvertToProcessBatchResponse([]types.Transaction{*signedTx0, *signedTx1}, processBatchResponse)
+	convertedResponse, err := state.TestConvertToProcessBatchResponse(processBatchResponse)
 	require.NoError(t, err)
 	log.Debugf("%v", len(convertedResponse.Responses))
 
@@ -2391,7 +2395,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	require.Equal(t, uint64(1000000000), balance.Uint64())
 
 	// Preparation to be able to estimate gas
-	convertedResponse, err := state.TestConvertToProcessBatchResponse(transactions, processBatchResponse)
+	convertedResponse, err := state.TestConvertToProcessBatchResponse(processBatchResponse)
 	require.NoError(t, err)
 	log.Debugf("%v", len(convertedResponse.Responses))
 
