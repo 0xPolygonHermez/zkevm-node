@@ -171,7 +171,7 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 	return processingCtx
 }
 
-// loadFromPool keeps loading transaction from the pool
+// loadFromPool keeps loading transactions from the pool
 func (d *dbManager) loadFromPool() {
 	for {
 		// TODO: Move this to a config parameter
