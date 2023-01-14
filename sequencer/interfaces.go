@@ -8,6 +8,7 @@ import (
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -21,7 +22,8 @@ type txPool interface {
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
 	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
-	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus)
+	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error
+	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -31,6 +33,7 @@ type etherman interface {
 	GetLatestBatchNumber() (uint64, error)
 	GetLastBatchTimestamp() (uint64, error)
 	GetLatestBlockTimestamp(ctx context.Context) (uint64, error)
+	GetLatestBlockNumber(ctx context.Context) (uint64, error)
 }
 
 type txManager interface {
@@ -47,21 +50,35 @@ type stateInterface interface {
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	Begin(ctx context.Context) (pgx.Tx, error)
-	GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
-	GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
+	GetBalanceByStateRoot(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
+	GetNonceByStateRoot(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
 	GetLastStateRoot(ctx context.Context) ([]byte, error)
 	ProcessBatch(ctx context.Context, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
+	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
+	ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
+	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
+	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
+	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
+	GetLastNBatches(ctx context.Context, numBatches uint, dbTx pgx.Tx) ([]*state.Batch, error)
+	StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error
+	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
+	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
+	GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error)
+	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
+	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
+	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller state.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 }
 
 type workerInterface interface {
 	GetBestFittingTx(resources batchResources) *TxTracker
 	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress)
 	UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters)
-	NewTx(tx types.Transaction, counters state.ZKCounters) (*TxTracker, error)
 	AddTx(ctx context.Context, txTracker *TxTracker)
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int)
 	DeleteTx(txHash common.Hash, from common.Address, actualFromNonce *uint64, actualFromBalance *big.Int)
 	HandleL2Reorg(txHashes []common.Hash)
+	NewTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters) (*TxTracker, error)
 }
 
 // The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.
@@ -71,7 +88,7 @@ type dbManagerInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
-	StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error
+	StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error
 	DeleteTransactionFromPool(ctx context.Context, txHash common.Hash) error
 	CloseBatch(ctx context.Context, params ClosingBatchParameters) error
 	GetWIPBatch(ctx context.Context) (*WipBatch, error)
@@ -79,7 +96,8 @@ type dbManagerInterface interface {
 	GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error)
 	GetLastClosedBatch(ctx context.Context) (*state.Batch, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
-	GetLatestGer(ctx context.Context) (state.GlobalExitRoot, time.Time, error)
+	MarkReorgedTxsAsPending(ctx context.Context)
+	GetLatestGer(ctx context.Context, waitBlocksToConsiderGERFinal uint64) (state.GlobalExitRoot, time.Time, error)
 	ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 }
 
@@ -88,12 +106,18 @@ type dbManagerStateInterface interface {
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLastNBatches(ctx context.Context, numBatches uint, dbTx pgx.Tx) ([]*state.Batch, error)
-	StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, dbTx pgx.Tx) error
+	StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLastBatch(ctx context.Context) (*state.Batch, error)
+	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
-	MarkReorgedTxsAsPending(ctx context.Context) error
+	GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error)
+	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
+	ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
+	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
+	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
+	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
+	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller state.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 }

@@ -393,9 +393,9 @@ func isEVMRevertError(err error) bool {
 }
 
 // OpenBatch adds a new batch into the state, with the necessary data to start processing transactions within it.
-// It's meant to be used by sequencers, since they don't necessarely know what transactions are going to be added
+// It's meant to be used by sequencers, since they don't necessarily know what transactions are going to be added
 // in this batch yet. In other words it's the creation of a WIP batch.
-// Note that this will add a batch with batch number N + 1, where N it's the greates batch number on the state.
+// Note that this will add a batch with batch number N + 1, where N it's the greatest batch number on the state.
 func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingContext, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
@@ -428,24 +428,15 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 }
 
 // ProcessSequencerBatch is used by the sequencers to process transactions into an open batch
-func (s *State) ProcessSequencerBatch(
-	ctx context.Context,
-	batchNumber uint64,
-	txs []types.Transaction,
-	dbTx pgx.Tx,
-	caller CallerLabel,
-) (*ProcessBatchResponse, error) {
+func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller CallerLabel, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSequencerBatch start")
-	batchL2Data, err := EncodeTransactions(txs)
+
+	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, caller, dbTx)
 	if err != nil {
 		return nil, err
 	}
-	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, dbTx, caller)
-	if err != nil {
-		return nil, err
-	}
-	result, err := convertToProcessBatchResponse(txs, processBatchResponse)
+	result, err := convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -475,14 +466,9 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*Proc
 		return nil, err
 	}
 	var result *ProcessBatchResponse
-	// TODO: refactor not to be needed to Decode
-	if len(request.Transactions) > 0 {
-		txs, _, err := DecodeTxs(request.Transactions)
-		if err != nil {
-			return nil, err
-		}
-		result, err = convertToProcessBatchResponse(txs, res)
 
+	if len(request.Transactions) > 0 {
+		result, err = convertToProcessBatchResponse(res)
 		if err != nil {
 			return nil, err
 		}
@@ -494,6 +480,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*Proc
 }
 
 // ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
+// It is also used by the sequencer in order to calculate used zkCounter of a WIPBatch
 func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
@@ -531,8 +518,8 @@ func (s *State) processBatch(
 	ctx context.Context,
 	batchNumber uint64,
 	batchL2Data []byte,
-	dbTx pgx.Tx,
 	caller CallerLabel,
+	dbTx pgx.Tx,
 ) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
@@ -698,25 +685,8 @@ func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, 
 	return nil
 }
 
-// closeSynchronizedBatch is used by Synchronizer to close the current batch.
-func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, batchL2Data []byte, dbTx pgx.Tx) error {
-	if dbTx == nil {
-		return ErrDBTxNil
-	}
-
-	err := s.isBatchClosable(ctx, receipt, dbTx)
-	if err != nil {
-		return err
-	}
-
-	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
-}
-
-// CloseBatch is used by sequencer to close the current batch. It will set the processing receipt and
-// the raw txs data based on the txs included on that batch that are already in the state
+// CloseBatch is used by sequencer to close the current batch
 func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error {
-	// TODO: differentiate the case where sequencer / sync calls the function so it's possible
-	// to use L2BatchData from L1 rather than from stored txs
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
@@ -726,43 +696,7 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 		return err
 	}
 
-	// Generate raw txs data
-	encodedTxsArray, err := s.GetEncodedTransactionsByBatchNumber(ctx, receipt.BatchNumber, dbTx)
-	if err != nil {
-		return err
-	}
-	txs := []types.Transaction{}
-	for i := 0; i < len(encodedTxsArray); i++ {
-		tx, err := DecodeTx(encodedTxsArray[i])
-		if err != nil {
-			return err
-		}
-		txs = append(txs, *tx)
-	}
-
-	// todo: temporary check, remove if don't face this error anymore https://github.com/0xPolygonHermez/zkevm-node/issues/1303
-	// check the order of the txs
-	if len(receipt.Txs) != len(txs) {
-		log.Warnf("when closing a batch amount of txs in memory: %d is differs from amount in db: %d",
-			len(receipt.Txs), len(txs))
-	}
-	var isOrderNotCorrect bool
-	for i, tx := range receipt.Txs {
-		if tx.Hash().Hex() != txs[i].Hash().Hex() {
-			isOrderNotCorrect = true
-		}
-	}
-	if isOrderNotCorrect {
-		log.Warnf("order in memory of the sequence and order in data from request database is different," +
-			" change to the order in memory")
-		txs = receipt.Txs
-	}
-	batchL2Data, err := EncodeTransactions(txs)
-	if err != nil {
-		return err
-	}
-
-	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
+	return s.PostgresStorage.closeBatch(ctx, receipt, dbTx)
 }
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
@@ -787,7 +721,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
 		return err
 	}
-	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx, caller)
+	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, caller, dbTx)
 	if err != nil {
 		return err
 	}
@@ -818,7 +752,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 		}
 	}
 
-	processedBatch, err := convertToProcessBatchResponse(decodedTransactions, processed)
+	processedBatch, err := convertToProcessBatchResponse(processed)
 	if err != nil {
 		return err
 	}
@@ -832,12 +766,13 @@ func (s *State) ProcessAndStoreClosedBatch(
 	}
 
 	// Close batch
-	return s.closeSynchronizedBatch(ctx, ProcessingReceipt{
+	return s.closeBatch(ctx, ProcessingReceipt{
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
 		AccInputHash:  processedBatch.NewAccInputHash,
-	}, encodedTxs, dbTx)
+		BatchL2Data:   encodedTxs,
+	}, dbTx)
 }
 
 // GetLastBatch gets latest batch (closed or not) on the data base
@@ -914,16 +849,11 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 	endTime := time.Now()
 
-	txs, _, err := DecodeTxs(batchL2Data)
-	if err != nil {
-		return nil, err
+	for _, response := range processBatchResponse.Responses {
+		log.Debugf(string(response.TxHash))
 	}
 
-	for _, tx := range txs {
-		log.Debugf(tx.Hash().String())
-	}
-
-	convertedResponse, err := convertToProcessBatchResponse(txs, processBatchResponse)
+	convertedResponse, err := convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -1211,12 +1141,12 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		result.Err = err
 		return result
 	}
-	response, err := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
+	response, err := convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
 		result.Err = err
 		return result
 	}
-	// Todo populate result
+
 	r := response.Responses[0]
 	result.ReturnValue = r.ReturnValue
 	result.GasLeft = r.GasLeft
@@ -1275,7 +1205,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		case int(merkletree.LeafTypeCode):
 			code, err := hex.DecodeHex(action.Bytecode)
 			if err != nil {
-				return newRoot, fmt.Errorf("Could not decode SC bytecode for address %q: %v", address, err)
+				return newRoot, fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
 			}
 			newRoot, _, err = s.tree.SetCode(ctx, address, code, newRoot)
 			if err != nil {
@@ -1299,7 +1229,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		case int(merkletree.LeafTypeSCLength):
 			log.Debug("Skipped genesis action of type merkletree.LeafTypeSCLength, these actions will be handled as part of merkletree.LeafTypeCode actions")
 		default:
-			return newRoot, fmt.Errorf("Unknown genesis action type %q", action.Type)
+			return newRoot, fmt.Errorf("unknown genesis action type %q", action.Type)
 		}
 	}
 
@@ -1321,6 +1251,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		Timestamp:      block.ReceivedAt,
 		Transactions:   []types.Transaction{},
 		GlobalExitRoot: ZeroHash,
+		ForcedBatchNum: nil,
 	}
 
 	err = s.storeGenesisBatch(ctx, batch, dbTx)
@@ -1536,27 +1467,27 @@ func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
 	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
 }
 
-// StoreTransactions is used by the sequencer to add processed transactions into
-// an open batch.
-func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, dbTx pgx.Tx) error {
+// StoreTransaction is used by the sequencer to add process a transaction
+func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
 
 	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
-	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
-	if err != nil {
-		return err
-	}
-	if isBatchClosed {
-		return ErrBatchAlreadyClosed
-	}
+	/*
+			isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
+			if err != nil {
+				return err
+			}
+			if isBatchClosed {
+				return ErrBatchAlreadyClosed
+			}
 
-	processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
-	if err != nil {
-		return err
-	}
-
+		processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
+		if err != nil {
+			return err
+		}
+	*/
 	// if the transaction has an intrinsic invalid tx error it means
 	// the transaction has not changed the state, so we don't store it
 	if executor.IsIntrinsicError(executor.ErrorCode(processedTx.Error)) {
@@ -1571,11 +1502,11 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	header := &types.Header{
 		Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
 		ParentHash: lastL2Block.Hash(),
-		Coinbase:   processingContext.Coinbase,
+		Coinbase:   coinbase,
 		Root:       processedTx.StateRoot,
 		GasUsed:    processedTx.GasUsed,
 		GasLimit:   s.cfg.MaxCumulativeGasUsed,
-		Time:       uint64(processingContext.Timestamp.Unix()),
+		Time:       timestamp,
 	}
 	transactions := []*types.Transaction{&processedTx.Tx}
 
@@ -1584,7 +1515,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 
 	// Create block to be able to calculate its hash
 	block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
-	block.ReceivedAt = processingContext.Timestamp
+	block.ReceivedAt = time.Unix(int64(timestamp), 0)
 
 	receipt.BlockHash = block.Hash()
 
@@ -1594,4 +1525,14 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	}
 
 	return nil
+}
+
+func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
+	// TODO: Implement
+	return big.NewInt(0), nil
+}
+
+func (s *State) GetNonceByStateRoot(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
+	// TODO: Implement
+	return big.NewInt(0), nil
 }

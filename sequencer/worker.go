@@ -37,10 +37,9 @@ func NewWorker(cfg Config, state stateInterface, constraints batchConstraints, w
 	return &w
 }
 
-// NewTx creates and init a TxTracker
-// TODO: Rename to NewTxTracker?
-func (w *Worker) NewTx(tx types.Transaction, counters state.ZKCounters) (*TxTracker, error) {
-	return newTxTracker(tx, counters, w.batchConstraints, w.batchResourceWeights)
+// NewTxTracker creates and inits a TxTracker
+func (w *Worker) NewTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters) (*TxTracker, error) {
+	return newTxTracker(tx, isClaim, counters, w.batchConstraints, w.batchResourceWeights)
 }
 
 // AddTx adds a new Tx to the Worker
@@ -61,12 +60,12 @@ func (w *Worker) AddTx(ctx context.Context, tx *TxTracker) {
 			// TODO: How to manage this
 			return
 		}
-		nonce, error := w.state.GetNonce(ctx, tx.From, root)
+		nonce, error := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if error != nil {
 			// TODO: How to manage this
 			return
 		}
-		balance, error := w.state.GetBalance(ctx, tx.From, root)
+		balance, error := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if error != nil {
 			// TODO: How to manage this
 			return

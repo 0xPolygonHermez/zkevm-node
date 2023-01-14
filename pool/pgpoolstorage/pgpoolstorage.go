@@ -542,3 +542,21 @@ func (p *PostgresPoolStorage) DeleteTransactionByHash(ctx context.Context, hash 
 	}
 	return nil
 }
+
+// GetTxZkCountersByHash gets a transaction zkcounters by its hash
+func (p *PostgresPoolStorage) GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error) {
+	var zkCounters state.ZKCounters
+
+	sql := `SELECT cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
+			used_arithmetics, used_binaries, used_steps FROM pool.txs WHERE hash = $1`
+	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&zkCounters.CumulativeGasUsed, &zkCounters.UsedKeccakHashes,
+		&zkCounters.UsedPoseidonHashes, &zkCounters.UsedPoseidonPaddings,
+		&zkCounters.UsedMemAligns, &zkCounters.UsedArithmetics, &zkCounters.UsedBinaries, &zkCounters.UsedSteps)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &zkCounters, nil
+}

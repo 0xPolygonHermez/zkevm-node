@@ -17,9 +17,9 @@ import (
 type Sequencer struct {
 	cfg Config
 
-	pool      txPool
-	state     stateInterface
-	dbManager dbManagerStateInterface
+	pool  txPool
+	state stateInterface
+	// dbManager dbManagerInterface
 	txManager txManager
 	etherman  etherman
 
@@ -76,21 +76,23 @@ type TxsStore struct {
 type txToStore struct {
 	txResponse               *state.ProcessTransactionResponse
 	batchNumber              uint64
+	coinbase                 common.Address
+	timestamp                uint64
 	previousL2BlockStateRoot common.Hash
 }
 
 // New init sequencer
-func New(cfg Config, txPool txPool, state stateInterface, dbManager dbManagerStateInterface, etherman etherman, manager txManager) (*Sequencer, error) {
+func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager txManager) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
 
 	return &Sequencer{
-		cfg:       cfg,
-		pool:      txPool,
-		state:     state,
-		dbManager: dbManager,
+		cfg:   cfg,
+		pool:  txPool,
+		state: state,
+		// dbManager: dbManager,
 		etherman:  etherman,
 		txManager: manager,
 		address:   addr,
@@ -142,7 +144,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	worker := NewWorker(s.cfg, s.state, batchConstraints, batchResourceWeights)
-	dbManager := newDBManager(ctx, s.pool, s.dbManager, worker, closingSignalCh, txsStore)
+	dbManager := newDBManager(ctx, s.pool, s.state, worker, closingSignalCh, txsStore)
 	go dbManager.Start()
 
 	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints)

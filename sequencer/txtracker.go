@@ -20,14 +20,14 @@ type TxTracker struct {
 	GasPrice       *big.Int
 	Cost           *big.Int       // Cost = Amount + Benefit
 	Benefit        *big.Int       // GasLimit * GasPrice
+	IsClaim        bool           // Needed to calculate efficiency
 	BatchResources batchResources // To check if it fits into a batch
 	Efficiency     float64
 	RawTx          []byte
-	// TODO: isClaim
 }
 
 // newTxTracker creates and inti a TxTracker
-func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints batchConstraints, weights batchResourceWeights) (*TxTracker, error) {
+func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, constraints batchConstraints, weights batchResourceWeights) (*TxTracker, error) {
 	addr, error := state.GetSender(tx)
 	if error != nil {
 		return nil, error
@@ -49,7 +49,8 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints b
 	txTracker.FromStr = txTracker.From.String()
 	txTracker.Benefit = new(big.Int).Mul(new(big.Int).SetUint64(txTracker.Gas), txTracker.GasPrice)
 	txTracker.calculateEfficiency(constraints, weights)
-	txTracker.RawTx = []byte{} // TODO: Which value to assign
+	txTracker.RawTx = tx.Data()
+
 	return txTracker, nil
 }
 

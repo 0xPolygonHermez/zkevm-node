@@ -86,18 +86,6 @@ type ZKCounters struct {
 	UsedSteps            uint32
 }
 
-// IsZkCountersBelowZero checks if any of the counters are below zero
-func (z *ZKCounters) IsZkCountersBelowZero() bool {
-	return z.CumulativeGasUsed < 0 ||
-		z.UsedArithmetics < 0 ||
-		z.UsedSteps < 0 ||
-		z.UsedBinaries < 0 ||
-		z.UsedMemAligns < 0 ||
-		z.UsedPoseidonPaddings < 0 ||
-		z.UsedPoseidonHashes < 0 ||
-		z.UsedKeccakHashes < 0
-}
-
 // SumUp sum ups zk counters with passed tx zk counters
 func (z *ZKCounters) SumUp(other ZKCounters) {
 	z.CumulativeGasUsed += other.CumulativeGasUsed
@@ -112,7 +100,6 @@ func (z *ZKCounters) SumUp(other ZKCounters) {
 
 // Sub subtract zk counters with passed zk counters (not safe)
 func (z *ZKCounters) Sub(other ZKCounters) error {
-
 	// ZKCounters
 	if other.CumulativeGasUsed > z.CumulativeGasUsed {
 		return errors.New("underflow ZKCounter: CumulativeGasUsed")

@@ -175,7 +175,7 @@ func createSequencer(c config.Config, pool *pool.Pool, state *state.State, ether
 	//	log.Fatal(err)
 	//}
 
-	seq, err := sequencer.New(c.Sequencer, pool, state, state, etherman, ethTxManager)
+	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, ethTxManager)
 	if err != nil {
 		log.Fatal(err)
 	}

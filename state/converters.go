@@ -15,8 +15,8 @@ import (
 )
 
 // TestConvertToProcessBatchResponse for test purposes
-func TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	return convertToProcessBatchResponse(txs, response)
+func TestConvertToProcessBatchResponse(response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	return convertToProcessBatchResponse(response)
 }
 
 func ConvertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
@@ -32,8 +32,8 @@ func ConvertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
 	}
 }
 
-func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	responses, err := convertToProcessTransactionResponse(txs, response.Responses)
+func convertToProcessBatchResponse(response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	responses, err := convertToProcessTransactionResponse(response.Responses)
 	if err != nil {
 		return nil, err
 	}
@@ -62,9 +62,9 @@ func isProcessed(err pb.Error) bool {
 	return !executor.IsIntrinsicError(err) && !executor.IsOutOfCountersError(err)
 }
 
-func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
+func convertToProcessTransactionResponse(responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
-	for i, response := range responses {
+	for _, response := range responses {
 		trace, err := convertToStructLogArray(response.ExecutionTrace)
 		if err != nil {
 			return nil, err
@@ -84,11 +84,17 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.IsProcessed = isProcessed(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
-		result.Tx = txs[i]
+
+		tx, err := DecodeTx(string(response.GetRlpTx()))
+		if err != nil {
+			return nil, err
+		}
+
+		result.Tx = *tx
 		results = append(results, result)
 
-		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
-		log.Debugf("ProcessTransactionResponse[Nonce]: %v", txs[i].Nonce())
+		log.Debugf("ProcessTransactionResponse[TxHash]: %v", result.TxHash)
+		log.Debugf("ProcessTransactionResponse[Nonce]: %v", result.Tx.Nonce())
 		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
 		log.Debugf("ProcessTransactionResponse[Error]: %v", result.Error)
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
@@ -181,7 +187,7 @@ func convertToBigIntArray(responses []string) ([]*big.Int, error) {
 		if ok {
 			results = append(results, result)
 		} else {
-			return nil, fmt.Errorf("String %s is not valid", response)
+			return nil, fmt.Errorf("string %s is not valid", response)
 		}
 	}
 	return results, nil

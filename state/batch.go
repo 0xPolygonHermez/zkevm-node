@@ -18,6 +18,7 @@ type Batch struct {
 	Timestamp      time.Time
 	Transactions   []types.Transaction
 	GlobalExitRoot common.Hash
+	ForcedBatchNum *uint64
 }
 
 // ProcessingContext is the necessary data that a batch needs to provide to the runtime,
@@ -27,6 +28,7 @@ type ProcessingContext struct {
 	Coinbase       common.Address
 	Timestamp      time.Time
 	GlobalExitRoot common.Hash
+	ForcedBatchNum *uint64
 }
 
 // ProcessingReceipt indicates the outcome (StateRoot, AccInputHash) of processing a batch
@@ -35,8 +37,8 @@ type ProcessingReceipt struct {
 	StateRoot     common.Hash
 	LocalExitRoot common.Hash
 	AccInputHash  common.Hash
-	Txs           []types.Transaction
-	BatchL2Data   []byte
+	// Txs           []types.Transaction
+	BatchL2Data []byte
 }
 
 // VerifiedBatch represents a VerifiedBatch
