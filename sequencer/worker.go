@@ -60,12 +60,12 @@ func (w *Worker) AddTx(ctx context.Context, tx *TxTracker) {
 			// TODO: How to manage this
 			return
 		}
-		nonce, error := w.state.GetNonce(ctx, tx.From, root)
+		nonce, error := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if error != nil {
 			// TODO: How to manage this
 			return
 		}
-		balance, error := w.state.GetBalance(ctx, tx.From, root)
+		balance, error := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if error != nil {
 			// TODO: How to manage this
 			return

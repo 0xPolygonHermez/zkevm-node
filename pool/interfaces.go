@@ -29,6 +29,7 @@ type storage interface {
 	GetTxByHash(ctx context.Context, hash common.Hash) (*Transaction, error)
 	IncrementFailedCounter(ctx context.Context, hashes []string) error
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
+	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 }
 
 type stateInterface interface {

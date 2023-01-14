@@ -300,6 +300,14 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 
 		// Change Tx status to selected
 		d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected)
+		if err != nil {
+			err = dbTx.Rollback(d.ctx)
+			if err != nil {
+				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
+			}
+			d.txsStore.Wg.Done()
+			continue
+		}
 
 		err = dbTx.Commit(d.ctx)
 		if err != nil {
@@ -429,7 +437,7 @@ func (d *dbManager) GetLastClosedBatch(ctx context.Context) (*state.Batch, error
 
 // GetLastBatch gets the latest batch from state
 func (d *dbManager) GetLastBatch(ctx context.Context) (*state.Batch, error) {
-	batch, err := d.state.GetLastBatch(ctx)
+	batch, err := d.state.GetLastBatch(d.ctx, nil)
 	if err != nil {
 		return nil, err
 	}
