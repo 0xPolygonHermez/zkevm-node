@@ -178,32 +178,40 @@ func (d *dbManager) loadFromPool() {
 		time.Sleep(wait * time.Second)
 
 		poolTransactions, err := d.txPool.GetPendingTxs(d.ctx, false, 0)
-
 		if err != nil && err != pgpoolstorage.ErrNotFound {
-			log.Errorf("loadFromPool: %v", err)
-			continue
+			log.Errorf("load tx from pool: %v", err)
+		}
+
+		for _, tx := range poolTransactions {
+			err := d.addTxToWorker(tx, false)
+			if err != nil {
+				log.Errorf("error adding transaction to worker: %v", err)
+			}
 		}
 
 		poolClaims, err := d.txPool.GetPendingTxs(d.ctx, true, 0)
-
 		if err != nil && err != pgpoolstorage.ErrNotFound {
-			log.Errorf("loadFromPool: %v", err)
-			continue
+			log.Errorf("load claims from pool: %v", err)
 		}
 
-		poolTransactions = append(poolTransactions, poolClaims...)
-
-		for _, tx := range poolTransactions {
+		for _, tx := range poolClaims {
+			err := d.addTxToWorker(tx, true)
 			if err != nil {
-				log.Errorf("loadFromPool error getting tx sender: %v", err)
-				continue
+				log.Errorf("error adding claim to worker: %v", err)
 			}
-
-			txTracker := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IsClaims)
-			d.worker.AddTx(*txTracker)
-			d.txPool.UpdateTxStatus(d.ctx, tx.Hash(), pool.TxStatusWIP)
 		}
 	}
+}
+
+func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
+	txTracker, err := d.worker.NewTxTracker(tx.Transaction, isClaim, tx.ZKCounters)
+	if err != nil {
+		return err
+	}
+	d.worker.AddTx(d.ctx, txTracker)
+	d.txPool.UpdateTxStatus(d.ctx, tx.Hash(), pool.TxStatusWIP)
+
+	return nil
 }
 
 // BeginStateTransaction starts a db transaction in the state
@@ -303,7 +311,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 }
 
 // GetWIPBatch returns ready WIP batch
-// if lastBatch IS OPEN - load data from it but set wipBatch.initialStateRoot to Last Closed Batch
+// if lastBatch IS OPEN - load data from it but set batch.initialStateRoot to Last Closed Batch
 // if lastBatch IS CLOSED - open new batch in the database and load all data from the closed one without the txs and increase batch number
 func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	var lastBatch, previousLastBatch *state.Batch
@@ -329,7 +337,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		localExitRoot:  lastBatch.LocalExitRoot,
 		timestamp:      uint64(lastBatch.Timestamp.Unix()),
 		globalExitRoot: lastBatch.GlobalExitRoot,
-		isEmptyBatch:   len(lastBatch.BatchL2Data) == 0,
+		isEmpty:        len(lastBatch.BatchL2Data) == 0,
 	}
 
 	// TODO: Init counters and totals to MAX values
@@ -350,7 +358,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		processingContext := &state.ProcessingContext{
 			BatchNumber:    wipBatch.batchNumber,
 			Coinbase:       wipBatch.coinbase,
-			Timestamp:      time.Now(),
+			Timestamp:      time.Unix(int64(wipBatch.timestamp), 0),
 			GlobalExitRoot: wipBatch.globalExitRoot,
 		}
 
@@ -376,11 +384,11 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		}
 	} else {
 		wipBatch.stateRoot = lastL2BlockHeader.Root
-		wipBatch.stateRoot = previousLastBatch.StateRoot
+		wipBatch.initialStateRoot = previousLastBatch.StateRoot
 		batchL2DataLen := len(lastBatch.BatchL2Data)
 
 		if batchL2DataLen > 0 {
-			wipBatch.isEmptyBatch = false
+			wipBatch.isEmpty = false
 
 			batchResponse, err := d.state.ExecuteBatch(ctx, wipBatch.batchNumber, lastBatch.BatchL2Data, nil)
 			if err != nil {
@@ -406,11 +414,11 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			totalBytes -= uint64(batchL2DataLen)
 
 		} else {
-			wipBatch.isEmptyBatch = true
+			wipBatch.isEmpty = true
 		}
 	}
 
-	wipBatch.remainingResources = BatchResources{zKCounters: batchZkCounters, bytes: totalBytes}
+	wipBatch.remainingResources = batchResources{zKCounters: batchZkCounters, bytes: totalBytes}
 	return wipBatch, nil
 }
 

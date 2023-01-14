@@ -1,222 +1,227 @@
 package sequencer
 
 import (
-	"fmt"
+	"context"
 	"math/big"
+	"runtime"
 	"sync"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// Worker represents the worker component of the sequencer
 type Worker struct {
-	Pool           map[common.Address]AddrQueue // This should have (almost) all txs from the pool
-	efficiencyList efficiencyList
+	pool                 map[string]addrQueue // This should have (almost) all txs from the pool
+	efficiencyList       *efficiencyList
+	workerMutex          sync.Mutex
+	dbManager            dbManagerInterface
+	state                stateInterface
+	batchConstraints     batchConstraints
+	batchResourceWeights batchResourceWeights
 }
 
-func newWorker() *Worker {
-	// TODO: Initialize memory structs
-	return &Worker{}
-}
-
-func (w *Worker) AddTx(tx TxTracker) {
-	// 1. Check if addr exists on Pool
-	// // If not: create and get nonce and balance from MT
-	// 2. Add tx to the AddrQueue if there is a tx with the same nonce and the existing tx has better gas price we keep the existing tx and discard the other
-	// 3. Check if the new tx is ready, if so:
-	// // A) There wasnt a tx ready => add the tx to the efficiencyList
-	// // B) There was a tx ready (and it's worst than the new one) => delete from pool and efficiency list, add new one
-}
-
-func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
-	// 1. Delete related txs from w.efficiencyList
-	// 2. Mark the affected addresses as "reorged" in w.Pool
-	// 3. Update these addresses (go to MT, update nonce and balance into w.Pool)
-}
-
-func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress) {
-	fromNonce, fromBalance := touchedAddresses[from].Nonce, touchedAddresses[from].Balance
-	w.ApplyAddressUpdate(from, fromNonce, fromBalance)
-
-	for addr, addressInfo := range touchedAddresses {
-		w.ApplyAddressUpdate(addr, nil, addressInfo.Balance)
+// NewWorker creates an init a worker
+func NewWorker(cfg Config, state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
+	w := Worker{
+		pool:                 make(map[string]addrQueue),
+		efficiencyList:       newEfficiencyList(),
+		state:                state,
+		batchConstraints:     constraints,
+		batchResourceWeights: weights,
 	}
+
+	const defaultCostWeigth = float64(1.0 / 9.0)
+
+	return &w
 }
 
-func (w *Worker) ApplyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker) {
-	newReadyTx, prevReadyTx := w.Pool[from].UpdateCurrentNonceBalance(fromNonce, fromBalance)
+// NewTxTracker creates and inits a TxTracker
+func (w *Worker) NewTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters) (*TxTracker, error) {
+	return newTxTracker(tx, isClaim, counters, w.batchConstraints, w.batchResourceWeights)
+}
+
+// AddTx adds a new Tx to the Worker
+// TODO: Rename to AddTxTracker?
+func (w *Worker) AddTx(ctx context.Context, tx *TxTracker) {
+	// TODO: Review if additional mutex is needed to lock GetBestFittingTx
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
+
+	addr, found := w.pool[tx.FromStr]
+
+	if !found {
+		// Unlock the worker to let execute other worker functions while creating the new AddrQueue
+		w.workerMutex.Unlock()
+
+		root, error := w.state.GetLastStateRoot(ctx)
+		if error != nil {
+			// TODO: How to manage this
+			return
+		}
+		nonce, error := w.state.GetNonce(ctx, tx.From, root)
+		if error != nil {
+			// TODO: How to manage this
+			return
+		}
+		balance, error := w.state.GetBalance(ctx, tx.From, root)
+		if error != nil {
+			// TODO: How to manage this
+			return
+		}
+
+		addr = newAddrQueue(tx.From, nonce.Uint64(), balance)
+
+		// Lock again the worker
+		w.workerMutex.Lock()
+
+		w.pool[tx.FromStr] = addr
+	}
+
+	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
+	newReadyTx, prevReadyTx := addr.addTx(tx)
+
+	// Update the EfficiencyList (if needed)
 	if prevReadyTx != nil {
-		w.efficiencyList.Delete(prevReadyTx.Hash)
+		w.efficiencyList.delete(prevReadyTx)
 	}
 	if newReadyTx != nil {
-		w.efficiencyList.Add(*newReadyTx)
+		w.efficiencyList.add(newReadyTx)
 	}
-	return newReadyTx, prevReadyTx
 }
 
-// MoveTxToNotReady Assume that finalizer detected that a tx was not ready and decides to move to not ready after it fails to execute AND DOESN'T MODIFY THE STATE
-func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) {
-	// TODO: Update this
-}
+func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker) {
+	addrQueue, found := w.pool[from.String()]
 
-// DeleteTx Assume that finalizer decides to delete the tx after it fails to execute AND DOESN'T MODIFY THE STATE
-func (w *Worker) DeleteTx(txHash common.Hash, from common.Address, actualFromNonce *uint64, actualFromBalance *big.Int) {
-	/*
-		1. Delete from w.Pool and w.efficiencyList
-		2. Update w.Pool with nonce/balance if they are not nil
-		3. Potentially delete more txs if nonce has been updated
-		4. Potentially select new ReadyTx and add it into efficiecnyList
-	*/
-}
+	if found {
+		newReadyTx, prevReadyTx := addrQueue.updateCurrentNonceBalance(fromNonce, fromBalance)
 
-func (w *Worker) UpdateTx(txHash common.Hash, from common.Address, zkCounters state.ZKCounters) {
-	// 1. Get tx from Pool
-	// 2. Set zKCounters
-	// 3. Calculate new wfficiency
-	// 4. Resort tx from efficiency
-}
+		// Update the EfficiencyList (if needed)
+		if prevReadyTx != nil {
+			w.efficiencyList.delete(prevReadyTx)
+		}
+		if newReadyTx != nil {
+			w.efficiencyList.add(newReadyTx)
+		}
 
-// TODO: separate UpdateAfterSingleSuccessfulTxExecution in different functions so it can be nicely reused by MoveTxToNotReady
+		return newReadyTx, prevReadyTx
+	}
 
-type AddrQueue struct {
-	CurrentNonce   uint64
-	CurrentBalance *big.Int
-	ReadyTx        *TxTracker
-	NotReadyTxs    []TxTracker
-}
-
-func (a AddrQueue) UpdateCurrentNonceBalance(nonce *uint64, balance *big.Int) (newReadyTx, prevReadyTx *TxTracker) {
-	// 1. Set nonce, balance
-	// 2. If ReadyTx != nil, and not longer ready:
-	// // prevReadyTx = ReadyTx
-	// // tmpTx = ReadyTx
-	// // ReadyTx = nil
-	// // conisder moving tmpTx to NotReadyTx
-	// 3. If ReadyTx == nil, check if NotReadyTxs[0] can be moved to ReadyTx and if so newReadyTx = ReadyTx
 	return nil, nil
 }
 
-type efficiencyList map[common.Hash]TxTracker // only ready txs. Replace map for sorted map. TODO: find good library
+// UpdateAfterSingleSuccessfulTxExecution updates the touched addresses after execute on Executor a successfully tx
+func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress) {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
 
-func (e *efficiencyList) Add(tx TxTracker)   {}
-func (e *efficiencyList) Delete(common.Hash) {}
-func (e *efficiencyList) GetMostEfficientByIndex(i int) *TxTracker {
-	return &TxTracker{}
-}
+	// TODO: Check if from exists in toucedAddresses, if not warning
+	fromNonce, fromBalance := touchedAddresses[from].Nonce, touchedAddresses[from].Balance
+	w.applyAddressUpdate(from, fromNonce, fromBalance)
 
-type BatchResources struct {
-	zKCounters state.ZKCounters
-	bytes      uint64
-}
-
-func (r *BatchResources) Sub(other BatchResources) error {
-	// Bytes
-	if other.bytes > r.bytes {
-		return fmt.Errorf("%w. Resource: Bytes", ErrBatchRemainingResourcesUnderflow)
+	for addr, addressInfo := range touchedAddresses {
+		w.applyAddressUpdate(addr, nil, addressInfo.Balance)
 	}
-	bytesBackup := r.bytes
-	r.bytes -= other.bytes
-	err := r.zKCounters.Sub(other.zKCounters)
-	if err != nil {
-		return fmt.Errorf("%w. %s", ErrBatchRemainingResourcesUnderflow, err)
-	}
-	r.bytes = bytesBackup
-
-	return err
 }
 
-type TxTracker struct {
-	Hash       common.Hash
-	From       common.Address
-	addrQueue  *AddrQueue
-	Nonce      uint64
-	IsClaim    bool             // Needed to calculate efficiency
-	Benefit    *big.Int         // GasLimit * GasPrice
-	ZKCounters state.ZKCounters // To check if it fits into a batch
-	Size       uint64           // To check if it fits into a batch
-	Gas        uint64           // To check if it fits into a batch
-	GasPrice   int64
-	Efficiency float64 // To sort. TODO: calculate Benefit / Cost. Cost = some formula taking into account ZKC and Byte Size
-	RawTx      []byte
+// MoveTxToNotReady move a tx to not ready after it fails to execute
+func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) {
+	w.applyAddressUpdate(from, actualNonce, actualBalance)
+	// TODO: Errorf in case readyTx.Hash == txHash
 }
 
-func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, isClaim bool) *TxTracker {
-	sender, err := state.GetSender(tx)
-	if err != nil {
-		log.Errorf("error retrieving tx sender: %v", err)
-	}
+// DeleteTx delete the tx after it fails to execute
+func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address, actualFromNonce *uint64, actualFromBalance *big.Int) {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
 
-	txTracker := &TxTracker{
-		Hash:       tx.Hash(),
-		From:       sender,
-		Nonce:      tx.Nonce(),
-		IsClaim:    isClaim,
-		Benefit:    tx.GasPrice().Mul(tx.GasPrice(), big.NewInt(int64(tx.Gas()))),
-		ZKCounters: counters,
-		Size:       uint64(tx.Size()),
-		Gas:        tx.Gas(),
-		GasPrice:   tx.GasPrice().Int64(),
-		// TODO: Define how to calculate efficiency
-		// Efficiency:
-		RawTx: tx.Data(),
+	addrQueue, found := w.pool[addr.String()]
+
+	// TODO: What happens if not found?
+	if found {
+		deletedReadyTx := addrQueue.deleteTx(txHash)
+		if deletedReadyTx != nil {
+			w.efficiencyList.delete(deletedReadyTx)
+		}
+
+		addrQueue.updateCurrentNonceBalance(actualFromNonce, actualFromBalance)
 	}
-	txTracker.CalculateEfficiency()
-	return txTracker
 }
 
-func (tx *TxTracker) CalculateEfficiency() {
-	// TODO: define efficiency formula, this is just a draft
-	const (
-		UsedArithmeticsWeight = 0.1
+// UpdateTx updates the ZKCounter of a tx and resort the tx in the efficiency list if needed
+func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters state.ZKCounters) {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
+
+	addrQueue, found := w.pool[addr.String()]
+
+	// TODO: What happens if not found? log Errorf
+	if found {
+		readyTxUpdated := addrQueue.UpdateTxZKCounters(txHash, counters, w.batchConstraints, w.batchResourceWeights)
+
+		// Resort updatedReadyTx in efficiencyList
+		if readyTxUpdated != nil {
+			w.efficiencyList.delete(readyTxUpdated)
+			w.efficiencyList.add(readyTxUpdated)
+		}
+	}
+}
+
+// GetBestFittingTx gets the most efficient tx that fits in the available batch resources
+func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
+
+	var (
+		tx         *TxTracker
+		foundMutex sync.RWMutex
 	)
-	cost := float64(tx.ZKCounters.UsedArithmetics) * UsedArithmeticsWeight // do for all counters ... AND size
-	benefit := tx.ZKCounters.CumulativeGasUsed * uint64(tx.GasPrice)
-	tx.Efficiency = float64(benefit) / cost
-}
 
-func (w *Worker) getMostEfficientTx() (TxTracker, error) {
-	return TxTracker{}, nil
-}
+	nGoRoutines := runtime.NumCPU()
+	foundAt := -1
 
-func (w *Worker) len() int {
-	return 0
-}
-
-func (w *Worker) GetBestFittingTx(resources BatchResources) *TxTracker {
-	var tx *TxTracker
-	nGoRoutines := 4 // nCores - K // TODO: Think about this
-
-	// Each go routine looks for a fitting tx
-	foundAt := -1 // TODO: add sharedResourcesMux
 	wg := sync.WaitGroup{}
 	wg.Add(nGoRoutines)
+
+	// Each go routine looks for a fitting tx
 	for i := 0; i < nGoRoutines; i++ {
 		go func(n int) {
 			defer wg.Done()
-			for i := n; i < len(w.efficiencyList); i += nGoRoutines {
-				if i > foundAt {
+			for i := n; i < w.efficiencyList.len(); i += nGoRoutines {
+				foundMutex.RLock()
+				if foundAt != -1 && i > foundAt {
+					foundMutex.RUnlock()
 					return
 				}
-				txCandidate := w.efficiencyList.GetMostEfficientByIndex(i)
-				err := resources.Sub(BatchResources{
-					zKCounters: txCandidate.ZKCounters,
-					bytes:      uint64(len(txCandidate.RawTx)),
-				})
-				if err != nil {
+				foundMutex.RUnlock()
+
+				txCandidate := w.efficiencyList.getByIndex(i)
+				error := resources.sub(*&txCandidate.BatchResources)
+				if error != nil {
 					// We don't add this Tx
 					continue
 				}
 
+				foundMutex.Lock()
 				if foundAt == -1 || foundAt > i {
 					foundAt = i
 					tx = txCandidate
 				}
+				foundMutex.Unlock()
+
 				return
 			}
 		}(i)
 	}
 	wg.Wait()
+
 	return tx
+}
+
+// HandleL2Reorg handles the L2 reorg signal
+func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
+	// 1. Delete related txs from w.efficiencyList
+	// 2. Mark the affected addresses as "reorged" in w.Pool
+	// 3. Update these addresses (go to MT, update nonce and balance into w.Pool)
 }

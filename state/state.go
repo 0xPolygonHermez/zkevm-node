@@ -146,6 +146,12 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumbe
 	return nonce.Uint64(), nil
 }
 
+// GetLastStateRoot returns the last state root
+func (s *State) GetLastStateRoot(ctx context.Context) ([]byte, error) {
+	// TODO: WIP
+	return []byte{}, nil
+}
+
 // GetStorageAt from a given address
 func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
 	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
@@ -439,9 +445,9 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 	return result, nil
 }
 
-func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessRequest) (*ProcessBatchResponse, error) {
+func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
-	log.Debugf("ProcessSingleTransaction start")
+	log.Debugf("ProcessBatch start")
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
@@ -467,7 +473,7 @@ func (s *State) ProcessSingleTransaction(ctx context.Context, request ProcessReq
 			return nil, err
 		}
 	}
-	log.Debugf("ProcessSingleTransaction end")
+	log.Debugf("ProcessBatch end")
 	log.Debugf("*******************************************")
 
 	return result, nil

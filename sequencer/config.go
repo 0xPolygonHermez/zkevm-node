@@ -75,16 +75,44 @@ type Config struct {
 	// Maximum allowed failed counter for the tx before it becomes invalid
 	MaxAllowedFailedCounter uint64 `mapstructure:"MaxAllowedFailedCounter"`
 
+	// WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
+	WeightBatchBytesSize int `mapstructure:"WeightBatchBytesSize"`
+
+	// WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource
+	WeightCumulativeGasUsed int `mapstructure:"WeightCumulativeGasUsed"`
+
+	// WeightKeccakHashes is the cost weight for the KeccakHashes batch resource
+	WeightKeccakHashes int `mapstructure:"WeightKeccakHashes"`
+
+	// WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource
+	WeightPoseidonHashes int `mapstructure:"WeightPoseidonHashes"`
+
+	// WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource
+	WeightPoseidonPaddings int `mapstructure:"WeightPoseidonPaddings"`
+
+	// WeightMemAligns is the cost weight for the MemAligns batch resource
+	WeightMemAligns int `mapstructure:"WeightMemAligns"`
+
+	// WeightArithmetics is the cost weight for the Arithmetics batch resource
+	WeightArithmetics int `mapstructure:"WeightArithmetics"`
+
+	// WeightBinaries is the cost weight for the Binaries batch resource
+	WeightBinaries int `mapstructure:"WeightBinaries"`
+
+	// WeightSteps is the cost weight for the Steps batch resource
+	WeightSteps int `mapstructure:"WeightSteps"`
+
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"FinalizerCfg"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
 type FinalizerCfg struct {
-	NextGERDeadlineTimeoutInSec         types.Duration `mapstructure:"NextGERDeadlineTimeoutInSec"`
-	NextForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"NextForcedBatchDeadlineTimeoutInSec"`
-	SleepDurationInMs                   types.Duration `mapstructure:"SleepDurationInMs"`
-	ResourcePercentageToCloseBatch      uint32         `mapstructure:"ResourcePercentageToCloseBatch"`
+	GERDeadlineTimeoutInSec         types.Duration `mapstructure:"GERDeadlineTimeoutInSec"`
+	ForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"ForcedBatchDeadlineTimeoutInSec"`
+	SendingToL1DeadlineTimeoutInSec types.Duration `mapstructure:"SendingToL1DeadlineTimeoutInSec"`
+	SleepDurationInMs               types.Duration `mapstructure:"SleepDurationInMs"`
+	ResourcePercentageToCloseBatch  uint32         `mapstructure:"ResourcePercentageToCloseBatch"`
 }
 
 // MaxSequenceSize is a wrapper type that parses token amount to big int
