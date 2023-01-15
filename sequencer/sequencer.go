@@ -144,7 +144,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	worker := NewWorker(s.cfg, s.state, batchConstraints, batchResourceWeights)
-	dbManager := newDBManager(ctx, s.pool, s.state, worker, closingSignalCh, txsStore)
+	dbManager := newDBManager(ctx, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
 	go dbManager.Start()
 
 	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints)
