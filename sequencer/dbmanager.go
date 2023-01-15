@@ -20,12 +20,13 @@ const (
 
 // Pool Loader and DB Updater
 type dbManager struct {
-	txPool    txPool
-	state     dbManagerStateInterface
-	worker    workerInterface
-	txsStore  TxsStore
-	l2ReorgCh chan L2ReorgEvent
-	ctx       context.Context
+	txPool           txPool
+	state            dbManagerStateInterface
+	worker           workerInterface
+	txsStore         TxsStore
+	l2ReorgCh        chan L2ReorgEvent
+	ctx              context.Context
+	batchConstraints batchConstraints
 }
 
 // ClosingBatchParameters contains the necessary parameters to close a batch
@@ -37,91 +38,8 @@ type ClosingBatchParameters struct {
 	Txs           []TxTracker
 }
 
-func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
-	// Open Batch
-	processingCtx := state.ProcessingContext{
-		BatchNumber:    request.BatchNumber,
-		Coinbase:       request.Coinbase,
-		Timestamp:      time.Unix(int64(request.Timestamp), 0),
-		GlobalExitRoot: request.GlobalExitRoot,
-		ForcedBatchNum: &forcedBatchNum,
-	}
-	dbTx, err := d.state.BeginStateTransaction(d.ctx)
-	if err != nil {
-		log.Errorf("failed to begin state transaction for opening a batch, err: %v", err)
-		return nil, err
-	}
-
-	err = d.state.OpenBatch(d.ctx, processingCtx, dbTx)
-	if err != nil {
-		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
-			log.Errorf(
-				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
-				rollbackErr, err,
-			)
-		}
-		log.Errorf("failed to open a batch, err: %v", err)
-		return nil, err
-	}
-
-	// Process Batch
-	forcedBatch, err := d.state.GetForcedBatch(d.ctx, forcedBatchNum, dbTx)
-	if err != nil {
-		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
-			log.Errorf(
-				"failed to rollback dbTx when getting forced batch err: %v. Rollback err: %v",
-				rollbackErr, err,
-			)
-		}
-		log.Errorf("failed to get a forced batch, err: %v", err)
-		return nil, err
-	}
-
-	// TODO: callerLabel
-	processBatchResponse, err := d.state.ProcessSequencerBatch(d.ctx, request.BatchNumber, forcedBatch.RawTxsData, "", dbTx)
-	if err != nil {
-		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
-			log.Errorf(
-				"failed to rollback dbTx processing forced batch err: %v. Rollback err: %v",
-				rollbackErr, err,
-			)
-		}
-		log.Errorf("failed to process a batch, err: %v", err)
-		return nil, err
-	}
-
-	// Close Batch
-	processingReceipt := state.ProcessingReceipt{
-		BatchNumber:   request.BatchNumber,
-		StateRoot:     processBatchResponse.NewStateRoot,
-		LocalExitRoot: processBatchResponse.NewLocalExitRoot,
-		AccInputHash:  processBatchResponse.NewAccInputHash,
-		BatchL2Data:   forcedBatch.RawTxsData,
-	}
-
-	err = d.state.CloseBatch(d.ctx, processingReceipt, dbTx)
-	if err != nil {
-		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
-			log.Errorf(
-				"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
-				rollbackErr, err,
-			)
-		}
-		log.Errorf("failed to close a batch, err: %v", err)
-		return nil, err
-	}
-
-	// All done
-	if err := dbTx.Commit(d.ctx); err != nil {
-		log.Errorf("failed to commit dbTx when opening batch, err: %v", err)
-		return nil, err
-	}
-
-	return processBatchResponse, nil
-}
-
-func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore) *dbManager {
-	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsStore: txsStore, l2ReorgCh: closingSignalCh.L2ReorgCh}
+func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
+	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsStore: txsStore, l2ReorgCh: closingSignalCh.L2ReorgCh, batchConstraints: batchConstraints}
 }
 
 // Start stars the dbManager routines
@@ -319,8 +237,6 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 }
 
 // GetWIPBatch returns ready WIP batch
-// if lastBatch IS OPEN - load data from it but set batch.initialStateRoot to Last Closed Batch
-// if lastBatch IS CLOSED - open new batch in the database and load all data from the closed one without the txs and increase batch number
 func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	var lastBatch, previousLastBatch *state.Batch
 
@@ -348,10 +264,18 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		isEmpty:        len(lastBatch.BatchL2Data) == 0,
 	}
 
-	// TODO: Init counters and totals to MAX values
-	// Once getMaxRemainingResources is a shared function
-	var totalBytes uint64
-	var batchZkCounters state.ZKCounters
+	// Init counters to MAX values
+	var totalBytes uint64 = d.batchConstraints.MaxBatchBytesSize
+	var batchZkCounters state.ZKCounters = state.ZKCounters{
+		CumulativeGasUsed:    d.batchConstraints.MaxCumulativeGasUsed,
+		UsedKeccakHashes:     d.batchConstraints.MaxKeccakHashes,
+		UsedPoseidonHashes:   d.batchConstraints.MaxPoseidonHashes,
+		UsedPoseidonPaddings: d.batchConstraints.MaxPoseidonPaddings,
+		UsedMemAligns:        d.batchConstraints.MaxMemAligns,
+		UsedArithmetics:      d.batchConstraints.MaxArithmetics,
+		UsedBinaries:         d.batchConstraints.MaxBinaries,
+		UsedSteps:            d.batchConstraints.MaxSteps,
+	}
 
 	isClosed, err := d.IsBatchClosed(ctx, lastBatch.BatchNumber)
 	if err != nil {
@@ -513,4 +437,88 @@ func (d *dbManager) MarkReorgedTxsAsPending(ctx context.Context) {
 	if err != nil {
 		log.Errorf("error marking reorged txs as pending: %v", err)
 	}
+}
+
+// ProcessForcedBatch process a forced batch
+func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
+	// Open Batch
+	processingCtx := state.ProcessingContext{
+		BatchNumber:    request.BatchNumber,
+		Coinbase:       request.Coinbase,
+		Timestamp:      time.Unix(int64(request.Timestamp), 0),
+		GlobalExitRoot: request.GlobalExitRoot,
+		ForcedBatchNum: &forcedBatchNum,
+	}
+	dbTx, err := d.state.BeginStateTransaction(d.ctx)
+	if err != nil {
+		log.Errorf("failed to begin state transaction for opening a batch, err: %v", err)
+		return nil, err
+	}
+
+	err = d.state.OpenBatch(d.ctx, processingCtx, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Errorf("failed to open a batch, err: %v", err)
+		return nil, err
+	}
+
+	// Process Batch
+	forcedBatch, err := d.state.GetForcedBatch(d.ctx, forcedBatchNum, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when getting forced batch err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Errorf("failed to get a forced batch, err: %v", err)
+		return nil, err
+	}
+
+	// TODO: callerLabel
+	processBatchResponse, err := d.state.ProcessSequencerBatch(d.ctx, request.BatchNumber, forcedBatch.RawTxsData, "", dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx processing forced batch err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Errorf("failed to process a batch, err: %v", err)
+		return nil, err
+	}
+
+	// Close Batch
+	processingReceipt := state.ProcessingReceipt{
+		BatchNumber:   request.BatchNumber,
+		StateRoot:     processBatchResponse.NewStateRoot,
+		LocalExitRoot: processBatchResponse.NewLocalExitRoot,
+		AccInputHash:  processBatchResponse.NewAccInputHash,
+		BatchL2Data:   forcedBatch.RawTxsData,
+	}
+
+	err = d.state.CloseBatch(d.ctx, processingReceipt, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Errorf("failed to close a batch, err: %v", err)
+		return nil, err
+	}
+
+	// All done
+	if err := dbTx.Commit(d.ctx); err != nil {
+		log.Errorf("failed to commit dbTx when opening batch, err: %v", err)
+		return nil, err
+	}
+
+	return processBatchResponse, nil
 }
