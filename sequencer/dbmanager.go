@@ -522,3 +522,8 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 
 	return processBatchResponse, nil
 }
+
+// GetForcedBatchesSince gets L1 forced batches since timestamp
+func (d *dbManager) GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+	return d.state.GetForcedBatchesSince(ctx, since, dbTx)
+}
