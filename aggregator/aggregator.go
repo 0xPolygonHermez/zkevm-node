@@ -441,8 +441,8 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 	}
 	if finalProof == nil {
 		// If finalProof has not been generated for any reason,
-		// generate error and return (this also will unlock the proof to verify)
-		err = errors.New("error generating final proof for proof ready to verify")
+		// generate error and return (this will also unlock the proof to verify)
+		err = errors.New("Error generating final proof for proof ready to verify")
 		return false, err
 	}
 

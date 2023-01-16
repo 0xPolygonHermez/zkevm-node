@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"math/big"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/mocks"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	configTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
@@ -138,7 +141,7 @@ func TestSendFinalProof(t *testing.T) {
 			},
 		},
 		{
-			name: "DeleteGeneratedProofs error",
+			name: "eleteGeneratedProofs error",
 			setup: func(m mox, a *Aggregator) {
 				m.stateMock.On("GetBatchByNumber", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
@@ -792,7 +795,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					assert.Equal(proofID, proof.ID)
 					assert.Equal(batchNum, proof.batchNum)
 					assert.Equal(batchNum, proof.batchNumFinal)
-
 				}
 			},
 		},
@@ -863,6 +865,301 @@ func TestTryGenerateBatchProof(t *testing.T) {
 
 			if tc.asserts != nil {
 				tc.asserts(result, &a, err)
+			}
+		})
+	}
+}
+
+func TestTryBuildFinalProof(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	cfg := Config{
+		VerifyProofInterval:        configTypes.NewDuration(10000000),
+		TxProfitabilityCheckerType: ProfitabilityAcceptAll,
+	}
+	pubAddr := common.BytesToAddress([]byte("pubAdddr"))
+	latestVerifiedBatchNum := uint64(22)
+	batchNum := uint64(23)
+	batchNumFinal := uint64(42)
+	proofID := "proofID"
+	proof := "proof"
+	proverID := "proverID"
+	finalProofID := "finalProofID"
+	finalProof := pb.FinalProof{
+		Proof: &pb.Proof{
+			ProofA: []string{"proofA"},
+			ProofB: []*pb.ProofB{
+				{
+					Proofs: []string{"proofs"},
+				},
+			},
+			ProofC: []string{"proofC"},
+		},
+		Public: &pb.PublicInputsExtended{
+			NewStateRoot:     []byte("newStateRoot"),
+			NewLocalExitRoot: []byte("newLocalExitRoot"),
+		},
+	}
+	proofToVerify := state.Proof{
+		ProofID:          &proofID,
+		Proof:            proof,
+		BatchNumber:      batchNum,
+		BatchNumberFinal: batchNumFinal,
+	}
+	invalidProof := state.Proof{
+		ProofID:          &proofID,
+		Proof:            proof,
+		BatchNumber:      uint64(123),
+		BatchNumberFinal: uint64(456),
+	}
+	verifiedBatch := state.VerifiedBatch{
+		BatchNumber: latestVerifiedBatchNum,
+	}
+	errBanana := errors.New("banana")
+	proverCtx := context.WithValue(context.Background(), "owner", "prover")
+	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
+	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "aggregator" }
+	testCases := []struct {
+		name           string
+		proof          *state.Proof
+		setup          func(mox, *Aggregator)
+		asserts        func(bool, *Aggregator, error)
+		assertFinalMsg func(*finalProofMsg)
+	}{
+		{
+			name: "can't verify proof (verifyingProof = true)",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return("addr")
+				a.verifyingProof = true
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				a.verifyingProof = false // reset
+				assert.False(result)
+				assert.NoError(err)
+			},
+		},
+		{
+			name: "can't verify proof (veryfy time not reached yet)",
+			setup: func(m mox, a *Aggregator) {
+				a.TimeSendFinalProof = time.Now().Add(10 * time.Second)
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return("addr")
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.NoError(err)
+			},
+		},
+		{
+			name: "nil proof, error building the proof triggers defer",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr")
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
+				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
+				proofGeneratingTrueCall := m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
+				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Once()
+				m.proverMock.On("FinalProof", proofToVerify.Proof, pubAddr.String()).Return(&finalProofID, nil).Once()
+				m.proverMock.On("WaitFinalProof", mock.MatchedBy(matchProverCtxFn), finalProofID).Return(nil, errBanana).Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proofToVerify, nil).
+					Return(nil).
+					Once().
+					NotBefore(proofGeneratingTrueCall)
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+				_, ok := a.proverProofs[proverID]
+				assert.False(ok)
+			},
+		},
+		{
+			name: "nil proof ok",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return(proverID)
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
+				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
+				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
+				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Once()
+				m.proverMock.On("FinalProof", proofToVerify.Proof, pubAddr.String()).Return(&finalProofID, nil).Once()
+				m.proverMock.On("WaitFinalProof", mock.MatchedBy(matchProverCtxFn), finalProofID).Return(&finalProof, nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.True(result)
+				assert.NoError(err)
+				proof, ok := a.proverProofs[proverID]
+				if assert.True(ok) {
+					assert.Equal(finalProofID, proof.ID)
+					assert.Equal(batchNum, proof.batchNum)
+					assert.Equal(batchNumFinal, proof.batchNumFinal)
+				}
+			},
+			assertFinalMsg: func(msg *finalProofMsg) {
+				assert.Equal(finalProof.Proof.ProofA, msg.finalProof.Proof.ProofA)
+				assert.Equal(finalProof.Proof.ProofB, msg.finalProof.Proof.ProofB)
+				assert.Equal(finalProof.Proof.ProofC, msg.finalProof.Proof.ProofC)
+				assert.Equal(finalProof.Public.NewStateRoot, msg.finalProof.Public.NewStateRoot)
+				assert.Equal(finalProof.Public.NewLocalExitRoot, msg.finalProof.Public.NewLocalExitRoot)
+			},
+		},
+		{
+			name:  "error checking if proof is a complete sequence",
+			proof: &proofToVerify,
+			setup: func(m mox, a *Aggregator) {
+				a.proverProofs[proverID] = proverProof{
+					ID:            finalProofID,
+					batchNum:      batchNum,
+					batchNumFinal: batchNumFinal,
+				}
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return(proverID)
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
+				m.stateMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(false, errBanana).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+				proof, ok := a.proverProofs[proverID]
+				if assert.True(ok) {
+					assert.Equal(finalProofID, proof.ID)
+					assert.Equal(batchNum, proof.batchNum)
+					assert.Equal(batchNumFinal, proof.batchNumFinal)
+				}
+			},
+		},
+		{
+			name:  "invalid proof (not consecutive to latest verified batch) rejected",
+			proof: &invalidProof,
+			setup: func(m mox, a *Aggregator) {
+				a.proverProofs[proverID] = proverProof{
+					ID:            finalProofID,
+					batchNum:      batchNum,
+					batchNumFinal: batchNumFinal,
+				}
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return(proverID)
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.NoError(err)
+				proof, ok := a.proverProofs[proverID]
+				if assert.True(ok) {
+					assert.Equal(finalProofID, proof.ID)
+					assert.Equal(batchNum, proof.batchNum)
+					assert.Equal(batchNumFinal, proof.batchNumFinal)
+				}
+			},
+		},
+		{
+			name:  "invalid proof (not a complete sequence) rejected",
+			proof: &proofToVerify,
+			setup: func(m mox, a *Aggregator) {
+				a.proverProofs[proverID] = proverProof{
+					ID:            finalProofID,
+					batchNum:      batchNum,
+					batchNumFinal: batchNumFinal,
+				}
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return(proverID)
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
+				m.stateMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(false, nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.NoError(err)
+				proof, ok := a.proverProofs[proverID]
+				if assert.True(ok) {
+					assert.Equal(finalProofID, proof.ID)
+					assert.Equal(batchNum, proof.batchNum)
+					assert.Equal(batchNumFinal, proof.batchNumFinal)
+				}
+			},
+		},
+		{
+			name:  "valid proof ok",
+			proof: &proofToVerify,
+			setup: func(m mox, a *Aggregator) {
+				a.proverProofs[proverID] = proverProof{
+					ID:            finalProofID,
+					batchNum:      batchNum,
+					batchNumFinal: batchNumFinal,
+				}
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return(proverID)
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
+				m.stateMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(true, nil).Once()
+				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Once()
+				m.proverMock.On("FinalProof", proofToVerify.Proof, pubAddr.String()).Return(&finalProofID, nil).Once()
+				m.proverMock.On("WaitFinalProof", mock.MatchedBy(matchProverCtxFn), finalProofID).Return(&finalProof, nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.True(result)
+				assert.NoError(err)
+				proof, ok := a.proverProofs[proverID]
+				if assert.True(ok) {
+					assert.Equal(finalProofID, proof.ID)
+					assert.Equal(batchNum, proof.batchNum)
+					assert.Equal(batchNumFinal, proof.batchNumFinal)
+				}
+			},
+			assertFinalMsg: func(msg *finalProofMsg) {
+				assert.Equal(finalProof.Proof.ProofA, msg.finalProof.Proof.ProofA)
+				assert.Equal(finalProof.Proof.ProofB, msg.finalProof.Proof.ProofB)
+				assert.Equal(finalProof.Proof.ProofC, msg.finalProof.Proof.ProofC)
+				assert.Equal(finalProof.Public.NewStateRoot, msg.finalProof.Public.NewStateRoot)
+				assert.Equal(finalProof.Public.NewLocalExitRoot, msg.finalProof.Public.NewLocalExitRoot)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stateMock := mocks.NewStateMock(t)
+			ethTxManager := mocks.NewEthTxManager(t)
+			etherman := mocks.NewEtherman(t)
+			proverMock := mocks.NewProverMock(t)
+			a, err := New(cfg, stateMock, ethTxManager, etherman)
+			require.NoError(err)
+			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator")
+			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
+			m := mox{
+				stateMock:    stateMock,
+				ethTxManager: ethTxManager,
+				etherman:     etherman,
+				proverMock:   proverMock,
+			}
+			if tc.setup != nil {
+				tc.setup(m, &a)
+			}
+			var wg sync.WaitGroup
+			if tc.assertFinalMsg != nil {
+				// wait for the final proof over the channel
+				wg := sync.WaitGroup{}
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					msg := <-a.finalProof
+					tc.assertFinalMsg(&msg)
+				}()
+			}
+
+			result, err := a.tryBuildFinalProof(proverCtx, proverMock, tc.proof)
+
+			if tc.asserts != nil {
+				tc.asserts(result, &a, err)
+			}
+			if tc.assertFinalMsg != nil {
+				testutils.WaitUntil(t, &wg, time.Second)
 			}
 		})
 	}

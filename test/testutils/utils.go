@@ -7,6 +7,9 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync"
+	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	ioprometheusclient "github.com/prometheus/client_model/go"
@@ -91,4 +94,21 @@ func GetEnv(key string, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// WaitUntil waits for the given WaitGroup to end. The test fails if the
+// WaitGroup is not finished before the provided timeout.
+func WaitUntil(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
+	done := make(chan struct{})
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(timeout):
+		t.Fatalf("WaitGroup not done, test time expired after %s", timeout)
+	}
 }
