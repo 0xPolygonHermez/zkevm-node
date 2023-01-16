@@ -141,8 +141,9 @@ benchmark-sequencer: stop
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNJSONRPC)
 	$(RUNSYNC)
+	sleep 2
+	$(RUNJSONRPC)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	@ cd benchmarks/sequencer ; \
@@ -164,6 +165,7 @@ stop-db: ## Stops the node database
 run-node: ## Runs the node
 	$(RUNETHTXMANAGER)
 	$(RUNSYNC)
+	sleep 2
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
@@ -244,14 +246,6 @@ run-seq: ## runs the sequencer
 stop-seq: ## stops the sequencer
 	$(STOPSEQUENCER)
 	
-.PHONY: run-agg
-run-agg: ## runs the aggregator
-	$(RUNAGGREGATOR)
-
-.PHONY: stop-agg
-stop-agg: ## stops the aggregator
-	$(STOPAGGREGATOR)
-
 .PHONY: run-sync
 run-sync: ## runs the synchronizer
 	$(RUNSYNC)
@@ -283,6 +277,14 @@ run-eth-tx-manager: ## Runs the eth tx manager service
 .PHONY: stop-eth-tx-manager
 stop-eth-tx-manager: ## Stops the eth tx manager service
 	$(STOPETHTXMANAGER)
+	
+.PHONY: run-agg
+run-agg: ## Runs the aggregator service
+	$(RUNAGGREGATOR)
+
+.PHONY: stop-agg
+stop-agg: ## Stops the aggregator service
+	$(STOPAGGREGATOR)
 
 .PHONY: run-grafana
 run-grafana: ## Runs the grafana service
@@ -318,11 +320,12 @@ run: ## Runs a full node
 	sleep 1
 	$(RUNZKPROVER)
 	sleep 3
+	$(RUNSYNC)
+	sleep 2
+	$(RUNETHTXMANAGER)
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
-	$(RUNSYNC)
-	$(RUNETHTXMANAGER)
 
 .PHONY: stop
 stop: ## Stops all services

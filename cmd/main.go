@@ -61,6 +61,12 @@ var (
 		Required: false,
 		Value:    cli.NewStringSlice(jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIZKEVM, jsonrpc.APITxPool, jsonrpc.APIWeb3),
 	}
+	migrationsFlag = cli.BoolFlag{
+		Name:     config.FlagMigrations,
+		Aliases:  []string{"mig"},
+		Usage:    "Blocks the migrations in stateDB to not run them",
+		Required: false,
+	}
 )
 
 func main() {
@@ -85,7 +91,7 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Run the zkevm-node",
 			Action:  start,
-			Flags:   append(flags, &genesisFlag),
+			Flags:   append(flags, &genesisFlag, &migrationsFlag),
 		},
 		{
 			Name:    "approve",

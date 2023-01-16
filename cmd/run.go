@@ -47,7 +47,18 @@ func start(cliCtx *cli.Context) error {
 	if c.Metrics.Enabled {
 		metrics.Init()
 	}
-	runStateMigrations(c.StateDB)
+	components := cliCtx.StringSlice(config.FlagComponents)
+
+	// Only runs migration if the component is the synchronizer and if the flag is deactivated
+	if !cliCtx.Bool(config.FlagMigrations) {
+		for _, comp := range components {
+			if comp == SYNCHRONIZER {
+				runStateMigrations(c.StateDB)
+			}
+		}
+	}
+	checkStateMigrations(c.StateDB)
+
 	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
 		log.Fatal(err)
@@ -82,8 +93,8 @@ func start(cliCtx *cli.Context) error {
 
 	etm := ethtxmanager.New(c.EthTxManager, etherman, ethTxManagerStorage, st)
 
-	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
-		switch item {
+	for _, component := range components {
+		switch component {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
 			go runAggregator(ctx, c.Aggregator, etherman, etm, st)
@@ -130,6 +141,13 @@ func setupLog(c log.Config) {
 
 func runStateMigrations(c db.Config) {
 	runMigrations(c, db.StateMigrationName)
+}
+
+func checkStateMigrations(c db.Config) {
+	err := db.CheckMigrations(c, db.StateMigrationName)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func runPoolMigrations(c db.Config) {

@@ -43,6 +43,8 @@ const (
 	FlagKeyStorePath = "key-store-path"
 	// FlagPassword is the password needed to decrypt the key store
 	FlagPassword = "password"
+	// FlagMigrations is the flag for migrations.
+	FlagMigrations = "migrations"
 )
 
 // Config represents the configuration of the entire Hermez Node
