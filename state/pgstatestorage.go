@@ -1968,6 +1968,15 @@ func (p *PostgresStorage) DeleteGeneratedProofs(ctx context.Context, batchNumber
 	return err
 }
 
+// CleanupGeneratedProofs deletes from the storage the generated proofs up to
+// the specified batch number included.
+func (p *PostgresStorage) CleanupGeneratedProofs(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	const deleteGeneratedProofSQL = "DELETE FROM state.proof WHERE batch_num_final <= $1"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, deleteGeneratedProofSQL, batchNumber)
+	return err
+}
+
 // DeleteReservedProof deletes from the storage the proof matching the batches
 // range and only if it is currently generating.
 func (p *PostgresStorage) DeleteReservedProof(ctx context.Context, proverID, proofID string, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {

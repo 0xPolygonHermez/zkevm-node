@@ -154,7 +154,7 @@ func TestSendFinalProof(t *testing.T) {
 				}
 				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&verifiedBatch, nil).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(batchNumFinal, nil).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, batchNum, batchNumFinal, nil).Run(func(args mock.Arguments) {
+				m.stateMock.On("CleanupGeneratedProofs", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
 					// test is done, stop the sendFinalProof method
 					a.exit()
 				}).Return(errors.New("banana")).Once()
@@ -187,7 +187,7 @@ func TestSendFinalProof(t *testing.T) {
 				}
 				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&verifiedBatch, nil).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(batchNumFinal, nil).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, batchNum, batchNumFinal, nil).Run(func(args mock.Arguments) {
+				m.stateMock.On("CleanupGeneratedProofs", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
 					// test is done, stop the sendFinalProof method
 					a.exit()
 				}).Return(nil).Once()

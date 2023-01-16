@@ -892,7 +892,10 @@ func (a *Aggregator) unsetProverProof(proverID, proofID string, batchNum, batchN
 	}
 }
 
-func (a *Aggregator) isSynced(ctx context.Context, batchNumberFinal *uint64) bool {
+// isSynced checks if the state is synchronized with L1. If a batch number is
+// provided, it makes sure that the state is synced with that batch.
+func (a *Aggregator) isSynced(ctx context.Context, batchNum *uint64) bool {
+	// get latest verified batch as seen by the synchronizer
 	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Warnf("Failed to get last consolidated batch, err: %v", err)
@@ -903,11 +906,12 @@ func (a *Aggregator) isSynced(ctx context.Context, batchNumberFinal *uint64) boo
 		return false
 	}
 
-	if batchNumberFinal != nil && lastVerifiedBatch.BatchNumber < *batchNumberFinal {
-		log.Infof("Waiting for the state to be synced, lastVerifiedBatchNum: %d, waiting for lastVerifiedBatchNum: %d", lastVerifiedBatch.BatchNumber, batchNumberFinal)
+	if batchNum != nil && lastVerifiedBatch.BatchNumber < *batchNum {
+		log.Infof("Waiting for the state to be synced, lastVerifiedBatchNum: %d, waiting for batch: %d", lastVerifiedBatch.BatchNumber, batchNum)
 		return false
 	}
 
+	// ask latest verified batch directly to L1
 	lastVerifiedEthBatchNum, err := a.Ethman.GetLatestVerifiedBatchNum()
 	if err != nil {
 		log.Warnf("Failed to get last eth batch, err: %v", err)
@@ -1007,8 +1011,9 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResu
 		time.Sleep(a.cfg.RetryTime.Duration)
 	}
 
-	// network is synced with the final proof, we can safely delete the recursive proofs
-	err = a.State.DeleteGeneratedProofs(a.ctx, proofBatchNumber, proofBatchNumberFinal, nil)
+	// network is synced with the final proof, we can safely delete all recursive
+	// proofs up to the last synced batch
+	err = a.State.CleanupGeneratedProofs(a.ctx, proofBatchNumberFinal, nil)
 	if err != nil {
 		log.Errorf("failed to store proof aggregation result: %v", err)
 		// FIXME(pg)
