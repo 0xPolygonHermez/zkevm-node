@@ -212,10 +212,13 @@ func (c *Client) Stop() {
 // Reorg updates all monitored txs from provided block number until the last one to
 // Reorged status, allowing it to be reprocessed by the tx monitoring
 func (c *Client) Reorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx) error {
+	log.Infof("processing reorg from block: %v", fromBlockNumber)
 	mTxs, err := c.storage.GetByBlock(ctx, &fromBlockNumber, nil, dbTx)
 	if err != nil {
+		log.Errorf("failed to monitored tx by block: %v", err)
 		return err
 	}
+	log.Infof("updating %v monitored txs to reorged", len(mTxs))
 	for _, mTx := range mTxs {
 		mTx.blockNumber = nil
 		mTx.status = MonitoredTxStatusReorged
@@ -225,7 +228,9 @@ func (c *Client) Reorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx)
 			log.Errorf("failed to update monitored tx to reorg status: %v", err)
 			return err
 		}
+		log.Infof("monitored tx %v status updated to reorged", mTx.id)
 	}
+	log.Infof("reorg from block %v processed successfully", fromBlockNumber)
 	return nil
 }
 
@@ -237,7 +242,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 		return fmt.Errorf("failed to get created monitored txs: %v", err)
 	}
 
-	log.Debugf("found %v monitored tx to process", len(mTxs))
+	log.Infof("found %v monitored tx to process", len(mTxs))
 
 	for _, mTx := range mTxs {
 		mTx := mTx // force variable shadowing to avoid pointer conflicts
