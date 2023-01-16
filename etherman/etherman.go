@@ -321,7 +321,7 @@ func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanT
 	if gasPrice != nil {
 		sendSequencesOpts.GasPrice = gasPrice
 	} else if etherMan.GasProviders.MultiGasProvider {
-		sendSequencesOpts.GasPrice = etherMan.getGasPrice(ctx)
+		sendSequencesOpts.GasPrice = etherMan.GetL1GasPrice(ctx)
 	}
 	if nonce != nil {
 		sendSequencesOpts.Nonce = nonce
@@ -380,7 +380,7 @@ func (etherMan *Client) TrustedVerifyBatches(ctx context.Context, lastVerifiedBa
 	if gasPrice != nil {
 		verifyBatchOpts.GasPrice = gasPrice
 	} else if etherMan.GasProviders.MultiGasProvider {
-		verifyBatchOpts.GasPrice = etherMan.getGasPrice(ctx)
+		verifyBatchOpts.GasPrice = etherMan.GetL1GasPrice(ctx)
 	}
 	if nonce != nil {
 		verifyBatchOpts.Nonce = nonce
@@ -819,7 +819,7 @@ func (etherMan *Client) ApproveMatic(ctx context.Context, maticAmount *big.Int, 
 	}
 	opts := *etherMan.auth
 	if etherMan.GasProviders.MultiGasProvider {
-		opts.GasPrice = etherMan.getGasPrice(ctx)
+		opts.GasPrice = etherMan.GetL1GasPrice(ctx)
 	}
 	tx, err := etherMan.Matic.Approve(&opts, etherMan.SCAddresses[0], maticAmount)
 	if err != nil {
@@ -850,7 +850,8 @@ func (etherMan *Client) GetL2ChainID() (uint64, error) {
 	return etherMan.PoE.ChainID(&bind.CallOpts{Pending: false})
 }
 
-func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
+// GetL1GasPrice gets the l1 gas price
+func (etherMan *Client) GetL1GasPrice(ctx context.Context) *big.Int {
 	// Get gasPrice from providers
 	gasPrice := big.NewInt(0)
 	for i, prov := range etherMan.GasProviders.Providers {

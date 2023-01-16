@@ -2,6 +2,7 @@ package gasprice
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -19,4 +20,9 @@ type pool interface {
 type stateInterface interface {
 	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetTxsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
+}
+
+// ethermanInterface contains the methods required to interact with ethereum.
+type ethermanInterface interface {
+	GetL1GasPrice(ctx context.Context) *big.Int
 }

@@ -26,6 +26,7 @@ type txPool interface {
 	GetTxs(ctx context.Context, filterStatus pool.TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*pool.Transaction, error)
 	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
 	IncrementFailedCounter(ctx context.Context, hashes []string) error
+	GetGasPrice(ctx context.Context) (uint64, error)
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -76,9 +77,4 @@ type txManager interface {
 type priceGetter interface {
 	Start(ctx context.Context)
 	GetEthToMaticPrice(ctx context.Context) (*big.Float, error)
-}
-
-// gasPriceEstimator contains the methods required to interact with gas price estimator
-type gasPriceEstimator interface {
-	GetAvgGasPrice(ctx context.Context) (*big.Int, error)
 }

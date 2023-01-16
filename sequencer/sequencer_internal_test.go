@@ -348,12 +348,11 @@ func TestTryToProcessTxs(t *testing.T) {
 	dbTx := new(sequencerMocks.DbTxMock)
 	pl := new(sequencerMocks.PoolMock)
 
-	gpe := new(sequencerMocks.GasPriceEstimatorMock)
 	s := Sequencer{cfg: Config{
 		MaxTimeForBatchToBeOpen: cfgTypes.NewDuration(5 * time.Second),
 		MaxBatchBytesSize:       150000,
 		MaxTxsPerBatch:          150,
-	}, state: st, etherman: eth, gpe: gpe, pool: pl}
+	}, state: st, etherman: eth, pool: pl}
 	ctx := context.Background()
 	// Check if synchronizer is up to date
 	st.On("GetLastVirtualBatchNum", ctx, nil).Return(uint64(1), nil)
@@ -386,8 +385,8 @@ func TestTryToProcessTxs(t *testing.T) {
 
 	st.On("IsBatchVirtualized", ctx, lastBatchNumber-1, nil).Return(true, nil)
 
-	minGasPrice := big.NewInt(1)
-	gpe.On("GetAvgGasPrice", ctx).Return(minGasPrice, nil)
+	minGasPrice := uint64(1)
+	pl.On("GetGasPrice", ctx).Return(minGasPrice, nil)
 
 	ticker := time.NewTicker(1 * time.Second)
 	poolTx := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
@@ -396,7 +395,7 @@ func TestTryToProcessTxs(t *testing.T) {
 	pl.On("GetTxs", ctx, pool.TxStatusPending, true, uint64(0), uint64(149)).Return([]*pool.Transaction{}, nil)
 	pl.On("GetTxs", ctx, pool.TxStatusFailed, true, uint64(0), uint64(149)).Return([]*pool.Transaction{}, nil)
 
-	pl.On("GetTxs", ctx, pool.TxStatusPending, false, minGasPrice.Uint64(), uint64(149)).Return(poolTxs, nil)
+	pl.On("GetTxs", ctx, pool.TxStatusPending, false, minGasPrice, uint64(149)).Return(poolTxs, nil)
 
 	txsBatch1 := []*state.ProcessTransactionResponse{
 		{

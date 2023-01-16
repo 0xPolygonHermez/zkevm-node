@@ -26,7 +26,6 @@ type mockedServer struct {
 type mocks struct {
 	Pool              *poolMock
 	State             *stateMock
-	GasPriceEstimator *gasPriceEstimatorMock
 	Storage           *storageMock
 	DbTx              *dbTxMock
 }
@@ -34,7 +33,6 @@ type mocks struct {
 func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclient.Client) {
 	pool := newPoolMock(t)
 	st := newStateMock(t)
-	gasPriceEstimator := newGasPriceEstimatorMock(t)
 	storage := newStorageMock(t)
 	dbTx := newDbTxMock(t)
 	apis := map[string]bool{
@@ -49,7 +47,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 	var newL2BlockEventHandler state.NewL2BlockEventHandler = func(e state.NewL2BlockEvent) {}
 	st.On("RegisterNewL2BlockEventHandler", mock.IsType(newL2BlockEventHandler)).Once()
 
-	server := NewServer(cfg, pool, st, gasPriceEstimator, storage, apis)
+	server := NewServer(cfg, pool, st, storage, apis)
 
 	go func() {
 		err := server.Start()
@@ -81,7 +79,6 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 	mks := &mocks{
 		Pool:              pool,
 		State:             st,
-		GasPriceEstimator: gasPriceEstimator,
 		Storage:           storage,
 		DbTx:              dbTx,
 	}

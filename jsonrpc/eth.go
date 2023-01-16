@@ -22,14 +22,13 @@ type Eth struct {
 	cfg     Config
 	pool    jsonRPCTxPool
 	state   stateInterface
-	gpe     gasPriceEstimator
 	storage storageInterface
 	txMan   dbTxManager
 }
 
 // newEth creates an new instance of Eth
-func newEth(cfg Config, p jsonRPCTxPool, s stateInterface, gpe gasPriceEstimator, storage storageInterface) *Eth {
-	e := &Eth{cfg: cfg, pool: p, state: s, gpe: gpe, storage: storage}
+func newEth(cfg Config, p jsonRPCTxPool, s stateInterface, storage storageInterface) *Eth {
+	e := &Eth{cfg: cfg, pool: p, state: s, storage: storage}
 
 	s.RegisterNewL2BlockEventHandler(e.onNewL2Block)
 
@@ -128,14 +127,11 @@ func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcEr
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, rpcError) {
 	ctx := context.Background()
-	gasPrice, err := e.gpe.GetAvgGasPrice(ctx)
+	gasPrice, err := e.pool.GetGasPrice(ctx)
 	if err != nil {
 		return "0x0", nil
 	}
-	if gasPrice != nil {
-		return hex.EncodeUint64(gasPrice.Uint64()), nil
-	}
-	return hex.EncodeUint64(0), nil
+	return hex.EncodeUint64(gasPrice), nil
 }
 
 // GetBalance returns the account's balance at the referenced block

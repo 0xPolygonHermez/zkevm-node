@@ -48,14 +48,13 @@ func NewServer(
 	cfg Config,
 	p jsonRPCTxPool,
 	s stateInterface,
-	gpe gasPriceEstimator,
 	storage storageInterface,
 	apis map[string]bool,
 ) *Server {
 	handler := newJSONRpcHandler()
 
 	if _, ok := apis[APIEth]; ok {
-		ethEndpoints := newEth(cfg, p, s, gpe, storage)
+		ethEndpoints := newEth(cfg, p, s, storage)
 		handler.registerService(APIEth, ethEndpoints)
 	}
 

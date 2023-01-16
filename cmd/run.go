@@ -89,24 +89,26 @@ func start(cliCtx *cli.Context) error {
 		case SEQUENCER:
 			log.Info("Running sequencer")
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
-			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
-			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager, gpe)
+			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
-			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
 			}
-			go runJSONRPCServer(*c, poolInstance, st, gpe, apis)
+			go runJSONRPCServer(*c, poolInstance, st, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
 			go runSynchronizer(*c, etherman, st)
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, st)
+		case GASPRICER:
+			log.Info("Running gasPricer")
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			go runGasPriceEstimator(c.GasPriceEstimator, st, poolInstance, etherman)
 		}
 	}
 
@@ -160,23 +162,23 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.Sta
 	}
 }
 
-func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gasPriceEstimator, apis map[string]bool) {
+func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, apis map[string]bool) {
 	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
 
-	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, pool, st, storage, apis).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func createSequencer(c config.Config, pool *pool.Pool, state *state.State, etherman *etherman.Client,
-	ethTxManager *ethtxmanager.Client, gpe gasPriceEstimator) *sequencer.Sequencer {
+	ethTxManager *ethtxmanager.Client) *sequencer.Sequencer {
 	pg, err := pricegetter.NewClient(c.PriceGetter)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, ethTxManager, gpe)
+	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, ethTxManager)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -203,23 +205,14 @@ func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {
 	broadcastSrv.Start()
 }
 
-// gasPriceEstimator interface for gas price estimator.
-type gasPriceEstimator interface {
-	GetAvgGasPrice(ctx context.Context) (*big.Int, error)
-	UpdateGasPriceAvg(newValue *big.Int)
-}
-
-// createGasPriceEstimator init gas price gasPriceEstimator based on type in config.
-func createGasPriceEstimator(cfg gasprice.Config, state *state.State, pool *pool.Pool) gasPriceEstimator {
-	switch cfg.Type {
-	case gasprice.AllBatchesType:
-		return gasprice.NewEstimatorAllBatches()
-	case gasprice.LastNBatchesType:
-		return gasprice.NewEstimatorLastNL2Blocks(cfg, state)
-	case gasprice.DefaultType:
-		return gasprice.NewDefaultEstimator(cfg, pool)
+// runGasPriceEstimator init gas price gasPriceEstimator based on type in config.
+func runGasPriceEstimator(cfg gasprice.Config, state *state.State, pool *pool.Pool, etherman *etherman.Client) {
+	ctx := context.Background()
+	gp:= gasprice.NewGasPricer(ctx, cfg, pool, etherman, state)
+	err := gp.Start()
+	if err != nil {
+		log.Fatal("error Starting gasPricer: ", err)
 	}
-	return nil
 }
 
 func waitSignal(cancelFuncs []context.CancelFunc) {
