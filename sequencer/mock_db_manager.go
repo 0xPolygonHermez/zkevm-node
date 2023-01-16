@@ -86,6 +86,29 @@ func (_m *DbManagerMock) DeleteTransactionFromPool(ctx context.Context, txHash c
 	return r0
 }
 
+// GetForcedBatchesSince provides a mock function with given fields: ctx, since, dbTx
+func (_m *DbManagerMock) GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+	ret := _m.Called(ctx, since, dbTx)
+
+	var r0 []*state.ForcedBatch
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, pgx.Tx) []*state.ForcedBatch); ok {
+		r0 = rf(ctx, since, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*state.ForcedBatch)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, pgx.Tx) error); ok {
+		r1 = rf(ctx, since, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLastBatch provides a mock function with given fields: ctx
 func (_m *DbManagerMock) GetLastBatch(ctx context.Context) (*state.Batch, error) {
 	ret := _m.Called(ctx)

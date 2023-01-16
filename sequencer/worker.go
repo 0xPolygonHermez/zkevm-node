@@ -55,7 +55,7 @@ func (w *Worker) AddTx(ctx context.Context, tx *TxTracker) {
 		// Unlock the worker to let execute other worker functions while creating the new AddrQueue
 		w.workerMutex.Unlock()
 
-		root, error := w.state.GetLastStateRoot(ctx)
+		root, error := w.state.GetLastStateRoot(ctx, nil)
 		if error != nil {
 			// TODO: How to manage this
 			return

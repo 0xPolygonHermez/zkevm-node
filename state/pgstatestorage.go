@@ -344,6 +344,33 @@ func (p *PostgresStorage) GetForcedBatch(ctx context.Context, forcedBatchNumber 
 	return &forcedBatch, nil
 }
 
+// GetForcedBatchesSince gets L1 forced batches since timestamp
+func (p *PostgresStorage) GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*ForcedBatch, error) {
+	const getForcedBatchesSQL = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, block_num FROM state.forced_batch WHERE timestamp > $1"
+	q := p.getExecQuerier(dbTx)
+	rows, err := q.Query(ctx, getForcedBatchesSQL, since)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return []*ForcedBatch{}, nil
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	forcesBatches := make([]*ForcedBatch, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var forcedBatch *ForcedBatch
+		err := rows.Scan(forcedBatch)
+		if err != nil {
+			return nil, err
+		}
+
+		forcesBatches = append(forcesBatches, forcedBatch)
+	}
+
+	return forcesBatches, nil
+}
+
 // AddVerifiedBatch adds a new VerifiedBatch to the db
 func (p *PostgresStorage) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBatch, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
