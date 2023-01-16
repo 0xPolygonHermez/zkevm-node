@@ -80,11 +80,7 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	etmStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
-	if err != nil {
-		log.Fatal(err)
-	}
-	etm := ethtxmanager.New(c.EthTxManager, etherman, etmStorage, st)
+	etm := ethtxmanager.New(c.EthTxManager, etherman, ethTxManagerStorage, st)
 
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {
