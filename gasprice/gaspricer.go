@@ -30,7 +30,7 @@ func NewGasPricer(ctx context.Context, cfg Config, pool pool, ethMan *etherman.C
 	case FollowerType:
 		gpricer = newFollowerGasEstimator(ctx, cfg, pool, ethMan)
 	case DefaultType:
-		gpricer = newDefaultEstimator(cfg, pool)
+		gpricer = newDefaultEstimator(ctx, cfg, pool)
 	}
 	gpe := &GasPricer{
 		cfg: cfg,

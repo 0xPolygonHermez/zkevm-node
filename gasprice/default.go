@@ -9,11 +9,12 @@ import (
 type Default struct {
 	cfg  Config
 	pool pool
+	ctx  context.Context
 }
 
 // newDefaultEstimator init default gas price estimator.
-func newDefaultEstimator(cfg Config, pool pool) *Default {
-	gpe := &Default{cfg: cfg, pool: pool}
+func newDefaultEstimator(ctx context.Context, cfg Config, pool pool) *Default {
+	gpe := &Default{ctx: ctx, cfg: cfg, pool: pool}
 	gpe.setDefaultGasPrice()
 	return gpe
 }
@@ -22,8 +23,7 @@ func newDefaultEstimator(cfg Config, pool pool) *Default {
 func (d *Default) UpdateGasPriceAvg() {}
 
 func (d *Default) setDefaultGasPrice() {
-	ctx := context.Background()
-	err := d.pool.SetGasPrice(ctx, d.cfg.DefaultGasPriceWei)
+	err := d.pool.SetGasPrice(d.ctx, d.cfg.DefaultGasPriceWei)
 	if err != nil {
 		panic(fmt.Errorf("failed to set default gas price, err: %v", err))
 	}
