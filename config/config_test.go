@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -370,4 +371,29 @@ func getValueFromStruct(path string, object interface{}) interface{} {
 		v = v.FieldByName(key)
 	}
 	return v.Interface()
+}
+
+func TestEnvVarArrayDecoding(t *testing.T) {
+	file, err := os.CreateTemp("", "genesisConfig")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Remove(file.Name()))
+	}()
+	require.NoError(t, os.WriteFile(file.Name(), []byte("{}"), 0600))
+	flagSet := flag.NewFlagSet("", flag.PanicOnError)
+	flagSet.String(config.FlagGenesisFile, file.Name(), "")
+	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
+
+	os.Setenv("ZKEVM_NODE_LOG_OUTPUTS", "a,b,c")
+	defer func() {
+		os.Unsetenv("ZKEVM_NODE_LOG_OUTPUTS")
+	}()
+
+	cfg, err := config.Load(ctx)
+	require.NoError(t, err)
+
+	assert.Equal(t, 3, len(cfg.Log.Outputs))
+	assert.Equal(t, "a", cfg.Log.Outputs[0])
+	assert.Equal(t, "b", cfg.Log.Outputs[1])
+	assert.Equal(t, "c", cfg.Log.Outputs[2])
 }
