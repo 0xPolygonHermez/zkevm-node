@@ -3,6 +3,7 @@ package state
 import (
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
@@ -136,4 +137,10 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 	z.UsedSteps -= other.UsedSteps
 
 	return nil
+}
+
+type ClosingSignals struct {
+	SentForcedBatchTimestamp time.Time
+	SentToL1Timestamp        time.Time
+	LastGER                  common.Hash
 }

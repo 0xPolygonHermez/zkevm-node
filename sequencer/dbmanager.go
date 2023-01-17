@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -200,7 +201,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		}
 
 		// Check if the Tx is still valid in the state to detect reorgs
-		latestL2Block, err := d.state.GetLastL2Block(d.ctx, dbTx)
+		latestL2BlockHeader, err := d.state.GetLastL2BlockHeader(d.ctx, dbTx)
 		if err != nil {
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
@@ -209,8 +210,8 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 			d.txsStore.Wg.Done()
 			continue
 		}
-		if latestL2Block.Root() != txToStore.previousL2BlockStateRoot {
-			log.Info("L2 reorg detected. Old state root: %v New state root: %v", latestL2Block.Root(), txToStore.previousL2BlockStateRoot)
+		if latestL2BlockHeader.Root != txToStore.previousL2BlockStateRoot {
+			log.Info("L2 reorg detected. Old state root: %v New state root: %v", latestL2BlockHeader.Root, txToStore.previousL2BlockStateRoot)
 			d.l2ReorgCh <- L2ReorgEvent{}
 			d.txsStore.Wg.Done()
 			continue
@@ -526,4 +527,19 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 // GetForcedBatchesSince gets L1 forced batches since timestamp
 func (d *dbManager) GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
 	return d.state.GetForcedBatchesSince(ctx, since, dbTx)
+}
+
+// UpdateClosingSignals updates the closing signals manager runtime variables
+func (d *dbManager) UpdateClosingSignals(ctx context.Context, closingSignals state.ClosingSignals, dbTx pgx.Tx) error {
+	return d.state.UpdateClosingSignals(ctx, closingSignals, dbTx)
+}
+
+// GetClosingSignals gets the closing signals manager runtime variables
+func (d *dbManager) GetClosingSignals(ctx context.Context, dbTx pgx.Tx) (*state.ClosingSignals, error) {
+	return d.state.GetClosingSignals(ctx, dbTx)
+}
+
+// GetLastL2BlockHeader gets the last l2 block number
+func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+	return d.state.GetLastL2BlockHeader(ctx, dbTx)
 }

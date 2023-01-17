@@ -1998,8 +1998,31 @@ func (p *PostgresStorage) UpdateBatchL2Data(ctx context.Context, batchNumber uin
 
 // AddAccumulatedInputHash adds the accumulated input hash
 func (p *PostgresStorage) AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error {
-	AddAccInputHashBatchSQL := "UPDATE state.batch SET acc_input_hash = $1 WHERE batch_num = $2"
+	addAccInputHashBatchSQL := "UPDATE state.batch SET acc_input_hash = $1 WHERE batch_num = $2"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, AddAccInputHashBatchSQL, accInputHash.String(), batchNum)
+	_, err := e.Exec(ctx, addAccInputHashBatchSQL, accInputHash.String(), batchNum)
 	return err
+}
+
+// UpdateClosingSignals updates the closing signals manager runtime variables
+func (p *PostgresStorage) UpdateClosingSignals(ctx context.Context, closingSignals ClosingSignals, dbTx pgx.Tx) error {
+	updateClosingSignalsSQL := "UPDATE state.closing_signals SET sent_forced_batch_timestamp = $1, sent_to_l1_timestamp = %2, last_ger = $3"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, updateClosingSignalsSQL, closingSignals.SentForcedBatchTimestamp, closingSignals.SentToL1Timestamp, closingSignals.LastGER.String())
+	return err
+}
+
+// GetClosingSignals gets the closing signals manager runtime variables
+func (p *PostgresStorage) GetClosingSignals(ctx context.Context, dbTx pgx.Tx) (*ClosingSignals, error) {
+	getClosingSignalsSQL := "SELECT sent_forced_batch_timestamp, sent_to_l1_timestamp, last_ger FROM  state.closing_signals"
+	closingSignals := &ClosingSignals{}
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getClosingSignalsSQL).Scan(&closingSignals.SentForcedBatchTimestamp, closingSignals.SentToL1Timestamp, closingSignals.LastGER)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	return closingSignals, nil
 }
