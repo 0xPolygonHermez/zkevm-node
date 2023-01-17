@@ -24,12 +24,12 @@ EnableLog = false
 MaxConns = 200
 
 [Etherman]
-URL = "https://goerli.infura.io/v3/c407dd143c334ce49be0ec25b183a1db"
+URL = "http://zkevm-mock-l1-network:8545"
 PrivateKeyPath = "/pk/keystore"
 PrivateKeyPassword = "testonly"
-PoEAddr = "0x5e2e663A39205348cE985Bccc9673Ca25AeE727E"
-MaticAddr = "0x957601b24ce513E64C7D77c9EB169501B7CC4D71"
-GlobalExitRootManagerAddr = "0x715fC3A1422de7Ae2EA483d1DA8415E8dD45bAd3"
+PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
 MultiGasProvider = false
 	[Etherscan]
 		ApiKey = ""
