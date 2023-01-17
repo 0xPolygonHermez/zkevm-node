@@ -2,6 +2,7 @@ package gasprice
 
 import (
 	"math/big"
+
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 )
 

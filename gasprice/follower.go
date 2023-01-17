@@ -42,7 +42,7 @@ func (f *Follower) UpdateGasPriceAvg() {
 
 	// Store l2 gasPrice calculated
 	result := new(big.Int)
-    res.Int(result)
+	res.Int(result)
 	minGasPrice := big.NewInt(0).SetUint64(f.cfg.DefaultGasPriceWei)
 	if minGasPrice.Cmp(result) == 1 { // minGasPrice > result
 		log.Warn("setting minGasPrice for L2")

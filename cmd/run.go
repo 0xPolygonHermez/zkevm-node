@@ -226,7 +226,7 @@ func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {
 // runGasPriceEstimator init gas price gasPriceEstimator based on type in config.
 func runGasPriceEstimator(cfg gasprice.Config, state *state.State, pool *pool.Pool, etherman *etherman.Client) {
 	ctx := context.Background()
-	gp:= gasprice.NewGasPricer(ctx, cfg, pool, etherman, state)
+	gp := gasprice.NewGasPricer(ctx, cfg, pool, etherman, state)
 	err := gp.Start()
 	if err != nil {
 		log.Fatal("error Starting gasPricer: ", err)

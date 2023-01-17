@@ -16,8 +16,8 @@ func init() {
 
 func TestUpdateGasPriceDefault(t *testing.T) {
 	ctx := context.Background()
-	cfg := Config {
-		Type: DefaultType,
+	cfg := Config{
+		Type:               DefaultType,
 		DefaultGasPriceWei: 1000000000,
 	}
 	poolM := new(poolMock)
@@ -25,4 +25,3 @@ func TestUpdateGasPriceDefault(t *testing.T) {
 	dge := newDefaultEstimator(ctx, cfg, poolM)
 	dge.UpdateGasPriceAvg()
 }
-

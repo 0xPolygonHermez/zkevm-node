@@ -21,11 +21,11 @@ func TestUpdateGasPriceFollower(t *testing.T) {
 	ctx := context.Background()
 	var d time.Duration = 1000000000
 
-	cfg := Config {
-		Type: FollowerType,
+	cfg := Config{
+		Type:               FollowerType,
 		DefaultGasPriceWei: 1000000000,
-		UpdatePeriod: types.NewDuration(d),
-		Factor: 0.5,
+		UpdatePeriod:       types.NewDuration(d),
+		Factor:             0.5,
 	}
 	poolM := new(poolMock)
 	ethM := new(ethermanMock)
@@ -37,4 +37,3 @@ func TestUpdateGasPriceFollower(t *testing.T) {
 	poolM.On("SetGasPrice", ctx, uint64(5000000000)).Return(nil).Once()
 	f.UpdateGasPriceAvg()
 }
-

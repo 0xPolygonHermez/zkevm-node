@@ -24,10 +24,10 @@ type mockedServer struct {
 }
 
 type mocks struct {
-	Pool              *poolMock
-	State             *stateMock
-	Storage           *storageMock
-	DbTx              *dbTxMock
+	Pool    *poolMock
+	State   *stateMock
+	Storage *storageMock
+	DbTx    *dbTxMock
 }
 
 func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclient.Client) {
@@ -78,10 +78,10 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 	}
 
 	mks := &mocks{
-		Pool:              pool,
-		State:             st,
-		Storage:           storage,
-		DbTx:              dbTx,
+		Pool:    pool,
+		State:   st,
+		Storage: storage,
+		DbTx:    dbTx,
 	}
 
 	return msv, mks, ethClient

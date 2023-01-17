@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sort"
 	"sync"
+
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
