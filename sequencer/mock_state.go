@@ -155,29 +155,6 @@ func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	return r0, r1
 }
 
-// GetClosingSignals provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) GetClosingSignals(ctx context.Context, dbTx pgx.Tx) (*state.ClosingSignals, error) {
-	ret := _m.Called(ctx, dbTx)
-
-	var r0 *state.ClosingSignals
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.ClosingSignals); ok {
-		r0 = rf(ctx, dbTx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*state.ClosingSignals)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
-		r1 = rf(ctx, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetForcedBatch provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
 func (_m *StateMock) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error) {
 	ret := _m.Called(ctx, forcedBatchNumber, dbTx)
@@ -201,13 +178,13 @@ func (_m *StateMock) GetForcedBatch(ctx context.Context, forcedBatchNumber uint6
 	return r0, r1
 }
 
-// GetForcedBatchesSince provides a mock function with given fields: ctx, since, dbTx
-func (_m *StateMock) GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
-	ret := _m.Called(ctx, since, dbTx)
+// GetForcedBatchesSince provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
+func (_m *StateMock) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+	ret := _m.Called(ctx, forcedBatchNumber, dbTx)
 
 	var r0 []*state.ForcedBatch
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time, pgx.Tx) []*state.ForcedBatch); ok {
-		r0 = rf(ctx, since, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []*state.ForcedBatch); ok {
+		r0 = rf(ctx, forcedBatchNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*state.ForcedBatch)
@@ -215,8 +192,8 @@ func (_m *StateMock) GetForcedBatchesSince(ctx context.Context, since time.Time,
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, time.Time, pgx.Tx) error); ok {
-		r1 = rf(ctx, since, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, forcedBatchNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -371,6 +348,27 @@ func (_m *StateMock) GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(common.Hash)
 		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastTrustedForcedBatchNumber provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
 	}
 
 	var r1 error
@@ -624,20 +622,6 @@ func (_m *StateMock) UpdateBatchL2Data(ctx context.Context, batchNumber uint64, 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, pgx.Tx) error); ok {
 		r0 = rf(ctx, batchNumber, batchL2Data, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// UpdateClosingSignals provides a mock function with given fields: ctx, closingSignals, dbTx
-func (_m *StateMock) UpdateClosingSignals(ctx context.Context, closingSignals state.ClosingSignals, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, closingSignals, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.ClosingSignals, pgx.Tx) error); ok {
-		r0 = rf(ctx, closingSignals, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

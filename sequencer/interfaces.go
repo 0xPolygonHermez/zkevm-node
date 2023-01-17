@@ -68,9 +68,8 @@ type stateInterface interface {
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
 	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller state.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
-	GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
-	UpdateClosingSignals(ctx context.Context, closingSignals state.ClosingSignals, dbTx pgx.Tx) error
-	GetClosingSignals(ctx context.Context, dbTx pgx.Tx) (*state.ClosingSignals, error)
+	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
+	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 type workerInterface interface {
@@ -100,12 +99,11 @@ type dbManagerInterface interface {
 	GetLastClosedBatch(ctx context.Context) (*state.Batch, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
 	MarkReorgedTxsAsPending(ctx context.Context)
-	GetLatestGer(ctx context.Context, waitBlocksToConsiderGERFinal uint64) (state.GlobalExitRoot, time.Time, error)
+	GetLatestGer(ctx context.Context, blockNumber uint64, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error)
 	ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
-	GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
-	UpdateClosingSignals(ctx context.Context, closingSignals state.ClosingSignals, dbTx pgx.Tx) error
-	GetClosingSignals(ctx context.Context, dbTx pgx.Tx) (*state.ClosingSignals, error)
+	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
+	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 type dbManagerStateInterface interface {
@@ -126,7 +124,6 @@ type dbManagerStateInterface interface {
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller state.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
-	GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
-	UpdateClosingSignals(ctx context.Context, closingSignals state.ClosingSignals, dbTx pgx.Tx) error
-	GetClosingSignals(ctx context.Context, dbTx pgx.Tx) (*state.ClosingSignals, error)
+	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
+	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }

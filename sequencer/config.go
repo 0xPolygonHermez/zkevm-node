@@ -123,8 +123,11 @@ type FinalizerCfg struct {
 	// ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
 	ResourcePercentageToCloseBatch uint32 `mapstructure:"ResourcePercentageToCloseBatch"`
 
-	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
-	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`
+	// GERFinalityNumberOfBlocks is number of blocks to consider GER final
+	GERFinalityNumberOfBlocks uint64 `mapstructure:"GERFinalityNumberOfBlocks"`
+
+	// ClosingSignalsManagerWaitForL1OperationsInSec is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForL1OperationsInSec types.Duration `mapstructure:"ClosingSignalsManagerWaitForL1OperationsInSec"`
 }
 
 // MaxSequenceSize is a wrapper type that parses token amount to big int

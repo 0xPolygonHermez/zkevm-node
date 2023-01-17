@@ -88,36 +88,13 @@ func (_m *DbManagerMock) DeleteTransactionFromPool(ctx context.Context, txHash c
 	return r0
 }
 
-// GetClosingSignals provides a mock function with given fields: ctx, dbTx
-func (_m *DbManagerMock) GetClosingSignals(ctx context.Context, dbTx pgx.Tx) (*state.ClosingSignals, error) {
-	ret := _m.Called(ctx, dbTx)
-
-	var r0 *state.ClosingSignals
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.ClosingSignals); ok {
-		r0 = rf(ctx, dbTx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*state.ClosingSignals)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
-		r1 = rf(ctx, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetForcedBatchesSince provides a mock function with given fields: ctx, since, dbTx
-func (_m *DbManagerMock) GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
-	ret := _m.Called(ctx, since, dbTx)
+// GetForcedBatchesSince provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
+func (_m *DbManagerMock) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+	ret := _m.Called(ctx, forcedBatchNumber, dbTx)
 
 	var r0 []*state.ForcedBatch
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time, pgx.Tx) []*state.ForcedBatch); ok {
-		r0 = rf(ctx, since, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []*state.ForcedBatch); ok {
+		r0 = rf(ctx, forcedBatchNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*state.ForcedBatch)
@@ -125,8 +102,8 @@ func (_m *DbManagerMock) GetForcedBatchesSince(ctx context.Context, since time.T
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, time.Time, pgx.Tx) error); ok {
-		r1 = rf(ctx, since, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, forcedBatchNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -247,27 +224,48 @@ func (_m *DbManagerMock) GetLastNBatches(ctx context.Context, numBatches uint) (
 	return r0, r1
 }
 
-// GetLatestGer provides a mock function with given fields: ctx, waitBlocksToConsiderGERFinal
-func (_m *DbManagerMock) GetLatestGer(ctx context.Context, waitBlocksToConsiderGERFinal uint64) (state.GlobalExitRoot, time.Time, error) {
-	ret := _m.Called(ctx, waitBlocksToConsiderGERFinal)
+// GetLastTrustedForcedBatchNumber provides a mock function with given fields: ctx, dbTx
+func (_m *DbManagerMock) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLatestGer provides a mock function with given fields: ctx, blockNumber, gerFinalityNumberOfBlocks
+func (_m *DbManagerMock) GetLatestGer(ctx context.Context, blockNumber uint64, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
+	ret := _m.Called(ctx, blockNumber, gerFinalityNumberOfBlocks)
 
 	var r0 state.GlobalExitRoot
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) state.GlobalExitRoot); ok {
-		r0 = rf(ctx, waitBlocksToConsiderGERFinal)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) state.GlobalExitRoot); ok {
+		r0 = rf(ctx, blockNumber, gerFinalityNumberOfBlocks)
 	} else {
 		r0 = ret.Get(0).(state.GlobalExitRoot)
 	}
 
 	var r1 time.Time
-	if rf, ok := ret.Get(1).(func(context.Context, uint64) time.Time); ok {
-		r1 = rf(ctx, waitBlocksToConsiderGERFinal)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64) time.Time); ok {
+		r1 = rf(ctx, blockNumber, gerFinalityNumberOfBlocks)
 	} else {
 		r1 = ret.Get(1).(time.Time)
 	}
 
 	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, uint64) error); ok {
-		r2 = rf(ctx, waitBlocksToConsiderGERFinal)
+	if rf, ok := ret.Get(2).(func(context.Context, uint64, uint64) error); ok {
+		r2 = rf(ctx, blockNumber, gerFinalityNumberOfBlocks)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -368,20 +366,6 @@ func (_m *DbManagerMock) StoreProcessedTransaction(ctx context.Context, batchNum
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) error); ok {
 		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// UpdateClosingSignals provides a mock function with given fields: ctx, closingSignals, dbTx
-func (_m *DbManagerMock) UpdateClosingSignals(ctx context.Context, closingSignals state.ClosingSignals, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, closingSignals, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.ClosingSignals, pgx.Tx) error); ok {
-		r0 = rf(ctx, closingSignals, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

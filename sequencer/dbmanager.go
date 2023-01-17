@@ -380,7 +380,11 @@ func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*st
 }
 
 // GetLatestGer gets the latest global exit root
-func (d *dbManager) GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error) {
+func (d *dbManager) GetLatestGer(ctx context.Context, blockNumber uint64, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
+	maxBlockNumber := uint64(0)
+	if gerFinalityNumberOfBlocks <= blockNumber {
+		maxBlockNumber = blockNumber - gerFinalityNumberOfBlocks
+	}
 	ger, receivedAt, err := d.state.GetLatestGlobalExitRoot(ctx, maxBlockNumber, nil)
 	if err != nil && errors.Is(err, state.ErrNotFound) {
 		return state.GlobalExitRoot{}, time.Time{}, nil
@@ -525,21 +529,15 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 }
 
 // GetForcedBatchesSince gets L1 forced batches since timestamp
-func (d *dbManager) GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
-	return d.state.GetForcedBatchesSince(ctx, since, dbTx)
-}
-
-// UpdateClosingSignals updates the closing signals manager runtime variables
-func (d *dbManager) UpdateClosingSignals(ctx context.Context, closingSignals state.ClosingSignals, dbTx pgx.Tx) error {
-	return d.state.UpdateClosingSignals(ctx, closingSignals, dbTx)
-}
-
-// GetClosingSignals gets the closing signals manager runtime variables
-func (d *dbManager) GetClosingSignals(ctx context.Context, dbTx pgx.Tx) (*state.ClosingSignals, error) {
-	return d.state.GetClosingSignals(ctx, dbTx)
+func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+	return d.state.GetForcedBatchesSince(ctx, forcedBatchNumber, dbTx)
 }
 
 // GetLastL2BlockHeader gets the last l2 block number
 func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
 	return d.state.GetLastL2BlockHeader(ctx, dbTx)
+}
+
+func (d *dbManager) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return d.state.GetLastTrustedForcedBatchNumber(ctx, dbTx)
 }
