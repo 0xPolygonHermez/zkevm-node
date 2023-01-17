@@ -137,9 +137,10 @@ benchmark-sequencer: stop
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
+	$(RUNSYNC)
+	sleep 2
 	$(RUNGASPRICER)
 	$(RUNJSONRPC)
-	$(RUNSYNC)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	@ cd benchmarks/sequencer ; \
@@ -160,6 +161,7 @@ stop-db: ## Stops the node database
 .PHONY: run-node
 run-node: ## Runs the node
 	$(RUNSYNC)
+	sleep 2
 	$(RUNSEQUENCER)
 	$(RUNGASPRICER)
 	$(RUNAGGREGATOR)
@@ -263,6 +265,14 @@ run-broadcast: ## Runs the broadcast service
 stop-broadcast: ## Stops the broadcast service
 	$(STOPBROADCAST)
 
+.PHONY: run-aggregator
+run-aggregator: ## Runs the aggregator service
+	$(RUNAGGREGATOR)
+
+.PHONY: stop-aggregator
+stop-aggregator: ## Stops the aggregator service
+	$(STOPAGGREGATOR)
+
 .PHONY: run-grafana
 run-grafana: ## Runs the grafana service
 	$(RUNGRAFANA)
@@ -297,11 +307,12 @@ run: ## Runs a full node
 	sleep 1
 	$(RUNZKPROVER)
 	sleep 3
+	$(RUNSYNC)
+	sleep 2
 	$(RUNSEQUENCER)
 	$(RUNGASPRICER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
-	$(RUNSYNC)
 
 .PHONY: stop
 stop: ## Stops all services

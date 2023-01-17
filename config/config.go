@@ -39,6 +39,8 @@ const (
 	FlagComponents = "components"
 	// FlagHTTPAPI is the flag for http.api.
 	FlagHTTPAPI = "http.api"
+	// FlagMigrations is the flag for migrations.
+	FlagMigrations = "migrations"
 )
 
 // Config represents the configuration of the entire Hermez Node

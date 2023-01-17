@@ -51,6 +51,7 @@ func NewServer(
 	storage storageInterface,
 	apis map[string]bool,
 ) *Server {
+	s.PrepareWebSocket()
 	handler := newJSONRpcHandler()
 
 	if _, ok := apis[APIEth]; ok {

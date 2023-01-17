@@ -80,27 +80,29 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorSe
 		metrics.Register()
 	})
 
-	lastL2Block, err := storage.GetLastL2Block(context.Background(), nil)
-	if errors.Is(err, ErrStateNotSynchronized) {
-		lastL2Block = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0)})
-	} else if err != nil {
-		log.Fatalf("failed to load the last l2 block: %v", err)
-	}
-
 	s := &State{
 		cfg:                     cfg,
 		PostgresStorage:         storage,
 		executorClient:          executorClient,
 		tree:                    stateTree,
-		lastL2BlockSeen:         *lastL2Block,
 		newL2BlockEvents:        make(chan NewL2BlockEvent),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 	}
 
+	return s
+}
+
+// PrepareWebSocket allows the RPC to prepare ws
+func (s *State) PrepareWebSocket() {
+	lastL2Block, err := s.PostgresStorage.GetLastL2Block(context.Background(), nil)
+	if errors.Is(err, ErrStateNotSynchronized) {
+		lastL2Block = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0)})
+	} else if err != nil {
+		log.Fatalf("failed to load the last l2 block: %v", err)
+	}
+	s.lastL2BlockSeen = *lastL2Block
 	go s.monitorNewL2Blocks()
 	go s.handleEvents()
-
-	return s
 }
 
 // BeginStateTransaction starts a state transaction
