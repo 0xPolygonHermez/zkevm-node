@@ -470,7 +470,11 @@ func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.
 	}
 
 	if err != nil {
-		dbTx.Rollback(ctx) //nolint:errcheck
+		if err := dbTx.Rollback(ctx); err != nil {
+			err := fmt.Errorf("failed to rollback proof aggregation state %w", err)
+			log.Error(err.Error())
+			return err
+		}
 		return fmt.Errorf("failed to release proof aggregation state %w", err)
 	}
 
