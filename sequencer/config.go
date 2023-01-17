@@ -108,11 +108,26 @@ type Config struct {
 
 // FinalizerCfg contains the finalizer's configuration properties
 type FinalizerCfg struct {
-	GERDeadlineTimeoutInSec         types.Duration `mapstructure:"GERDeadlineTimeoutInSec"`
+	// GERDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to update Global Exit Root
+	GERDeadlineTimeoutInSec types.Duration `mapstructure:"GERDeadlineTimeoutInSec"`
+
+	// SendingToL1DeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to process Forced Batches
 	ForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"ForcedBatchDeadlineTimeoutInSec"`
+
+	// SendingToL1DeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to sends a batch to L1
 	SendingToL1DeadlineTimeoutInSec types.Duration `mapstructure:"SendingToL1DeadlineTimeoutInSec"`
-	SleepDurationInMs               types.Duration `mapstructure:"SleepDurationInMs"`
-	ResourcePercentageToCloseBatch  uint32         `mapstructure:"ResourcePercentageToCloseBatch"`
+
+	// SleepDurationInMs is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
+	SleepDurationInMs types.Duration `mapstructure:"SleepDurationInMs"`
+
+	// ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
+	ResourcePercentageToCloseBatch uint32 `mapstructure:"ResourcePercentageToCloseBatch"`
+
+	// GERFinalityNumberOfBlocks is number of blocks to consider GER final
+	GERFinalityNumberOfBlocks uint64 `mapstructure:"GERFinalityNumberOfBlocks"`
+
+	// ClosingSignalsManagerWaitForL1OperationsInSec is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForL1OperationsInSec types.Duration `mapstructure:"ClosingSignalsManagerWaitForL1OperationsInSec"`
 }
 
 // MaxSequenceSize is a wrapper type that parses token amount to big int

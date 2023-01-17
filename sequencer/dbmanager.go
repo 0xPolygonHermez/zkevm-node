@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -200,7 +201,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		}
 
 		// Check if the Tx is still valid in the state to detect reorgs
-		latestL2Block, err := d.state.GetLastL2Block(d.ctx, dbTx)
+		latestL2BlockHeader, err := d.state.GetLastL2BlockHeader(d.ctx, dbTx)
 		if err != nil {
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
@@ -209,8 +210,8 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 			d.txsStore.Wg.Done()
 			continue
 		}
-		if latestL2Block.Root() != txToStore.previousL2BlockStateRoot {
-			log.Info("L2 reorg detected. Old state root: %v New state root: %v", latestL2Block.Root(), txToStore.previousL2BlockStateRoot)
+		if latestL2BlockHeader.Root != txToStore.previousL2BlockStateRoot {
+			log.Info("L2 reorg detected. Old state root: %v New state root: %v", latestL2BlockHeader.Root, txToStore.previousL2BlockStateRoot)
 			d.l2ReorgCh <- L2ReorgEvent{}
 			d.txsStore.Wg.Done()
 			continue
@@ -379,7 +380,11 @@ func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*st
 }
 
 // GetLatestGer gets the latest global exit root
-func (d *dbManager) GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error) {
+func (d *dbManager) GetLatestGer(ctx context.Context, blockNumber uint64, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
+	maxBlockNumber := uint64(0)
+	if gerFinalityNumberOfBlocks <= blockNumber {
+		maxBlockNumber = blockNumber - gerFinalityNumberOfBlocks
+	}
 	ger, receivedAt, err := d.state.GetLatestGlobalExitRoot(ctx, maxBlockNumber, nil)
 	if err != nil && errors.Is(err, state.ErrNotFound) {
 		return state.GlobalExitRoot{}, time.Time{}, nil
@@ -524,6 +529,15 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 }
 
 // GetForcedBatchesSince gets L1 forced batches since timestamp
-func (d *dbManager) GetForcedBatchesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
-	return d.state.GetForcedBatchesSince(ctx, since, dbTx)
+func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+	return d.state.GetForcedBatchesSince(ctx, forcedBatchNumber, dbTx)
+}
+
+// GetLastL2BlockHeader gets the last l2 block number
+func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+	return d.state.GetLastL2BlockHeader(ctx, dbTx)
+}
+
+func (d *dbManager) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return d.state.GetLastTrustedForcedBatchNumber(ctx, dbTx)
 }

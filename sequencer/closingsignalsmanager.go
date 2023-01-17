@@ -5,61 +5,64 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum/common"
 )
 
-// TBD. Considerations:
-// - Should wait for a block to be finalized: https://www.alchemy.com/overviews/ethereum-commitment-levels https://ethereum.github.io/beacon-APIs/#/Beacon/getStateFinalityCheckpoints
-
 type closingSignalsManager struct {
-	finalizer *finalizer
-	timestamp time.Time
+	ctx             context.Context
+	dbManager       dbManagerInterface
+	closingSignalCh ClosingSignalCh
+	cfg             FinalizerCfg
 }
 
-func newClosingSignalsManager(finalizer *finalizer) *closingSignalsManager {
-	return &closingSignalsManager{finalizer: finalizer}
+func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface, closingSignalCh ClosingSignalCh, cfg FinalizerCfg) *closingSignalsManager {
+	return &closingSignalsManager{ctx: ctx, dbManager: dbManager, closingSignalCh: closingSignalCh, cfg: cfg}
 }
 
 func (c *closingSignalsManager) Start() {
-
-	for {
-
-		// Check L2 Reorg
-		// ==============
-		// Whats the condition to detect a L2 Reorg?
-
-		// Check GER Update
-		// Get latest GER from stateDB
-		// If latest GER != previousGER -> send new Ger using channel
-
-		// Check Forced Batches
-
-		// Read new forces batches from stateDB
-		// Send them using channel
-		// Mark them as sended
-
-		// Check Sending to L1 Timeout
-		// How do we know when we have sent to L1 to reset the counter and don't do a timeout?
-
-	}
+	go c.checkForcedBatches()
+	go c.checkGERUpdate()
 }
 
 func (c *closingSignalsManager) checkGERUpdate() {
+	var lastGERSent common.Hash
+
+	for {
+		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration * time.Second)
+
+		lastL2BlockHeader, err := c.dbManager.GetLastL2BlockHeader(c.ctx, nil)
+		if err != nil {
+			log.Errorf("error getting last L2 block: %v", err)
+			continue
+		}
+
+		ger, _, err := c.dbManager.GetLatestGer(c.ctx, lastL2BlockHeader.Number.Uint64(), c.cfg.GERFinalityNumberOfBlocks)
+		if err != nil {
+			log.Errorf("error checking GER update: %v", err)
+			continue
+		}
+
+		if ger.GlobalExitRoot != lastGERSent {
+			c.closingSignalCh.GERCh <- ger.GlobalExitRoot
+			lastGERSent = ger.GlobalExitRoot
+		}
+	}
 }
 
-func (c *closingSignalsManager) checkForcedBatches(ctx context.Context) {
-	backupTimestamp := time.Now()
-	forcedBatches, err := c.finalizer.dbManager.GetForcedBatchesSince(ctx, c.timestamp, nil)
-	if err != nil {
-		log.Errorf("error checking forced batches: %v", err)
-		return
+func (c *closingSignalsManager) checkForcedBatches() {
+	for {
+		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration * time.Second)
+
+		latestSentForcedBatchNumber, err := c.dbManager.GetLastTrustedForcedBatchNumber(c.ctx, nil)
+
+		forcedBatches, err := c.dbManager.GetForcedBatchesSince(c.ctx, latestSentForcedBatchNumber, nil)
+		if err != nil {
+			log.Errorf("error checking forced batches: %v", err)
+			continue
+		}
+
+		for _, forcedBatch := range forcedBatches {
+			c.closingSignalCh.ForcedBatchCh <- *forcedBatch
+		}
 	}
-
-	for _, forcedBatch := range forcedBatches {
-		c.finalizer.closingSignalCh.ForcedBatchCh <- *forcedBatch
-	}
-
-	c.timestamp = backupTimestamp
-}
-
-func (c *closingSignalsManager) checkSendToL1Timeout() {
 }
