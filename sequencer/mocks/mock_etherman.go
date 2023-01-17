@@ -21,7 +21,7 @@ type EthermanMock struct {
 }
 
 // BuildSequenceBatchesTxData provides a mock function with given fields: sender, sequences
-func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequences []types.Sequence) (*common.Address, *big.Int, []byte, error) {
+func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequences []types.Sequence) (*common.Address, []byte, error) {
 	ret := _m.Called(sender, sequences)
 
 	var r0 *common.Address
@@ -33,32 +33,23 @@ func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequen
 		}
 	}
 
-	var r1 *big.Int
-	if rf, ok := ret.Get(1).(func(common.Address, []types.Sequence) *big.Int); ok {
+	var r1 []byte
+	if rf, ok := ret.Get(1).(func(common.Address, []types.Sequence) []byte); ok {
 		r1 = rf(sender, sequences)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(*big.Int)
+			r1 = ret.Get(1).([]byte)
 		}
 	}
 
-	var r2 []byte
-	if rf, ok := ret.Get(2).(func(common.Address, []types.Sequence) []byte); ok {
+	var r2 error
+	if rf, ok := ret.Get(2).(func(common.Address, []types.Sequence) error); ok {
 		r2 = rf(sender, sequences)
 	} else {
-		if ret.Get(2) != nil {
-			r2 = ret.Get(2).([]byte)
-		}
+		r2 = ret.Error(2)
 	}
 
-	var r3 error
-	if rf, ok := ret.Get(3).(func(common.Address, []types.Sequence) error); ok {
-		r3 = rf(sender, sequences)
-	} else {
-		r3 = ret.Error(3)
-	}
-
-	return r0, r1, r2, r3
+	return r0, r1, r2
 }
 
 // EstimateGasSequenceBatches provides a mock function with given fields: sender, sequences

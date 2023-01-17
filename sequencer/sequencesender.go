@@ -66,7 +66,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 
 	// add sequence to be monitored
 	sender := common.HexToAddress(s.cfg.SenderAddress)
-	to, value, data, err := s.etherman.BuildSequenceBatchesTxData(sender, sequences)
+	to, data, err := s.etherman.BuildSequenceBatchesTxData(sender, sequences)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
 		return
@@ -74,7 +74,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	firstSequence := sequences[0]
 	lastSequence := sequences[len(sequences)-1]
 	monitoredTxID := fmt.Sprintf("sequence-from-%v-to-%v", firstSequence.BatchNumber, lastSequence.BatchNumber)
-	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, value, data, nil)
+	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
 	if err != nil {
 		log.Error("error to add sequences tx to eth tx manager: ", err)
 		return

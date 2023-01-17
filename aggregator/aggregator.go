@@ -242,14 +242,14 @@ func (a *Aggregator) sendFinalProof() {
 
 			// add batch verification to be monitored
 			sender := common.HexToAddress(a.cfg.SenderAddress)
-			to, value, data, err := a.Ethman.BuildTrustedVerifyBatchesTxData(proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
+			to, data, err := a.Ethman.BuildTrustedVerifyBatchesTxData(proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
 			if err != nil {
 				log.Error("error estimating batch verification to add to eth tx manager: ", err)
 				a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
 				continue
 			}
 			monitoredTxID := fmt.Sprintf(monitoredIDFormat, proof.BatchNumber, proof.BatchNumberFinal)
-			err = a.EthTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, value, data, nil)
+			err = a.EthTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
 			if err != nil {
 				log.Error("error to add batch verification tx to eth tx manager: ", err)
 				a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)

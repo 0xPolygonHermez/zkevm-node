@@ -327,10 +327,10 @@ func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequen
 }
 
 // BuildSequenceBatchesTxData builds a []bytes to be sent to the PoE SC method SequenceBatches.
-func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence) (to *common.Address, value *big.Int, data []byte, err error) {
+func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence) (to *common.Address, data []byte, err error) {
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
-		return nil, nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
+		return nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
 	}
 	opts.NoSend = true
 	// force nonce, gas limit and gas price to avoid querying it from the chain
@@ -340,10 +340,10 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 
 	tx, err := etherMan.sequenceBatches(opts, sequences)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
-	return tx.To(), tx.Value(), tx.Data(), nil
+	return tx.To(), tx.Data(), nil
 }
 
 func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
@@ -374,10 +374,10 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 }
 
 // BuildTrustedVerifyBatchesTxData builds a []bytes to be sent to the PoE SC method TrustedVerifyBatches.
-func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (to *common.Address, value *big.Int, data []byte, err error) {
+func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (to *common.Address, data []byte, err error) {
 	opts, err := etherMan.generateRandomAuth()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to build trusted verify batches, err: %w", err)
+		return nil, nil, fmt.Errorf("failed to build trusted verify batches, err: %w", err)
 	}
 	opts.NoSend = true
 	// force nonce, gas limit and gas price to avoid querying it from the chain
@@ -393,15 +393,15 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 
 	proofA, err := strSliceToBigIntArray(inputs.FinalProof.Proof.ProofA)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	proofB, err := proofSlcToIntArray(inputs.FinalProof.Proof.ProofB)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	proofC, err := strSliceToBigIntArray(inputs.FinalProof.Proof.ProofC)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	const pendStateNum = 0 // TODO hardcoded for now until we implement the pending state feature
@@ -421,10 +421,10 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
 		}
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
-	return tx.To(), tx.Value(), tx.Data(), nil
+	return tx.To(), tx.Data(), nil
 }
 
 // GetSendSequenceFee get super/trusted sequencer fee

@@ -3,8 +3,6 @@
 package mocks
 
 import (
-	big "math/big"
-
 	common "github.com/ethereum/go-ethereum/common"
 	mock "github.com/stretchr/testify/mock"
 
@@ -17,7 +15,7 @@ type Etherman struct {
 }
 
 // BuildTrustedVerifyBatchesTxData provides a mock function with given fields: lastVerifiedBatch, newVerifiedBatch, inputs
-func (_m *Etherman) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch uint64, newVerifiedBatch uint64, inputs *types.FinalProofInputs) (*common.Address, *big.Int, []byte, error) {
+func (_m *Etherman) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch uint64, newVerifiedBatch uint64, inputs *types.FinalProofInputs) (*common.Address, []byte, error) {
 	ret := _m.Called(lastVerifiedBatch, newVerifiedBatch, inputs)
 
 	var r0 *common.Address
@@ -29,32 +27,23 @@ func (_m *Etherman) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch uint64, ne
 		}
 	}
 
-	var r1 *big.Int
-	if rf, ok := ret.Get(1).(func(uint64, uint64, *types.FinalProofInputs) *big.Int); ok {
+	var r1 []byte
+	if rf, ok := ret.Get(1).(func(uint64, uint64, *types.FinalProofInputs) []byte); ok {
 		r1 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(*big.Int)
+			r1 = ret.Get(1).([]byte)
 		}
 	}
 
-	var r2 []byte
-	if rf, ok := ret.Get(2).(func(uint64, uint64, *types.FinalProofInputs) []byte); ok {
+	var r2 error
+	if rf, ok := ret.Get(2).(func(uint64, uint64, *types.FinalProofInputs) error); ok {
 		r2 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
 	} else {
-		if ret.Get(2) != nil {
-			r2 = ret.Get(2).([]byte)
-		}
+		r2 = ret.Error(2)
 	}
 
-	var r3 error
-	if rf, ok := ret.Get(3).(func(uint64, uint64, *types.FinalProofInputs) error); ok {
-		r3 = rf(lastVerifiedBatch, newVerifiedBatch, inputs)
-	} else {
-		r3 = ret.Error(3)
-	}
-
-	return r0, r1, r2, r3
+	return r0, r1, r2
 }
 
 // GetLatestVerifiedBatchNum provides a mock function with given fields:
