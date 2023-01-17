@@ -391,7 +391,7 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 		}
 
 		txIndex := uint64(receipt.TransactionIndex)
-		return toRPCTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
+		return toRPCTransaction(*tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
 	})
 }
 
@@ -420,7 +420,7 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 		}
 
 		txIndex := uint64(receipt.TransactionIndex)
-		return toRPCTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
+		return toRPCTransaction(*tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
 	})
 }
 
@@ -441,7 +441,7 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, rpcError) {
 			}
 
 			txIndex := uint64(receipt.TransactionIndex)
-			return toRPCTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
+			return toRPCTransaction(*tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
 		}
 
 		// if the tx does not exist in the state, look for it in the pool
@@ -453,7 +453,7 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, rpcError) {
 		}
 		tx = &poolTx.Transaction
 
-		return toRPCTransaction(tx, nil, nil, nil), nil
+		return toRPCTransaction(*tx, nil, nil, nil), nil
 	})
 }
 
