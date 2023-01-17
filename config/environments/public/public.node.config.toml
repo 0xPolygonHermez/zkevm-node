@@ -23,9 +23,9 @@ MaxConns = 200
 [Etherman]
 URL = "http://your.L1node.url"
 L1ChainID = 5
-PoEAddr = "0x14cB06e8dE2222912138F9a062E5a4d9F4821409"
-MaticAddr = "0x4701Aa9471d7bfAc765D87dcb1Ea6BB23AD32733"
-GlobalExitRootManagerAddr = "0x762d09Ed110ace4EaC94acbb67b1C35D16C3297b"
+PoEAddr = "0x5e2e663A39205348cE985Bccc9673Ca25AeE727E"
+MaticAddr = "0x957601b24ce513E64C7D77c9EB169501B7CC4D71"
+GlobalExitRootManagerAddr = "0x715fC3A1422de7Ae2EA483d1DA8415E8dD45bAd3"
 MultiGasProvider = false
 	[Etherscan]
 		ApiKey = ""
@@ -52,7 +52,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 SyncInterval = "2s"
 SyncChunkSize = 10000
 TrustedSequencerURI = ""
-GenBlockNumber = 7710669
+GenBlockNumber = 8168980
 
 [GasPriceEstimator]
 Type = "default"
