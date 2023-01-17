@@ -2017,7 +2017,7 @@ func (p *PostgresStorage) GetClosingSignals(ctx context.Context, dbTx pgx.Tx) (*
 	getClosingSignalsSQL := "SELECT sent_forced_batch_timestamp, sent_to_l1_timestamp, last_ger FROM  state.closing_signals"
 	closingSignals := &ClosingSignals{}
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getClosingSignalsSQL).Scan(&closingSignals.SentForcedBatchTimestamp, closingSignals.SentToL1Timestamp, closingSignals.LastGER)
+	err := q.QueryRow(ctx, getClosingSignalsSQL).Scan(&closingSignals.SentForcedBatchTimestamp, &closingSignals.SentToL1Timestamp, &closingSignals.LastGER)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
