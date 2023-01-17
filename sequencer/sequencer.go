@@ -148,8 +148,8 @@ func (s *Sequencer) Start(ctx context.Context) {
 	go dbManager.Start()
 
 	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints)
-	currBatch, OldStateRoot := s.bootstrap(ctx, dbManager, finalizer)
-	go finalizer.Start(ctx, currBatch, OldStateRoot)
+	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
+	go finalizer.Start(ctx, currBatch, processingReq)
 
 	go s.trackOldTxs(ctx)
 	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
@@ -166,11 +166,12 @@ func (s *Sequencer) Start(ctx context.Context) {
 	<-ctx.Done()
 }
 
-func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) (*WipBatch, common.Hash) {
+func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) (*WipBatch, *state.ProcessRequest) {
 	var (
-		currBatch    *WipBatch
-		oldStateRoot common.Hash
+		currBatch      *WipBatch
+		processRequest *state.ProcessRequest
 	)
+
 	batchNum, err := dbManager.GetLastBatchNumber(ctx)
 	for err != nil {
 		if errors.Is(err, state.ErrStateNotSynchronized) {
@@ -186,30 +187,35 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 		// GENESIS Batch //
 		///////////////////
 		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
+		timestamp := uint64(processingCtx.Timestamp.Unix())
 		currBatch = &WipBatch{
 			globalExitRoot: processingCtx.GlobalExitRoot,
 			batchNumber:    processingCtx.BatchNumber,
 			coinbase:       processingCtx.Coinbase,
-			timestamp:      uint64(processingCtx.Timestamp.Unix()),
+			timestamp:      timestamp,
 		}
-
+		_, oldStateRoot, err := finalizer.getLastBatchNumAndStateRoot(ctx)
 		if err != nil {
-			return nil, common.Hash{}
+			log.Fatalf("failed to get old state root, err: %v", err)
+		}
+		processRequest = &state.ProcessRequest{
+			BatchNumber:    processingCtx.BatchNumber,
+			OldStateRoot:   oldStateRoot,
+			GlobalExitRoot: processingCtx.GlobalExitRoot,
+			Coinbase:       processingCtx.Coinbase,
+			Timestamp:      timestamp,
+			Caller:         state.SequencerCallerLabel,
 		}
 	} else {
-		// Check if synchronizer is up-to-date
-		for !s.isSynced(ctx) {
-			log.Info("wait for synchronizer to sync last batch")
-			time.Sleep(time.Second)
-		}
-		finalizer.batch, err = finalizer.dbManager.GetWIPBatch(ctx)
+		err := finalizer.syncWithState(ctx, &batchNum)
 		if err != nil {
-			log.Fatalf("failed to get work-in-progress batch, err: %v", err)
+			log.Fatalf("failed to sync with state, err: %v", err)
 		}
-		finalizer.finalizeBatch(ctx)
 		currBatch = finalizer.batch
+		processRequest = &finalizer.processRequest
 	}
-	return currBatch, oldStateRoot
+
+	return currBatch, processRequest
 }
 
 func (s *Sequencer) trackOldTxs(ctx context.Context) {

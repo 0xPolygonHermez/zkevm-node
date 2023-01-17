@@ -9,6 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+var ()
+
 // TouchedAddress represents affected address after executor processing one or multiple txs
 type TouchedAddress struct {
 	Address common.Address
@@ -102,28 +104,28 @@ func (z *ZKCounters) SumUp(other ZKCounters) {
 func (z *ZKCounters) Sub(other ZKCounters) error {
 	// ZKCounters
 	if other.CumulativeGasUsed > z.CumulativeGasUsed {
-		return errors.New("underflow ZKCounter: CumulativeGasUsed")
+		return GetZKCounterError("CumulativeGasUsed")
 	}
 	if other.UsedKeccakHashes > z.UsedKeccakHashes {
-		return errors.New("underflow ZKCounter: UsedKeccakHashes")
+		return GetZKCounterError("UsedKeccakHashes")
 	}
 	if other.UsedPoseidonHashes > z.UsedPoseidonHashes {
-		return errors.New("underflow ZKCounter: UsedPoseidonHashes")
+		return GetZKCounterError("UsedPoseidonHashes")
 	}
 	if other.UsedPoseidonPaddings > z.UsedPoseidonPaddings {
 		return errors.New("underflow ZKCounter: UsedPoseidonPaddings")
 	}
 	if other.UsedMemAligns > z.UsedMemAligns {
-		return errors.New("underflow ZKCounter: UsedMemAligns")
+		return GetZKCounterError("UsedMemAligns")
 	}
 	if other.UsedArithmetics > z.UsedArithmetics {
-		return errors.New("underflow ZKCounter: UsedArithmetics")
+		return GetZKCounterError("UsedArithmetics")
 	}
 	if other.UsedBinaries > z.UsedBinaries {
-		return errors.New("underflow ZKCounter: UsedBinaries")
+		return GetZKCounterError("UsedBinaries")
 	}
 	if other.UsedSteps > z.UsedSteps {
-		return errors.New("underflow ZKCounter: UsedSteps")
+		return GetZKCounterError("UsedSteps")
 	}
 
 	z.CumulativeGasUsed -= other.CumulativeGasUsed

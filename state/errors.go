@@ -46,6 +46,8 @@ var (
 	// ErrInsufficientFunds is returned if the total cost of executing a transaction
 	// is higher than the balance of the user's account.
 	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
+
+	zkCounterErrPrefix = "ZKCounter: "
 )
 
 func constructErrorFromRevert(err error, returnValue []byte) error {
@@ -55,4 +57,9 @@ func constructErrorFromRevert(err error, returnValue []byte) error {
 	}
 
 	return fmt.Errorf("%w: %s", err, revertErrMsg)
+}
+
+// GetZKCounterError returns the error associated with the zkCounter
+func GetZKCounterError(name string) error {
+	return errors.New(zkCounterErrPrefix + name)
 }

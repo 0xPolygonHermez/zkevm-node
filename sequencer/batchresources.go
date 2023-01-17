@@ -1,8 +1,6 @@
 package sequencer
 
 import (
-	"fmt"
-
 	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
@@ -10,29 +8,21 @@ import (
 type batchResources struct {
 	zKCounters state.ZKCounters
 	bytes      uint64
-	gas        uint64 // TODO: Delete gas?
 }
 
 // sub subtracts the batch resources from other
 func (r *batchResources) sub(other batchResources) error {
-	// Gas
-	if other.gas > r.gas {
-		return fmt.Errorf("%w. Resource: Gas", ErrBatchRemainingResourcesUnderflow)
-	}
 	// Bytes
 	if other.bytes > r.bytes {
-		return fmt.Errorf("%w. Resource: Bytes", ErrBatchRemainingResourcesUnderflow)
+		return ErrBatchResourceBytesUnderflow
 	}
 	bytesBackup := r.bytes
-	gasBackup := r.gas
 	r.bytes -= other.bytes
-	r.gas -= other.gas
 	err := r.zKCounters.Sub(other.zKCounters)
 	if err != nil {
-		return fmt.Errorf("%w. %s", ErrBatchRemainingResourcesUnderflow, err)
+		return NewBatchRemainingResourcesUnderflowError(err, err.Error())
 	}
 	r.bytes = bytesBackup
-	r.gas = gasBackup
 
 	return err
 }

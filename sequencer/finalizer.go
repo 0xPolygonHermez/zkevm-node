@@ -44,6 +44,7 @@ type finalizer struct {
 	nextForcedBatchesMux      *sync.RWMutex
 	nextSendingToL1Deadline   int64
 	nextSendingToL1TimeoutMux *sync.RWMutex
+	handlingL2Reorg           bool
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -72,17 +73,18 @@ func newFinalizer(
 	batchConstraints batchConstraints,
 ) *finalizer {
 	return &finalizer{
-		cfg:              cfg,
-		txsStore:         txsStore,
-		closingSignalCh:  closingSignalCh,
-		isSynced:         isSynced,
-		sequencerAddress: sequencerAddr,
-		worker:           worker,
-		dbManager:        dbManager,
-		executor:         executor,
-		batch:            new(WipBatch),
-		batchConstraints: batchConstraints,
-		processRequest:   state.ProcessRequest{},
+		cfg:                cfg,
+		txsStore:           txsStore,
+		closingSignalCh:    closingSignalCh,
+		isSynced:           isSynced,
+		sequencerAddress:   sequencerAddr,
+		worker:             worker,
+		dbManager:          dbManager,
+		executor:           executor,
+		batch:              new(WipBatch),
+		batchConstraints:   batchConstraints,
+		processRequest:     state.ProcessRequest{},
+		sharedResourcesMux: new(sync.RWMutex),
 		// closing signals
 		nextGER:                   common.Hash{},
 		nextGERDeadline:           0,
@@ -96,24 +98,24 @@ func newFinalizer(
 }
 
 // Start starts the finalizer.
-func (f *finalizer) Start(ctx context.Context, batch *WipBatch, OldStateRoot common.Hash) {
+func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *state.ProcessRequest) {
+	var err error
 	if batch != nil {
 		f.batch = batch
 	} else {
-		var err error
 		f.batch, err = f.dbManager.GetWIPBatch(ctx)
 		if err != nil {
 			log.Fatalf("failed to get work-in-progress batch from DB, Err: %s", err)
 		}
 	}
 
-	f.processRequest = state.ProcessRequest{
-		BatchNumber:    f.batch.batchNumber,
-		OldStateRoot:   OldStateRoot,
-		GlobalExitRoot: f.batch.globalExitRoot,
-		Coinbase:       f.sequencerAddress,
-		Timestamp:      f.batch.timestamp,
-		Caller:         state.SequencerCallerLabel,
+	if processingReq != nil {
+		f.processRequest = *processingReq
+	} else {
+		f.processRequest, err = f.prepareProcessRequestFromState(ctx)
+		if err != nil {
+			log.Fatalf("failed to prepare process request from state, Err: %s", err)
+		}
 	}
 
 	// Closing signals receiver
@@ -125,7 +127,6 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, OldStateRoot com
 
 // listenForClosingSignals listens for signals for the batch and sets the deadline for when they need to be closed.
 func (f *finalizer) listenForClosingSignals(ctx context.Context) {
-	var err error
 	for {
 		select {
 		case <-ctx.Done():
@@ -134,7 +135,7 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 		// Forced  batch ch
 		case fb := <-f.closingSignalCh.ForcedBatchCh:
 			f.nextForcedBatchesMux.Lock()
-			f.nextForcedBatches = append(f.nextForcedBatches, fb)
+			f.nextForcedBatches = append(f.nextForcedBatches, fb) // TODO: change insert sort if not exists
 			if f.nextForcedBatchDeadline == 0 {
 				f.setNextForcedBatchDeadline()
 			}
@@ -150,15 +151,15 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 		// L2Reorg ch
 		case l2ReorgEvent := <-f.closingSignalCh.L2ReorgCh:
 			f.sharedResourcesMux.Lock()
+			f.handlingL2Reorg = true
 			go f.worker.HandleL2Reorg(l2ReorgEvent.TxHashes)
-			// Get current wip batch
-			f.batch, err = f.dbManager.GetWIPBatch(ctx)
-			for err != nil {
-				log.Errorf("failed to load batch from the state, err: %s", err)
-				f.batch, err = f.dbManager.GetWIPBatch(ctx)
+			err := f.syncWithState(ctx, nil)
+			if err != nil {
+				log.Errorf("failed to sync with state, Err: %s", err)
 			}
-			err = f.syncWIPBatchWithState(ctx)
+			f.handlingL2Reorg = false
 			f.sharedResourcesMux.Unlock()
+
 		// Too much time without batches in L1 ch
 		case <-f.closingSignalCh.SendingToL1TimeoutCh:
 			f.nextSendingToL1TimeoutMux.Lock()
@@ -201,6 +202,76 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	}
 }
 
+// finalizeBatch retries to until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
+func (f *finalizer) finalizeBatch(ctx context.Context) {
+	var err error
+	f.batch, err = f.newWIPBatch(ctx)
+	for err != nil {
+		log.Errorf("failed to create new work-in-progress batch, Err: %s", err)
+		f.batch, err = f.newWIPBatch(ctx)
+	}
+}
+
+// newWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
+func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
+	var (
+		err error
+	)
+
+	// Passing the batch without txs to the executor in order to update the State
+	if f.batch.isEmpty {
+		// backup current sequence
+		err = f.processTransaction(ctx, nil)
+		for err != nil {
+			log.Errorf("failed to process tx, err: %w", err)
+			err = f.processTransaction(ctx, nil)
+		}
+	}
+
+	if f.batch.stateRoot.String() == "" || f.batch.localExitRoot.String() == "" {
+		return nil, errors.New("state root and local exit root must have value to close batch")
+	}
+	err = f.closeBatch(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to close batch, err: %w", err)
+	}
+	// Reprocessing batch as sanity check
+	go func() {
+		err := f.reprocessBatch(ctx)
+		if err != nil {
+			// TODO: design error handling for reprocessing
+			log.Errorf("failed to reprocess batch, err: %s", err)
+			return
+		}
+	}()
+
+	// Metadata for the next batch
+	stateRoot := f.batch.stateRoot
+	lastBatchNumber := f.batch.batchNumber
+
+	// Process Forced Batches
+	if len(f.nextForcedBatches) > 0 {
+		lastBatchNumber, stateRoot, err = f.processForcedBatches(lastBatchNumber, stateRoot)
+		if err != nil {
+			log.Errorf("failed to process forced batch, err: %s", err)
+		}
+	}
+
+	// Take into consideration the GER
+	f.nextGERMux.Lock()
+	ger := f.nextGER
+	f.nextGER = state.ZeroHash
+	f.nextGERDeadline = 0
+	f.nextGERMux.Unlock()
+
+	// Reset nextSendingToL1Deadline
+	f.nextSendingToL1TimeoutMux.Lock()
+	f.nextSendingToL1Deadline = 0
+	f.nextSendingToL1TimeoutMux.Unlock()
+
+	return f.openWIPBatch(ctx, lastBatchNumber+1, ger, stateRoot)
+}
+
 // processTransaction processes a single transaction.
 func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error {
 	f.sharedResourcesMux.Lock()
@@ -241,6 +312,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	return nil
 }
 
+// handleSuccessfulTxProcessResp handles the response of a successful transaction processing.
 func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.ProcessBatchResponse) error {
 	if tx == nil {
 		return nil
@@ -278,49 +350,7 @@ func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.P
 	return nil
 }
 
-// checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
-func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker, txResponse *state.ProcessTransactionResponse) error {
-	usedResources := batchResources{
-		zKCounters: result.UsedZkCounters,
-		bytes:      uint64(len(tx.RawTx)),
-	}
-	err := f.batch.remainingResources.sub(usedResources)
-	if err != nil {
-		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
-		f.worker.UpdateTx(txResponse.TxHash, tx.From, usedResources.zKCounters)
-		return err
-	}
-
-	return nil
-}
-
-// finalizeBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
-func (f *finalizer) finalizeBatch(ctx context.Context) {
-	var err error
-	f.batch, err = f.newWIPBatch(ctx)
-	for err != nil {
-		log.Errorf("failed to create new work-in-progress batch, Err: %s", err)
-		f.batch, err = f.newWIPBatch(ctx)
-	}
-}
-
-func (f *finalizer) isDeadlineEncountered() bool {
-	// Forced batch deadline
-	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
-		return true
-	}
-	// Global Exit Root deadline
-	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
-		return true
-	}
-	// Delayed batch deadline
-	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline {
-		return true
-	}
-
-	return false
-}
-
+// handleTransactionError handles the error of a transaction
 func (f *finalizer) handleTransactionError(txResponse *state.ProcessTransactionResponse, result *state.ProcessBatchResponse, tx *TxTracker) {
 	errorCode := executor.ErrorCode(txResponse.Error)
 	addressInfo := result.TouchedAddresses[tx.From]
@@ -331,29 +361,67 @@ func (f *finalizer) handleTransactionError(txResponse *state.ProcessTransactionR
 	}
 }
 
-func (f *finalizer) syncWIPBatchWithState(ctx context.Context) error {
+// syncWithState syncs the WIP batch and processRequest with the state
+func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) error {
 	var err error
-	// Check if synchronizer is up-to-date
 	for !f.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
 		time.Sleep(time.Second)
 	}
+	if lastBatchNum == nil {
+		batchNum, err := f.dbManager.GetLastBatchNumber(ctx)
+		for err != nil {
+			return fmt.Errorf("failed to get last batch number, err: %w", err)
+		}
+		lastBatchNum = &batchNum
+	}
 
-	// Get data for prevBatch
-	f.processRequest, err = f.prepareProcessRequestFromState(ctx)
+	isClosed, err := f.dbManager.IsBatchClosed(ctx, *lastBatchNum)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check if batch is closed, err: %w", err)
+	}
+	if isClosed {
+		ger, _, err := f.dbManager.GetLatestGer(ctx, f.cfg.WaitBlocksToUpdateGER)
+		if err != nil {
+			return fmt.Errorf("failed to get latest ger, err: %w", err)
+		}
+		_, oldStateRoot, err := f.getLastBatchNumAndStateRoot(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get old state root, err: %w", err)
+		}
+		f.batch, err = f.openWIPBatch(ctx, *lastBatchNum+1, ger.GlobalExitRoot, oldStateRoot)
+		if err != nil {
+			return err
+		}
+	} else {
+		f.batch, err = f.dbManager.GetWIPBatch(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get work-in-progress batch, err: %w", err)
+		}
+	}
+
+	f.processRequest = state.ProcessRequest{
+		BatchNumber:    *lastBatchNum,
+		OldStateRoot:   f.batch.initialStateRoot,
+		GlobalExitRoot: f.batch.globalExitRoot,
+		Coinbase:       f.sequencerAddress,
+		Timestamp:      f.batch.timestamp,
+		Caller:         state.SequencerCallerLabel,
 	}
 
 	return nil
 }
 
-func (f *finalizer) processForcedBatches(batchNumber uint64, stateRoot common.Hash) (uint64, common.Hash) {
+// processForcedBatches processes all the forced batches that are pending to be processed
+func (f *finalizer) processForcedBatches(lastBatchNumberInState uint64, stateRoot common.Hash) (uint64, common.Hash, error) {
 	f.nextForcedBatchesMux.Lock()
+	// TODO: query for last included forced batch from database
+	// Then we do integrity check - if it is lower than the last batch number in the state we skip
+	// If it is higher than the last forced batch number in the state we get the one in order from database.
+
 	for _, forcedBatch := range f.nextForcedBatches {
-		batchNumber += 1
 		processRequest := state.ProcessRequest{
-			BatchNumber:    batchNumber,
+			BatchNumber:    lastBatchNumberInState + 1,
 			OldStateRoot:   stateRoot,
 			GlobalExitRoot: forcedBatch.GlobalExitRoot,
 			Transactions:   forcedBatch.RawTxsData,
@@ -364,84 +432,22 @@ func (f *finalizer) processForcedBatches(batchNumber uint64, stateRoot common.Ha
 		response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, processRequest)
 		// TODO: design error handling for forced batches
 		if err != nil {
-			log.Errorf("failed to process forced batch, err: %s", err)
+			return lastBatchNumberInState, stateRoot, err
 		} else {
 			stateRoot = response.NewStateRoot
+			lastBatchNumberInState += 1
 		}
 	}
 	f.nextForcedBatches = make([]state.ForcedBatch, 0)
 	f.nextForcedBatchesMux.Unlock()
-	return batchNumber, stateRoot
+	return lastBatchNumberInState, stateRoot, nil
 }
 
-func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
-	var (
-		dbTx pgx.Tx
-		err  error
-	)
-
-	// Passing the batch without txs to the executor in order to update the State
-	if f.batch.isEmpty {
-		// backup current sequence
-		err = f.processTransaction(ctx, nil)
-		for err != nil {
-			log.Errorf("failed to process tx, err: %w", err)
-			err = f.processTransaction(ctx, nil)
-		}
-	}
-
-	if f.batch.stateRoot.String() == "" || f.batch.localExitRoot.String() == "" {
-		return nil, errors.New("state root and local exit root must have value to close batch")
-	}
-	dbTx, err = f.dbManager.BeginStateTransaction(ctx)
+// openWIPBatch opens a new batch in the state and returns it as WipBatch
+func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stateRoot common.Hash) (*WipBatch, error) {
+	dbTx, err := f.dbManager.BeginStateTransaction(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin state transaction to close batch, err: %w", err)
-	}
-	err = f.closeBatch(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to close batch, err: %w", err)
-	}
-	// Reprocessing batch as sanity check
-	go func() {
-		err := f.reprocessBatch(ctx)
-		if err != nil {
-			// TODO: design error handling for reprocessing
-			log.Errorf("failed to reprocess batch, err: %s", err)
-			return
-		}
-	}()
-
-	// Metadata for the next batch
-	stateRoot := f.batch.stateRoot
-	lastBatchNumber := f.batch.batchNumber
-
-	// Process Forced Batches
-	if len(f.nextForcedBatches) > 0 {
-		lastBatchNumber, stateRoot = f.processForcedBatches(lastBatchNumber, stateRoot)
-	}
-
-	// Take into consideration the GER
-	f.nextGERMux.Lock()
-	ger := f.nextGER
-	f.nextGER = state.ZeroHash
-	f.nextGERDeadline = 0
-	f.nextGERMux.Unlock()
-
-	// Reset nextSendingToL1Deadline
-	f.nextSendingToL1TimeoutMux.Lock()
-	f.nextSendingToL1Deadline = 0
-	f.nextSendingToL1TimeoutMux.Unlock()
-
-	return f.openWIPBatch(ctx, lastBatchNumber+1, ger, stateRoot, dbTx)
-}
-
-func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stateRoot common.Hash, dbTx pgx.Tx) (*WipBatch, error) {
-	if dbTx == nil {
-		var err error
-		dbTx, err = f.dbManager.BeginStateTransaction(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to begin state transaction to open batch, err: %w", err)
-		}
+		return nil, fmt.Errorf("failed to begin state transaction to open batch, err: %w", err)
 	}
 
 	// open next batch
@@ -449,14 +455,14 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return nil, fmt.Errorf(
-				"failed to rollback dbTx when getting last batch num that gave err: %s. Rollback err: %s",
-				rollbackErr.Error(), err.Error(),
+				"failed to rollback dbTx: %s. Rollback err: %w",
+				rollbackErr.Error(), err,
 			)
 		}
 		return nil, err
 	}
 	if err := dbTx.Commit(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to commit database transaction for opening a batch, err: %w", err)
 	}
 
 	// Check if synchronizer is up-to-date
@@ -476,6 +482,7 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 	}, err
 }
 
+// closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
 	receipt := ClosingBatchParameters{
 		BatchNumber:   f.batch.batchNumber,
@@ -485,6 +492,7 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 	return f.dbManager.CloseBatch(ctx, receipt)
 }
 
+// openBatch opens a new batch in the state
 func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, dbTx pgx.Tx) (state.ProcessingContext, error) {
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    num,
@@ -499,6 +507,8 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 
 	return processingCtx, nil
 }
+
+// reprocessBatch reprocesses a batch used as sanity check
 func (f *finalizer) reprocessBatch(ctx context.Context) error {
 	processRequest, err := f.prepareProcessRequestFromState(ctx)
 	if err != nil {
@@ -506,8 +516,8 @@ func (f *finalizer) reprocessBatch(ctx context.Context) error {
 		return err
 	}
 	result, err := f.executor.ProcessBatch(ctx, processRequest)
-	if err != nil || result.IsBatchProcessed == false || result.Error != nil {
-		if result.Error != nil {
+	if err != nil || (result == nil || (result.IsBatchProcessed == false || result.Error != nil)) {
+		if result != nil && result.Error != nil {
 			err = result.Error
 		}
 		log.Errorf("failed to reprocess batch, err: %s", err)
@@ -517,32 +527,79 @@ func (f *finalizer) reprocessBatch(ctx context.Context) error {
 	return nil
 }
 
+// prepareProcessRequestFromState prepares process request from state
 func (f *finalizer) prepareProcessRequestFromState(ctx context.Context) (state.ProcessRequest, error) {
-	var (
-		oldStateRoot common.Hash
-	)
-
-	n := uint(2)
-	batches, err := f.dbManager.GetLastNBatches(ctx, n)
-	lastBatch := batches[0]
+	lastBatchNum, oldStateRoot, err := f.getLastBatchNumAndStateRoot(ctx)
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to get last %d batches, err: %w", n, err))
-	}
-
-	if len(batches) == 1 {
-		oldStateRoot = lastBatch.StateRoot
-	} else if len(batches) == 2 {
-		oldStateRoot = batches[1].StateRoot
+		return state.ProcessRequest{}, err
 	}
 
 	return state.ProcessRequest{
-		BatchNumber:    f.batch.batchNumber,
+		BatchNumber:    lastBatchNum,
 		OldStateRoot:   oldStateRoot,
 		GlobalExitRoot: f.batch.globalExitRoot,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      f.batch.timestamp,
 		Caller:         state.SequencerCallerLabel,
 	}, nil
+}
+
+func (f *finalizer) getLastBatchNumAndStateRoot(ctx context.Context) (uint64, common.Hash, error) {
+	var oldStateRoot common.Hash
+	n := uint(2)
+	batches, err := f.dbManager.GetLastNBatches(ctx, n)
+	if err != nil {
+		return 0, common.Hash{}, fmt.Errorf("failed to get last %d batches, err: %w", n, err)
+	}
+	lastBatch := batches[0]
+
+	oldStateRoot = f.getOldStateRootFromBatches(batches)
+	return lastBatch.BatchNumber, oldStateRoot, nil
+}
+
+func (f *finalizer) getOldStateRootFromBatches(batches []*state.Batch) common.Hash {
+	var oldStateRoot common.Hash
+	if len(batches) == 1 {
+		oldStateRoot = batches[0].StateRoot
+	} else if len(batches) == 2 {
+		oldStateRoot = batches[1].StateRoot
+	}
+
+	return oldStateRoot
+}
+
+// isDeadlineEncountered returns true if any closing signal deadline is encountered
+func (f *finalizer) isDeadlineEncountered() bool {
+	// Forced batch deadline
+	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
+		return true
+	}
+	// Global Exit Root deadline
+	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
+		return true
+	}
+	// Delayed batch deadline
+	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline {
+		return true
+	}
+
+	return false
+}
+
+// checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
+func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker, txResponse *state.ProcessTransactionResponse) error {
+	usedResources := batchResources{
+		zKCounters: result.UsedZkCounters,
+		bytes:      uint64(len(tx.RawTx)),
+	}
+	err := f.batch.remainingResources.sub(usedResources)
+	if err != nil {
+		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
+		f.worker.UpdateTx(txResponse.TxHash, tx.From, usedResources.zKCounters)
+		return err
+	}
+
+	return nil
 }
 
 // isCurrBatchAboveLimitWindow checks if the current batch is above the limit window for which is beneficial to close the batch

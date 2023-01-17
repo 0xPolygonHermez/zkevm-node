@@ -75,31 +75,31 @@ type Config struct {
 	// Maximum allowed failed counter for the tx before it becomes invalid
 	MaxAllowedFailedCounter uint64 `mapstructure:"MaxAllowedFailedCounter"`
 
-	// WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
+	// WeightBatchBytesSize is the cost weight for the BatchBytesSize batch ResourceName
 	WeightBatchBytesSize int `mapstructure:"WeightBatchBytesSize"`
 
-	// WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource
+	// WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch ResourceName
 	WeightCumulativeGasUsed int `mapstructure:"WeightCumulativeGasUsed"`
 
-	// WeightKeccakHashes is the cost weight for the KeccakHashes batch resource
+	// WeightKeccakHashes is the cost weight for the KeccakHashes batch ResourceName
 	WeightKeccakHashes int `mapstructure:"WeightKeccakHashes"`
 
-	// WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource
+	// WeightPoseidonHashes is the cost weight for the PoseidonHashes batch ResourceName
 	WeightPoseidonHashes int `mapstructure:"WeightPoseidonHashes"`
 
-	// WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource
+	// WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch ResourceName
 	WeightPoseidonPaddings int `mapstructure:"WeightPoseidonPaddings"`
 
-	// WeightMemAligns is the cost weight for the MemAligns batch resource
+	// WeightMemAligns is the cost weight for the MemAligns batch ResourceName
 	WeightMemAligns int `mapstructure:"WeightMemAligns"`
 
-	// WeightArithmetics is the cost weight for the Arithmetics batch resource
+	// WeightArithmetics is the cost weight for the Arithmetics batch ResourceName
 	WeightArithmetics int `mapstructure:"WeightArithmetics"`
 
-	// WeightBinaries is the cost weight for the Binaries batch resource
+	// WeightBinaries is the cost weight for the Binaries batch ResourceName
 	WeightBinaries int `mapstructure:"WeightBinaries"`
 
-	// WeightSteps is the cost weight for the Steps batch resource
+	// WeightSteps is the cost weight for the Steps batch ResourceName
 	WeightSteps int `mapstructure:"WeightSteps"`
 
 	// Finalizer's specific config properties
@@ -108,11 +108,24 @@ type Config struct {
 
 // FinalizerCfg contains the finalizer's configuration properties
 type FinalizerCfg struct {
-	GERDeadlineTimeoutInSec         types.Duration `mapstructure:"GERDeadlineTimeoutInSec"`
+
+	// GERDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to update Global Exit Root
+	GERDeadlineTimeoutInSec types.Duration `mapstructure:"GERDeadlineTimeoutInSec"`
+
+	// SendingToL1DeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to process Forced Batches
 	ForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"ForcedBatchDeadlineTimeoutInSec"`
+
+	// SendingToL1DeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to sends a batch to L1
 	SendingToL1DeadlineTimeoutInSec types.Duration `mapstructure:"SendingToL1DeadlineTimeoutInSec"`
-	SleepDurationInMs               types.Duration `mapstructure:"SleepDurationInMs"`
-	ResourcePercentageToCloseBatch  uint32         `mapstructure:"ResourcePercentageToCloseBatch"`
+
+	// SleepDurationInMs is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
+	SleepDurationInMs types.Duration `mapstructure:"SleepDurationInMs"`
+
+	// ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
+	ResourcePercentageToCloseBatch uint32 `mapstructure:"ResourcePercentageToCloseBatch"`
+
+	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
+	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`
 }
 
 // MaxSequenceSize is a wrapper type that parses token amount to big int

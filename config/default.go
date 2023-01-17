@@ -105,6 +105,7 @@ MaxAllowedFailedCounter = 50
 		SendingToL1DeadlineTimeoutInSec = 60
 		SleepDurationInMs = 100
 		ResourcePercentageToCloseBatch = 90
+		WaitBlocksToUpdateGER = 64
 
 [PriceGetter]
 Type = "default"
