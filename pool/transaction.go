@@ -17,6 +17,9 @@ const (
 	TxStatusSelected TxStatus = "selected"
 	// TxStatusFailed represents a tx that has been failed after processing, but can be processed in the future
 	TxStatusFailed TxStatus = "failed"
+
+	// freeClaimGasLimit is the max gas allowed use to do a free claim
+	freeClaimGasLimit uint64 = 150000
 )
 
 // TxStatus represents the state of a tx
@@ -76,6 +79,11 @@ func (zkc *ZkCounters) SumUpZkCounters(txZkCounters ZkCounters) {
 // IsClaimTx checks, if tx is a claim tx
 func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address) bool {
 	if tx.To() == nil {
+		return false
+	}
+
+	txGas := tx.Gas()
+	if txGas > freeClaimGasLimit || txGas == 0 {
 		return false
 	}
 
