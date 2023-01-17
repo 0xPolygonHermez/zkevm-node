@@ -96,7 +96,8 @@ TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
 
 [GasPriceEstimator]
-Type = "default"
+Type = "follower"
+UpdatePeriod = "10s"
 DefaultGasPriceWei = 1000000000
 
 [MTServer]
