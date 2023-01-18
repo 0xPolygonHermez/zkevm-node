@@ -518,7 +518,14 @@ func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		ChainId:          s.cfg.ChainID,
 	}
 
-	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+
+	if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		err = executor.ExecutorErr(processBatchResponse.Error)
+		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+	}
+
+	return processBatchResponse, err
 }
 
 func (s *State) processBatch(
