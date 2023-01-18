@@ -248,7 +248,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, false, gasUsed, err
 		} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
-			log.Errorf("executor error estimating gas: %v", err)
+			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, err
 		}
 
@@ -502,7 +502,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		log.Errorf("Error s.executorClient.ProcessBatch response: %v", res)
 	} else if res.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(res.Error)
-		log.Errorf("executor error: %v", err)
+		s.LogExecutorError(res.Error, processBatchRequest)
 	}
 
 	log.Infof("It took %v for the executor to process the request", time.Since(now))
@@ -827,7 +827,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		log.Errorf("executor error: %v", err)
+		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
 	endTime := time.Now()
@@ -1130,7 +1130,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		return result
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		log.Errorf("executor error processing unsigned transaction: %v", err)
+		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 		result.Err = err
 		return result
 	}
@@ -1198,7 +1198,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		case int(merkletree.LeafTypeCode):
 			code, err := hex.DecodeHex(action.Bytecode)
 			if err != nil {
-				return newRoot, fmt.Errorf("Could not decode SC bytecode for address %q: %v", address, err)
+				return newRoot, fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
 			}
 			newRoot, _, err = s.tree.SetCode(ctx, address, code, newRoot)
 			if err != nil {
@@ -1222,7 +1222,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		case int(merkletree.LeafTypeSCLength):
 			log.Debug("Skipped genesis action of type merkletree.LeafTypeSCLength, these actions will be handled as part of merkletree.LeafTypeCode actions")
 		default:
-			return newRoot, fmt.Errorf("Unknown genesis action type %q", action.Type)
+			return newRoot, fmt.Errorf("unknown genesis action type %q", action.Type)
 		}
 	}
 
@@ -1379,4 +1379,24 @@ func (s *State) WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumb
 
 	log.Debug("Verified batch successfully synced: ", batchNumber)
 	return nil
+}
+
+// LogExecutorError is used to store Executor error for runtime debugging
+func (s *State) LogExecutorError(responseError pb.ExecutorError, processBatchRequest *pb.ProcessBatchRequest) {
+	timestamp := time.Now()
+	log.Errorf("error found in the executor: %v at %v", responseError, timestamp)
+	payload, err := json.Marshal(processBatchRequest)
+	if err != nil {
+		log.Errorf("error marshaling payload: %v", err)
+	} else {
+		debugInfo := &DebugInfo{
+			ErrorType: DebugInfoErrorType_EXECUTOR_ERROR,
+			Timestamp: timestamp,
+			Payload:   string(payload),
+		}
+		err = s.AddDebugInfo(context.Background(), debugInfo, nil)
+		if err != nil {
+			log.Errorf("error storing payload: %v", err)
+		}
+	}
 }

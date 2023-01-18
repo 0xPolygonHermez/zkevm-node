@@ -39,22 +39,15 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 	}
 
 	return &ProcessBatchResponse{
-		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
-		NewAccInputHash:     common.BytesToHash(response.NewAccInputHash),
-		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
-		NewBatchNumber:      response.NewBatchNum,
-		CntKeccakHashes:     response.CntKeccakHashes,
-		CntPoseidonHashes:   response.CntPoseidonHashes,
-		CntPoseidonPaddings: response.CntPoseidonPaddings,
-		CntMemAligns:        response.CntMemAligns,
-		CntArithmetics:      response.CntArithmetics,
-		CntBinaries:         response.CntBinaries,
-		CntSteps:            response.CntSteps,
-		CumulativeGasUsed:   response.CumulativeGasUsed,
-		Responses:           responses,
-		ExecutorError:       executor.ExecutorErr(response.Error),
-		IsBatchProcessed:    isBatchProcessed,
-		ReadWriteAddresses:  readWriteAddresses,
+		NewStateRoot:       common.BytesToHash(response.NewStateRoot),
+		NewAccInputHash:    common.BytesToHash(response.NewAccInputHash),
+		NewLocalExitRoot:   common.BytesToHash(response.NewLocalExitRoot),
+		NewBatchNumber:     response.NewBatchNum,
+		UsedZkCounters:     convertToCounters(response),
+		Responses:          responses,
+		ExecutorError:      executor.ExecutorErr(response.Error),
+		IsBatchProcessed:   isBatchProcessed,
+		ReadWriteAddresses: readWriteAddresses,
 	}, nil
 }
 
@@ -119,7 +112,14 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.IsProcessed = isProcessed(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
-		result.Tx = txs[i]
+
+		tx, err := DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
+		if err != nil {
+			return nil, err
+		}
+
+		result.Tx = *tx
+
 		results = append(results, result)
 
 		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
@@ -198,7 +198,7 @@ func convertToBigIntArray(responses []string) ([]*big.Int, error) {
 		if ok {
 			results = append(results, result)
 		} else {
-			return nil, fmt.Errorf("String %s is not valid", response)
+			return nil, fmt.Errorf("string %s is not valid", response)
 		}
 	}
 	return results, nil
@@ -280,4 +280,17 @@ func convertByteArrayToStringArray(responses []byte) []string {
 		results = append(results, string(response))
 	}
 	return results
+}
+
+func convertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
+	return ZKCounters{
+		CumulativeGasUsed:    resp.CumulativeGasUsed,
+		UsedKeccakHashes:     resp.CntKeccakHashes,
+		UsedPoseidonHashes:   resp.CntPoseidonHashes,
+		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
+		UsedMemAligns:        resp.CntMemAligns,
+		UsedArithmetics:      resp.CntArithmetics,
+		UsedBinaries:         resp.CntBinaries,
+		UsedSteps:            resp.CntSteps,
+	}
 }
