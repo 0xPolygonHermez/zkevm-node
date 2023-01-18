@@ -64,6 +64,6 @@ type ProcessTransactionResponse struct {
 // InfoReadWrite has information about modified addresses during the execution
 type InfoReadWrite struct {
 	Address common.Address
-	Nonce   uint64
+	Nonce   *uint64
 	Balance *big.Int
 }

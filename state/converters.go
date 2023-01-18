@@ -66,19 +66,31 @@ func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) ([]*Inf
 	results := make([]*InfoReadWrite, 0, len(addresses))
 
 	for addr, addrInfo := range addresses {
+		var nonce *uint64 = nil
+		var balance *big.Int = nil
+		var ok bool
+
 		address := common.HexToAddress(addr)
-		nonce, ok := new(big.Int).SetString(addrInfo.Nonce, encoding.Base10)
-		if !ok {
-			log.Debugf("received nonce as string: %v", addrInfo.Nonce)
-			return nil, fmt.Errorf("error while parsing address nonce")
-		}
-		balance, ok := new(big.Int).SetString(addrInfo.Balance, encoding.Base10)
-		if !ok {
-			log.Debugf("received balance as string: %v", addrInfo.Balance)
-			return nil, fmt.Errorf("error while parsing address balance")
+
+		if addrInfo.Nonce != "" {
+			bigNonce, ok := new(big.Int).SetString(addrInfo.Nonce, encoding.Base10)
+			if !ok {
+				log.Debugf("received nonce as string: %v", addrInfo.Nonce)
+				return nil, fmt.Errorf("error while parsing address nonce")
+			}
+			nonceNp := bigNonce.Uint64()
+			nonce = &nonceNp
 		}
 
-		result := &InfoReadWrite{Address: address, Nonce: nonce.Uint64(), Balance: balance}
+		if addrInfo.Balance != "" {
+			balance, ok = new(big.Int).SetString(addrInfo.Balance, encoding.Base10)
+			if !ok {
+				log.Debugf("received balance as string: %v", addrInfo.Balance)
+				return nil, fmt.Errorf("error while parsing address balance")
+			}
+		}
+
+		result := &InfoReadWrite{Address: address, Nonce: nonce, Balance: balance}
 		results = append(results, result)
 	}
 
