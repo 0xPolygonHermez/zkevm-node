@@ -297,7 +297,7 @@ func (a *Aggregator) sendFinalProof() {
 				a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
 				continue
 			}
-			monitoredTxID := fmt.Sprintf(monitoredIDFormat, proof.BatchNumber, proof.BatchNumberFinal)
+			monitoredTxID := buildMonitoredTxID(proof.BatchNumber, proof.BatchNumberFinal)
 			err = a.EthTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
 			if err != nil {
 				log := log.WithFields("tx", monitoredTxID)
@@ -1020,4 +1020,8 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResu
 		// } else {
 		// 	a.unsetProverProof(msg.proverID, *msg.recursiveProof.ProofID, msg.recursiveProof.BatchNumber, msg.recursiveProof.BatchNumberFinal)
 	}
+}
+
+func buildMonitoredTxID(batchNumber, batchNumberFinal uint64) string {
+	return fmt.Sprintf(monitoredIDFormat, batchNumber, batchNumberFinal)
 }

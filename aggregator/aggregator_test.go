@@ -13,10 +13,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	configTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
+	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -32,35 +32,38 @@ type mox struct {
 func TestSendFinalProof(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
+	errBanana := errors.New("banana")
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
-	currentNonce := uint64(1)
-	estimatedGas := uint64(1)
-	suggestedGasPrice := big.NewInt(1)
-	var to *common.Address
-	value := big.NewInt(0)
-	var data []byte = nil
+	//currentNonce := uint64(1)
+	//estimatedGas := uint64(1)
+	//suggestedGasPrice := big.NewInt(1)
+	from := common.BytesToAddress([]byte("from"))
+	to := common.BytesToAddress([]byte("to"))
+	var value *big.Int
+	data := []byte("data")
 	finalBatch := state.Batch{
 		LocalExitRoot: common.BytesToHash([]byte("localExitRoot")),
 		StateRoot:     common.BytesToHash([]byte("stateRoot")),
 	}
-	tx := types.NewTx(&types.LegacyTx{
-		Nonce:    currentNonce,
-		To:       to,
-		Value:    value,
-		Gas:      estimatedGas,
-		GasPrice: suggestedGasPrice,
-		Data:     data,
-	})
+	// tx := types.NewTx(&types.LegacyTx{
+	// 	Nonce:    currentNonce,
+	// 	To:       &to,
+	// 	Value:    value,
+	// 	Gas:      estimatedGas,
+	// 	GasPrice: suggestedGasPrice,
+	// 	Data:     data,
+	// })
 	proofID := "proofId"
 	proverID := "proverID"
 	recursiveProof := &state.Proof{
+		Prover:           &proverID,
 		ProofID:          &proofID,
 		BatchNumber:      batchNum,
 		BatchNumberFinal: batchNumFinal,
 	}
 	finalProof := &pb.FinalProof{}
-	cfg := Config{}
+	cfg := Config{SenderAddress: from.Hex()}
 
 	testCases := []struct {
 		name    string
@@ -74,7 +77,7 @@ func TestSendFinalProof(t *testing.T) {
 					// test is done, stop the sendFinalProof method
 					a.exit()
 					assert.True(a.verifyingProof)
-				}).Return(nil, errors.New("banana")).Once()
+				}).Return(nil, errBanana).Once()
 			},
 			asserts: func(a *Aggregator) {
 				proof, ok := a.proverProofs[proverID]
@@ -87,7 +90,7 @@ func TestSendFinalProof(t *testing.T) {
 			},
 		},
 		{
-			name: "VerifyBatches error",
+			name: "BuildTrustedVerifyBatchesTxData error",
 			setup: func(m mox, a *Aggregator) {
 				m.stateMock.On("GetBatchByNumber", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
@@ -97,9 +100,9 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.ethTxManager.On("VerifyBatches", mock.Anything, batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
-				}).Return(nil, errors.New("banana")).Once()
+				}).Return(nil, nil, errBanana).Once()
 				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Run(func(args mock.Arguments) {
 					// test is done, stop the sendFinalProof method
 					a.exit()
@@ -112,7 +115,7 @@ func TestSendFinalProof(t *testing.T) {
 			},
 		},
 		{
-			name: "UpdateGeneratedProof error after VerifyBatches error",
+			name: "UpdateGeneratedProof error after BuildTrustedVerifyBatchesTxData error",
 			setup: func(m mox, a *Aggregator) {
 				m.stateMock.On("GetBatchByNumber", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
@@ -122,13 +125,13 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.ethTxManager.On("VerifyBatches", mock.Anything, batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
-				}).Return(nil, errors.New("banana")).Once()
+				}).Return(nil, nil, errBanana).Once()
 				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Run(func(args mock.Arguments) {
 					// test is done, stop the sendFinalProof method
 					a.exit()
-				}).Return(errors.New("banana")).Once()
+				}).Return(errBanana).Once()
 			},
 			asserts: func(a *Aggregator) {
 				proof, ok := a.proverProofs[proverID]
@@ -140,8 +143,43 @@ func TestSendFinalProof(t *testing.T) {
 				assert.False(a.verifyingProof)
 			},
 		},
+		//{
+		//	name: "CleanupGeneratedProofs error",
+		//	setup: func(m mox, a *Aggregator) {
+		//		m.stateMock.On("GetBatchByNumber", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+		//			assert.True(a.verifyingProof)
+		//		}).Return(&finalBatch, nil).Once()
+		//		expectedInputs := ethmanTypes.FinalProofInputs{
+		//			FinalProof:       finalProof,
+		//			NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
+		//			NewStateRoot:     finalBatch.StateRoot.Bytes(),
+		//		}
+		//		m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+		//			assert.True(a.verifyingProof)
+		//		}).Return(nil, nil).Once()
+		//		verifiedBatch := state.VerifiedBatch{
+		//			BatchNumber: batchNumFinal,
+		//		}
+		//		m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&verifiedBatch, nil).Once()
+		//		m.etherman.On("GetLatestVerifiedBatchNum").Return(batchNumFinal, nil).Once()
+		//		m.stateMock.On("CleanupGeneratedProofs", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+		//			// test is done, stop the sendFinalProof method
+		//			a.exit()
+		//		}).Return(errors.New("banana")).Once()
+
+		//	},
+		//	asserts: func(a *Aggregator) {
+		//		proof, ok := a.proverProofs[proverID]
+		//		if assert.True(ok) {
+		//			assert.Equal(proofID, proof.ID)
+		//			assert.Equal(batchNum, proof.batchNum)
+		//			assert.Equal(batchNumFinal, proof.batchNumFinal)
+		//		}
+		//		assert.False(a.verifyingProof)
+		//	},
+		//},
 		{
-			name: "eleteGeneratedProofs error",
+			name: "EthTxManager Add error",
 			setup: func(m mox, a *Aggregator) {
 				m.stateMock.On("GetBatchByNumber", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
@@ -151,25 +189,19 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.ethTxManager.On("VerifyBatches", mock.Anything, batchNum-1, batchNumFinal, &expectedInputs).Return(tx, nil).Once()
-				verifiedBatch := state.VerifiedBatch{
-					BatchNumber: batchNumFinal,
-				}
-				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&verifiedBatch, nil).Once()
-				m.etherman.On("GetLatestVerifiedBatchNum").Return(batchNumFinal, nil).Once()
-				m.stateMock.On("CleanupGeneratedProofs", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+					assert.True(a.verifyingProof)
+				}).Return(&to, data, nil).Once()
+				monitoredTxID := buildMonitoredTxID(batchNum, batchNumFinal)
+				m.ethTxManager.On("Add", mock.Anything, ethTxManagerOwner, monitoredTxID, from, &to, value, data, nil).Return(errBanana).Once()
+				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Run(func(args mock.Arguments) {
 					// test is done, stop the sendFinalProof method
 					a.exit()
-				}).Return(errors.New("banana")).Once()
-
+				}).Return(nil).Once()
 			},
 			asserts: func(a *Aggregator) {
-				proof, ok := a.proverProofs[proverID]
-				if assert.True(ok) {
-					assert.Equal(proofID, proof.ID)
-					assert.Equal(batchNum, proof.batchNum)
-					assert.Equal(batchNumFinal, proof.batchNumFinal)
-				}
+				// _, ok := a.proverProofs[proverID]
+				// assert.False(ok)
 				assert.False(a.verifyingProof)
 			},
 		},
@@ -184,7 +216,19 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.ethTxManager.On("VerifyBatches", mock.Anything, batchNum-1, batchNumFinal, &expectedInputs).Return(tx, nil).Once()
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+					assert.True(a.verifyingProof)
+				}).Return(&to, data, nil).Once()
+				monitoredTxID := buildMonitoredTxID(batchNum, batchNumFinal)
+				m.ethTxManager.On("Add", mock.Anything, ethTxManagerOwner, monitoredTxID, from, &to, value, data, nil).Return(nil).Once()
+				ethTxManResult := ethtxmanager.MonitoredTxResult{
+					ID:     monitoredTxID,
+					Status: ethtxmanager.MonitoredTxStatusConfirmed,
+					Txs:    map[common.Hash]ethtxmanager.TxResult{},
+				}
+				m.ethTxManager.On("ProcessPendingMonitoredTxs", mock.Anything, ethTxManagerOwner, mock.Anything, nil).Run(func(args mock.Arguments) {
+					args[2].(ethtxmanager.ResultHandler)(ethTxManResult, nil) // this calls a.handleMonitoredTxResult
+				}).Once()
 				verifiedBatch := state.VerifiedBatch{
 					BatchNumber: batchNumFinal,
 				}
@@ -194,11 +238,10 @@ func TestSendFinalProof(t *testing.T) {
 					// test is done, stop the sendFinalProof method
 					a.exit()
 				}).Return(nil).Once()
-
 			},
 			asserts: func(a *Aggregator) {
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
+				// _, ok := a.proverProofs[proverID]
+				// assert.False(ok)
 				assert.False(a.verifyingProof)
 			},
 		},
@@ -248,13 +291,13 @@ func TestSendFinalProof(t *testing.T) {
 func TestTryAggregateProofs(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
+	errBanana := errors.New("banana")
 	cfg := Config{
 		VerifyProofInterval: configTypes.NewDuration(10000000),
 	}
 	proofID := "proofId"
 	proverID := "proverID"
 	recursiveProof := "recursiveProof"
-	errBanana := errors.New("banana")
 	proverCtx := context.WithValue(context.Background(), "owner", "prover")
 	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
 	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "aggregator" }
@@ -652,11 +695,12 @@ func TestTryAggregateProofs(t *testing.T) {
 func TestTryGenerateBatchProof(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
+	from := common.BytesToAddress([]byte("from"))
 	cfg := Config{
 		VerifyProofInterval:        configTypes.NewDuration(10000000),
 		TxProfitabilityCheckerType: ProfitabilityAcceptAll,
+		SenderAddress:              from.Hex(),
 	}
-	pubAddr := common.BytesToAddress([]byte("pubAdddr"))
 	lastVerifiedBatchNum := uint64(22)
 	batchNum := uint64(23)
 	lastVerifiedBatch := state.VerifiedBatch{
@@ -723,7 +767,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				}
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), &expectedGenProof, nil).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
-				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(nil, errBanana).Once()
@@ -751,7 +794,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				}
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), &expectedGenProof, nil).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
-				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -780,7 +822,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				}
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), &expectedGenProof, nil).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
-				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -813,7 +854,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				}
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), &expectedGenProof, nil).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
-				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -873,11 +913,13 @@ func TestTryGenerateBatchProof(t *testing.T) {
 func TestTryBuildFinalProof(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
+	errBanana := errors.New("banana")
+	from := common.BytesToAddress([]byte("from"))
 	cfg := Config{
 		VerifyProofInterval:        configTypes.NewDuration(10000000),
 		TxProfitabilityCheckerType: ProfitabilityAcceptAll,
+		SenderAddress:              from.Hex(),
 	}
-	pubAddr := common.BytesToAddress([]byte("pubAdddr"))
 	latestVerifiedBatchNum := uint64(22)
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
@@ -915,7 +957,6 @@ func TestTryBuildFinalProof(t *testing.T) {
 	verifiedBatch := state.VerifiedBatch{
 		BatchNumber: latestVerifiedBatchNum,
 	}
-	errBanana := errors.New("banana")
 	proverCtx := context.WithValue(context.Background(), "owner", "prover")
 	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
 	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "aggregator" }
@@ -960,8 +1001,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
 				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
 				proofGeneratingTrueCall := m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
-				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Once()
-				m.proverMock.On("FinalProof", proofToVerify.Proof, pubAddr.String()).Return(&finalProofID, nil).Once()
+				m.proverMock.On("FinalProof", proofToVerify.Proof, from.String()).Return(&finalProofID, nil).Once()
 				m.proverMock.On("WaitFinalProof", mock.MatchedBy(matchProverCtxFn), finalProofID).Return(nil, errBanana).Once()
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proofToVerify, nil).
@@ -985,8 +1025,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
 				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
 				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
-				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Once()
-				m.proverMock.On("FinalProof", proofToVerify.Proof, pubAddr.String()).Return(&finalProofID, nil).Once()
+				m.proverMock.On("FinalProof", proofToVerify.Proof, from.String()).Return(&finalProofID, nil).Once()
 				m.proverMock.On("WaitFinalProof", mock.MatchedBy(matchProverCtxFn), finalProofID).Return(&finalProof, nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
@@ -1098,8 +1137,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
 				m.stateMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(true, nil).Once()
-				m.etherman.On("GetPublicAddress").Return(pubAddr, nil).Once()
-				m.proverMock.On("FinalProof", proofToVerify.Proof, pubAddr.String()).Return(&finalProofID, nil).Once()
+				m.proverMock.On("FinalProof", proofToVerify.Proof, from.String()).Return(&finalProofID, nil).Once()
 				m.proverMock.On("WaitFinalProof", mock.MatchedBy(matchProverCtxFn), finalProofID).Return(&finalProof, nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {

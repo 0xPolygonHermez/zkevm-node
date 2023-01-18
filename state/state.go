@@ -1486,10 +1486,10 @@ func (s *State) WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumb
 	for {
 		batch, err := s.GetVerifiedBatch(ctx, batchNumber, nil)
 		if err != nil && err != ErrNotFound {
-			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
+			log.Errorf("error waiting verified batch [%d] to be synced: %v", batchNumber, err)
 			return err
 		} else if ctx.Err() != nil {
-			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
+			log.Errorf("error waiting verified batch [%d] to be synced: %v", batchNumber, err)
 			return ctx.Err()
 		} else if batch != nil {
 			break
