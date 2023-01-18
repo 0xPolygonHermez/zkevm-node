@@ -44,7 +44,15 @@ message ProcessBatchResponse {
     uint32 cnt_steps = 11;
     uint64 cumulative_gas_used = 12;
     repeated ProcessTransactionResponse responses = 13;
-    Error error = 14;
+    ExecutorError error = 14;
+    map<string, InfoReadWrite> read_write_addresses = 15;
+}
+
+message InfoReadWrite {
+    // If nonce="" then it has not been set; if set, string is in decimal (base 10)
+    string nonce = 1;
+    // If balance="" then it has not been set; if set, string is in decimal (base 10)
+    string balance = 2;
 }
 
 message CallTrace {
@@ -102,7 +110,7 @@ message TransactionStep {
     // Contract information
     Contract contract = 11;
     // Error
-    Error error = 12;
+    RomError error = 12;
 }
 
 message Contract {
@@ -131,7 +139,7 @@ message ProcessTransactionResponse {
     // Total gas refunded as result of execution
     uint64 gas_refunded = 7;
     // Any error encountered during the execution
-    Error error = 8;
+    RomError error = 8;
     // New SC Address in case of SC creation
     string create_address = 9;
     // State Root
@@ -186,63 +194,81 @@ message ExecutionTraceStep {
     // Gas refund
     uint64 gas_refund = 11;
     // Error
-    Error error = 12;
+    RomError error = 12;
 }
 
-enum Error {
-    ERROR_UNSPECIFIED = 0;
-    // ERROR_NO_ERROR indicates the execution ended successfully
-    ERROR_NO_ERROR = 1;
-    // ERROR_OUT_OF_GAS indicates there is not enough balance to continue the execution
-    ERROR_OUT_OF_GAS = 2;
-    // ERROR_STACK_OVERFLOW indicates a stack overflow has happened
-    ERROR_STACK_OVERFLOW = 3;
-    // ERROR_STACK_UNDERFLOW indicates a stack overflow has happened
-    ERROR_STACK_UNDERFLOW = 4;
-    // ERROR_MAX_CODE_SIZE_EXCEEDED indicates the code size is beyond the maximum
-    ERROR_MAX_CODE_SIZE_EXCEEDED = 5;
-    // ERROR_CONTRACT_ADDRESS_COLLISION there is a collision regarding contract addresses
-    ERROR_CONTRACT_ADDRESS_COLLISION = 6;
-    // ERROR_EXECUTION_REVERTED indicates the execution has been reverted
-    ERROR_EXECUTION_REVERTED = 7;
-    // ERROR_OUT_OF_COUNTERS_STEP indicates there is not enough step counters to continue the execution
-    ERROR_OUT_OF_COUNTERS_STEP = 8;
-    // ERROR_OUT_OF_COUNTERS_KECCAK indicates there is not enough keccak counters to continue the execution
-    ERROR_OUT_OF_COUNTERS_KECCAK = 9;
-    // ERROR_OUT_OF_COUNTERS_BINARY indicates there is not enough binary counters to continue the execution
-    ERROR_OUT_OF_COUNTERS_BINARY = 10;
-    // ERROR_OUT_OF_COUNTERS_MEM indicates there is not enough memory aligncounters to continue the execution
-    ERROR_OUT_OF_COUNTERS_MEM = 11;
-    // ERROR_OUT_OF_COUNTERS_ARITH indicates there is not enough arith counters to continue the execution
-    ERROR_OUT_OF_COUNTERS_ARITH = 12;
-    // ERROR_OUT_OF_COUNTERS_PADDING indicates there is not enough padding counters to continue the execution
-    ERROR_OUT_OF_COUNTERS_PADDING = 13;
-    // ERROR_OUT_OF_COUNTERS_POSEIDON indicates there is not enough poseidon counters to continue the execution
-    ERROR_OUT_OF_COUNTERS_POSEIDON = 14;
-    // ERROR_INVALID_JUMP indicates there is an invalid jump opcode
-    ERROR_INVALID_JUMP = 15;
-    // ERROR_INVALID_OPCODE indicates there is an invalid opcode
-    ERROR_INVALID_OPCODE = 16;
-    // ERROR_INVALID_STATIC indicates there is an invalid static call
-    ERROR_INVALID_STATIC = 17;
-    // ERROR_INVALID_BYTECODE_STARTS_EF indicates there is a bytecode starting with 0xEF
-    ERROR_INVALID_BYTECODE_STARTS_EF = 18;
-    // ERROR_INTRINSIC_INVALID_SIGNATURE indicates the transaction is failing at the signature intrinsic check
-    ERROR_INTRINSIC_INVALID_SIGNATURE = 19;
-    // ERROR_INTRINSIC_INVALID_CHAIN_ID indicates the transaction is failing at the chain id intrinsic check
-    ERROR_INTRINSIC_INVALID_CHAIN_ID = 20;
-    // ERROR_INTRINSIC_INVALID_NONCE indicates the transaction is failing at the nonce intrinsic check
-    ERROR_INTRINSIC_INVALID_NONCE = 21;
-    // ERROR_INTRINSIC_INVALID_GAS indicates the transaction is failing at the gas limit intrinsic check
-    ERROR_INTRINSIC_INVALID_GAS_LIMIT = 22;
-    // ERROR_INTRINSIC_INVALID_BALANCE indicates the transaction is failing at balance intrinsic check
-    ERROR_INTRINSIC_INVALID_BALANCE = 23;
-    // ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT indicates the batch is exceeding the batch gas limit
-    ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT = 24;
-    // ERROR_INTRINSIC_INVALID_SENDER_CODE indicates the transaction sender is invalid
-    ERROR_INTRINSIC_INVALID_SENDER_CODE = 25;
-    // ERROR_INTRINSIC_TX_GAS_OVERFLOW indicates the transaction gasLimit*gasPrice > MAX_UINT_256 - 1
-    ERROR_INTRINSIC_TX_GAS_OVERFLOW = 26;
-    // ERROR_BATCH_DATA_TOO_BIG indicates the batch_l2_data is too big to be processed
-    ERROR_BATCH_DATA_TOO_BIG = 27;
+enum RomError {
+    ROM_ERROR_UNSPECIFIED = 0;
+    // ROM_ERROR_NO_ERROR indicates the execution ended successfully
+    ROM_ERROR_NO_ERROR = 1;
+    // ROM_ERROR_OUT_OF_GAS indicates there is not enough balance to continue the execution
+    ROM_ERROR_OUT_OF_GAS = 2;
+    // ROM_ERROR_STACK_OVERFLOW indicates a stack overflow has happened
+    ROM_ERROR_STACK_OVERFLOW = 3;
+    // ROM_ERROR_STACK_UNDERFLOW indicates a stack overflow has happened
+    ROM_ERROR_STACK_UNDERFLOW = 4;
+    // ROM_ERROR_MAX_CODE_SIZE_EXCEEDED indicates the code size is beyond the maximum
+    ROM_ERROR_MAX_CODE_SIZE_EXCEEDED = 5;
+    // ROM_ERROR_CONTRACT_ADDRESS_COLLISION there is a collision regarding contract addresses
+    ROM_ERROR_CONTRACT_ADDRESS_COLLISION = 6;
+    // ROM_ERROR_EXECUTION_REVERTED indicates the execution has been reverted
+    ROM_ERROR_EXECUTION_REVERTED = 7;
+    // ROM_ERROR_OUT_OF_COUNTERS_STEP indicates there is not enough step counters to continue the execution
+    ROM_ERROR_OUT_OF_COUNTERS_STEP = 8;
+    // ROM_ERROR_OUT_OF_COUNTERS_KECCAK indicates there is not enough keccak counters to continue the execution
+    ROM_ERROR_OUT_OF_COUNTERS_KECCAK = 9;
+    // ROM_ERROR_OUT_OF_COUNTERS_BINARY indicates there is not enough binary counters to continue the execution
+    ROM_ERROR_OUT_OF_COUNTERS_BINARY = 10;
+    // ROM_ERROR_OUT_OF_COUNTERS_MEM indicates there is not enough memory aligncounters to continue the execution
+    ROM_ERROR_OUT_OF_COUNTERS_MEM = 11;
+    // ROM_ERROR_OUT_OF_COUNTERS_ARITH indicates there is not enough arith counters to continue the execution
+    ROM_ERROR_OUT_OF_COUNTERS_ARITH = 12;
+    // ROM_ERROR_OUT_OF_COUNTERS_PADDING indicates there is not enough padding counters to continue the execution
+    ROM_ERROR_OUT_OF_COUNTERS_PADDING = 13;
+    // ROM_ERROR_OUT_OF_COUNTERS_POSEIDON indicates there is not enough poseidon counters to continue the execution
+    ROM_ERROR_OUT_OF_COUNTERS_POSEIDON = 14;
+    // ROM_ERROR_INVALID_JUMP indicates there is an invalid jump opcode
+    ROM_ERROR_INVALID_JUMP = 15;
+    // ROM_ERROR_INVALID_OPCODE indicates there is an invalid opcode
+    ROM_ERROR_INVALID_OPCODE = 16;
+    // ROM_ERROR_INVALID_STATIC indicates there is an invalid static call
+    ROM_ERROR_INVALID_STATIC = 17;
+    // ROM_ERROR_INVALID_BYTECODE_STARTS_EF indicates there is a bytecode starting with 0xEF
+    ROM_ERROR_INVALID_BYTECODE_STARTS_EF = 18;
+    // ROM_ERROR_INTRINSIC_INVALID_SIGNATURE indicates the transaction is failing at the signature intrinsic check
+    ROM_ERROR_INTRINSIC_INVALID_SIGNATURE = 19;
+    // ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID indicates the transaction is failing at the chain id intrinsic check
+    ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID = 20;
+    // ROM_ERROR_INTRINSIC_INVALID_NONCE indicates the transaction is failing at the nonce intrinsic check
+    ROM_ERROR_INTRINSIC_INVALID_NONCE = 21;
+    // ROM_ERROR_INTRINSIC_INVALID_GAS indicates the transaction is failing at the gas limit intrinsic check
+    ROM_ERROR_INTRINSIC_INVALID_GAS_LIMIT = 22;
+    // ROM_ERROR_INTRINSIC_INVALID_BALANCE indicates the transaction is failing at balance intrinsic check
+    ROM_ERROR_INTRINSIC_INVALID_BALANCE = 23;
+    // ROM_ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT indicates the batch is exceeding the batch gas limit
+    ROM_ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT = 24;
+    // ROM_ERROR_INTRINSIC_INVALID_SENDER_CODE indicates the transaction sender is invalid
+    ROM_ERROR_INTRINSIC_INVALID_SENDER_CODE = 25;
+    // ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW indicates the transaction gasLimit*gasPrice > MAX_UINT_256 - 1
+    ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW = 26;
+    // ROM_ERROR_BATCH_DATA_TOO_BIG indicates the batch_l2_data is too big to be processed
+    ROM_ERROR_BATCH_DATA_TOO_BIG = 27;
+}
+
+enum ExecutorError {
+    EXECUTOR_ERROR_UNSPECIFIED = 0;
+    // EXECUTOR_ERROR_NO_ERROR indicates there was no error
+    EXECUTOR_ERROR_NO_ERROR = 1;
+    // EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK indicates that the keccak counter exceeded the maximum
+    EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK = 2;
+    // EXECUTOR_ERROR_COUNTERS_OVERFLOW_BINARY indicates that the binary counter exceeded the maximum
+    EXECUTOR_ERROR_COUNTERS_OVERFLOW_BINARY = 3;
+    // EXECUTOR_ERROR_COUNTERS_OVERFLOW_MEM indicates that the memory align counter exceeded the maximum
+    EXECUTOR_ERROR_COUNTERS_OVERFLOW_MEM = 4;
+    // EXECUTOR_ERROR_COUNTERS_OVERFLOW_ARITH indicates that the arith counter exceeded the maximum
+    EXECUTOR_ERROR_COUNTERS_OVERFLOW_ARITH = 5;
+    // EXECUTOR_ERROR_COUNTERS_OVERFLOW_PADDING indicates that the padding counter exceeded the maximum
+    EXECUTOR_ERROR_COUNTERS_OVERFLOW_PADDING = 6;
+    // EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON indicates that the poseidon counter exceeded the maximum
+    EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON = 7;
 }

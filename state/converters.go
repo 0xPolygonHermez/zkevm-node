@@ -25,8 +25,8 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 		return nil, err
 	}
 
-	isBatchProcessed := true
-	if len(response.Responses) > 0 {
+	isBatchProcessed := response.Error == executor.EXECUTOR_ERROR_NO_ERROR
+	if isBatchProcessed && len(response.Responses) > 0 {
 		// Check out of counters
 		errorToCheck := response.Responses[len(response.Responses)-1].Error
 		isBatchProcessed = !executor.IsOutOfCountersError(errorToCheck)
@@ -46,12 +46,12 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 		CntSteps:            response.CntSteps,
 		CumulativeGasUsed:   response.CumulativeGasUsed,
 		Responses:           responses,
-		Error:               executor.Err(response.Error),
+		ExecutorError:       executor.ExecutorErr(response.Error),
 		IsBatchProcessed:    isBatchProcessed,
 	}, nil
 }
 
-func isProcessed(err pb.Error) bool {
+func isProcessed(err pb.RomError) bool {
 	return !executor.IsIntrinsicError(err) && !executor.IsOutOfCountersError(err)
 }
 
@@ -70,7 +70,7 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.GasLeft = response.GasLeft
 		result.GasUsed = response.GasUsed
 		result.GasRefunded = response.GasRefunded
-		result.Error = executor.Err(response.Error)
+		result.RomError = executor.RomErr(response.Error)
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
@@ -83,7 +83,7 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
 		log.Debugf("ProcessTransactionResponse[Nonce]: %v", txs[i].Nonce())
 		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
-		log.Debugf("ProcessTransactionResponse[Error]: %v", result.Error)
+		log.Debugf("ProcessTransactionResponse[Error]: %v", result.RomError)
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
 		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
 		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
@@ -141,7 +141,7 @@ func convertToStructLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumenta
 		result.Storage = convertToProperMap(response.Storage)
 		result.Depth = int(response.Depth)
 		result.RefundCounter = response.GasRefund
-		result.Err = executor.Err(response.Error)
+		result.Err = executor.RomErr(response.Error)
 
 		results = append(results, *result)
 	}
@@ -207,7 +207,7 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrument
 		step.OpCode = fakevm.OpCode(response.Op).String()
 		step.Refund = fmt.Sprint(response.GasRefund)
 		step.Op = fmt.Sprint(response.Op)
-		err := executor.Err(response.Error)
+		err := executor.RomErr(response.Error)
 		if err != nil {
 			step.Error = err.Error()
 		}
