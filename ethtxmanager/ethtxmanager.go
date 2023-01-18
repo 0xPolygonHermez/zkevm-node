@@ -246,7 +246,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 	for _, mTx := range mTxs {
 		mTx := mTx // force variable shadowing to avoid pointer conflicts
-		mTxLog := log.WithFields("monitored tx", mTx.id)
+		mTxLog := log.WithFields("monitoredTx", mTx.id)
 		mTxLog.Info("processing")
 
 		// check if any of the txs in the history was mined
@@ -487,7 +487,7 @@ func (c *Client) shouldContinueToMonitorThisTx(ctx context.Context, receipt *typ
 // accordingly to the current information stored and the current
 // state of the blockchain
 func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error {
-	mTxLog := log.WithFields("monitored tx", mTx.id)
+	mTxLog := log.WithFields("monitoredTx", mTx.id)
 	mTxLog.Debug("reviewing")
 	// get gas
 	gas, err := c.etherman.EstimateGas(ctx, mTx.from, mTx.to, mTx.value, mTx.data)
@@ -526,7 +526,7 @@ func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error 
 // sensible information and can make duplicated data to be sent to the blockchain,
 // causing possible side effects and wasting resources on taxes.
 func (c *Client) ReviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx) error {
-	mTxLog := log.WithFields("monitored tx", mTx.id)
+	mTxLog := log.WithFields("monitoredTx", mTx.id)
 	mTxLog.Debug("reviewing nonce")
 	nonce, err := c.etherman.CurrentNonce(ctx, mTx.from)
 	if err != nil {
@@ -565,7 +565,7 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 		MonitoredTxStatusConfirmed,
 		MonitoredTxStatusReorged,
 	}
-	// keep running until there ware pending monitored txs
+	// keep running until there are pending monitored txs
 	for {
 		results, err := c.ResultsByStatus(ctx, owner, statusesFilter, dbTx)
 		if err != nil {

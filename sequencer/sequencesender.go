@@ -19,7 +19,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-const ethTxManagerOwner = "sequencer"
+const (
+	ethTxManagerOwner = "sequencer"
+	monitoredIDFormat = "sequence-from-%v-to-%v"
+)
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
 	// process monitored sequences before starting a next cycle
@@ -73,7 +76,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	}
 	firstSequence := sequences[0]
 	lastSequence := sequences[len(sequences)-1]
-	monitoredTxID := fmt.Sprintf("sequence-from-%v-to-%v", firstSequence.BatchNumber, lastSequence.BatchNumber)
+	monitoredTxID := fmt.Sprintf(monitoredIDFormat, firstSequence.BatchNumber, lastSequence.BatchNumber)
 	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
 	if err != nil {
 		log.Error("error to add sequences tx to eth tx manager: ", err)

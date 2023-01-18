@@ -899,7 +899,7 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResu
 	}
 
 	// network is synced with the final proof, we can safely delete the recursive proofs
-	err = a.State.DeleteGeneratedProofs(context.Background(), proofBatchNumber, proofBatchNumberFinal, nil)
+	err = a.State.DeleteGeneratedProofs(a.ctx, proofBatchNumber, proofBatchNumberFinal, nil)
 	if err != nil {
 		log.Errorf("Failed to store proof aggregation result, err: %v", err)
 	}
