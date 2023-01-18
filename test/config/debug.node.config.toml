@@ -103,7 +103,9 @@ MaxAllowedFailedCounter = 50
 		SendingToL1DeadlineTimeoutInSec = 60
 		SleepDurationInMs = 100
 		ResourcePercentageToCloseBatch = 90
-		WaitBlocksToUpdateGER = 64
+		GERFinalityNumberOfBlocks = 64
+		ClosingSignalsManagerWaitForL1OperationsInSec = 10
+
 
 [Aggregator]
 Host = "0.0.0.0"

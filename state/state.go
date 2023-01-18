@@ -146,10 +146,13 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumbe
 	return nonce.Uint64(), nil
 }
 
-// GetLastStateRoot returns the last state root
-func (s *State) GetLastStateRoot(ctx context.Context) ([]byte, error) {
-	// TODO: WIP
-	return []byte{}, nil
+// GetLastStateRoot returns the latest state root
+func (s *State) GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
+	lastBlockHeader, err := s.GetLastL2BlockHeader(ctx, dbTx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return lastBlockHeader.Root, nil
 }
 
 // GetStorageAt from a given address
@@ -1527,10 +1530,10 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	return nil
 }
 
-func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
-	return s.tree.GetBalance(ctx, address, root)
+func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
+	return s.tree.GetBalance(ctx, address, root.Bytes())
 }
 
-func (s *State) GetNonceByStateRoot(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
-	return s.tree.GetNonce(ctx, address, root)
+func (s *State) GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
+	return s.tree.GetNonce(ctx, address, root.Bytes())
 }

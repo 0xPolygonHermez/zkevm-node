@@ -381,7 +381,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		return fmt.Errorf("failed to check if batch is closed, err: %w", err)
 	}
 	if isClosed {
-		ger, _, err := f.dbManager.GetLatestGer(ctx, f.cfg.WaitBlocksToUpdateGER)
+		ger, _, err := f.dbManager.GetLatestGer(ctx, f.cfg.GERFinalityNumberOfBlocks)
 		if err != nil {
 			return fmt.Errorf("failed to get latest ger, err: %w", err)
 		}

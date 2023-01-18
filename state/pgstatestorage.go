@@ -344,6 +344,33 @@ func (p *PostgresStorage) GetForcedBatch(ctx context.Context, forcedBatchNumber 
 	return &forcedBatch, nil
 }
 
+// GetForcedBatchesSince gets L1 forced batches since forcedBatchNumber
+func (p *PostgresStorage) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*ForcedBatch, error) {
+	const getForcedBatchesSQL = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, block_num FROM state.forced_batch WHERE forced_batch_num > $1"
+	q := p.getExecQuerier(dbTx)
+	rows, err := q.Query(ctx, getForcedBatchesSQL, forcedBatchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return []*ForcedBatch{}, nil
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	forcesBatches := make([]*ForcedBatch, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var forcedBatch *ForcedBatch
+		err := rows.Scan(forcedBatch)
+		if err != nil {
+			return nil, err
+		}
+
+		forcesBatches = append(forcesBatches, forcedBatch)
+	}
+
+	return forcesBatches, nil
+}
+
 // AddVerifiedBatch adds a new VerifiedBatch to the db
 func (p *PostgresStorage) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBatch, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
@@ -1971,8 +1998,21 @@ func (p *PostgresStorage) UpdateBatchL2Data(ctx context.Context, batchNumber uin
 
 // AddAccumulatedInputHash adds the accumulated input hash
 func (p *PostgresStorage) AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error {
-	AddAccInputHashBatchSQL := "UPDATE state.batch SET acc_input_hash = $1 WHERE batch_num = $2"
+	const addAccInputHashBatchSQL = "UPDATE state.batch SET acc_input_hash = $1 WHERE batch_num = $2"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, AddAccInputHashBatchSQL, accInputHash.String(), batchNum)
+	_, err := e.Exec(ctx, addAccInputHashBatchSQL, accInputHash.String(), batchNum)
 	return err
+}
+
+// GetLastTrustedForcedBatchNumber get last trusted forced batch number
+func (p *PostgresStorage) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	const getLastTrustedForcedBatchNumberSQL = "SELECT MAX(forced_batch_num) FROM state.batch"
+	var forcedBatchNumber uint64
+	q := p.getExecQuerier(dbTx)
+
+	err := q.QueryRow(ctx, getLastTrustedForcedBatchNumberSQL).Scan(&forcedBatchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrStateNotSynchronized
+	}
+	return forcedBatchNumber, err
 }

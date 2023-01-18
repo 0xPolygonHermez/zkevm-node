@@ -110,11 +110,11 @@ func (_m *StateMock) ExecuteBatch(ctx context.Context, batchNumber uint64, batch
 }
 
 // GetBalanceByStateRoot provides a mock function with given fields: ctx, address, root
-func (_m *StateMock) GetBalanceByStateRoot(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
+func (_m *StateMock) GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	ret := _m.Called(ctx, address, root)
 
 	var r0 *big.Int
-	if rf, ok := ret.Get(0).(func(context.Context, common.Address, []byte) *big.Int); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address, common.Hash) *big.Int); ok {
 		r0 = rf(ctx, address, root)
 	} else {
 		if ret.Get(0) != nil {
@@ -123,7 +123,7 @@ func (_m *StateMock) GetBalanceByStateRoot(ctx context.Context, address common.A
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, common.Address, []byte) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address, common.Hash) error); ok {
 		r1 = rf(ctx, address, root)
 	} else {
 		r1 = ret.Error(1)
@@ -165,6 +165,29 @@ func (_m *StateMock) GetForcedBatch(ctx context.Context, forcedBatchNumber uint6
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.ForcedBatch)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, forcedBatchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetForcedBatchesSince provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
+func (_m *StateMock) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+	ret := _m.Called(ctx, forcedBatchNumber, dbTx)
+
+	var r0 []*state.ForcedBatch
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []*state.ForcedBatch); ok {
+		r0 = rf(ctx, forcedBatchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*state.ForcedBatch)
 		}
 	}
 
@@ -314,22 +337,43 @@ func (_m *StateMock) GetLastNBatches(ctx context.Context, numBatches uint, dbTx 
 	return r0, r1
 }
 
-// GetLastStateRoot provides a mock function with given fields: ctx
-func (_m *StateMock) GetLastStateRoot(ctx context.Context) ([]byte, error) {
-	ret := _m.Called(ctx)
+// GetLastStateRoot provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, dbTx)
 
-	var r0 []byte
-	if rf, ok := ret.Get(0).(func(context.Context) []byte); ok {
-		r0 = rf(ctx)
+	var r0 common.Hash
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
+			r0 = ret.Get(0).(common.Hash)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastTrustedForcedBatchNumber provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -387,11 +431,11 @@ func (_m *StateMock) GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber
 }
 
 // GetNonceByStateRoot provides a mock function with given fields: ctx, address, root
-func (_m *StateMock) GetNonceByStateRoot(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
+func (_m *StateMock) GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	ret := _m.Called(ctx, address, root)
 
 	var r0 *big.Int
-	if rf, ok := ret.Get(0).(func(context.Context, common.Address, []byte) *big.Int); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address, common.Hash) *big.Int); ok {
 		r0 = rf(ctx, address, root)
 	} else {
 		if ret.Get(0) != nil {
@@ -400,7 +444,7 @@ func (_m *StateMock) GetNonceByStateRoot(ctx context.Context, address common.Add
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, common.Address, []byte) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address, common.Hash) error); ok {
 		r1 = rf(ctx, address, root)
 	} else {
 		r1 = ret.Error(1)
