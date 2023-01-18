@@ -33,8 +33,8 @@ func (z *ZKEVM) ConsolidatedBlockNumber() (interface{}, rpcError) {
 	})
 }
 
-// IsL2BlockConsolidated returns the consolidation status of a provided block number
-func (z *ZKEVM) IsL2BlockConsolidated(blockNumber argUint64) (interface{}, rpcError) {
+// IsBlockConsolidated returns the consolidation status of a provided block number
+func (z *ZKEVM) IsBlockConsolidated(blockNumber argUint64) (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		IsL2BlockConsolidated, err := z.state.IsL2BlockConsolidated(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
@@ -47,8 +47,8 @@ func (z *ZKEVM) IsL2BlockConsolidated(blockNumber argUint64) (interface{}, rpcEr
 	})
 }
 
-// IsL2BlockVirtualized returns the virtualization status of a provided block number
-func (z *ZKEVM) IsL2BlockVirtualized(blockNumber argUint64) (interface{}, rpcError) {
+// IsBlockVirtualized returns the virtualization status of a provided block number
+func (z *ZKEVM) IsBlockVirtualized(blockNumber argUint64) (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		IsL2BlockVirtualized, err := z.state.IsL2BlockVirtualized(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
@@ -118,10 +118,10 @@ func (z *ZKEVM) VerifiedBatchNumber() (interface{}, rpcError) {
 }
 
 // GetBatchByNumber returns information about a batch by batch number
-func (z *ZKEVM) GetBatchByNumber(number BatchNumber, fullTx bool) (interface{}, rpcError) {
+func (z *ZKEVM) GetBatchByNumber(batchNumber BatchNumber, fullTx bool) (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		var err error
-		batchNumber, rpcErr := number.getNumericBatchNumber(ctx, z.state, dbTx)
+		batchNumber, rpcErr := batchNumber.getNumericBatchNumber(ctx, z.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}

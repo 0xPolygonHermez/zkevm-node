@@ -89,7 +89,7 @@ func TestConsolidatedBlockNumber(t *testing.T) {
 	}
 }
 
-func TestIsL2BlockConsolidated(t *testing.T) {
+func TestIsBlockConsolidated(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
@@ -149,7 +149,7 @@ func TestIsL2BlockConsolidated(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			res, err := s.JSONRPCCall("zkevm_isL2BlockConsolidated", "0x1")
+			res, err := s.JSONRPCCall("zkevm_isBlockConsolidated", "0x1")
 			require.NoError(t, err)
 
 			if res.Result != nil {
@@ -167,7 +167,7 @@ func TestIsL2BlockConsolidated(t *testing.T) {
 	}
 }
 
-func TestIsL2BlockVirtualized(t *testing.T) {
+func TestIsBlockVirtualized(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
@@ -227,7 +227,7 @@ func TestIsL2BlockVirtualized(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			res, err := s.JSONRPCCall("zkevm_isL2BlockVirtualized", "0x1")
+			res, err := s.JSONRPCCall("zkevm_isBlockVirtualized", "0x1")
 			require.NoError(t, err)
 
 			if res.Result != nil {
