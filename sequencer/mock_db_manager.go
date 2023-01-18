@@ -245,27 +245,27 @@ func (_m *DbManagerMock) GetLastTrustedForcedBatchNumber(ctx context.Context, db
 	return r0, r1
 }
 
-// GetLatestGer provides a mock function with given fields: ctx, blockNumber, gerFinalityNumberOfBlocks
-func (_m *DbManagerMock) GetLatestGer(ctx context.Context, blockNumber uint64, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
-	ret := _m.Called(ctx, blockNumber, gerFinalityNumberOfBlocks)
+// GetLatestGer provides a mock function with given fields: ctx, gerFinalityNumberOfBlocks
+func (_m *DbManagerMock) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
+	ret := _m.Called(ctx, gerFinalityNumberOfBlocks)
 
 	var r0 state.GlobalExitRoot
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) state.GlobalExitRoot); ok {
-		r0 = rf(ctx, blockNumber, gerFinalityNumberOfBlocks)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) state.GlobalExitRoot); ok {
+		r0 = rf(ctx, gerFinalityNumberOfBlocks)
 	} else {
 		r0 = ret.Get(0).(state.GlobalExitRoot)
 	}
 
 	var r1 time.Time
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64) time.Time); ok {
-		r1 = rf(ctx, blockNumber, gerFinalityNumberOfBlocks)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) time.Time); ok {
+		r1 = rf(ctx, gerFinalityNumberOfBlocks)
 	} else {
 		r1 = ret.Get(1).(time.Time)
 	}
 
 	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, uint64, uint64) error); ok {
-		r2 = rf(ctx, blockNumber, gerFinalityNumberOfBlocks)
+	if rf, ok := ret.Get(2).(func(context.Context, uint64) error); ok {
+		r2 = rf(ctx, gerFinalityNumberOfBlocks)
 	} else {
 		r2 = ret.Error(2)
 	}

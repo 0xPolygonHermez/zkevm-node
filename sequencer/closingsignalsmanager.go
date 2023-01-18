@@ -30,13 +30,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 	for {
 		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration * time.Second)
 
-		lastL2BlockHeader, err := c.dbManager.GetLastL2BlockHeader(c.ctx, nil)
-		if err != nil {
-			log.Errorf("error getting last L2 block: %v", err)
-			continue
-		}
-
-		ger, _, err := c.dbManager.GetLatestGer(c.ctx, lastL2BlockHeader.Number.Uint64(), c.cfg.GERFinalityNumberOfBlocks)
+		ger, _, err := c.dbManager.GetLatestGer(c.ctx, c.cfg.GERFinalityNumberOfBlocks)
 		if err != nil {
 			log.Errorf("error checking GER update: %v", err)
 			continue

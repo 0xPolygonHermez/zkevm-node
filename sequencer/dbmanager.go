@@ -380,7 +380,15 @@ func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*st
 }
 
 // GetLatestGer gets the latest global exit root
-func (d *dbManager) GetLatestGer(ctx context.Context, blockNumber uint64, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
+func (d *dbManager) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
+	lastL2BlockHeader, err := d.GetLastL2BlockHeader(ctx, nil)
+	if err != nil {
+		log.Errorf("error getting last L2 block: %v", err)
+
+	}
+
+	blockNumber := lastL2BlockHeader.Number.Uint64()
+
 	maxBlockNumber := uint64(0)
 	if gerFinalityNumberOfBlocks <= blockNumber {
 		maxBlockNumber = blockNumber - gerFinalityNumberOfBlocks
