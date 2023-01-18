@@ -105,6 +105,8 @@ MaxAllowedFailedCounter = 50
 		SendingToL1DeadlineTimeoutInSec = 60
 		SleepDurationInMs = 100
 		ResourcePercentageToCloseBatch = 90
+		GERFinalityNumberOfBlocks = 64
+		ClosingSignalsManagerWaitForL1OperationsInSec = 10
 
 [PriceGetter]
 Type = "default"

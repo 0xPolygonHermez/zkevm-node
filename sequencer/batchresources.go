@@ -1,8 +1,6 @@
 package sequencer
 
 import (
-	"fmt"
-
 	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
@@ -16,15 +14,15 @@ type batchResources struct {
 func (r *batchResources) sub(other batchResources) error {
 	// Bytes
 	if other.bytes > r.bytes {
-		return fmt.Errorf("%w. Resource: Bytes", ErrBatchRemainingResourcesUnderflow)
+		return ErrBatchResourceBytesUnderflow
 	}
 	bytesBackup := r.bytes
 	r.bytes -= other.bytes
 	err := r.zKCounters.Sub(other.zKCounters)
 	if err != nil {
-		r.bytes = bytesBackup
-		return fmt.Errorf("%w. %s", ErrBatchRemainingResourcesUnderflow, err)
+		return NewBatchRemainingResourcesUnderflowError(err, err.Error())
 	}
+	r.bytes = bytesBackup
 
 	return err
 }
