@@ -85,7 +85,7 @@ func convertToProcessTransactionResponse(responses []*pb.ProcessTransactionRespo
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 
-		tx, err := DecodeTx(string(response.GetRlpTx()))
+		tx, err := DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
 		if err != nil {
 			return nil, err
 		}

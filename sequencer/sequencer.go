@@ -189,10 +189,11 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
 		timestamp := uint64(processingCtx.Timestamp.Unix())
 		currBatch = &WipBatch{
-			globalExitRoot: processingCtx.GlobalExitRoot,
-			batchNumber:    processingCtx.BatchNumber,
-			coinbase:       processingCtx.Coinbase,
-			timestamp:      timestamp,
+			globalExitRoot:     processingCtx.GlobalExitRoot,
+			batchNumber:        processingCtx.BatchNumber,
+			coinbase:           processingCtx.Coinbase,
+			timestamp:          timestamp,
+			remainingResources: getMaxRemainingResources(finalizer.batchConstraints),
 		}
 		_, oldStateRoot, err := finalizer.getLastBatchNumAndStateRoot(ctx)
 		if err != nil {

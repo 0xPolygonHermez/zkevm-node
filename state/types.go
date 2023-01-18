@@ -9,8 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-var ()
-
 // TouchedAddress represents affected address after executor processing one or multiple txs
 type TouchedAddress struct {
 	Address common.Address

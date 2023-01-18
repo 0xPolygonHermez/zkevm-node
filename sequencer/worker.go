@@ -54,18 +54,18 @@ func (w *Worker) AddTx(ctx context.Context, tx *TxTracker) {
 		// Unlock the worker to let execute other worker functions while creating the new AddrQueue
 		w.workerMutex.Unlock()
 
-		root, error := w.state.GetLastStateRoot(ctx, nil)
-		if error != nil {
+		root, err := w.state.GetLastStateRoot(ctx, nil)
+		if err != nil {
 			// TODO: How to manage this
 			return
 		}
-		nonce, error := w.state.GetNonceByStateRoot(ctx, tx.From, root)
-		if error != nil {
+		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
+		if err != nil {
 			// TODO: How to manage this
 			return
 		}
-		balance, error := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
-		if error != nil {
+		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
+		if err != nil {
 			// TODO: How to manage this
 			return
 		}
@@ -215,8 +215,8 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 				foundMutex.RUnlock()
 
 				txCandidate := w.efficiencyList.getByIndex(i)
-				error := bresources.sub(*&txCandidate.BatchResources)
-				if error != nil {
+				err := bresources.sub(txCandidate.BatchResources)
+				if err != nil {
 					// We don't add this Tx
 					continue
 				}

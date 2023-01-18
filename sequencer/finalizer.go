@@ -159,7 +159,6 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			}
 			f.handlingL2Reorg = false
 			f.sharedResourcesMux.Unlock()
-
 		// Too much time without batches in L1 ch
 		case <-f.closingSignalCh.SendingToL1TimeoutCh:
 			f.nextSendingToL1TimeoutMux.Lock()
@@ -214,10 +213,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 
 // newWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
-	var (
-		err error
-	)
-
+	var err error
 	// Passing the batch without txs to the executor in order to update the State
 	if f.batch.isEmpty {
 		// backup current sequence
@@ -285,13 +281,14 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	}
 
 	f.processRequest.GlobalExitRoot = ger
+	f.processRequest.Transactions = tx.RawTx
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest)
 	if err != nil {
 		log.Errorf("failed to process transaction, err: %s", err)
 		return err
 	}
 
-	if result.Error != nil {
+	if result != nil && result.Error != nil {
 		if result.Error == state.ErrBatchAlreadyClosed || result.Error == state.ErrInvalidBatchNumber {
 			log.Warnf("unexpected state local vs DB: %s", result.Error)
 			log.Info("reloading local sequence")
@@ -406,6 +403,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		GlobalExitRoot: f.batch.globalExitRoot,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      f.batch.timestamp,
+		Transactions:   make([]byte, 0, 1),
 		Caller:         state.SequencerCallerLabel,
 	}
 
@@ -516,7 +514,7 @@ func (f *finalizer) reprocessBatch(ctx context.Context) error {
 		return err
 	}
 	result, err := f.executor.ProcessBatch(ctx, processRequest)
-	if err != nil || (result == nil || (result.IsBatchProcessed == false || result.Error != nil)) {
+	if err != nil || (result != nil && result.Error != nil) {
 		if result != nil && result.Error != nil {
 			err = result.Error
 		}
@@ -540,6 +538,7 @@ func (f *finalizer) prepareProcessRequestFromState(ctx context.Context) (state.P
 		GlobalExitRoot: f.batch.globalExitRoot,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      f.batch.timestamp,
+		Transactions:   make([]byte, 0, 1), // TODO: Get all transactions from the database
 		Caller:         state.SequencerCallerLabel,
 	}, nil
 }
@@ -606,28 +605,28 @@ func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, 
 func (f *finalizer) isCurrBatchAboveLimitWindow() bool {
 	resources := f.batch.remainingResources
 	zkCounters := resources.zKCounters
-	if resources.bytes >= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
+	if resources.bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
 		return true
 	}
-	if zkCounters.UsedSteps >= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
+	if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
 		return true
 	}
-	if zkCounters.UsedPoseidonPaddings >= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
+	if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
 		return true
 	}
-	if zkCounters.UsedBinaries >= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
+	if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
 		return true
 	}
-	if zkCounters.UsedKeccakHashes >= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
+	if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
 		return true
 	}
-	if zkCounters.UsedArithmetics >= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
+	if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
 		return true
 	}
-	if zkCounters.UsedMemAligns >= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
+	if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
 		return true
 	}
-	if zkCounters.CumulativeGasUsed >= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
+	if zkCounters.CumulativeGasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
 		return true
 	}
 	return false
