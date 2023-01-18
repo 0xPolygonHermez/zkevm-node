@@ -139,8 +139,8 @@ func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	return r0, r1
 }
 
-// GetBatchNumberOfL2Block provides a mock function with given fields: ctx, blockNumber, dbTx
-func (_m *stateMock) GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+// BatchNumberByL2BlockNumber provides a mock function with given fields: ctx, blockNumber, dbTx
+func (_m *stateMock) BatchNumberByL2BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, blockNumber, dbTx)
 
 	var r0 uint64

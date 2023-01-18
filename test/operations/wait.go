@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum"
@@ -227,7 +228,7 @@ func grpcHealthyCondition(address string) (bool, error) {
 // l2BlockConsolidationCondition
 func l2BlockConsolidationCondition(l2Block *big.Int) (bool, error) {
 	l2NetworkURL := "http://localhost:8123"
-	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockConsolidated", l2Block.Uint64())
+	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockConsolidated", hex.EncodeBig(l2Block))
 	if err != nil {
 		return false, err
 	}
@@ -245,7 +246,7 @@ func l2BlockConsolidationCondition(l2Block *big.Int) (bool, error) {
 // l2BlockVirtualizationCondition
 func l2BlockVirtualizationCondition(l2Block *big.Int) (bool, error) {
 	l2NetworkURL := "http://localhost:8123"
-	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockVirtualized", l2Block.Uint64())
+	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockVirtualized", hex.EncodeBig(l2Block))
 	if err != nil {
 		return false, err
 	}

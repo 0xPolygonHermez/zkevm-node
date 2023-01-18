@@ -39,7 +39,7 @@ func (z *ZKEVM) IsL2BlockConsolidated(blockNumber argUint64) (interface{}, rpcEr
 		IsL2BlockConsolidated, err := z.state.IsL2BlockConsolidated(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
 			const errorMessage = "failed to check if the block is consolidated"
-			log.Errorf("%v:%v", errorMessage, err)
+			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
@@ -53,7 +53,7 @@ func (z *ZKEVM) IsL2BlockVirtualized(blockNumber argUint64) (interface{}, rpcErr
 		IsL2BlockVirtualized, err := z.state.IsL2BlockVirtualized(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
 			const errorMessage = "failed to check if the block is virtualized"
-			log.Errorf("%v:%v", errorMessage, err)
+			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
@@ -64,10 +64,10 @@ func (z *ZKEVM) IsL2BlockVirtualized(blockNumber argUint64) (interface{}, rpcErr
 // BatchNumberByBlockNumber returns the batch number from which the passed block number is created
 func (z *ZKEVM) BatchNumberByBlockNumber(blockNumber argUint64) (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		batchNum, err := z.state.GetBatchNumberOfL2Block(ctx, uint64(blockNumber), dbTx)
+		batchNum, err := z.state.BatchNumberByL2BlockNumber(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
 			const errorMessage = "failed to get batch number from block number"
-			log.Errorf("%v:%v", errorMessage, err)
+			log.Errorf("%v: %v", errorMessage, err.Error())
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
@@ -81,7 +81,7 @@ func (z *ZKEVM) BatchNumber() (interface{}, rpcError) {
 		lastBatchNumber, err := z.state.GetLastBatchNumber(ctx, dbTx)
 		if err != nil {
 			const errorMessage = "failed to get last batch number from state"
-			log.Errorf("%v:%v", errorMessage, err)
+			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
@@ -95,7 +95,7 @@ func (z *ZKEVM) VirtualBatchNumber() (interface{}, rpcError) {
 		lastBatchNumber, err := z.state.GetLastVirtualBatchNum(ctx, dbTx)
 		if err != nil {
 			const errorMessage = "failed to get last virtualized batch number from state"
-			log.Errorf("%v:%v", errorMessage, err)
+			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
@@ -109,7 +109,7 @@ func (z *ZKEVM) VerifiedBatchNumber() (interface{}, rpcError) {
 		lastBatch, err := z.state.GetLastVerifiedBatch(ctx, dbTx)
 		if err != nil {
 			const errorMessage = "failed to get last virtualized batch number from state"
-			log.Errorf("%v:%v", errorMessage, err)
+			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 

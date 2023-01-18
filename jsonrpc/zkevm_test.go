@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -115,7 +116,7 @@ func TestIsL2BlockConsolidated(t *testing.T) {
 					Once()
 
 				m.State.
-					On("IsL2BlockConsolidated", context.Background(), 1, m.DbTx).
+					On("IsL2BlockConsolidated", context.Background(), uint64(1), m.DbTx).
 					Return(true, nil).
 					Once()
 			},
@@ -136,8 +137,8 @@ func TestIsL2BlockConsolidated(t *testing.T) {
 					Once()
 
 				m.State.
-					On("IsL2BlockConsolidated", context.Background(), 1, m.DbTx).
-					Return(true, errors.New("failed to check if the block is consolidated")).
+					On("IsL2BlockConsolidated", context.Background(), uint64(1), m.DbTx).
+					Return(false, errors.New("failed to check if the block is consolidated")).
 					Once()
 			},
 		},
@@ -148,7 +149,7 @@ func TestIsL2BlockConsolidated(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			res, err := s.JSONRPCCall("zkevm_isL2BlockConsolidated", 1)
+			res, err := s.JSONRPCCall("zkevm_isL2BlockConsolidated", "0x1")
 			require.NoError(t, err)
 
 			if res.Result != nil {
@@ -193,7 +194,7 @@ func TestIsL2BlockVirtualized(t *testing.T) {
 					Once()
 
 				m.State.
-					On("IsL2BlockVirtualized", context.Background(), 1, m.DbTx).
+					On("IsL2BlockVirtualized", context.Background(), uint64(1), m.DbTx).
 					Return(true, nil).
 					Once()
 			},
@@ -214,8 +215,8 @@ func TestIsL2BlockVirtualized(t *testing.T) {
 					Once()
 
 				m.State.
-					On("IsL2BlockVirtualized", context.Background(), 1, m.DbTx).
-					Return(true, errors.New("failed to check if the block is virtualized")).
+					On("IsL2BlockVirtualized", context.Background(), uint64(1), m.DbTx).
+					Return(false, errors.New("failed to check if the block is virtualized")).
 					Once()
 			},
 		},
@@ -226,7 +227,7 @@ func TestIsL2BlockVirtualized(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			res, err := s.JSONRPCCall("zkevm_isL2BlockVirtualized", 1)
+			res, err := s.JSONRPCCall("zkevm_isL2BlockVirtualized", "0x1")
 			require.NoError(t, err)
 
 			if res.Result != nil {
@@ -244,7 +245,7 @@ func TestIsL2BlockVirtualized(t *testing.T) {
 	}
 }
 
-func TestBatchNumberOfL2Block(t *testing.T) {
+func TestBatchNumberByBlockNumber(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 	blockNumber := uint64(1)
@@ -273,7 +274,7 @@ func TestBatchNumberOfL2Block(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBatchNumberOfL2Block", context.Background(), blockNumber, m.DbTx).
+					On("BatchNumberByL2BlockNumber", context.Background(), blockNumber, m.DbTx).
 					Return(batchNumber, nil).
 					Once()
 			},
@@ -281,7 +282,7 @@ func TestBatchNumberOfL2Block(t *testing.T) {
 		{
 			Name:           "Failed to query the consolidation status",
 			ExpectedResult: uint64(0),
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get batch number of l2 batchNum"),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get batch number from block number"),
 			SetupMocks: func(m *mocks) {
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -294,7 +295,7 @@ func TestBatchNumberOfL2Block(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBatchNumberOfL2Block", context.Background(), blockNumber, m.DbTx).
+					On("BatchNumberByL2BlockNumber", context.Background(), blockNumber, m.DbTx).
 					Return(uint64(0), errors.New("failed to get batch number of l2 batchNum")).
 					Once()
 			},
@@ -306,7 +307,7 @@ func TestBatchNumberOfL2Block(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			res, err := s.JSONRPCCall("zkevm_batchNumberOfL2Block", blockNumber)
+			res, err := s.JSONRPCCall("zkevm_batchNumberByBlockNumber", hex.EncodeUint64(blockNumber))
 			require.NoError(t, err)
 
 			if res.Result != nil {

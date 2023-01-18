@@ -962,8 +962,8 @@ func (p *PostgresStorage) GetNextForcedBatches(ctx context.Context, nextForcedBa
 	return batches, nil
 }
 
-// GetBatchNumberOfL2Block gets a batch number for l2 block by its number
-func (p *PostgresStorage) GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+// BatchNumberByL2BlockNumber gets a batch number by a l2 block number
+func (p *PostgresStorage) BatchNumberByL2BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	getBatchNumByBlockNum := "SELECT batch_num FROM state.l2block WHERE block_num = $1"
 	batchNumber := uint64(0)
 	q := p.getExecQuerier(dbTx)
