@@ -75,10 +75,12 @@ func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) ([]*Inf
 		address := common.HexToAddress(addr)
 		nonce, ok := new(big.Int).SetString(addrInfo.Nonce, encoding.Base10)
 		if !ok {
+			log.Debugf("received nonce as string: %v", addrInfo.Nonce)
 			return nil, fmt.Errorf("error while parsing address nonce")
 		}
 		balance, ok := new(big.Int).SetString(addrInfo.Balance, encoding.Base10)
 		if !ok {
+			log.Debugf("received balance as string: %v", addrInfo.Balance)
 			return nil, fmt.Errorf("error while parsing address balance")
 		}
 
