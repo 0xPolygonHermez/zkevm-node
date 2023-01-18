@@ -75,31 +75,31 @@ type Config struct {
 	// Maximum allowed failed counter for the tx before it becomes invalid
 	MaxAllowedFailedCounter uint64 `mapstructure:"MaxAllowedFailedCounter"`
 
-	// WeightBatchBytesSize is the cost weight for the BatchBytesSize batch ResourceName
+	// WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
 	WeightBatchBytesSize int `mapstructure:"WeightBatchBytesSize"`
 
-	// WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch ResourceName
+	// WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource
 	WeightCumulativeGasUsed int `mapstructure:"WeightCumulativeGasUsed"`
 
-	// WeightKeccakHashes is the cost weight for the KeccakHashes batch ResourceName
+	// WeightKeccakHashes is the cost weight for the KeccakHashes batch resource
 	WeightKeccakHashes int `mapstructure:"WeightKeccakHashes"`
 
-	// WeightPoseidonHashes is the cost weight for the PoseidonHashes batch ResourceName
+	// WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource
 	WeightPoseidonHashes int `mapstructure:"WeightPoseidonHashes"`
 
-	// WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch ResourceName
+	// WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource
 	WeightPoseidonPaddings int `mapstructure:"WeightPoseidonPaddings"`
 
-	// WeightMemAligns is the cost weight for the MemAligns batch ResourceName
+	// WeightMemAligns is the cost weight for the MemAligns batch resource
 	WeightMemAligns int `mapstructure:"WeightMemAligns"`
 
-	// WeightArithmetics is the cost weight for the Arithmetics batch ResourceName
+	// WeightArithmetics is the cost weight for the Arithmetics batch resource
 	WeightArithmetics int `mapstructure:"WeightArithmetics"`
 
-	// WeightBinaries is the cost weight for the Binaries batch ResourceName
+	// WeightBinaries is the cost weight for the Binaries batch resource
 	WeightBinaries int `mapstructure:"WeightBinaries"`
 
-	// WeightSteps is the cost weight for the Steps batch ResourceName
+	// WeightSteps is the cost weight for the Steps batch resource
 	WeightSteps int `mapstructure:"WeightSteps"`
 
 	// Finalizer's specific config properties

@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -13,7 +14,7 @@ import (
 
 // Worker represents the worker component of the sequencer
 type Worker struct {
-	pool                 map[string]addrQueue // This should have (almost) all txs from the pool
+	pool                 map[string]*addrQueue
 	efficiencyList       *efficiencyList
 	workerMutex          sync.Mutex
 	dbManager            dbManagerInterface
@@ -23,16 +24,14 @@ type Worker struct {
 }
 
 // NewWorker creates an init a worker
-func NewWorker(cfg Config, state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
+func NewWorker(state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
 	w := Worker{
-		pool:                 make(map[string]addrQueue),
+		pool:                 make(map[string]*addrQueue),
 		efficiencyList:       newEfficiencyList(),
 		state:                state,
 		batchConstraints:     constraints,
 		batchResourceWeights: weights,
 	}
-
-	const defaultCostWeigth = float64(1.0 / 9.0)
 
 	return &w
 }
@@ -94,6 +93,7 @@ func (w *Worker) AddTx(ctx context.Context, tx *TxTracker) {
 func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker) {
 	addrQueue, found := w.pool[from.String()]
 
+	// TODO: What happens if addr no found. Could it be possible if addrQueue has not been yet created for this from addr (touchedAddresses)
 	if found {
 		newReadyTx, prevReadyTx := addrQueue.updateCurrentNonceBalance(fromNonce, fromBalance)
 
@@ -116,9 +116,14 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
-	// TODO: Check if from exists in toucedAddresses, if not warning
-	fromNonce, fromBalance := touchedAddresses[from].Nonce, touchedAddresses[from].Balance
-	w.applyAddressUpdate(from, fromNonce, fromBalance)
+	touchedFrom, found := touchedAddresses[from]
+
+	if found {
+		fromNonce, fromBalance := touchedFrom.Nonce, touchedFrom.Balance
+		w.applyAddressUpdate(from, fromNonce, fromBalance)
+	} else {
+		log.Errorf("UpdateAfterSingleSuccessfulTxExecution from(%s) not found in touchedAddresses", from.String())
+	}
 
 	for addr, addressInfo := range touchedAddresses {
 		w.applyAddressUpdate(addr, nil, addressInfo.Balance)
@@ -127,8 +132,17 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 
 // MoveTxToNotReady move a tx to not ready after it fails to execute
 func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) {
+	addrQueue, found := w.pool[from.String()]
+
+	if found {
+		// Sanity check. The txHash must be the readyTx
+		if txHash.String() != addrQueue.readyTx.HashStr {
+			log.Errorf("MoveTxToNotReady txHash(s) is not the readyTx(%s)", txHash.String(), addrQueue.readyTx.HashStr)
+			// TODO: how to manage this?
+		}
+	}
+
 	w.applyAddressUpdate(from, actualNonce, actualBalance)
-	// TODO: Errorf in case readyTx.Hash == txHash
 }
 
 // DeleteTx delete the tx after it fails to execute
@@ -138,7 +152,6 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address, actualFromNon
 
 	addrQueue, found := w.pool[addr.String()]
 
-	// TODO: What happens if not found?
 	if found {
 		deletedReadyTx := addrQueue.deleteTx(txHash)
 		if deletedReadyTx != nil {
@@ -146,6 +159,8 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address, actualFromNon
 		}
 
 		addrQueue.updateCurrentNonceBalance(actualFromNonce, actualFromBalance)
+	} else {
+		log.Errorf("DeleteTx addrQueue(%s) not found", addr.String())
 	}
 }
 
@@ -156,15 +171,18 @@ func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters stat
 
 	addrQueue, found := w.pool[addr.String()]
 
-	// TODO: What happens if not found? log Errorf
 	if found {
-		readyTxUpdated := addrQueue.UpdateTxZKCounters(txHash, counters, w.batchConstraints, w.batchResourceWeights)
+		newReadyTx, prevReadyTx := addrQueue.UpdateTxZKCounters(txHash, counters, w.batchConstraints, w.batchResourceWeights)
 
-		// Resort updatedReadyTx in efficiencyList
-		if readyTxUpdated != nil {
-			w.efficiencyList.delete(readyTxUpdated)
-			w.efficiencyList.add(readyTxUpdated)
+		// Resort the newReadyTx in efficiencyList
+		if prevReadyTx != nil {
+			w.efficiencyList.delete(prevReadyTx)
 		}
+		if newReadyTx != nil {
+			w.efficiencyList.add(newReadyTx)
+		}
+	} else {
+		log.Errorf("UpdateTx addrQueue(%s) not found", addr.String())
 	}
 }
 
@@ -186,7 +204,7 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 
 	// Each go routine looks for a fitting tx
 	for i := 0; i < nGoRoutines; i++ {
-		go func(n int) {
+		go func(n int, bresources batchResources) {
 			defer wg.Done()
 			for i := n; i < w.efficiencyList.len(); i += nGoRoutines {
 				foundMutex.RLock()
@@ -197,7 +215,7 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 				foundMutex.RUnlock()
 
 				txCandidate := w.efficiencyList.getByIndex(i)
-				error := resources.sub(*&txCandidate.BatchResources)
+				error := bresources.sub(*&txCandidate.BatchResources)
 				if error != nil {
 					// We don't add this Tx
 					continue
@@ -212,7 +230,7 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 
 				return
 			}
-		}(i)
+		}(i, resources)
 	}
 	wg.Wait()
 

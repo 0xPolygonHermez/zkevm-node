@@ -64,7 +64,7 @@ var (
 			Duration: 60,
 		},
 		ResourcePercentageToCloseBatch: 90,
-		WaitBlocksToUpdateGER:          64,
+		GERFinalityNumberOfBlocks:      64,
 	}
 	seqAddr  = common.Address{}
 	ctx      = context.Background()
@@ -407,7 +407,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 				}
 
 				if tc.getLastBatchNumErr == nil && tc.isBatchClosedErr == nil {
-					dbManagerMock.Mock.On("GetLatestGer", ctx, f.cfg.WaitBlocksToUpdateGER).Return(state.GlobalExitRoot{GlobalExitRoot: tc.ger}, testNow(), nil).Once()
+					dbManagerMock.Mock.On("GetLatestGer", ctx, f.cfg.GERFinalityNumberOfBlocks).Return(state.GlobalExitRoot{GlobalExitRoot: tc.ger}, testNow(), nil).Once()
 					dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nil).Once()
 					if tc.openBatchErr == nil {
 						dbTxMock.On("Commit", ctx).Return(nil).Once()
