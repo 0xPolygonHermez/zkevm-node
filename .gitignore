@@ -13,3 +13,5 @@
 **/.DS_Store
 .vscode
 .idea/
+
+out.dat

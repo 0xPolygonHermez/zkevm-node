@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -31,6 +32,7 @@ type gasPriceEstimator interface {
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
+	PrepareWebSocket()
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string, dbTx pgx.Tx) (*runtime.ExecutionResult, error)
 	EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error)
@@ -58,13 +60,17 @@ type stateInterface interface {
 	IsL2BlockConsolidated(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error)
 	IsL2BlockVirtualized(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error)
 	ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult
+	RegisterNewL2BlockEventHandler(h state.NewL2BlockEventHandler)
 }
 
 type storageInterface interface {
-	GetFilter(filterID uint64) (*Filter, error)
-	NewBlockFilter() (uint64, error)
-	NewLogFilter(filter LogFilter) (uint64, error)
-	NewPendingTransactionFilter() (uint64, error)
-	UninstallFilter(filterID uint64) (bool, error)
-	UpdateFilterLastPoll(filterID uint64) error
+	GetAllBlockFiltersWithWSConn() ([]*Filter, error)
+	GetAllLogFiltersWithWSConn() ([]*Filter, error)
+	GetFilter(filterID string) (*Filter, error)
+	NewBlockFilter(wsConn *websocket.Conn) (string, error)
+	NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string, error)
+	NewPendingTransactionFilter(wsConn *websocket.Conn) (string, error)
+	UninstallFilter(filterID string) error
+	UninstallFilterByWSConn(wsConn *websocket.Conn) error
+	UpdateFilterLastPoll(filterID string) error
 }

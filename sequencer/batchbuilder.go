@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -26,6 +27,9 @@ type processTxResponse struct {
 }
 
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
+	start := time.Now()
+	defer s.observeProcessingTime(start)
+
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
@@ -55,6 +59,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	getTxsLimit := s.cfg.MaxTxsPerBatch - uint64(len(s.sequenceInProgress.Txs))
 
 	minGasPrice, err := s.gpe.GetAvgGasPrice(ctx)
+	metrics.AverageGasPrice(float64(minGasPrice.Uint64()))
 	if err != nil {
 		log.Errorf("failed to get avg gas price, err: %w", err)
 		return
@@ -116,6 +121,11 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.updateTxsInPool(ctx, ticker, processResponse, unprocessedTxs)
 }
 
+func (s *Sequencer) observeProcessingTime(start time.Time) {
+	elapsed := time.Since(start)
+	metrics.ProcessingTime(elapsed)
+}
+
 func (s *Sequencer) updateTxsInPool(
 	ctx context.Context,
 	ticker *time.Ticker,
@@ -123,6 +133,11 @@ func (s *Sequencer) updateTxsInPool(
 	unprocessedTxs map[string]*state.ProcessTransactionResponse,
 ) {
 	invalidTxsHashes, failedTxsHashes := s.splitInvalidAndFailedTxs(ctx, unprocessedTxs, ticker)
+
+	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, float64(len(processResponse.processedTxsHashes)))
+	metrics.TxProcessed(metrics.TxProcessedLabelInvalid, float64(len(invalidTxsHashes)))
+	metrics.TxProcessed(metrics.TxProcessedLabelFailed, float64(len(failedTxsHashes)))
+
 	// update processed txs
 	s.updateTxsStatus(ctx, ticker, processResponse.processedTxsHashes, pool.TxStatusSelected)
 	// update invalid txs
@@ -362,7 +377,7 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 		return processTxResponse{}, err
 	}
 
-	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx)
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx, state.SequencerCallerLabel)
 	if err != nil {
 		if err == state.ErrBatchAlreadyClosed || err == state.ErrInvalidBatchNumber {
 			log.Warnf("unexpected state local vs DB: %w", err)

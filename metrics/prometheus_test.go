@@ -12,23 +12,28 @@ import (
 )
 
 var (
-	gaugeName           = "gaugeName"
-	gaugeOpts           = prometheus.GaugeOpts{Name: gaugeName}
-	gauge               prometheus.Gauge
-	counterName         = "counterName"
-	counterOpts         = prometheus.CounterOpts{Name: counterName}
-	counter             prometheus.Counter
-	counterVecName      = "counterVecName"
-	counterVecLabelName = "counterVecLabelName"
-	counterVecLabelVal  = "counterVecLabelVal"
-	counterVecOpts      = CounterVecOpts{prometheus.CounterOpts{Name: counterVecName}, []string{counterVecLabelName}}
-	counterVec          *prometheus.CounterVec
-	histogramName       = "histogramName"
-	histogramOpts       = prometheus.HistogramOpts{Name: histogramName, Buckets: []float64{0.5, 10, 20}}
-	histogram           prometheus.Histogram
-	summaryName         = "summaryName"
-	summaryOpts         = prometheus.SummaryOpts{Name: summaryName}
-	summary             = prometheus.NewSummary(summaryOpts)
+	gaugeName             = "gaugeName"
+	gaugeOpts             = prometheus.GaugeOpts{Name: gaugeName}
+	gauge                 prometheus.Gauge
+	counterName           = "counterName"
+	counterOpts           = prometheus.CounterOpts{Name: counterName}
+	counter               prometheus.Counter
+	counterVecName        = "counterVecName"
+	counterVecLabelName   = "counterVecLabelName"
+	counterVecLabelVal    = "counterVecLabelVal"
+	counterVecOpts        = CounterVecOpts{prometheus.CounterOpts{Name: counterVecName}, []string{counterVecLabelName}}
+	counterVec            *prometheus.CounterVec
+	histogramName         = "histogramName"
+	histogramOpts         = prometheus.HistogramOpts{Name: histogramName, Buckets: []float64{0.5, 10, 20}}
+	histogram             prometheus.Histogram
+	histogramVecName      = "histogramVecName"
+	histogramVecLabelName = "histogramVecLabelName"
+	histogramVecLabelVal  = "histogramVecLabelVal"
+	histogramVecOpts      = HistogramVecOpts{prometheus.HistogramOpts{Name: histogramVecName}, []string{histogramVecLabelName}}
+	histogramVec          *prometheus.HistogramVec
+	summaryName           = "summaryName"
+	summaryOpts           = prometheus.SummaryOpts{Name: summaryName}
+	summary               = prometheus.NewSummary(summaryOpts)
 )
 
 func setup() {
@@ -37,6 +42,7 @@ func setup() {
 	counter = prometheus.NewCounter(counterOpts)
 	counterVec = prometheus.NewCounterVec(counterVecOpts.CounterOpts, counterVecOpts.Labels)
 	histogram = prometheus.NewHistogram(histogramOpts)
+	histogramVec = prometheus.NewHistogramVec(histogramVecOpts.HistogramOpts, histogramVecOpts.Labels)
 	summary = prometheus.NewSummary(summaryOpts)
 
 	// Overriding registerer to be able to do the unit tests independently
@@ -85,6 +91,31 @@ func TestGaugeSet(t *testing.T) {
 	expected := float64(2)
 
 	GaugeSet(gaugeName, expected)
+	actual := testutil.ToFloat64(gauge)
+
+	assert.Equal(t, expected, actual)
+}
+
+func TestGaugeInc(t *testing.T) {
+	setup()
+	defer cleanup()
+	gauges[gaugeName] = gauge
+	expected := float64(1)
+
+	GaugeInc(gaugeName)
+	actual := testutil.ToFloat64(gauge)
+
+	assert.Equal(t, expected, actual)
+}
+
+func TestGaugeDec(t *testing.T) {
+	setup()
+	defer cleanup()
+	gauges[gaugeName] = gauge
+	gauge.Set(2)
+	expected := float64(1)
+
+	GaugeDec(gaugeName)
 	actual := testutil.ToFloat64(gauge)
 
 	assert.Equal(t, expected, actual)
@@ -259,6 +290,53 @@ func TestUnregisterHistograms(t *testing.T) {
 	UnregisterHistogram(histogramName)
 
 	assert.Len(t, histograms, 0)
+}
+
+func TestRegisterHistogramVecs(t *testing.T) {
+	setup()
+	defer cleanup()
+	histogramVecsOpts := []HistogramVecOpts{histogramVecOpts}
+
+	RegisterHistogramVecs(histogramVecsOpts...)
+
+	assert.Len(t, histogramVecs, 1)
+}
+
+func TestHistogramVec(t *testing.T) {
+	setup()
+	defer cleanup()
+	histogramVecs[histogramVecName] = histogramVec
+
+	actual, exist := HistogramVec(histogramVecName)
+
+	assert.True(t, exist)
+	assert.Equal(t, histogramVec, actual)
+}
+
+func TestHistogramVecObserve(t *testing.T) {
+	setup()
+	defer cleanup()
+	histogramVecs[histogramVecName] = histogramVec
+	expected := float64(2)
+
+	HistogramVecObserve(histogramVecName, histogramVecLabelVal, expected)
+
+	currHistogramVec := histogramVec.WithLabelValues(histogramVecLabelVal)
+	m := &dto.Metric{}
+	require.NoError(t, currHistogramVec.(prometheus.Histogram).Write(m))
+	h := m.GetHistogram()
+	actual := h.GetSampleSum()
+	assert.Equal(t, expected, actual)
+}
+
+func TestUnregisterHistogramVecs(t *testing.T) {
+	setup()
+	defer cleanup()
+	RegisterHistogramVecs(histogramVecOpts)
+
+	UnregisterHistogramVecs(histogramVecName)
+
+	assert.Len(t, histogramVecs, 0)
 }
 
 func TestRegisterSummaries(t *testing.T) {

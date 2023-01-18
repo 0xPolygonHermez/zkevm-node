@@ -92,14 +92,6 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *state.Batch) (*pb.G
 		}
 	}
 
-	var forcedBatchNum uint64
-	forcedBatch, err := s.state.GetForcedBatchByBatchNumber(ctx, batch.BatchNumber, nil)
-	if err == nil {
-		forcedBatchNum = forcedBatch.ForcedBatchNumber
-	} else if err != state.ErrNotFound {
-		return nil, err
-	}
-
 	var mainnetExitRoot, rollupExitRoot string
 	ger, err := s.state.GetExitRootByGlobalExitRoot(ctx, batch.GlobalExitRoot, nil)
 	if err == nil {
@@ -107,6 +99,10 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *state.Batch) (*pb.G
 		rollupExitRoot = ger.RollupExitRoot.String()
 	} else if err != state.ErrNotFound {
 		return nil, err
+	}
+	var fb uint64
+	if batch.ForcedBatchNum != nil {
+		fb = *batch.ForcedBatchNum
 	}
 
 	return &pb.GetBatchResponse{
@@ -119,7 +115,7 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *state.Batch) (*pb.G
 		RollupExitRoot:    rollupExitRoot,
 		Timestamp:         uint64(batch.Timestamp.Unix()),
 		Transactions:      transactions,
-		ForcedBatchNumber: forcedBatchNum,
+		ForcedBatchNumber: fb,
 	}, nil
 }
 

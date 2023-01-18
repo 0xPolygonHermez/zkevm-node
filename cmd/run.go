@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 
+	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
@@ -40,6 +41,8 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
+	zkevm.PrintVersion(os.Stdout)
+
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		return err
@@ -48,7 +51,18 @@ func start(cliCtx *cli.Context) error {
 	if c.Metrics.Enabled {
 		metrics.Init()
 	}
-	runStateMigrations(c.StateDB)
+	components := cliCtx.StringSlice(config.FlagComponents)
+
+	// Only runs migration if the component is the synchronizer and if the flag is deactivated
+	if !cliCtx.Bool(config.FlagMigrations) {
+		for _, comp := range components {
+			if comp == SYNCHRONIZER {
+				runStateMigrations(c.StateDB)
+			}
+		}
+	}
+	checkStateMigrations(c.StateDB)
+
 	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
 		log.Fatal(err)
@@ -78,8 +92,8 @@ func start(cliCtx *cli.Context) error {
 
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman, st)
 
-	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
-		switch item {
+	for _, component := range components {
+		switch component {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st)
@@ -91,7 +105,6 @@ func start(cliCtx *cli.Context) error {
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
-			runRPCMigrations(c.RPC.DB)
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			apis := map[string]bool{}
@@ -125,12 +138,15 @@ func runStateMigrations(c db.Config) {
 	runMigrations(c, db.StateMigrationName)
 }
 
-func runPoolMigrations(c db.Config) {
-	runMigrations(c, db.PoolMigrationName)
+func checkStateMigrations(c db.Config) {
+	err := db.CheckMigrations(c, db.StateMigrationName)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func runRPCMigrations(c db.Config) {
-	runMigrations(c, db.RPCMigrationName)
+func runPoolMigrations(c db.Config) {
+	runMigrations(c, db.PoolMigrationName)
 }
 
 func runMigrations(c db.Config, name string) {
@@ -163,11 +179,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.Sta
 }
 
 func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gasPriceEstimator, apis map[string]bool) {
-	storage, err := jsonrpc.NewPostgresStorage(c.RPC.DB)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
 
 	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {
@@ -310,7 +322,7 @@ func startMetricsHttpServer(c *config.Config) {
 		log.Errorf("failed to create tcp listener for metrics: %v", err)
 		return
 	}
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle(metrics.Endpoint, promhttp.Handler())
 	metricsServer := &http.Server{
 		Handler: mux,
 	}

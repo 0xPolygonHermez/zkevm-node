@@ -9,13 +9,26 @@ import (
 )
 
 var networks = []struct {
-	Name       string
-	URL        string
-	ChainID    uint64
-	PrivateKey string
+	Name         string
+	URL          string
+	WebSocketURL string
+	ChainID      uint64
+	PrivateKey   string
 }{
-	{Name: "Local L1", URL: operations.DefaultL1NetworkURL, ChainID: operations.DefaultL1ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
-	{Name: "Local L2", URL: operations.DefaultL2NetworkURL, ChainID: operations.DefaultL2ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
+	{
+		Name:         "Local L1",
+		URL:          operations.DefaultL1NetworkURL,
+		WebSocketURL: operations.DefaultL1NetworkWebSocketURL,
+		ChainID:      operations.DefaultL1ChainID,
+		PrivateKey:   operations.DefaultSequencerPrivateKey,
+	},
+	{
+		Name:         "Local L2",
+		URL:          operations.DefaultL2NetworkURL,
+		WebSocketURL: operations.DefaultL2NetworkWebSocketURL,
+		ChainID:      operations.DefaultL2ChainID,
+		PrivateKey:   operations.DefaultSequencerPrivateKey,
+	},
 }
 
 func logTx(tx *types.Transaction) {

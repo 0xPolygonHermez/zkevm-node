@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,7 +33,7 @@ type mocks struct {
 
 func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclient.Client) {
 	pool := newPoolMock(t)
-	state := newStateMock(t)
+	st := newStateMock(t)
 	gasPriceEstimator := newGasPriceEstimatorMock(t)
 	storage := newStorageMock(t)
 	dbTx := newDbTxMock(t)
@@ -44,7 +46,12 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 		APIWeb3:   true,
 	}
 
-	server := NewServer(cfg, pool, state, gasPriceEstimator, storage, apis)
+	var newL2BlockEventHandler state.NewL2BlockEventHandler = func(e state.NewL2BlockEvent) {}
+	st.On("RegisterNewL2BlockEventHandler", mock.IsType(newL2BlockEventHandler)).Once()
+
+	st.On("PrepareWebSocket").Once()
+
+	server := NewServer(cfg, pool, st, gasPriceEstimator, storage, apis)
 
 	go func() {
 		err := server.Start()
@@ -75,7 +82,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 
 	mks := &mocks{
 		Pool:              pool,
-		State:             state,
+		State:             st,
 		GasPriceEstimator: gasPriceEstimator,
 		Storage:           storage,
 		DbTx:              dbTx,

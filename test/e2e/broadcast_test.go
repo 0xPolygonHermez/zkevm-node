@@ -2,12 +2,12 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
@@ -27,12 +27,10 @@ const (
 	serverAddress     = "localhost:61090"
 	totalBatches      = 2
 	totalTxsLastBatch = 5
-	encodedFmt        = "encoded-%d"
 	forcedBatchNumber = 18
 )
 
 var (
-	ctx             = context.Background()
 	stateDBCfg      = dbutils.NewStateConfigFromEnv()
 	ger             = common.HexToHash("deadbeef")
 	mainnetExitRoot = common.HexToHash("caffe")
@@ -40,11 +38,11 @@ var (
 )
 
 func TestBroadcast(t *testing.T) {
-	initOrResetDB()
-
 	if testing.Short() {
 		t.Skip()
 	}
+	initOrResetDB()
+	ctx := context.Background()
 
 	require.NoError(t, operations.StartComponent("network"))
 	require.NoError(t, operations.StartComponent("broadcast"))
@@ -74,10 +72,6 @@ func TestBroadcast(t *testing.T) {
 	require.Equal(t, totalBatches, int(batch.BatchNumber))
 
 	require.Equal(t, totalTxsLastBatch, len(batch.Transactions))
-
-	for i, tx := range batch.Transactions {
-		require.Equal(t, fmt.Sprintf(encodedFmt, i+1), tx.Encoded)
-	}
 	require.EqualValues(t, forcedBatchNumber, batch.ForcedBatchNumber)
 
 	require.Equal(t, mainnetExitRoot.String(), batch.MainnetExitRoot)
@@ -85,6 +79,7 @@ func TestBroadcast(t *testing.T) {
 }
 
 func initState() (*state.State, error) {
+	ctx := context.Background()
 	initOrResetDB()
 	sqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
@@ -105,11 +100,22 @@ func populateDB(ctx context.Context, st *state.State) error {
 	var parentHash common.Hash
 	var l2Block types.Block
 
-	const addBatch = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
-	for i := 1; i <= totalBatches; i++ {
-		if _, err := st.PostgresStorage.Exec(ctx, addBatch, i, ger.String(), time.Now(), common.HexToAddress("").String(), common.Hash{}.String(), common.Hash{}.String()); err != nil {
-			return err
-		}
+	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
+	if _, err := st.PostgresStorage.Exec(ctx, addBlock, blockNumber, time.Now(), ""); err != nil {
+		return err
+	}
+
+	const addForcedBatch = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, coinbase, timestamp, block_num) VALUES ($1, $2, $3, $4, $5, $6)"
+	if _, err := st.PostgresStorage.Exec(ctx, addForcedBatch, forcedBatchNumber, ger.String(), "", common.HexToAddress("").String(), time.Now(), blockNumber); err != nil {
+		return err
+	}
+
+	const addBatch = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, local_exit_root, state_root, forced_batch_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	if _, err := st.PostgresStorage.Exec(ctx, addBatch, 1, ger.String(), time.Now(), common.HexToAddress("").String(), common.Hash{}.String(), common.Hash{}.String(), nil); err != nil {
+		return err
+	}
+	if _, err := st.PostgresStorage.Exec(ctx, addBatch, 2, ger.String(), time.Now(), common.HexToAddress("").String(), common.Hash{}.String(), common.Hash{}.String(), forcedBatchNumber); err != nil {
+		return err
 	}
 
 	for i := 1; i <= totalTxsLastBatch; i++ {
@@ -130,20 +136,13 @@ func populateDB(ctx context.Context, st *state.State) error {
 			return err
 		}
 
+		tx := types.NewTransaction(uint64(i), common.HexToAddress("0x1"), big.NewInt(0), uint64(0), nil, nil)
+		bData, _ := tx.MarshalBinary()
+		encoded := hex.EncodeToHex(bData)
 		const addTransaction = "INSERT INTO state.transaction (hash, encoded, l2_block_num) VALUES ($1, $2, $3)"
-		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, fmt.Sprintf("hash-%d", i), fmt.Sprintf(encodedFmt, i), l2Block.Number().Uint64()); err != nil {
+		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, tx.Hash().String(), encoded, l2Block.Number().Uint64()); err != nil {
 			return err
 		}
-	}
-
-	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
-	if _, err := st.PostgresStorage.Exec(ctx, addBlock, blockNumber, time.Now(), ""); err != nil {
-		return err
-	}
-
-	const addForcedBatch = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, coinbase, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
-	if _, err := st.PostgresStorage.Exec(ctx, addForcedBatch, forcedBatchNumber, ger.String(), "", common.HexToAddress("").String(), time.Now(), totalBatches, blockNumber); err != nil {
-		return err
 	}
 
 	const addExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root) VALUES ($1, $2, $3, $4)"

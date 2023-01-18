@@ -61,6 +61,7 @@ CREATE TABLE state.l2block
     parent_hash VARCHAR,
     state_root  VARCHAR,
     received_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL,
     batch_num   BIGINT                   NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE
 );
 

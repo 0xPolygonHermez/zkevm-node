@@ -12,7 +12,6 @@ services:
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
     volumes:
       - ./config/environments/public/public.node.config.toml:/app/config.toml
@@ -69,23 +68,6 @@ services:
       - POSTGRES_USER=pool_user
       - POSTGRES_PASSWORD=pool_password
       - POSTGRES_DB=pool_db
-    command: ["postgres", "-N", "500"]
-
-  zkevm-rpc-db:
-    container_name: zkevm-rpc-db
-    image: postgres
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
-    ports:
-      - 5434:5432
-    environment:
-      - POSTGRES_USER=rpc_user
-      - POSTGRES_PASSWORD=rpc_password
-      - POSTGRES_DB=rpc_db
     command: ["postgres", "-N", "500"]
 
   zkevm-prover:

@@ -21,17 +21,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Install Go
-      uses: actions/setup-go@v1
+      uses: actions/setup-go@v3
       with:
         go-version: ${{ matrix.go-version }}
       env:
         GOARCH: ${{ matrix.goarch }}
 
     - name: Login to DockerHub
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -58,19 +58,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Fork based /ok-to-test checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: 'refs/pull/${{ github.event.client_payload.pull_request.number }}/merge'
 
     - name: Install Go
-      uses: actions/setup-go@v1
+      uses: actions/setup-go@v3
       with:
         go-version: ${{ matrix.go-version }}
       env:
         GOARCH: ${{ matrix.goarch }}
 
     - name: Login to DockerHub
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}

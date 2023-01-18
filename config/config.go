@@ -39,6 +39,8 @@ const (
 	FlagComponents = "components"
 	// FlagHTTPAPI is the flag for http.api.
 	FlagHTTPAPI = "http.api"
+	// FlagMigrations is the flag for migrations.
+	FlagMigrations = "migrations"
 )
 
 // Config represents the configuration of the entire Hermez Node
@@ -62,8 +64,8 @@ type Config struct {
 	Metrics            metrics.Config
 }
 
-// Load loads the configuration
-func Load(ctx *cli.Context) (*Config, error) {
+// Default parses the default configuration values.
+func Default() (*Config, error) {
 	var cfg Config
 	viper.SetConfigType("toml")
 
@@ -72,6 +74,15 @@ func Load(ctx *cli.Context) (*Config, error) {
 		return nil, err
 	}
 	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// Load loads the configuration
+func Load(ctx *cli.Context) (*Config, error) {
+	cfg, err := Default()
 	if err != nil {
 		return nil, err
 	}
@@ -114,5 +125,5 @@ func Load(ctx *cli.Context) (*Config, error) {
 		}
 		log.Debugf("Configuration loaded: \n%s\n", string(cfgJSON))
 	*/
-	return &cfg, nil
+	return cfg, nil
 }
