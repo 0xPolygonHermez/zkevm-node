@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -21,6 +22,11 @@ func TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.Pro
 
 func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
 	responses, err := convertToProcessTransactionResponse(txs, response.Responses)
+	if err != nil {
+		return nil, err
+	}
+
+	readWriteAddresses, err := convertToReadWriteAddresses(response.ReadWriteAddresses)
 	if err != nil {
 		return nil, err
 	}
@@ -48,11 +54,33 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 		Responses:           responses,
 		ExecutorError:       executor.ExecutorErr(response.Error),
 		IsBatchProcessed:    isBatchProcessed,
+		ReadWriteAddresses:  readWriteAddresses,
 	}, nil
 }
 
 func isProcessed(err pb.RomError) bool {
 	return !executor.IsIntrinsicError(err) && !executor.IsOutOfCountersError(err)
+}
+
+func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) ([]*InfoReadWrite, error) {
+	results := make([]*InfoReadWrite, 0, len(addresses))
+
+	for addr, addrInfo := range addresses {
+		address := common.HexToAddress(addr)
+		nonce, ok := new(big.Int).SetString(addrInfo.Nonce, encoding.Base10)
+		if !ok {
+			return nil, fmt.Errorf("error while parsing address nonce")
+		}
+		balance, ok := new(big.Int).SetString(addrInfo.Balance, encoding.Base10)
+		if !ok {
+			return nil, fmt.Errorf("error while parsing address balance")
+		}
+
+		result := &InfoReadWrite{Address: address, Nonce: nonce.Uint64(), Balance: balance}
+		results = append(results, result)
+	}
+
+	return results, nil
 }
 
 func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {

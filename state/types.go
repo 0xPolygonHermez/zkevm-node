@@ -1,6 +1,8 @@
 package state
 
 import (
+	"math/big"
+
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -23,6 +25,7 @@ type ProcessBatchResponse struct {
 	Responses           []*ProcessTransactionResponse
 	ExecutorError       error
 	IsBatchProcessed    bool
+	ReadWriteAddresses  []*InfoReadWrite
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
@@ -56,4 +59,11 @@ type ProcessTransactionResponse struct {
 	ExecutionTrace []instrumentation.StructLog
 	// CallTrace contains the call trace.
 	CallTrace instrumentation.ExecutorTrace
+}
+
+// InfoReadWrite has information about modified addresses during the execution
+type InfoReadWrite struct {
+	Address common.Address
+	Nonce   uint64
+	Balance *big.Int
 }
