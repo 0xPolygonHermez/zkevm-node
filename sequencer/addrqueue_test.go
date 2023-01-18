@@ -8,16 +8,16 @@ import (
 )
 
 type notReadyTx struct {
-	Nonce uint64
-	Hash  common.Hash
+	nonce uint64
+	hash  common.Hash
 }
 
 type addrQueueAddTxTestCase struct {
-	Name               string
-	Hash               common.Hash
-	Nonce              uint64
-	GasPrice           *big.Int
-	Cost               *big.Int
+	name               string
+	hash               common.Hash
+	nonce              uint64
+	gasPrice           *big.Int
+	cost               *big.Int
 	expectedReadyTx    common.Hash
 	expectedNotReadyTx []notReadyTx
 }
@@ -33,8 +33,8 @@ func newTestTxTracker(hash common.Hash, nonce uint64, gasPrice *big.Int, cost *b
 func processAddTxTestCases(t *testing.T, testCases []addrQueueAddTxTestCase) {
 	var emptyHash common.Hash = common.Hash{}
 	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			tx := newTestTxTracker(tc.Hash, tc.Nonce, tc.GasPrice, tc.Cost)
+		t.Run(tc.name, func(t *testing.T) {
+			tx := newTestTxTracker(tc.hash, tc.nonce, tc.gasPrice, tc.cost)
 			addr.addTx(tx)
 			if tc.expectedReadyTx.String() == emptyHash.String() {
 				if !(addr.readyTx == nil) {
@@ -47,12 +47,12 @@ func processAddTxTestCases(t *testing.T, testCases []addrQueueAddTxTestCase) {
 			}
 
 			for _, nr := range tc.expectedNotReadyTx {
-				txTmp, found := addr.notReadyTxs[nr.Nonce]
+				txTmp, found := addr.notReadyTxs[nr.nonce]
 				if !(found) {
-					t.Fatalf("Error notReadyTx nonce=%d don't exists", nr.Nonce)
+					t.Fatalf("Error notReadyTx nonce=%d don't exists", nr.nonce)
 				}
-				if !(txTmp.Hash == nr.Hash) {
-					t.Fatalf("Error notReadyTx nonce=%d. Expected=%s, Actual=%s", nr.Nonce, nr.Hash.String(), txTmp.HashStr)
+				if !(txTmp.Hash == nr.hash) {
+					t.Fatalf("Error notReadyTx nonce=%d. Expected=%s, Actual=%s", nr.nonce, nr.hash.String(), txTmp.HashStr)
 				}
 			}
 		})
@@ -64,33 +64,33 @@ func TestAddrQueue(t *testing.T) {
 
 	addTxTestCases := []addrQueueAddTxTestCase{
 		{
-			Name: "Add not ready tx 0x02", Hash: common.Hash{0x2}, Nonce: 2, GasPrice: new(big.Int).SetInt64(2), Cost: new(big.Int).SetInt64(5),
+			name: "Add not ready tx 0x02", hash: common.Hash{0x2}, nonce: 2, gasPrice: new(big.Int).SetInt64(2), cost: new(big.Int).SetInt64(5),
 			expectedReadyTx: common.Hash{},
 			expectedNotReadyTx: []notReadyTx{
-				{Nonce: 2, Hash: common.Hash{0x2}},
+				{nonce: 2, hash: common.Hash{0x2}},
 			},
 		},
 		{
-			Name: "Add ready tx 0x01", Hash: common.Hash{0x1}, Nonce: 1, GasPrice: new(big.Int).SetInt64(2), Cost: new(big.Int).SetInt64(5),
+			name: "Add ready tx 0x01", hash: common.Hash{0x1}, nonce: 1, gasPrice: new(big.Int).SetInt64(2), cost: new(big.Int).SetInt64(5),
 			expectedReadyTx: common.Hash{1},
 			expectedNotReadyTx: []notReadyTx{
-				{Nonce: 2, Hash: common.Hash{0x2}},
+				{nonce: 2, hash: common.Hash{0x2}},
 			},
 		},
 		{
-			Name: "Add not ready tx 0x04", Hash: common.Hash{0x4}, Nonce: 4, GasPrice: new(big.Int).SetInt64(2), Cost: new(big.Int).SetInt64(5),
+			name: "Add not ready tx 0x04", hash: common.Hash{0x4}, nonce: 4, gasPrice: new(big.Int).SetInt64(2), cost: new(big.Int).SetInt64(5),
 			expectedReadyTx: common.Hash{1},
 			expectedNotReadyTx: []notReadyTx{
-				{Nonce: 2, Hash: common.Hash{0x2}},
-				{Nonce: 4, Hash: common.Hash{0x4}},
+				{nonce: 2, hash: common.Hash{0x2}},
+				{nonce: 4, hash: common.Hash{0x4}},
 			},
 		},
 		{
-			Name: "Replace tx with nonce 4 for tx 0x44 with best GasPrice", Hash: common.Hash{0x44}, Nonce: 4, GasPrice: new(big.Int).SetInt64(3), Cost: new(big.Int).SetInt64(5),
+			name: "Replace tx with nonce 4 for tx 0x44 with best GasPrice", hash: common.Hash{0x44}, nonce: 4, gasPrice: new(big.Int).SetInt64(3), cost: new(big.Int).SetInt64(5),
 			expectedReadyTx: common.Hash{1},
 			expectedNotReadyTx: []notReadyTx{
-				{Nonce: 2, Hash: common.Hash{0x2}},
-				{Nonce: 4, Hash: common.Hash{0x44}},
+				{nonce: 2, hash: common.Hash{0x2}},
+				{nonce: 4, hash: common.Hash{0x44}},
 			},
 		},
 	}
@@ -99,7 +99,7 @@ func TestAddrQueue(t *testing.T) {
 
 	t.Run("Delete readyTx 0x01", func(t *testing.T) {
 		tc := addTxTestCases[1]
-		tx := newTestTxTracker(tc.Hash, tc.Nonce, tc.GasPrice, tc.Cost)
+		tx := newTestTxTracker(tc.hash, tc.nonce, tc.gasPrice, tc.cost)
 		deltx := addr.deleteTx(tx.Hash)
 		if !(addr.readyTx == nil) {
 			t.Fatalf("Error readyTx not nil. Expected=%s, Actual=%s", "", addr.readyTx.HashStr)
@@ -111,12 +111,12 @@ func TestAddrQueue(t *testing.T) {
 
 	processAddTxTestCases(t, []addrQueueAddTxTestCase{
 		{
-			Name: "Add tx with nonce = currentNonce but with cost > currentBalance", Hash: common.Hash{0x11}, Nonce: 1, GasPrice: new(big.Int).SetInt64(2), Cost: new(big.Int).SetInt64(15),
+			name: "Add tx with nonce = currentNonce but with cost > currentBalance", hash: common.Hash{0x11}, nonce: 1, gasPrice: new(big.Int).SetInt64(2), cost: new(big.Int).SetInt64(15),
 			expectedReadyTx: common.Hash{},
 			expectedNotReadyTx: []notReadyTx{
-				{Nonce: 1, Hash: common.Hash{0x11}},
-				{Nonce: 2, Hash: common.Hash{0x2}},
-				{Nonce: 4, Hash: common.Hash{0x44}},
+				{nonce: 1, hash: common.Hash{0x11}},
+				{nonce: 2, hash: common.Hash{0x2}},
+				{nonce: 4, hash: common.Hash{0x44}},
 			},
 		},
 	})

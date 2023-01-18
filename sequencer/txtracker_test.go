@@ -9,19 +9,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTxTrackerEfficiencyCalculation(t *testing.T) {
-	const (
-		MaxCumulativeGasUsed = 10
-		MaxArithmetics       = 10
-		MaxBinaries          = 10
-		MaxKeccakHashes      = 10
-		MaxMemAligns         = 10
-		MaxPoseidonHashes    = 10
-		MaxPoseidonPaddings  = 10
-		MaxSteps             = 10
-		MaxBatchBytesSize    = 10
-	)
+type efficiencyCalcTestCase struct {
+	Name           string
+	benefit        int64
+	counters       state.ZKCounters
+	usedBytes      uint64
+	expectedResult float64
+}
 
+func TestTxTrackerEfficiencyCalculation(t *testing.T) {
 	// Init ZKEVM resourceCostWeight values
 	rcWeigth := batchResourceWeights{}
 	rcWeigth.WeightCumulativeGasUsed = 1
@@ -36,23 +32,17 @@ func TestTxTrackerEfficiencyCalculation(t *testing.T) {
 
 	// Init ZKEVM resourceCostMax values
 	rcMax := batchConstraints{}
-	rcMax.MaxCumulativeGasUsed = MaxCumulativeGasUsed
-	rcMax.MaxArithmetics = MaxArithmetics
-	rcMax.MaxBinaries = MaxBinaries
-	rcMax.MaxKeccakHashes = MaxKeccakHashes
-	rcMax.MaxMemAligns = MaxMemAligns
-	rcMax.MaxPoseidonHashes = MaxPoseidonHashes
-	rcMax.MaxPoseidonPaddings = MaxPoseidonPaddings
-	rcMax.MaxSteps = MaxSteps
-	rcMax.MaxBatchBytesSize = MaxBatchBytesSize
+	rcMax.MaxCumulativeGasUsed = 10
+	rcMax.MaxArithmetics = 10
+	rcMax.MaxBinaries = 10
+	rcMax.MaxKeccakHashes = 10
+	rcMax.MaxMemAligns = 10
+	rcMax.MaxPoseidonHashes = 10
+	rcMax.MaxPoseidonPaddings = 10
+	rcMax.MaxSteps = 10
+	rcMax.MaxBatchBytesSize = 10
 
-	testCases := []struct {
-		Name           string
-		benefit        int64
-		counters       state.ZKCounters
-		usedBytes      uint64
-		expectedResult float64
-	}{
+	testCases := []efficiencyCalcTestCase{
 		{
 			Name:           "Using all of the resources",
 			benefit:        1000000,

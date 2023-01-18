@@ -143,7 +143,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		WeightSteps:             s.cfg.WeightSteps,
 	}
 
-	worker := NewWorker(s.cfg, s.state, batchConstraints, batchResourceWeights)
+	worker := NewWorker(s.state, batchConstraints, batchResourceWeights)
 	dbManager := newDBManager(ctx, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
 	go dbManager.Start()
 

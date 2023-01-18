@@ -67,6 +67,7 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraints, weights b
 	totalWeight := float64(weights.WeightArithmetics + weights.WeightBatchBytesSize + weights.WeightBinaries + weights.WeightCumulativeGasUsed +
 		weights.WeightKeccakHashes + weights.WeightMemAligns + weights.WeightPoseidonHashes + weights.WeightPoseidonPaddings + weights.WeightSteps)
 
+	// TODO: Which efficiency assign to isClaim txs?
 	// TODO: Optmize tx.Efficiency calculation (precalculate constansts values)
 	// TODO: Evaluate avoid type conversion (performance impact?)
 	resourceCost := (float64(tx.BatchResources.zKCounters.CumulativeGasUsed)/float64(constraints.MaxCumulativeGasUsed))*float64(weights.WeightCumulativeGasUsed)/totalWeight +
@@ -81,7 +82,7 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraints, weights b
 
 	resourceCost = resourceCost * perThousand
 
-	ben := big.NewFloat(0).SetInt(tx.Benefit) //20 ceros
+	ben := big.NewFloat(0).SetInt(tx.Benefit)
 	rc := big.NewFloat(0).SetFloat64(float64(resourceCost))
 	eff := big.NewFloat(0).Quo(ben, rc)
 
