@@ -296,7 +296,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, false, gasUsed, err
 		} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
-			log.Errorf("executor error estimating gas: %v", err)
+			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, err
 		}
 
@@ -595,7 +595,7 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 		log.Errorf("Error s.executorClient.ProcessBatch response: %v", res)
 	} else if res.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(res.Error)
-		log.Errorf("executor error: %v", err)
+		s.LogExecutorError(res.Error, processBatchRequest)
 	}
 	elapsed := time.Since(now)
 	metrics.ExecutorProcessingTime(string(caller), elapsed)
@@ -863,7 +863,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		log.Errorf("executor error: %v", err)
+		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
 	endTime := time.Now()
@@ -1161,7 +1161,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		return result
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		log.Errorf("executor error processing unsigned transaction: %v", err)
+		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 		result.Err = err
 		return result
 	}
@@ -1557,4 +1557,24 @@ func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Addres
 
 func (s *State) GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	return s.tree.GetNonce(ctx, address, root.Bytes())
+}
+
+// LogExecutorError is used to store Executor error for runtime debugging
+func (s *State) LogExecutorError(responseError pb.ExecutorError, processBatchRequest *pb.ProcessBatchRequest) {
+	timestamp := time.Now()
+	log.Errorf("error found in the executor: %v at %v", responseError, timestamp)
+	payload, err := json.Marshal(processBatchRequest)
+	if err != nil {
+		log.Errorf("error marshaling payload: %v", err)
+	} else {
+		debugInfo := &DebugInfo{
+			ErrorType: DebugInfoErrorType_EXECUTOR_ERROR,
+			Timestamp: timestamp,
+			Payload:   string(payload),
+		}
+		err = s.AddDebugInfo(context.Background(), debugInfo, nil)
+		if err != nil {
+			log.Errorf("error storing payload: %v", err)
+		}
+	}
 }

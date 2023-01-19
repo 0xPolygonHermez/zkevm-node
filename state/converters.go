@@ -52,15 +52,15 @@ func convertToProcessBatchResponse(response *pb.ProcessBatchResponse) (*ProcessB
 	}
 
 	return &ProcessBatchResponse{
-		NewStateRoot:     common.BytesToHash(response.NewStateRoot),
-		NewAccInputHash:  common.BytesToHash(response.NewAccInputHash),
-		NewLocalExitRoot: common.BytesToHash(response.NewLocalExitRoot),
-		NewBatchNumber:   response.NewBatchNum,
-		UsedZkCounters:   ConvertToCounters(response),
-		Responses:        responses,
-		Error:            executor.Err(response.Error),
-		IsBatchProcessed: isBatchProcessed,
-		TouchedAddresses: convertToTouchedAddresses(response.TouchedAddresses),
+		NewStateRoot:       common.BytesToHash(response.NewStateRoot),
+		NewAccInputHash:    common.BytesToHash(response.NewAccInputHash),
+		NewLocalExitRoot:   common.BytesToHash(response.NewLocalExitRoot),
+		NewBatchNumber:     response.NewBatchNum,
+		UsedZkCounters:     convertToCounters(response),
+		Responses:          responses,
+		ExecutorError:      executor.ExecutorErr(response.Error),
+		IsBatchProcessed:   isBatchProcessed,
+		ReadWriteAddresses: readWriteAddresses,
 	}, nil
 }
 
@@ -126,12 +126,13 @@ func convertToProcessTransactionResponse(responses []*pb.ProcessTransactionRespo
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 
-		tx, err := DecodeTx(string(response.GetRlpTx()))
+		tx, err := DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
 		if err != nil {
 			return nil, err
 		}
 
 		result.Tx = *tx
+
 		results = append(results, result)
 
 		log.Debugf("ProcessTransactionResponse[TxHash]: %v", result.TxHash)
@@ -310,4 +311,17 @@ func convertByteArrayToStringArray(responses []byte) []string {
 		results = append(results, string(response))
 	}
 	return results
+}
+
+func convertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
+	return ZKCounters{
+		CumulativeGasUsed:    resp.CumulativeGasUsed,
+		UsedKeccakHashes:     resp.CntKeccakHashes,
+		UsedPoseidonHashes:   resp.CntPoseidonHashes,
+		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
+		UsedMemAligns:        resp.CntMemAligns,
+		UsedArithmetics:      resp.CntArithmetics,
+		UsedBinaries:         resp.CntBinaries,
+		UsedSteps:            resp.CntSteps,
+	}
 }

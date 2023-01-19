@@ -3,6 +3,7 @@ package state
 import (
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
@@ -32,15 +33,15 @@ type ProcessRequest struct {
 
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot     common.Hash
-	NewAccInputHash  common.Hash
-	NewLocalExitRoot common.Hash
-	NewBatchNumber   uint64
-	UsedZkCounters   ZKCounters
-	Responses        []*ProcessTransactionResponse
-	Error            error
-	IsBatchProcessed bool
-	TouchedAddresses map[common.Address]*TouchedAddress
+	NewStateRoot       common.Hash
+	NewAccInputHash    common.Hash
+	NewLocalExitRoot   common.Hash
+	NewBatchNumber     uint64
+	UsedZkCounters     ZKCounters
+	Responses          []*ProcessTransactionResponse
+	ExecutorError      error
+	IsBatchProcessed   bool
+	ReadWriteAddresses []*InfoReadWrite
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
@@ -145,4 +146,16 @@ type InfoReadWrite struct {
 	Address common.Address
 	Nonce   *uint64
 	Balance *big.Int
+}
+
+const (
+	// DebugInfoErrorType_EXECUTOR_ERROR indicates a error happened in the executor
+	DebugInfoErrorType_EXECUTOR_ERROR = "EXECUTOR ERROR"
+)
+
+// DebugInfo allows handling runtime debug info
+type DebugInfo struct {
+	ErrorType string
+	Timestamp time.Time
+	Payload   string
 }
