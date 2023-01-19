@@ -390,8 +390,7 @@ func isGasApplyError(err error) bool {
 
 // Checks if EVM level valid gas errors occurred
 func isGasEVMError(err error) bool {
-	return errors.Is(err, runtime.ErrOutOfGas) ||
-		errors.Is(err, runtime.ErrCodeStoreOutOfGas)
+	return errors.Is(err, runtime.ErrOutOfGas)
 }
 
 // Checks if the EVM reverted during execution
@@ -1523,7 +1522,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	*/
 	// if the transaction has an intrinsic invalid tx error it means
 	// the transaction has not changed the state, so we don't store it
-	if executor.IsIntrinsicError(executor.ErrorCode(processedTx.Error)) {
+	if executor.IsIntrinsicError(executor.RomErrorCode(processedTx.RomError)) {
 		return nil
 	}
 

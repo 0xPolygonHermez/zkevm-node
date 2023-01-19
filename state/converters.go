@@ -148,24 +148,6 @@ func convertToProcessTransactionResponse(responses []*pb.ProcessTransactionRespo
 	return results, nil
 }
 
-func convertToTouchedAddresses(touchedAddresses []*pb.TouchedAddresses) map[common.Address]*TouchedAddress {
-	result := make(map[common.Address]*TouchedAddress)
-	for _, info := range touchedAddresses {
-		parsedAddress := common.HexToAddress(info.Address)
-		balance := &big.Int{}
-		if info.Balance != nil {
-			balance.SetString(*info.Balance, 10)
-		}
-		result[parsedAddress] = &TouchedAddress{
-			Address: parsedAddress,
-			Nonce:   info.Nonce,
-			Balance: balance,
-		}
-	}
-
-	return result
-}
-
 func convertToLog(protoLogs []*pb.Log) []*types.Log {
 	logs := make([]*types.Log, 0, len(protoLogs))
 
