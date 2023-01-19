@@ -12,15 +12,15 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// ZKEVM contains implementations for the "zkevm" RPC endpoints
-type ZKEVM struct {
+// ZKEVMEndpoints contains implementations for the "zkevm" RPC endpoints
+type ZKEVMEndpoints struct {
 	config Config
 	state  stateInterface
 	txMan  dbTxManager
 }
 
 // ConsolidatedBlockNumber returns current block number for consolidated blocks
-func (z *ZKEVM) ConsolidatedBlockNumber() (interface{}, rpcError) {
+func (z *ZKEVMEndpoints) ConsolidatedBlockNumber() (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		lastBlockNumber, err := z.state.GetLastConsolidatedL2BlockNumber(ctx, dbTx)
 		if err != nil {
@@ -34,7 +34,7 @@ func (z *ZKEVM) ConsolidatedBlockNumber() (interface{}, rpcError) {
 }
 
 // IsBlockConsolidated returns the consolidation status of a provided block number
-func (z *ZKEVM) IsBlockConsolidated(blockNumber argUint64) (interface{}, rpcError) {
+func (z *ZKEVMEndpoints) IsBlockConsolidated(blockNumber argUint64) (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		IsL2BlockConsolidated, err := z.state.IsL2BlockConsolidated(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
@@ -48,7 +48,7 @@ func (z *ZKEVM) IsBlockConsolidated(blockNumber argUint64) (interface{}, rpcErro
 }
 
 // IsBlockVirtualized returns the virtualization status of a provided block number
-func (z *ZKEVM) IsBlockVirtualized(blockNumber argUint64) (interface{}, rpcError) {
+func (z *ZKEVMEndpoints) IsBlockVirtualized(blockNumber argUint64) (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		IsL2BlockVirtualized, err := z.state.IsL2BlockVirtualized(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
@@ -62,7 +62,7 @@ func (z *ZKEVM) IsBlockVirtualized(blockNumber argUint64) (interface{}, rpcError
 }
 
 // BatchNumberByBlockNumber returns the batch number from which the passed block number is created
-func (z *ZKEVM) BatchNumberByBlockNumber(blockNumber argUint64) (interface{}, rpcError) {
+func (z *ZKEVMEndpoints) BatchNumberByBlockNumber(blockNumber argUint64) (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		batchNum, err := z.state.BatchNumberByL2BlockNumber(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
@@ -76,7 +76,7 @@ func (z *ZKEVM) BatchNumberByBlockNumber(blockNumber argUint64) (interface{}, rp
 }
 
 // BatchNumber returns the latest virtualized batch number
-func (z *ZKEVM) BatchNumber() (interface{}, rpcError) {
+func (z *ZKEVMEndpoints) BatchNumber() (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		lastBatchNumber, err := z.state.GetLastBatchNumber(ctx, dbTx)
 		if err != nil {
@@ -90,7 +90,7 @@ func (z *ZKEVM) BatchNumber() (interface{}, rpcError) {
 }
 
 // VirtualBatchNumber returns the latest virtualized batch number
-func (z *ZKEVM) VirtualBatchNumber() (interface{}, rpcError) {
+func (z *ZKEVMEndpoints) VirtualBatchNumber() (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		lastBatchNumber, err := z.state.GetLastVirtualBatchNum(ctx, dbTx)
 		if err != nil {
@@ -104,7 +104,7 @@ func (z *ZKEVM) VirtualBatchNumber() (interface{}, rpcError) {
 }
 
 // VerifiedBatchNumber returns the latest verified batch number
-func (z *ZKEVM) VerifiedBatchNumber() (interface{}, rpcError) {
+func (z *ZKEVMEndpoints) VerifiedBatchNumber() (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		lastBatch, err := z.state.GetLastVerifiedBatch(ctx, dbTx)
 		if err != nil {
@@ -118,7 +118,7 @@ func (z *ZKEVM) VerifiedBatchNumber() (interface{}, rpcError) {
 }
 
 // GetBatchByNumber returns information about a batch by batch number
-func (z *ZKEVM) GetBatchByNumber(batchNumber BatchNumber, fullTx bool) (interface{}, rpcError) {
+func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber BatchNumber, fullTx bool) (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		var err error
 		batchNumber, rpcErr := batchNumber.getNumericBatchNumber(ctx, z.state, dbTx)
@@ -160,6 +160,6 @@ func (z *ZKEVM) GetBatchByNumber(batchNumber BatchNumber, fullTx bool) (interfac
 
 // GetBroadcastURI returns the IP:PORT of the broadcast service provided
 // by the Trusted Sequencer JSON RPC server
-func (z *ZKEVM) GetBroadcastURI() (interface{}, rpcError) {
+func (z *ZKEVMEndpoints) GetBroadcastURI() (interface{}, rpcError) {
 	return z.config.BroadcastURI, nil
 }

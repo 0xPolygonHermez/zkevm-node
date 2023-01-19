@@ -4,8 +4,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// TxPool is the txpool jsonrpc endpoint
-type TxPool struct{}
+// TxPoolEndpoints is the txpool jsonrpc endpoint
+type TxPoolEndpoints struct{}
 
 type contentResponse struct {
 	Pending map[common.Address]map[uint64]*txPoolTransaction `json:"pending"`
@@ -28,7 +28,7 @@ type txPoolTransaction struct {
 
 // Content creates a response for txpool_content request.
 // See https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_content.
-func (t *TxPool) Content() (interface{}, rpcError) {
+func (e *TxPoolEndpoints) Content() (interface{}, rpcError) {
 	resp := contentResponse{
 		Pending: make(map[common.Address]map[uint64]*txPoolTransaction),
 		Queued:  make(map[common.Address]map[uint64]*txPoolTransaction),

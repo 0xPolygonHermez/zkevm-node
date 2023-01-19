@@ -172,7 +172,7 @@ func (h *Handler) RemoveFilterByWsConn(wsConn *websocket.Conn) {
 		log.Errorf("failed to get ETH endpoint interface")
 	}
 
-	ethEndpoints := ethEndpointsInterface.(*Eth)
+	ethEndpoints := ethEndpointsInterface.(*EthEndpoints)
 	if ethEndpoints == nil {
 		log.Errorf("failed to get ETH endpoint instance")
 		return

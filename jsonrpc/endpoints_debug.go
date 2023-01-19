@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// Debug is the debug jsonrpc endpoint
-type Debug struct {
+// DebugEndpoints is the debug jsonrpc endpoint
+type DebugEndpoints struct {
 	state stateInterface
 	txMan dbTxManager
 }
@@ -41,7 +41,7 @@ type StructLogRes struct {
 
 // TraceTransaction creates a response for debug_traceTransaction request.
 // See https://geth.ethereum.org/docs/rpc/ns-debug#debug_tracetransaction
-func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{}, rpcError) {
+func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{}, rpcError) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		tracer := ""
 		if cfg != nil && cfg.Tracer != nil {
