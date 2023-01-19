@@ -6,7 +6,7 @@ Configuring each DB is trivial if done with an orchestration tool such as Docker
 
 The following are examples on how one would provision each DB to serve along the components (rpc, aggregator, sequencer...)
 
-Note the `enviroment` values will change per DB.
+Note the `environment` values will change per DB.
 
 - **StateDB**:
 
