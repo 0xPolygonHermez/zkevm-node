@@ -139,3 +139,10 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 
 	return nil
 }
+
+// InfoReadWrite has information about modified addresses during the execution
+type InfoReadWrite struct {
+	Address common.Address
+	Nonce   uint64
+	Balance *big.Int
+}
