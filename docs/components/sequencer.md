@@ -24,7 +24,7 @@ To orchestrate multiple deployments of the different ZKEVM Node components, a `d
         - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components sequencer"
 ```
 
-The container alone needs some parameters configured, access to certain configuration files and the appropiate ports exposed.
+The container alone needs some parameters configured, access to certain configuration files and the appropriate ports exposed.
 
 - environment: Env variables that supersede the config file
     - `ZKEVM_NODE_POOLDB_HOST`: Name of PoolDB Database Host
