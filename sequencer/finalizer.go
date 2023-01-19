@@ -330,7 +330,8 @@ func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.P
 	}
 
 	// We have a successful processing if we are here, updating metadata
-	f.processRequest.OldStateRoot = f.batch.stateRoot
+	previousL2BlockStateRoot := f.batch.stateRoot
+	f.processRequest.OldStateRoot = result.NewStateRoot
 	f.batch.stateRoot = result.NewStateRoot
 	f.batch.localExitRoot = result.NewLocalExitRoot
 
@@ -339,7 +340,7 @@ func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.P
 	f.txsStore.Ch <- &txToStore{
 		batchNumber:              f.batch.batchNumber,
 		txResponse:               txResponse,
-		previousL2BlockStateRoot: f.processRequest.OldStateRoot,
+		previousL2BlockStateRoot: previousL2BlockStateRoot,
 	}
 	// TODO: Remove this after result.TouchedAddresses is implemented
 	ctx := context.Background()

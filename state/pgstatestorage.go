@@ -1337,7 +1337,8 @@ func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx)
 func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
 	header := &types.Header{}
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getLastVirtualBlockHeaderSQL).Scan(&header)
+	query := "SELECT b.header FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
+	err := q.QueryRow(ctx, query).Scan(&header)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
