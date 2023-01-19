@@ -34,14 +34,14 @@ func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx *TxTracker) {
 	if a.currentNonce == tx.Nonce { // Is a possible readyTx
 		// We set the tx as readyTx if we do not have one assigned or if the gasPrice is better or equal than the current readyTx
 		if a.readyTx == nil || ((a.readyTx != nil) && (tx.GasPrice.Cmp(a.readyTx.GasPrice) >= 0)) {
-			prevTx := a.readyTx
+			oldReadyTx := a.readyTx
 			if a.currentBalance.Cmp(tx.Cost) >= 0 { //
 				a.readyTx = tx
-				return tx, prevTx
+				return tx, oldReadyTx
 			} else { // If there is not enought balance we set the new tx as notReadyTxs
 				a.readyTx = nil
 				a.notReadyTxs[tx.Nonce] = tx
-				return nil, prevTx
+				return nil, oldReadyTx
 			}
 		}
 	} else {
@@ -49,9 +49,7 @@ func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx *TxTracker) {
 		// We add the tx to the notReadyTxs list if it does not exists or if it already exists but has a better gasPrice
 		nrTx, found := a.notReadyTxs[tx.Nonce]
 		if !found || ((found) && (tx.GasPrice.Cmp(nrTx.GasPrice) >= 0)) {
-			prevTx := nrTx
 			a.notReadyTxs[tx.Nonce] = tx
-			return tx, prevTx
 		}
 	}
 
