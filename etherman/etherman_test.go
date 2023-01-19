@@ -30,12 +30,12 @@ func init() {
 }
 
 // This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, maticAddr common.Address, br *bridge.Bridge) {
+func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, auth *bind.TransactOpts, maticAddr common.Address, br *bridge.Bridge) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
 	}
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err = bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,29 +43,32 @@ func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, mat
 	if err != nil {
 		log.Fatal(err)
 	}
-	return ethman, ethBackend, maticAddr, br
+	err = ethman.AddOrReplaceAuth(*auth)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return ethman, ethBackend, auth, maticAddr, br
 }
 
 func TestGEREvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, _, br := newTestingEnv()
+	etherman, ethBackend, auth, _, br := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
-	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	initBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
 	amount := big.NewInt(1000000000000000)
-	a := etherman.auth
-	a.Value = amount
-	_, err = br.BridgeAsset(a, common.Address{}, 1, etherman.auth.From, amount, []byte{})
+	auth.Value = amount
+	_, err = br.BridgeAsset(auth, common.Address{}, 1, auth.From, amount, []byte{})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
 	ethBackend.Commit()
 
 	// Now read the event
-	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	finalBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
@@ -78,11 +81,11 @@ func TestGEREvent(t *testing.T) {
 
 func TestForcedBatchEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, _, _ := newTestingEnv()
+	etherman, ethBackend, auth, _, _ := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
-	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	initBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
 	amount, err := etherman.PoE.GetCurrentBatchFee(&bind.CallOpts{Pending: false})
@@ -90,14 +93,14 @@ func TestForcedBatchEvent(t *testing.T) {
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
 	data, err := hex.DecodeString(rawTxs)
 	require.NoError(t, err)
-	_, err = etherman.PoE.ForceBatch(etherman.auth, data, amount)
+	_, err = etherman.PoE.ForceBatch(auth, data, amount)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
 	ethBackend.Commit()
 
 	// Now read the event
-	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	finalBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
@@ -108,25 +111,24 @@ func TestForcedBatchEvent(t *testing.T) {
 	assert.NotEqual(t, time.Time{}, blocks[0].ForcedBatches[0].ForcedAt)
 	assert.Equal(t, uint64(1), blocks[0].ForcedBatches[0].ForcedBatchNumber)
 	assert.Equal(t, rawTxs, hex.EncodeToString(blocks[0].ForcedBatches[0].RawTxsData))
-	assert.Equal(t, etherman.auth.From, blocks[0].ForcedBatches[0].Sequencer)
+	assert.Equal(t, auth.From, blocks[0].ForcedBatches[0].Sequencer)
 }
 
 func TestSequencedBatchesEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, _, br := newTestingEnv()
+	etherman, ethBackend, auth, _, br := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
-	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	initBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
 	// Make a bridge tx
-	a := etherman.auth
-	a.Value = big.NewInt(1000000000000000)
-	_, err = br.BridgeAsset(a, common.Address{}, 1, a.From, a.Value, []byte{})
+	auth.Value = big.NewInt(1000000000000000)
+	_, err = br.BridgeAsset(auth, common.Address{}, 1, auth.From, auth.Value, []byte{})
 	require.NoError(t, err)
 	ethBackend.Commit()
-	a.Value = big.NewInt(0)
+	auth.Value = big.NewInt(0)
 
 	// Get the last ger
 	ger, err := etherman.GlobalExitRootManager.GetLastGlobalExitRoot(nil)
@@ -137,13 +139,13 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
 	data, err := hex.DecodeString(rawTxs)
 	require.NoError(t, err)
-	_, err = etherman.PoE.ForceBatch(etherman.auth, data, amount)
+	_, err = etherman.PoE.ForceBatch(auth, data, amount)
 	require.NoError(t, err)
 	require.NoError(t, err)
 	ethBackend.Commit()
 
 	// Now read the event
-	currentBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	currentBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	currentBlockNumber := currentBlock.NumberU64()
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &currentBlockNumber)
@@ -161,14 +163,14 @@ func TestSequencedBatchesEvent(t *testing.T) {
 		MinForcedTimestamp: 0,
 		Transactions:       common.Hex2Bytes(rawTxs),
 	})
-	_, err = etherman.PoE.SequenceBatches(etherman.auth, sequences)
+	_, err = etherman.PoE.SequenceBatches(auth, sequences)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
 	ethBackend.Commit()
 
 	// Now read the event
-	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	finalBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
@@ -184,12 +186,12 @@ func TestSequencedBatchesEvent(t *testing.T) {
 
 func TestVerifyBatchEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, _, _ := newTestingEnv()
+	etherman, ethBackend, auth, _, _ := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
 
-	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	initBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
@@ -199,7 +201,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 		MinForcedTimestamp: 0,
 		Transactions:       common.Hex2Bytes(rawTxs),
 	}
-	_, err = etherman.PoE.SequenceBatches(etherman.auth, []proofofefficiency.ProofOfEfficiencyBatchData{tx})
+	_, err = etherman.PoE.SequenceBatches(auth, []proofofefficiency.ProofOfEfficiencyBatchData{tx})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -210,14 +212,14 @@ func TestVerifyBatchEvent(t *testing.T) {
 		proofC = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
 		proofB = [2][2]*big.Int{proofC, proofC}
 	)
-	_, err = etherman.PoE.TrustedVerifyBatches(etherman.auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, proofA, proofB, proofC)
+	_, err = etherman.PoE.TrustedVerifyBatches(auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, proofA, proofB, proofC)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
 	ethBackend.Commit()
 
 	// Now read the event
-	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	finalBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
@@ -235,11 +237,11 @@ func TestVerifyBatchEvent(t *testing.T) {
 
 func TestSequenceForceBatchesEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, _, _ := newTestingEnv()
+	etherman, ethBackend, auth, _, _ := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
-	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	initBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
 	amount, err := etherman.PoE.GetCurrentBatchFee(&bind.CallOpts{Pending: false})
@@ -247,7 +249,7 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
 	data, err := hex.DecodeString(rawTxs)
 	require.NoError(t, err)
-	_, err = etherman.PoE.ForceBatch(etherman.auth, data, amount)
+	_, err = etherman.PoE.ForceBatch(auth, data, amount)
 	require.NoError(t, err)
 	ethBackend.Commit()
 
@@ -256,7 +258,7 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	ethBackend.Commit()
 
 	// Now read the event
-	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	finalBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
@@ -267,12 +269,12 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 		GlobalExitRoot:     blocks[0].ForcedBatches[0].GlobalExitRoot,
 		MinForcedTimestamp: uint64(blocks[0].ForcedBatches[0].ForcedAt.Unix()),
 	}
-	_, err = etherman.PoE.SequenceForceBatches(etherman.auth, []proofofefficiency.ProofOfEfficiencyForcedBatchData{forceBatchData})
+	_, err = etherman.PoE.SequenceForceBatches(auth, []proofofefficiency.ProofOfEfficiencyForcedBatchData{forceBatchData})
 	require.NoError(t, err)
 	ethBackend.Commit()
 
 	// Now read the event
-	finalBlock, err = etherman.EtherClient.BlockByNumber(ctx, nil)
+	finalBlock, err = etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber = finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
@@ -285,26 +287,25 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 
 func TestSendSequences(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, _, br := newTestingEnv()
+	etherman, ethBackend, auth, _, br := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
-	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	initBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
 	// Make a bridge tx
-	a := etherman.auth
-	a.Value = big.NewInt(1000000000000000)
-	_, err = br.BridgeAsset(a, common.Address{}, 1, a.From, a.Value, []byte{})
+	auth.Value = big.NewInt(1000000000000000)
+	_, err = br.BridgeAsset(auth, common.Address{}, 1, auth.From, auth.Value, []byte{})
 	require.NoError(t, err)
 	ethBackend.Commit()
-	a.Value = big.NewInt(0)
+	auth.Value = big.NewInt(0)
 
 	// Get the last ger
 	ger, err := etherman.GlobalExitRootManager.GetLastGlobalExitRoot(nil)
 	require.NoError(t, err)
 
-	currentBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	currentBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
@@ -313,13 +314,13 @@ func TestSendSequences(t *testing.T) {
 		Timestamp:      int64(currentBlock.Time() - 1),
 		Txs:            []types.Transaction{*tx1},
 	}
-	tx, err := etherman.sequenceBatches(etherman.auth, []ethmanTypes.Sequence{sequence})
+	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence})
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
 	ethBackend.Commit()
 
 	// Now read the event
-	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	finalBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
@@ -334,10 +335,10 @@ func TestSendSequences(t *testing.T) {
 
 func TestGasPrice(t *testing.T) {
 	// Set up testing environment
-	etherman, _, _, _ := newTestingEnv()
+	etherman, _, _, _, _ := newTestingEnv()
 	etherscanM := new(etherscanMock)
 	ethGasStationM := new(ethGasStationMock)
-	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EtherClient, etherscanM, ethGasStationM}
+	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, etherscanM, ethGasStationM}
 	ctx := context.Background()
 
 	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625003), nil)
@@ -345,7 +346,7 @@ func TestGasPrice(t *testing.T) {
 	gp := etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625003), gp)
 
-	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EtherClient, ethGasStationM}
+	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, ethGasStationM}
 
 	gp = etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625002), gp)
@@ -353,9 +354,9 @@ func TestGasPrice(t *testing.T) {
 
 func TestErrorEthGasStationPrice(t *testing.T) {
 	// Set up testing environment
-	etherman, _, _, _ := newTestingEnv()
+	etherman, _, _, _, _ := newTestingEnv()
 	ethGasStationM := new(ethGasStationMock)
-	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EtherClient, ethGasStationM}
+	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, ethGasStationM}
 	ctx := context.Background()
 
 	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from ethGasStation"))
@@ -363,7 +364,7 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 	assert.Equal(t, big.NewInt(765625001), gp)
 
 	etherscanM := new(etherscanMock)
-	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EtherClient, etherscanM, ethGasStationM}
+	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, etherscanM, ethGasStationM}
 
 	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625003), nil)
 	gp = etherman.getGasPrice(ctx)
@@ -372,10 +373,10 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 
 func TestErrorEtherScanPrice(t *testing.T) {
 	// Set up testing environment
-	etherman, _, _, _ := newTestingEnv()
+	etherman, _, _, _, _ := newTestingEnv()
 	etherscanM := new(etherscanMock)
 	ethGasStationM := new(ethGasStationMock)
-	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EtherClient, etherscanM, ethGasStationM}
+	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, etherscanM, ethGasStationM}
 	ctx := context.Background()
 
 	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from etherscan"))

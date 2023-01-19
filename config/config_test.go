@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -141,14 +142,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(1337),
 		},
 		{
-			path:          "Etherman.PrivateKeyPath",
-			expectedValue: "",
-		},
-		{
-			path:          "Etherman.PrivateKeyPassword",
-			expectedValue: "",
-		},
-		{
 			path:          "Etherman.PoEAddr",
 			expectedValue: common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
 		},
@@ -165,36 +158,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
-			path:          "EthTxManager.MaxSendBatchTxRetries",
-			expectedValue: uint32(10),
-		},
-		{
-			path:          "EthTxManager.MaxVerifyBatchTxRetries",
-			expectedValue: uint32(10),
-		},
-		{
-			path:          "EthTxManager.FrequencyForResendingFailedSendBatches",
-			expectedValue: types.NewDuration(1 * time.Second),
-		},
-		{
-			path:          "EthTxManager.FrequencyForResendingFailedVerifyBatch",
+			path:          "EthTxManager.FrequencyToMonitorTxs",
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
 			path:          "EthTxManager.WaitTxToBeMined",
 			expectedValue: types.NewDuration(2 * time.Minute),
-		},
-		{
-			path:          "EthTxManager.WaitTxToBeSynced",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "EthTxManager.PercentageToIncreaseGasPrice",
-			expectedValue: uint64(10),
-		},
-		{
-			path:          "EthTxManager.PercentageToIncreaseGasLimit",
-			expectedValue: uint64(10),
 		},
 		{
 			path:          "PriceGetter.Type",
@@ -370,4 +339,29 @@ func getValueFromStruct(path string, object interface{}) interface{} {
 		v = v.FieldByName(key)
 	}
 	return v.Interface()
+}
+
+func TestEnvVarArrayDecoding(t *testing.T) {
+	file, err := os.CreateTemp("", "genesisConfig")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Remove(file.Name()))
+	}()
+	require.NoError(t, os.WriteFile(file.Name(), []byte("{}"), 0600))
+	flagSet := flag.NewFlagSet("", flag.PanicOnError)
+	flagSet.String(config.FlagGenesisFile, file.Name(), "")
+	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
+
+	os.Setenv("ZKEVM_NODE_LOG_OUTPUTS", "a,b,c")
+	defer func() {
+		os.Unsetenv("ZKEVM_NODE_LOG_OUTPUTS")
+	}()
+
+	cfg, err := config.Load(ctx)
+	require.NoError(t, err)
+
+	assert.Equal(t, 3, len(cfg.Log.Outputs))
+	assert.Equal(t, "a", cfg.Log.Outputs[0])
+	assert.Equal(t, "b", cfg.Log.Outputs[1])
+	assert.Equal(t, "c", cfg.Log.Outputs[2])
 }
