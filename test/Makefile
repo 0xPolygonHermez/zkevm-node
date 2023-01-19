@@ -283,7 +283,7 @@ run: ## Runs a full node
 	sleep 1
 	$(RUNZKPROVER)
 	sleep 3
-	$(RUNSEQUENCER)
+	#$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
 	$(RUNSYNC)

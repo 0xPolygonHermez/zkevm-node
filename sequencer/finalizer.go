@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -319,7 +320,6 @@ func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.P
 	// Handle Transaction Error
 	if txResponse.Error != nil {
 		f.handleTransactionError(txResponse, result, tx)
-
 		return txResponse.Error
 	}
 
@@ -339,8 +339,20 @@ func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.P
 	f.txsStore.Ch <- &txToStore{
 		batchNumber:              f.batch.batchNumber,
 		txResponse:               txResponse,
-		previousL2BlockStateRoot: f.batch.stateRoot,
+		previousL2BlockStateRoot: f.processRequest.OldStateRoot,
 	}
+	// TODO: Remove this after result.TouchedAddresses is implemented
+	ctx := context.Background()
+	balance, err := f.dbManager.GetBalanceByStateRoot(ctx, tx.From, result.NewStateRoot)
+	if err != nil {
+		return err
+	}
+	newNonce := tx.Nonce + 1
+	result.TouchedAddresses = map[common.Address]*state.TouchedAddress{tx.From: {
+		Address: tx.From,
+		Nonce:   &newNonce,
+		Balance: balance,
+	}}
 	f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.TouchedAddresses)
 	f.batch.isEmpty = false
 
@@ -351,10 +363,17 @@ func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.P
 func (f *finalizer) handleTransactionError(txResponse *state.ProcessTransactionResponse, result *state.ProcessBatchResponse, tx *TxTracker) {
 	errorCode := executor.ErrorCode(txResponse.Error)
 	addressInfo := result.TouchedAddresses[tx.From]
+
 	if executor.IsOutOfCountersError(errorCode) {
-		f.worker.DeleteTx(tx.Hash, tx.From, addressInfo.Nonce, addressInfo.Balance)
+		f.worker.DeleteTx(tx.Hash, tx.From, nil, nil)
 	} else if executor.IsIntrinsicError(errorCode) {
-		f.worker.MoveTxToNotReady(tx.Hash, tx.From, addressInfo.Nonce, addressInfo.Balance)
+		// TODO: remove this check when the TouchedAddresses are implemented
+		newNonce := tx.Nonce + 1
+		newBalance := big.NewInt(0)
+		if addressInfo != nil {
+			newBalance = addressInfo.Balance
+		}
+		f.worker.MoveTxToNotReady(tx.Hash, tx.From, &newNonce, newBalance)
 	}
 }
 

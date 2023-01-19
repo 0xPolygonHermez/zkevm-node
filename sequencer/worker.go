@@ -117,7 +117,6 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 	defer w.workerMutex.Unlock()
 
 	touchedFrom, found := touchedAddresses[from]
-
 	if found {
 		fromNonce, fromBalance := touchedFrom.Nonce, touchedFrom.Balance
 		w.applyAddressUpdate(from, fromNonce, fromBalance)
@@ -126,7 +125,9 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 	}
 
 	for addr, addressInfo := range touchedAddresses {
-		w.applyAddressUpdate(addr, nil, addressInfo.Balance)
+		if addr != from {
+			w.applyAddressUpdate(addr, nil, addressInfo.Balance)
+		}
 	}
 }
 
@@ -136,8 +137,12 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 
 	if found {
 		// Sanity check. The txHash must be the readyTx
-		if txHash.String() != addrQueue.readyTx.HashStr {
-			log.Errorf("MoveTxToNotReady txHash(s) is not the readyTx(%s)", txHash.String(), addrQueue.readyTx.HashStr)
+		if addrQueue.readyTx == nil || txHash.String() != addrQueue.readyTx.HashStr {
+			readyHashStr := ""
+			if addrQueue.readyTx != nil {
+				readyHashStr = addrQueue.readyTx.HashStr
+			}
+			log.Errorf("MoveTxToNotReady txHash(s) is not the readyTx(%s)", txHash.String(), readyHashStr)
 			// TODO: how to manage this?
 		}
 	}
@@ -151,7 +156,6 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address, actualFromNon
 	defer w.workerMutex.Unlock()
 
 	addrQueue, found := w.pool[addr.String()]
-
 	if found {
 		deletedReadyTx := addrQueue.deleteTx(txHash)
 		if deletedReadyTx != nil {

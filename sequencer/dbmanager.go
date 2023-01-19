@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -210,7 +211,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 			d.txsStore.Wg.Done()
 			continue
 		}
-		if latestL2BlockHeader.Root != txToStore.previousL2BlockStateRoot {
+		if txToStore.previousL2BlockStateRoot != state.ZeroHash && latestL2BlockHeader.Root != txToStore.previousL2BlockStateRoot {
 			log.Info("L2 reorg detected. Old state root: %v New state root: %v", latestL2BlockHeader.Root, txToStore.previousL2BlockStateRoot)
 			d.l2ReorgCh <- L2ReorgEvent{}
 			d.txsStore.Wg.Done()
@@ -548,4 +549,8 @@ func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*typ
 
 func (d *dbManager) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	return d.state.GetLastTrustedForcedBatchNumber(ctx, dbTx)
+}
+
+func (d *dbManager) GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
+	return d.state.GetBalanceByStateRoot(ctx, address, root)
 }
