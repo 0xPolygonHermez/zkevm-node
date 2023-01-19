@@ -112,7 +112,12 @@ func Load(ctx *cli.Context) (*Config, error) {
 		}
 	}
 
-	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	decodeHooks := []viper.DecoderConfigOption{
+		// this allows arrays to be decoded from env var separated by ",", example: MY_VAR="value1,value2,value3"
+		viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(mapstructure.TextUnmarshallerHookFunc(), mapstructure.StringToSliceHookFunc(","))),
+	}
+
+	err = viper.Unmarshal(&cfg, decodeHooks...)
 	if err != nil {
 		return nil, err
 	}
