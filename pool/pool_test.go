@@ -106,7 +106,7 @@ func Test_AddTx(t *testing.T) {
 	}
 
 	const chainID = 2576980377
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
@@ -178,7 +178,7 @@ func Test_GetPendingTxs(t *testing.T) {
 		t.Error(err)
 	}
 
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
@@ -242,7 +242,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
@@ -306,7 +306,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
@@ -363,7 +363,7 @@ func Test_GetTopFailedTxsByProfitabilityAndZkCounters(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
@@ -433,7 +433,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
@@ -506,7 +506,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
@@ -551,7 +551,7 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, nil, common.Address{}, chainID.Uint64())
@@ -604,7 +604,7 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
@@ -670,7 +670,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
@@ -775,7 +775,7 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
@@ -931,7 +931,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 			expectedError: fmt.Errorf("chain id higher than allowed, max allowed is %v", uint64(math.MaxUint64)),
 		},
 	}
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	for _, testCase := range testCases {

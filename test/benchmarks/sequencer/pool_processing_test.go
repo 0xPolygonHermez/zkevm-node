@@ -185,7 +185,7 @@ func setup(ctx context.Context, b *testing.B) (*operations.Manager, *ethclient.C
 	st := opsman.State()
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDbConfig)
 	require.NoError(b, err)
-	cfg := pool.Config {
+	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	pl := pool.NewPool(cfg, s, st, common.Address{}, chainID)

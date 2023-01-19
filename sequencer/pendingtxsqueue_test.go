@@ -79,7 +79,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	cfgPool := pool.Config {
+	cfgPool := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfgPool, s, st, common.Address{}, chainID.Uint64())
@@ -158,7 +158,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	cfgPool := pool.Config {
+	cfgPool := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfgPool, s, st, common.Address{}, chainID.Uint64())
