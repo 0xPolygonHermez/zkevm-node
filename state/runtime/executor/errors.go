@@ -87,10 +87,10 @@ const (
 func RomErr(errorCode pb.RomError) error {
 	e := int32(errorCode)
 	switch e {
-	case ROM_ERROR_NO_ERROR:
-		return nil
 	case ROM_ERROR_UNSPECIFIED:
 		return fmt.Errorf("unspecified ROM error")
+	case ROM_ERROR_NO_ERROR:
+		return nil
 	case ROM_ERROR_OUT_OF_GAS:
 		return runtime.ErrOutOfGas
 	case ROM_ERROR_STACK_OVERFLOW:
@@ -206,9 +206,14 @@ func RomErrorCode(err error) pb.RomError {
 	return math.MaxInt32
 }
 
-// IsOutOfCountersError indicates if the error is an OOC
-func IsOutOfCountersError(error pb.RomError) bool {
+// IsROMOutOfCountersError indicates if the error is an ROM OOC
+func IsROMOutOfCountersError(error pb.RomError) bool {
 	return int32(error) >= ROM_ERROR_OUT_OF_COUNTERS_STEP && int32(error) <= ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
+}
+
+// IsExecutorOutOfCountersError indicates if the error is an ROM OOC
+func IsExecutorOutOfCountersError(error pb.ExecutorError) bool {
+	return int32(error) >= EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK && int32(error) <= ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
 }
 
 // IsIntrinsicError indicates if the error is due to a intrinsic check
@@ -220,10 +225,10 @@ func IsIntrinsicError(error pb.RomError) bool {
 func ExecutorErr(errorCode pb.ExecutorError) error {
 	e := int32(errorCode)
 	switch e {
-	case EXECUTOR_ERROR_NO_ERROR:
-		return nil
 	case EXECUTOR_ERROR_UNSPECIFIED:
 		return fmt.Errorf("unspecified executor error")
+	case EXECUTOR_ERROR_NO_ERROR:
+		return nil
 	case EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK:
 		return runtime.ErrOutOfCountersKeccak
 	case EXECUTOR_ERROR_COUNTERS_OVERFLOW_BINARY:

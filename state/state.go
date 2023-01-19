@@ -439,9 +439,11 @@ func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 
-	if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
-		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+	if err != nil {
+		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+			err = executor.ExecutorErr(processBatchResponse.Error)
+			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		}
 	}
 
 	return processBatchResponse, err
@@ -722,7 +724,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
 		if !isProcessed(processed.Responses[i].Error) {
-			if executor.IsOutOfCountersError(processed.Responses[i].Error) {
+			if executor.IsROMOutOfCountersError(processed.Responses[i].Error) {
 				processed.Responses = []*pb.ProcessTransactionResponse{}
 				break
 			}

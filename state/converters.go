@@ -35,7 +35,7 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 	if isBatchProcessed && len(response.Responses) > 0 {
 		// Check out of counters
 		errorToCheck := response.Responses[len(response.Responses)-1].Error
-		isBatchProcessed = !executor.IsOutOfCountersError(errorToCheck)
+		isBatchProcessed = !executor.IsROMOutOfCountersError(errorToCheck)
 	}
 
 	return &ProcessBatchResponse{
@@ -52,7 +52,7 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 }
 
 func isProcessed(err pb.RomError) bool {
-	return !executor.IsIntrinsicError(err) && !executor.IsOutOfCountersError(err)
+	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
 }
 
 func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) ([]*InfoReadWrite, error) {
