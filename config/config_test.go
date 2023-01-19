@@ -142,14 +142,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(1337),
 		},
 		{
-			path:          "Etherman.PrivateKeyPath",
-			expectedValue: "",
-		},
-		{
-			path:          "Etherman.PrivateKeyPassword",
-			expectedValue: "",
-		},
-		{
 			path:          "Etherman.PoEAddr",
 			expectedValue: common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
 		},
@@ -166,36 +158,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
-			path:          "EthTxManager.MaxSendBatchTxRetries",
-			expectedValue: uint32(10),
-		},
-		{
-			path:          "EthTxManager.MaxVerifyBatchTxRetries",
-			expectedValue: uint32(10),
-		},
-		{
-			path:          "EthTxManager.FrequencyForResendingFailedSendBatches",
-			expectedValue: types.NewDuration(1 * time.Second),
-		},
-		{
-			path:          "EthTxManager.FrequencyForResendingFailedVerifyBatch",
+			path:          "EthTxManager.FrequencyToMonitorTxs",
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
 			path:          "EthTxManager.WaitTxToBeMined",
 			expectedValue: types.NewDuration(2 * time.Minute),
-		},
-		{
-			path:          "EthTxManager.WaitTxToBeSynced",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "EthTxManager.PercentageToIncreaseGasPrice",
-			expectedValue: uint64(10),
-		},
-		{
-			path:          "EthTxManager.PercentageToIncreaseGasLimit",
-			expectedValue: uint64(10),
 		},
 		{
 			path:          "PriceGetter.Type",

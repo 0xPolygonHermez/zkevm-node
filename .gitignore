@@ -15,3 +15,5 @@
 .idea/
 
 out.dat
+
+cmd/__debug_bin
