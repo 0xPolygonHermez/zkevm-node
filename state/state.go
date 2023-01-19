@@ -1457,6 +1457,11 @@ func (s *State) monitorNewL2Blocks() {
 	}
 
 	for {
+		if len(s.newL2BlockEventHandlers) == 0 {
+			waitNextCycle()
+			continue
+		}
+
 		lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
 		if errors.Is(err, ErrStateNotSynchronized) {
 			waitNextCycle()
@@ -1494,10 +1499,12 @@ func (s *State) monitorNewL2Blocks() {
 
 func (s *State) handleEvents() {
 	for newL2BlockEvent := range s.newL2BlockEvents {
-		log.Infof("reacting to new l2 block, Number %v, Hash %v", newL2BlockEvent.Block.NumberU64(), newL2BlockEvent.Block.Hash().String())
+		if len(s.newL2BlockEventHandlers) == 0 {
+			continue
+		}
+
 		wg := sync.WaitGroup{}
-		for index, handler := range s.newL2BlockEventHandlers {
-			log.Infof("executing new l2 block event handler for block, Number %v, Hash %v, Handler Index: %v", newL2BlockEvent.Block.NumberU64(), newL2BlockEvent.Block.Hash().String(), index)
+		for _, handler := range s.newL2BlockEventHandlers {
 			wg.Add(1)
 			go func(h NewL2BlockEventHandler) {
 				defer func() {
@@ -1526,6 +1533,7 @@ type NewL2BlockEvent struct {
 // RegisterNewL2BlockEventHandler add the provided handler to the list of handlers
 // that will be triggered when a new l2 block event is triggered
 func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
+	log.Info("new l2 block event handler registered")
 	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
 }
 

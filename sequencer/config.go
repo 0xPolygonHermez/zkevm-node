@@ -80,6 +80,14 @@ type Config struct {
 
 	// Maximum allowed failed counter for the tx before it becomes invalid
 	MaxAllowedFailedCounter uint64 `mapstructure:"MaxAllowedFailedCounter"`
+
+	// SenderAddress defines which private key the eth tx manager needs to use
+	// to sign the L1 txs
+	SenderAddress string `mapstructure:"SenderAddress"`
+
+	// PrivateKeys defines all the key store files that are going
+	// to be read in order to provide the private keys to sign the L1 txs
+	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
 }
 
 // MaxSequenceSize is a wrapper type that parses token amount to big int
