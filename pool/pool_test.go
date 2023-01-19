@@ -106,7 +106,10 @@ func Test_AddTx(t *testing.T) {
 	}
 
 	const chainID = 2576980377
-	p := pool.NewPool(s, st, common.Address{}, chainID)
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
 
 	txRLPHash := "0xf86e8212658082520894fd8b27a263e19f0e9592180e61f0f8c9dfeb1ff6880de0b6b3a764000080850133333355a01eac4c2defc7ed767ae36bbd02613c581b8fb87d0e4f579c9ee3a7cfdb16faa7a043ce30f43d952b9d034cf8f04fecb631192a5dbc7ee2a47f1f49c0d022a8849d"
 	b, err := hex.DecodeHex(txRLPHash)
@@ -175,7 +178,10 @@ func Test_GetPendingTxs(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
 	const limit = 5
@@ -236,8 +242,10 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
 	const limit = 0
@@ -298,8 +306,10 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
 
@@ -353,8 +363,10 @@ func Test_GetTopFailedTxsByProfitabilityAndZkCounters(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
 
@@ -421,8 +433,10 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -492,8 +506,10 @@ func Test_UpdateTxStatus(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -535,8 +551,10 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	p := pool.NewPool(s, nil, common.Address{}, chainID.Uint64())
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, nil, common.Address{}, chainID.Uint64())
 
 	nBig, err := rand.Int(rand.Reader, big.NewInt(0).SetUint64(math.MaxUint64))
 	if err != nil {
@@ -586,8 +604,10 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -650,8 +670,10 @@ func TestGetPendingTxSince(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
 
@@ -753,8 +775,10 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -907,11 +931,13 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 			expectedError: fmt.Errorf("chain id higher than allowed, max allowed is %v", uint64(math.MaxUint64)),
 		},
 	}
-
+	cfg := pool.Config {
+		FreeClaimGasLimit: 150000,
+	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			incompatibleTx := testCase.createIncompatibleTx()
-			p := pool.NewPool(s, st, common.Address{}, incompatibleTx.ChainId().Uint64())
+			p := pool.NewPool(cfg, s, st, common.Address{}, incompatibleTx.ChainId().Uint64())
 			err = p.AddTx(ctx, incompatibleTx)
 			assert.Equal(t, testCase.expectedError, err)
 		})

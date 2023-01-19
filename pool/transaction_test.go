@@ -72,10 +72,10 @@ func Test_IsClaimTx(t *testing.T) {
 			expectedResult: true,
 		},
 	}
-
+	const freeClaimGasLimit uint64 = 150000
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			result := testCase.Tx.IsClaimTx(l2BridgeAddr)
+			result := testCase.Tx.IsClaimTx(l2BridgeAddr, freeClaimGasLimit)
 			if result != testCase.expectedResult {
 				t.Errorf("Invalid result, expected: %v, found: %v", testCase.expectedResult, result)
 			}

@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
@@ -49,6 +50,7 @@ type Config struct {
 	Log                log.Config
 	Etherman           etherman.Config
 	EthTxManager       ethtxmanager.Config
+	Pool               pool.Config
 	RPC                jsonrpc.Config
 	Synchronizer       synchronizer.Config
 	Sequencer          sequencer.Config
@@ -60,7 +62,6 @@ type Config struct {
 	BroadcastServer    broadcast.ServerConfig
 	MTClient           merkletree.Config
 	StateDB            db.Config
-	PoolDB             db.Config
 	Metrics            metrics.Config
 }
 
