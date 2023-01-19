@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -25,34 +26,68 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 		return nil, err
 	}
 
-	// Check out of counters ROM and regular
-	isBatchProcessed := !executor.IsOutOfCountersError(response.Error)
+	readWriteAddresses, err := convertToReadWriteAddresses(response.ReadWriteAddresses)
+	if err != nil {
+		return nil, err
+	}
+
+	isBatchProcessed := response.Error == executor.EXECUTOR_ERROR_NO_ERROR
 	if isBatchProcessed && len(response.Responses) > 0 {
+		// Check out of counters
 		errorToCheck := response.Responses[len(response.Responses)-1].Error
-		isBatchProcessed = !executor.IsOutOfCountersError(errorToCheck)
+		isBatchProcessed = !executor.IsROMOutOfCountersError(errorToCheck)
 	}
 
 	return &ProcessBatchResponse{
-		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
-		NewAccInputHash:     common.BytesToHash(response.NewAccInputHash),
-		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
-		NewBatchNumber:      response.NewBatchNum,
-		CntKeccakHashes:     response.CntKeccakHashes,
-		CntPoseidonHashes:   response.CntPoseidonHashes,
-		CntPoseidonPaddings: response.CntPoseidonPaddings,
-		CntMemAligns:        response.CntMemAligns,
-		CntArithmetics:      response.CntArithmetics,
-		CntBinaries:         response.CntBinaries,
-		CntSteps:            response.CntSteps,
-		CumulativeGasUsed:   response.CumulativeGasUsed,
-		Responses:           responses,
-		Error:               executor.Err(response.Error),
-		IsBatchProcessed:    isBatchProcessed,
+		NewStateRoot:       common.BytesToHash(response.NewStateRoot),
+		NewAccInputHash:    common.BytesToHash(response.NewAccInputHash),
+		NewLocalExitRoot:   common.BytesToHash(response.NewLocalExitRoot),
+		NewBatchNumber:     response.NewBatchNum,
+		UsedZkCounters:     convertToCounters(response),
+		Responses:          responses,
+		ExecutorError:      executor.ExecutorErr(response.Error),
+		IsBatchProcessed:   isBatchProcessed,
+		ReadWriteAddresses: readWriteAddresses,
 	}, nil
 }
 
-func isProcessed(err pb.Error) bool {
-	return !executor.IsIntrinsicError(err) && !executor.IsOutOfCountersError(err)
+func isProcessed(err pb.RomError) bool {
+	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
+}
+
+func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) ([]*InfoReadWrite, error) {
+	results := make([]*InfoReadWrite, 0, len(addresses))
+
+	for addr, addrInfo := range addresses {
+		var nonce *uint64 = nil
+		var balance *big.Int = nil
+		var ok bool
+
+		address := common.HexToAddress(addr)
+
+		if addrInfo.Nonce != "" {
+			bigNonce, ok := new(big.Int).SetString(addrInfo.Nonce, encoding.Base10)
+			if !ok {
+				log.Debugf("received nonce as string: %v", addrInfo.Nonce)
+				return nil, fmt.Errorf("error while parsing address nonce")
+			}
+			nonceNp := bigNonce.Uint64()
+			nonce = &nonceNp
+		}
+
+		if addrInfo.Balance != "" {
+			balance, ok = new(big.Int).SetString(addrInfo.Balance, encoding.Base10)
+			if !ok {
+				log.Debugf("received balance as string: %v", addrInfo.Balance)
+				return nil, fmt.Errorf("error while parsing address balance")
+			}
+		}
+
+		result := &InfoReadWrite{Address: address, Nonce: nonce, Balance: balance}
+		results = append(results, result)
+	}
+
+	return results, nil
 }
 
 func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
@@ -70,20 +105,27 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.GasLeft = response.GasLeft
 		result.GasUsed = response.GasUsed
 		result.GasRefunded = response.GasRefunded
-		result.Error = executor.Err(response.Error)
+		result.RomError = executor.RomErr(response.Error)
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
 		result.IsProcessed = isProcessed(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
-		result.Tx = txs[i]
+
+		tx, err := DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
+		if err != nil {
+			return nil, err
+		}
+
+		result.Tx = *tx
+
 		results = append(results, result)
 
 		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
 		log.Debugf("ProcessTransactionResponse[Nonce]: %v", txs[i].Nonce())
 		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
-		log.Debugf("ProcessTransactionResponse[Error]: %v", result.Error)
+		log.Debugf("ProcessTransactionResponse[Error]: %v", result.RomError)
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
 		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
 		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
@@ -141,7 +183,7 @@ func convertToStructLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumenta
 		result.Storage = convertToProperMap(response.Storage)
 		result.Depth = int(response.Depth)
 		result.RefundCounter = response.GasRefund
-		result.Err = executor.Err(response.Error)
+		result.Err = executor.RomErr(response.Error)
 
 		results = append(results, *result)
 	}
@@ -156,7 +198,7 @@ func convertToBigIntArray(responses []string) ([]*big.Int, error) {
 		if ok {
 			results = append(results, result)
 		} else {
-			return nil, fmt.Errorf("String %s is not valid", response)
+			return nil, fmt.Errorf("string %s is not valid", response)
 		}
 	}
 	return results, nil
@@ -207,7 +249,7 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrument
 		step.OpCode = fakevm.OpCode(response.Op).String()
 		step.Refund = fmt.Sprint(response.GasRefund)
 		step.Op = fmt.Sprint(response.Op)
-		err := executor.Err(response.Error)
+		err := executor.RomErr(response.Error)
 		if err != nil {
 			step.Error = err.Error()
 		}
@@ -238,4 +280,17 @@ func convertByteArrayToStringArray(responses []byte) []string {
 		results = append(results, string(response))
 	}
 	return results
+}
+
+func convertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
+	return ZKCounters{
+		CumulativeGasUsed:    resp.CumulativeGasUsed,
+		UsedKeccakHashes:     resp.CntKeccakHashes,
+		UsedPoseidonHashes:   resp.CntPoseidonHashes,
+		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
+		UsedMemAligns:        resp.CntMemAligns,
+		UsedArithmetics:      resp.CntArithmetics,
+		UsedBinaries:         resp.CntBinaries,
+		UsedSteps:            resp.CntSteps,
+	}
 }

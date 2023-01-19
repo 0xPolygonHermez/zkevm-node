@@ -1614,14 +1614,14 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx, state.SequencerCallerLabel)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
-	assert.Nil(t, processBatchResponse.Responses[0].Error)
+	assert.Nil(t, processBatchResponse.Responses[0].RomError)
 	assert.Equal(t, scAddress, processBatchResponse.Responses[0].CreateAddress)
 
 	// assert signed tx to increment counter
-	assert.Nil(t, processBatchResponse.Responses[1].Error)
+	assert.Nil(t, processBatchResponse.Responses[1].RomError)
 
 	// assert signed tx to increment counter
-	assert.Nil(t, processBatchResponse.Responses[2].Error)
+	assert.Nil(t, processBatchResponse.Responses[2].RomError)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
 
 	// Add txs to DB
@@ -2369,12 +2369,12 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[2].Error)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[3].Error)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[4].Error)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[5].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[2].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[3].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[4].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[5].Error)
 
 	// Check SC code
 	// Check Smart Contracts Code
@@ -2452,7 +2452,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 
 	processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
 	log.Debugf("Used gas = %v", processBatchResponse.Responses[0].GasUsed)
 }
 
@@ -2594,7 +2594,7 @@ func TestStoreDebugInfo(t *testing.T) {
 	require.NoError(t, err)
 
 	// Log as it failed
-	testState.LogROMOutOfCountersError(executorclientpb.Error_ERROR_OUT_OF_COUNTERS_KECCAK, processBatchRequest)
+	testState.LogExecutorError(executorclientpb.ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK, processBatchRequest)
 	require.NoError(t, err)
 
 	payload, err := json.Marshal(processBatchRequest)
@@ -2602,6 +2602,6 @@ func TestStoreDebugInfo(t *testing.T) {
 
 	err = testState.PostgresStorage.QueryRow(ctx, "SELECT * FROM state.debug").Scan(&debugInfo.ErrorType, &debugInfo.Timestamp, &debugInfo.Payload)
 	assert.NoError(t, err)
-	assert.Equal(t, state.DebugInfoErrorType_ROM_OOC, debugInfo.ErrorType)
+	assert.Equal(t, state.DebugInfoErrorType_EXECUTOR_ERROR, debugInfo.ErrorType)
 	assert.Equal(t, string(payload), debugInfo.Payload)
 }
