@@ -112,7 +112,7 @@ func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, from
 }
 
 // UpdateAfterSingleSuccessfulTxExecution updates the touched addresses after execute on Executor a successfully tx
-func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress) {
+func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 

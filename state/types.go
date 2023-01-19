@@ -12,13 +12,6 @@ import (
 
 var ()
 
-// TouchedAddress represents affected address after executor processing one or multiple txs
-type TouchedAddress struct {
-	Address common.Address
-	Nonce   *uint64
-	Balance *big.Int
-}
-
 // ProcessRequest represents the request of a batch process.
 type ProcessRequest struct {
 	BatchNumber     uint64
@@ -41,7 +34,7 @@ type ProcessBatchResponse struct {
 	Responses          []*ProcessTransactionResponse
 	ExecutorError      error
 	IsBatchProcessed   bool
-	ReadWriteAddresses []*InfoReadWrite
+	ReadWriteAddresses map[common.Address]*InfoReadWrite
 }
 
 // ProcessTransactionResponse represents the response of a tx process.

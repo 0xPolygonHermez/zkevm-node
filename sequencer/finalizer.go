@@ -354,8 +354,8 @@ func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.P
 // handleTransactionError handles the error of a transaction
 func (f *finalizer) handleTransactionError(txResponse *state.ProcessTransactionResponse, result *state.ProcessBatchResponse, tx *TxTracker) {
 	errorCode := executor.RomErrorCode(txResponse.RomError)
-	addressInfo := result.TouchedAddresses[tx.From]
-	if executor.IsOutOfCountersError(errorCode) {
+	addressInfo := result.ReadWriteAddresses[tx.From]
+	if executor.IsROMOutOfCountersError(errorCode) {
 		f.worker.DeleteTx(tx.Hash, tx.From, addressInfo.Nonce, addressInfo.Balance)
 	} else if executor.IsIntrinsicError(errorCode) {
 		f.worker.MoveTxToNotReady(tx.Hash, tx.From, addressInfo.Nonce, addressInfo.Balance)
@@ -517,9 +517,9 @@ func (f *finalizer) reprocessBatch(ctx context.Context) error {
 		return err
 	}
 	result, err := f.executor.ProcessBatch(ctx, processRequest)
-	if err != nil || (result == nil || (result.IsBatchProcessed == false || result.Error != nil)) {
-		if result != nil && result.Error != nil {
-			err = result.Error
+	if err != nil || (result == nil || (result.IsBatchProcessed == false || result.ExecutorError != nil)) {
+		if result != nil && result.ExecutorError != nil {
+			err = result.ExecutorError
 		}
 		log.Errorf("failed to reprocess batch, err: %s", err)
 		return err

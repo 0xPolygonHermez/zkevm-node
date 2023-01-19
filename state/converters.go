@@ -68,8 +68,8 @@ func isProcessed(err pb.RomError) bool {
 	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
 }
 
-func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) ([]*InfoReadWrite, error) {
-	results := make([]*InfoReadWrite, 0, len(addresses))
+func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) (map[common.Address]*InfoReadWrite, error) {
+	results := make(map[common.Address]*InfoReadWrite, len(addresses))
 
 	for addr, addrInfo := range addresses {
 		var nonce *uint64 = nil
@@ -96,8 +96,7 @@ func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) ([]*Inf
 			}
 		}
 
-		result := &InfoReadWrite{Address: address, Nonce: nonce, Balance: balance}
-		results = append(results, result)
+		results[address] = &InfoReadWrite{Address: address, Nonce: nonce, Balance: balance}
 	}
 
 	return results, nil

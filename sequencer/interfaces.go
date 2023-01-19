@@ -74,7 +74,7 @@ type stateInterface interface {
 
 type workerInterface interface {
 	GetBestFittingTx(resources batchResources) *TxTracker
-	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress)
+	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite)
 	UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters)
 	AddTx(ctx context.Context, txTracker *TxTracker)
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int)

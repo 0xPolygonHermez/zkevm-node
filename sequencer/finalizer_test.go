@@ -226,23 +226,23 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 	tx := &TxTracker{Hash: hash, From: sender}
 	testCases := []struct {
 		name               string
-		error              pb.Error
+		error              pb.RomError
 		expectedDeleteCall bool
 		expectedMoveCall   bool
 	}{
 		{
 			name:               "OutOfCountersError",
-			error:              pb.Error(executor.ERROR_OUT_OF_COUNTERS_STEP),
+			error:              pb.RomError(executor.ROM_ERROR_OUT_OF_COUNTERS_STEP),
 			expectedDeleteCall: true,
 		},
 		{
 			name:             "IntrinsicError",
-			error:            pb.Error(executor.ERROR_INVALID_TX),
+			error:            pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_BALANCE),
 			expectedMoveCall: true,
 		},
 		{
 			name:  "OtherError",
-			error: pb.Error(math.MaxInt32),
+			error: pb.RomError(math.MaxInt32),
 		},
 	}
 	for _, tc := range testCases {
@@ -255,12 +255,12 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 				workerMock.On("MoveTxToNotReady", hash, sender, &nonce, big.NewInt(0)).Return().Once()
 			}
 			result := &state.ProcessBatchResponse{
-				TouchedAddresses: map[common.Address]*state.TouchedAddress{
+				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
 					sender: {Nonce: &nonce, Balance: big.NewInt(0)},
 				},
 			}
 			txResponse := &state.ProcessTransactionResponse{
-				Error: executor.Err(tc.error),
+				RomError: executor.RomErr(tc.error),
 			}
 
 			// act
@@ -779,7 +779,7 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 			},
 			expectedProcessBatchResult: &state.ProcessBatchResponse{
 				IsBatchProcessed: false,
-				Error:            testErr2,
+				ExecutorError:    testErr2,
 			},
 		},
 	}
