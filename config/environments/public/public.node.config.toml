@@ -50,7 +50,7 @@ SyncChunkSize = 10000
 TrustedSequencerURI = ""
 GenBlockNumber = 7710669
 
-[GasPriceEstimator]
+[L2GasPriceSuggestor]
 Type = "default"
 DefaultGasPriceWei = 1000000000
 

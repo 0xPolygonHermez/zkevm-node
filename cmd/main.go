@@ -24,8 +24,8 @@ const (
 	SYNCHRONIZER = "synchronizer"
 	// BROADCAST is the broadcast component identifier.
 	BROADCAST = "broadcast-trusted-state"
-	// GASPRICER is the gas pricer component identifier.
-	GASPRICER = "gaspricer"
+	// L2GASPRICER is the l2 gas pricer component identifier.
+	L2GASPRICER = "l2gaspricer"
 )
 
 var (
@@ -52,7 +52,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, GASPRICER),
+		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, L2GASPRICER),
 	}
 	httpAPIFlag = cli.StringSliceFlag{
 		Name:     config.FlagHTTPAPI,

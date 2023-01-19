@@ -15,8 +15,8 @@ type Follower struct {
 	eth  ethermanInterface
 }
 
-// newFollowerGasEstimator init default gas price estimator.
-func newFollowerGasEstimator(ctx context.Context, cfg Config, pool pool, ethMan ethermanInterface) *Follower {
+// newFollowerGasPriceSuggestor init default gas price suggestor.
+func newFollowerGasPriceSuggestor(ctx context.Context, cfg Config, pool pool, ethMan ethermanInterface) *Follower {
 	gpe := &Follower{
 		cfg:  cfg,
 		pool: pool,

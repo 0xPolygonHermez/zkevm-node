@@ -205,7 +205,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
 		},
 		{
-			path:          "GasPriceEstimator.DefaultGasPriceWei",
+			path:          "L2GasPriceSuggestor.DefaultGasPriceWei",
 			expectedValue: uint64(1000000000),
 		},
 		{

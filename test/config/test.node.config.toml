@@ -95,7 +95,7 @@ TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
 
-[GasPriceEstimator]
+[L2GasPriceSuggestor]
 Type = "follower"
 UpdatePeriod = "10s"
 Factor = 0.5

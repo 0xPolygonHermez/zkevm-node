@@ -116,10 +116,10 @@ func start(cliCtx *cli.Context) error {
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, st)
-		case GASPRICER:
-			log.Info("Running gasPricer")
+		case L2GASPRICER:
+			log.Info("Running L2 gasPricer")
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
-			go runGasPriceEstimator(c.GasPriceEstimator, st, poolInstance, etherman)
+			go runL2GasPriceSuggestor(c.L2GasPriceSuggestor, st, poolInstance, etherman)
 		}
 	}
 
@@ -223,10 +223,10 @@ func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {
 	broadcastSrv.Start()
 }
 
-// runGasPriceEstimator init gas price gasPriceEstimator based on type in config.
-func runGasPriceEstimator(cfg gasprice.Config, state *state.State, pool *pool.Pool, etherman *etherman.Client) {
+// runL2GasPriceSuggestor init gas price gasPriceEstimator based on type in config.
+func runL2GasPriceSuggestor(cfg gasprice.Config, state *state.State, pool *pool.Pool, etherman *etherman.Client) {
 	ctx := context.Background()
-	gp := gasprice.NewGasPricer(ctx, cfg, pool, etherman, state)
+	gp := gasprice.NewL2GasPriceSuggestor(ctx, cfg, pool, etherman, state)
 	err := gp.Start()
 	if err != nil {
 		log.Fatal("error Starting gasPricer: ", err)

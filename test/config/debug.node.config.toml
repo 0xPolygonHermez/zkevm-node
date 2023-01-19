@@ -98,7 +98,7 @@ TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 IntervalFrequencyToGetProofGenerationState = "5s"
 
-[GasPriceEstimator]
+[L2GasPriceSuggestor]
 Type = "default"
 DefaultGasPriceWei = 1000000000
 
