@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -27,7 +28,7 @@ type genesisFromJSON struct {
 	Transactions []genesisTxsFromJSON     `json:"transactions"`
 }
 
-type genesisTxsFromJSON struct  {
+type genesisTxsFromJSON struct {
 	RawTx         string          `json:"rawTx"`
 	Receipt       receiptFromJSON `json:"receipt"`
 	CreateAddress string          `json:"createAddress"`
@@ -88,11 +89,11 @@ func loadGenesisFileConfig(ctx *cli.Context) (NetworkConfig, error) {
 		}
 
 		cfg.Genesis = state.Genesis{
-			Root:         common.HexToHash(cfgJSON.Root),
-			Actions:      []*state.GenesisAction{},
+			Root:    common.HexToHash(cfgJSON.Root),
+			Actions: []*state.GenesisAction{},
 		}
 		for _, tx := range cfgJSON.Transactions {
-			gasUsed, err := strconv.ParseUint(tx.Receipt.GasUsed, 0, 64)
+			gasUsed, err := strconv.ParseUint(tx.Receipt.GasUsed, 0, encoding.BitSize64)
 			if err != nil {
 				log.Error("error decoding genesis gasUsed. Error: ", err)
 				return cfg, err
@@ -102,7 +103,7 @@ func loadGenesisFileConfig(ctx *cli.Context) (NetworkConfig, error) {
 				Receipt: state.GenesisReceipt{
 					Status:  tx.Receipt.Status,
 					GasUsed: gasUsed,
-					Logs: tx.Receipt.Logs,
+					Logs:    tx.Receipt.Logs,
 				},
 				CreateAddress: common.HexToAddress(tx.CreateAddress),
 			}

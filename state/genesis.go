@@ -20,12 +20,14 @@ type GenesisAction struct {
 	Root            string `json:"root"`
 }
 
+// GenesisTx represents the txs of the genesis
 type GenesisTx struct {
-	RawTx         string          `json:"rawTx"`
+	RawTx         string         `json:"rawTx"`
 	Receipt       GenesisReceipt `json:"receipt"`
-	CreateAddress common.Address  `json:"createAddress"`
+	CreateAddress common.Address `json:"createAddress"`
 }
 
+// GenesisReceipt represents the genesis receipt
 type GenesisReceipt struct {
 	Status  uint8           `json:"status"`
 	GasUsed uint64          `json:"gasUsed"`

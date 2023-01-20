@@ -1396,24 +1396,25 @@ func generateGenesisTxsAndReceipts(transactions []GenesisTx) ([]*types.Transacti
 			log.Error("error decoding rawBytes. Error: ", err)
 			return []*types.Transaction{}, []*types.Receipt{}, err
 		}
-		for _, tx := range txsAux{
-			txs = append(txs, &tx)
+		for _, tx := range txsAux {
+			t := tx
+			txs = append(txs, &t)
 		}
 
 		// Generate receipts
 		cumulativeGasUsed += tx.Receipt.GasUsed
 		txHash := txsAux[0].Hash()
-		receipt := types.Receipt {
-			Type: 0,
-			PostState: []byte{},
-			Status: uint64(tx.Receipt.Status),
+		receipt := types.Receipt{
+			Type:              0,
+			PostState:         []byte{},
+			Status:            uint64(tx.Receipt.Status),
 			CumulativeGasUsed: cumulativeGasUsed,
 			//Bloom
 			//Logs
-			TxHash: txHash,
-			ContractAddress: tx.CreateAddress,
-			GasUsed: tx.Receipt.GasUsed,
-			BlockNumber: big.NewInt(0),
+			TxHash:           txHash,
+			ContractAddress:  tx.CreateAddress,
+			GasUsed:          tx.Receipt.GasUsed,
+			BlockNumber:      big.NewInt(0),
 			TransactionIndex: uint(i),
 		}
 		receipts = append(receipts, &receipt)
