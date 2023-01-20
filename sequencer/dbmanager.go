@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -153,11 +154,29 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 	// TODO: Finish the retry mechanism and error handling
 	for {
 		txToStore := <-d.txsStore.Ch
-
+		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
 		dbTx, err := d.BeginStateTransaction(d.ctx)
 		if err != nil {
 			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
+
+		// Check if the Tx is still valid in the state to detect reorgs
+		lastStateRoot, err := d.state.GetLastStateRoot(d.ctx, dbTx)
+		if err != nil {
+			err = dbTx.Rollback(d.ctx)
+			if err != nil {
+				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
+			}
+			d.txsStore.Wg.Done()
+			continue
+		}
+		if txToStore.previousL2BlockStateRoot != state.ZeroHash && lastStateRoot != txToStore.previousL2BlockStateRoot {
+			log.Warnf("L2 reorg detected. Expected OldStateRoot: %v actual OldStateRoot: %v", lastStateRoot, txToStore.previousL2BlockStateRoot)
+			d.l2ReorgCh <- L2ReorgEvent{}
+			d.txsStore.Wg.Done()
+			continue
+		}
+
 		err = d.StoreProcessedTransaction(d.ctx, txToStore.batchNumber, txToStore.txResponse, txToStore.coinbase, txToStore.timestamp, dbTx)
 		if err != nil {
 			err = dbTx.Rollback(d.ctx)
@@ -200,23 +219,6 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 			continue
 		}
 
-		// Check if the Tx is still valid in the state to detect reorgs
-		latestL2BlockHeader, err := d.state.GetLastL2BlockHeader(d.ctx, dbTx)
-		if err != nil {
-			err = dbTx.Rollback(d.ctx)
-			if err != nil {
-				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
-			}
-			d.txsStore.Wg.Done()
-			continue
-		}
-		if latestL2BlockHeader.Root != txToStore.previousL2BlockStateRoot {
-			log.Info("L2 reorg detected. Old state root: %v New state root: %v", latestL2BlockHeader.Root, txToStore.previousL2BlockStateRoot)
-			d.l2ReorgCh <- L2ReorgEvent{}
-			d.txsStore.Wg.Done()
-			continue
-		}
-
 		// Change Tx status to selected
 		d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected)
 		if err != nil {
@@ -240,8 +242,18 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 // GetWIPBatch returns ready WIP batch
 func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	var lastBatch, previousLastBatch *state.Batch
+	dbTx, err := d.BeginStateTransaction(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err := dbTx.Commit(ctx)
+		if err != nil {
+			log.Errorf("failed to commit GetWIPBatch: %v", err)
+		}
+	}()
 
-	lastBatches, err := d.state.GetLastNBatches(ctx, 2, nil)
+	lastBatches, err := d.state.GetLastNBatches(ctx, 2, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +263,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		previousLastBatch = lastBatches[1]
 	}
 
-	lastL2BlockHeader, err := d.state.GetLastL2BlockHeader(ctx, nil)
+	lastStateRoot, err := d.state.GetLastStateRoot(ctx, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -294,12 +306,6 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			Timestamp:      time.Unix(int64(wipBatch.timestamp), 0),
 			GlobalExitRoot: wipBatch.globalExitRoot,
 		}
-
-		dbTx, err := d.BeginStateTransaction(ctx)
-		if err != nil {
-			return nil, err
-		}
-
 		err = d.state.OpenBatch(ctx, *processingContext, dbTx)
 		if err != nil {
 			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
@@ -316,14 +322,14 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			return nil, err
 		}
 	} else {
-		wipBatch.stateRoot = lastL2BlockHeader.Root
+		wipBatch.stateRoot = lastStateRoot
 		wipBatch.initialStateRoot = previousLastBatch.StateRoot
 		batchL2DataLen := len(lastBatch.BatchL2Data)
 
 		if batchL2DataLen > 0 {
 			wipBatch.isEmpty = false
 
-			batchResponse, err := d.state.ExecuteBatch(ctx, wipBatch.batchNumber, lastBatch.BatchL2Data, nil)
+			batchResponse, err := d.state.ExecuteBatch(ctx, wipBatch.batchNumber, lastBatch.BatchL2Data, dbTx)
 			if err != nil {
 				return nil, err
 			}
@@ -548,4 +554,8 @@ func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*typ
 
 func (d *dbManager) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	return d.state.GetLastTrustedForcedBatchNumber(ctx, dbTx)
+}
+
+func (d *dbManager) GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
+	return d.state.GetBalanceByStateRoot(ctx, address, root)
 }

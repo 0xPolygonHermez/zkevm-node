@@ -28,9 +28,9 @@ type TxTracker struct {
 
 // newTxTracker creates and inti a TxTracker
 func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, constraints batchConstraints, weights batchResourceWeights) (*TxTracker, error) {
-	addr, error := state.GetSender(tx)
-	if error != nil {
-		return nil, error
+	addr, err := state.GetSender(tx)
+	if err != nil {
+		return nil, err
 	}
 
 	//TODO: Review the initialization is correct
@@ -43,13 +43,17 @@ func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters,
 		Cost:     tx.Cost(),
 	}
 
+	txTracker.IsClaim = isClaim
 	txTracker.BatchResources.zKCounters = counters
 	txTracker.BatchResources.bytes = uint64(tx.Size())
 	txTracker.HashStr = txTracker.Hash.String()
 	txTracker.FromStr = txTracker.From.String()
 	txTracker.Benefit = new(big.Int).Mul(new(big.Int).SetUint64(txTracker.Gas), txTracker.GasPrice)
 	txTracker.calculateEfficiency(constraints, weights)
-	txTracker.RawTx = tx.Data()
+	txTracker.RawTx, err = state.EncodeTransactions([]types.Transaction{tx})
+	if err != nil {
+		return nil, err
+	}
 
 	return txTracker, nil
 }

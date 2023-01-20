@@ -70,7 +70,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: 150000,
+			expectedValue: uint64(150000),
 		},
 		{
 			path:          "Sequencer.MaxTimeForBatchToBeOpen",
@@ -89,40 +89,36 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(12 * time.Hour),
 		},
 		{
-			path:          "Sequencer.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
-			expectedValue: true,
-		},
-		{
 			path:          "Sequencer.MaxCumulativeGasUsed",
 			expectedValue: uint64(30000000),
 		},
 		{
 			path:          "Sequencer.MaxKeccakHashes",
-			expectedValue: int32(468),
+			expectedValue: uint32(468),
 		},
 		{
 			path:          "Sequencer.MaxPoseidonHashes",
-			expectedValue: int32(279620),
+			expectedValue: uint32(279620),
 		},
 		{
 			path:          "Sequencer.MaxPoseidonPaddings",
-			expectedValue: int32(149796),
+			expectedValue: uint32(149796),
 		},
 		{
 			path:          "Sequencer.MaxMemAligns",
-			expectedValue: int32(262144),
+			expectedValue: uint32(262144),
 		},
 		{
 			path:          "Sequencer.MaxArithmetics",
-			expectedValue: int32(262144),
+			expectedValue: uint32(262144),
 		},
 		{
 			path:          "Sequencer.MaxBinaries",
-			expectedValue: int32(262144),
+			expectedValue: uint32(262144),
 		},
 		{
 			path:          "Sequencer.MaxSteps",
-			expectedValue: int32(8388608),
+			expectedValue: uint32(8388608),
 		},
 		{
 			path:          "Sequencer.MaxSequenceSize",
@@ -131,6 +127,34 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.MaxAllowedFailedCounter",
 			expectedValue: uint64(50),
+		},
+		{
+			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
+			expectedValue: types.NewDuration(60 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeoutInSec",
+			expectedValue: types.NewDuration(60 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.SendingToL1DeadlineTimeoutInSec",
+			expectedValue: types.NewDuration(60 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.SleepDurationInMs",
+			expectedValue: types.NewDuration(100 * time.Millisecond),
+		},
+		{
+			path:          "Sequencer.Finalizer.ResourcePercentageToCloseBatch",
+			expectedValue: uint32(90),
+		},
+		{
+			path:          "Sequencer.Finalizer.GERFinalityNumberOfBlocks",
+			expectedValue: uint64(64),
+		},
+		{
+			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForL1OperationsInSec",
+			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
 			path:          "Etherman.URL",

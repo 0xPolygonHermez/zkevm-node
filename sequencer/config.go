@@ -103,7 +103,7 @@ type Config struct {
 	WeightSteps int `mapstructure:"WeightSteps"`
 
 	// Finalizer's specific config properties
-	Finalizer FinalizerCfg `mapstructure:"FinalizerCfg"`
+	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
