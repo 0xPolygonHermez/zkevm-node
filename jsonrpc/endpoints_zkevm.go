@@ -133,8 +133,13 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber BatchNumber, fullTx bool) 
 			return rpcErrorResponse(defaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err)
 		}
 
-		receipts := make([]types.Receipt, 0, len(batch.Transactions))
-		for _, tx := range batch.Transactions {
+		txs, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)
+		if !errors.Is(err, state.ErrNotFound) && err != nil {
+			return rpcErrorResponse(defaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v", batchNumber), err)
+		}
+
+		receipts := make([]types.Receipt, 0, len(txs))
+		for _, tx := range txs {
 			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
 			if err != nil {
 				return rpcErrorResponse(defaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", tx.Hash().String()), err)

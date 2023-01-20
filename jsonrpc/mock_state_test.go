@@ -26,6 +26,27 @@ type stateMock struct {
 	mock.Mock
 }
 
+// BatchNumberByL2BlockNumber provides a mock function with given fields: ctx, blockNumber, dbTx
+func (_m *stateMock) BatchNumberByL2BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, blockNumber, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, blockNumber, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, blockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // BeginStateTransaction provides a mock function with given fields: ctx
 func (_m *stateMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	ret := _m.Called(ctx)
@@ -132,27 +153,6 @@ func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
 		r1 = rf(ctx, batchNumber, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// BatchNumberByL2BlockNumber provides a mock function with given fields: ctx, blockNumber, dbTx
-func (_m *stateMock) BatchNumberByL2BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	ret := _m.Called(ctx, blockNumber, dbTx)
-
-	var r0 uint64
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) uint64); ok {
-		r0 = rf(ctx, blockNumber, dbTx)
-	} else {
-		r0 = ret.Get(0).(uint64)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, blockNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -643,6 +643,29 @@ func (_m *stateMock) GetTransactionReceipt(ctx context.Context, transactionHash 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, pgx.Tx) error); ok {
 		r1 = rf(ctx, transactionHash, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTransactionsByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]types.Transaction, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 []types.Transaction
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []types.Transaction); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]types.Transaction)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

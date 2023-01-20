@@ -548,17 +548,6 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 		return nil, err
 	}
 
-	transactions, err := p.GetTxsByBatchNumber(ctx, batchNumber, dbTx)
-	if errors.Is(err, pgx.ErrNoRows) {
-		batch.Transactions = []types.Transaction{}
-	} else if err != nil {
-		return nil, err
-	} else {
-		for _, tx := range transactions {
-			batch.Transactions = append(batch.Transactions, *tx)
-		}
-	}
-
 	return &batch, nil
 }
 
