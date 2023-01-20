@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/gobuffalo/packr/v2/file/resolver/encoding/hex"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -282,4 +283,45 @@ func TestAddAccumulatedInputHash(t *testing.T) {
 	assert.Equal(t, b.BatchNumber, batchNum)
 	assert.Equal(t, b.AccInputHash, accInputHash)
 	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func TestForcedBatch(t *testing.T) {
+	// Init database instance
+	initOrResetDB()
+
+	ctx := context.Background()
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, tx)
+	assert.NoError(t, err)
+	rtx := "29e885edaf8e4b51e1d2e05f9da28000000000000000000000000000000000000000000000000000000161d2fb4f6b1d53827d9b80a23cf2d7d9f1"
+	raw, err := hex.DecodeString(rtx)
+	assert.NoError(t, err)
+	forcedBatch := state.ForcedBatch{
+		BlockNumber:     1,
+    	ForcedBatchNumber: 1,
+    	Sequencer: common.HexToAddress("0x2536C2745Ac4A584656A830f7bdCd329c94e8F30"),
+    	RawTxsData: raw,
+    	ForcedAt: time.Now(),
+		GlobalExitRoot:  common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+	}
+	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
+	require.NoError(t, err)
+	fb, err := testState.GetForcedBatch(ctx, 1, tx)
+	require.NoError(t, err)
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, forcedBatch.BlockNumber, fb.BlockNumber)
+	assert.Equal(t, forcedBatch.ForcedBatchNumber, fb.ForcedBatchNumber)
+	assert.Equal(t, forcedBatch.Sequencer, fb.Sequencer)
+	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
+	assert.Equal(t, rtx, common.Bytes2Hex(fb.RawTxsData))
+	assert.Equal(t, forcedBatch.ForcedAt.Unix(), fb.ForcedAt.Unix())
+	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
 }
