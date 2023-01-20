@@ -573,37 +573,39 @@ func TestVerifiedBatchNumber(t *testing.T) {
 func TestGetBatchByNumber(t *testing.T) {
 	type testCase struct {
 		Name           string
-		Number         *big.Int
+		Number         string
+		WithTxDetail   bool
 		ExpectedResult *rpcBatch
 		ExpectedError  rpcError
 		SetupMocks     func(*mockedServer, *mocks, *testCase)
 	}
 
 	testCases := []testCase{
-		// {
-		// 	Name:           "Batch not found",
-		// 	Number:         big.NewInt(123),
-		// 	ExpectedResult: nil,
-		// 	ExpectedError:  ethereum.NotFound,
-		// 	SetupMocks: func(m *mocks, tc *testCase) {
-		// 		m.DbTx.
-		// 			On("Commit", context.Background()).
-		// 			Return(nil).
-		// 			Once()
-
-		// 		m.State.
-		// 			On("BeginStateTransaction", context.Background()).
-		// 			Return(m.DbTx, nil).
-		// 			Once()
-
-		// 		m.State.
-		// 			On("GetBatchByNumber", context.Background(), tc.Number.Uint64(), m.DbTx).
-		// 			Return(nil, state.ErrNotFound)
-		// 	},
-		// },
 		{
-			Name:   "get specific batch successfully",
-			Number: big.NewInt(345),
+			Name:           "Batch not found",
+			Number:         "0x123",
+			ExpectedResult: nil,
+			ExpectedError:  nil,
+			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetBatchByNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
+					Return(nil, state.ErrNotFound)
+			},
+		},
+		{
+			Name:         "get specific batch successfully with tx detail",
+			Number:       "0x345",
+			WithTxDetail: true,
 			ExpectedResult: &rpcBatch{
 				Number:              1,
 				Coinbase:            common.HexToAddress("0x1"),
@@ -636,7 +638,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				}
 
 				m.State.
-					On("GetBatchByNumber", context.Background(), tc.Number.Uint64(), m.DbTx).
+					On("GetBatchByNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
 					Return(batch, nil).
 					Once()
 
@@ -645,7 +647,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				}
 
 				m.State.
-					On("GetVirtualBatch", context.Background(), tc.Number.Uint64(), m.DbTx).
+					On("GetVirtualBatch", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
 					Return(virtualBatch, nil).
 					Once()
 
@@ -654,7 +656,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				}
 
 				m.State.
-					On("GetVerifiedBatch", context.Background(), tc.Number.Uint64(), m.DbTx).
+					On("GetVerifiedBatch", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
 					Return(verifiedBatch, nil).
 					Once()
 
@@ -707,145 +709,289 @@ func TestGetBatchByNumber(t *testing.T) {
 					batchTxs = append(batchTxs, *tx)
 				}
 				m.State.
-					On("GetTransactionsByBatchNumber", context.Background(), tc.Number.Uint64(), m.DbTx).
+					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
 					Return(batchTxs, nil).
 					Once()
 			},
 		},
-		// {
-		// 	Name:   "get latest batch successfully",
-		// 	Number: nil,
-		// 	ExpectedResult: types.NewBatch(
-		// 		&types.Header{Number: big.NewInt(2), UncleHash: types.EmptyUncleHash, Root: types.EmptyRootHash},
-		// 		[]*types.Transaction{types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
-		// 		nil,
-		// 		[]*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))},
-		// 		&trie.StackTrie{},
-		// 	),
-		// 	ExpectedError: nil,
-		// 	SetupMocks: func(m *mocks, tc *testCase) {
-		// 		m.DbTx.
-		// 			On("Commit", context.Background()).
-		// 			Return(nil).
-		// 			Once()
+		{
+			Name:         "get specific batch successfully without tx detail",
+			Number:       "0x345",
+			WithTxDetail: false,
+			ExpectedResult: &rpcBatch{
+				Number:              1,
+				Coinbase:            common.HexToAddress("0x1"),
+				StateRoot:           common.HexToHash("0x2"),
+				AccInputHash:        common.HexToHash("0x3"),
+				GlobalExitRoot:      common.HexToHash("0x4"),
+				Timestamp:           1,
+				SendSequencesTxHash: ptrHash(common.HexToHash("0x10")),
+				VerifyBatchTxHash:   ptrHash(common.HexToHash("0x20")),
+			},
+			ExpectedError: nil,
+			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
 
-		// 		m.State.
-		// 			On("BeginStateTransaction", context.Background()).
-		// 			Return(m.DbTx, nil).
-		// 			Once()
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
 
-		// 		m.State.
-		// 			On("GetLastBatchNumber", context.Background(), m.DbTx).
-		// 			Return(tc.ExpectedResult.Number().Uint64(), nil).
-		// 			Once()
+				batch := &state.Batch{
+					BatchNumber:    1,
+					Coinbase:       common.HexToAddress("0x1"),
+					StateRoot:      common.HexToHash("0x2"),
+					AccInputHash:   common.HexToHash("0x3"),
+					GlobalExitRoot: common.HexToHash("0x4"),
+					Timestamp:      time.Unix(1, 0),
+				}
 
-		// 		m.State.
-		// 			On("GetBatchByNumber", context.Background(), tc.ExpectedResult.Number().Uint64(), m.DbTx).
-		// 			Return(tc.ExpectedResult, nil).
-		// 			Once()
-		// 	},
-		// },
-		// {
-		// 	Name:           "get latest batch fails to compute batch number",
-		// 	Number:         nil,
-		// 	ExpectedResult: nil,
-		// 	ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
-		// 	SetupMocks: func(m *mocks, tc *testCase) {
-		// 		m.DbTx.
-		// 			On("Rollback", context.Background()).
-		// 			Return(nil).
-		// 			Once()
+				m.State.
+					On("GetBatchByNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
+					Return(batch, nil).
+					Once()
 
-		// 		m.State.
-		// 			On("BeginStateTransaction", context.Background()).
-		// 			Return(m.DbTx, nil).
-		// 			Once()
+				virtualBatch := &state.VirtualBatch{
+					TxHash: common.HexToHash("0x10"),
+				}
 
-		// 		m.State.
-		// 			On("GetLastBatchNumber", context.Background(), m.DbTx).
-		// 			Return(uint64(0), errors.New("failed to get last batch number")).
-		// 			Once()
-		// 	},
-		// },
-		// {
-		// 	Name:           "get latest batch fails to load batch by number",
-		// 	Number:         nil,
-		// 	ExpectedResult: nil,
-		// 	ExpectedError:  newRPCError(defaultErrorCode, "couldn't load batch from state by number 1"),
-		// 	SetupMocks: func(m *mocks, tc *testCase) {
-		// 		m.DbTx.
-		// 			On("Rollback", context.Background()).
-		// 			Return(nil).
-		// 			Once()
+				m.State.
+					On("GetVirtualBatch", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
+					Return(virtualBatch, nil).
+					Once()
 
-		// 		m.State.
-		// 			On("BeginStateTransaction", context.Background()).
-		// 			Return(m.DbTx, nil).
-		// 			Once()
+				verifiedBatch := &state.VerifiedBatch{
+					TxHash: common.HexToHash("0x20"),
+				}
 
-		// 		m.State.
-		// 			On("GetLastBatchNumber", context.Background(), m.DbTx).
-		// 			Return(uint64(1), nil).
-		// 			Once()
+				m.State.
+					On("GetVerifiedBatch", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
+					Return(verifiedBatch, nil).
+					Once()
 
-		// 		m.State.
-		// 			On("GetBatchByNumber", context.Background(), uint64(1), m.DbTx).
-		// 			Return(nil, errors.New("failed to load batch by number")).
-		// 			Once()
-		// 	},
-		// },
-		// {
-		// 	Name:           "get pending batch successfully",
-		// 	Number:         big.NewInt(-1),
-		// 	ExpectedResult: types.NewBatch(&types.Header{Number: big.NewInt(2)}, nil, nil, nil, &trie.StackTrie{}),
-		// 	ExpectedError:  nil,
-		// 	SetupMocks: func(m *mocks, tc *testCase) {
-		// 		lastBatchHeader := types.CopyHeader(tc.ExpectedResult.Header())
-		// 		lastBatchHeader.Number.Sub(lastBatchHeader.Number, big.NewInt(1))
-		// 		lastBatch := types.NewBatch(lastBatchHeader, nil, nil, nil, &trie.StackTrie{})
+				txs := []*types.Transaction{
+					signTx(types.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+					signTx(types.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+				}
 
-		// 		expectedResultHeader := types.CopyHeader(tc.ExpectedResult.Header())
-		// 		expectedResultHeader.ParentHash = lastBatch.Hash()
-		// 		tc.ExpectedResult = types.NewBatch(expectedResultHeader, nil, nil, nil, &trie.StackTrie{})
+				batchTxs := make([]types.Transaction, 0, len(txs))
 
-		// 		m.DbTx.
-		// 			On("Commit", context.Background()).
-		// 			Return(nil).
-		// 			Once()
+				tc.ExpectedResult.Transactions = []rpcTransactionOrHash{}
 
-		// 		m.State.
-		// 			On("BeginStateTransaction", context.Background()).
-		// 			Return(m.DbTx, nil).
-		// 			Once()
+				for i, tx := range txs {
+					blockNumber := big.NewInt(int64(i))
+					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
+					receipt := types.NewReceipt([]byte{}, false, uint64(0))
+					receipt.TxHash = tx.Hash()
+					receipt.TransactionIndex = uint(i)
+					receipt.BlockNumber = blockNumber
+					receipt.BlockHash = blockHash
+					m.State.
+						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
+						Return(receipt, nil).
+						Once()
 
-		// 		m.State.
-		// 			On("GetLastBatch", context.Background(), m.DbTx).
-		// 			Return(lastBatch, nil).
-		// 			Once()
-		// 	},
-		// },
-		// {
-		// 	Name:           "get pending batch fails",
-		// 	Number:         big.NewInt(-1),
-		// 	ExpectedResult: nil,
-		// 	ExpectedError:  newRPCError(defaultErrorCode, "couldn't load last batch from state to compute the pending batch"),
-		// 	SetupMocks: func(m *mocks, tc *testCase) {
-		// 		m.DbTx.
-		// 			On("Rollback", context.Background()).
-		// 			Return(nil).
-		// 			Once()
+					from, _ := state.GetSender(*tx)
+					V, R, S := tx.RawSignatureValues()
 
-		// 		m.State.
-		// 			On("BeginStateTransaction", context.Background()).
-		// 			Return(m.DbTx, nil).
-		// 			Once()
+					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
+						rpcTransaction{
+							Nonce:       argUint64(tx.Nonce()),
+							GasPrice:    argBig(*tx.GasPrice()),
+							Gas:         argUint64(tx.Gas()),
+							To:          tx.To(),
+							Value:       argBig(*tx.Value()),
+							Input:       tx.Data(),
+							Hash:        tx.Hash(),
+							From:        from,
+							BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
+							BlockHash:   ptrHash(receipt.BlockHash),
+							TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
+							ChainID:     argBig(*tx.ChainId()),
+							Type:        argUint64(tx.Type()),
+							V:           argBig(*V),
+							R:           argBig(*R),
+							S:           argBig(*S),
+						},
+					)
 
-		// 		m.State.
-		// 			On("GetLastBatch", context.Background(), m.DbTx).
-		// 			Return(nil, errors.New("failed to load last batch")).
-		// 			Once()
-		// 	},
-		// },
+					batchTxs = append(batchTxs, *tx)
+				}
+				m.State.
+					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
+					Return(batchTxs, nil).
+					Once()
+			},
+		},
+		{
+			Name:         "get latest batch successfully",
+			Number:       "latest",
+			WithTxDetail: true,
+			ExpectedResult: &rpcBatch{
+				Number:              1,
+				Coinbase:            common.HexToAddress("0x1"),
+				StateRoot:           common.HexToHash("0x2"),
+				AccInputHash:        common.HexToHash("0x3"),
+				GlobalExitRoot:      common.HexToHash("0x4"),
+				Timestamp:           1,
+				SendSequencesTxHash: ptrHash(common.HexToHash("0x10")),
+				VerifyBatchTxHash:   ptrHash(common.HexToHash("0x20")),
+			},
+			ExpectedError: nil,
+			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastBatchNumber", context.Background(), m.DbTx).
+					Return(uint64(tc.ExpectedResult.Number), nil).
+					Once()
+
+				batch := &state.Batch{
+					BatchNumber:    1,
+					Coinbase:       common.HexToAddress("0x1"),
+					StateRoot:      common.HexToHash("0x2"),
+					AccInputHash:   common.HexToHash("0x3"),
+					GlobalExitRoot: common.HexToHash("0x4"),
+					Timestamp:      time.Unix(1, 0),
+				}
+
+				m.State.
+					On("GetBatchByNumber", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
+					Return(batch, nil).
+					Once()
+
+				virtualBatch := &state.VirtualBatch{
+					TxHash: common.HexToHash("0x10"),
+				}
+
+				m.State.
+					On("GetVirtualBatch", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
+					Return(virtualBatch, nil).
+					Once()
+
+				verifiedBatch := &state.VerifiedBatch{
+					TxHash: common.HexToHash("0x20"),
+				}
+
+				m.State.
+					On("GetVerifiedBatch", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
+					Return(verifiedBatch, nil).
+					Once()
+
+				txs := []*types.Transaction{
+					signTx(types.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+					signTx(types.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+				}
+
+				batchTxs := make([]types.Transaction, 0, len(txs))
+
+				tc.ExpectedResult.Transactions = []rpcTransactionOrHash{}
+
+				for i, tx := range txs {
+					blockNumber := big.NewInt(int64(i))
+					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
+					receipt := types.NewReceipt([]byte{}, false, uint64(0))
+					receipt.TxHash = tx.Hash()
+					receipt.TransactionIndex = uint(i)
+					receipt.BlockNumber = blockNumber
+					receipt.BlockHash = blockHash
+					m.State.
+						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
+						Return(receipt, nil).
+						Once()
+
+					from, _ := state.GetSender(*tx)
+					V, R, S := tx.RawSignatureValues()
+
+					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
+						rpcTransaction{
+							Nonce:       argUint64(tx.Nonce()),
+							GasPrice:    argBig(*tx.GasPrice()),
+							Gas:         argUint64(tx.Gas()),
+							To:          tx.To(),
+							Value:       argBig(*tx.Value()),
+							Input:       tx.Data(),
+							Hash:        tx.Hash(),
+							From:        from,
+							BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
+							BlockHash:   ptrHash(receipt.BlockHash),
+							TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
+							ChainID:     argBig(*tx.ChainId()),
+							Type:        argUint64(tx.Type()),
+							V:           argBig(*V),
+							R:           argBig(*R),
+							S:           argBig(*S),
+						},
+					)
+
+					batchTxs = append(batchTxs, *tx)
+				}
+				m.State.
+					On("GetTransactionsByBatchNumber", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
+					Return(batchTxs, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "get latest batch fails to compute batch number",
+			Number:         "latest",
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
+			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastBatchNumber", context.Background(), m.DbTx).
+					Return(uint64(0), errors.New("failed to get last batch number")).
+					Once()
+			},
+		},
+		{
+			Name:           "get latest batch fails to load batch by number",
+			Number:         "latest",
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "couldn't load batch from state by number 1"),
+			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastBatchNumber", context.Background(), m.DbTx).
+					Return(uint64(1), nil).
+					Once()
+
+				m.State.
+					On("GetBatchByNumber", context.Background(), uint64(1), m.DbTx).
+					Return(nil, errors.New("failed to load batch by number")).
+					Once()
+			},
+		},
 	}
 
 	s, m, _ := newSequencerMockedServer(t)
@@ -856,7 +1002,7 @@ func TestGetBatchByNumber(t *testing.T) {
 			tc := testCase
 			testCase.SetupMocks(s, m, &tc)
 
-			res, err := s.JSONRPCCall("zkevm_getBatchByNumber", hex.EncodeBig(tc.Number), false)
+			res, err := s.JSONRPCCall("zkevm_getBatchByNumber", tc.Number, tc.WithTxDetail)
 			require.NoError(t, err)
 			assert.Equal(t, float64(1), res.ID)
 			assert.Equal(t, "2.0", res.JSONRPC)

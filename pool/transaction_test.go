@@ -12,7 +12,7 @@ import (
 func Test_IsClaimTx(t *testing.T) {
 	l2BridgeAddr := common.HexToAddress("0x00000000000000000000000000000001")
 	differentAddr := common.HexToAddress("0x00000000000000000000000000000002")
-	claimData := hex.DecodeHexToBig(bridgeClaimMethodSignature).Bytes()
+	claimData := hex.DecodeBig(bridgeClaimMethodSignature).Bytes()
 
 	testCases := []struct {
 		Name           string
