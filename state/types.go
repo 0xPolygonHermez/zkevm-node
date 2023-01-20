@@ -10,8 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-var ()
-
 // ProcessRequest represents the request of a batch process.
 type ProcessRequest struct {
 	BatchNumber     uint64

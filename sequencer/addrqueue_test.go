@@ -35,10 +35,13 @@ func processAddTxTestCases(t *testing.T, testCases []addrQueueAddTxTestCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tx := newTestTxTracker(tc.hash, tc.nonce, tc.gasPrice, tc.cost)
-			addr.addTx(tx)
+			newReadyTx, _ := addr.addTx(tx)
 			if tc.expectedReadyTx.String() == emptyHash.String() {
 				if !(addr.readyTx == nil) {
-					t.Fatalf("Error readyTx. Expected=%s, Actual=%s", tc.expectedReadyTx, addr.readyTx.HashStr)
+					t.Fatalf("Error readyTx. Expected=%s, Actual=%s", tc.expectedReadyTx, "")
+				}
+				if !(newReadyTx == nil) {
+					t.Fatalf("Error newReadyTx. Expected=nil, Actual=%s", newReadyTx.HashStr)
 				}
 			} else {
 				if !(addr.readyTx.Hash == tc.expectedReadyTx) {

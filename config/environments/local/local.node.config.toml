@@ -95,16 +95,14 @@ WeightArithmetics = 1
 WeightBinaries = 1
 WeightSteps = 1
 MaxAllowedFailedCounter = 50
-	[Sequencer.ProfitabilityChecker]
-		SendBatchesEvenWhenNotProfitable = "true"
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = 60
-		ForcedBatchDeadlineTimeoutInSec = 60
-		SendingToL1DeadlineTimeoutInSec = 60
-		SleepDurationInMs = 100
+		GERDeadlineTimeoutInSec = "60s"
+		ForcedBatchDeadlineTimeoutInSec = "60s"
+		SendingToL1DeadlineTimeoutInSec = "60s"
+		SleepDurationInMs = "100ms"
 		ResourcePercentageToCloseBatch = 90
 		GERFinalityNumberOfBlocks = 64
-		ClosingSignalsManagerWaitForL1OperationsInSec = 10
+		ClosingSignalsManagerWaitForL1OperationsInSec = "10s"
 
 [Aggregator]
 Host = "0.0.0.0"

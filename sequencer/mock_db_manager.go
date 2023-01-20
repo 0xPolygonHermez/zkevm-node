@@ -4,6 +4,7 @@ package sequencer
 
 import (
 	context "context"
+	big "math/big"
 
 	common "github.com/ethereum/go-ethereum/common"
 
@@ -86,6 +87,29 @@ func (_m *DbManagerMock) DeleteTransactionFromPool(ctx context.Context, txHash c
 	}
 
 	return r0
+}
+
+// GetBalanceByStateRoot provides a mock function with given fields: ctx, address, root
+func (_m *DbManagerMock) GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
+	ret := _m.Called(ctx, address, root)
+
+	var r0 *big.Int
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address, common.Hash) *big.Int); ok {
+		r0 = rf(ctx, address, root)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*big.Int)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address, common.Hash) error); ok {
+		r1 = rf(ctx, address, root)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetForcedBatchesSince provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
@@ -320,20 +344,6 @@ func (_m *DbManagerMock) IsBatchClosed(ctx context.Context, batchNum uint64) (bo
 // MarkReorgedTxsAsPending provides a mock function with given fields: ctx
 func (_m *DbManagerMock) MarkReorgedTxsAsPending(ctx context.Context) {
 	_m.Called(ctx)
-}
-
-// MarkWIPTxsAsPending provides a mock function with given fields: ctx
-func (_m *DbManagerMock) MarkWIPTxsAsPending(ctx context.Context) error {
-	ret := _m.Called(ctx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }
 
 // OpenBatch provides a mock function with given fields: ctx, processingContext, dbTx

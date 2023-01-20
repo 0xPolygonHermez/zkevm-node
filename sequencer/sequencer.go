@@ -143,6 +143,8 @@ func (s *Sequencer) Start(ctx context.Context) {
 		WeightSteps:             s.cfg.WeightSteps,
 	}
 
+	s.pool.MarkWIPTxsAsPending(ctx)
+
 	worker := NewWorker(s.state, batchConstraints, batchResourceWeights)
 	dbManager := newDBManager(ctx, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
 	go dbManager.Start()
@@ -189,10 +191,11 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
 		timestamp := uint64(processingCtx.Timestamp.Unix())
 		currBatch = &WipBatch{
-			globalExitRoot: processingCtx.GlobalExitRoot,
-			batchNumber:    processingCtx.BatchNumber,
-			coinbase:       processingCtx.Coinbase,
-			timestamp:      timestamp,
+			globalExitRoot:     processingCtx.GlobalExitRoot,
+			batchNumber:        processingCtx.BatchNumber,
+			coinbase:           processingCtx.Coinbase,
+			timestamp:          timestamp,
+			remainingResources: getMaxRemainingResources(finalizer.batchConstraints),
 		}
 		_, oldStateRoot, err := finalizer.getLastBatchNumAndStateRoot(ctx)
 		if err != nil {

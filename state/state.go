@@ -1560,7 +1560,11 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 }
 
 func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
-	return s.tree.GetBalance(ctx, address, root.Bytes())
+	balance, err := s.tree.GetBalance(ctx, address, root.Bytes())
+	if err != nil && balance == nil {
+		balance = big.NewInt(0)
+	}
+	return balance, err
 }
 
 func (s *State) GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
