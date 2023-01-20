@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.104.156")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -1090,6 +1090,20 @@ func TestExecutorTransfer(t *testing.T) {
 	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
 	require.NoError(t, err)
 	require.Equal(t, uint64(21002), balance.Uint64())
+
+	// Read Modified Addresses directly from response
+	readWriteAddresses := processBatchResponse.ReadWriteAddresses
+	log.Debug(receiverAddress.String())
+	data := readWriteAddresses[strings.ToLower(receiverAddress.String())]
+	require.Equal(t, "21002", data.Balance)
+
+	// Read Modified Addresses from converted response
+	converted, err := state.TestConvertToProcessBatchResponse(processBatchResponse)
+	require.NoError(t, err)
+	convertedData := converted.ReadWriteAddresses[receiverAddress]
+	require.Equal(t, uint64(21002), convertedData.Balance.Uint64())
+	require.Equal(t, receiverAddress, convertedData.Address)
+	require.Equal(t, (*uint64)(nil), convertedData.Nonce)
 }
 
 func TestExecutorTxHashAndRLP(t *testing.T) {
