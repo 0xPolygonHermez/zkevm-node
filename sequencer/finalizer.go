@@ -113,7 +113,7 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 	if processingReq != nil {
 		f.processRequest = *processingReq
 	} else {
-		f.processRequest, err = f.prepareProcessRequestFromState(ctx)
+		f.processRequest, err = f.prepareProcessRequestFromState(ctx, false)
 		if err != nil {
 			log.Fatalf("failed to prepare process request from state, Err: %s", err)
 		}
@@ -528,7 +528,7 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 
 // reprocessBatch reprocesses a batch used as sanity check
 func (f *finalizer) reprocessBatch(ctx context.Context) error {
-	processRequest, err := f.prepareProcessRequestFromState(ctx)
+	processRequest, err := f.prepareProcessRequestFromState(ctx, true)
 	if err != nil {
 		log.Errorf("failed to prepare process request for reprocessing batch, err: %s", err)
 		return err
@@ -546,10 +546,31 @@ func (f *finalizer) reprocessBatch(ctx context.Context) error {
 }
 
 // prepareProcessRequestFromState prepares process request from state
-func (f *finalizer) prepareProcessRequestFromState(ctx context.Context) (state.ProcessRequest, error) {
-	lastBatchNum, oldStateRoot, err := f.getLastBatchNumAndStateRoot(ctx)
-	if err != nil {
-		return state.ProcessRequest{}, err
+func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs bool) (state.ProcessRequest, error) {
+	var (
+		txs          []byte
+		lastBatchNum uint64
+		oldStateRoot common.Hash
+		err          error
+	)
+
+	if fetchTxs {
+		var lastBatch *state.Batch
+		lastBatch, err = f.dbManager.GetLastBatch(ctx)
+		if err != nil {
+			return state.ProcessRequest{}, err
+		}
+		lastBatchNum, oldStateRoot = lastBatch.BatchNumber, lastBatch.StateRoot
+		txs, err = state.EncodeTransactions(lastBatch.Transactions)
+		if err != nil {
+			return state.ProcessRequest{}, err
+		}
+	} else {
+		txs = make([]byte, 0, 1)
+		lastBatchNum, oldStateRoot, err = f.getLastBatchNumAndStateRoot(ctx)
+		if err != nil {
+			return state.ProcessRequest{}, err
+		}
 	}
 
 	return state.ProcessRequest{
@@ -558,7 +579,7 @@ func (f *finalizer) prepareProcessRequestFromState(ctx context.Context) (state.P
 		GlobalExitRoot: f.batch.globalExitRoot,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      f.batch.timestamp,
-		Transactions:   make([]byte, 0, 1), // TODO: Get all transactions from the database
+		Transactions:   txs,
 		Caller:         state.SequencerCallerLabel,
 	}, nil
 }

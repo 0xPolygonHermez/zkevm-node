@@ -873,7 +873,7 @@ func TestFinalizer_prepareProcessRequestFromState(t *testing.T) {
 			}
 
 			// act
-			actualReq, err := f.prepareProcessRequestFromState(ctx)
+			actualReq, err := f.prepareProcessRequestFromState(ctx, false)
 
 			// assert
 			if tc.expectedErr != nil {
