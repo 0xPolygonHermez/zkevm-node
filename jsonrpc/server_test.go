@@ -94,7 +94,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 func getDefaultConfig() Config {
 	cfg := Config{
 		Host:                      host,
-		Port:                      8123,
+		Port:                      9123,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
 		DefaultSenderAddress:      "0x1111111111111111111111111111111111111111",
 		MaxCumulativeGasUsed:      300000,
@@ -110,7 +110,7 @@ func newSequencerMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.C
 
 func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mockedServer, *mocks, *ethclient.Client) {
 	cfg := getDefaultConfig()
-	cfg.Port = 8124
+	cfg.Port = 9124
 	cfg.SequencerNodeURI = sequencerNodeURI
 	return newMockedServer(t, cfg)
 }

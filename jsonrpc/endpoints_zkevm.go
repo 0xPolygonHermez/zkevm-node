@@ -80,9 +80,7 @@ func (z *ZKEVMEndpoints) BatchNumber() (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		lastBatchNumber, err := z.state.GetLastBatchNumber(ctx, dbTx)
 		if err != nil {
-			const errorMessage = "failed to get last batch number from state"
-			log.Errorf("%v: %v", errorMessage, err)
-			return nil, newRPCError(defaultErrorCode, errorMessage)
+			return "0x0", newRPCError(defaultErrorCode, "failed to get the last batch number from state")
 		}
 
 		return hex.EncodeUint64(lastBatchNumber), nil
@@ -94,9 +92,7 @@ func (z *ZKEVMEndpoints) VirtualBatchNumber() (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		lastBatchNumber, err := z.state.GetLastVirtualBatchNum(ctx, dbTx)
 		if err != nil {
-			const errorMessage = "failed to get last virtualized batch number from state"
-			log.Errorf("%v: %v", errorMessage, err)
-			return nil, newRPCError(defaultErrorCode, errorMessage)
+			return "0x0", newRPCError(defaultErrorCode, "failed to get the last virtual batch number from state")
 		}
 
 		return hex.EncodeUint64(lastBatchNumber), nil
@@ -108,9 +104,7 @@ func (z *ZKEVMEndpoints) VerifiedBatchNumber() (interface{}, rpcError) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		lastBatch, err := z.state.GetLastVerifiedBatch(ctx, dbTx)
 		if err != nil {
-			const errorMessage = "failed to get last virtualized batch number from state"
-			log.Errorf("%v: %v", errorMessage, err)
-			return nil, newRPCError(defaultErrorCode, errorMessage)
+			return "0x0", newRPCError(defaultErrorCode, "failed to get the last verified batch number from state")
 		}
 
 		return hex.EncodeUint64(lastBatch.BatchNumber), nil
@@ -157,6 +151,7 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber BatchNumber, fullTx bool) 
 			return rpcErrorResponse(defaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
 		}
 
+		batch.Transactions = txs
 		rpcBatch := l2BatchToRPCBatch(batch, virtualBatch, verifiedBatch, receipts, fullTx)
 
 		return rpcBatch, nil
