@@ -15,7 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
@@ -110,16 +110,16 @@ func sendBatches(cliCtx *cli.Context) error {
 		return err
 	}
 
-	ethMan, err := etherman.NewClient(cfg.Etherman, auth)
+	ethMan, err := etherman.NewClient(cfg.Etherman)
 	if err != nil {
 		return err
 	}
 
-	seqAddr, err := ethMan.GetPublicAddress()
+	err = ethMan.AddOrReplaceAuth(*auth)
 	if err != nil {
 		return err
 	}
-	log.Info("Using address: ", seqAddr)
+	log.Info("Using address: ", auth.From)
 
 	wait := cliCtx.Bool(flagWaitName)
 
@@ -134,7 +134,7 @@ func sendBatches(cliCtx *cli.Context) error {
 
 	nSequences := int(cliCtx.Uint64(flagSequencesName))
 
-	var sentTxs []*ethtypes.Transaction
+	var sentTxs []*ethTypes.Transaction
 	sentTxsMap := make(map[common.Hash]struct{})
 
 	var duration time.Duration
@@ -155,7 +155,7 @@ func sendBatches(cliCtx *cli.Context) error {
 	}
 
 	for i := 0; i < ns; i++ {
-		currentBlock, err := ethMan.EtherClient.BlockByNumber(ctx, nil)
+		currentBlock, err := ethMan.EthClient.BlockByNumber(ctx, nil)
 		if err != nil {
 			return err
 		}
@@ -166,20 +166,32 @@ func sendBatches(cliCtx *cli.Context) error {
 			// empty rollup
 			seqs = append(seqs, ethmanTypes.Sequence{
 				GlobalExitRoot: common.HexToHash("0x"),
-				Txs:            []ethtypes.Transaction{},
+				Txs:            []ethTypes.Transaction{},
 				Timestamp:      int64(currentBlock.Time() - 1), // fit in latest-sequence < > current-block rage
 			})
 		}
 
 		// send to L1
-		tx, err := ethMan.SequenceBatches(ctx, seqs, 0, nil, nil)
+		to, data, err := ethMan.BuildSequenceBatchesTxData(auth.From, seqs)
+		if err != nil {
+			return err
+		}
+		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+			To:   to,
+			Data: data,
+		})
+		signedTx, err := ethMan.SignTx(ctx, auth.From, tx)
+		if err != nil {
+			return err
+		}
+		err = ethMan.SendTx(ctx, signedTx)
 		if err != nil {
 			return err
 		}
 
-		log.Info("TxHash: ", tx.Hash())
-		sentTxs = append(sentTxs, tx)
-		sentTxsMap[tx.Hash()] = struct{}{}
+		log.Info("TxHash: ", signedTx.Hash())
+		sentTxs = append(sentTxs, signedTx)
+		sentTxsMap[signedTx.Hash()] = struct{}{}
 
 		time.Sleep(duration * time.Millisecond)
 	}
@@ -199,7 +211,7 @@ func sendBatches(cliCtx *cli.Context) error {
 		done := make(chan struct{})
 
 		for _, tx := range sentTxs {
-			err := operations.WaitTxToBeMined(ctx, ethMan.EtherClient, tx, miningTimeout)
+			err := operations.WaitTxToBeMined(ctx, ethMan.EthClient, tx, miningTimeout)
 			if err != nil {
 				return err
 			}
@@ -216,7 +228,7 @@ func sendBatches(cliCtx *cli.Context) error {
 			txLoop:
 				for _, tx := range sentTxs {
 					// get rollup tx block number
-					receipt, err := ethMan.EtherClient.TransactionReceipt(ctx, tx.Hash())
+					receipt, err := ethMan.EthClient.TransactionReceipt(ctx, tx.Hash())
 					if err != nil {
 						return err
 					}
@@ -228,7 +240,7 @@ func sendBatches(cliCtx *cli.Context) error {
 						ToBlock:   toBlock,
 						Addresses: ethMan.SCAddresses,
 					}
-					logs, err := ethMan.EtherClient.FilterLogs(ctx, query)
+					logs, err := ethMan.EthClient.FilterLogs(ctx, query)
 					if err != nil {
 						return err
 					}

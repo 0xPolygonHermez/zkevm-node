@@ -6,6 +6,7 @@ on:
       - master
       - develop
       - update-external-dependencies
+      - 'release/**'
   pull_request:
 jobs:
   lint:

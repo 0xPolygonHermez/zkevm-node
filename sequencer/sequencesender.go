@@ -9,16 +9,30 @@ import (
 
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
+	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/jackc/pgx/v4"
+)
+
+const (
+	ethTxManagerOwner = "sequencer"
+	monitoredIDFormat = "sequence-from-%v-to-%v"
 )
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
-	// This sleep waits for the synchronizer and for txs in L1
-	time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
+	// process monitored sequences before starting a next cycle
+	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
+		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
+			resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
+			resultLog.Fatal("failed to send sequence, TODO: review this fatal and define what to do in this case")
+		}
+	}, nil)
+
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
@@ -41,7 +55,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
-		log.Errorf("failed to get last virtual batch num, err: %w", err)
+		log.Errorf("failed to get last virtual batch num, err: %v", err)
 		return
 	}
 
@@ -52,9 +66,21 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(sequenceCount),
 	)
 	metrics.SequencesSentToL1(float64(sequenceCount))
-	err = s.txManager.SequenceBatches(ctx, sequences)
+
+	// add sequence to be monitored
+	sender := common.HexToAddress(s.cfg.SenderAddress)
+	to, data, err := s.etherman.BuildSequenceBatchesTxData(sender, sequences)
 	if err != nil {
-		log.Error("error sending new sequenceBatches: ", err)
+		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
+		return
+	}
+	firstSequence := sequences[0]
+	lastSequence := sequences[len(sequences)-1]
+	monitoredTxID := fmt.Sprintf(monitoredIDFormat, firstSequence.BatchNumber, lastSequence.BatchNumber)
+	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
+	if err != nil {
+		log.Error("error to add sequences tx to eth tx manager: ", err)
+		return
 	}
 }
 
@@ -71,7 +97,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 	sequences := []types.Sequence{}
 	var estimatedGas uint64
 
-	var tx *ethtypes.Transaction
+	var tx *ethTypes.Transaction
 
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	for {
@@ -97,11 +123,13 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 			GlobalExitRoot: batch.GlobalExitRoot,
 			Timestamp:      batch.Timestamp.Unix(),
 			// ForceBatchesNum: TODO,
-			Txs: txs,
+			Txs:         txs,
+			BatchNumber: batch.BatchNumber,
 		})
 
 		// Check if can be send
-		tx, err = s.etherman.EstimateGasSequenceBatches(sequences)
+		sender := common.HexToAddress(s.cfg.SenderAddress)
+		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
 
 		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
 			metrics.SequencesOvesizedDataError()
@@ -113,7 +141,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
 				// Handling the error gracefully, re-processing the sequence as a sanity check
-				_, err = s.etherman.EstimateGasSequenceBatches(sequences)
+				_, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
 				return sequences, err
 			}
 			return sequences, err

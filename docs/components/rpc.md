@@ -31,11 +31,11 @@ To orchestrate multiple deployments of the different ZKEVM Node components, a `d
         - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc"
 ```
 
-The container alone needs some parameters configured, access to certain configuration files and the appropiate ports exposed.
+The container alone needs some parameters configured, access to certain configuration files and the appropriate ports exposed.
 
 - ports:
     - `8545:8545`: RPC Port
-    - `9091:9091`: Neded if Prometheus metrics are enabled
+    - `9091:9091`: Needed if Prometheus metrics are enabled
 - environment: Env variables that supersede the config file
     - `ZKEVM_NODE_STATEDB_HOST`: Name of StateDB Database Host
     - `ZKEVM_NODE_POOL_HOST`: Name of PoolDB Database Host 
