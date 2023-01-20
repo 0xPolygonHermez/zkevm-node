@@ -452,6 +452,11 @@ func (d *dbManager) MarkReorgedTxsAsPending(ctx context.Context) {
 	}
 }
 
+// MarkWIPTxsAsPending marks all WIP txs as pending in the pool
+func (d *dbManager) MarkWIPTxsAsPending(ctx context.Context) error {
+	return d.txPool.MarkReorgedTxsAsPending(ctx)
+}
+
 // ProcessForcedBatch process a forced batch
 func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
 	// Open Batch

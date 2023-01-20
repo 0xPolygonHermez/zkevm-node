@@ -107,6 +107,20 @@ func (_m *PoolMock) MarkReorgedTxsAsPending(ctx context.Context) error {
 	return r0
 }
 
+// MarkWIPTxsAsPending provides a mock function with given fields: ctx
+func (_m *PoolMock) MarkWIPTxsAsPending(ctx context.Context) error {
+	ret := _m.Called(ctx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // UpdateTxStatus provides a mock function with given fields: ctx, hash, newStatus
 func (_m *PoolMock) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error {
 	ret := _m.Called(ctx, hash, newStatus)

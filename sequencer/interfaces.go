@@ -21,6 +21,7 @@ type txPool interface {
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
+	MarkWIPTxsAsPending(ctx context.Context) error
 	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
@@ -99,6 +100,7 @@ type dbManagerInterface interface {
 	GetLastClosedBatch(ctx context.Context) (*state.Batch, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
 	MarkReorgedTxsAsPending(ctx context.Context)
+	MarkWIPTxsAsPending(ctx context.Context) error
 	GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error)
 	ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
