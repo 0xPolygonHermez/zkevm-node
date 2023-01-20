@@ -241,6 +241,7 @@ services:
       - ZKEVM_NODE_RPC_PORT=8124
       - ZKEVM_NODE_RPC_WEBSOCKETS_PORT=8134
     volumes:
+      - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
     command:

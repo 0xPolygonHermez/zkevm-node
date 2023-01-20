@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"strconv"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -21,8 +22,21 @@ type NetworkConfig struct {
 }
 
 type genesisFromJSON struct {
-	Root    string                   `json:"root"`
-	Genesis []genesisAccountFromJSON `json:"genesis"`
+	Root         string                   `json:"root"`
+	Genesis      []genesisAccountFromJSON `json:"genesis"`
+	Transactions []genesisTxsFromJSON     `json:"transactions"`
+}
+
+type genesisTxsFromJSON struct  {
+	RawTx         string          `json:"rawTx"`
+	Receipt       receiptFromJSON `json:"receipt"`
+	CreateAddress string          `json:"createAddress"`
+}
+
+type receiptFromJSON struct {
+	Status  uint8           `json:"status"`
+	GasUsed string          `json:"gasUsed"`
+	Logs    [][]interface{} `json:"logs"`
 }
 
 type genesisAccountFromJSON struct {
@@ -74,8 +88,25 @@ func loadGenesisFileConfig(ctx *cli.Context) (NetworkConfig, error) {
 		}
 
 		cfg.Genesis = state.Genesis{
-			Root:    common.HexToHash(cfgJSON.Root),
-			Actions: []*state.GenesisAction{},
+			Root:         common.HexToHash(cfgJSON.Root),
+			Actions:      []*state.GenesisAction{},
+		}
+		for _, tx := range cfgJSON.Transactions {
+			gasUsed, err := strconv.ParseUint(tx.Receipt.GasUsed, 0, 64)
+			if err != nil {
+				log.Error("error decoding genesis gasUsed. Error: ", err)
+				return cfg, err
+			}
+			auxTx := state.GenesisTx{
+				RawTx: tx.RawTx,
+				Receipt: state.GenesisReceipt{
+					Status:  tx.Receipt.Status,
+					GasUsed: gasUsed,
+					Logs: tx.Receipt.Logs,
+				},
+				CreateAddress: common.HexToAddress(tx.CreateAddress),
+			}
+			cfg.Genesis.Transactions = append(cfg.Genesis.Transactions, auxTx)
 		}
 
 		const l2GlobalExitRootManagerSCName = "PolygonZkEVMGlobalExitRootL2"
