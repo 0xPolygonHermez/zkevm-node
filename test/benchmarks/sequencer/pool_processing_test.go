@@ -28,13 +28,11 @@ import (
 )
 
 const (
-	nTxs                        = 10000
-	gasLimit                    = 21000
-	prometheusPort              = 9092
-	defaultDeadline             = 6000 * time.Second
-	maxCumulativeGasUsed        = 80000000000
-	invalidNonceInc             = 1000
-	invalidNonceStartingPercent = 90
+	nTxs                 = 300
+	gasLimit             = 21000
+	prometheusPort       = 9092
+	defaultDeadline      = 6000 * time.Second
+	maxCumulativeGasUsed = 80000000000
 )
 
 var (
@@ -69,13 +67,13 @@ func BenchmarkSequencerPoolProcess(b *testing.B) {
 		start := time.Now()
 		log.Debug("Wait for sequencer to select all txs from the pool")
 		err := operations.Poll(1*time.Second, defaultDeadline, func() (bool, error) {
-			count, err := pl.CountPendingTransactions(ctx)
+			selectedCount, err := pl.CountTransactionsByStatus(ctx, pool.TxStatusSelected)
 			if err != nil {
 				return false, err
 			}
 
-			log.Debugf("amount of pending txs: %d", count)
-			done := count == 0
+			log.Debugf("amount of selected txs: %d", selectedCount)
+			done := selectedCount == nTxs
 			return done, nil
 		})
 		require.NoError(b, err)
@@ -131,13 +129,7 @@ func sendAndWaitTxs(b *testing.B, senderNonce uint64, client *ethclient.Client, 
 	log.Debugf("Sending %d txs ...", nTxs)
 	maxNonce := uint64(nTxs) + senderNonce
 
-	invalidNonceTxTypesWindowStart := maxNonce * invalidNonceStartingPercent / 100
-	invalidNonceTxTypesWindowEnd := maxNonce
-	for i := senderNonce; i < maxNonce; i++ {
-		nonce := i
-		if i >= invalidNonceTxTypesWindowStart && i < invalidNonceTxTypesWindowEnd {
-			nonce = nonce + invalidNonceInc
-		}
+	for nonce := senderNonce; nonce < maxNonce; nonce++ {
 		runTxSender(b, client, gasPrice, nonce)
 	}
 	log.Debug("All txs were sent!")

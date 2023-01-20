@@ -79,7 +79,7 @@ type workerInterface interface {
 	UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters)
 	AddTx(ctx context.Context, txTracker *TxTracker)
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int)
-	DeleteTx(txHash common.Hash, from common.Address, actualFromNonce *uint64, actualFromBalance *big.Int)
+	DeleteTx(txHash common.Hash, from common.Address)
 	HandleL2Reorg(txHashes []common.Hash)
 	NewTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters) (*TxTracker, error)
 }
@@ -95,6 +95,7 @@ type dbManagerInterface interface {
 	DeleteTransactionFromPool(ctx context.Context, txHash common.Hash) error
 	CloseBatch(ctx context.Context, params ClosingBatchParameters) error
 	GetWIPBatch(ctx context.Context) (*WipBatch, error)
+	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) (txs []types.Transaction, err error)
 	GetLastBatch(ctx context.Context) (*state.Batch, error)
 	GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error)
 	GetLastClosedBatch(ctx context.Context) (*state.Batch, error)
@@ -106,6 +107,7 @@ type dbManagerInterface interface {
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
+	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error
 }
 
 type dbManagerStateInterface interface {
@@ -116,6 +118,7 @@ type dbManagerStateInterface interface {
 	StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
+	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error)
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)

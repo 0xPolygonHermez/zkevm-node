@@ -79,7 +79,9 @@ func (a *addrQueue) deleteTx(txHash common.Hash) (deletedReadyTx *TxTracker) {
 func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (newReadyTx, prevReadyTx *TxTracker) {
 	var oldReadyTx *TxTracker = nil
 
-	a.currentBalance = balance
+	if balance != nil {
+		a.currentBalance = balance
+	}
 
 	if nonce != nil {
 		if a.currentNonce != *nonce {

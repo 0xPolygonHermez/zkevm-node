@@ -118,6 +118,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		Ch: make(chan *txToStore),
 		Wg: new(sync.WaitGroup),
 	}
+
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       s.cfg.MaxTxsPerBatch,
 		MaxBatchBytesSize:    s.cfg.MaxBatchBytesSize,
@@ -130,7 +131,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 		MaxBinaries:          s.cfg.MaxBinaries,
 		MaxSteps:             s.cfg.MaxSteps,
 	}
-
 	batchResourceWeights := batchResourceWeights{
 		WeightBatchBytesSize:    s.cfg.WeightBatchBytesSize,
 		WeightCumulativeGasUsed: s.cfg.WeightCumulativeGasUsed,
@@ -143,7 +143,10 @@ func (s *Sequencer) Start(ctx context.Context) {
 		WeightSteps:             s.cfg.WeightSteps,
 	}
 
-	s.pool.MarkWIPTxsAsPending(ctx)
+	err := s.pool.MarkWIPTxsAsPending(ctx)
+	if err != nil {
+		log.Fatalf("failed to mark WIP txs as pending, err: %v", err)
+	}
 
 	worker := NewWorker(s.state, batchConstraints, batchResourceWeights)
 	dbManager := newDBManager(ctx, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)

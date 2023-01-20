@@ -151,7 +151,7 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 }
 
 // DeleteTx delete the tx after it fails to execute
-func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address, actualFromNonce *uint64, actualFromBalance *big.Int) {
+func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
@@ -161,8 +161,6 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address, actualFromNon
 		if deletedReadyTx != nil {
 			w.efficiencyList.delete(deletedReadyTx)
 		}
-
-		addrQueue.updateCurrentNonceBalance(actualFromNonce, actualFromBalance)
 	} else {
 		log.Errorf("DeleteTx addrQueue(%s) not found", addr.String())
 	}
