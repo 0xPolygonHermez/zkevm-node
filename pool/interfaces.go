@@ -30,6 +30,7 @@ type storage interface {
 	IncrementFailedCounter(ctx context.Context, hashes []string) error
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
+	MarkWIPTxsAsPending(ctx context.Context) error
 }
 
 type stateInterface interface {

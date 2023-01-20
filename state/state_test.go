@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.104.156")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -1090,6 +1090,20 @@ func TestExecutorTransfer(t *testing.T) {
 	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
 	require.NoError(t, err)
 	require.Equal(t, uint64(21002), balance.Uint64())
+
+	// Read Modified Addresses directly from response
+	readWriteAddresses := processBatchResponse.ReadWriteAddresses
+	log.Debug(receiverAddress.String())
+	data := readWriteAddresses[strings.ToLower(receiverAddress.String())]
+	require.Equal(t, "21002", data.Balance)
+
+	// Read Modified Addresses from converted response
+	converted, err := state.TestConvertToProcessBatchResponse(processBatchResponse)
+	require.NoError(t, err)
+	convertedData := converted.ReadWriteAddresses[receiverAddress]
+	require.Equal(t, uint64(21002), convertedData.Balance.Uint64())
+	require.Equal(t, receiverAddress, convertedData.Address)
+	require.Equal(t, (*uint64)(nil), convertedData.Nonce)
 }
 
 func TestExecutorTxHashAndRLP(t *testing.T) {
@@ -1618,14 +1632,14 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, state.SequencerCallerLabel, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
-	assert.Nil(t, processBatchResponse.Responses[0].Error)
+	assert.Nil(t, processBatchResponse.Responses[0].RomError)
 	assert.Equal(t, scAddress, processBatchResponse.Responses[0].CreateAddress)
 
 	// assert signed tx to increment counter
-	assert.Nil(t, processBatchResponse.Responses[1].Error)
+	assert.Nil(t, processBatchResponse.Responses[1].RomError)
 
 	// assert signed tx to increment counter
-	assert.Nil(t, processBatchResponse.Responses[2].Error)
+	assert.Nil(t, processBatchResponse.Responses[2].RomError)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
 
 	// Add txs to DB
@@ -2373,12 +2387,12 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[2].Error)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[3].Error)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[4].Error)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[5].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[2].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[3].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[4].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[5].Error)
 
 	// Check SC code
 	// Check Smart Contracts Code
@@ -2456,7 +2470,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 
 	processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
 	log.Debugf("Used gas = %v", processBatchResponse.Responses[0].GasUsed)
 }
 
@@ -2567,4 +2581,45 @@ func TestWaitSequencingTxToBeSyncedAndWaitVerifiedBatchToBeSynced(t *testing.T) 
 
 	err = testState.WaitVerifiedBatchToBeSynced(ctx, 1, 5*time.Second)
 	require.NoError(t, err)
+}
+
+func TestStoreDebugInfo(t *testing.T) {
+	var debugInfo state.DebugInfo
+
+	db := map[string]string{
+		"2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90": "00000000000000000000000000000000000000000000000000000000000000000d1f0da5a7b620c843fd1e18e59fd724d428d25da0cb1888e31f5542ac227c060000000000000000000000000000000000000000000000000000000000000000",
+		"e31f5542ac227c06d428d25da0cb188843fd1e18e59fd7240d1f0da5a7b620c8": "ed22ec7734d89ff2b2e639153607b7c542b2bd6ec2788851b7819329410847833e63658ee0db910d0b3e34316e81aa10e0dc203d93f4e3e5e10053d0ebc646020000000000000000000000000000000000000000000000000000000000000000",
+		"b78193294108478342b2bd6ec2788851b2e639153607b7c5ed22ec7734d89ff2": "16dde42596b907f049015d7e991a152894dd9dadd060910b60b4d5e9af514018b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
+		"3efad1dd58c2259d339438195426ad0af57d81efba5d4445b69b044f5e694795": "00000000dea000000000000035c9adc5000000000000003600000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		"e10053d0ebc64602e0dc203d93f4e3e50b3e34316e81aa103e63658ee0db910d": "66ee2be0687eea766926f8ca8796c78a4c2f3e938869b82d649e63bfe1247ba4b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
+	}
+
+	// Create Batch
+	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+		OldBatchNum:      0,
+		Coinbase:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").String(),
+		BatchL2Data:      common.Hex2Bytes("ee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b"),
+		OldStateRoot:     common.Hex2Bytes("2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90"),
+		GlobalExitRoot:   common.Hex2Bytes("090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"),
+		OldAccInputHash:  common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
+		EthTimestamp:     uint64(1944498031),
+		UpdateMerkleTree: 0,
+		Db:               db,
+		ChainId:          stateCfg.ChainID,
+	}
+
+	_, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+
+	// Log as it failed
+	testState.LogExecutorError(executorclientpb.ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK, processBatchRequest)
+	require.NoError(t, err)
+
+	payload, err := json.Marshal(processBatchRequest)
+	require.NoError(t, err)
+
+	err = testState.PostgresStorage.QueryRow(ctx, "SELECT * FROM state.debug").Scan(&debugInfo.ErrorType, &debugInfo.Timestamp, &debugInfo.Payload)
+	assert.NoError(t, err)
+	assert.Equal(t, state.DebugInfoErrorType_EXECUTOR_ERROR, debugInfo.ErrorType)
+	assert.Equal(t, string(payload), debugInfo.Payload)
 }

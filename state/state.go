@@ -292,13 +292,17 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		gasUsed = processBatchResponse.Responses[0].GasUsed
 		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
-			log.Errorf("error processing unsigned transaction ", err)
+			log.Errorf("error estimating gas: %v", err)
+			return false, false, gasUsed, err
+		} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+			err = executor.ExecutorErr(processBatchResponse.Error)
+			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, err
 		}
 
 		// Check if an out of gas error happened during EVM execution
-		if processBatchResponse.Responses[0].Error != pb.Error(executor.ERROR_NO_ERROR) {
-			err := executor.Err(processBatchResponse.Responses[0].Error)
+		if processBatchResponse.Responses[0].Error != pb.RomError(executor.ROM_ERROR_NO_ERROR) {
+			err := executor.RomErr(processBatchResponse.Responses[0].Error)
 
 			if (isGasEVMError(err) || isGasApplyError(err)) && shouldOmitErr {
 				// Specifying the transaction failed, but not providing an error
@@ -386,8 +390,7 @@ func isGasApplyError(err error) bool {
 
 // Checks if EVM level valid gas errors occurred
 func isGasEVMError(err error) bool {
-	return errors.Is(err, runtime.ErrOutOfGas) ||
-		errors.Is(err, runtime.ErrCodeStoreOutOfGas)
+	return errors.Is(err, runtime.ErrOutOfGas)
 }
 
 // Checks if the EVM reverted during execution
@@ -514,7 +517,16 @@ func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		ChainId:          s.cfg.ChainID,
 	}
 
-	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+
+	if err != nil {
+		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+			err = executor.ExecutorErr(processBatchResponse.Error)
+			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		}
+	}
+
+	return processBatchResponse, err
 }
 
 func (s *State) processBatch(
@@ -585,6 +597,14 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 	log.Debugf("processBatch[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	if err != nil {
+		log.Errorf("Error s.executorClient.ProcessBatch: %v", err)
+		log.Errorf("Error s.executorClient.ProcessBatch: %s", err.Error())
+		log.Errorf("Error s.executorClient.ProcessBatch response: %v", res)
+	} else if res.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		err = executor.ExecutorErr(res.Error)
+		s.LogExecutorError(res.Error, processBatchRequest)
+	}
 	elapsed := time.Since(now)
 	metrics.ExecutorProcessingTime(string(caller), elapsed)
 	log.Infof("It took %v for the executor to process the request", elapsed)
@@ -630,7 +650,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		// if the transaction has an intrinsic invalid tx error it means
 		// the transaction has not changed the state, so we don't store it
 		// and just move to the next
-		if executor.IsIntrinsicError(executor.ErrorCode(processedTx.Error)) {
+		if executor.IsIntrinsicError(executor.RomErrorCode(processedTx.RomError)) {
 			continue
 		}
 
@@ -738,7 +758,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
 		if !isProcessed(processed.Responses[i].Error) {
-			if executor.IsOutOfCountersError(processed.Responses[i].Error) {
+			if executor.IsROMOutOfCountersError(processed.Responses[i].Error) {
 				processed.Responses = []*pb.ProcessTransactionResponse{}
 				break
 			}
@@ -848,6 +868,10 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	startTime := time.Now()
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
+		return nil, err
+	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		err = executor.ExecutorErr(processBatchResponse.Error)
+		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
 	endTime := time.Now()
@@ -1143,6 +1167,11 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		log.Errorf("error processing unsigned transaction ", err)
 		result.Err = err
 		return result
+	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		err = executor.ExecutorErr(processBatchResponse.Error)
+		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		result.Err = err
+		return result
 	}
 	response, err := convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
@@ -1156,8 +1185,8 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	result.GasUsed = r.GasUsed
 	result.CreateAddress = r.CreateAddress
 	result.StateRoot = r.StateRoot.Bytes()
-	if processBatchResponse.Responses[0].Error != pb.Error(executor.ERROR_NO_ERROR) {
-		err := executor.Err(processBatchResponse.Responses[0].Error)
+	if processBatchResponse.Responses[0].Error != pb.RomError(executor.ROM_ERROR_NO_ERROR) {
+		err := executor.RomErr(processBatchResponse.Responses[0].Error)
 		if isEVMRevertError(err) {
 			result.Err = constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
 		} else {
@@ -1493,7 +1522,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	*/
 	// if the transaction has an intrinsic invalid tx error it means
 	// the transaction has not changed the state, so we don't store it
-	if executor.IsIntrinsicError(executor.ErrorCode(processedTx.Error)) {
+	if executor.IsIntrinsicError(executor.RomErrorCode(processedTx.RomError)) {
 		return nil
 	}
 
@@ -1540,4 +1569,24 @@ func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Addres
 
 func (s *State) GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	return s.tree.GetNonce(ctx, address, root.Bytes())
+}
+
+// LogExecutorError is used to store Executor error for runtime debugging
+func (s *State) LogExecutorError(responseError pb.ExecutorError, processBatchRequest *pb.ProcessBatchRequest) {
+	timestamp := time.Now()
+	log.Errorf("error found in the executor: %v at %v", responseError, timestamp)
+	payload, err := json.Marshal(processBatchRequest)
+	if err != nil {
+		log.Errorf("error marshaling payload: %v", err)
+	} else {
+		debugInfo := &DebugInfo{
+			ErrorType: DebugInfoErrorType_EXECUTOR_ERROR,
+			Timestamp: timestamp,
+			Payload:   string(payload),
+		}
+		err = s.AddDebugInfo(context.Background(), debugInfo, nil)
+		if err != nil {
+			log.Errorf("error storing payload: %v", err)
+		}
+	}
 }

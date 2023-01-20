@@ -3,18 +3,12 @@ package state
 import (
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
-
-// TouchedAddress represents affected address after executor processing one or multiple txs
-type TouchedAddress struct {
-	Address common.Address
-	Nonce   *uint64
-	Balance *big.Int
-}
 
 // ProcessRequest represents the request of a batch process.
 type ProcessRequest struct {
@@ -30,15 +24,15 @@ type ProcessRequest struct {
 
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot     common.Hash
-	NewAccInputHash  common.Hash
-	NewLocalExitRoot common.Hash
-	NewBatchNumber   uint64
-	UsedZkCounters   ZKCounters
-	Responses        []*ProcessTransactionResponse
-	Error            error
-	IsBatchProcessed bool
-	TouchedAddresses map[common.Address]*TouchedAddress
+	NewStateRoot       common.Hash
+	NewAccInputHash    common.Hash
+	NewLocalExitRoot   common.Hash
+	NewBatchNumber     uint64
+	UsedZkCounters     ZKCounters
+	Responses          []*ProcessTransactionResponse
+	ExecutorError      error
+	IsBatchProcessed   bool
+	ReadWriteAddresses map[common.Address]*InfoReadWrite
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
@@ -56,8 +50,8 @@ type ProcessTransactionResponse struct {
 	GasUsed uint64
 	// GasRefunded is the total gas refunded as result of execution
 	GasRefunded uint64
-	// Error represents any error encountered during the execution
-	Error error
+	// RomError represents any error encountered during the execution
+	RomError error
 	// CreateAddress is the new SC Address in case of SC creation
 	CreateAddress common.Address
 	// StateRoot is the State Root
@@ -136,4 +130,23 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 	z.UsedSteps -= other.UsedSteps
 
 	return nil
+}
+
+// InfoReadWrite has information about modified addresses during the execution
+type InfoReadWrite struct {
+	Address common.Address
+	Nonce   *uint64
+	Balance *big.Int
+}
+
+const (
+	// DebugInfoErrorType_EXECUTOR_ERROR indicates a error happened in the executor
+	DebugInfoErrorType_EXECUTOR_ERROR = "EXECUTOR ERROR"
+)
+
+// DebugInfo allows handling runtime debug info
+type DebugInfo struct {
+	ErrorType string
+	Timestamp time.Time
+	Payload   string
 }

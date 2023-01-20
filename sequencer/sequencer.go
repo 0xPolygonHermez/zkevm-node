@@ -143,6 +143,8 @@ func (s *Sequencer) Start(ctx context.Context) {
 		WeightSteps:             s.cfg.WeightSteps,
 	}
 
+	s.pool.MarkWIPTxsAsPending(ctx)
+
 	worker := NewWorker(s.state, batchConstraints, batchResourceWeights)
 	dbManager := newDBManager(ctx, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
 	go dbManager.Start()

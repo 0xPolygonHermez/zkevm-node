@@ -560,3 +560,12 @@ func (p *PostgresPoolStorage) GetTxZkCountersByHash(ctx context.Context, hash co
 
 	return &zkCounters, nil
 }
+
+// MarkWIPTxsAsPending updates WIP txs status to pending
+func (p *PostgresPoolStorage) MarkWIPTxsAsPending(ctx context.Context) error {
+	const query = `UPDATE pool.txs SET status = $1 WHERE status = $2`
+	if _, err := p.db.Exec(ctx, query, pool.TxStatusPending, pool.TxStatusWIP); err != nil {
+		return err
+	}
+	return nil
+}

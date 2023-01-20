@@ -21,6 +21,7 @@ type txPool interface {
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
+	MarkWIPTxsAsPending(ctx context.Context) error
 	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
@@ -74,7 +75,7 @@ type stateInterface interface {
 
 type workerInterface interface {
 	GetBestFittingTx(resources batchResources) *TxTracker
-	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress)
+	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite)
 	UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters)
 	AddTx(ctx context.Context, txTracker *TxTracker)
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int)

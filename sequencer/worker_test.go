@@ -270,9 +270,9 @@ func TestWorkerGetBestTx(t *testing.T) {
 				t.Fatalf("Error GetBestFittingTx(%d). Expected=%s, Actual=%s", ct, expectedGetBestTx[ct].String(), tx.HashStr)
 			}
 			rc.sub(tx.BatchResources)
-			touch := make(map[common.Address]*state.TouchedAddress)
+			touch := make(map[common.Address]*state.InfoReadWrite)
 			var newNonce uint64 = tx.Nonce + 1
-			touch[tx.From] = &state.TouchedAddress{Address: tx.From, Nonce: &newNonce, Balance: new(big.Int).SetInt64(10)}
+			touch[tx.From] = &state.InfoReadWrite{Address: tx.From, Nonce: &newNonce, Balance: new(big.Int).SetInt64(10)}
 			worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, touch)
 			ct++
 		} else {
