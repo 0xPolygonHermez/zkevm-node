@@ -45,14 +45,7 @@ func Test_IsClaimTx(t *testing.T) {
 			Tx: Transaction{
 				Transaction: *types.NewTx(&types.LegacyTx{Nonce: 1, To: &l2BridgeAddr, Value: big.NewInt(0), Gas: 0, GasPrice: big.NewInt(0), Data: claimData}),
 			},
-			expectedResult: false,
-		},
-		{
-			Name: "To address as l2BridgeAddr address",
-			Tx: Transaction{
-				Transaction: *types.NewTx(&types.LegacyTx{Nonce: 1, To: &l2BridgeAddr, Value: big.NewInt(0), Gas: 0, GasPrice: big.NewInt(0), Data: claimData}),
-			},
-			expectedResult: false,
+			expectedResult: true,
 		},
 	}
 
