@@ -54,14 +54,14 @@ type Config struct {
 	Log                 log.Config
 	Etherman            etherman.Config
 	EthTxManager        ethtxmanager.Config
-	Pool               pool.Config
+	Pool                pool.Config
 	RPC                 jsonrpc.Config
 	Synchronizer        synchronizer.Config
 	Sequencer           sequencer.Config
 	PriceGetter         pricegetter.Config
 	Aggregator          aggregator.Config
 	NetworkConfig       NetworkConfig
-	L2GasPriceSuggestor gasprice.Config
+	L2GasPriceSuggester gasprice.Config
 	Executor            executor.Config
 	BroadcastServer     broadcast.ServerConfig
 	MTClient            merkletree.Config

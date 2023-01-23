@@ -12,8 +12,8 @@ type DefaultGasPricer struct {
 	ctx  context.Context
 }
 
-// newDefaultGasPriceSuggestor init default gas price suggestor.
-func newDefaultGasPriceSuggestor(ctx context.Context, cfg Config, pool pool) *DefaultGasPricer {
+// newDefaultGasPriceSuggester init default gas price suggester.
+func newDefaultGasPriceSuggester(ctx context.Context, cfg Config, pool pool) *DefaultGasPricer {
 	gpe := &DefaultGasPricer{ctx: ctx, cfg: cfg, pool: pool}
 	gpe.setDefaultGasPrice()
 	return gpe

@@ -96,7 +96,7 @@ PrivateKeys = [
 	{Path = "/pk/aggregator.keystore", Password = "testonly"}
 ]
 
-[L2GasPriceSuggestor]
+[L2GasPriceSuggester]
 Type = "follower"
 UpdatePeriod = "10s"
 Factor = 0.5

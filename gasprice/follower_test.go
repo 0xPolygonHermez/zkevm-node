@@ -31,7 +31,7 @@ func TestUpdateGasPriceFollower(t *testing.T) {
 	ethM := new(ethermanMock)
 	ethM.On("GetL1GasPrice", ctx).Return(big.NewInt(10000000000)).Once()
 	poolM.On("SetGasPrice", ctx, uint64(5000000000)).Return(nil).Once()
-	f := newFollowerGasPriceSuggestor(ctx, cfg, poolM, ethM)
+	f := newFollowerGasPriceSuggester(ctx, cfg, poolM, ethM)
 
 	ethM.On("GetL1GasPrice", ctx).Return(big.NewInt(10000000000)).Once()
 	poolM.On("SetGasPrice", ctx, uint64(5000000000)).Return(nil).Once()

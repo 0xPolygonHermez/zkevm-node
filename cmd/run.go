@@ -99,12 +99,12 @@ func start(cliCtx *cli.Context) error {
 			go runAggregator(ctx, c.Aggregator, etherman, etm, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
@@ -122,8 +122,8 @@ func start(cliCtx *cli.Context) error {
 			go etm.Start()
 		case L2GASPRICER:
 			log.Info("Running L2 gasPricer")
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
-			go runL2GasPriceSuggestor(c.L2GasPriceSuggestor, st, poolInstance, etherman)
+			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			go runL2GasPriceSuggester(c.L2GasPriceSuggester, st, poolInstance, etherman)
 		}
 	}
 
@@ -237,10 +237,10 @@ func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {
 	broadcastSrv.Start()
 }
 
-// runL2GasPriceSuggestor init gas price gasPriceEstimator based on type in config.
-func runL2GasPriceSuggestor(cfg gasprice.Config, state *state.State, pool *pool.Pool, etherman *etherman.Client) {
+// runL2GasPriceSuggester init gas price gasPriceEstimator based on type in config.
+func runL2GasPriceSuggester(cfg gasprice.Config, state *state.State, pool *pool.Pool, etherman *etherman.Client) {
 	ctx := context.Background()
-	gasprice.NewL2GasPriceSuggestor(ctx, cfg, pool, etherman, state)
+	gasprice.NewL2GasPriceSuggester(ctx, cfg, pool, etherman, state)
 }
 
 func waitSignal(cancelFuncs []context.CancelFunc) {

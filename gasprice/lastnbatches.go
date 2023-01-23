@@ -26,8 +26,8 @@ type LastNL2BlocksGasPrice struct {
 	pool  pool
 }
 
-// newLastNL2BlocksGasPriceSuggestor init gas price suggestor for last n l2 blocks strategy.
-func newLastNL2BlocksGasPriceSuggestor(ctx context.Context, cfg Config, state stateInterface, pool pool) *LastNL2BlocksGasPrice {
+// newLastNL2BlocksGasPriceSuggester init gas price suggester for last n l2 blocks strategy.
+func newLastNL2BlocksGasPriceSuggester(ctx context.Context, cfg Config, state stateInterface, pool pool) *LastNL2BlocksGasPrice {
 	return &LastNL2BlocksGasPrice{
 		cfg:   cfg,
 		ctx:   ctx,

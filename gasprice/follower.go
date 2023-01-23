@@ -15,8 +15,8 @@ type FollowerGasPrice struct {
 	eth  ethermanInterface
 }
 
-// newFollowerGasPriceSuggestor inits l2 follower gas price suggestor which is based on the l1 gas price.
-func newFollowerGasPriceSuggestor(ctx context.Context, cfg Config, pool pool, ethMan ethermanInterface) *FollowerGasPrice {
+// newFollowerGasPriceSuggester inits l2 follower gas price suggester which is based on the l1 gas price.
+func newFollowerGasPriceSuggester(ctx context.Context, cfg Config, pool pool, ethMan ethermanInterface) *FollowerGasPrice {
 	gps := &FollowerGasPrice{
 		cfg:  cfg,
 		pool: pool,
