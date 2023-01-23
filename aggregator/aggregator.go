@@ -41,12 +41,6 @@ type finalProofMsg struct {
 	finalProof     *pb.FinalProof
 }
 
-type proverProof struct {
-	ID            string
-	batchNum      uint64
-	batchNumFinal uint64
-}
-
 // Aggregator represents an aggregator
 type Aggregator struct {
 	pb.UnimplementedAggregatorServiceServer
@@ -60,11 +54,9 @@ type Aggregator struct {
 	TimeSendFinalProof      time.Time
 	StateDBMutex            *sync.Mutex
 	TimeSendFinalProofMutex *sync.RWMutex
-	proverProofMutex        *sync.RWMutex
 
 	finalProof     chan finalProofMsg
 	verifyingProof bool
-	proverProofs   map[string]proverProof
 
 	srv  *grpc.Server
 	ctx  context.Context
@@ -94,11 +86,9 @@ func New(
 		Ethman:                  etherman,
 		ProfitabilityChecker:    profitabilityChecker,
 		StateDBMutex:            &sync.Mutex{},
-		proverProofMutex:        &sync.RWMutex{},
 		TimeSendFinalProofMutex: &sync.RWMutex{},
 
-		finalProof:   make(chan finalProofMsg),
-		proverProofs: make(map[string]proverProof),
+		finalProof: make(chan finalProofMsg),
 	}
 
 	return a, nil
@@ -178,6 +168,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 		return err
 	}
 
+	log := log.WithFields("proverId", prover.ID(), "proverAddr", prover.Addr())
 	log.Debug("Establishing stream connection with prover")
 
 	for {
@@ -191,30 +182,24 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 
 		default:
 			if !prover.IsIdle() {
-				log.Debugf("Prover { ID [%s], addr [%s] } is not idle", prover.ID(), prover.Addr())
+				log.Debug("Prover is not idle")
 				time.Sleep(a.cfg.RetryTime.Duration)
 				continue
 			}
 
-			a.proverProofMutex.RLock()
-			fmt.Printf("%v\n", a.proverProofs)
-			a.proverProofMutex.RUnlock()
-
-			a.tryRecoverProof(ctx, prover)
-
 			_, err := a.tryBuildFinalProof(ctx, prover, nil)
 			if err != nil {
-				log.Errorf("Error checking proofs to verify: %v", err)
+				log.Errorf("error checking proofs to verify: %v", err)
 			}
 
 			proofGenerated, err := a.tryAggregateProofs(ctx, prover)
 			if err != nil {
-				log.Errorf("Error trying to aggregate proofs: %v", err)
+				log.Errorf("error trying to aggregate proofs: %v", err)
 			}
 			if !proofGenerated {
 				proofGenerated, err = a.tryGenerateBatchProof(ctx, prover)
 				if err != nil {
-					log.Errorf("Error trying to generate proof: %v", err)
+					log.Errorf("error trying to generate proof: %v", err)
 				}
 			}
 			if !proofGenerated {
@@ -222,36 +207,6 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 				time.Sleep(a.cfg.RetryTime.Duration)
 			} // if proof was generated we retry immediately as probably we have more proofs to process
 		}
-	}
-}
-
-func (a *Aggregator) tryRecoverProof(ctx context.Context, prover proverInterface) {
-	a.proverProofMutex.RLock()
-	proof, stale := a.proverProofs[prover.Addr()]
-	a.proverProofMutex.RUnlock()
-
-	if stale {
-		// log := log.WithFields(
-		// 	"proverId", prover.ID(),
-		// 	"proverAddr", prover.Addr(),
-		// 	"proofId", proof.ID,
-		// 	"batches", fmt.Sprintf("%d-%d", proof.batchNum, proof.batchNumFinal),
-		// )
-
-		log.Warn("detected stale proof")
-
-		// the prover was working on a proof that somehow got lost, clean up the database
-		err := a.State.DeleteReservedProof(ctx, prover.ID(), proof.ID, proof.batchNum, proof.batchNumFinal, nil)
-		if err != nil {
-			log.Errorf("failed to clean up stale proof, %v", err)
-			return
-		}
-
-		a.proverProofMutex.Lock()
-		delete(a.proverProofs, prover.Addr())
-		a.proverProofMutex.Unlock()
-
-		log.Info("successfully cleared stale proof")
 	}
 }
 
@@ -322,32 +277,35 @@ func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Cont
 	proof.Generating = false
 	err := a.State.UpdateGeneratedProof(ctx, proof, nil)
 	if err != nil {
-		log.Errorf("failed updating proof state (false), err: %v", err)
-	} else {
-		a.unsetProverProof(*proof.Prover, *proof.ProofID, proof.BatchNumber, proof.BatchNumberFinal)
+		log.Errorf("failed updating proof state (false): %v", err)
 	}
 	a.endProofVerification()
 }
 
 // buildFinalProof builds and return the final proof for an aggregated/batch proof.
 func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (*pb.FinalProof, error) {
-	log.Infof("Prover { ID[%s], addr[%s] }  is going to be used to generate final proof for batches [%d-%d]",
-		prover.ID(), prover.Addr(), proof.BatchNumber, proof.BatchNumberFinal)
+	log := log.WithFields(
+		"proverId", prover.ID(),
+		"proverAddr", prover.Addr(),
+		"batches", fmt.Sprintf("%d-%d", proof.BatchNumber, proof.BatchNumberFinal),
+	)
+	log.Info("Generating final proof")
 
 	finalProofID, err := prover.FinalProof(proof.Proof, a.cfg.SenderAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get final proof id, %w", err)
+		return nil, fmt.Errorf("failed to get final proof id: %w", err)
 	}
 	proof.ProofID = finalProofID
 
 	log.Infof("Final proof ID for batches [%d-%d]: %s", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
+	log = log.WithFields("proofId", finalProofID)
 
 	finalProof, err := prover.WaitFinalProof(ctx, *proof.ProofID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get final proof from prover, %w", err)
+		return nil, fmt.Errorf("failed to get final proof from prover: %w", err)
 	}
 
-	log.Infof("Final proof [%s] generated", *proof.ProofID)
+	log.Info("Final proof generated")
 
 	// mock prover sanity check
 	if string(finalProof.Public.NewStateRoot) == mockedStateRoot && string(finalProof.Public.NewLocalExitRoot) == mockedLocalExitRoot {
@@ -371,7 +329,9 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 // generated proof.  If the proof is eligible, then the final proof generation
 // is triggered.
 func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (bool, error) {
-	log.Debugf("tryBuildFinalProof start prover { ID [%s], addr [%s] }", prover.ID(), prover.Addr())
+	proverID := prover.ID()
+	log := log.WithFields("proverId", proverID, "proverAddr", prover.Addr())
+	log.Debug("tryBuildFinalProof start")
 
 	var err error
 	if !a.canVerifyProof() {
@@ -408,7 +368,6 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 		if err != nil {
 			return false, err
 		}
-		a.setProverProof(prover, *proof.ProofID, proof.BatchNumber, proof.BatchNumberFinal)
 
 		defer func() {
 			if err != nil {
@@ -418,7 +377,6 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 				if err2 != nil {
 					log.Errorf("failed to delete proof in progress, err: %v", err2)
 				}
-				a.unsetProverProof(prover.Addr(), *proof.ProofID, proof.BatchNumber, proof.BatchNumberFinal) // TODO(pg): switch to prover ID once it's unique across prover restarts
 			}
 		}()
 	} else {
@@ -447,7 +405,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 	}
 
 	msg := finalProofMsg{
-		proverID:       prover.Addr(), // TODO(pg): switch to prover ID once it's unique across prover restarts
+		proverID:       proverID,
 		recursiveProof: proof,
 		finalProof:     finalProof,
 	}
@@ -584,7 +542,8 @@ func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover pro
 
 func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterface) (bool, error) {
 	proverID := prover.ID()
-	log.Debugf("tryAggregateProofs start prover { ID [%s], addr [%s] }", prover.ID, prover.Addr())
+	log := log.WithFields("proverId", proverID, "proverAddr", prover.Addr())
+	log.Debug("tryAggregateProofs start")
 
 	proof1, proof2, err0 := a.getAndLockProofsToAggregate(ctx, prover)
 	if errors.Is(err0, state.ErrNotFound) {
@@ -606,17 +565,12 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 			err2 := a.unlockProofsToAggregate(a.ctx, proof1, proof2)
 			if err2 != nil {
 				log.Errorf("Failed to release aggregated proofs, err: %v", err2)
-			} else {
-				if aggrProofID != nil {
-					a.unsetProverProof(prover.Addr(), *aggrProofID, proof1.BatchNumber, proof2.BatchNumberFinal) // TODO(pg): switch to prover ID once it's unique across prover restarts
-				}
 			}
 		}
 		log.Debug("tryAggregateProofs end")
 	}()
 
-	log.Infof("Prover { ID [%s], addr [%s] } is going to be used to aggregate proofs: %d-%d and %d-%d",
-		proverID, prover.Addr(), proof1.BatchNumber, proof1.BatchNumberFinal, proof2.BatchNumber, proof2.BatchNumberFinal)
+	log.Infof("Aggregating proofs: %d-%d and %d-%d", proof1.BatchNumber, proof1.BatchNumberFinal, proof2.BatchNumber, proof2.BatchNumberFinal)
 
 	inputProver := map[string]interface{}{
 		"recursive_proof_1": proof1.Proof,
@@ -639,7 +593,6 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	if err != nil {
 		return false, fmt.Errorf("failed to get aggregated proof id, %w", err)
 	}
-	a.setProverProof(prover, *aggrProofID, proof1.BatchNumber, proof2.BatchNumberFinal)
 
 	proof.ProofID = aggrProofID
 
@@ -694,8 +647,6 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 		if err != nil {
 			log.Errorf("Failed to store batch proof result, err %v", err)
 			return false, err
-		} else {
-			a.unsetProverProof(prover.Addr(), *aggrProofID, proof1.BatchNumber, proof2.BatchNumberFinal) // TODO(pg): switch to prover ID once it's unique across prover restarts
 		}
 	}
 
@@ -752,8 +703,8 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverIn
 }
 
 func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInterface) (bool, error) {
-	proverID := prover.ID()
-	log.Debugf("tryGenerateBatchProof start prover { ID [%s], addr [%s] }", proverID, prover.Addr())
+	log := log.WithFields("proverId", prover.ID(), "proverAddr", prover.Addr())
+	log.Debug("tryGenerateBatchProof start")
 
 	batchToProve, proof, err0 := a.getAndLockBatchToProve(ctx, prover)
 	if errors.Is(err0, state.ErrNotFound) {
@@ -775,16 +726,12 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 			err2 := a.State.DeleteGeneratedProofs(a.ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
 			if err2 != nil {
 				log.Errorf("Failed to delete proof in progress, err: %v", err2)
-			} else {
-				if genProofID != nil {
-					a.unsetProverProof(prover.Addr(), *genProofID, batchToProve.BatchNumber, batchToProve.BatchNumber) // TODO(pg): switch to prover ID once it's unique across prover restarts
-				}
 			}
 		}
 		log.Debug("tryGenerateBatchProof end")
 	}()
 
-	log.Infof("Prover { ID [%s], addr [%s] } is going to be used to generate proof from batch [%d]", proverID, prover.Addr(), batchToProve.BatchNumber)
+	log.Infof("Generating proof from batch [%d]", batchToProve.BatchNumber)
 
 	log.Infof("Sending zki + batch to the prover, batchNumber [%d]", batchToProve.BatchNumber)
 	inputProver, err := a.buildInputProver(ctx, batchToProve)
@@ -806,7 +753,6 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 	if err != nil {
 		return false, fmt.Errorf("failed to get batch proof id %w", err)
 	}
-	a.setProverProof(prover, *genProofID, batchToProve.BatchNumber, batchToProve.BatchNumber)
 
 	proof.ProofID = genProofID
 
@@ -836,8 +782,6 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 		if err != nil {
 			log.Errorf("Failed to store batch proof result, err %v", err)
 			return false, err
-		} else {
-			a.unsetProverProof(prover.Addr(), *genProofID, batchToProve.BatchNumber, batchToProve.BatchNumber) // TODO(pg): switch to prover ID once it's unique across prover restarts
 		}
 	}
 
@@ -871,25 +815,6 @@ func (a *Aggregator) resetVerifyProofTime() {
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
 	a.TimeSendFinalProof = time.Now().Add(a.cfg.VerifyProofInterval.Duration)
-}
-
-func (a *Aggregator) setProverProof(prover proverInterface, proofID string, batchNum, batchNumFinal uint64) {
-	a.proverProofMutex.Lock()
-	defer a.proverProofMutex.Unlock()
-	a.proverProofs[prover.Addr()] = proverProof{
-		ID:            proofID,
-		batchNum:      batchNum,
-		batchNumFinal: batchNumFinal,
-	}
-}
-
-func (a *Aggregator) unsetProverProof(proverID, proofID string, batchNum, batchNumFinal uint64) {
-	a.proverProofMutex.Lock()
-	defer a.proverProofMutex.Unlock()
-	proof, ok := a.proverProofs[proverID]
-	if ok && proof.ID == proofID && proof.batchNum == batchNum && proof.batchNumFinal == batchNumFinal {
-		delete(a.proverProofs, proverID)
-	}
 }
 
 // isSynced checks if the state is synchronized with L1. If a batch number is
@@ -1016,9 +941,6 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResu
 	err = a.State.CleanupGeneratedProofs(a.ctx, proofBatchNumberFinal, nil)
 	if err != nil {
 		log.Errorf("failed to store proof aggregation result: %v", err)
-		// FIXME(pg)
-		// } else {
-		// 	a.unsetProverProof(msg.proverID, *msg.recursiveProof.ProofID, msg.recursiveProof.BatchNumber, msg.recursiveProof.BatchNumberFinal)
 	}
 }
 

@@ -80,12 +80,6 @@ func TestSendFinalProof(t *testing.T) {
 				}).Return(nil, errBanana).Once()
 			},
 			asserts: func(a *Aggregator) {
-				proof, ok := a.proverProofs[proverID]
-				if assert.True(ok) {
-					assert.Equal(proofID, proof.ID)
-					assert.Equal(batchNum, proof.batchNum)
-					assert.Equal(batchNumFinal, proof.batchNumFinal)
-				}
 				assert.False(a.verifyingProof)
 			},
 		},
@@ -109,8 +103,6 @@ func TestSendFinalProof(t *testing.T) {
 				}).Return(nil).Once()
 			},
 			asserts: func(a *Aggregator) {
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 				assert.False(a.verifyingProof)
 			},
 		},
@@ -134,12 +126,6 @@ func TestSendFinalProof(t *testing.T) {
 				}).Return(errBanana).Once()
 			},
 			asserts: func(a *Aggregator) {
-				proof, ok := a.proverProofs[proverID]
-				if assert.True(ok) {
-					assert.Equal(proofID, proof.ID)
-					assert.Equal(batchNum, proof.batchNum)
-					assert.Equal(batchNumFinal, proof.batchNumFinal)
-				}
 				assert.False(a.verifyingProof)
 			},
 		},
@@ -255,12 +241,6 @@ func TestSendFinalProof(t *testing.T) {
 			a, err := New(cfg, stateMock, ethTxManager, etherman)
 			require.NoError(err)
 			a.ctx, a.exit = context.WithCancel(context.Background())
-			// add an ongoing proof to the map
-			a.proverProofs[proverID] = proverProof{
-				ID:            proofID,
-				batchNum:      batchNum,
-				batchNumFinal: batchNumFinal,
-			}
 			m := mox{
 				stateMock:    stateMock,
 				ethTxManager: ethTxManager,
@@ -326,8 +306,6 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
@@ -340,8 +318,6 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.NoError(err)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
@@ -390,8 +366,6 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
@@ -441,8 +415,6 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
@@ -484,13 +456,6 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				proof, ok := a.proverProofs[proverID]
-				if assert.True(ok) {
-					assert.Equal(proofID, proof.ID)
-					assert.Equal(batchNum, proof.batchNum)
-					assert.Equal(batchNumFinal, proof.batchNumFinal)
-
-				}
 			},
 		},
 		{
@@ -542,8 +507,6 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
@@ -596,8 +559,6 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
@@ -656,8 +617,6 @@ func TestTryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.True(result)
 				assert.NoError(err)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 	}
@@ -734,8 +693,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
@@ -748,8 +705,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.NoError(err)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
@@ -775,8 +730,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
@@ -803,8 +756,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
@@ -831,12 +782,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				proof, ok := a.proverProofs[proverID]
-				if assert.True(ok) {
-					assert.Equal(proofID, proof.ID)
-					assert.Equal(batchNum, proof.batchNum)
-					assert.Equal(batchNum, proof.batchNumFinal)
-				}
 			},
 		},
 		{
@@ -874,8 +819,6 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.True(result)
 				assert.NoError(err)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 	}
@@ -971,7 +914,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 			name: "can't verify proof (verifyingProof = true)",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Once()
-				m.proverMock.On("Addr").Return("addr")
+				m.proverMock.On("Addr").Return("addr").Once()
 				a.verifyingProof = true
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
@@ -985,7 +928,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 			setup: func(m mox, a *Aggregator) {
 				a.TimeSendFinalProof = time.Now().Add(10 * time.Second)
 				m.proverMock.On("ID").Return(proverID).Once()
-				m.proverMock.On("Addr").Return("addr")
+				m.proverMock.On("Addr").Return("addr").Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -996,7 +939,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 			name: "nil proof, error building the proof triggers defer",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Twice()
-				m.proverMock.On("Addr").Return("addr")
+				m.proverMock.On("Addr").Return("addr").Twice()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
 				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
@@ -1012,15 +955,13 @@ func TestTryBuildFinalProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				_, ok := a.proverProofs[proverID]
-				assert.False(ok)
 			},
 		},
 		{
 			name: "nil proof ok",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Twice()
-				m.proverMock.On("Addr").Return(proverID)
+				m.proverMock.On("Addr").Return(proverID).Twice()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
 				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
@@ -1031,12 +972,6 @@ func TestTryBuildFinalProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.True(result)
 				assert.NoError(err)
-				proof, ok := a.proverProofs[proverID]
-				if assert.True(ok) {
-					assert.Equal(finalProofID, proof.ID)
-					assert.Equal(batchNum, proof.batchNum)
-					assert.Equal(batchNumFinal, proof.batchNumFinal)
-				}
 			},
 			assertFinalMsg: func(msg *finalProofMsg) {
 				assert.Equal(finalProof.Proof.ProofA, msg.finalProof.Proof.ProofA)
@@ -1050,13 +985,8 @@ func TestTryBuildFinalProof(t *testing.T) {
 			name:  "error checking if proof is a complete sequence",
 			proof: &proofToVerify,
 			setup: func(m mox, a *Aggregator) {
-				a.proverProofs[proverID] = proverProof{
-					ID:            finalProofID,
-					batchNum:      batchNum,
-					batchNumFinal: batchNumFinal,
-				}
 				m.proverMock.On("ID").Return(proverID).Once()
-				m.proverMock.On("Addr").Return(proverID)
+				m.proverMock.On("Addr").Return(proverID).Once()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
 				m.stateMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(false, errBanana).Once()
@@ -1064,50 +994,28 @@ func TestTryBuildFinalProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errBanana)
-				proof, ok := a.proverProofs[proverID]
-				if assert.True(ok) {
-					assert.Equal(finalProofID, proof.ID)
-					assert.Equal(batchNum, proof.batchNum)
-					assert.Equal(batchNumFinal, proof.batchNumFinal)
-				}
 			},
 		},
 		{
 			name:  "invalid proof (not consecutive to latest verified batch) rejected",
 			proof: &invalidProof,
 			setup: func(m mox, a *Aggregator) {
-				a.proverProofs[proverID] = proverProof{
-					ID:            finalProofID,
-					batchNum:      batchNum,
-					batchNumFinal: batchNumFinal,
-				}
 				m.proverMock.On("ID").Return(proverID).Once()
-				m.proverMock.On("Addr").Return(proverID)
+				m.proverMock.On("Addr").Return(proverID).Once()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.NoError(err)
-				proof, ok := a.proverProofs[proverID]
-				if assert.True(ok) {
-					assert.Equal(finalProofID, proof.ID)
-					assert.Equal(batchNum, proof.batchNum)
-					assert.Equal(batchNumFinal, proof.batchNumFinal)
-				}
 			},
 		},
 		{
 			name:  "invalid proof (not a complete sequence) rejected",
 			proof: &proofToVerify,
 			setup: func(m mox, a *Aggregator) {
-				a.proverProofs[proverID] = proverProof{
-					ID:            finalProofID,
-					batchNum:      batchNum,
-					batchNumFinal: batchNumFinal,
-				}
 				m.proverMock.On("ID").Return(proverID).Once()
-				m.proverMock.On("Addr").Return(proverID)
+				m.proverMock.On("Addr").Return(proverID).Once()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
 				m.stateMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(false, nil).Once()
@@ -1115,25 +1023,14 @@ func TestTryBuildFinalProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.NoError(err)
-				proof, ok := a.proverProofs[proverID]
-				if assert.True(ok) {
-					assert.Equal(finalProofID, proof.ID)
-					assert.Equal(batchNum, proof.batchNum)
-					assert.Equal(batchNumFinal, proof.batchNumFinal)
-				}
 			},
 		},
 		{
 			name:  "valid proof ok",
 			proof: &proofToVerify,
 			setup: func(m mox, a *Aggregator) {
-				a.proverProofs[proverID] = proverProof{
-					ID:            finalProofID,
-					batchNum:      batchNum,
-					batchNumFinal: batchNumFinal,
-				}
 				m.proverMock.On("ID").Return(proverID).Twice()
-				m.proverMock.On("Addr").Return(proverID)
+				m.proverMock.On("Addr").Return(proverID).Twice()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
 				m.stateMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(true, nil).Once()
@@ -1143,12 +1040,6 @@ func TestTryBuildFinalProof(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.True(result)
 				assert.NoError(err)
-				proof, ok := a.proverProofs[proverID]
-				if assert.True(ok) {
-					assert.Equal(finalProofID, proof.ID)
-					assert.Equal(batchNum, proof.batchNum)
-					assert.Equal(batchNumFinal, proof.batchNumFinal)
-				}
 			},
 			assertFinalMsg: func(msg *finalProofMsg) {
 				assert.Equal(finalProof.Proof.ProofA, msg.finalProof.Proof.ProofA)
