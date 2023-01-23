@@ -46,7 +46,7 @@ func (g *LastNL2BlocksGasPrice) UpdateGasPriceAvg() {
 	lastL2BlockNumber, lastPrice := g.lastL2BlockNumber, g.lastPrice
 	g.cacheLock.RUnlock()
 	if l2BlockNumber == lastL2BlockNumber {
-		log.Debug("Nothing to update")
+		log.Debug("Block is still the same, no need to update the gas price at the moment")
 		return
 	}
 
