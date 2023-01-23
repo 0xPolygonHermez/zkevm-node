@@ -41,7 +41,7 @@ func New(stream pb.AggregatorService_ChannelServer, addr net.Addr, proofStatePol
 	}
 	status, err := p.Status()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve prover id %w", err)
+		return nil, fmt.Errorf("failed to retrieve prover id, %w", err)
 	}
 	p.name = status.ProverName
 	p.id = status.ProverId
