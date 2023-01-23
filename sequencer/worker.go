@@ -14,10 +14,10 @@ import (
 
 // Worker represents the worker component of the sequencer
 type Worker struct {
-	pool                 map[string]*addrQueue
-	efficiencyList       *efficiencyList
-	workerMutex          sync.Mutex
-	dbManager            dbManagerInterface
+	pool           map[string]*addrQueue
+	efficiencyList *efficiencyList
+	workerMutex    sync.Mutex
+	// dbManager            dbManagerInterface
 	state                stateInterface
 	batchConstraints     batchConstraints
 	batchResourceWeights batchResourceWeights

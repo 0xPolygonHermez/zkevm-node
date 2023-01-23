@@ -8,18 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
-
-	"github.com/0xPolygonHermez/zkevm-node/pool"
-
-	"github.com/jackc/pgx/v4"
-
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-
 	"github.com/0xPolygonHermez/zkevm-node/log"
-
+	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/jackc/pgx/v4"
 )
 
 var (
@@ -567,6 +562,8 @@ func (f *finalizer) reprocessBatch(ctx context.Context) error {
 
 // prepareProcessRequestFromState prepares process request from state
 func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs bool) (state.ProcessRequest, error) {
+	const two = 2
+
 	var (
 		txs          []byte
 		batchNum     uint64
@@ -576,12 +573,12 @@ func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs
 
 	if fetchTxs {
 		var lastClosedBatch *state.Batch
-		batches, err := f.dbManager.GetLastNBatches(ctx, 2)
+		batches, err := f.dbManager.GetLastNBatches(ctx, two)
 		if err != nil {
-			return state.ProcessRequest{}, fmt.Errorf("failed to get last %d batches, err: %w", 2, err)
+			return state.ProcessRequest{}, fmt.Errorf("failed to get last %d batches, err: %w", two, err)
 		}
 
-		if len(batches) == 2 {
+		if len(batches) == two {
 			lastClosedBatch = batches[1]
 		} else {
 			lastClosedBatch = batches[0]
@@ -613,11 +610,11 @@ func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs
 }
 
 func (f *finalizer) getLastBatchNumAndStateRoot(ctx context.Context) (uint64, common.Hash, error) {
+	const two = 2
 	var oldStateRoot common.Hash
-	n := uint(2)
-	batches, err := f.dbManager.GetLastNBatches(ctx, n)
+	batches, err := f.dbManager.GetLastNBatches(ctx, two)
 	if err != nil {
-		return 0, common.Hash{}, fmt.Errorf("failed to get last %d batches, err: %w", n, err)
+		return 0, common.Hash{}, fmt.Errorf("failed to get last %d batches, err: %w", two, err)
 	}
 	lastBatch := batches[0]
 
@@ -626,10 +623,12 @@ func (f *finalizer) getLastBatchNumAndStateRoot(ctx context.Context) (uint64, co
 }
 
 func (f *finalizer) getOldStateRootFromBatches(batches []*state.Batch) common.Hash {
+	const one = 1
+	const two = 2
 	var oldStateRoot common.Hash
-	if len(batches) == 1 {
+	if len(batches) == one {
 		oldStateRoot = batches[0].StateRoot
-	} else if len(batches) == 2 {
+	} else if len(batches) == two {
 		oldStateRoot = batches[1].StateRoot
 	}
 
@@ -714,9 +713,11 @@ func (f *finalizer) setNextSendingToL1Deadline() {
 }
 
 func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
-	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / 100
+	const oneHundred = 100
+	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / oneHundred
 }
 
 func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
-	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / 100
+	const oneHundred = 100
+	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / oneHundred
 }

@@ -453,6 +453,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 	return result, nil
 }
 
+// ProcessBatch processes a batch
 func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessBatch start")
@@ -1563,6 +1564,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	return nil
 }
 
+// GetBalanceByStateRoot gets balance from the MT Service using the provided state root
 func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	balance, err := s.tree.GetBalance(ctx, address, root.Bytes())
 	if err != nil && balance == nil {
@@ -1571,6 +1573,7 @@ func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Addres
 	return balance, err
 }
 
+// GetNonceByStateRoot gets nonce from the MT Service using the provided state root
 func (s *State) GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	return s.tree.GetNonce(ctx, address, root.Bytes())
 }

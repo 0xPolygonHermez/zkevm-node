@@ -20,6 +20,7 @@ func TestConvertToProcessBatchResponse(response *pb.ProcessBatchResponse) (*Proc
 	return convertToProcessBatchResponse(response)
 }
 
+// ConvertToCounters extracts ZKCounters from a ProcessBatchResponse
 func ConvertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
 	return ZKCounters{
 		CumulativeGasUsed:    resp.CumulativeGasUsed,

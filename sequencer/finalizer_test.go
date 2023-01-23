@@ -9,16 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
-
-	"github.com/stretchr/testify/mock"
-
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
+	mock "github.com/stretchr/testify/mock"
 )
 
 var (
@@ -74,8 +71,8 @@ var (
 	isSynced = func(ctx context.Context) bool {
 		return true
 	}
-	tx1 = ethTypes.NewTransaction(0, common.HexToAddress("0"), big.NewInt(0), 0, big.NewInt(0), []byte("aaa"))
-	tx2 = ethTypes.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
+	// tx1 = ethTypes.NewTransaction(0, common.HexToAddress("0"), big.NewInt(0), 0, big.NewInt(0), []byte("aaa"))
+	// tx2 = ethTypes.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
 
 	testErr          = fmt.Errorf("some error")
 	testErr2         = fmt.Errorf("some error2")
@@ -448,8 +445,8 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 	RawTxsData1 = append(RawTxsData1, []byte("forced tx 1")...)
 	RawTxsData1 = append(RawTxsData1, []byte("forced tx 2")...)
 	RawTxsData2 := make([]byte, 0, 2)
-	RawTxsData2 = append(RawTxsData1, []byte("forced tx 3")...)
-	RawTxsData2 = append(RawTxsData1, []byte("forced tx 4")...)
+	RawTxsData2 = append(RawTxsData2, []byte("forced tx 3")...)
+	RawTxsData2 = append(RawTxsData2, []byte("forced tx 4")...)
 	batchNumber := f.batch.batchNumber
 	stateRoot := hash
 	forcedBatch1 := state.ForcedBatch{
@@ -604,7 +601,6 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 			dbTxMock.AssertExpectations(t)
 		})
 	}
-
 }
 
 func TestFinalizer_closeBatch(t *testing.T) {

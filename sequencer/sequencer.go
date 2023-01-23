@@ -156,6 +156,9 @@ func (s *Sequencer) Start(ctx context.Context) {
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 
+	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg)
+	go closingSignalsManager.Start()
+
 	go s.trackOldTxs(ctx)
 	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	tickerSendSequence := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
