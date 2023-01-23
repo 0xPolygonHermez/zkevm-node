@@ -264,7 +264,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 			}
 
 			// act
-			f.handleTransactionError(txResponse, result, tx)
+			f.handleTransactionError(ctx, txResponse, result, tx)
 
 			// assert
 			workerMock.AssertExpectations(t)

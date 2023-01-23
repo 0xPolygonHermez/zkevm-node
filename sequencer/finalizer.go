@@ -8,6 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
+
+	"github.com/0xPolygonHermez/zkevm-node/pool"
+
 	"github.com/jackc/pgx/v4"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -57,8 +61,12 @@ type WipBatch struct {
 	localExitRoot      common.Hash
 	timestamp          uint64
 	globalExitRoot     common.Hash // 0x000...0 (ZeroHash) means to not update
-	isEmpty            bool
 	remainingResources batchResources
+	countOfTxs         int
+}
+
+func (w *WipBatch) isEmpty() bool {
+	return w.countOfTxs == 0
 }
 
 // newFinalizer returns a new instance of Finalizer.
@@ -191,7 +199,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			}
 		}
 
-		if f.isDeadlineEncountered() {
+		if f.isDeadlineEncountered() || f.batch.countOfTxs >= int(f.batchConstraints.MaxTxsPerBatch) {
 			f.finalizeBatch(ctx)
 		}
 
@@ -204,6 +212,11 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 
 // finalizeBatch retries to until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) finalizeBatch(ctx context.Context) {
+	start := time.Now()
+	defer func() {
+		metrics.ProcessingTime(time.Since(start))
+	}()
+	f.txsStore.Wg.Wait()
 	var err error
 	f.batch, err = f.newWIPBatch(ctx)
 	for err != nil {
@@ -216,7 +229,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	var err error
 	// Passing the batch without txs to the executor in order to update the State
-	if f.batch.isEmpty {
+	if f.batch.countOfTxs == 0 {
 		// backup current sequence
 		err = f.processTransaction(ctx, nil)
 		for err != nil {
@@ -271,11 +284,15 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 // processTransaction processes a single transaction.
 func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error {
+	start := time.Now()
+	defer func() {
+		metrics.ProcessingTime(time.Since(start))
+	}()
 	f.sharedResourcesMux.Lock()
 	defer f.sharedResourcesMux.Unlock()
 
 	var ger common.Hash
-	if f.batch.isEmpty {
+	if f.batch.isEmpty() {
 		ger = f.batch.globalExitRoot
 	} else {
 		ger = state.ZeroHash
@@ -301,7 +318,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 		}
 		return fmt.Errorf("failed processing transaction, err: %w", result.ExecutorError)
 	} else {
-		err = f.handleSuccessfulTxProcessResp(tx, result)
+		err = f.handleSuccessfulTxProcessResp(ctx, tx, result)
 		if err != nil {
 			return err
 		}
@@ -311,7 +328,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 }
 
 // handleSuccessfulTxProcessResp handles the response of a successful transaction processing.
-func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.ProcessBatchResponse) error {
+func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) error {
 	if tx == nil {
 		return nil
 	}
@@ -319,7 +336,7 @@ func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.P
 	txResponse := result.Responses[0]
 	// Handle Transaction Error
 	if txResponse.RomError != nil {
-		f.handleTransactionError(txResponse, result, tx)
+		f.handleTransactionError(ctx, txResponse, result, tx)
 		return txResponse.RomError
 	}
 
@@ -342,39 +359,36 @@ func (f *finalizer) handleSuccessfulTxProcessResp(tx *TxTracker, result *state.P
 		txResponse:               txResponse,
 		previousL2BlockStateRoot: previousL2BlockStateRoot,
 	}
-	// TODO: Remove this after result.TouchedAddresses is implemented
-	ctx := context.Background()
-	balance, err := f.dbManager.GetBalanceByStateRoot(ctx, tx.From, result.NewStateRoot)
-	if err != nil {
-		return err
-	}
-	newNonce := tx.Nonce + 1
-	result.ReadWriteAddresses = map[common.Address]*state.InfoReadWrite{tx.From: {
-		Address: tx.From,
-		Nonce:   &newNonce,
-		Balance: balance,
-	}}
+
 	f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
-	f.batch.isEmpty = false
+	f.batch.countOfTxs += 1
 
 	return nil
 }
 
 // handleTransactionError handles the error of a transaction
-func (f *finalizer) handleTransactionError(txResponse *state.ProcessTransactionResponse, result *state.ProcessBatchResponse, tx *TxTracker) {
+func (f *finalizer) handleTransactionError(ctx context.Context, txResponse *state.ProcessTransactionResponse, result *state.ProcessBatchResponse, tx *TxTracker) {
 	errorCode := executor.RomErrorCode(txResponse.RomError)
 	addressInfo := result.ReadWriteAddresses[tx.From]
 
 	if executor.IsROMOutOfCountersError(errorCode) {
-		f.worker.DeleteTx(tx.Hash, tx.From, nil, nil)
+		f.worker.DeleteTx(tx.Hash, tx.From)
+		go func() {
+			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid)
+			if err != nil {
+				log.Errorf("failed to update tx status, err: %s", err)
+			}
+		}()
 	} else if executor.IsIntrinsicError(errorCode) {
-		// TODO: remove this check when the TouchedAddresses are implemented
-		newNonce := tx.Nonce + 1
-		newBalance := big.NewInt(0)
+		var (
+			nonce   *uint64
+			balance *big.Int
+		)
 		if addressInfo != nil {
-			newBalance = addressInfo.Balance
+			nonce = addressInfo.Nonce
+			balance = addressInfo.Balance
 		}
-		f.worker.MoveTxToNotReady(tx.Hash, tx.From, &newNonce, newBalance)
+		f.worker.MoveTxToNotReady(tx.Hash, tx.From, nonce, balance)
 	}
 }
 
@@ -502,10 +516,15 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
+	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
+	if err != nil {
+		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
+	}
 	receipt := ClosingBatchParameters{
 		BatchNumber:   f.batch.batchNumber,
 		StateRoot:     f.batch.stateRoot,
 		LocalExitRoot: f.processRequest.GlobalExitRoot,
+		Txs:           transactions,
 	}
 	return f.dbManager.CloseBatch(ctx, receipt)
 }
@@ -533,6 +552,7 @@ func (f *finalizer) reprocessBatch(ctx context.Context) error {
 		log.Errorf("failed to prepare process request for reprocessing batch, err: %s", err)
 		return err
 	}
+	processRequest.Caller = state.DiscardCallerLabel
 	result, err := f.executor.ProcessBatch(ctx, processRequest)
 	if err != nil || (result != nil && result.ExecutorError != nil) {
 		if result != nil && result.ExecutorError != nil {
@@ -549,32 +569,40 @@ func (f *finalizer) reprocessBatch(ctx context.Context) error {
 func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs bool) (state.ProcessRequest, error) {
 	var (
 		txs          []byte
-		lastBatchNum uint64
+		batchNum     uint64
 		oldStateRoot common.Hash
 		err          error
 	)
 
 	if fetchTxs {
-		var lastBatch *state.Batch
-		lastBatch, err = f.dbManager.GetLastBatch(ctx)
+		var lastClosedBatch *state.Batch
+		batches, err := f.dbManager.GetLastNBatches(ctx, 2)
 		if err != nil {
-			return state.ProcessRequest{}, err
+			return state.ProcessRequest{}, fmt.Errorf("failed to get last %d batches, err: %w", 2, err)
 		}
-		lastBatchNum, oldStateRoot = lastBatch.BatchNumber, lastBatch.StateRoot
-		txs, err = state.EncodeTransactions(lastBatch.Transactions)
+
+		if len(batches) == 2 {
+			lastClosedBatch = batches[1]
+		} else {
+			lastClosedBatch = batches[0]
+		}
+
+		batchNum = lastClosedBatch.BatchNumber
+		oldStateRoot = f.getOldStateRootFromBatches(batches)
+		txs = lastClosedBatch.BatchL2Data
 		if err != nil {
 			return state.ProcessRequest{}, err
 		}
 	} else {
 		txs = make([]byte, 0, 1)
-		lastBatchNum, oldStateRoot, err = f.getLastBatchNumAndStateRoot(ctx)
+		batchNum, oldStateRoot, err = f.getLastBatchNumAndStateRoot(ctx)
 		if err != nil {
 			return state.ProcessRequest{}, err
 		}
 	}
 
 	return state.ProcessRequest{
-		BatchNumber:    lastBatchNum,
+		BatchNumber:    batchNum,
 		OldStateRoot:   oldStateRoot,
 		GlobalExitRoot: f.batch.globalExitRoot,
 		Coinbase:       f.sequencerAddress,

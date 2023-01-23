@@ -37,7 +37,7 @@ type ClosingBatchParameters struct {
 	StateRoot     common.Hash
 	LocalExitRoot common.Hash
 	AccInputHash  common.Hash
-	Txs           []TxTracker
+	Txs           []types.Transaction
 }
 
 func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
@@ -274,7 +274,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		localExitRoot:  lastBatch.LocalExitRoot,
 		timestamp:      uint64(lastBatch.Timestamp.Unix()),
 		globalExitRoot: lastBatch.GlobalExitRoot,
-		isEmpty:        len(lastBatch.BatchL2Data) == 0,
+		countOfTxs:     len(lastBatch.Transactions),
 	}
 
 	// Init counters to MAX values
@@ -327,7 +327,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		batchL2DataLen := len(lastBatch.BatchL2Data)
 
 		if batchL2DataLen > 0 {
-			wipBatch.isEmpty = false
+			wipBatch.countOfTxs = len(lastBatch.Transactions)
 
 			batchResponse, err := d.state.ExecuteBatch(ctx, wipBatch.batchNumber, lastBatch.BatchL2Data, dbTx)
 			if err != nil {
@@ -353,7 +353,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			totalBytes -= uint64(batchL2DataLen)
 
 		} else {
-			wipBatch.isEmpty = true
+			wipBatch.countOfTxs = 0
 		}
 	}
 
@@ -418,11 +418,9 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 		AccInputHash:  params.AccInputHash,
 	}
 
-	var batchL2Data []byte
-
-	// TODO: Check if this concatenation is correct
-	for _, tx := range params.Txs {
-		batchL2Data = append(batchL2Data, tx.RawTx...)
+	batchL2Data, err := state.EncodeTransactions(params.Txs)
+	if err != nil {
+		return err
 	}
 
 	processingReceipt.BatchL2Data = batchL2Data
@@ -558,4 +556,12 @@ func (d *dbManager) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pg
 
 func (d *dbManager) GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	return d.state.GetBalanceByStateRoot(ctx, address, root)
+}
+
+func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) (txs []types.Transaction, err error) {
+	return d.state.GetTransactionsByBatchNumber(ctx, batchNumber, nil)
+}
+
+func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error {
+	return d.txPool.UpdateTxStatus(ctx, hash, newStatus)
 }

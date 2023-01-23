@@ -53,6 +53,8 @@ const (
 	SequencerCallerLabel CallerLabel = "sequencer"
 	// SynchronizerCallerLabel is used when synchronizer is calling the function
 	SynchronizerCallerLabel CallerLabel = "synchronizer"
+	// DiscardCallerLabel is used we want to skip measuring the execution time
+	DiscardCallerLabel CallerLabel = "discard"
 )
 
 var (
@@ -606,7 +608,9 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 		s.LogExecutorError(res.Error, processBatchRequest)
 	}
 	elapsed := time.Since(now)
-	metrics.ExecutorProcessingTime(string(caller), elapsed)
+	if caller != DiscardCallerLabel {
+		metrics.ExecutorProcessingTime(string(caller), elapsed)
+	}
 	log.Infof("It took %v for the executor to process the request", elapsed)
 
 	return res, err
