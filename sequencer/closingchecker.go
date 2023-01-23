@@ -33,8 +33,10 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	return false
 }
 
-// shouldCloseDueToNewDeposits return true if there has been new deposits on L1 for more than WaitBlocksToUpdateGER
-// and the sequence is profitable (if profitability check is enabled)
+// shouldCloseDueToNewDeposits return true if there has been new deposits on L1
+// for more than WaitBlocksToUpdateGER, enough time has passed since the
+// sequence was opened and the sequence is profitable (if profitability check
+// is enabled).
 func (s *Sequencer) shouldCloseDueToNewDeposits(ctx context.Context) (bool, error) {
 	lastGer, gerReceivedAt, err := s.getLatestGer(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
@@ -56,9 +58,12 @@ func (s *Sequencer) shouldCloseDueToNewDeposits(ctx context.Context) (bool, erro
 			return false, err
 		}
 
+		sequenceInProgressTimestamp := time.Unix(s.sequenceInProgress.Timestamp, 0)
+
 		if latestBlockNumber-blockNum > s.cfg.WaitBlocksToUpdateGER &&
-			gerReceivedAt.Before(time.Now().Add(-s.cfg.ElapsedTimeToCloseBatchWithoutTxsDueToNewGER.Duration)) {
-			log.Info("current sequence should be closed because blocks have been mined since last GER")
+			gerReceivedAt.Before(time.Now().Add(-s.cfg.ElapsedTimeToCloseBatchWithoutTxsDueToNewGER.Duration)) &&
+			sequenceInProgressTimestamp.Before(time.Now().Add(-s.cfg.MinTimeToCloseBatch.Duration)) {
+			log.Info("current sequence should be closed because blocks have been mined since last GER and enough time has passed")
 			return true, nil
 		}
 	}

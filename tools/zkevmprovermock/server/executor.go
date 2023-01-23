@@ -372,7 +372,7 @@ func translateTransactionSteps(inputSteps []*testvector.TransactionStep) ([]*pb.
 			Memory:     memory,
 			ReturnData: returnData,
 			Contract:   contract,
-			Error:      pb.Error(pbErr),
+			Error:      pb.RomError(pbErr),
 		}
 		steps = append(steps, newStep)
 	}
