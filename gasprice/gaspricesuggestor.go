@@ -9,51 +9,35 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
-// L2GasPriceSuggestorInterface interface for gas price suggestor.
-type L2GasPriceSuggestorInterface interface {
+// L2GasPricer interface for gas price suggestor.
+type L2GasPricer interface {
 	UpdateGasPriceAvg()
 }
 
-// GasPriceSuggestor struct for gas price suggestor.
-type GasPriceSuggestor struct {
-	cfg Config
-	ctx context.Context
-
-	methods L2GasPriceSuggestorInterface
-}
-
 // NewL2GasPriceSuggestor init.
-func NewL2GasPriceSuggestor(ctx context.Context, cfg Config, pool pool, ethMan *etherman.Client, state *state.State) *GasPriceSuggestor {
-	var gpricer L2GasPriceSuggestorInterface
+func NewL2GasPriceSuggestor(ctx context.Context, cfg Config, pool pool, ethMan *etherman.Client, state *state.State) {
+	var gpricer L2GasPricer
 	switch cfg.Type {
 	case LastNBatchesType:
 		log.Info("Lastnbatches type selected")
-		gpricer = newSuggestorLastNL2Blocks(ctx, cfg, state, pool)
+		gpricer = newLastNL2BlocksGasPriceSuggestor(ctx, cfg, state, pool)
 	case FollowerType:
 		log.Info("Follower type selected")
 		gpricer = newFollowerGasPriceSuggestor(ctx, cfg, pool, ethMan)
 	case DefaultType:
 		log.Info("Default type selected")
-		gpricer = newDefaultSuggestor(ctx, cfg, pool)
+		gpricer = newDefaultGasPriceSuggestor(ctx, cfg, pool)
 	default:
 		log.Fatal("unknown l2 gas price suggestor type ", cfg.Type, ". Please specify a valid one: 'lastnbatches', 'follower' or 'default'")
 	}
-	gps := &GasPriceSuggestor{
-		cfg:     cfg,
-		ctx:     ctx,
-		methods: gpricer,
-	}
-	return gps
-}
 
-// Start function runs the GasPriceSuggestor
-func (g GasPriceSuggestor) Start() error {
 	for {
 		select {
-		case <-g.ctx.Done():
-			return nil
-		case <-time.After(g.cfg.UpdatePeriod.Duration):
-			g.methods.UpdateGasPriceAvg()
+		case <-ctx.Done():
+			log.Info("Finishing l2 gas price suggestor...")
+			return
+		case <-time.After(cfg.UpdatePeriod.Duration):
+			gpricer.UpdateGasPriceAvg()
 		}
 	}
 }

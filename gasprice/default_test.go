@@ -22,6 +22,6 @@ func TestUpdateGasPriceDefault(t *testing.T) {
 	}
 	poolM := new(poolMock)
 	poolM.On("SetGasPrice", ctx, cfg.DefaultGasPriceWei).Return(nil).Once()
-	dge := newDefaultSuggestor(ctx, cfg, poolM)
+	dge := newDefaultGasPriceSuggestor(ctx, cfg, poolM)
 	dge.UpdateGasPriceAvg()
 }

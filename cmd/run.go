@@ -240,11 +240,7 @@ func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {
 // runL2GasPriceSuggestor init gas price gasPriceEstimator based on type in config.
 func runL2GasPriceSuggestor(cfg gasprice.Config, state *state.State, pool *pool.Pool, etherman *etherman.Client) {
 	ctx := context.Background()
-	gp := gasprice.NewL2GasPriceSuggestor(ctx, cfg, pool, etherman, state)
-	err := gp.Start()
-	if err != nil {
-		log.Fatal("error Starting gasPricer: ", err)
-	}
+	gasprice.NewL2GasPriceSuggestor(ctx, cfg, pool, etherman, state)
 }
 
 func waitSignal(cancelFuncs []context.CancelFunc) {

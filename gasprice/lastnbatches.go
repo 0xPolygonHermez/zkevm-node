@@ -11,8 +11,8 @@ import (
 
 const sampleNumber = 3 // Number of transactions sampled in a batch.
 
-// LastNL2Blocks struct for gas price estimator last n l2 blocks.
-type LastNL2Blocks struct {
+// LastNL2BlocksGasPrice struct for gas price estimator last n l2 blocks.
+type LastNL2BlocksGasPrice struct {
 	lastL2BlockNumber uint64
 	lastPrice         *big.Int
 
@@ -26,9 +26,9 @@ type LastNL2Blocks struct {
 	pool  pool
 }
 
-// newSuggestorLastNL2Blocks init gas price suggestor for last n l2 blocks strategy.
-func newSuggestorLastNL2Blocks(ctx context.Context, cfg Config, state stateInterface, pool pool) *LastNL2Blocks {
-	return &LastNL2Blocks{
+// newLastNL2BlocksGasPriceSuggestor init gas price suggestor for last n l2 blocks strategy.
+func newLastNL2BlocksGasPriceSuggestor(ctx context.Context, cfg Config, state stateInterface, pool pool) *LastNL2BlocksGasPrice {
+	return &LastNL2BlocksGasPrice{
 		cfg:   cfg,
 		ctx:   ctx,
 		state: state,
@@ -37,7 +37,7 @@ func newSuggestorLastNL2Blocks(ctx context.Context, cfg Config, state stateInter
 }
 
 // UpdateGasPriceAvg for last n bathes strategy is not needed to implement this function.
-func (g *LastNL2Blocks) UpdateGasPriceAvg() {
+func (g *LastNL2BlocksGasPrice) UpdateGasPriceAvg() {
 	l2BlockNumber, err := g.state.GetLastL2BlockNumber(g.ctx, nil)
 	if err != nil {
 		log.Errorf("failed to get last l2 block number, err: %v", err)
@@ -104,7 +104,7 @@ func (g *LastNL2Blocks) UpdateGasPriceAvg() {
 }
 
 // getL2BlockTxsTips calculates l2 block transaction gas fees.
-func (g *LastNL2Blocks) getL2BlockTxsTips(ctx context.Context, l2BlockNumber uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
+func (g *LastNL2BlocksGasPrice) getL2BlockTxsTips(ctx context.Context, l2BlockNumber uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
 	txs, err := g.state.GetTxsByBlockNumber(ctx, l2BlockNumber, nil)
 	if txs == nil {
 		select {

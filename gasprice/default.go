@@ -5,24 +5,24 @@ import (
 	"fmt"
 )
 
-// Default gas price from config is set.
-type Default struct {
+// DefaultGasPricer gas price from config is set.
+type DefaultGasPricer struct {
 	cfg  Config
 	pool pool
 	ctx  context.Context
 }
 
-// newDefaultSuggestor init default gas price suggestor.
-func newDefaultSuggestor(ctx context.Context, cfg Config, pool pool) *Default {
-	gpe := &Default{ctx: ctx, cfg: cfg, pool: pool}
+// newDefaultGasPriceSuggestor init default gas price suggestor.
+func newDefaultGasPriceSuggestor(ctx context.Context, cfg Config, pool pool) *DefaultGasPricer {
+	gpe := &DefaultGasPricer{ctx: ctx, cfg: cfg, pool: pool}
 	gpe.setDefaultGasPrice()
 	return gpe
 }
 
 // UpdateGasPriceAvg not needed for default strategy.
-func (d *Default) UpdateGasPriceAvg() {}
+func (d *DefaultGasPricer) UpdateGasPriceAvg() {}
 
-func (d *Default) setDefaultGasPrice() {
+func (d *DefaultGasPricer) setDefaultGasPrice() {
 	err := d.pool.SetGasPrice(d.ctx, d.cfg.DefaultGasPriceWei)
 	if err != nil {
 		panic(fmt.Errorf("failed to set default gas price, err: %v", err))

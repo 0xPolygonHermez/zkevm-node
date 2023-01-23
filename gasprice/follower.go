@@ -7,28 +7,28 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
-// Follower struct.
-type Follower struct {
+// FollowerGasPrice struct.
+type FollowerGasPrice struct {
 	cfg  Config
 	pool pool
 	ctx  context.Context
 	eth  ethermanInterface
 }
 
-// newFollowerGasPriceSuggestor init default gas price suggestor.
-func newFollowerGasPriceSuggestor(ctx context.Context, cfg Config, pool pool, ethMan ethermanInterface) *Follower {
-	gpe := &Follower{
+// newFollowerGasPriceSuggestor inits l2 follower gas price suggestor which is based on the l1 gas price.
+func newFollowerGasPriceSuggestor(ctx context.Context, cfg Config, pool pool, ethMan ethermanInterface) *FollowerGasPrice {
+	gps := &FollowerGasPrice{
 		cfg:  cfg,
 		pool: pool,
 		ctx:  ctx,
 		eth:  ethMan,
 	}
-	gpe.UpdateGasPriceAvg()
-	return gpe
+	gps.UpdateGasPriceAvg()
+	return gps
 }
 
 // UpdateGasPriceAvg updates the gas price.
-func (f *Follower) UpdateGasPriceAvg() {
+func (f *FollowerGasPrice) UpdateGasPriceAvg() {
 	ctx := context.Background()
 	// Get L1 gasprice
 	gp := f.eth.GetL1GasPrice(f.ctx)
