@@ -235,6 +235,7 @@ func TestVerifiedBatch(t *testing.T) {
 		StateRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2"),
 		Aggregator:  common.HexToAddress("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		IsTrusted:   true,
 	}
 	err = testState.AddVerifiedBatch(ctx, &expectedVerifiedBatch, dbTx)
 	require.NoError(t, err)
