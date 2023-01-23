@@ -18,14 +18,16 @@ Port = "5432"
 EnableLog = false
 MaxConns = 200
 
-[PoolDB]
-User = "pool_user"
-Password = "pool_password"
-Name = "pool_db"
-Host = "localhost"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
+[Pool]
+FreeClaimGasLimit = 150000
+	[Pool.DB]
+	User = "pool_user"
+	Password = "pool_password"
+	Name = "pool_db"
+	Host = "localhost"
+	Port = "5432"
+	EnableLog = false
+	MaxConns = 200
 
 [Etherman]
 URL = "http://localhost:8545"
