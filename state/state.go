@@ -567,7 +567,7 @@ func (s *State) processBatch(
 		s.LogExecutorError(res.Error, processBatchRequest)
 	}
 
-	log.Infof("It took %v for the executor to process the request", time.Since(now))
+	log.Infof("Batch: %d. It took %v for the executor to process the request", batchNumber, time.Since(now))
 	return res, err
 }
 

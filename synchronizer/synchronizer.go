@@ -178,7 +178,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 
 	for {
 		toBlock := fromBlock + s.cfg.SyncChunkSize
-
+		log.Infof("Syncing block %d of %d", fromBlock, lastKnownBlock.Uint64())
 		log.Infof("Getting rollup info from block %d to block %d", fromBlock, toBlock)
 		// This function returns the rollup information contained in the ethereum blocks and an extra param called order.
 		// Order param is a map that contains the event order to allow the synchronizer store the info in the same order that is readed.
@@ -921,6 +921,7 @@ func (s *ClientSynchronizer) processTrustedVerifyBatches(lastVerifiedBatch ether
 			Aggregator:  lastVerifiedBatch.Aggregator,
 			StateRoot:   lastVerifiedBatch.StateRoot,
 			TxHash:      lastVerifiedBatch.TxHash,
+			IsTrusted:   true,
 		}
 		err = s.state.AddVerifiedBatch(s.ctx, &verifiedB, dbTx)
 		if err != nil {
