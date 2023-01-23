@@ -27,23 +27,12 @@ FreeClaimGasLimit = 150000
 
 [Etherman]
 URL = "http://zkevm-mock-l1-network:8545"
-PrivateKeyPath = "/pk/keystore"
-PrivateKeyPassword = "testonly"
 PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
 MultiGasProvider = false
 	[Etherscan]
 		ApiKey = ""
-
-[EthTxManager]
-MaxSendBatchTxRetries = 10
-MaxVerifyBatchTxRetries = 10
-FrequencyForResendingFailedSendBatches = "1s"
-FrequencyForResendingFailedVerifyBatch = "1s"
-WaitTxToBeMined = "2m"
-PercentageToIncreaseGasPrice = 10
-PercentageToIncreaseGasLimit = 10
 
 [RPC]
 Host = "0.0.0.0"
@@ -85,6 +74,8 @@ MaxArithmetics = 262144
 MaxBinaries = 262144
 MaxSteps = 8388608
 MaxAllowedFailedCounter = 50
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 
@@ -92,10 +83,17 @@ MaxAllowedFailedCounter = 50
 Host = "0.0.0.0"
 Port = 50081
 RetryTime = "5s"
-VerifyProofInterval = "90s"
+VerifyProofInterval = "30s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+
+[EthTxManager]
+PrivateKeys = [
+	{Path = "/pk/sequencer.keystore", Password = "testonly"},
+	{Path = "/pk/aggregator.keystore", Password = "testonly"}
+]
 
 [GasPriceEstimator]
 Type = "default"

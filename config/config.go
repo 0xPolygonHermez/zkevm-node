@@ -40,6 +40,10 @@ const (
 	FlagComponents = "components"
 	// FlagHTTPAPI is the flag for http.api.
 	FlagHTTPAPI = "http.api"
+	// FlagKeyStorePath is the path of the key store file containing the private key of the account going to sing and approve the tokens
+	FlagKeyStorePath = "key-store-path"
+	// FlagPassword is the password needed to decrypt the key store
+	FlagPassword = "password"
 	// FlagMigrations is the flag for migrations.
 	FlagMigrations = "migrations"
 )
@@ -113,7 +117,12 @@ func Load(ctx *cli.Context) (*Config, error) {
 		}
 	}
 
-	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	decodeHooks := []viper.DecoderConfigOption{
+		// this allows arrays to be decoded from env var separated by ",", example: MY_VAR="value1,value2,value3"
+		viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(mapstructure.TextUnmarshallerHookFunc(), mapstructure.StringToSliceHookFunc(","))),
+	}
+
+	err = viper.Unmarshal(&cfg, decodeHooks...)
 	if err != nil {
 		return nil, err
 	}
