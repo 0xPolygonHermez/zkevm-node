@@ -395,7 +395,7 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 			)
 			return processTxResponse{}, err
 		}
-		log.Errorf("failed processing batch, err: %w", err)
+		log.Errorf("failed processing batch, err: %v", err)
 		return processTxResponse{}, err
 	}
 

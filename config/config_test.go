@@ -210,31 +210,35 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 200,
 		},
 		{
-			path:          "PoolDB.User",
+			path:          "Pool.FreeClaimGasLimit",
+			expectedValue: uint64(150000),
+		},
+		{
+			path:          "Pool.DB.User",
 			expectedValue: "pool_user",
 		},
 		{
-			path:          "PoolDB.Password",
+			path:          "Pool.DB.Password",
 			expectedValue: "pool_password",
 		},
 		{
-			path:          "PoolDB.Name",
+			path:          "Pool.DB.Name",
 			expectedValue: "pool_db",
 		},
 		{
-			path:          "PoolDB.Host",
+			path:          "Pool.DB.Host",
 			expectedValue: "localhost",
 		},
 		{
-			path:          "PoolDB.Port",
+			path:          "Pool.DB.Port",
 			expectedValue: "5432",
 		},
 		{
-			path:          "PoolDB.EnableLog",
+			path:          "Pool.DB.EnableLog",
 			expectedValue: false,
 		},
 		{
-			path:          "PoolDB.MaxConns",
+			path:          "Pool.DB.MaxConns",
 			expectedValue: 200,
 		},
 		{

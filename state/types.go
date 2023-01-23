@@ -1,6 +1,7 @@
 package state
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
@@ -10,21 +11,15 @@ import (
 
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot        common.Hash
-	NewAccInputHash     common.Hash
-	NewLocalExitRoot    common.Hash
-	NewBatchNumber      uint64
-	CntKeccakHashes     uint32
-	CntPoseidonHashes   uint32
-	CntPoseidonPaddings uint32
-	CntMemAligns        uint32
-	CntArithmetics      uint32
-	CntBinaries         uint32
-	CntSteps            uint32
-	CumulativeGasUsed   uint64
-	Responses           []*ProcessTransactionResponse
-	Error               error
-	IsBatchProcessed    bool
+	NewStateRoot       common.Hash
+	NewAccInputHash    common.Hash
+	NewLocalExitRoot   common.Hash
+	NewBatchNumber     uint64
+	UsedZkCounters     ZKCounters
+	Responses          []*ProcessTransactionResponse
+	ExecutorError      error
+	IsBatchProcessed   bool
+	ReadWriteAddresses []*InfoReadWrite
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
@@ -42,8 +37,8 @@ type ProcessTransactionResponse struct {
 	GasUsed uint64
 	// GasRefunded is the total gas refunded as result of execution
 	GasRefunded uint64
-	// Error represents any error encountered during the execution
-	Error error
+	// RomError represents any error encountered during the execution
+	RomError error
 	// CreateAddress is the new SC Address in case of SC creation
 	CreateAddress common.Address
 	// StateRoot is the State Root
@@ -60,9 +55,28 @@ type ProcessTransactionResponse struct {
 	CallTrace instrumentation.ExecutorTrace
 }
 
+// ZKCounters counters for the tx
+type ZKCounters struct {
+	CumulativeGasUsed    uint64
+	UsedKeccakHashes     uint32
+	UsedPoseidonHashes   uint32
+	UsedPoseidonPaddings uint32
+	UsedMemAligns        uint32
+	UsedArithmetics      uint32
+	UsedBinaries         uint32
+	UsedSteps            uint32
+}
+
+// InfoReadWrite has information about modified addresses during the execution
+type InfoReadWrite struct {
+	Address common.Address
+	Nonce   *uint64
+	Balance *big.Int
+}
+
 const (
-	// DebugInfoErrorType_ROM_OOC indicates a not handled OOC error by the ROM
-	DebugInfoErrorType_ROM_OOC = "ROM OOC"
+	// DebugInfoErrorType_EXECUTOR_ERROR indicates a error happened in the executor
+	DebugInfoErrorType_EXECUTOR_ERROR = "EXECUTOR ERROR"
 )
 
 // DebugInfo allows handling runtime debug info

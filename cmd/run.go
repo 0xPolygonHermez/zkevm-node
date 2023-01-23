@@ -276,13 +276,13 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pg
 	return st
 }
 
-func createPool(poolDBConfig db.Config, l2BridgeAddr common.Address, l2ChainID uint64, st *state.State) *pool.Pool {
-	runPoolMigrations(poolDBConfig)
-	poolStorage, err := pgpoolstorage.NewPostgresPoolStorage(poolDBConfig)
+func createPool(cfgPool pool.Config, l2BridgeAddr common.Address, l2ChainID uint64, st *state.State) *pool.Pool {
+	runPoolMigrations(cfgPool.DB)
+	poolStorage, err := pgpoolstorage.NewPostgresPoolStorage(cfgPool.DB)
 	if err != nil {
 		log.Fatal(err)
 	}
-	poolInstance := pool.NewPool(poolStorage, st, l2BridgeAddr, l2ChainID)
+	poolInstance := pool.NewPool(cfgPool, poolStorage, st, l2BridgeAddr, l2ChainID)
 	return poolInstance
 }
 

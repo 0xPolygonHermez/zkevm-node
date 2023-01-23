@@ -14,14 +14,16 @@ Port = "5432"
 EnableLog = true
 MaxConns = 10
 
-[PoolDB]
-User = "pool_user"
-Password = "pool_password"
-Name = "pool_db"
-Host = "localhost"
-Port = "5433"
-EnableLog = false
-MaxConns = 10
+[Pool]
+FreeClaimGasLimit = 150000
+	[Pool.DB]
+	User = "pool_user"
+	Password = "pool_password"
+	Name = "pool_db"
+	Host = "localhost"
+	Port = "5433"
+	EnableLog = false
+	MaxConns = 10
 
 [Etherman]
 URL = "http://localhost:8545"
@@ -60,6 +62,7 @@ LastBatchVirtualizationTimeMaxWaitPeriod = "300s"
 WaitBlocksToUpdateGER = 10
 WaitBlocksToConsiderGerFinal = 10
 ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
+MinTimeToCloseBatch = "60s"
 MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"

@@ -207,11 +207,11 @@ func TestProcessBatch(t *testing.T) {
 	}
 
 	processBatchResponse := &state.ProcessBatchResponse{
-		CumulativeGasUsed: 100000,
-		IsBatchProcessed:  true,
-		Responses:         txsBatch1,
-		NewStateRoot:      common.HexToHash("0x123"),
-		NewLocalExitRoot:  common.HexToHash("0x123"),
+		UsedZkCounters:   state.ZKCounters{CumulativeGasUsed: 100000},
+		IsBatchProcessed: true,
+		Responses:        txsBatch1,
+		NewStateRoot:     common.HexToHash("0x123"),
+		NewLocalExitRoot: common.HexToHash("0x123"),
 	}
 	st.On("GetLastBatchNumber", ctx, dbTx).Return(lastBatchNumber, nil)
 	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx, state.SequencerCallerLabel).Return(processBatchResponse, nil)
@@ -248,11 +248,11 @@ func TestReprocessBatch(t *testing.T) {
 	}
 
 	processBatchResponse := &state.ProcessBatchResponse{
-		CumulativeGasUsed: 100000,
-		IsBatchProcessed:  true,
-		Responses:         txsBatch1,
-		NewStateRoot:      common.HexToHash("0x123"),
-		NewLocalExitRoot:  common.HexToHash("0x123"),
+		UsedZkCounters:   state.ZKCounters{CumulativeGasUsed: 100000},
+		IsBatchProcessed: true,
+		Responses:        txsBatch1,
+		NewStateRoot:     common.HexToHash("0x123"),
+		NewLocalExitRoot: common.HexToHash("0x123"),
 	}
 
 	processedTxs, processedTxsHashes, unprocessedTxs, unprocessedTxsHashes := state.DetermineProcessedTransactions(processBatchResponse.Responses)
@@ -310,11 +310,11 @@ func TestUpdateTxsInPool(t *testing.T) {
 	}
 
 	processBatchResponse := &state.ProcessBatchResponse{
-		CumulativeGasUsed: 100000,
-		IsBatchProcessed:  true,
-		Responses:         txsBatch1,
-		NewStateRoot:      common.HexToHash("0x123"),
-		NewLocalExitRoot:  common.HexToHash("0x123"),
+		UsedZkCounters:   state.ZKCounters{CumulativeGasUsed: 100000},
+		IsBatchProcessed: true,
+		Responses:        txsBatch1,
+		NewStateRoot:     common.HexToHash("0x123"),
+		NewLocalExitRoot: common.HexToHash("0x123"),
 	}
 
 	processedTxs, processedTxsHashes, unprocessedTxs, unprocessedTxsHashes := state.DetermineProcessedTransactions(processBatchResponse.Responses)
@@ -411,11 +411,11 @@ func TestTryToProcessTxs(t *testing.T) {
 	}
 
 	processBatchResponse := &state.ProcessBatchResponse{
-		CumulativeGasUsed: 100000,
-		IsBatchProcessed:  true,
-		Responses:         txsBatch1,
-		NewStateRoot:      common.HexToHash("0x123"),
-		NewLocalExitRoot:  common.HexToHash("0x123"),
+		UsedZkCounters:   state.ZKCounters{CumulativeGasUsed: 100000},
+		IsBatchProcessed: true,
+		Responses:        txsBatch1,
+		NewStateRoot:     common.HexToHash("0x123"),
+		NewLocalExitRoot: common.HexToHash("0x123"),
 	}
 	var txs = s.sequenceInProgress.Txs
 	txs = append(txs, poolTxs[0].Transaction)
