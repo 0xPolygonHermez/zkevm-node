@@ -5,6 +5,7 @@ DOCKERCOMPOSEAPPAGG := zkevm-aggregator
 DOCKERCOMPOSEAPPRPC := zkevm-json-rpc
 DOCKERCOMPOSEAPPSYNC := zkevm-sync
 DOCKERCOMPOSEAPPBROADCAST := zkevm-broadcast
+DOCKERCOMPOSEAPPETHTXMANAGER := zkevm-eth-tx-manager
 DOCKERCOMPOSESTATEDB := zkevm-state-db
 DOCKERCOMPOSEPOOLDB := zkevm-pool-db
 DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
@@ -29,6 +30,7 @@ RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
 RUNSYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
 RUNBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
+RUNETHTXMANAGER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPETHTXMANAGER)
 RUNGRAFANA := DOCKERGID=`stat -c '%g' /var/run/docker.sock` $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEGRAFANA)
 
 RUNL1NETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
@@ -57,6 +59,7 @@ STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOS
 STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
 STOPSYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
 STOPBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
+STOPETHTXMANAGER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPETHTXMANAGER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPETHTXMANAGER)
 STOPGRAFANA := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEGRAFANA) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEGRAFANA)
 
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
@@ -88,7 +91,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNL1NETWORK)
 	sleep 15
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ../...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -timeout 60s ../...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
@@ -96,9 +99,10 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
 
 .PHONY: test-e2e-group-2
 test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
@@ -106,9 +110,10 @@ test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
 
 .PHONY: test-e2e-group-3
 test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
@@ -116,9 +121,10 @@ test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
 
 .PHONY: test-e2e-group-4
 test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
@@ -126,9 +132,10 @@ test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
 
 .PHONY: benchmark-sequencer
 benchmark-sequencer: stop
@@ -160,6 +167,7 @@ stop-db: ## Stops the node database
 
 .PHONY: run-node
 run-node: ## Runs the node
+	$(RUNETHTXMANAGER)
 	$(RUNSYNC)
 	sleep 2
 	$(RUNSEQUENCER)
@@ -199,13 +207,19 @@ run-zkprover-mock: ## Runs zkprover-mock
 stop-zkprover-mock: ## Stops zkprover-mock
 	$(STOPZKPROVERMOCK)
 
-.PHONY: run-explorer
-run-explorer: ## Runs the explorer
+.PHONY: run-l1-explorer
+run-l1-explorer: ## Runs L1 blockscan explorer 
 	$(RUNEXPLORERL1DB)
+	$(RUNEXPLORERL1)
+
+.PHONY: run-l2-explorer
+run-l2-explorer: ## Runs L2 blockscan explorer
 	$(RUNEXPLORERL2DB)
 	$(RUNEXPLORERJSONRPC)
-	$(RUNEXPLORERL1)
 	$(RUNEXPLORERL2)
+
+.PHONY: run-explorer
+run-explorer: run-explorer-l1 run-explorer-l2 ## Runs both L1 and L2 explorers
 
 .PHONY: stop-explorer
 stop-explorer: ## Stops the explorer
@@ -232,7 +246,7 @@ run-seq: ## runs the sequencer
 .PHONY: stop-seq
 stop-seq: ## stops the sequencer
 	$(STOPSEQUENCER)
-
+	
 .PHONY: run-sync
 run-sync: ## runs the synchronizer
 	$(RUNSYNC)
@@ -265,12 +279,20 @@ run-broadcast: ## Runs the broadcast service
 stop-broadcast: ## Stops the broadcast service
 	$(STOPBROADCAST)
 
-.PHONY: run-aggregator
-run-aggregator: ## Runs the aggregator service
+.PHONY: run-eth-tx-manager
+run-eth-tx-manager: ## Runs the eth tx manager service
+	$(RUNETHTXMANAGER)
+
+.PHONY: stop-eth-tx-manager
+stop-eth-tx-manager: ## Stops the eth tx manager service
+	$(STOPETHTXMANAGER)
+	
+.PHONY: run-agg
+run-agg: ## Runs the aggregator service
 	$(RUNAGGREGATOR)
 
-.PHONY: stop-aggregator
-stop-aggregator: ## Stops the aggregator service
+.PHONY: stop-agg
+stop-agg: ## Stops the aggregator service
 	$(STOPAGGREGATOR)
 
 .PHONY: run-grafana
@@ -309,6 +331,7 @@ run: ## Runs a full node
 	sleep 3
 	$(RUNSYNC)
 	sleep 2
+	$(RUNETHTXMANAGER)
 	$(RUNSEQUENCER)
 	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
@@ -344,6 +367,10 @@ init-network: ## Initializes the network
 deploy-sc: ## deploys some examples of transactions and smart contracts
 	go run ./scripts/deploy_sc/main.go .
 
+.PHONY: send-transfers
+send-transfers: ## sends some ETH transfers txs to test the network
+	go run ./scripts/send_transfers/main.go .
+
 .PHONY: deploy-uniswap
 deploy-uniswap: ## deploy the uniswap environment to the network
 	go run ./scripts/uniswap/main.go .
@@ -359,7 +386,7 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=stateInterface --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../jsonrpc --outpkg=jsonrpc --structname=dbTxMock --filename=mock_dbtx_test.go
 
-	mockery --name=txManager --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=TxmanagerMock --filename=mock_txmanager.go
+	mockery --name=ethTxManager --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=EthTxManager --filename=mock_ethtxmanager.go
 	mockery --name=etherman --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 	mockery --name=txPool --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=PoolMock --filename=mock_pool.go
@@ -369,10 +396,14 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 
 	mockery --name=ethermanInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=ethermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=stateMock --filename=mock_state.go
+	mockery --name=ethTxManager --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=ethTxManagerMock --filename=mock_ethtxmanager.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go
 
 	mockery --name=GasPricer --srcpkg=github.com/ethereum/go-ethereum --output=../etherman --outpkg=etherman --structname=etherscanMock --filename=mock_etherscan.go
 	mockery --name=GasPricer --srcpkg=github.com/ethereum/go-ethereum --output=../etherman --outpkg=etherman --structname=ethGasStationMock --filename=mock_ethgasstation.go
+
+	mockery --name=ethermanInterface --dir=../ethtxmanager --output=../ethtxmanager --outpkg=ethtxmanager --structname=ethermanMock --filename=mock_etherman_test.go
+	mockery --name=stateInterface --dir=../ethtxmanager --output=../ethtxmanager --outpkg=ethtxmanager --structname=stateMock --filename=mock_state_test.go
 
 	mockery --name=pool --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=poolMock --filename=mock_pool.go
 	mockery --name=ethermanInterface --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=ethermanMock --filename=mock_etherman.go

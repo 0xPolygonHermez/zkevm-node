@@ -352,6 +352,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		GlobalExitRoot: processingCtx.GlobalExitRoot,
 		Timestamp:      processingCtx.Timestamp.Unix(),
 		Txs:            []ethTypes.Transaction{},
+		BatchNumber:    processingCtx.BatchNumber,
 	}, nil
 }
 
@@ -550,6 +551,7 @@ func (s *Sequencer) backupSequence() types.Sequence {
 		StateRoot:      s.sequenceInProgress.StateRoot,
 		LocalExitRoot:  s.sequenceInProgress.LocalExitRoot,
 		Timestamp:      s.sequenceInProgress.Timestamp,
+		BatchNumber:    s.sequenceInProgress.BatchNumber,
 	}
 
 	copy(backupSequence.Txs, s.sequenceInProgress.Txs)

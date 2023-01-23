@@ -185,6 +185,11 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	// with the same from and nonce to be able to replace the current txs by the new
 	// when being selected
 	for _, oldTx := range oldTxs {
+		// discard invalid txs
+		if oldTx.Status == TxStatusInvalid {
+			continue
+		}
+
 		oldTxPrice := new(big.Int).Mul(oldTx.GasPrice(), new(big.Int).SetUint64(oldTx.Gas()))
 		txPrice := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
 

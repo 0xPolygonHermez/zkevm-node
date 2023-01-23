@@ -17,7 +17,7 @@ This documentation will help you running the following components:
 
 ## Requirements
 
-The current version of the environment requires `go`, `docker` and `docker-compose` to be previously installed, check the links bellow to understand how to install them:
+The current version of the environment requires `go`, `docker` and `docker-compose` to be previously installed, check the links below to understand how to install them:
 
 - <https://go.dev/doc/install>
 - <https://www.docker.com/get-started>

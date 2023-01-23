@@ -26,12 +26,13 @@ var (
 	_ = common.Big1
 	_ = types.BloomLookup
 	_ = event.NewSubscription
+	_ = abi.ConvertType
 )
 
 // StorageMetaData contains all meta data concerning the Storage contract.
 var StorageMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"retrieve\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"num\",\"type\":\"uint256\"}],\"name\":\"store\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
-	Bin: "0x6080604052348015600f57600080fd5b5060ac8061001e6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c80632e64cec11460375780636057361d14604c575b600080fd5b60005460405190815260200160405180910390f35b605c6057366004605e565b600055565b005b600060208284031215606f57600080fd5b503591905056fea2646970667358221220c71ea90a41021b9719e82eff5992d4916d94a13b756c7f755b4a706562b1560564736f6c634300080c0033",
+	ABI: "[{\"inputs\":[],\"name\":\"release\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"retrieve\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"num\",\"type\":\"uint256\"}],\"name\":\"store\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b5060be8061001f6000396000f3fe6080604052348015600f57600080fd5b5060043610603c5760003560e01c80632e64cec11460415780636057361d14605657806386d1a69f146068575b600080fd5b60005460405190815260200160405180910390f35b606660613660046070565b600055565b005b606660008055565b600060208284031215608157600080fd5b503591905056fea26469706673582212202eca043b3baf32e10a795c1c4d247d829f1d205588205904dd65617589810c2c64736f6c634300080c0033",
 }
 
 // StorageABI is the input ABI used to generate the binding from.
@@ -156,11 +157,11 @@ func NewStorageFilterer(address common.Address, filterer bind.ContractFilterer) 
 
 // bindStorage binds a generic wrapper to an already deployed contract.
 func bindStorage(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := abi.JSON(strings.NewReader(StorageABI))
+	parsed, err := StorageMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
-	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
+	return bind.NewBoundContract(address, *parsed, caller, transactor, filterer), nil
 }
 
 // Call invokes the (constant) contract method with params as input values and
@@ -230,6 +231,27 @@ func (_Storage *StorageSession) Retrieve() (*big.Int, error) {
 // Solidity: function retrieve() view returns(uint256)
 func (_Storage *StorageCallerSession) Retrieve() (*big.Int, error) {
 	return _Storage.Contract.Retrieve(&_Storage.CallOpts)
+}
+
+// Release is a paid mutator transaction binding the contract method 0x86d1a69f.
+//
+// Solidity: function release() returns()
+func (_Storage *StorageTransactor) Release(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Storage.contract.Transact(opts, "release")
+}
+
+// Release is a paid mutator transaction binding the contract method 0x86d1a69f.
+//
+// Solidity: function release() returns()
+func (_Storage *StorageSession) Release() (*types.Transaction, error) {
+	return _Storage.Contract.Release(&_Storage.TransactOpts)
+}
+
+// Release is a paid mutator transaction binding the contract method 0x86d1a69f.
+//
+// Solidity: function release() returns()
+func (_Storage *StorageTransactorSession) Release() (*types.Transaction, error) {
+	return _Storage.Contract.Release(&_Storage.TransactOpts)
 }
 
 // Store is a paid mutator transaction binding the contract method 0x6057361d.

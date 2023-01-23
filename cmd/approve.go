@@ -11,12 +11,16 @@ import (
 )
 
 func approveTokens(ctx *cli.Context) error {
-	a := ctx.String(config.FlagAmount)
-	amount, _ := new(big.Float).SetString(a)
+	amountArg := ctx.String(config.FlagAmount)
+	amount, _ := new(big.Float).SetString(amountArg)
 	if amount == nil {
 		fmt.Println("Please, introduce a valid amount. Use '.' instead of ',' if it is a decimal number")
 		return nil
 	}
+
+	addrKeyStorePath := ctx.String(config.FlagKeyStorePath)
+	addrPassword := ctx.String(config.FlagPassword)
+
 	c, err := config.Load(ctx)
 	if err != nil {
 		return err
@@ -44,11 +48,18 @@ func approveTokens(ctx *cli.Context) error {
 		return err
 	}
 
+	// load auth from keystore file
+	auth, err := etherman.LoadAuthFromKeyStore(addrKeyStorePath, addrPassword)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
 	const decimals = 1000000000000000000
 	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
 	amountB := new(big.Int)
 	amountInWei.Int(amountB)
-	tx, err := etherman.ApproveMatic(ctx.Context, amountB, c.Etherman.PoEAddr)
+	tx, err := etherman.ApproveMatic(ctx.Context, auth.From, amountB, c.Etherman.PoEAddr)
 	if err != nil {
 		return err
 	}
