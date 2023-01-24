@@ -1355,10 +1355,61 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	}
 	rootHex := root.Hex()
 	log.Info("Genesis root ", rootHex)
-	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+
+	// Decode txs and generate receipts
+	txs, receipts, err := generateGenesisTxsAndReceipts(genesis.Transactions)
+	if err != nil {
+		log.Error("error generating genesis txs and receipts. Error: ", err)
+		return newRoot, err
+	}
+
+	l2Block := types.NewBlock(header, txs, []*types.Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = block.ReceivedAt
 
-	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, []*types.Receipt{}, dbTx)
+	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, dbTx)
+}
+
+func generateGenesisTxsAndReceipts(transactions []GenesisTx) ([]*types.Transaction, []*types.Receipt, error) {
+	//Decode genesis raw txs
+	txs := []*types.Transaction{}
+	var receipts []*types.Receipt
+	var cumulativeGasUsed uint64
+	for i, tx := range transactions {
+		rawBytes, err := hex.DecodeHex(tx.RawTx)
+		if err != nil {
+			log.Error("error decoding string rawTxs. Error: ", err)
+			return []*types.Transaction{}, []*types.Receipt{}, err
+		}
+		txsAux, _, err := DecodeTxs(rawBytes)
+		if err != nil {
+			log.Error("error decoding rawBytes. Error: ", err)
+			return []*types.Transaction{}, []*types.Receipt{}, err
+		}
+		for _, tx := range txsAux {
+			t := tx
+			txs = append(txs, &t)
+		}
+
+		// Generate receipts
+		cumulativeGasUsed += tx.Receipt.GasUsed
+		txHash := txsAux[0].Hash()
+		receipt := types.Receipt{
+			Type:              0,
+			PostState:         []byte{},
+			Status:            uint64(tx.Receipt.Status),
+			CumulativeGasUsed: cumulativeGasUsed,
+			//Bloom
+			//Logs
+			TxHash:           txHash,
+			ContractAddress:  tx.CreateAddress,
+			GasUsed:          tx.Receipt.GasUsed,
+			BlockNumber:      big.NewInt(0),
+			TransactionIndex: uint(i),
+		}
+		receipts = append(receipts, &receipt)
+	}
+
+	return txs, receipts, nil
 }
 
 // CheckSupersetBatchTransactions verifies that processedTransactions is a

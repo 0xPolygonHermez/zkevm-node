@@ -1020,16 +1020,18 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	var l2BlockNum uint64
 
 	const getReceiptSQL = `
-		SELECT r.tx_hash
-		     , r.type
-			 , r.post_state
-			 , r.status
-			 , r.cumulative_gas_used
-			 , r.gas_used
-			 , r.contract_address
-			 , t.encoded
-			 , t.l2_block_num
-			 , b.block_hash
+		SELECT 
+			r.tx_index,
+			r.tx_hash,
+		    r.type,
+			r.post_state,
+			r.status,
+			r.cumulative_gas_used,
+			r.gas_used,
+			r.contract_address,
+			t.encoded,
+			t.l2_block_num,
+			b.block_hash
 	      FROM state.receipt r
 		 INNER JOIN state.transaction t
 		    ON t.hash = r.tx_hash
@@ -1040,7 +1042,8 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	receipt := types.Receipt{}
 	q := p.getExecQuerier(dbTx)
 	err := q.QueryRow(ctx, getReceiptSQL, transactionHash.String()).
-		Scan(&txHash,
+		Scan(&receipt.TransactionIndex,
+			&txHash,
 			&receipt.Type,
 			&receipt.PostState,
 			&receipt.Status,
@@ -1068,7 +1071,6 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 
 	receipt.BlockNumber = big.NewInt(0).SetUint64(l2BlockNum)
 	receipt.BlockHash = common.HexToHash(l2BlockHash)
-	receipt.TransactionIndex = 0
 
 	receipt.Logs = logs
 	receipt.Bloom = types.CreateBloom(types.Receipts{&receipt})
