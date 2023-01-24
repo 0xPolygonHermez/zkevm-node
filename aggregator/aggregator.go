@@ -106,6 +106,11 @@ func (a *Aggregator) Start(ctx context.Context) error {
 
 	metrics.Register()
 
+	// process monitored batch verifications before starting
+	a.EthTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
+		a.handleMonitoredTxResult(result)
+	}, nil)
+
 	// Delete ungenerated recursive proofs
 	err := a.State.DeleteUngeneratedProofs(ctx, nil)
 	if err != nil {
@@ -133,11 +138,6 @@ func (a *Aggregator) Start(ctx context.Context) error {
 	}()
 
 	a.resetVerifyProofTime()
-
-	// process monitored batch verifications before starting a next cycle
-	a.EthTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
-		a.handleMonitoredTxResult(result)
-	}, nil)
 
 	go a.sendFinalProof()
 
@@ -223,12 +223,15 @@ func (a *Aggregator) sendFinalProof() {
 			ctx := a.ctx
 			proof := msg.recursiveProof
 
-			log.Infof("Verifying final proof with ethereum smart contract, batches %d-%d", proof.BatchNumber, proof.BatchNumberFinal)
+			log.WithFields("proofId", proof.ProofID, "batches", fmt.Sprintf("%d-%d", proof.BatchNumber, proof.BatchNumberFinal))
+			log.Info("Verifying final proof with ethereum smart contract")
+
+			a.startProofVerification()
 
 			finalBatch, err := a.State.GetBatchByNumber(ctx, proof.BatchNumberFinal, nil)
 			if err != nil {
 				log.Errorf("Failed to retrieve batch with number [%d]", proof.BatchNumberFinal)
-				a.enableProofVerification()
+				a.endProofVerification()
 				continue
 			}
 
@@ -244,14 +247,15 @@ func (a *Aggregator) sendFinalProof() {
 			sender := common.HexToAddress(a.cfg.SenderAddress)
 			to, data, err := a.Ethman.BuildTrustedVerifyBatchesTxData(proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
 			if err != nil {
-				log.Error("error estimating batch verification to add to eth tx manager: ", err)
+				log.Errorf("error estimating batch verification to add to eth tx manager: %v", err)
 				a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
 				continue
 			}
 			monitoredTxID := fmt.Sprintf(monitoredIDFormat, proof.BatchNumber, proof.BatchNumberFinal)
 			err = a.EthTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
 			if err != nil {
-				log.Error("error to add batch verification tx to eth tx manager: ", err)
+				log := log.WithFields("tx", monitoredTxID)
+				log.Errorf("error to add batch verification tx to eth tx manager: %v", err)
 				a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
 				continue
 			}
@@ -262,17 +266,19 @@ func (a *Aggregator) sendFinalProof() {
 			}, nil)
 
 			a.resetVerifyProofTime()
+			a.endProofVerification()
 		}
 	}
 }
 
 func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Context, proof *state.Proof) {
+	log := log.WithFields("proofId", proof.ProofID, "batches", fmt.Sprintf("%d-%d", proof.BatchNumber, proof.BatchNumberFinal))
 	proof.Generating = false
 	err := a.State.UpdateGeneratedProof(ctx, proof, nil)
 	if err != nil {
-		log.Errorf("failed updating proof state (false) for proof ID [%v], err: %v", proof.ProofID, err)
+		log.Errorf("failed updating proof state (false), err: %v", err)
 	}
-	a.enableProofVerification()
+	a.endProofVerification()
 }
 
 // buildFinalProof builds and return the final proof for an aggregated/batch proof.
@@ -322,16 +328,10 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 
 	var err error
 	if !a.canVerifyProof() {
-		log.Debug("Time to verify proof not reached")
+		log.Debug("Time to verify proof not reached or proof verification in progress")
 		return false, nil
 	}
 	log.Debug("Send final proof time reached")
-
-	defer func() {
-		if err != nil {
-			a.enableProofVerification()
-		}
-	}()
 
 	for !a.isSynced(ctx, nil) {
 		log.Info("Waiting for synchronizer to sync...")
@@ -376,13 +376,11 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 		// we do have a proof generating at the moment, check if it is
 		// eligible to be verified
 
-		var eligible bool // we need this to keep using err from the outer scope and trigger the defer func
-		eligible, err = a.validateEligibleFinalProof(ctx, proof, lastVerifiedBatchNum)
+		eligible, err := a.validateEligibleFinalProof(ctx, proof, lastVerifiedBatchNum)
 		if err != nil {
 			return false, fmt.Errorf("failed to validate eligible final proof, %w", err)
 		}
 		if !eligible {
-			a.enableProofVerification()
 			return false, nil
 		}
 	}
@@ -419,13 +417,26 @@ func (a *Aggregator) validateEligibleFinalProof(ctx context.Context, proof *stat
 	batchNumberToVerify := lastVerifiedBatchNum + 1
 
 	if proof.BatchNumber != batchNumberToVerify {
-		log.Infof("Proof batch number %d is not the following to last verfied batch number %d", proof.BatchNumber, lastVerifiedBatchNum)
-		return false, nil
+		if proof.BatchNumber < batchNumberToVerify && proof.BatchNumberFinal >= batchNumberToVerify {
+			// We have a proof that contains some batches below the last batch verified, anyway can be eligible as final proof
+			log.Warnf("Proof %d-%d contains some batches lower than last batch verified %d. Check anyway if it is eligible", proof.BatchNumber, lastVerifiedBatchNum, batchNumberToVerify)
+		} else if proof.BatchNumberFinal < batchNumberToVerify {
+			// We have a proof that contains batches below that the last batch verified, we need to delete this proof
+			log.Warnf("Proof %d-%d lower than last batch verified %d. Delete it", proof.BatchNumber, lastVerifiedBatchNum, batchNumberToVerify)
+			err := a.State.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
+			if err != nil {
+				return false, fmt.Errorf("Failed to delete discarded proof, err: %v", err)
+			}
+			return false, nil
+		} else {
+			log.Debugf("Proof batch number %d is not the following to last verfied batch number %d", proof.BatchNumber, lastVerifiedBatchNum)
+			return false, nil
+		}
 	}
 
 	bComplete, err := a.State.CheckProofContainsCompleteSequences(ctx, proof, nil)
 	if err != nil {
-		return false, fmt.Errorf("failed to check if proof contains compete sequences, %w", err)
+		return false, fmt.Errorf("failed to check if proof contains complete sequences, %w", err)
 	}
 	if !bComplete {
 		log.Infof("Recursive proof %d-%d not eligible to be verified: not containing complete sequences", proof.BatchNumber, proof.BatchNumberFinal)
@@ -764,21 +775,22 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 }
 
 // canVerifyProof returns true if we have reached the timeout to verify a proof
-// and no other prover is verifying a proof.
+// and no other prover is verifying a proof (verifyingProof = false).
 func (a *Aggregator) canVerifyProof() bool {
-	a.TimeSendFinalProofMutex.Lock()
-	defer a.TimeSendFinalProofMutex.Unlock()
-	if a.TimeSendFinalProof.Before(time.Now()) {
-		if a.verifyingProof {
-			return false
-		}
-		a.verifyingProof = true
-		return true
-	}
-	return false
+	a.TimeSendFinalProofMutex.RLock()
+	defer a.TimeSendFinalProofMutex.RUnlock()
+	return a.TimeSendFinalProof.Before(time.Now()) && !a.verifyingProof
 }
 
-func (a *Aggregator) enableProofVerification() {
+// startProofVerification sets to true the verifyingProof variable to indicate that there is a proof verification in progress
+func (a *Aggregator) startProofVerification() {
+	a.TimeSendFinalProofMutex.Lock()
+	defer a.TimeSendFinalProofMutex.Unlock()
+	a.verifyingProof = true
+}
+
+// endProofVerification set verifyingProof to false to indicate that there is not proof verification in progress
+func (a *Aggregator) endProofVerification() {
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
 	a.verifyingProof = false
@@ -788,7 +800,6 @@ func (a *Aggregator) enableProofVerification() {
 func (a *Aggregator) resetVerifyProofTime() {
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
-	a.verifyingProof = false
 	a.TimeSendFinalProof = time.Now().Add(a.cfg.VerifyProofInterval.Duration)
 }
 
@@ -879,35 +890,38 @@ func (hc *healthChecker) Watch(req *grpchealth.HealthCheckRequest, server grpche
 }
 
 func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResult) {
+	resLog := log.WithFields("owner", ethTxManagerOwner, "txId", result.ID)
 	if result.Status == ethtxmanager.MonitoredTxStatusFailed {
-		resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
-		resultLog.Fatal("failed to send batch verification, TODO: review this fatal and define what to do in this case")
+		resLog.Fatal("failed to send batch verification, TODO: review this fatal and define what to do in this case")
 	}
 
-	//monitoredIDFormat = "proof-from-%v-to-%v"
+	// monitoredIDFormat: "proof-from-%v-to-%v"
 	idSlice := strings.Split(result.ID, "-")
 	proofBatchNumberStr := idSlice[2]
 	proofBatchNumber, err := strconv.ParseUint(proofBatchNumberStr, encoding.Base10, 0)
 	if err != nil {
-		log.Errorf("failed to read final proof batch number from monitored tx ID %v: %v", result.ID, err)
+		resLog.Errorf("failed to read final proof batch number from monitored tx: %v", err)
 	}
 
 	proofBatchNumberFinalStr := idSlice[4]
 	proofBatchNumberFinal, err := strconv.ParseUint(proofBatchNumberFinalStr, encoding.Base10, 0)
 	if err != nil {
-		log.Errorf("failed to read final proof batch number final from monitored tx ID %v: %v", result.ID, err)
+		resLog.Errorf("failed to read final proof batch number final from monitored tx: %v", err)
 	}
 
-	// network is synced with the final proof, we can safely delete the recursive proofs
-	err = a.State.DeleteGeneratedProofs(a.ctx, proofBatchNumber, proofBatchNumberFinal, nil)
-	if err != nil {
-		log.Errorf("Failed to store proof aggregation result, err: %v", err)
-	}
+	log := log.WithFields("txId", result.ID, "batches", fmt.Sprintf("%d-%d", proofBatchNumber, proofBatchNumberFinal))
+	log.Info("Final proof verified")
 
 	// wait for the synchronizer to catch up the verified batches
 	log.Debug("A final proof has been sent, waiting for the network to be synced")
 	for !a.isSynced(a.ctx, &proofBatchNumberFinal) {
 		log.Info("Waiting for synchronizer to sync...")
 		time.Sleep(a.cfg.RetryTime.Duration)
+	}
+
+	// network is synced with the final proof, we can safely delete the recursive proofs
+	err = a.State.DeleteGeneratedProofs(a.ctx, proofBatchNumber, proofBatchNumberFinal, nil)
+	if err != nil {
+		log.Errorf("failed to store proof aggregation result: %v", err)
 	}
 }

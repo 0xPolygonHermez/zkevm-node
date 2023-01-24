@@ -1,6 +1,9 @@
 -- +migrate Down
 DROP TABLE IF EXISTS state.monitored_txs;
 
+ALTER TABLE state.verified_batch
+DROP COLUMN IF EXISTS is_trusted;
+
 -- +migrate Up
 CREATE TABLE state.monitored_txs
 (
@@ -20,3 +23,6 @@ CREATE TABLE state.monitored_txs
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     PRIMARY KEY (owner, id)
 );
+
+ALTER TABLE state.verified_batch
+ADD COLUMN is_trusted BOOLEAN DEFAULT true;

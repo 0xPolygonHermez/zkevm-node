@@ -213,7 +213,7 @@ run-l2-explorer: ## Runs L2 blockscan explorer
 	$(RUNEXPLORERL2)
 
 .PHONY: run-explorer
-run-explorer: run-explorer-l1 run-explorer-l2 ## Runs both L1 and L2 explorers
+run-explorer: run-l1-explorer run-l2-explorer ## Runs both L1 and L2 explorers
 
 .PHONY: stop-explorer
 stop-explorer: ## Stops the explorer

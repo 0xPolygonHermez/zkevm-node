@@ -47,11 +47,13 @@ type Pool struct {
 	state        stateInterface
 	l2BridgeAddr common.Address
 	chainID      uint64
+	cfg          Config
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
+func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
 	return &Pool{
+		cfg:          cfg,
 		storage:      s,
 		state:        st,
 		l2BridgeAddr: l2BridgeAddr,
@@ -72,7 +74,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 		ReceivedAt:  time.Now(),
 	}
 
-	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr)
+	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
 	return p.storage.AddTx(ctx, poolTx)
 }

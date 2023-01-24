@@ -569,7 +569,7 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 	for {
 		results, err := c.ResultsByStatus(ctx, owner, statusesFilter, dbTx)
 		if err != nil {
-			log.Error("failed to get results by statuses from eth tx manager to monitored txs err: ", err)
+			log.Errorf("failed to get results by statuses from eth tx manager to monitored txs err: ", err)
 		}
 
 		if len(results) == 0 {
@@ -586,7 +586,7 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 				if err != nil {
 					resultLog.Errorf("failed to set monitored tx as done, err: %v", err)
 				} else {
-					resultLog.Infof("monitored tx confirmed")
+					resultLog.Info("monitored tx confirmed")
 				}
 				resultHandler(result, dbTx)
 				continue
@@ -615,7 +615,7 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 					break
 				}
 
-				resultLog.Infof("waiting for monitored tx to get confirmed, id: %v status: %v", result.ID, result.Status.String())
+				resultLog.Infof("waiting for monitored tx to get confirmed, status: %v", result.Status.String())
 			}
 		}
 	}
