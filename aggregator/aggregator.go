@@ -397,12 +397,6 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 	if err != nil {
 		return false, fmt.Errorf("failed to build final proof, %w", err)
 	}
-	if finalProof == nil {
-		// If finalProof has not been generated for any reason,
-		// generate error and return (this will also unlock the proof to verify)
-		err = errors.New("Error generating final proof for proof ready to verify")
-		return false, err
-	}
 
 	msg := finalProofMsg{
 		proverID:       proverID,

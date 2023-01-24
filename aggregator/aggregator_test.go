@@ -958,7 +958,35 @@ func TestTryBuildFinalProof(t *testing.T) {
 			},
 		},
 		{
-			name: "nil proof ok",
+			name: "nil proof, generic error from GetProofReadyToVerify",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return(proverID).Once()
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
+				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(nil, errBanana).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+			},
+		},
+		{
+			name: "nil proof, ErrNotFound from GetProofReadyToVerify",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return(proverID).Once()
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
+				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(nil, state.ErrNotFound).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.NoError(err)
+			},
+		},
+		{
+			name: "nil proof gets a proof ready to verify",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return(proverID).Twice()
