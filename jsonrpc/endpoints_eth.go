@@ -22,15 +22,13 @@ type EthEndpoints struct {
 	cfg     Config
 	pool    jsonRPCTxPool
 	state   stateInterface
-	gpe     gasPriceEstimator
 	storage storageInterface
 	txMan   dbTxManager
 }
 
 // newEthEndpoints creates an new instance of Eth
-func newEthEndpoints(cfg Config, p jsonRPCTxPool, s stateInterface, gpe gasPriceEstimator, storage storageInterface) *EthEndpoints {
-	e := &EthEndpoints{cfg: cfg, pool: p, state: s, gpe: gpe, storage: storage}
-
+func newEthEndpoints(cfg Config, p jsonRPCTxPool, s stateInterface, storage storageInterface) *EthEndpoints {
+	e := &EthEndpoints{cfg: cfg, pool: p, state: s, storage: storage}
 	s.RegisterNewL2BlockEventHandler(e.onNewL2Block)
 
 	return e
@@ -128,14 +126,11 @@ func (e *EthEndpoints) EstimateGas(arg *txnArgs, number *BlockNumber) (interface
 // GasPrice returns the average gas price based on the last x blocks
 func (e *EthEndpoints) GasPrice() (interface{}, rpcError) {
 	ctx := context.Background()
-	gasPrice, err := e.gpe.GetAvgGasPrice(ctx)
+	gasPrice, err := e.pool.GetGasPrice(ctx)
 	if err != nil {
 		return "0x0", nil
 	}
-	if gasPrice != nil {
-		return hex.EncodeUint64(gasPrice.Uint64()), nil
-	}
-	return hex.EncodeUint64(0), nil
+	return hex.EncodeUint64(gasPrice), nil
 }
 
 // GetBalance returns the account's balance at the referenced block
@@ -300,7 +295,7 @@ func (e *EthEndpoints) GetFilterChanges(filterID string) (interface{}, rpcError)
 	}
 }
 
-// GetFilterLogs returns an array of all logs mlocking filter
+// GetFilterLogs returns an array of all logs matching filter
 // with given id.
 func (e *EthEndpoints) GetFilterLogs(filterID string) (interface{}, rpcError) {
 	filter, err := e.storage.GetFilter(filterID)
@@ -491,7 +486,7 @@ func (e *EthEndpoints) GetTransactionCount(address common.Address, number *Block
 }
 
 // GetBlockTransactionCountByHash returns the number of transactions in a
-// block from a block mlocking the given block hash.
+// block from a block matching the given block hash.
 func (e *EthEndpoints) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		c, err := e.state.GetL2BlockTransactionCountByHash(ctx, hash, dbTx)
@@ -504,7 +499,7 @@ func (e *EthEndpoints) GetBlockTransactionCountByHash(hash common.Hash) (interfa
 }
 
 // GetBlockTransactionCountByNumber returns the number of transactions in a
-// block from a block mlocking the given block number.
+// block from a block matching the given block number.
 func (e *EthEndpoints) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		if number != nil && *number == PendingBlockNumber {
@@ -701,13 +696,13 @@ func (e *EthEndpoints) GetUncleByBlockNumberAndIndex() (interface{}, rpcError) {
 }
 
 // GetUncleCountByBlockHash returns the number of uncles in a block
-// mlocking the given block hash
+// matching the given block hash
 func (e *EthEndpoints) GetUncleCountByBlockHash() (interface{}, rpcError) {
 	return "0x0", nil
 }
 
 // GetUncleCountByBlockNumber returns the number of uncles in a block
-// mlocking the given block number
+// matching the given block number
 func (e *EthEndpoints) GetUncleCountByBlockNumber() (interface{}, rpcError) {
 	return "0x0", nil
 }

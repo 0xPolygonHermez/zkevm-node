@@ -98,7 +98,7 @@ PrivateKeys = [
 	{Path = "../test/aggregator.keystore", Password = "testonly"}
 ]
 
-[GasPriceEstimator]
+[L2GasPriceSuggester]
 Type = "default"
 DefaultGasPriceWei = 1000000000
 

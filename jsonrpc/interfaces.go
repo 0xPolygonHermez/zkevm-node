@@ -25,11 +25,6 @@ type jsonRPCTxPool interface {
 	GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
 }
 
-// gasPriceEstimator contains the methods required to interact with gas price estimator
-type gasPriceEstimator interface {
-	GetAvgGasPrice(ctx context.Context) (*big.Int, error)
-}
-
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
 	PrepareWebSocket()

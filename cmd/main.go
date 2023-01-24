@@ -26,6 +26,8 @@ const (
 	BROADCAST = "broadcast-trusted-state"
 	// ETHTXMANAGER is the service that manages the tx sent to L1
 	ETHTXMANAGER = "eth-tx-manager"
+	// L2GASPRICER is the l2 gas pricer component identifier.
+	L2GASPRICER = "l2gaspricer"
 )
 
 var (
@@ -52,7 +54,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, ETHTXMANAGER),
+		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, ETHTXMANAGER, L2GASPRICER),
 	}
 	httpAPIFlag = cli.StringSliceFlag{
 		Name:     config.FlagHTTPAPI,
