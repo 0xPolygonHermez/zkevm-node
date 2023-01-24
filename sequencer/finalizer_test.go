@@ -1,6 +1,5 @@
 package sequencer
 
-/*
 import (
 	"context"
 	"fmt"
@@ -65,9 +64,9 @@ var (
 		GERFinalityNumberOfBlocks:      64,
 	}
 	seqAddr = common.Address{}
-	ctx     = context.Background()
-	hash    = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
-	hash2   = common.HexToHash("0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+	// ctx      = context.Background()
+	hash     = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
+	hash2    = common.HexToHash("0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	sender   = common.HexToAddress("0x3445324")
 	isSynced = func(ctx context.Context) bool {
 		return true
@@ -1195,4 +1194,3 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		nextSendingToL1TimeoutMux: new(sync.RWMutex),
 	}
 }
-*/
