@@ -522,7 +522,11 @@ func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover pro
 	}
 
 	if err != nil {
-		dbTx.Rollback(ctx) //nolint:errcheck
+		if err := dbTx.Rollback(ctx); err != nil {
+			err := fmt.Errorf("failed to rollback proof aggregation state %w", err)
+			log.Error(err.Error())
+			return nil, nil, err
+		}
 		return nil, nil, fmt.Errorf("failed to set proof aggregation state %w", err)
 	}
 
@@ -610,12 +614,20 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 
 	err = a.State.DeleteGeneratedProofs(ctx, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx)
 	if err != nil {
-		dbTx.Rollback(ctx) //nolint:errcheck
+		if err := dbTx.Rollback(ctx); err != nil {
+			err := fmt.Errorf("failed to rollback proof aggregation state %w", err)
+			log.Error(err.Error())
+			return false, err
+		}
 		return false, fmt.Errorf("failed to delete previously aggregated proofs %w", err)
 	}
 	err = a.State.AddGeneratedProof(ctx, proof, dbTx)
 	if err != nil {
-		dbTx.Rollback(ctx) //nolint:errcheck
+		if err := dbTx.Rollback(ctx); err != nil {
+			err := fmt.Errorf("failed to rollback proof aggregation state %w", err)
+			log.Error(err.Error())
+			return false, err
+		}
 		return false, fmt.Errorf("failed to store the recursive proof %w", err)
 	}
 
@@ -816,11 +828,13 @@ func (a *Aggregator) resetVerifyProofTime() {
 func (a *Aggregator) isSynced(ctx context.Context, batchNum *uint64) bool {
 	// get latest verified batch as seen by the synchronizer
 	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
-	if err != nil && err != state.ErrNotFound {
-		log.Warnf("Failed to get last consolidated batch, err: %v", err)
+	if err == state.ErrNotFound {
 		return false
 	}
-
+	if err != nil {
+		log.Warnf("Failed to get last consolidated batch: %v", err)
+		return false
+	}
 	if lastVerifiedBatch == nil {
 		return false
 	}
@@ -830,13 +844,14 @@ func (a *Aggregator) isSynced(ctx context.Context, batchNum *uint64) bool {
 		return false
 	}
 
-	// ask latest verified batch directly to L1
+	// latest verified batch in L1
 	lastVerifiedEthBatchNum, err := a.Ethman.GetLatestVerifiedBatchNum()
 	if err != nil {
 		log.Warnf("Failed to get last eth batch, err: %v", err)
 		return false
 	}
 
+	// check if L2 is synced with L1
 	if lastVerifiedBatch.BatchNumber < lastVerifiedEthBatchNum {
 		log.Infof("Waiting for the state to be synced, lastVerifiedBatchNum: %d, lastVerifiedEthBatchNum: %d, waiting for batch",
 			lastVerifiedBatch.BatchNumber, lastVerifiedEthBatchNum)

@@ -321,6 +321,28 @@ func TestTryAggregateProofs(t *testing.T) {
 			},
 		},
 		{
+			name: "getAndLockProofsToAggregate error updating proofs",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Addr").Return("addr")
+				dbTx := &mocks.DbTxMock{}
+				dbTx.On("Rollback", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
+				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.True(args[1].(*state.Proof).Generating)
+					}).
+					Return(errBanana).
+					Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+			},
+		},
+		{
 			name: "AggregatedProof prover error",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Once()
@@ -936,6 +958,27 @@ func TestTryBuildFinalProof(t *testing.T) {
 			},
 		},
 		{
+			name: "nil proof, error requesting the proof triggers defer",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr").Twice()
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
+				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
+				proofGeneratingTrueCall := m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
+				m.proverMock.On("FinalProof", proofToVerify.Proof, from.String()).Return(nil, errBanana).Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proofToVerify, nil).
+					Return(nil).
+					Once().
+					NotBefore(proofGeneratingTrueCall)
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errBanana)
+			},
+		},
+		{
 			name: "nil proof, error building the proof triggers defer",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("ID").Return(proverID).Twice()
@@ -1118,6 +1161,120 @@ func TestTryBuildFinalProof(t *testing.T) {
 			if tc.assertFinalMsg != nil {
 				testutils.WaitUntil(t, &wg, time.Second)
 			}
+		})
+	}
+}
+
+func TestIsSynced(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	cfg := Config{}
+	var nilBatchNum *uint64
+	batchNum := uint64(42)
+	errBanana := errors.New("banana")
+	testCases := []struct {
+		name     string
+		setup    func(mox, *Aggregator)
+		batchNum *uint64
+		synced   bool
+	}{
+		{
+			name:     "state ErrNotFound",
+			synced:   false,
+			batchNum: &batchNum,
+			setup: func(m mox, a *Aggregator) {
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(nil, state.ErrNotFound).Once()
+			},
+		},
+		{
+			name:     "state error",
+			synced:   false,
+			batchNum: &batchNum,
+			setup: func(m mox, a *Aggregator) {
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(nil, errBanana).Once()
+			},
+		},
+		{
+			name:     "state returns nil batch",
+			synced:   false,
+			batchNum: &batchNum,
+			setup: func(m mox, a *Aggregator) {
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(nil, nil).Once()
+			},
+		},
+		{
+			name:     "etherman error",
+			synced:   false,
+			batchNum: nilBatchNum,
+			setup: func(m mox, a *Aggregator) {
+				latestVerifiedBatch := state.VerifiedBatch{BatchNumber: uint64(1)}
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&latestVerifiedBatch, nil).Once()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(0), errBanana).Once()
+			},
+		},
+		{
+			name:     "not synced with provided batch number",
+			synced:   false,
+			batchNum: &batchNum,
+			setup: func(m mox, a *Aggregator) {
+				latestVerifiedBatch := state.VerifiedBatch{BatchNumber: uint64(1)}
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&latestVerifiedBatch, nil).Once()
+			},
+		},
+		{
+			name:     "not synced with nil batch number",
+			synced:   false,
+			batchNum: nilBatchNum,
+			setup: func(m mox, a *Aggregator) {
+				latestVerifiedBatch := state.VerifiedBatch{BatchNumber: uint64(1)}
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&latestVerifiedBatch, nil).Once()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(batchNum, nil).Once()
+			},
+		},
+		{
+			name:     "ok with nil batch number",
+			synced:   true,
+			batchNum: nilBatchNum,
+			setup: func(m mox, a *Aggregator) {
+				latestVerifiedBatch := state.VerifiedBatch{BatchNumber: batchNum}
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&latestVerifiedBatch, nil).Once()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(batchNum, nil).Once()
+			},
+		},
+		{
+			name:     "ok with batch number",
+			synced:   true,
+			batchNum: &batchNum,
+			setup: func(m mox, a *Aggregator) {
+				latestVerifiedBatch := state.VerifiedBatch{BatchNumber: batchNum}
+				m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&latestVerifiedBatch, nil).Once()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(batchNum, nil).Once()
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stateMock := mocks.NewStateMock(t)
+			ethTxManager := mocks.NewEthTxManager(t)
+			etherman := mocks.NewEtherman(t)
+			proverMock := mocks.NewProverMock(t)
+			a, err := New(cfg, stateMock, ethTxManager, etherman)
+			require.NoError(err)
+			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator")
+			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
+			m := mox{
+				stateMock:    stateMock,
+				ethTxManager: ethTxManager,
+				etherman:     etherman,
+				proverMock:   proverMock,
+			}
+			if tc.setup != nil {
+				tc.setup(m, &a)
+			}
+
+			synced := a.isSynced(a.ctx, tc.batchNum)
+
+			assert.Equal(tc.synced, synced)
 		})
 	}
 }
