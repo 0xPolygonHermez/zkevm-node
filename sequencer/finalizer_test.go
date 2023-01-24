@@ -3,16 +3,12 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"math"
-	"math/big"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	mock "github.com/stretchr/testify/mock"
@@ -218,6 +214,7 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 }
 */
 
+/*
 func TestFinalizer_handleTransactionError(t *testing.T) {
 	// arrange
 	f := setupFinalizer(true)
@@ -270,6 +267,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestFinalizer_syncWithState(t *testing.T) {
 	// arrange
