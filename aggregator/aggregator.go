@@ -389,7 +389,6 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 		if !eligible {
 			return false, nil
 		}
-
 	}
 
 	// at this point we have an eligible proof, build the final one using it

@@ -278,7 +278,7 @@ func TestTryAggregateProofs(t *testing.T) {
 	proofID := "proofId"
 	proverID := "proverID"
 	recursiveProof := "recursiveProof"
-	proverCtx := context.WithValue(context.Background(), "owner", "prover")
+	proverCtx := context.WithValue(context.Background(), "owner", "prover") //nolint:staticcheck
 	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
 	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "aggregator" }
 	batchNum := uint64(23)
@@ -651,7 +651,7 @@ func TestTryAggregateProofs(t *testing.T) {
 			proverMock := mocks.NewProverMock(t)
 			a, err := New(cfg, stateMock, ethTxManager, etherman)
 			require.NoError(err)
-			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator")
+			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 			m := mox{
 				stateMock:    stateMock,
@@ -697,7 +697,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 	proverID := "proverID"
 	recursiveProof := "recursiveProof"
 	errBanana := errors.New("banana")
-	proverCtx := context.WithValue(context.Background(), "owner", "prover")
+	proverCtx := context.WithValue(context.Background(), "owner", "prover") //nolint:staticcheck
 	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
 	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "aggregator" }
 	testCases := []struct {
@@ -853,7 +853,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			proverMock := mocks.NewProverMock(t)
 			a, err := New(cfg, stateMock, ethTxManager, etherman)
 			require.NoError(err)
-			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator")
+			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 			m := mox{
 				stateMock:    stateMock,
@@ -922,7 +922,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 	verifiedBatch := state.VerifiedBatch{
 		BatchNumber: latestVerifiedBatchNum,
 	}
-	proverCtx := context.WithValue(context.Background(), "owner", "prover")
+	proverCtx := context.WithValue(context.Background(), "owner", "prover") //nolint:staticcheck
 	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
 	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "aggregator" }
 	testCases := []struct {
@@ -1130,7 +1130,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 			proverMock := mocks.NewProverMock(t)
 			a, err := New(cfg, stateMock, ethTxManager, etherman)
 			require.NoError(err)
-			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator")
+			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 			m := mox{
 				stateMock:    stateMock,
@@ -1260,7 +1260,7 @@ func TestIsSynced(t *testing.T) {
 			proverMock := mocks.NewProverMock(t)
 			a, err := New(cfg, stateMock, ethTxManager, etherman)
 			require.NoError(err)
-			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator")
+			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 			m := mox{
 				stateMock:    stateMock,
