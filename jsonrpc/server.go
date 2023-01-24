@@ -55,32 +55,32 @@ func NewServer(
 	handler := newJSONRpcHandler()
 
 	if _, ok := apis[APIEth]; ok {
-		ethEndpoints := newEth(cfg, p, s, storage)
+		ethEndpoints := newEthEndpoints(cfg, p, s, storage)
 		handler.registerService(APIEth, ethEndpoints)
 	}
 
 	if _, ok := apis[APINet]; ok {
-		netEndpoints := &Net{cfg: cfg}
+		netEndpoints := &NetEndpoints{cfg: cfg}
 		handler.registerService(APINet, netEndpoints)
 	}
 
 	if _, ok := apis[APIZKEVM]; ok {
-		hezEndpoints := &ZKEVM{state: s, config: cfg}
-		handler.registerService(APIZKEVM, hezEndpoints)
+		zkEVMEndpoints := &ZKEVMEndpoints{state: s, config: cfg}
+		handler.registerService(APIZKEVM, zkEVMEndpoints)
 	}
 
 	if _, ok := apis[APITxPool]; ok {
-		txPoolEndpoints := &TxPool{}
+		txPoolEndpoints := &TxPoolEndpoints{}
 		handler.registerService(APITxPool, txPoolEndpoints)
 	}
 
 	if _, ok := apis[APIDebug]; ok {
-		debugEndpoints := &Debug{state: s}
+		debugEndpoints := &DebugEndpoints{state: s}
 		handler.registerService(APIDebug, debugEndpoints)
 	}
 
 	if _, ok := apis[APIWeb3]; ok {
-		web3Endpoints := &Web3{}
+		web3Endpoints := &Web3Endpoints{}
 		handler.registerService(APIWeb3, web3Endpoints)
 	}
 

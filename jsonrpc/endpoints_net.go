@@ -6,12 +6,12 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 )
 
-// Net contains implementations for the "net" RPC endpoints
-type Net struct {
+// NetEndpoints contains implementations for the "net" RPC endpoints
+type NetEndpoints struct {
 	cfg Config
 }
 
 // Version returns the current network id
-func (n *Net) Version() (interface{}, rpcError) {
+func (n *NetEndpoints) Version() (interface{}, rpcError) {
 	return strconv.FormatUint(n.cfg.ChainID, encoding.Base10), nil
 }
