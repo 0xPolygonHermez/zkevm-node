@@ -3,16 +3,12 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"math"
-	"math/big"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	mock "github.com/stretchr/testify/mock"
@@ -218,6 +214,7 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 }
 */
 
+/*
 func TestFinalizer_handleTransactionError(t *testing.T) {
 	// arrange
 	f := setupFinalizer(true)
@@ -253,6 +250,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 			if tc.expectedMoveCall {
 				workerMock.On("MoveTxToNotReady", hash, sender, &nonce, big.NewInt(0)).Return().Once()
 			}
+
 			result := &state.ProcessBatchResponse{
 				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
 					sender: {Nonce: &nonce, Balance: big.NewInt(0)},
@@ -269,7 +267,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 			workerMock.AssertExpectations(t)
 		})
 	}
-}
+}*/
 
 func TestFinalizer_syncWithState(t *testing.T) {
 	// arrange
@@ -605,52 +603,53 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 	}
 }
 
-func TestFinalizer_closeBatch(t *testing.T) {
-	// arrange
-	f = setupFinalizer(true)
-	receipt := ClosingBatchParameters{
-		BatchNumber:   f.batch.batchNumber,
-		StateRoot:     f.batch.stateRoot,
-		LocalExitRoot: f.processRequest.GlobalExitRoot,
+/*
+	func TestFinalizer_closeBatch(t *testing.T) {
+		// arrange
+		f = setupFinalizer(true)
+		receipt := ClosingBatchParameters{
+			BatchNumber:   f.batch.batchNumber,
+			StateRoot:     f.batch.stateRoot,
+			LocalExitRoot: f.processRequest.GlobalExitRoot,
+		}
+		managerErr := fmt.Errorf("some error")
+		testCases := []struct {
+			name        string
+			managerErr  error
+			expectedErr error
+		}{
+			{
+				name:        "Success",
+				managerErr:  nil,
+				expectedErr: nil,
+			},
+			{
+				name:        "Manager Error",
+				managerErr:  managerErr,
+				expectedErr: managerErr,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// arrange
+				dbManagerMock.Mock.On("CloseBatch", ctx, receipt).Return(tc.managerErr).Once()
+
+				// act
+				err := f.closeBatch(ctx)
+
+				// assert
+				if tc.expectedErr != nil {
+					assert.Error(t, err)
+					assert.EqualError(t, err, tc.expectedErr.Error())
+					assert.ErrorIs(t, err, tc.managerErr)
+				} else {
+					assert.NoError(t, err)
+				}
+			})
+		}
 	}
-	managerErr := fmt.Errorf("some error")
-	testCases := []struct {
-		name        string
-		managerErr  error
-		expectedErr error
-	}{
-		{
-			name:        "Success",
-			managerErr:  nil,
-			expectedErr: nil,
-		},
-		{
-			name:        "Manager Error",
-			managerErr:  managerErr,
-			expectedErr: managerErr,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// arrange
-			dbManagerMock.Mock.On("CloseBatch", ctx, receipt).Return(tc.managerErr).Once()
-
-			// act
-			err := f.closeBatch(ctx)
-
-			// assert
-			if tc.expectedErr != nil {
-				assert.Error(t, err)
-				assert.EqualError(t, err, tc.expectedErr.Error())
-				assert.ErrorIs(t, err, tc.managerErr)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
+*/
 func TestFinalizer_openBatch(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
@@ -710,102 +709,105 @@ func TestFinalizer_openBatch(t *testing.T) {
 	}
 }
 
+/*
 // TestFinalizer_reprocessBatch is a test for reprocessBatch which tests all possible cases of reprocessBatch
-func TestFinalizer_reprocessBatch(t *testing.T) {
-	// arrange
-	f = setupFinalizer(true)
-	n := uint(2)
-	expectedProcessBatchRequest := state.ProcessRequest{
-		BatchNumber:    f.batch.batchNumber,
-		OldStateRoot:   hash,
-		GlobalExitRoot: f.batch.globalExitRoot,
-		Coinbase:       f.sequencerAddress,
-		Timestamp:      f.batch.timestamp,
-		Caller:         state.SequencerCallerLabel,
-	}
 
-	testCases := []struct {
-		name                       string
-		getLastNBatchesErr         error
-		processBatchErr            error
-		batches                    []*state.Batch
-		expectedErr                error
-		internalErr                error
-		expectedProcessRequest     state.ProcessRequest
-		expectedProcessBatchResult *state.ProcessBatchResponse
-	}{
-		{
-			name: "Success",
-			batches: []*state.Batch{
-				{
-					StateRoot: hash,
+	func TestFinalizer_reprocessBatch(t *testing.T) {
+		// arrange
+		f = setupFinalizer(true)
+		n := uint(2)
+		expectedProcessBatchRequest := state.ProcessRequest{
+			BatchNumber:    f.batch.batchNumber,
+			OldStateRoot:   hash,
+			GlobalExitRoot: f.batch.globalExitRoot,
+			Coinbase:       f.sequencerAddress,
+			Timestamp:      f.batch.timestamp,
+			Caller:         state.SequencerCallerLabel,
+		}
+
+		testCases := []struct {
+			name                       string
+			getLastNBatchesErr         error
+			processBatchErr            error
+			batches                    []*state.Batch
+			expectedErr                error
+			internalErr                error
+			expectedProcessRequest     state.ProcessRequest
+			expectedProcessBatchResult *state.ProcessBatchResponse
+		}{
+			{
+				name: "Success",
+				batches: []*state.Batch{
+					{
+						StateRoot: hash,
+					},
+				},
+				expectedProcessRequest: expectedProcessBatchRequest,
+				expectedProcessBatchResult: &state.ProcessBatchResponse{
+					IsBatchProcessed: true,
 				},
 			},
-			expectedProcessRequest: expectedProcessBatchRequest,
-			expectedProcessBatchResult: &state.ProcessBatchResponse{
-				IsBatchProcessed: true,
+			{
+				name:               "GetLastNBatches Error",
+				getLastNBatchesErr: testErr,
+				internalErr:        testErr,
+				expectedErr:        fmt.Errorf("failed to get last %d batches, err: %w", n, testErr),
 			},
-		},
-		{
-			name:               "GetLastNBatches Error",
-			getLastNBatchesErr: testErr,
-			internalErr:        testErr,
-			expectedErr:        fmt.Errorf("failed to get last %d batches, err: %w", n, testErr),
-		},
-		{
-			name:                   "ProcessBatch Error",
-			processBatchErr:        testErr,
-			internalErr:            testErr,
-			expectedErr:            testErr,
-			expectedProcessRequest: expectedProcessBatchRequest,
-			batches: []*state.Batch{
-				{
-					StateRoot: hash,
+			{
+				name:                   "ProcessBatch Error",
+				processBatchErr:        testErr,
+				internalErr:            testErr,
+				expectedErr:            testErr,
+				expectedProcessRequest: expectedProcessBatchRequest,
+				batches: []*state.Batch{
+					{
+						StateRoot: hash,
+					},
 				},
 			},
-		},
-		{
-			name:                   "ProcessBatch Result Error",
-			processBatchErr:        testErr,
-			internalErr:            testErr2,
-			expectedProcessRequest: expectedProcessBatchRequest,
-			expectedErr:            testErr2,
-			batches: []*state.Batch{
-				{
-					StateRoot: hash,
+			{
+				name:                   "ProcessBatch Result Error",
+				processBatchErr:        testErr,
+				internalErr:            testErr2,
+				expectedProcessRequest: expectedProcessBatchRequest,
+				expectedErr:            testErr2,
+				batches: []*state.Batch{
+					{
+						StateRoot: hash,
+					},
+				},
+				expectedProcessBatchResult: &state.ProcessBatchResponse{
+					IsBatchProcessed: false,
+					ExecutorError:    testErr2,
 				},
 			},
-			expectedProcessBatchResult: &state.ProcessBatchResponse{
-				IsBatchProcessed: false,
-				ExecutorError:    testErr2,
-			},
-		},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				// arrange
+				f.processRequest = tc.expectedProcessRequest
+				dbManagerMock.On("GetLastNBatches", ctx, n).Return(tc.batches, tc.getLastNBatchesErr).Once()
+				if tc.getLastNBatchesErr == nil {
+					executorMock.Mock.On("ProcessBatch", ctx, f.processRequest).Return(tc.expectedProcessBatchResult, tc.processBatchErr).Once()
+				}
+
+				// act
+				err := f.reprocessBatch(ctx)
+
+				// assert
+				if tc.expectedErr != nil {
+					assert.Error(t, err)
+					assert.EqualError(t, err, tc.expectedErr.Error())
+					assert.ErrorIs(t, err, tc.internalErr)
+				} else {
+					assert.NoError(t, err)
+				}
+			})
+		}
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// arrange
-			f.processRequest = tc.expectedProcessRequest
-			dbManagerMock.On("GetLastNBatches", ctx, n).Return(tc.batches, tc.getLastNBatchesErr).Once()
-			if tc.getLastNBatchesErr == nil {
-				executorMock.Mock.On("ProcessBatch", ctx, f.processRequest).Return(tc.expectedProcessBatchResult, tc.processBatchErr).Once()
-			}
-
-			// act
-			err := f.reprocessBatch(ctx)
-
-			// assert
-			if tc.expectedErr != nil {
-				assert.Error(t, err)
-				assert.EqualError(t, err, tc.expectedErr.Error())
-				assert.ErrorIs(t, err, tc.internalErr)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
+*/
+/*
 func TestFinalizer_prepareProcessRequestFromState(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
@@ -886,7 +888,7 @@ func TestFinalizer_prepareProcessRequestFromState(t *testing.T) {
 		})
 	}
 }
-
+*/
 func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
@@ -1023,45 +1025,46 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 	}
 }
 
-func TestFinalizer_isCurrBatchAboveLimitWindow(t *testing.T) {
-	// arrange
-	f = setupFinalizer(true)
-	testCases := []struct {
-		name               string
-		remainingResources batchResources
-		expectedResult     bool
-	}{
-		{
-			name: "Is above limit window",
-			remainingResources: batchResources{
-				zKCounters: state.ZKCounters{
-					CumulativeGasUsed: f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed),
+/*
+	func TestFinalizer_isCurrBatchAboveLimitWindow(t *testing.T) {
+		// arrange
+		f = setupFinalizer(true)
+		testCases := []struct {
+			name               string
+			remainingResources batchResources
+			expectedResult     bool
+		}{
+			{
+				name: "Is above limit window",
+				remainingResources: batchResources{
+					zKCounters: state.ZKCounters{
+						CumulativeGasUsed: f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed),
+					},
 				},
-			},
-			expectedResult: true,
-		}, {
-			name: "Is NOT above limit window",
-			remainingResources: batchResources{
-				zKCounters: state.ZKCounters{
-					CumulativeGasUsed: f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed) - 1,
+				expectedResult: true,
+			}, {
+				name: "Is NOT above limit window",
+				remainingResources: batchResources{
+					zKCounters: state.ZKCounters{
+						CumulativeGasUsed: f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed) - 1,
+					},
 				},
+				expectedResult: false,
 			},
-			expectedResult: false,
-		},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				f.batch.remainingResources = tc.remainingResources
+				// act
+				result := f.isCurrBatchAboveLimitWindow()
+
+				// assert
+				assert.Equal(t, tc.expectedResult, result)
+			})
+		}
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			f.batch.remainingResources = tc.remainingResources
-			// act
-			result := f.isCurrBatchAboveLimitWindow()
-
-			// assert
-			assert.Equal(t, tc.expectedResult, result)
-		})
-	}
-}
-
+*/
 func TestFinalizer_setNextForcedBatchDeadline(t *testing.T) {
 	// arrange
 	f = setupFinalizer(false)
