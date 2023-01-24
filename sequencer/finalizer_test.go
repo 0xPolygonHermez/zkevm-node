@@ -61,17 +61,17 @@ var (
 	}
 	seqAddr = common.Address{}
 	// ctx      = context.Background()
-	hash     = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
-	hash2    = common.HexToHash("0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
-	sender   = common.HexToAddress("0x3445324")
+	hash  = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
+	hash2 = common.HexToHash("0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+	// sender   = common.HexToAddress("0x3445324")
 	isSynced = func(ctx context.Context) bool {
 		return true
 	}
 	// tx1 = ethTypes.NewTransaction(0, common.HexToAddress("0"), big.NewInt(0), 0, big.NewInt(0), []byte("aaa"))
 	// tx2 = ethTypes.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
 
-	testErr          = fmt.Errorf("some error")
-	testErr2         = fmt.Errorf("some error2")
+	testErr = fmt.Errorf("some error")
+	// testErr2         = fmt.Errorf("some error2")
 	openBatchError   = fmt.Errorf("failed to open new batch, err: %w", testErr)
 	cumulativeGasErr = state.GetZKCounterError("CumulativeGasUsed")
 )
