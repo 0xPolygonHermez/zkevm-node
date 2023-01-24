@@ -443,19 +443,19 @@ func TestGasPrice(t *testing.T) {
 
 	testCases := []struct {
 		name             string
-		gasPrice         *big.Int
+		gasPrice         uint64
 		error            error
 		expectedGasPrice uint64
 	}{
-		{"GasPrice nil", nil, nil, 0},
-		{"GasPrice with value", big.NewInt(50), nil, 50},
-		{"failed to get gas price", big.NewInt(50), errors.New("failed to get gas price"), 0},
+		{"GasPrice nil", 0, nil, 0},
+		{"GasPrice with value", 50, nil, 50},
+		{"failed to get gas price", 50, errors.New("failed to get gas price"), 0},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			m.GasPriceEstimator.
-				On("GetAvgGasPrice", context.Background()).
+			m.Pool.
+				On("GetGasPrice", context.Background()).
 				Return(testCase.gasPrice, testCase.error).
 				Once()
 

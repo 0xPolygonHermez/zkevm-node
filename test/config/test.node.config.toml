@@ -96,8 +96,10 @@ PrivateKeys = [
 	{Path = "/pk/aggregator.keystore", Password = "testonly"}
 ]
 
-[GasPriceEstimator]
-Type = "default"
+[L2GasPriceSuggester]
+Type = "follower"
+UpdatePeriod = "10s"
+Factor = 0.5
 DefaultGasPriceWei = 1000000000
 
 [MTServer]

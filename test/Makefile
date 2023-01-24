@@ -1,5 +1,6 @@
 DOCKERCOMPOSE := docker-compose -f docker-compose.yml
 DOCKERCOMPOSEAPPSEQ := zkevm-sequencer
+DOCKERCOMPOSEAPPL2GASP := zkevm-l2gaspricer
 DOCKERCOMPOSEAPPAGG := zkevm-aggregator
 DOCKERCOMPOSEAPPRPC := zkevm-json-rpc
 DOCKERCOMPOSEAPPSYNC := zkevm-sync
@@ -24,6 +25,7 @@ DOCKERCOMPOSEGRAFANA := grafana
 RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
 RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
+RUNL2GASPRICER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPL2GASP)
 RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
 RUNSYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
@@ -52,6 +54,7 @@ RUN := $(DOCKERCOMPOSE) up -d
 STOPSTATEDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSESTATEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSESTATEDB)
 STOPPOOLDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPOOLDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPOOLDB)
 STOPSEQUENCER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
+STOPL2GASPRICER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPL2GASP) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPL2GASP)
 STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
 STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
 STOPSYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
@@ -143,6 +146,7 @@ benchmark-sequencer: stop
 	$(RUNZKPROVER)
 	$(RUNSYNC)
 	sleep 2
+	$(RUNL2GASPRICER)
 	$(RUNJSONRPC)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
@@ -167,6 +171,7 @@ run-node: ## Runs the node
 	$(RUNSYNC)
 	sleep 2
 	$(RUNSEQUENCER)
+	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
 
@@ -174,6 +179,7 @@ run-node: ## Runs the node
 stop-node: ## Stops the node
 	$(STOPSEQUENCER)
 	$(STOPJSONRPC)
+	$(STOPL2GASPRICER)
 	$(STOPAGGREGATOR)
 	$(STOPSYNC)
 
@@ -257,6 +263,14 @@ run-json-rpc: ## runs the JSON-RPC
 stop-json-rpc: ## stops the JSON-RPC
 	$(STOPJSONRPC)
 
+.PHONY: run-l2gaspricer
+run-l2gaspricer: ## runs the L2 Gas Price component
+	$(RUNL2GASPRICER)
+
+.PHONY: stop-l2gaspricer
+stop-l2gaspricer: ## stops the L2 Gas Price component
+	$(STOPL2GASPRICER)
+
 .PHONY: run-broadcast
 run-broadcast: ## Runs the broadcast service
 	$(RUNBROADCAST)
@@ -319,6 +333,7 @@ run: ## Runs a full node
 	sleep 2
 	$(RUNETHTXMANAGER)
 	$(RUNSEQUENCER)
+	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
 
@@ -368,7 +383,6 @@ run-db-scripts: ## Executes scripts on the db after it has been initialized, pot
 generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=storageInterface --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=storageMock --filename=mock_storage_test.go
 	mockery --name=jsonRPCTxPool --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=poolMock --filename=mock_pool_test.go
-	mockery --name=gasPriceEstimator --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
 	mockery --name=stateInterface --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../jsonrpc --outpkg=jsonrpc --structname=dbTxMock --filename=mock_dbtx_test.go
 
@@ -376,7 +390,6 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=etherman --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 	mockery --name=txPool --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=PoolMock --filename=mock_pool.go
-	mockery --name=gasPriceEstimator --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=GasPriceEstimatorMock --filename=mock_gaspriceestimator.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../sequencer/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
 	mockery --name=etherman --dir=../sequencer/profitabilitychecker --output=../sequencer/profitabilitychecker/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=../sequencer/broadcast --output=../sequencer/broadcast/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
@@ -391,6 +404,9 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 
 	mockery --name=ethermanInterface --dir=../ethtxmanager --output=../ethtxmanager --outpkg=ethtxmanager --structname=ethermanMock --filename=mock_etherman_test.go
 	mockery --name=stateInterface --dir=../ethtxmanager --output=../ethtxmanager --outpkg=ethtxmanager --structname=stateMock --filename=mock_state_test.go
+
+	mockery --name=pool --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=poolMock --filename=mock_pool.go
+	mockery --name=ethermanInterface --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=ethermanMock --filename=mock_etherman.go
 
 	## mocks for the aggregator tests
 	mockery --name=stateInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
