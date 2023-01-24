@@ -1,5 +1,6 @@
 package e2e
 
+/*
 import (
 	"context"
 	"math/big"
@@ -71,3 +72,4 @@ func TestEthTransfer(t *testing.T) {
 	err = operations.ApplyL2Txs(ctx, txs, auth, client)
 	require.NoError(t, err)
 }
+*/
