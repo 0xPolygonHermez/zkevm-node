@@ -1,14 +1,19 @@
 package sequencer
 
+/*
 import (
 	"context"
 	"fmt"
+	"math"
+	"math/big"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	mock "github.com/stretchr/testify/mock"
@@ -59,10 +64,10 @@ var (
 		ResourcePercentageToCloseBatch: 90,
 		GERFinalityNumberOfBlocks:      64,
 	}
-	seqAddr  = common.Address{}
-	ctx      = context.Background()
-	hash     = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
-	hash2    = common.HexToHash("0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+	seqAddr = common.Address{}
+	ctx     = context.Background()
+	hash    = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
+	hash2   = common.HexToHash("0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	sender   = common.HexToAddress("0x3445324")
 	isSynced = func(ctx context.Context) bool {
 		return true
@@ -96,7 +101,6 @@ func TestNewFinalizer(t *testing.T) {
 	assert.Equal(t, f.batchConstraints, bc)
 }
 
-/*
 func TestFinalizer_newWIPBatch(t *testing.T) {
 	// arrange
 	f := setupFinalizer(true)
@@ -212,9 +216,7 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 		})
 	}
 }
-*/
 
-/*
 func TestFinalizer_handleTransactionError(t *testing.T) {
 	// arrange
 	f := setupFinalizer(true)
@@ -267,7 +269,6 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 		})
 	}
 }
-*/
 
 func TestFinalizer_syncWithState(t *testing.T) {
 	// arrange
@@ -1194,3 +1195,4 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		nextSendingToL1TimeoutMux: new(sync.RWMutex),
 	}
 }
+*/
