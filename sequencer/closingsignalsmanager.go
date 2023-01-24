@@ -48,6 +48,10 @@ func (c *closingSignalsManager) checkForcedBatches() {
 		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration * time.Second)
 
 		latestSentForcedBatchNumber, err := c.dbManager.GetLastTrustedForcedBatchNumber(c.ctx, nil)
+		if err != nil {
+			log.Errorf("error getting last trusted forced batch number: %v", err)
+			continue
+		}
 
 		forcedBatches, err := c.dbManager.GetForcedBatchesSince(c.ctx, latestSentForcedBatchNumber, nil)
 		if err != nil {

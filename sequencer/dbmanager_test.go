@@ -23,6 +23,7 @@ import (
 )
 
 var (
+	ctx        context.Context
 	testState  *state.State
 	stateTree  *merkletree.StateTree
 	stateDb    *pgxpool.Pool

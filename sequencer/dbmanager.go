@@ -129,9 +129,7 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
 		return err
 	}
 	d.worker.AddTx(d.ctx, txTracker)
-	d.txPool.UpdateTxStatus(d.ctx, tx.Hash(), pool.TxStatusWIP)
-
-	return nil
+	return d.txPool.UpdateTxStatus(d.ctx, tx.Hash(), pool.TxStatusWIP)
 }
 
 // BeginStateTransaction starts a db transaction in the state
@@ -220,7 +218,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		}
 
 		// Change Tx status to selected
-		d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected)
+		err = d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected)
 		if err != nil {
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
@@ -241,6 +239,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 
 // GetWIPBatch returns ready WIP batch
 func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
+	const two = 2
 	var lastBatch, previousLastBatch *state.Batch
 	dbTx, err := d.BeginStateTransaction(ctx)
 	if err != nil {
@@ -253,7 +252,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		}
 	}()
 
-	lastBatches, err := d.state.GetLastNBatches(ctx, 2, dbTx)
+	lastBatches, err := d.state.GetLastNBatches(ctx, two, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +350,6 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			}
 
 			totalBytes -= uint64(batchL2DataLen)
-
 		} else {
 			wipBatch.countOfTxs = 0
 		}
@@ -390,7 +388,6 @@ func (d *dbManager) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks 
 	lastL2BlockHeader, err := d.GetLastL2BlockHeader(ctx, nil)
 	if err != nil {
 		log.Errorf("error getting last L2 block: %v", err)
-
 	}
 
 	blockNumber := lastL2BlockHeader.Number.Uint64()

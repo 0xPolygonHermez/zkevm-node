@@ -437,6 +437,12 @@ func TestForcedBatch(t *testing.T) {
 				Return(nil).
 				Once()
 
+			accInputHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+			m.State.
+				On("AddAccumulatedInputHash", ctx, sequencedBatch.BatchNumber, accInputHash, m.DbTx).
+				Return(nil).
+				Once()
+
 			m.DbTx.
 				On("Commit", ctx).
 				Run(func(args mock.Arguments) { sync.Stop() }).

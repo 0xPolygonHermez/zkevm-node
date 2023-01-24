@@ -81,7 +81,7 @@ func (e *efficiencyList) len() int {
 }
 
 // print prints the contents of the EfficiencyList
-func (e *efficiencyList) print() {
+func (e *efficiencyList) Print() {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 

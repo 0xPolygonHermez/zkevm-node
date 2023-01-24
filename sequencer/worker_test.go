@@ -8,14 +8,15 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
 )
 
 type workerAddTxTestCase struct {
-	name                   string
-	from                   common.Address
-	txHash                 common.Hash
-	nonce                  uint64
-	isClaim                bool
+	name   string
+	from   common.Address
+	txHash common.Hash
+	nonce  uint64
+	// isClaim                bool
 	benefit                int64
 	cost                   *big.Int
 	counters               state.ZKCounters
@@ -269,7 +270,9 @@ func TestWorkerGetBestTx(t *testing.T) {
 			if tx.HashStr != string(expectedGetBestTx[ct].String()) {
 				t.Fatalf("Error GetBestFittingTx(%d). Expected=%s, Actual=%s", ct, expectedGetBestTx[ct].String(), tx.HashStr)
 			}
-			rc.sub(tx.BatchResources)
+			err := rc.sub(tx.BatchResources)
+			assert.NoError(t, err)
+
 			touch := make(map[common.Address]*state.InfoReadWrite)
 			var newNonce uint64 = tx.Nonce + 1
 			touch[tx.From] = &state.InfoReadWrite{Address: tx.From, Nonce: &newNonce, Balance: new(big.Int).SetInt64(10)}

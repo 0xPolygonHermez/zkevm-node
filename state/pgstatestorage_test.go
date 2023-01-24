@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/gobuffalo/packr/v2/file/resolver/encoding/hex"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -304,12 +304,12 @@ func TestForcedBatch(t *testing.T) {
 	raw, err := hex.DecodeString(rtx)
 	assert.NoError(t, err)
 	forcedBatch := state.ForcedBatch{
-		BlockNumber:     1,
-    	ForcedBatchNumber: 1,
-    	Sequencer: common.HexToAddress("0x2536C2745Ac4A584656A830f7bdCd329c94e8F30"),
-    	RawTxsData: raw,
-    	ForcedAt: time.Now(),
-		GlobalExitRoot:  common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		BlockNumber:       1,
+		ForcedBatchNumber: 1,
+		Sequencer:         common.HexToAddress("0x2536C2745Ac4A584656A830f7bdCd329c94e8F30"),
+		RawTxsData:        raw,
+		ForcedAt:          time.Now(),
+		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 	}
 	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
 	require.NoError(t, err)

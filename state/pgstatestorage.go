@@ -49,9 +49,7 @@ const (
 	getL2BlockTransactionCountByHashSQL      = "SELECT COUNT(*) FROM state.transaction t INNER JOIN state.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
 	getL2BlockTransactionCountByNumberSQL    = "SELECT COUNT(*) FROM state.transaction t WHERE t.l2_block_num = $1"
 	getLastConsolidatedBlockNumberSQL        = "SELECT b.block_num FROM state.l2block b INNER JOIN state.verified_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
-	getLastVirtualBlockHeaderSQL             = "SELECT b.header FROM state.l2block b INNER JOIN state.virtual_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockByHashSQL                      = "SELECT header, uncles, received_at FROM state.l2block b WHERE b.block_hash = $1"
-	getLastL2BlockSQL                        = "SELECT header, uncles, received_at FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockHeaderByHashSQL                = "SELECT header FROM state.l2block b WHERE b.block_hash = $1"
 	getTxsByBlockNumSQL                      = "SELECT encoded FROM state.transaction WHERE l2_block_num = $1"
 	getL2BlockHashesSinceSQL                 = "SELECT block_hash FROM state.l2block WHERE created_at >= $1"
@@ -1335,9 +1333,9 @@ func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx)
 
 // GetLastL2BlockHeader gets the last l2 block number
 func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+	const query = "SELECT b.header FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	header := &types.Header{}
 	q := p.getExecQuerier(dbTx)
-	query := "SELECT b.header FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	err := q.QueryRow(ctx, query).Scan(&header)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -1351,6 +1349,7 @@ func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx)
 
 // GetLastL2Block retrieves the latest L2 Block from the State data base
 func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error) {
+	const getLastL2BlockSQL = "SELECT header, uncles, received_at FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	var (
 		headerStr  string
 		unclesStr  string
