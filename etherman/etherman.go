@@ -13,9 +13,9 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/globalexitrootmanager"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -105,8 +105,8 @@ type externalGasProviders struct {
 // Client is a simple implementation of EtherMan.
 type Client struct {
 	EthClient             ethereumClient
-	PoE                   *proofofefficiency.Proofofefficiency
-	GlobalExitRootManager *globalexitrootmanager.Globalexitrootmanager
+	PoE                   *polygonzkevm.Polygonzkevm
+	GlobalExitRootManager *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
 	Matic                 *matic.Matic
 	SCAddresses           []common.Address
 
@@ -125,11 +125,11 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, err
 	}
 	// Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddr, ethClient)
+	poe, err := polygonzkevm.NewPolygonzkevm(cfg.PoEAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	globalExitRoot, err := globalexitrootmanager.NewGlobalexitrootmanager(cfg.GlobalExitRootManagerAddr, ethClient)
+	globalExitRoot, err := polygonzkevmglobalexitroot.NewPolygonzkevmglobalexitroot(cfg.GlobalExitRootManagerAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
@@ -347,13 +347,13 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 }
 
 func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
-	var batches []proofofefficiency.ProofOfEfficiencyBatchData
+	var batches []polygonzkevm.PolygonZkEVMBatchData
 	for _, seq := range sequences {
 		batchL2Data, err := state.EncodeTransactions(seq.Txs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode transactions, err: %v", err)
 		}
-		batch := proofofefficiency.ProofOfEfficiencyBatchData{
+		batch := polygonzkevm.PolygonZkEVMBatchData{
 			Transactions:       batchL2Data,
 			GlobalExitRoot:     seq.GlobalExitRoot,
 			Timestamp:          uint64(seq.Timestamp),
@@ -467,7 +467,7 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 		txData := tx.Data()
 		// Extract coded txs.
 		// Load contract ABI
-		abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
+		abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
 		if err != nil {
 			return err
 		}
@@ -561,7 +561,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
+	abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +577,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	if err != nil {
 		return nil, err
 	}
-	var sequences []proofofefficiency.ProofOfEfficiencyBatchData
+	var sequences []polygonzkevm.PolygonZkEVMBatchData
 	bytedata, err := json.Marshal(data[0])
 	if err != nil {
 		return nil, err
@@ -595,7 +595,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 			Coinbase:                   sequencer,
 			TxHash:                     txHash,
 			Nonce:                      nonce,
-			ProofOfEfficiencyBatchData: seq,
+			PolygonZkEVMBatchData:      seq,
 		}
 	}
 
@@ -686,7 +686,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, block *types.Block, nonce uint64) ([]SequencedForceBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
+	abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
 	if err != nil {
 		return nil, err
 	}
@@ -703,7 +703,7 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 		return nil, err
 	}
 
-	var forceBatches []proofofefficiency.ProofOfEfficiencyForcedBatchData
+	var forceBatches []polygonzkevm.PolygonZkEVMBatchData
 	bytedata, err := json.Marshal(data[0])
 	if err != nil {
 		return nil, err
@@ -722,7 +722,7 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 			TxHash:                           txHash,
 			Timestamp:                        time.Unix(int64(block.Time()), 0),
 			Nonce:                            nonce,
-			ProofOfEfficiencyForcedBatchData: force,
+			PolygonZkEVMBatchData:            force,
 		}
 	}
 	return sequencedForcedBatches, nil
