@@ -703,7 +703,7 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 		return nil, err
 	}
 
-	var forceBatches []polygonzkevm.PolygonZkEVMBatchData
+	var forceBatches []polygonzkevm.PolygonZkEVMForcedBatchData
 	bytedata, err := json.Marshal(data[0])
 	if err != nil {
 		return nil, err
@@ -722,7 +722,7 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 			TxHash:                txHash,
 			Timestamp:             time.Unix(int64(block.Time()), 0),
 			Nonce:                 nonce,
-			PolygonZkEVMBatchData: force,
+			PolygonZkEVMForcedBatchData: force,
 		}
 	}
 	return sequencedForcedBatches, nil

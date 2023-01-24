@@ -63,5 +63,5 @@ type SequencedForceBatch struct {
 	TxHash      common.Hash
 	Timestamp   time.Time
 	Nonce       uint64
-	polygonzkevm.PolygonZkEVMBatchData
+	polygonzkevm.PolygonZkEVMForcedBatchData
 }
