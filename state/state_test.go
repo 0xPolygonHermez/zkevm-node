@@ -210,6 +210,11 @@ func TestOpenCloseBatch(t *testing.T) {
 			Tx:     tx2,
 		},
 	}
+
+	data, err := state.EncodeTransactions([]types.Transaction{tx1, tx2})
+	require.NoError(t, err)
+	receipt1.BatchL2Data = data
+
 	err = testState.StoreTransactions(ctx, 1, txsBatch1, dbTx)
 	require.NoError(t, err)
 	// Close batch #1
