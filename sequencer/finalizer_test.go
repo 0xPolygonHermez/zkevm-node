@@ -100,7 +100,7 @@ func TestNewFinalizer(t *testing.T) {
 	assert.Equal(t, f.batchConstraints, bc)
 }
 
-/* Commentes because of nill pointer exception in line 202
+/* Commented because of nil pointer exception in line 202
 func TestFinalizer_newWIPBatch(t *testing.T) {
 	// arrange
 	f := setupFinalizer(true)
@@ -248,7 +248,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
 			if tc.expectedDeleteCall {
-				workerMock.On("DeleteTx", hash, sender, &nonce, big.NewInt(0)).Return().Once()
+				workerMock.On("DeleteTx", hash, sender).Return().Once()
 			}
 			if tc.expectedMoveCall {
 				workerMock.On("MoveTxToNotReady", hash, sender, &nonce, big.NewInt(0)).Return().Once()
