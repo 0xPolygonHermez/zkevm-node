@@ -13,9 +13,9 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -591,11 +591,11 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	for i, seq := range sequences {
 		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
 		sequencedBatches[i] = SequencedBatch{
-			BatchNumber:                bn,
-			Coinbase:                   sequencer,
-			TxHash:                     txHash,
-			Nonce:                      nonce,
-			PolygonZkEVMBatchData:      seq,
+			BatchNumber:           bn,
+			Coinbase:              sequencer,
+			TxHash:                txHash,
+			Nonce:                 nonce,
+			PolygonZkEVMBatchData: seq,
 		}
 	}
 
@@ -717,12 +717,12 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 	for i, force := range forceBatches {
 		bn := lastBatchNumber - uint64(len(forceBatches)-(i+1))
 		sequencedForcedBatches[i] = SequencedForceBatch{
-			BatchNumber:                      bn,
-			Coinbase:                         sequencer,
-			TxHash:                           txHash,
-			Timestamp:                        time.Unix(int64(block.Time()), 0),
-			Nonce:                            nonce,
-			PolygonZkEVMBatchData:            force,
+			BatchNumber:           bn,
+			Coinbase:              sequencer,
+			TxHash:                txHash,
+			Timestamp:             time.Unix(int64(block.Time()), 0),
+			Nonce:                 nonce,
+			PolygonZkEVMBatchData: force,
 		}
 	}
 	return sequencedForcedBatches, nil
