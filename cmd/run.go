@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -101,18 +100,16 @@ func start(cliCtx *cli.Context) error {
 		case SEQUENCER:
 			log.Info("Running sequencer")
 			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
-			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
-			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st, gpe)
+			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
 			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
-			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
 			}
-			go runJSONRPCServer(*c, poolInstance, st, gpe, apis)
+			go runJSONRPCServer(*c, poolInstance, st, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
 			go runSynchronizer(*c, etherman, etm, st)
@@ -123,6 +120,10 @@ func start(cliCtx *cli.Context) error {
 			log.Info("Running eth tx manager service")
 			etm := createEthTxManager(*c, ethTxManagerStorage, st)
 			go etm.Start()
+		case L2GASPRICER:
+			log.Info("Running L2 gasPricer")
+			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			go runL2GasPriceSuggester(c.L2GasPriceSuggester, st, poolInstance, etherman)
 		}
 	}
 
@@ -180,16 +181,16 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 	}
 }
 
-func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gasPriceEstimator, apis map[string]bool) {
+func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, apis map[string]bool) {
 	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
 
-	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, pool, st, storage, apis).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, gpe gasPriceEstimator) *sequencer.Sequencer {
+func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State) *sequencer.Sequencer {
 	pg, err := pricegetter.NewClient(cfg.PriceGetter)
 	if err != nil {
 		log.Fatal(err)
@@ -209,7 +210,7 @@ func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanage
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
-	seq, err := sequencer.New(cfg.Sequencer, pool, st, etherman, pg, ethTxManager, gpe)
+	seq, err := sequencer.New(cfg.Sequencer, pool, st, etherman, pg, ethTxManager)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -236,23 +237,10 @@ func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {
 	broadcastSrv.Start()
 }
 
-// gasPriceEstimator interface for gas price estimator.
-type gasPriceEstimator interface {
-	GetAvgGasPrice(ctx context.Context) (*big.Int, error)
-	UpdateGasPriceAvg(newValue *big.Int)
-}
-
-// createGasPriceEstimator init gas price gasPriceEstimator based on type in config.
-func createGasPriceEstimator(cfg gasprice.Config, st *state.State, pool *pool.Pool) gasPriceEstimator {
-	switch cfg.Type {
-	case gasprice.AllBatchesType:
-		return gasprice.NewEstimatorAllBatches()
-	case gasprice.LastNBatchesType:
-		return gasprice.NewEstimatorLastNL2Blocks(cfg, st)
-	case gasprice.DefaultType:
-		return gasprice.NewDefaultEstimator(cfg, pool)
-	}
-	return nil
+// runL2GasPriceSuggester init gas price gasPriceEstimator based on type in config.
+func runL2GasPriceSuggester(cfg gasprice.Config, state *state.State, pool *pool.Pool, etherman *etherman.Client) {
+	ctx := context.Background()
+	gasprice.NewL2GasPriceSuggester(ctx, cfg, pool, etherman, state)
 }
 
 func waitSignal(cancelFuncs []context.CancelFunc) {

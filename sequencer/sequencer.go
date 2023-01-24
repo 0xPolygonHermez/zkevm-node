@@ -24,7 +24,6 @@ type Sequencer struct {
 	ethTxManager ethTxManager
 	etherman     etherman
 	checker      *profitabilitychecker.Checker
-	gpe          gasPriceEstimator
 
 	address common.Address
 
@@ -38,8 +37,7 @@ func New(
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
-	manager ethTxManager,
-	gpe gasPriceEstimator) (*Sequencer, error) {
+	manager ethTxManager) (*Sequencer, error) {
 	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
 
 	addr, err := etherman.TrustedSequencer()
@@ -55,7 +53,6 @@ func New(
 		etherman:     etherman,
 		checker:      checker,
 		ethTxManager: manager,
-		gpe:          gpe,
 		address:      addr,
 	}, nil
 }

@@ -815,7 +815,7 @@ func (etherMan *Client) ApproveMatic(ctx context.Context, account common.Address
 		return nil, errors.New("can't find account private key to sign tx")
 	}
 	if etherMan.GasProviders.MultiGasProvider {
-		opts.GasPrice = etherMan.getGasPrice(ctx)
+		opts.GasPrice = etherMan.GetL1GasPrice(ctx)
 	}
 	tx, err := etherMan.Matic.Approve(&opts, etherMan.cfg.PoEAddr, maticAmount)
 	if err != nil {
@@ -838,7 +838,8 @@ func (etherMan *Client) GetL2ChainID() (uint64, error) {
 	return etherMan.PoE.ChainID(&bind.CallOpts{Pending: false})
 }
 
-func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
+// GetL1GasPrice gets the l1 gas price
+func (etherMan *Client) GetL1GasPrice(ctx context.Context) *big.Int {
 	// Get gasPrice from providers
 	gasPrice := big.NewInt(0)
 	for i, prov := range etherMan.GasProviders.Providers {
@@ -865,7 +866,7 @@ func (etherMan *Client) CurrentNonce(ctx context.Context, account common.Address
 
 // SuggestedGasPrice returns the suggest nonce for the network at the moment
 func (etherMan *Client) SuggestedGasPrice(ctx context.Context) (*big.Int, error) {
-	suggestedGasPrice := etherMan.getGasPrice(ctx)
+	suggestedGasPrice := etherMan.GetL1GasPrice(ctx)
 	if suggestedGasPrice.Cmp(big.NewInt(0)) == 0 {
 		return nil, errors.New("failed to get the suggested gas price")
 	}
