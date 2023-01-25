@@ -717,11 +717,11 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 	for i, force := range forceBatches {
 		bn := lastBatchNumber - uint64(len(forceBatches)-(i+1))
 		sequencedForcedBatches[i] = SequencedForceBatch{
-			BatchNumber:           bn,
-			Coinbase:              sequencer,
-			TxHash:                txHash,
-			Timestamp:             time.Unix(int64(block.Time()), 0),
-			Nonce:                 nonce,
+			BatchNumber:                 bn,
+			Coinbase:                    sequencer,
+			TxHash:                      txHash,
+			Timestamp:                   time.Unix(int64(block.Time()), 0),
+			Nonce:                       nonce,
 			PolygonZkEVMForcedBatchData: force,
 		}
 	}
