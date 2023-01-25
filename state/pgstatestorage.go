@@ -2006,7 +2006,7 @@ func (p *PostgresStorage) AddAccumulatedInputHash(ctx context.Context, batchNum 
 
 // GetLastTrustedForcedBatchNumber get last trusted forced batch number
 func (p *PostgresStorage) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	const getLastTrustedForcedBatchNumberSQL = "SELECT MAX(forced_batch_num) FROM state.batch"
+	const getLastTrustedForcedBatchNumberSQL = "SELECT COALESCE(MAX(forced_batch_num), 0) FROM state.batch"
 	var forcedBatchNumber uint64
 	q := p.getExecQuerier(dbTx)
 

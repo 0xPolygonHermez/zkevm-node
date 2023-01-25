@@ -28,7 +28,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 	var lastGERSent common.Hash
 
 	for {
-		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration * time.Second)
+		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
 
 		ger, _, err := c.dbManager.GetLatestGer(c.ctx, c.cfg.GERFinalityNumberOfBlocks)
 		if err != nil {
@@ -45,7 +45,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 
 func (c *closingSignalsManager) checkForcedBatches() {
 	for {
-		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration * time.Second)
+		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
 
 		latestSentForcedBatchNumber, err := c.dbManager.GetLastTrustedForcedBatchNumber(c.ctx, nil)
 		if err != nil {

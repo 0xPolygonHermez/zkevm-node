@@ -294,7 +294,11 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	}
 
 	f.processRequest.GlobalExitRoot = ger
-	f.processRequest.Transactions = tx.RawTx
+	if tx != nil {
+		f.processRequest.Transactions = tx.RawTx
+	} else {
+		f.processRequest.Transactions = nil
+	}
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest)
 	if err != nil {
 		log.Errorf("failed to process transaction, err: %s", err)
@@ -701,15 +705,15 @@ func (f *finalizer) isCurrBatchAboveLimitWindow() bool {
 }
 
 func (f *finalizer) setNextForcedBatchDeadline() {
-	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeoutInSec.Duration)
+	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeoutInSec.Duration.Seconds())
 }
 
 func (f *finalizer) setNextGERDeadline() {
-	f.nextGERDeadline = now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration)
+	f.nextGERDeadline = now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration.Seconds())
 }
 
 func (f *finalizer) setNextSendingToL1Deadline() {
-	f.nextSendingToL1Deadline = now().Unix() + int64(f.cfg.SendingToL1DeadlineTimeoutInSec.Duration)
+	f.nextSendingToL1Deadline = now().Unix() + int64(f.cfg.SendingToL1DeadlineTimeoutInSec.Duration.Seconds())
 }
 
 func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {

@@ -65,6 +65,7 @@ type stateInterface interface {
 	StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
+	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
 	GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
@@ -105,6 +106,7 @@ type dbManagerInterface interface {
 	ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
+	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error
@@ -125,6 +127,7 @@ type dbManagerStateInterface interface {
 	GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error)
 	GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
+	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
 	ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
