@@ -127,8 +127,8 @@ test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
 
-.PHONY: benchmark-sequencer
-benchmark-sequencer: stop
+.PHONY: benchmark-sequencer-eth-transfers
+benchmark-sequencer-eth-transfers: stop
 	$(RUNL1NETWORK)
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
@@ -138,7 +138,23 @@ benchmark-sequencer: stop
 	$(RUNSYNC)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	@ cd benchmarks/sequencer ; \
+	@ cd benchmarks/sequencer/eth-transfers ; \
+ 	mkdir -p results ; \
+ 	touch ./results/out.dat ; \
+	go test -bench=. -timeout=600m | tee ./results/out.dat ;
+
+.PHONY: benchmark-sequencer-erc20-transfers
+benchmark-sequencer-erc20-transfers: stop
+	$(RUNL1NETWORK)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB) sleep 5
+	$(RUNZKPROVER)
+	$(RUNJSONRPC)
+	$(RUNSYNC)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	@ cd benchmarks/sequencer/erc20-transfers ; \
  	mkdir -p results ; \
  	touch ./results/out.dat ; \
 	go test -bench=. -timeout=600m | tee ./results/out.dat ;
