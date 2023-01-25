@@ -1872,7 +1872,7 @@ func (p *PostgresStorage) GetProofReadyToVerify(ctx context.Context, lastVerfied
 
 	e := p.getExecQuerier(dbTx)
 	row := e.QueryRow(ctx, getProofReadyToVerifySQL, lastVerfiedBatchNumber+1)
-	err := row.Scan(&proof.BatchNumber, &proof.BatchNumberFinal, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover, &proof.Generating)
+	err := row.Scan(&proof.BatchNumber, &proof.BatchNumberFinal, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover, &proof.Generating, &proof.CreatedAt, &proof.UpdatedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -1931,8 +1931,8 @@ func (p *PostgresStorage) GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx)
 	e := p.getExecQuerier(dbTx)
 	row := e.QueryRow(ctx, getProofsToAggregateSQL)
 	err := row.Scan(
-		&proof1.BatchNumber, &proof1.BatchNumberFinal, &proof1.Proof, &proof1.ProofID, &proof1.InputProver, &proof1.Prover,
-		&proof2.BatchNumber, &proof2.BatchNumberFinal, &proof2.Proof, &proof2.ProofID, &proof2.InputProver, &proof2.Prover)
+		&proof1.BatchNumber, &proof1.BatchNumberFinal, &proof1.Proof, &proof1.ProofID, &proof1.InputProver, &proof1.Prover, &proof1.Generating, &proof1.CreatedAt, &proof1.UpdatedAt,
+		&proof2.BatchNumber, &proof2.BatchNumberFinal, &proof2.Proof, &proof2.ProofID, &proof2.InputProver, &proof2.Prover, &proof2.Generating, &proof2.CreatedAt, &proof2.UpdatedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil, ErrNotFound
@@ -1945,17 +1945,19 @@ func (p *PostgresStorage) GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx)
 
 // AddGeneratedProof adds a generated proof to the storage
 func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, proof.Generating)
+	now := time.Now().UTC().Round(time.Microsecond)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, proof.Generating, now, now)
 	return err
 }
 
 // UpdateGeneratedProof updates a generated proof in the storage
 func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $3, proof_id = $4, input_prover = $5, prover = $6, generating = $7 WHERE batch_num = $1 AND batch_num_final = $2"
+	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $3, proof_id = $4, input_prover = $5, prover = $6, generating = $7, updated_at = $8 WHERE batch_num = $1 AND batch_num_final = $2"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, proof.Generating)
+	now := time.Now().UTC().Round(time.Microsecond)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, proof.Generating, now)
 	return err
 }
 
@@ -1974,6 +1976,15 @@ func (p *PostgresStorage) CleanupGeneratedProofs(ctx context.Context, batchNumbe
 	const deleteGeneratedProofSQL = "DELETE FROM state.proof WHERE batch_num_final <= $1"
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteGeneratedProofSQL, batchNumber)
+	return err
+}
+
+// CleanupLockedProofs deletes from the storage the proofs locked in generating
+// state for more than the predefined threshold.
+func (p *PostgresStorage) CleanupLockedProofs(ctx context.Context, interval string, dbTx pgx.Tx) error {
+	sql := fmt.Sprintf("DELETE FROM state.proof WHERE generating IS TRUE and created_at < (NOW() - interval '%s')", interval)
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, sql)
 	return err
 }
 

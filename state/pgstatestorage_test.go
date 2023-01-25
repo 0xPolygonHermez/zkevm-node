@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
@@ -247,4 +248,78 @@ func TestVerifiedBatch(t *testing.T) {
 	require.Equal(t, expectedVerifiedBatch, *actualVerifiedBatch)
 
 	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func TestCleanupLockedProofs(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	initOrResetDB()
+	ctx := context.Background()
+	batchNumber := uint64(42)
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1), ($2), ($3)", batchNumber, batchNumber+1, batchNumber+2)
+	require.NoError(err)
+	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	// insert a proof with `generating` = true and `created_at` older than interval
+	now := time.Now().Round(time.Microsecond)
+	oneHourAgo := now.Add(-time.Hour).Round(time.Microsecond)
+	olderProofID := "olderProofID"
+	olderProof := state.Proof{
+		ProofID:          &olderProofID,
+		BatchNumber:      batchNumber,
+		BatchNumberFinal: batchNumber,
+		Generating:       true,
+	}
+	_, err := testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, olderProof.BatchNumber, olderProof.BatchNumberFinal, olderProof.Proof, olderProof.ProofID, olderProof.InputProver, olderProof.Prover, olderProof.Generating, oneHourAgo, oneHourAgo)
+	require.NoError(err)
+	// insert a proof with `generating` = true and `created_at` newer than interval
+	newerProofID := "newerProofID"
+	newerProof := state.Proof{
+		ProofID:          &newerProofID,
+		BatchNumber:      batchNumber + 1,
+		BatchNumberFinal: batchNumber + 1,
+		Generating:       true,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	_, err = testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, newerProof.BatchNumber, newerProof.BatchNumberFinal, newerProof.Proof, newerProof.ProofID, newerProof.InputProver, newerProof.Prover, newerProof.Generating, now, now)
+	require.NoError(err)
+	// insert a proof with `generating` = false and `created_at` older than interval
+	olderNotGenProofID := "olderNotGenProofID"
+	olderNotGenProof := state.Proof{
+		ProofID:          &olderNotGenProofID,
+		BatchNumber:      batchNumber + 2,
+		BatchNumberFinal: batchNumber + 2,
+		Generating:       false,
+		CreatedAt:        oneHourAgo,
+		UpdatedAt:        oneHourAgo,
+	}
+	_, err = testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, olderNotGenProof.BatchNumber, olderNotGenProof.BatchNumberFinal, olderNotGenProof.Proof, olderNotGenProof.ProofID, olderNotGenProof.InputProver, olderNotGenProof.Prover, olderNotGenProof.Generating, oneHourAgo, oneHourAgo)
+	require.NoError(err)
+
+	err = testState.CleanupLockedProofs(ctx, "1 minute", nil)
+
+	require.NoError(err)
+	rows, err := testState.PostgresStorage.Query(ctx, "SELECT batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating, created_at, updated_at FROM state.proof")
+	require.NoError(err)
+	proofs := make([]state.Proof, 0, len(rows.RawValues()))
+	for rows.Next() {
+		var proof state.Proof
+		err := rows.Scan(
+			&proof.BatchNumber,
+			&proof.BatchNumberFinal,
+			&proof.Proof,
+			&proof.ProofID,
+			&proof.InputProver,
+			&proof.Prover,
+			&proof.Generating,
+			&proof.CreatedAt,
+			&proof.UpdatedAt,
+		)
+		require.NoError(err)
+		spew.Dump(proof)
+		proofs = append(proofs, proof)
+	}
+	assert.Len(proofs, 2)
+	assert.Contains(proofs, olderNotGenProof)
+	assert.Contains(proofs, newerProof)
 }
