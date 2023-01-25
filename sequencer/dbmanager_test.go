@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -39,7 +38,7 @@ var (
 	testDbManager     *dbManager
 )
 
-func TestMain(m *testing.M) {
+func setupDBManager() {
 	initOrResetDB()
 	ctx = context.Background()
 
@@ -47,9 +46,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.104.156")
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	var mtDBCancel context.CancelFunc
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
@@ -90,9 +88,6 @@ func TestMain(m *testing.M) {
 	}
 
 	testDbManager = newDBManager(ctx, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
-
-	result := m.Run()
-	os.Exit(result)
 }
 
 func initOrResetDB() {
@@ -102,7 +97,9 @@ func initOrResetDB() {
 }
 
 func TestOpenBatch(t *testing.T) {
-	initOrResetDB()
+	setupDBManager()
+	defer stateDb.Close()
+
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 
@@ -123,9 +120,26 @@ func TestOpenBatch(t *testing.T) {
 }
 
 func TestGetLastBatchNumber(t *testing.T) {
-	initOrResetDB()
+	setupDBManager()
+	defer stateDb.Close()
 
-	TestOpenBatch(t)
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	require.NoError(t, err)
+
+	processingContext := state.ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       common.Address{},
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.Hash{},
+	}
+
+	err = testDbManager.OpenBatch(ctx, processingContext, dbTx)
+	require.NoError(t, err)
+	err = dbTx.Commit(ctx)
+	require.NoError(t, err)
 
 	lastBatchNum, err := testDbManager.GetLastBatchNumber(ctx)
 	require.NoError(t, err)
@@ -133,7 +147,8 @@ func TestGetLastBatchNumber(t *testing.T) {
 }
 
 func TestCreateFirstBatch(t *testing.T) {
-	initOrResetDB()
+	setupDBManager()
+	defer stateDb.Close()
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
