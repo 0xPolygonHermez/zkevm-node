@@ -62,4 +62,12 @@ type Config struct {
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
 	SenderAddress string `mapstructure:"SenderAddress"`
+
+	// CleanupLockedProofsInterval is the interval of time to clean up locked proofs.
+	CleanupLockedProofsInterval types.Duration `mapstructure:"CleanupLockedProofsInterval"`
+
+	// GeneratingProofCleanupThreshold represents the time interval after
+	// which a proof in generating state is considered to be stuck and
+	// allowed to be cleared.
+	GeneratingProofCleanupThreshold string `mapstructure:"GeneratingProofCleanupThreshold"`
 }

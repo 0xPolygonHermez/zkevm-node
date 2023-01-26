@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
@@ -295,7 +294,7 @@ func TestCleanupLockedProofs(t *testing.T) {
 	_, err = testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, olderNotGenProof.BatchNumber, olderNotGenProof.BatchNumberFinal, olderNotGenProof.Proof, olderNotGenProof.ProofID, olderNotGenProof.InputProver, olderNotGenProof.Prover, olderNotGenProof.GeneratingSince, oneHourAgo, oneHourAgo)
 	require.NoError(err)
 
-	err = testState.CleanupLockedProofs(ctx, "1 minute", nil)
+	err = testState.CleanupLockedProofs(ctx, "1m", nil)
 
 	require.NoError(err)
 	rows, err := testState.PostgresStorage.Query(ctx, "SELECT batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating_since, created_at, updated_at FROM state.proof")
@@ -315,7 +314,6 @@ func TestCleanupLockedProofs(t *testing.T) {
 			&proof.UpdatedAt,
 		)
 		require.NoError(err)
-		spew.Dump(proof)
 		proofs = append(proofs, proof)
 	}
 	assert.Len(proofs, 2)

@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -52,6 +53,7 @@ type Aggregator struct {
 	Ethman                  etherman
 	ProfitabilityChecker    aggregatorTxProfitabilityChecker
 	TimeSendFinalProof      time.Time
+	TimeCleanupLockedProofs types.Duration
 	StateDBMutex            *sync.Mutex
 	TimeSendFinalProofMutex *sync.RWMutex
 
@@ -87,6 +89,7 @@ func New(
 		ProfitabilityChecker:    profitabilityChecker,
 		StateDBMutex:            &sync.Mutex{},
 		TimeSendFinalProofMutex: &sync.RWMutex{},
+		TimeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 
 		finalProof: make(chan finalProofMsg),
 	}
@@ -139,6 +142,7 @@ func (a *Aggregator) Start(ctx context.Context) error {
 
 	a.resetVerifyProofTime()
 
+	go a.cleanupLockedProofs()
 	go a.sendFinalProof()
 
 	<-ctx.Done()
@@ -961,5 +965,13 @@ func buildMonitoredTxID(batchNumber, batchNumberFinal uint64) string {
 }
 
 func (a *Aggregator) cleanupLockedProofs() {
-
+	select {
+	case <-a.ctx.Done():
+		return
+	case <-time.After(a.TimeCleanupLockedProofs.Duration):
+		err := a.State.CleanupLockedProofs(a.ctx, a.cfg.GeneratingProofCleanupThreshold, nil)
+		if err != nil {
+			log.Errorf("failed to cleanup locked proofs: %v", err)
+		}
+	}
 }

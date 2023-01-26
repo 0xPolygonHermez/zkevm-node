@@ -88,13 +88,13 @@ func (_m *StateMock) CleanupGeneratedProofs(ctx context.Context, batchNumber uin
 	return r0
 }
 
-// DeleteGeneratedProofs provides a mock function with given fields: ctx, batchNumber, batchNumberFinal, dbTx
-func (_m *StateMock) DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, batchNumberFinal, dbTx)
+// CleanupLockedProofs provides a mock function with given fields: ctx, interval, dbTx
+func (_m *StateMock) CleanupLockedProofs(ctx context.Context, interval string, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, interval, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, batchNumberFinal, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, string, pgx.Tx) error); ok {
+		r0 = rf(ctx, interval, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -102,13 +102,13 @@ func (_m *StateMock) DeleteGeneratedProofs(ctx context.Context, batchNumber uint
 	return r0
 }
 
-// DeleteReservedProof provides a mock function with given fields: ctx, proverID, proofID, batchNumber, batchNumberFinal, dbTx
-func (_m *StateMock) DeleteReservedProof(ctx context.Context, proverID string, proofID string, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, proverID, proofID, batchNumber, batchNumberFinal, dbTx)
+// DeleteGeneratedProofs provides a mock function with given fields: ctx, batchNumber, batchNumberFinal, dbTx
+func (_m *StateMock) DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, batchNumberFinal, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, uint64, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, proverID, proofID, batchNumber, batchNumberFinal, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, batchNumberFinal, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

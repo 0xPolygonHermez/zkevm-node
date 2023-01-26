@@ -100,6 +100,8 @@ VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
+CleanupLockedProofsInterval = "10m"
+GeneratingProofCleanupThreshold = "30m"
 
 [L2GasPriceSuggester]
 Type = "default"

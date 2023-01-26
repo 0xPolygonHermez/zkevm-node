@@ -1981,10 +1981,14 @@ func (p *PostgresStorage) CleanupGeneratedProofs(ctx context.Context, batchNumbe
 
 // CleanupLockedProofs deletes from the storage the proofs locked in generating
 // state for more than the provided threshold.
-func (p *PostgresStorage) CleanupLockedProofs(ctx context.Context, interval string, dbTx pgx.Tx) error {
+func (p *PostgresStorage) CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) error {
+	interval, err := toPostgresInterval(duration)
+	if err != nil {
+		return err
+	}
 	sql := fmt.Sprintf("DELETE FROM state.proof WHERE generating_since < (NOW() - interval '%s')", interval)
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, sql)
+	_, err = e.Exec(ctx, sql)
 	return err
 }
 
@@ -2004,4 +2008,28 @@ func (p *PostgresStorage) AddDebugInfo(ctx context.Context, info *DebugInfo, dbT
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, insertDebugInfoSQL, info.ErrorType, info.Timestamp, info.Payload)
 	return err
+}
+
+func toPostgresInterval(duration string) (string, error) {
+	unit := duration[len(duration)-1]
+	var pgUnit string
+
+	switch unit {
+	case 's':
+		pgUnit = "second"
+	case 'm':
+		pgUnit = "minute"
+	case 'h':
+		pgUnit = "hour"
+	default:
+		// TODO(pg): declare package error and maybe suggest valid units
+		return "", errors.New("unsupported duration unit")
+	}
+
+	isMoreThanOne := duration[0] != '1' || len(duration) > 2
+	if isMoreThanOne {
+		pgUnit = pgUnit + "s"
+	}
+
+	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
 }
