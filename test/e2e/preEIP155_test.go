@@ -47,7 +47,7 @@ func TestPreEIP155Tx(t *testing.T) {
 		require.NoError(t, err)
 
 		to := common.HexToAddress("0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98")
-		data := hex.DecodeHexToBig("64fbb77c").Bytes()
+		data := hex.DecodeBig("0x64fbb77c").Bytes()
 
 		gas, err := client.EstimateGas(ctx, ethereum.CallMsg{
 			From: auth.From,
