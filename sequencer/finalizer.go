@@ -17,6 +17,8 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const oneHundred = 100
+
 var (
 	now = time.Now
 )
@@ -156,7 +158,9 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 		case l2ReorgEvent := <-f.closingSignalCh.L2ReorgCh:
 			f.sharedResourcesMux.Lock()
 			f.handlingL2Reorg = true
+			start := now()
 			go f.worker.HandleL2Reorg(l2ReorgEvent.TxHashes)
+			metrics.WorkerProcessingTime(time.Since(start))
 			err := f.syncWithState(ctx, nil)
 			if err != nil {
 				log.Errorf("failed to sync with state, Err: %s", err)
@@ -177,11 +181,13 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
 func (f *finalizer) finalizeBatches(ctx context.Context) {
 	for {
+		start := now()
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
+		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			_ = f.processTransaction(ctx, tx)
 		} else {
-			if f.isCurrBatchAboveLimitWindow() {
+			if f.isBatchReadyToClose() {
 				// Wait for all transactions to be stored in the DB
 				f.txsStore.Wg.Wait()
 				// The perfect moment to finalize the batch
@@ -359,7 +365,9 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 		previousL2BlockStateRoot: previousL2BlockStateRoot,
 	}
 
+	start := time.Now()
 	f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
+	metrics.WorkerProcessingTime(time.Since(start))
 	f.batch.countOfTxs += 1
 
 	return nil
@@ -371,7 +379,9 @@ func (f *finalizer) handleTransactionError(ctx context.Context, txResponse *stat
 	addressInfo := result.ReadWriteAddresses[tx.From]
 
 	if executor.IsROMOutOfCountersError(errorCode) {
+		start := time.Now()
 		f.worker.DeleteTx(tx.Hash, tx.From)
+		metrics.WorkerProcessingTime(time.Since(start))
 		go func() {
 			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid)
 			if err != nil {
@@ -387,7 +397,9 @@ func (f *finalizer) handleTransactionError(ctx context.Context, txResponse *stat
 			nonce = addressInfo.Nonce
 			balance = addressInfo.Balance
 		}
+		start := time.Now()
 		f.worker.MoveTxToNotReady(tx.Hash, tx.From, nonce, balance)
+		metrics.WorkerProcessingTime(time.Since(start))
 	}
 }
 
@@ -666,15 +678,17 @@ func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, 
 	err := f.batch.remainingResources.sub(usedResources)
 	if err != nil {
 		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
+		start := time.Now()
 		f.worker.UpdateTx(txResponse.TxHash, tx.From, usedResources.zKCounters)
+		metrics.WorkerProcessingTime(time.Since(start))
 		return err
 	}
 
 	return nil
 }
 
-// isCurrBatchAboveLimitWindow checks if the current batch is above the limit window for which is beneficial to close the batch
-func (f *finalizer) isCurrBatchAboveLimitWindow() bool {
+// isBatchReadyToClose checks if the current batch remaining resources are under the constraints threshold for most efficient moment to close a batch
+func (f *finalizer) isBatchReadyToClose() bool {
 	resources := f.batch.remainingResources
 	zkCounters := resources.zKCounters
 	if resources.bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
@@ -717,11 +731,9 @@ func (f *finalizer) setNextSendingToL1Deadline() {
 }
 
 func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
-	const oneHundred = 100
 	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / oneHundred
 }
 
 func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
-	const oneHundred = 100
 	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / oneHundred
 }

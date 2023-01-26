@@ -8,23 +8,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
-
-	utils "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer"
-
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
-
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/setup"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/shared"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/transactions"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	nTxs      = 10000
+	nTxs      = 100
 	txTimeout = 60 * time.Second
 )
 
@@ -36,18 +35,19 @@ var (
 
 func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 	//defer func() { require.NoError(b, operations.Teardown()) }()
-	opsman, client, pl, senderNonce, gasPrice := utils.Setup(utils.Ctx, b)
+	opsman, client, pl, senderNonce, gasPrice := setup.Environment(shared.Ctx, b)
 
-	utils.StartAndSetupSequencer(b, opsman)
+	setup.BootstrapSequencer(b, opsman)
 	startDeploySCTime := time.Now()
-	err := deployERC20Contract(b, client, utils.Ctx)
+	err := deployERC20Contract(b, client, shared.Ctx)
+	require.NoError(b, err)
 	deploySCElapsed := time.Since(startDeploySCTime)
-	deploySCSequencerTime, deploySCExecutorOnlyTime, err := utils.GetPrometheusMetricValues(nil)
+	deploySCSequencerTime, deploySCExecutorOnlyTime, _, err := metrics.GetValues(nil)
 	if err != nil {
 		return
 	}
 
-	utils.SendAndWaitTxs(b, senderNonce, client, gasPrice, pl, utils.Ctx, nTxs, runERC20TxSender)
+	transactions.SendAndWait(b, senderNonce, client, gasPrice, pl, shared.Ctx, nTxs, runERC20TxSender)
 	require.NoError(b, err)
 
 	var (
@@ -59,8 +59,8 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 		// Wait all txs to be selected by the sequencer
 		start := time.Now()
 		log.Debug("Wait for sequencer to select all txs from the pool")
-		err := operations.Poll(1*time.Second, utils.DefaultDeadline, func() (bool, error) {
-			selectedCount, err := pl.CountTransactionsByStatus(utils.Ctx, pool.TxStatusSelected)
+		err := operations.Poll(1*time.Second, shared.DefaultDeadline, func() (bool, error) {
+			selectedCount, err := pl.CountTransactionsByStatus(shared.Ctx, pool.TxStatusSelected)
 			if err != nil {
 				return false, err
 			}
@@ -71,10 +71,8 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 		})
 		require.NoError(b, err)
 		elapsed = time.Since(start)
-		response, err = http.Get(fmt.Sprintf("http://localhost:%d%s", utils.PrometheusPort, metrics.Endpoint))
-		if err != nil {
-			log.Errorf("failed to get metrics data: %s", err)
-		}
+		response, err = metrics.Fetch()
+		require.NoError(b, err)
 	})
 
 	err = operations.Teardown()
@@ -82,11 +80,11 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 		log.Errorf("failed to teardown: %s", err)
 	}
 
-	utils.CalculateAndPrintResults(response, elapsed-deploySCElapsed, deploySCSequencerTime, deploySCExecutorOnlyTime)
+	metrics.CalculateAndPrint(response, elapsed-deploySCElapsed, deploySCSequencerTime, deploySCExecutorOnlyTime, nTxs)
 	log.Infof("########################################")
 	log.Infof("# Deploying ERC20 SC and Mint Tx took: #")
 	log.Infof("########################################")
-	utils.PrintPrometheusMetrics(deploySCSequencerTime, deploySCExecutorOnlyTime)
+	metrics.Print(deploySCSequencerTime, deploySCExecutorOnlyTime, 0)
 }
 
 func deployERC20Contract(b *testing.B, client *ethclient.Client, ctx context.Context) error {
@@ -95,12 +93,12 @@ func deployERC20Contract(b *testing.B, client *ethclient.Client, ctx context.Con
 		err error
 	)
 	log.Debugf("Sending TX to deploy ERC20 SC")
-	_, tx, erc20SC, err = ERC20.DeployERC20(utils.Auth, client, "Test Coin", "TCO")
+	_, tx, erc20SC, err = ERC20.DeployERC20(shared.Auth, client, "Test Coin", "TCO")
 	require.NoError(b, err)
 	err = operations.WaitTxToBeMined(ctx, client, tx, txTimeout)
 	require.NoError(b, err)
 	log.Debugf("Sending TX to do a ERC20 mint")
-	tx, err = erc20SC.Mint(utils.Auth, mintAmount)
+	tx, err = erc20SC.Mint(shared.Auth, mintAmount)
 	require.NoError(b, err)
 	err = operations.WaitTxToBeMined(ctx, client, tx, txTimeout)
 	require.NoError(b, err)
@@ -115,8 +113,6 @@ func runERC20TxSender(b *testing.B, l2Client *ethclient.Client, gasPrice *big.In
 	} else {
 		actualTransferAmount = big.NewInt(0).Add(transferAmount, big.NewInt(int64(nonce)))
 	}
-	_, err := erc20SC.Transfer(utils.Auth, utils.To, actualTransferAmount)
+	_, err := erc20SC.Transfer(shared.Auth, shared.To, actualTransferAmount)
 	require.NoError(b, err)
-	//err = operations.WaitTxToBeMined(utils.Ctx, l2Client, tx, txTimeout)
-	//require.NoError(b, err)
 }

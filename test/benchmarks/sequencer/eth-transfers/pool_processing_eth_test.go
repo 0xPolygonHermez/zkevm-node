@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
-	utils "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer"
-
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/setup"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/shared"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/transactions"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -34,9 +35,9 @@ const (
 func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 	ctx := context.Background()
 	defer func() { require.NoError(b, operations.Teardown()) }()
-	opsman, client, pl, senderNonce, gasPrice := utils.Setup(ctx, b)
-	utils.SendAndWaitTxs(b, senderNonce, client, gasPrice, pl, ctx, nTxs, runTxSender)
-	utils.StartAndSetupSequencer(b, opsman)
+	opsman, client, pl, senderNonce, gasPrice := setup.Environment(ctx, b)
+	transactions.SendAndWait(b, senderNonce, client, gasPrice, pl, ctx, nTxs, runTxSender)
+	setup.BootstrapSequencer(b, opsman)
 
 	var (
 		elapsed  time.Duration
@@ -48,7 +49,7 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 		// Wait all txs to be selected by the sequencer
 		start := time.Now()
 		log.Debug("Wait for sequencer to select all txs from the pool")
-		err := operations.Poll(1*time.Second, utils.DefaultDeadline, func() (bool, error) {
+		err := operations.Poll(1*time.Second, shared.DefaultDeadline, func() (bool, error) {
 			selectedCount, err := pl.CountTransactionsByStatus(ctx, pool.TxStatusSelected)
 			if err != nil {
 				return false, err
@@ -60,30 +61,27 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 		})
 		require.NoError(b, err)
 		elapsed = time.Since(start)
-		response, err = http.Get(fmt.Sprintf("http://localhost:%d%s", utils.PrometheusPort, metrics.Endpoint))
-		if err != nil {
-			log.Errorf("failed to get metrics data: %s", err)
-		}
+		response, err = metrics.Fetch()
+		require.NoError(b, err)
 	})
 
 	err = operations.Teardown()
 	if err != nil {
 		log.Errorf("failed to teardown: %s", err)
 	}
-
-	utils.CalculateAndPrintResults(response, elapsed, 0, 0)
+	metrics.CalculateAndPrint(response, elapsed, 0, 0, nTxs)
 }
 
 func runTxSender(b *testing.B, l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64) {
 	log.Debugf("sending nonce: %d", nonce)
-	tx := types.NewTransaction(nonce, utils.To, ethAmount, gasLimit, gasPrice, nil)
-	signedTx, err := utils.Auth.Signer(utils.Auth.From, tx)
+	tx := types.NewTransaction(nonce, shared.To, ethAmount, gasLimit, gasPrice, nil)
+	signedTx, err := shared.Auth.Signer(shared.Auth.From, tx)
 	require.NoError(b, err)
-	err = l2Client.SendTransaction(utils.Ctx, signedTx)
+	err = l2Client.SendTransaction(shared.Ctx, signedTx)
 	if errors.Is(err, state.ErrStateNotSynchronized) {
 		for errors.Is(err, state.ErrStateNotSynchronized) {
 			time.Sleep(5 * time.Second)
-			err = l2Client.SendTransaction(utils.Ctx, signedTx)
+			err = l2Client.SendTransaction(shared.Ctx, signedTx)
 		}
 	}
 	require.NoError(b, err)
