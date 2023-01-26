@@ -90,7 +90,7 @@ VerifyProofInterval = "30s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
-SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
 
 [EthTxManager]
 PrivateKeys = [
