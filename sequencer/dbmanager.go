@@ -385,12 +385,12 @@ func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*st
 
 // GetLatestGer gets the latest global exit root
 func (d *dbManager) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
-	lastL2BlockHeader, err := d.GetLastL2BlockHeader(ctx, nil)
+	lastBlock, err := d.state.GetLastBlock(ctx, nil)
 	if err != nil {
-		log.Errorf("error getting last L2 block: %v", err)
+		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %w", err)
 	}
 
-	blockNumber := lastL2BlockHeader.Number.Uint64()
+	blockNumber := lastBlock.BlockNumber
 
 	maxBlockNumber := uint64(0)
 	if gerFinalityNumberOfBlocks <= blockNumber {
@@ -545,6 +545,10 @@ func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber
 // GetLastL2BlockHeader gets the last l2 block number
 func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
 	return d.state.GetLastL2BlockHeader(ctx, dbTx)
+}
+
+func (d *dbManager) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error) {
+	return d.state.GetLastBlock(ctx, dbTx)
 }
 
 func (d *dbManager) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
