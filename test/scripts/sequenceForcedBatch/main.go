@@ -130,14 +130,14 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 		log.Error("error decoding txs. Error: ", err)
 		return err
 	}
-	fbData := []polygonzkevm.PolygonZkEVMForcedBatchData {{
-        Transactions: transactions,
-        GlobalExitRoot: common.HexToHash(cliCtx.String(flagGerName)),
-        MinForcedTimestamp: cliCtx.Uint64(flagTimestampName),
-    }}
-	log.Warnf("%v, %+v",cliCtx.String(flagTransactionsName), fbData)
+	fbData := []polygonzkevm.PolygonZkEVMForcedBatchData{{
+		Transactions:       transactions,
+		GlobalExitRoot:     common.HexToHash(cliCtx.String(flagGerName)),
+		MinForcedTimestamp: cliCtx.Uint64(flagTimestampName),
+	}}
+	log.Warnf("%v, %+v", cliCtx.String(flagTransactionsName), fbData)
 	// Send forceBatch
-	tx, err := poe.SequenceForceBatches(auth, fbData)	
+	tx, err := poe.SequenceForceBatches(auth, fbData)
 	if err != nil {
 		log.Error("error sending forceBatch. Error: ", err)
 		return err
@@ -147,5 +147,5 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 
 	time.Sleep(1 * time.Second)
 
-	return operations.WaitTxToBeMined(ctx, ethClient, tx, miningTimeout * time.Second)
+	return operations.WaitTxToBeMined(ctx, ethClient, tx, miningTimeout*time.Second)
 }

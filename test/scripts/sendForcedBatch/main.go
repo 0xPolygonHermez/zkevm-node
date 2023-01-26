@@ -4,12 +4,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/urfave/cli/v2"
 )
@@ -111,7 +111,7 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 		return err
 	}
 	// Send forceBatch
-	tx, err := poe.ForceBatch(auth, []byte{}, tip)	
+	tx, err := poe.ForceBatch(auth, []byte{}, tip)
 	if err != nil {
 		log.Error("error sending forceBatch. Error: ", err)
 		return err
@@ -121,7 +121,7 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 
 	time.Sleep(1 * time.Second)
 
-	err = operations.WaitTxToBeMined(ctx, ethClient, tx, miningTimeout * time.Second)
+	err = operations.WaitTxToBeMined(ctx, ethClient, tx, miningTimeout*time.Second)
 	if err != nil {
 		return err
 	}
@@ -138,8 +138,7 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 		fb, err := poe.ParseForceBatch(vLog)
 		if err == nil {
 			log.Debugf("log decoded: %+v", fb)
-			var ger common.Hash
-			ger = fb.LastGlobalExitRoot
+			ger := fb.LastGlobalExitRoot
 			log.Info("GlobalExitRoot: ", ger)
 			log.Info("Transactions: ", common.Bytes2Hex(fb.Transactions))
 			fullBlock, err := ethClient.BlockByHash(ctx, vLog.BlockHash)
