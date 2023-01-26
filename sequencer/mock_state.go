@@ -245,6 +245,29 @@ func (_m *StateMock) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint6
 	return r0, r1
 }
 
+// GetLastBlock provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 *state.Block
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.Block); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.Block)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLastClosedBatch provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, dbTx)
