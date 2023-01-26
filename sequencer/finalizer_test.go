@@ -1072,7 +1072,7 @@ func TestFinalizer_setNextForcedBatchDeadline(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-	expected := now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeoutInSec.Duration)
+	expected := now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeoutInSec.Duration.Seconds())
 
 	// act
 	f.setNextForcedBatchDeadline()
@@ -1091,7 +1091,7 @@ func TestFinalizer_setNextGERDeadline(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-	expected := now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration)
+	expected := now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration.Seconds())
 
 	// act
 	f.setNextGERDeadline()
@@ -1107,7 +1107,7 @@ func TestFinalizer_setNextSendingToL1Deadline(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-	expected := now().Unix() + int64(f.cfg.SendingToL1DeadlineTimeoutInSec.Duration)
+	expected := now().Unix() + int64(f.cfg.SendingToL1DeadlineTimeoutInSec.Duration.Seconds())
 
 	// act
 	f.setNextSendingToL1Deadline()
