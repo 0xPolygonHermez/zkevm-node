@@ -26,6 +26,7 @@ var (
 
 func setupTest(t *testing.T) {
 	initOrResetDB()
+
 	ctx = context.Background()
 
 	stateDb, err = db.NewSQLDB(stateDBCfg)
@@ -47,9 +48,6 @@ func setupTest(t *testing.T) {
 	stateTree = merkletree.NewStateTree(mtDBServiceClient)
 	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
 
-	dbTx, err := testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       150,
 		MaxBatchBytesSize:    150000,
@@ -66,6 +64,8 @@ func setupTest(t *testing.T) {
 	testDbManager = newDBManager(ctx, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
 
 	// Set genesis batch
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
 	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
