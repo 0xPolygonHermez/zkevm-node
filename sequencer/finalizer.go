@@ -187,7 +187,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		if tx != nil {
 			_ = f.processTransaction(ctx, tx)
 		} else {
-			if f.isBatchReadyToClose() {
+			if f.isBatchAlmostFull() {
 				// Wait for all transactions to be stored in the DB
 				f.txsStore.Wg.Wait()
 				// The perfect moment to finalize the batch
@@ -687,8 +687,8 @@ func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, 
 	return nil
 }
 
-// isBatchReadyToClose checks if the current batch remaining resources are under the constraints threshold for most efficient moment to close a batch
-func (f *finalizer) isBatchReadyToClose() bool {
+// isBatchAlmostFull checks if the current batch remaining resources are under the constraints threshold for most efficient moment to close a batch
+func (f *finalizer) isBatchAlmostFull() bool {
 	resources := f.batch.remainingResources
 	zkCounters := resources.zKCounters
 	if resources.bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {

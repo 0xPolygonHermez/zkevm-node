@@ -133,6 +133,9 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 
 // MoveTxToNotReady move a tx to not ready after it fails to execute
 func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
+
 	addrQueue, found := w.pool[from.String()]
 
 	if found {

@@ -1068,7 +1068,7 @@ func TestFinalizer_isBatchReadyToClose(t *testing.T) {
 			maxRemainingResource.zKCounters.CumulativeGasUsed = tc.cumulativeGasUsed
 			f.batch.remainingResources = maxRemainingResource
 			// act
-			result := f.isBatchReadyToClose()
+			result := f.isBatchAlmostFull()
 
 			// assert
 			assert.Equal(t, tc.expectedResult, result)
