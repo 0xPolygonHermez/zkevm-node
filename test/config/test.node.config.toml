@@ -15,7 +15,7 @@ EnableLog = false
 MaxConns = 200
 
 [Pool]
-FreeClaimGasLimit = 150000
+FreeClaimGasLimit = 1500000
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
