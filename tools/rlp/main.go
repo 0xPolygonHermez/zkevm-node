@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -253,7 +253,7 @@ func decodeFullCallDataToTxs(txsData []byte) ([]types.Transaction, []byte, error
 
 	// Extract coded txs.
 	// Load contract ABI
-	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
+	abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
 	if err != nil {
 		log.Fatal("error reading smart contract abi: ", err)
 	}
