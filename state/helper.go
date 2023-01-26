@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	double    = 2
-	ether155V = 27
-	etherNewV = 35
+	double       = 2
+	ether155V    = 27
+	etherPre155V = 35
 )
 
 // EncodeTransactions RLP encodes the given transactions.
@@ -164,7 +164,7 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 
 		if chainID != nil {
 			//v = v-27+chainId*2+35
-			legacyTx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(vData), big.NewInt(ether155V)), new(big.Int).Add(new(big.Int).Mul(chainID, big.NewInt(mul2)), big.NewInt(etherNewV)))
+			legacyTx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(vData), big.NewInt(ether155V)), new(big.Int).Add(new(big.Int).Mul(chainID, big.NewInt(mul2)), big.NewInt(etherPre155V)))
 		} else {
 			legacyTx.V = new(big.Int).SetBytes(vData)
 		}

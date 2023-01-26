@@ -58,7 +58,7 @@ func RlpFieldsToLegacyTx(fields [][]byte) (tx *types.LegacyTx, chainID *big.Int,
 	v := big.NewInt(0)
 	if len(fields) >= fieldsSizeWithV {
 		v = big.NewInt(0).SetBytes(fields[6])
-		chainID = big.NewInt(0).Sub(v, big.NewInt(0).SetUint64(etherNewV))
+		chainID = big.NewInt(0).Sub(v, big.NewInt(0).SetUint64(etherPre155V))
 		chainID = big.NewInt(0).Quo(chainID, big.NewInt(double))
 	}
 
