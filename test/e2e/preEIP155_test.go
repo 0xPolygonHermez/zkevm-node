@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -75,5 +76,15 @@ func TestPreEIP155Tx(t *testing.T) {
 
 		err = operations.WaitTxToBeMined(ctx, client, signedTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
+
+		receipt, err := client.TransactionReceipt(ctx, signedTx.Hash())
+		require.NoError(t, err)
+
+		// wait for l2 block to be virtualized
+		if network.ChainID == operations.DefaultL2ChainID {
+			log.Infof("waiting for the block number %v to be virtualized", receipt.BlockNumber.String())
+			err = operations.WaitL2BlockToBeVirtualized(receipt.BlockNumber, 4*time.Minute) //nolint:gomnd
+			require.NoError(t, err)
+		}
 	}
 }
