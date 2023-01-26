@@ -84,11 +84,12 @@ func prepareForcedBatches(t *testing.T) {
 
 func TestClosingSignalsManager(t *testing.T) {
 	setupTest(t)
-	cumtomForcedBatchCh := make(chan state.ForcedBatch)
-	closingSignalCh.ForcedBatchCh = cumtomForcedBatchCh
+	channels := ClosingSignalCh{
+		ForcedBatchCh: make(chan state.ForcedBatch),
+	}
 
 	prepareForcedBatches(t)
-	closingSignalsManager := newClosingSignalsManager(ctx, testDbManager, closingSignalCh, cfg)
+	closingSignalsManager := newClosingSignalsManager(ctx, testDbManager, channels, cfg)
 	closingSignalsManager.Start()
 
 	newCtx, cancelFunc := context.WithTimeout(ctx, time.Second*3)
@@ -102,7 +103,7 @@ func TestClosingSignalsManager(t *testing.T) {
 			log.Infof("received context done, Err: %s", ctx.Err())
 			return
 		// Forced  batch ch
-		case fb := <-closingSignalCh.ForcedBatchCh:
+		case fb := <-channels.ForcedBatchCh:
 			log.Debug("Forced batch received", "forced batch", fb)
 		}
 
@@ -117,6 +118,4 @@ func TestClosingSignalsManager(t *testing.T) {
 	require.Equal(t, testGER, fb.GlobalExitRoot)
 	require.Equal(t, testAddr, fb.Sequencer)
 	require.Equal(t, testRawData, fb.RawTxsData)
-
-	initOrResetDB()
 }
