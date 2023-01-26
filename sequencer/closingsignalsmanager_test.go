@@ -117,4 +117,6 @@ func TestClosingSignalsManager(t *testing.T) {
 	require.Equal(t, testGER, fb.GlobalExitRoot)
 	require.Equal(t, testAddr, fb.Sequencer)
 	require.Equal(t, testRawData, fb.RawTxsData)
+
+	initOrResetDB()
 }
