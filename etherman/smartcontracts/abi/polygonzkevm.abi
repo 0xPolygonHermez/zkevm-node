@@ -200,6 +200,19 @@
 		"inputs": [
 			{
 				"indexed": false,
+				"internalType": "uint16",
+				"name": "newMultiplierBatchFee",
+				"type": "uint16"
+			}
+		],
+		"name": "SetMultiplierBatchFee",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
 				"internalType": "uint64",
 				"name": "newPendingStateTimeout",
 				"type": "uint64"
@@ -258,6 +271,19 @@
 			}
 		],
 		"name": "SetTrustedSequencerURL",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint64",
+				"name": "newVeryBatchTimeTarget",
+				"type": "uint64"
+			}
+		],
+		"name": "SetVeryBatchTimeTarget",
 		"type": "event"
 	},
 	{
@@ -338,6 +364,19 @@
 	},
 	{
 		"inputs": [],
+		"name": "MAX_BATCH_MULTIPLIER",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "MAX_TRANSACTIONS_BYTE_LENGTH",
 		"outputs": [
 			{
@@ -352,32 +391,6 @@
 	{
 		"inputs": [],
 		"name": "MAX_VERIFY_BATCHES",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "MULTIPLIER_BATCH_FEE",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "VERIFY_BATCH_TIME_TARGET",
 		"outputs": [
 			{
 				"internalType": "uint64",
@@ -451,7 +464,7 @@
 		"name": "bridgeAddress",
 		"outputs": [
 			{
-				"internalType": "contract IBridge",
+				"internalType": "contract IPolygonZkEVMBridge",
 				"name": "",
 				"type": "address"
 			}
@@ -625,7 +638,7 @@
 		"name": "globalExitRootManager",
 		"outputs": [
 			{
-				"internalType": "contract IGlobalExitRootManager",
+				"internalType": "contract IPolygonZkEVMGlobalExitRoot",
 				"name": "",
 				"type": "address"
 			}
@@ -636,7 +649,7 @@
 	{
 		"inputs": [
 			{
-				"internalType": "contract IGlobalExitRootManager",
+				"internalType": "contract IPolygonZkEVMGlobalExitRoot",
 				"name": "_globalExitRootManager",
 				"type": "address"
 			},
@@ -651,7 +664,7 @@
 				"type": "address"
 			},
 			{
-				"internalType": "contract IBridge",
+				"internalType": "contract IPolygonZkEVMBridge",
 				"name": "_bridgeAddress",
 				"type": "address"
 			},
@@ -693,7 +706,7 @@
 						"type": "uint64"
 					}
 				],
-				"internalType": "struct ProofOfEfficiency.InitializePackedParameters",
+				"internalType": "struct PolygonZkEVM.InitializePackedParameters",
 				"name": "initializePackedParameters",
 				"type": "tuple"
 			},
@@ -849,6 +862,19 @@
 				"internalType": "contract IERC20Upgradeable",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "multiplierBatchFee",
+		"outputs": [
+			{
+				"internalType": "uint16",
+				"name": "",
+				"type": "uint16"
 			}
 		],
 		"stateMutability": "view",
@@ -1078,7 +1104,7 @@
 						"type": "uint64"
 					}
 				],
-				"internalType": "struct ProofOfEfficiency.BatchData[]",
+				"internalType": "struct PolygonZkEVM.BatchData[]",
 				"name": "batches",
 				"type": "tuple[]"
 			}
@@ -1108,7 +1134,7 @@
 						"type": "uint64"
 					}
 				],
-				"internalType": "struct ProofOfEfficiency.ForcedBatchData[]",
+				"internalType": "struct PolygonZkEVM.ForcedBatchData[]",
 				"name": "batches",
 				"type": "tuple[]"
 			}
@@ -1176,6 +1202,19 @@
 	{
 		"inputs": [
 			{
+				"internalType": "uint16",
+				"name": "newMultiplierBatchFee",
+				"type": "uint16"
+			}
+		],
+		"name": "setMultiplierBatchFee",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "uint64",
 				"name": "newPendingStateTimeout",
 				"type": "uint64"
@@ -1234,6 +1273,19 @@
 			}
 		],
 		"name": "setTrustedSequencerURL",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "newVeryBatchTimeTarget",
+				"type": "uint64"
+			}
+		],
+		"name": "setVeryBatchTimeTarget",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -1397,6 +1449,19 @@
 		"name": "verifyBatches",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "veryBatchTimeTarget",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	}
 ]

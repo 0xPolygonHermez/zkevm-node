@@ -360,8 +360,13 @@ func (p *PostgresStorage) GetVerifiedBatch(ctx context.Context, batchNumber uint
 		agg           string
 		sr            string
 	)
+
+	const getVerifiedBatchSQL = `
+    SELECT block_num, batch_num, tx_hash, aggregator, state_root, is_trusted
+      FROM state.verified_batch
+     WHERE batch_num = $1`
+
 	e := p.getExecQuerier(dbTx)
-	const getVerifiedBatchSQL = "SELECT block_num, batch_num, tx_hash, aggregator, state_root, is_trusted FROM state.verified_batch WHERE batch_num = $1"
 	err := e.QueryRow(ctx, getVerifiedBatchSQL, batchNumber).Scan(&verifiedBatch.BlockNumber, &verifiedBatch.BatchNumber, &txHash, &agg, &sr, &verifiedBatch.IsTrusted)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -542,6 +547,7 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	} else if err != nil {
 		return nil, err
 	}
+
 	return &batch, nil
 }
 
@@ -580,37 +586,6 @@ func (p *PostgresStorage) GetBatchByL2BlockNumber(ctx context.Context, l2BlockNu
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
-	} else if err != nil {
-		return nil, err
-	}
-	return &batch, nil
-}
-
-// GetVirtualBatchByNumber gets batch from batch table that exists on virtual batch
-func (p *PostgresStorage) GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
-	const query = `
-		SELECT
-			batch_num,
-			global_exit_root,
-			local_exit_root,
-			acc_input_hash,
-			state_root,
-			timestamp,
-			coinbase,
-			raw_txs_data,
-			forced_batch_num
-		FROM
-			state.batch
-		WHERE
-			batch_num = $1 AND
-			EXISTS (SELECT batch_num FROM state.virtual_batch WHERE batch_num = $1)
-		`
-	e := p.getExecQuerier(dbTx)
-	row := e.QueryRow(ctx, query, batchNumber)
-	batch, err := scanBatch(row)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}
@@ -818,6 +793,31 @@ func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *Vir
 	return err
 }
 
+// GetVirtualBatch get an L1 virtualBatch.
+func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*VirtualBatch, error) {
+	var (
+		virtualBatch VirtualBatch
+		txHash       string
+		coinbase     string
+	)
+
+	const getVirtualBatchSQL = `
+    SELECT block_num, batch_num, tx_hash, coinbase
+      FROM state.virtual_batch
+     WHERE batch_num = $1`
+
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	virtualBatch.Coinbase = common.HexToAddress(coinbase)
+	virtualBatch.TxHash = common.HexToHash(txHash)
+	return &virtualBatch, nil
+}
+
 func (p *PostgresStorage) storeGenesisBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
 	if batch.BatchNumber != 0 {
 		return fmt.Errorf("%w. Got %d, should be 0", ErrUnexpectedBatch, batch.BatchNumber)
@@ -951,8 +951,8 @@ func (p *PostgresStorage) GetNextForcedBatches(ctx context.Context, nextForcedBa
 	return batches, nil
 }
 
-// GetBatchNumberOfL2Block gets a batch number for l2 block by its number
-func (p *PostgresStorage) GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+// BatchNumberByL2BlockNumber gets a batch number by a l2 block number
+func (p *PostgresStorage) BatchNumberByL2BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	getBatchNumByBlockNum := "SELECT batch_num FROM state.l2block WHERE block_num = $1"
 	batchNumber := uint64(0)
 	q := p.getExecQuerier(dbTx)
@@ -1491,6 +1491,44 @@ func (p *PostgresStorage) GetTxsByBlockNumber(ctx context.Context, blockNumber u
 	return txs, nil
 }
 
+// GetTxsByBatchNumber returns all the txs in a given batch
+func (p *PostgresStorage) GetTxsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
+	q := p.getExecQuerier(dbTx)
+
+	const getTxsByBatchNumSQL = `
+        SELECT encoded
+          FROM state.transaction t
+         INNER JOIN state.l2block b
+            ON b.block_num = t.l2_block_num
+         WHERE b.batch_num = $1`
+
+	rows, err := q.Query(ctx, getTxsByBatchNumSQL, batchNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	txs := make([]*types.Transaction, 0, len(rows.RawValues()))
+	var encoded string
+	for rows.Next() {
+		if err = rows.Scan(&encoded); err != nil {
+			return nil, err
+		}
+
+		tx, err := DecodeTx(encoded)
+		if err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
+}
+
 // GetL2BlockHeaderByHash gets the block header by block number
 func (p *PostgresStorage) GetL2BlockHeaderByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Header, error) {
 	header := &types.Header{}
@@ -1546,7 +1584,7 @@ func (p *PostgresStorage) GetL2BlockHashesSince(ctx context.Context, since time.
 }
 
 // IsL2BlockConsolidated checks if the block ID is consolidated
-func (p *PostgresStorage) IsL2BlockConsolidated(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error) {
+func (p *PostgresStorage) IsL2BlockConsolidated(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (bool, error) {
 	q := p.getExecQuerier(dbTx)
 	rows, err := q.Query(ctx, isL2BlockConsolidated, blockNumber)
 	if err != nil {
@@ -1563,7 +1601,7 @@ func (p *PostgresStorage) IsL2BlockConsolidated(ctx context.Context, blockNumber
 }
 
 // IsL2BlockVirtualized checks if the block  ID is virtualized
-func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error) {
+func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (bool, error) {
 	q := p.getExecQuerier(dbTx)
 	rows, err := q.Query(ctx, isL2BlockVirtualized, blockNumber)
 	if err != nil {

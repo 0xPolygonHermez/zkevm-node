@@ -17,8 +17,8 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// Eth contains implementations for the "eth" RPC endpoints
-type Eth struct {
+// EthEndpoints contains implementations for the "eth" RPC endpoints
+type EthEndpoints struct {
 	cfg     Config
 	pool    jsonRPCTxPool
 	state   stateInterface
@@ -26,17 +26,16 @@ type Eth struct {
 	txMan   dbTxManager
 }
 
-// newEth creates an new instance of Eth
-func newEth(cfg Config, p jsonRPCTxPool, s stateInterface, storage storageInterface) *Eth {
-	e := &Eth{cfg: cfg, pool: p, state: s, storage: storage}
-
+// newEthEndpoints creates an new instance of Eth
+func newEthEndpoints(cfg Config, p jsonRPCTxPool, s stateInterface, storage storageInterface) *EthEndpoints {
+	e := &EthEndpoints{cfg: cfg, pool: p, state: s, storage: storage}
 	s.RegisterNewL2BlockEventHandler(e.onNewL2Block)
 
 	return e
 }
 
 // BlockNumber returns current block number
-func (e *Eth) BlockNumber() (interface{}, rpcError) {
+func (e *EthEndpoints) BlockNumber() (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		lastBlockNumber, err := e.state.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
@@ -51,7 +50,7 @@ func (e *Eth) BlockNumber() (interface{}, rpcError) {
 // executed contract and potential error.
 // Note, this function doesn't make any changes in the state/blockchain and is
 // useful to execute view/pure methods and retrieve values.
-func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
+func (e *EthEndpoints) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
 		if arg.Gas == nil || *arg.Gas == argUint64(0) {
@@ -89,7 +88,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 }
 
 // ChainId returns the chain id of the client
-func (e *Eth) ChainId() (interface{}, rpcError) { //nolint:revive
+func (e *EthEndpoints) ChainId() (interface{}, rpcError) { //nolint:revive
 	return hex.EncodeUint64(e.cfg.ChainID), nil
 }
 
@@ -99,7 +98,7 @@ func (e *Eth) ChainId() (interface{}, rpcError) { //nolint:revive
 // Note that the estimate may be significantly more than the amount of gas actually
 // used by the transaction, for a variety of reasons including EVM mechanics and
 // node performance.
-func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
+func (e *EthEndpoints) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
@@ -125,7 +124,7 @@ func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcEr
 }
 
 // GasPrice returns the average gas price based on the last x blocks
-func (e *Eth) GasPrice() (interface{}, rpcError) {
+func (e *EthEndpoints) GasPrice() (interface{}, rpcError) {
 	ctx := context.Background()
 	gasPrice, err := e.pool.GetGasPrice(ctx)
 	if err != nil {
@@ -135,7 +134,7 @@ func (e *Eth) GasPrice() (interface{}, rpcError) {
 }
 
 // GetBalance returns the account's balance at the referenced block
-func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface{}, rpcError) {
+func (e *EthEndpoints) GetBalance(address common.Address, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
@@ -154,7 +153,7 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 }
 
 // GetBlockByHash returns information about a block by hash
-func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, rpcError) {
+func (e *EthEndpoints) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		block, err := e.state.GetL2BlockByHash(ctx, hash, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
@@ -170,7 +169,7 @@ func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, rpcErr
 }
 
 // GetBlockByNumber returns information about a block by block number
-func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, rpcError) {
+func (e *EthEndpoints) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		if number == PendingBlockNumber {
 			lastBlock, err := e.state.GetLastL2Block(ctx, dbTx)
@@ -207,7 +206,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, rp
 }
 
 // GetCode returns account code at given block number
-func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{}, rpcError) {
+func (e *EthEndpoints) GetCode(address common.Address, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		var err error
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
@@ -227,13 +226,13 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 }
 
 // GetCompilers eth_getCompilers
-func (e *Eth) GetCompilers() (interface{}, rpcError) {
+func (e *EthEndpoints) GetCompilers() (interface{}, rpcError) {
 	return []interface{}{}, nil
 }
 
 // GetFilterChanges polling method for a filter, which returns
 // an array of logs which occurred since last poll.
-func (e *Eth) GetFilterChanges(filterID string) (interface{}, rpcError) {
+func (e *EthEndpoints) GetFilterChanges(filterID string) (interface{}, rpcError) {
 	filter, err := e.storage.GetFilter(filterID)
 	if errors.Is(err, ErrNotFound) {
 		return rpcErrorResponse(defaultErrorCode, "filter not found", err)
@@ -296,9 +295,9 @@ func (e *Eth) GetFilterChanges(filterID string) (interface{}, rpcError) {
 	}
 }
 
-// GetFilterLogs returns an array of all logs mlocking filter
+// GetFilterLogs returns an array of all logs matching filter
 // with given id.
-func (e *Eth) GetFilterLogs(filterID string) (interface{}, rpcError) {
+func (e *EthEndpoints) GetFilterLogs(filterID string) (interface{}, rpcError) {
 	filter, err := e.storage.GetFilter(filterID)
 	if errors.Is(err, ErrNotFound) {
 		return nil, nil
@@ -317,13 +316,13 @@ func (e *Eth) GetFilterLogs(filterID string) (interface{}, rpcError) {
 }
 
 // GetLogs returns a list of logs accordingly to the provided filter
-func (e *Eth) GetLogs(filter LogFilter) (interface{}, rpcError) {
+func (e *EthEndpoints) GetLogs(filter LogFilter) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		return e.internalGetLogs(ctx, dbTx, filter)
 	})
 }
 
-func (e *Eth) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, rpcError) {
+func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, rpcError) {
 	var err error
 	fromBlock, rpcErr := filter.FromBlock.getNumericBlockNumber(ctx, e.state, dbTx)
 	if rpcErr != nil {
@@ -349,7 +348,7 @@ func (e *Eth) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter
 }
 
 // GetStorageAt gets the value stored for an specific address and position
-func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, rpcError) {
+func (e *EthEndpoints) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		var err error
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
@@ -370,7 +369,7 @@ func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number 
 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by
 // block hash and transaction index position.
-func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, rpcError) {
+func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		tx, err := e.state.GetTransactionByL2BlockHashAndIndex(ctx, hash, uint64(index), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
@@ -387,13 +386,13 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 		}
 
 		txIndex := uint64(receipt.TransactionIndex)
-		return toRPCTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
+		return toRPCTransaction(*tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
 	})
 }
 
 // GetTransactionByBlockNumberAndIndex returns information about a transaction by
 // block number and transaction index position.
-func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, rpcError) {
+func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		var err error
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
@@ -416,12 +415,12 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 		}
 
 		txIndex := uint64(receipt.TransactionIndex)
-		return toRPCTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
+		return toRPCTransaction(*tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
 	})
 }
 
 // GetTransactionByHash returns a transaction by his hash
-func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, rpcError) {
+func (e *EthEndpoints) GetTransactionByHash(hash common.Hash) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		// try to get tx from state
 		tx, err := e.state.GetTransactionByHash(ctx, hash, dbTx)
@@ -437,7 +436,7 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, rpcError) {
 			}
 
 			txIndex := uint64(receipt.TransactionIndex)
-			return toRPCTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
+			return toRPCTransaction(*tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
 		}
 
 		// if the tx does not exist in the state, look for it in the pool
@@ -449,12 +448,12 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, rpcError) {
 		}
 		tx = &poolTx.Transaction
 
-		return toRPCTransaction(tx, nil, nil, nil), nil
+		return toRPCTransaction(*tx, nil, nil, nil), nil
 	})
 }
 
 // GetTransactionCount returns account nonce
-func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, rpcError) {
+func (e *EthEndpoints) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		var pendingNonce uint64
 		var nonce uint64
@@ -487,8 +486,8 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 }
 
 // GetBlockTransactionCountByHash returns the number of transactions in a
-// block from a block mlocking the given block hash.
-func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpcError) {
+// block from a block matching the given block hash.
+func (e *EthEndpoints) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		c, err := e.state.GetL2BlockTransactionCountByHash(ctx, hash, dbTx)
 		if err != nil {
@@ -500,8 +499,8 @@ func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpc
 }
 
 // GetBlockTransactionCountByNumber returns the number of transactions in a
-// block from a block mlocking the given block number.
-func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError) {
+// block from a block matching the given block number.
+func (e *EthEndpoints) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		if number != nil && *number == PendingBlockNumber {
 			c, err := e.pool.CountPendingTransactions(ctx)
@@ -527,7 +526,7 @@ func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}
 }
 
 // GetTransactionReceipt returns a transaction receipt by his hash
-func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, rpcError) {
+func (e *EthEndpoints) GetTransactionReceipt(hash common.Hash) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		tx, err := e.state.GetTransactionByHash(ctx, hash, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
@@ -555,12 +554,12 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, rpcError) {
 // NewBlockFilter creates a filter in the node, to notify when
 // a new block arrives. To check if the state has changed,
 // call eth_getFilterChanges.
-func (e *Eth) NewBlockFilter() (interface{}, rpcError) {
+func (e *EthEndpoints) NewBlockFilter() (interface{}, rpcError) {
 	return e.newBlockFilter(nil)
 }
 
 // internal
-func (e *Eth) newBlockFilter(wsConn *websocket.Conn) (interface{}, rpcError) {
+func (e *EthEndpoints) newBlockFilter(wsConn *websocket.Conn) (interface{}, rpcError) {
 	id, err := e.storage.NewBlockFilter(wsConn)
 	if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to create new block filter", err)
@@ -572,12 +571,12 @@ func (e *Eth) newBlockFilter(wsConn *websocket.Conn) (interface{}, rpcError) {
 // NewFilter creates a filter object, based on filter options,
 // to notify when the state changes (logs). To check if the state
 // has changed, call eth_getFilterChanges.
-func (e *Eth) NewFilter(filter LogFilter) (interface{}, rpcError) {
+func (e *EthEndpoints) NewFilter(filter LogFilter) (interface{}, rpcError) {
 	return e.newFilter(nil, filter)
 }
 
 // internal
-func (e *Eth) newFilter(wsConn *websocket.Conn, filter LogFilter) (interface{}, rpcError) {
+func (e *EthEndpoints) newFilter(wsConn *websocket.Conn, filter LogFilter) (interface{}, rpcError) {
 	id, err := e.storage.NewLogFilter(wsConn, filter)
 	if errors.Is(err, ErrFilterInvalidPayload) {
 		return rpcErrorResponse(invalidParamsErrorCode, err.Error(), nil)
@@ -591,12 +590,12 @@ func (e *Eth) newFilter(wsConn *websocket.Conn, filter LogFilter) (interface{}, 
 // NewPendingTransactionFilter creates a filter in the node, to
 // notify when new pending transactions arrive. To check if the
 // state has changed, call eth_getFilterChanges.
-func (e *Eth) NewPendingTransactionFilter() (interface{}, rpcError) {
+func (e *EthEndpoints) NewPendingTransactionFilter() (interface{}, rpcError) {
 	return e.newPendingTransactionFilter(nil)
 }
 
 // internal
-func (e *Eth) newPendingTransactionFilter(wsConn *websocket.Conn) (interface{}, rpcError) {
+func (e *EthEndpoints) newPendingTransactionFilter(wsConn *websocket.Conn) (interface{}, rpcError) {
 	return nil, newRPCError(defaultErrorCode, "not supported yet")
 	// id, err := e.storage.NewPendingTransactionFilter(wsConn)
 	// if err != nil {
@@ -609,7 +608,7 @@ func (e *Eth) newPendingTransactionFilter(wsConn *websocket.Conn) (interface{}, 
 // SendRawTransaction has two different ways to handle new transactions:
 // - for Sequencer nodes it tries to add the tx to the pool
 // - for Non-Sequencer nodes it relays the Tx to the Sequencer node
-func (e *Eth) SendRawTransaction(input string) (interface{}, rpcError) {
+func (e *EthEndpoints) SendRawTransaction(input string) (interface{}, rpcError) {
 	if e.cfg.SequencerNodeURI != "" {
 		return e.relayTxToSequencerNode(input)
 	} else {
@@ -617,7 +616,7 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, rpcError) {
 	}
 }
 
-func (e *Eth) relayTxToSequencerNode(input string) (interface{}, rpcError) {
+func (e *EthEndpoints) relayTxToSequencerNode(input string) (interface{}, rpcError) {
 	res, err := JSONRPCCall(e.cfg.SequencerNodeURI, "eth_sendRawTransaction", input)
 	if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to relay tx to the sequencer node", err)
@@ -632,7 +631,7 @@ func (e *Eth) relayTxToSequencerNode(input string) (interface{}, rpcError) {
 	return txHash, nil
 }
 
-func (e *Eth) tryToAddTxToPool(input string) (interface{}, rpcError) {
+func (e *EthEndpoints) tryToAddTxToPool(input string) (interface{}, rpcError) {
 	tx, err := hexToTx(input)
 	if err != nil {
 		return rpcErrorResponse(invalidParamsErrorCode, "invalid tx input", err)
@@ -648,7 +647,7 @@ func (e *Eth) tryToAddTxToPool(input string) (interface{}, rpcError) {
 }
 
 // UninstallFilter uninstalls a filter with given id.
-func (e *Eth) UninstallFilter(filterID string) (interface{}, rpcError) {
+func (e *EthEndpoints) UninstallFilter(filterID string) (interface{}, rpcError) {
 	err := e.storage.UninstallFilter(filterID)
 	if errors.Is(err, ErrNotFound) {
 		return false, nil
@@ -661,7 +660,7 @@ func (e *Eth) UninstallFilter(filterID string) (interface{}, rpcError) {
 
 // Syncing returns an object with data about the sync status or false.
 // https://eth.wiki/json-rpc/API#eth_syncing
-func (e *Eth) Syncing() (interface{}, rpcError) {
+func (e *EthEndpoints) Syncing() (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		syncInfo, err := e.state.GetSyncingInfo(ctx, dbTx)
 		if err != nil {
@@ -686,30 +685,30 @@ func (e *Eth) Syncing() (interface{}, rpcError) {
 
 // GetUncleByBlockHashAndIndex returns information about a uncle of a
 // block by hash and uncle index position
-func (e *Eth) GetUncleByBlockHashAndIndex() (interface{}, rpcError) {
+func (e *EthEndpoints) GetUncleByBlockHashAndIndex() (interface{}, rpcError) {
 	return nil, nil
 }
 
 // GetUncleByBlockNumberAndIndex returns information about a uncle of a
 // block by number and uncle index position
-func (e *Eth) GetUncleByBlockNumberAndIndex() (interface{}, rpcError) {
+func (e *EthEndpoints) GetUncleByBlockNumberAndIndex() (interface{}, rpcError) {
 	return nil, nil
 }
 
 // GetUncleCountByBlockHash returns the number of uncles in a block
-// mlocking the given block hash
-func (e *Eth) GetUncleCountByBlockHash() (interface{}, rpcError) {
+// matching the given block hash
+func (e *EthEndpoints) GetUncleCountByBlockHash() (interface{}, rpcError) {
 	return "0x0", nil
 }
 
 // GetUncleCountByBlockNumber returns the number of uncles in a block
-// mlocking the given block number
-func (e *Eth) GetUncleCountByBlockNumber() (interface{}, rpcError) {
+// matching the given block number
+func (e *EthEndpoints) GetUncleCountByBlockNumber() (interface{}, rpcError) {
 	return "0x0", nil
 }
 
 // ProtocolVersion returns the protocol version.
-func (e *Eth) ProtocolVersion() (interface{}, rpcError) {
+func (e *EthEndpoints) ProtocolVersion() (interface{}, rpcError) {
 	return "0x0", nil
 }
 
@@ -728,7 +727,7 @@ func hexToTx(str string) (*types.Transaction, error) {
 	return tx, nil
 }
 
-func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.Tx) (*types.Header, error) {
+func (e *EthEndpoints) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.Tx) (*types.Header, error) {
 	switch number {
 	case LatestBlockNumber:
 		block, err := e.state.GetLastL2Block(ctx, dbTx)
@@ -765,7 +764,7 @@ func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.T
 	}
 }
 
-func (e *Eth) updateFilterLastPoll(filterID string) rpcError {
+func (e *EthEndpoints) updateFilterLastPoll(filterID string) rpcError {
 	err := e.storage.UpdateFilterLastPoll(filterID)
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		return newRPCError(defaultErrorCode, "failed to update last time the filter changes were requested")
@@ -777,7 +776,7 @@ func (e *Eth) updateFilterLastPoll(filterID string) rpcError {
 // The node will return a subscription id.
 // For each event that matches the subscription a notification with relevant
 // data is sent together with the subscription id.
-func (e *Eth) Subscribe(wsConn *websocket.Conn, name string, logFilter *LogFilter) (interface{}, rpcError) {
+func (e *EthEndpoints) Subscribe(wsConn *websocket.Conn, name string, logFilter *LogFilter) (interface{}, rpcError) {
 	switch name {
 	case "newHeads":
 		return e.newBlockFilter(wsConn)
@@ -797,18 +796,18 @@ func (e *Eth) Subscribe(wsConn *websocket.Conn, name string, logFilter *LogFilte
 }
 
 // Unsubscribe uninstalls the filter based on the provided filterID
-func (e *Eth) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{}, rpcError) {
+func (e *EthEndpoints) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{}, rpcError) {
 	return e.UninstallFilter(filterID)
 }
 
 // uninstallFilterByWSConn uninstalls the filters connected to the
 // provided web socket connection
-func (e *Eth) uninstallFilterByWSConn(wsConn *websocket.Conn) error {
+func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *websocket.Conn) error {
 	return e.storage.UninstallFilterByWSConn(wsConn)
 }
 
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
-func (e *Eth) onNewL2Block(event state.NewL2BlockEvent) {
+func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 	blockFilters, err := e.storage.GetAllBlockFiltersWithWSConn()
 	if err != nil {
 		log.Errorf("failed to get all block filters with web sockets connections: %v", err)
@@ -837,7 +836,7 @@ func (e *Eth) onNewL2Block(event state.NewL2BlockEvent) {
 	}
 }
 
-func (e *Eth) sendSubscriptionResponse(filter *Filter, data interface{}) {
+func (e *EthEndpoints) sendSubscriptionResponse(filter *Filter, data interface{}) {
 	const errMessage = "Unable to write WS message to filter %v, %s"
 	result, err := json.Marshal(data)
 	if err != nil {

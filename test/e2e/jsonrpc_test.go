@@ -699,7 +699,7 @@ func Test_WebSocketsRequest(t *testing.T) {
 		require.NoError(t, err)
 
 		str := strings.TrimPrefix(result, "0x")
-		balance := hex.DecodeHexToBig(str)
+		balance := hex.DecodeBig(str)
 		require.NoError(t, err)
 
 		assert.Equal(t, expectedBalance.String(), balance.String())

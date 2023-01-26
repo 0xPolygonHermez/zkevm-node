@@ -18,7 +18,7 @@ type argUint64 uint64
 
 // MarshalText marshals into text
 func (b argUint64) MarshalText() ([]byte, error) {
-	buf := make([]byte, 2, encoding.Base10) //nolint:gomnd
+	buf := make([]byte, 2) //nolint:gomnd
 	copy(buf, `0x`)
 	buf = strconv.AppendUint(buf, uint64(b), hex.Base)
 	return buf, nil
@@ -33,6 +33,12 @@ func (b *argUint64) UnmarshalText(input []byte) error {
 	}
 	*b = argUint64(num)
 	return nil
+}
+
+// Hex() returns a hexadecimal representation
+func (b argUint64) Hex() string {
+	bb, _ := b.MarshalText()
+	return string(bb)
 }
 
 type argBytes []byte
@@ -52,6 +58,12 @@ func (b *argBytes) UnmarshalText(input []byte) error {
 	copy(aux[:], hh[:])
 	*b = aux
 	return nil
+}
+
+// Hex() returns a hexadecimal representation
+func (b argBytes) Hex() string {
+	bb, _ := b.MarshalText()
+	return string(bb)
 }
 
 func argBytesPtr(b []byte) *argBytes {
@@ -79,6 +91,12 @@ func (a argBig) MarshalText() ([]byte, error) {
 	b := (*big.Int)(&a)
 
 	return []byte("0x" + b.Text(hex.Base)), nil
+}
+
+// Hex() returns a hexadecimal representation
+func (b argBig) Hex() string {
+	bb, _ := b.MarshalText()
+	return string(bb)
 }
 
 func decodeToHex(b []byte) ([]byte, error) {
@@ -221,7 +239,7 @@ func l2BlockToRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
 		if fullTx {
 			blockHash := b.Hash()
 			txIndex := uint64(idx)
-			tx := toRPCTransaction(txn, b.Number(), &blockHash, &txIndex)
+			tx := toRPCTransaction(*txn, b.Number(), &blockHash, &txIndex)
 			res.Transactions = append(
 				res.Transactions,
 				tx,
@@ -236,6 +254,55 @@ func l2BlockToRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
 
 	for _, uncle := range b.Uncles() {
 		res.Uncles = append(res.Uncles, uncle.Hash())
+	}
+
+	return res
+}
+
+type rpcBatch struct {
+	Number              argUint64              `json:"number"`
+	Coinbase            common.Address         `json:"coinbase"`
+	StateRoot           common.Hash            `json:"stateRoot"`
+	GlobalExitRoot      common.Hash            `json:"globalExitRoot"`
+	AccInputHash        common.Hash            `json:"accInputHash"`
+	Timestamp           argUint64              `json:"timestamp"`
+	SendSequencesTxHash *common.Hash           `json:"sendSequencesTxHash"`
+	VerifyBatchTxHash   *common.Hash           `json:"verifyBatchTxHash"`
+	Transactions        []rpcTransactionOrHash `json:"transactions"`
+}
+
+func l2BatchToRPCBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, receipts []types.Receipt, fullTx bool) *rpcBatch {
+	res := &rpcBatch{
+		Number:         argUint64(batch.BatchNumber),
+		GlobalExitRoot: batch.GlobalExitRoot,
+		AccInputHash:   batch.AccInputHash,
+		Timestamp:      argUint64(batch.Timestamp.Unix()),
+		StateRoot:      batch.StateRoot,
+		Coinbase:       batch.Coinbase,
+	}
+
+	if virtualBatch != nil {
+		res.SendSequencesTxHash = &virtualBatch.TxHash
+	}
+
+	if verifiedBatch != nil {
+		res.VerifyBatchTxHash = &verifiedBatch.TxHash
+	}
+
+	receiptsMap := make(map[common.Hash]types.Receipt, len(receipts))
+	for _, receipt := range receipts {
+		receiptsMap[receipt.TxHash] = receipt
+	}
+
+	for _, tx := range batch.Transactions {
+		if fullTx {
+			receipt := receiptsMap[tx.Hash()]
+			txIndex := uint64(receipt.TransactionIndex)
+			rpcTx := toRPCTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex)
+			res.Transactions = append(res.Transactions, rpcTx)
+		} else {
+			res.Transactions = append(res.Transactions, transactionHash(tx.Hash()))
+		}
 	}
 
 	return res
@@ -277,14 +344,14 @@ func (h transactionHash) MarshalText() ([]byte, error) {
 }
 
 func toRPCTransaction(
-	t *types.Transaction,
+	t types.Transaction,
 	blockNumber *big.Int,
 	blockHash *common.Hash,
 	txIndex *uint64,
 ) *rpcTransaction {
 	v, r, s := t.RawSignatureValues()
 
-	from, _ := state.GetSender(*t)
+	from, _ := state.GetSender(t)
 
 	res := &rpcTransaction{
 		Nonce:    argUint64(t.Nonce()),

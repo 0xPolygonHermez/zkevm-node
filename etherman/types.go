@@ -3,7 +3,7 @@ package etherman
 import (
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -34,7 +34,7 @@ type SequencedBatch struct {
 	Coinbase    common.Address
 	TxHash      common.Hash
 	Nonce       uint64
-	proofofefficiency.ProofOfEfficiencyBatchData
+	polygonzkevm.PolygonZkEVMBatchData
 }
 
 // ForcedBatch represents a ForcedBatch
@@ -63,5 +63,5 @@ type SequencedForceBatch struct {
 	TxHash      common.Hash
 	Timestamp   time.Time
 	Nonce       uint64
-	proofofefficiency.ProofOfEfficiencyForcedBatchData
+	polygonzkevm.PolygonZkEVMForcedBatchData
 }

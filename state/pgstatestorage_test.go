@@ -82,7 +82,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 
 	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, dbTx)
 	require.NoError(t, err)
-	result, err := pgStateStorage.GetBatchNumberOfL2Block(ctx, l2Block.Number().Uint64(), dbTx)
+	result, err := pgStateStorage.BatchNumberByL2BlockNumber(ctx, l2Block.Number().Uint64(), dbTx)
 	require.NoError(t, err)
 	assert.Equal(t, batchNumber, result)
 	require.NoError(t, dbTx.Commit(ctx))

@@ -26,6 +26,27 @@ type stateMock struct {
 	mock.Mock
 }
 
+// BatchNumberByL2BlockNumber provides a mock function with given fields: ctx, blockNumber, dbTx
+func (_m *stateMock) BatchNumberByL2BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, blockNumber, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, blockNumber, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, blockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // BeginStateTransaction provides a mock function with given fields: ctx
 func (_m *stateMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	ret := _m.Called(ctx)
@@ -116,20 +137,22 @@ func (_m *stateMock) GetBalance(ctx context.Context, address common.Address, blo
 	return r0, r1
 }
 
-// GetBatchNumberOfL2Block provides a mock function with given fields: ctx, blockNumber, dbTx
-func (_m *stateMock) GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	ret := _m.Called(ctx, blockNumber, dbTx)
+// GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
 
-	var r0 uint64
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) uint64); ok {
-		r0 = rf(ctx, blockNumber, dbTx)
+	var r0 *state.Batch
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.Batch); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
 	} else {
-		r0 = ret.Get(0).(uint64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.Batch)
+		}
 	}
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, blockNumber, dbTx)
+		r1 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -294,6 +317,27 @@ func (_m *stateMock) GetL2BlockTransactionCountByNumber(ctx context.Context, blo
 	return r0, r1
 }
 
+// GetLastBatchNumber provides a mock function with given fields: ctx, dbTx
+func (_m *stateMock) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLastConsolidatedL2BlockNumber provides a mock function with given fields: ctx, dbTx
 func (_m *stateMock) GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -363,6 +407,50 @@ func (_m *stateMock) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*ty
 
 // GetLastL2BlockNumber provides a mock function with given fields: ctx, dbTx
 func (_m *stateMock) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastVerifiedBatch provides a mock function with given fields: ctx, dbTx
+func (_m *stateMock) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 *state.VerifiedBatch
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.VerifiedBatch); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.VerifiedBatch)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastVirtualBatchNum provides a mock function with given fields: ctx, dbTx
+func (_m *stateMock) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)
 
 	var r0 uint64
@@ -562,19 +650,88 @@ func (_m *stateMock) GetTransactionReceipt(ctx context.Context, transactionHash 
 	return r0, r1
 }
 
+// GetTransactionsByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]types.Transaction, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 []types.Transaction
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []types.Transaction); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]types.Transaction)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetVerifiedBatch provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) GetVerifiedBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.VerifiedBatch, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 *state.VerifiedBatch
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.VerifiedBatch); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.VerifiedBatch)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetVirtualBatch provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) GetVirtualBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.VirtualBatch, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 *state.VirtualBatch
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.VirtualBatch); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.VirtualBatch)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // IsL2BlockConsolidated provides a mock function with given fields: ctx, blockNumber, dbTx
-func (_m *stateMock) IsL2BlockConsolidated(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error) {
+func (_m *stateMock) IsL2BlockConsolidated(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (bool, error) {
 	ret := _m.Called(ctx, blockNumber, dbTx)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(context.Context, int, pgx.Tx) bool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) bool); ok {
 		r0 = rf(ctx, blockNumber, dbTx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, int, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
 		r1 = rf(ctx, blockNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
@@ -584,18 +741,18 @@ func (_m *stateMock) IsL2BlockConsolidated(ctx context.Context, blockNumber int,
 }
 
 // IsL2BlockVirtualized provides a mock function with given fields: ctx, blockNumber, dbTx
-func (_m *stateMock) IsL2BlockVirtualized(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error) {
+func (_m *stateMock) IsL2BlockVirtualized(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (bool, error) {
 	ret := _m.Called(ctx, blockNumber, dbTx)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(context.Context, int, pgx.Tx) bool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) bool); ok {
 		r0 = rf(ctx, blockNumber, dbTx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, int, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
 		r1 = rf(ctx, blockNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
