@@ -46,7 +46,13 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	st := opsman.State()
 	s, err := pgpoolstorage.NewPostgresPoolStorage(shared.PoolDbConfig)
 	require.NoError(b, err)
-	pl := pool.NewPool(s, st, common.Address{}, shared.ChainID)
+
+	config := pool.Config{
+		FreeClaimGasLimit: 1000000,
+		DB:                shared.PoolDbConfig,
+	}
+
+	pl := pool.NewPool(config, s, st, common.Address{}, shared.ChainID)
 
 	// Print Info before send
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)
