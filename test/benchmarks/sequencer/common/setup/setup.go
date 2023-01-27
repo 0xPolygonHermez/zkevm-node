@@ -48,7 +48,7 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	require.NoError(b, err)
 
 	config := pool.Config{
-		FreeClaimGasLimit: 1000000,
+		FreeClaimGasLimit: 1000000, //nolint:gomnd
 		DB:                shared.PoolDbConfig,
 	}
 
