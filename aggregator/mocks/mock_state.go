@@ -88,18 +88,25 @@ func (_m *StateMock) CleanupGeneratedProofs(ctx context.Context, batchNumber uin
 	return r0
 }
 
-// CleanupLockedProofs provides a mock function with given fields: ctx, interval, dbTx
-func (_m *StateMock) CleanupLockedProofs(ctx context.Context, interval string, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, interval, dbTx)
+// CleanupLockedProofs provides a mock function with given fields: ctx, duration, dbTx
+func (_m *StateMock) CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error) {
+	ret := _m.Called(ctx, duration, dbTx)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, pgx.Tx) error); ok {
-		r0 = rf(ctx, interval, dbTx)
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(context.Context, string, pgx.Tx) int64); ok {
+		r0 = rf(ctx, duration, dbTx)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(int64)
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, pgx.Tx) error); ok {
+		r1 = rf(ctx, duration, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // DeleteGeneratedProofs provides a mock function with given fields: ctx, batchNumber, batchNumberFinal, dbTx

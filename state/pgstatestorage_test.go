@@ -294,7 +294,7 @@ func TestCleanupLockedProofs(t *testing.T) {
 	_, err = testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, olderNotGenProof.BatchNumber, olderNotGenProof.BatchNumberFinal, olderNotGenProof.Proof, olderNotGenProof.ProofID, olderNotGenProof.InputProver, olderNotGenProof.Prover, olderNotGenProof.GeneratingSince, oneHourAgo, oneHourAgo)
 	require.NoError(err)
 
-	err = testState.CleanupLockedProofs(ctx, "1m", nil)
+	_, err = testState.CleanupLockedProofs(ctx, "1m", nil)
 
 	require.NoError(err)
 	rows, err := testState.PostgresStorage.Query(ctx, "SELECT batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating_since, created_at, updated_at FROM state.proof")

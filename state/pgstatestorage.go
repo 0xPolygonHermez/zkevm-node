@@ -2012,27 +2012,3 @@ func (p *PostgresStorage) AddDebugInfo(ctx context.Context, info *DebugInfo, dbT
 	_, err := e.Exec(ctx, insertDebugInfoSQL, info.ErrorType, info.Timestamp, info.Payload)
 	return err
 }
-
-func toPostgresInterval(duration string) (string, error) {
-	unit := duration[len(duration)-1]
-	var pgUnit string
-
-	switch unit {
-	case 's':
-		pgUnit = "second"
-	case 'm':
-		pgUnit = "minute"
-	case 'h':
-		pgUnit = "hour"
-	default:
-		// TODO(pg): declare package error and maybe suggest valid units
-		return "", errors.New("unsupported duration unit")
-	}
-
-	isMoreThanOne := duration[0] != '1' || len(duration) > 2
-	if isMoreThanOne {
-		pgUnit = pgUnit + "s"
-	}
-
-	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
-}
