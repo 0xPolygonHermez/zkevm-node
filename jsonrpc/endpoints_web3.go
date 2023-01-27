@@ -3,7 +3,7 @@ package jsonrpc
 import (
 	"math/big"
 
-	"github.com/iden3/go-iden3-crypto/keccak256"
+	"golang.org/x/crypto/sha3"
 )
 
 // Web3Endpoints contains implementations for the "web3" RPC endpoints
@@ -18,5 +18,8 @@ func (e *Web3Endpoints) ClientVersion() (interface{}, rpcError) {
 // Sha3 returns the keccak256 hash of the given data.
 func (e *Web3Endpoints) Sha3(data argBig) (interface{}, rpcError) {
 	b := (*big.Int)(&data)
-	return argBytes(keccak256.Hash(b.Bytes())), nil
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(b.Bytes()) //nolint:errcheck,gosec
+	keccak256Hash := hash.Sum(nil)
+	return argBytes(keccak256Hash), nil
 }
