@@ -177,7 +177,10 @@ func setup(ctx context.Context, b *testing.B) (*operations.Manager, *ethclient.C
 	st := opsman.State()
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDbConfig)
 	require.NoError(b, err)
-	pl := pool.NewPool(s, st, common.Address{}, chainID)
+	cfg := pool.Config{
+		FreeClaimGasLimit: 150000,
+	}
+	pl := pool.NewPool(cfg, s, st, common.Address{}, chainID)
 
 	// Print Info before send
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)

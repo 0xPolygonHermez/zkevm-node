@@ -53,8 +53,9 @@ services:
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
+      - ZKEVM_NODE_SEQUENCER_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
     volumes:
-      - ./test.keystore:/pk/keystore
+      - ./sequencer.keystore:/pk/sequencer.keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
     command:
@@ -74,7 +75,6 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
     volumes:
-      - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
     command:
@@ -104,10 +104,11 @@ services:
     image: zkevm-node
     ports:
       - 50081:50081
+      - 9093:9091 # needed if metrics enabled
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_AGGREGATOR_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
     volumes:
-      - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
     command:
@@ -121,7 +122,6 @@ services:
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     volumes:
-      - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
     command:
@@ -137,13 +137,45 @@ services:
     ports:
       - 61090:61090
     volumes:
-      - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
       - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components broadcast-trusted-state"
+
+  zkevm-eth-tx-manager:
+    container_name: zkevm-eth-tx-manager
+    image: zkevm-node
+    ports:
+      - 9094:9091 # needed if metrics enabled
+    environment:
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+    volumes:
+      - ./sequencer.keystore:/pk/sequencer.keystore
+      - ./aggregator.keystore:/pk/aggregator.keystore
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components eth-tx-manager"
+
+  zkevm-l2gaspricer:
+    container_name: zkevm-l2gaspricer
+    image: zkevm-node
+    environment:
+      - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
+    ports:
+      - 61090:61090
+    volumes:
+      - ./test.keystore:/pk/keystore
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components l2gaspricer"
 
   zkevm-state-db:
     container_name: zkevm-state-db
@@ -260,8 +292,7 @@ services:
 
   zkevm-mock-l1-network:
     container_name: zkevm-mock-l1-network
-    # image: hermeznetwork/geth-zkevm-contracts@sha256:24754a773b803ce0de8278c02bb756757b09fda65dc993e560a0b76a09b88248
-    image: hermeznetwork/geth-zkevm-contracts:test
+    image: hermeznetwork/geth-zkevm-contracts:v0.6.0.0
     ports:
       - 8545:8545
       - 8546:8546
@@ -297,13 +328,12 @@ services:
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     volumes:
-      - ./test.keystore:/pk/keystore
+      - ./sequencer.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node approve --am 10000000000000000 -y --genesis /app/genesis.json --cfg /app/config.toml"
+      - "/app/zkevm-node approve --key-store-path /pk/keystore --pw testonly --am 10000000000000000 -y --cfg /app/config.toml"
 
   zkevm-permissionless-db:
     container_name: zkevm-permissionless-db
@@ -339,7 +369,6 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-permissionless-db
       - ZKEVM_NODE_RPC_PORT=8126
     volumes:
-      - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
       - ./config/single_db_server.sql:/docker-entrypoint-initdb.d/init.sql

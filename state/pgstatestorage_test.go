@@ -83,7 +83,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 
 	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, dbTx)
 	require.NoError(t, err)
-	result, err := pgStateStorage.GetBatchNumberOfL2Block(ctx, l2Block.Number().Uint64(), dbTx)
+	result, err := pgStateStorage.BatchNumberByL2BlockNumber(ctx, l2Block.Number().Uint64(), dbTx)
 	require.NoError(t, err)
 	assert.Equal(t, batchNumber, result)
 	require.NoError(t, dbTx.Commit(ctx))
@@ -183,7 +183,6 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	assert.NoError(t, err)
 	globalExitRoot := state.GlobalExitRoot{
 		BlockNumber:     1,
-		Timestamp:       time.Now(),
 		MainnetExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		RollupExitRoot:  common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 		GlobalExitRoot:  common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
@@ -195,7 +194,6 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, globalExitRoot.BlockNumber, exit.BlockNumber)
-	assert.Equal(t, globalExitRoot.Timestamp.Unix(), exit.Timestamp.Unix())
 	assert.Equal(t, globalExitRoot.MainnetExitRoot, exit.MainnetExitRoot)
 	assert.Equal(t, globalExitRoot.RollupExitRoot, exit.RollupExitRoot)
 	assert.Equal(t, globalExitRoot.GlobalExitRoot, exit.GlobalExitRoot)
@@ -238,6 +236,7 @@ func TestVerifiedBatch(t *testing.T) {
 		StateRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2"),
 		Aggregator:  common.HexToAddress("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		IsTrusted:   true,
 	}
 	err = testState.AddVerifiedBatch(ctx, &expectedVerifiedBatch, dbTx)
 	require.NoError(t, err)

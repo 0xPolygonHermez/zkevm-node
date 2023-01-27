@@ -14,36 +14,26 @@ Port = "5432"
 EnableLog = false
 MaxConns = 200
 
-[PoolDB]
-User = "pool_user"
-Password = "pool_password"
-Name = "pool_db"
-Host = "zkevm-pool-db"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
+[Pool]
+FreeClaimGasLimit = 1500000
+	[Pool.DB]
+	User = "pool_user"
+	Password = "pool_password"
+	Name = "pool_db"
+	Host = "zkevm-pool-db"
+	Port = "5432"
+	EnableLog = false
+	MaxConns = 200
 
 [Etherman]
 URL = "http://your.L1node.url"
 L1ChainID = 5
-PrivateKeyPath = "/pk/keystore"
-PrivateKeyPassword = "testonly"
 PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
 MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""
-
-[EthTxManager]
-MaxSendBatchTxRetries = 10
-MaxVerifyBatchTxRetries = 10
-FrequencyForResendingFailedSendBatches = "1s"
-FrequencyForResendingFailedVerifyBatch = "1s"
-WaitTxToBeMined = "2m"
-WaitTxToBeSynced = "10s"
-PercentageToIncreaseGasPrice = 10
-PercentageToIncreaseGasLimit = 10
 
 [RPC]
 Host = "0.0.0.0"
@@ -72,6 +62,7 @@ LastBatchVirtualizationTimeMaxWaitPeriod = "300s"
 WaitBlocksToUpdateGER = 10
 WaitBlocksToConsiderGerFinal = 10
 ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
+MinTimeToCloseBatch = "60s"
 MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
@@ -95,6 +86,7 @@ WeightArithmetics = 1
 WeightBinaries = 1
 WeightSteps = 1
 MaxAllowedFailedCounter = 50
+<<<<<<< HEAD
 	[Sequencer.Finalizer]
 		GERDeadlineTimeoutInSec = "60s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"
@@ -103,15 +95,28 @@ MaxAllowedFailedCounter = 50
 		ResourcePercentageToCloseBatch = 90
 		GERFinalityNumberOfBlocks = 64
 		ClosingSignalsManagerWaitForL1OperationsInSec = "10s"
+=======
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+	[Sequencer.ProfitabilityChecker]
+		SendBatchesEvenWhenNotProfitable = "true"
+>>>>>>> develop
 
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-IntervalToConsolidateState = "10s"
-IntervalToSendFinalProof = "90s"
+RetryTime = "5s"
+VerifyProofInterval = "30s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
-IntervalFrequencyToGetProofGenerationState = "5s"
+ProofStatePollingInterval = "5s"
+SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+
+[EthTxManager]
+PrivateKeys = [
+	{Path = "/pk/sequencer.keystore", Password = "testonly"},
+	{Path = "/pk/aggregator.keystore", Password = "testonly"}
+]
 
 [GasPriceEstimator]
 Type = "default"
@@ -136,3 +141,4 @@ Port = 61090
 Host = "0.0.0.0"
 Port = 9091
 Enabled = false
+

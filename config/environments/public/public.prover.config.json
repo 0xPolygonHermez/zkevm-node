@@ -90,7 +90,6 @@
     "keccakScriptFile": "keccak_script.json",
     "keccakPolsFile_DISABLED": "keccak_pols.json",
     "keccakConnectionsFile": "keccak_connections.json",
-    "storageRomFile": "storage_sm_rom.json",
     "starkInfoFile": "zkevm.starkinfo.json",
     "starkInfoC12aFile": "zkevm.c12a.starkinfo.json",
     "starkInfoRecursive1File": "zkevm.recursive1.starkinfo.json",

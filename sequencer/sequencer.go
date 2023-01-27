@@ -20,8 +20,8 @@ type Sequencer struct {
 	pool  txPool
 	state stateInterface
 	// dbManager dbManagerInterface
-	txManager txManager
-	etherman  etherman
+	ethTxManager ethTxManager
+	etherman     etherman
 
 	address common.Address
 }
@@ -82,20 +82,19 @@ type txToStore struct {
 }
 
 // New init sequencer
-func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager txManager) (*Sequencer, error) {
+func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
 
 	return &Sequencer{
-		cfg:   cfg,
-		pool:  txPool,
-		state: state,
-		// dbManager: dbManager,
-		etherman:  etherman,
-		txManager: manager,
-		address:   addr,
+		cfg:          cfg,
+		pool:         txPool,
+		state:        state,
+		etherman:     etherman,
+		ethTxManager: manager,
+		address:      addr,
 	}, nil
 }
 

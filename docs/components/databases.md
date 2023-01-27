@@ -6,7 +6,7 @@ Configuring each DB is trivial if done with an orchestration tool such as Docker
 
 The following are examples on how one would provision each DB to serve along the components (rpc, aggregator, sequencer...)
 
-Note the `enviroment` values will change per DB.
+Note the `environment` values will change per DB.
 
 - **StateDB**:
 
@@ -53,22 +53,5 @@ zkevm-state-db:
       - POSTGRES_USER=pool_user
       - POSTGRES_PASSWORD=pool_password
       - POSTGRES_DB=pool_db
-    command: ["postgres", "-N", "500"]
-
-  zkevm-rpc-db:
-    container_name: zkevm-rpc-db
-    image: postgres
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
-    ports:
-      - 5434:5432
-    environment:
-      - POSTGRES_USER=rpc_user
-      - POSTGRES_PASSWORD=rpc_password
-      - POSTGRES_DB=rpc_db
     command: ["postgres", "-N", "500"]
 ```
