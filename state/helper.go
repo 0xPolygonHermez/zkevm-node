@@ -12,7 +12,11 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-const ether155V = 27
+const (
+	double       = 2
+	ether155V    = 27
+	etherPre155V = 35
+)
 
 // EncodeTransactions RLP encodes the given transactions.
 func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
@@ -25,15 +29,22 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 		nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
 		log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID)
 
-		txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+		rlpFieldsToEncode := []interface{}{
 			nonce,
 			gasPrice,
 			gas,
 			to,
 			value,
 			data,
-			chainID, uint(0), uint(0),
-		})
+		}
+
+		if tx.ChainId().Uint64() > 0 {
+			rlpFieldsToEncode = append(rlpFieldsToEncode, chainID)
+			rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
+			rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
+		}
+
+		txCodedRlp, err := rlp.EncodeToBytes(rlpFieldsToEncode)
 
 		if err != nil {
 			return nil, err
@@ -91,7 +102,7 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64) ([]byte, er
 	return txData, nil
 }
 
-// DecodeTxs extracts Tansactions for its encoded form
+// DecodeTxs extracts Transactions for its encoded form
 func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 	// Process coded txs
 	var pos int64
@@ -105,7 +116,6 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 		ff               = 255 // max value of rlp header
 		shortRlp         = 55  // length of the short rlp codification
 		f7               = 247 // 192 + 55 = c0 + shortRlp
-		etherNewV        = 35
 		mul2             = 2
 	)
 	txDataLength := len(txsData)
@@ -132,26 +142,37 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 
 		fullDataTx := txsData[pos : pos+len+rLength+sLength+vLength+headerByteLength]
 		txInfo := txsData[pos : pos+len+headerByteLength]
-		r := txsData[pos+len+headerByteLength : pos+len+rLength+headerByteLength]
-		s := txsData[pos+len+rLength+headerByteLength : pos+len+rLength+sLength+headerByteLength]
-		v := txsData[pos+len+rLength+sLength+headerByteLength : pos+len+rLength+sLength+vLength+headerByteLength]
+		rData := txsData[pos+len+headerByteLength : pos+len+rLength+headerByteLength]
+		sData := txsData[pos+len+rLength+headerByteLength : pos+len+rLength+sLength+headerByteLength]
+		vData := txsData[pos+len+rLength+sLength+headerByteLength : pos+len+rLength+sLength+vLength+headerByteLength]
 
 		pos = pos + len + rLength + sLength + vLength + headerByteLength
 
-		// Decode tx
-		var tx types.LegacyTx
-		err = rlp.DecodeBytes(txInfo, &tx)
+		// Decode rlpFields
+		var rlpFields [][]byte
+		err = rlp.DecodeBytes(txInfo, &rlpFields)
 		if err != nil {
 			log.Debug("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
 			return []types.Transaction{}, []byte{}, err
 		}
 
-		//tx.V = v-27+chainId*2+35
-		tx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(v), big.NewInt(ether155V)), new(big.Int).Add(new(big.Int).Mul(tx.V, big.NewInt(mul2)), big.NewInt(etherNewV)))
-		tx.R = new(big.Int).SetBytes(r)
-		tx.S = new(big.Int).SetBytes(s)
+		legacyTx, chainID, err := RlpFieldsToLegacyTx(rlpFields)
+		if err != nil {
+			log.Debug("error creating tx from rlp fields: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+			return []types.Transaction{}, []byte{}, err
+		}
 
-		txs = append(txs, *types.NewTx(&tx))
+		if chainID != nil {
+			//v = v-27+chainId*2+35
+			legacyTx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(vData), big.NewInt(ether155V)), new(big.Int).Add(new(big.Int).Mul(chainID, big.NewInt(mul2)), big.NewInt(etherPre155V)))
+		} else {
+			legacyTx.V = new(big.Int).SetBytes(vData)
+		}
+		legacyTx.R = new(big.Int).SetBytes(rData)
+		legacyTx.S = new(big.Int).SetBytes(sData)
+
+		tx := types.NewTx(legacyTx)
+		txs = append(txs, *tx)
 	}
 	return txs, txsData, nil
 }
