@@ -359,12 +359,13 @@ func (p *PostgresStorage) GetForcedBatchesSince(ctx context.Context, forcedBatch
 	forcesBatches := make([]*ForcedBatch, 0, len(rows.RawValues()))
 
 	for rows.Next() {
-		forcedBatch, err := scanForcedBatch(rows)
+		var forcedBatch *ForcedBatch
+		err := rows.Scan(forcedBatch)
 		if err != nil {
 			return nil, err
 		}
 
-		forcesBatches = append(forcesBatches, &forcedBatch)
+		forcesBatches = append(forcesBatches, forcedBatch)
 	}
 
 	return forcesBatches, nil
@@ -777,27 +778,6 @@ func scanBatchWithL2BlockStateRoot(row pgx.Row) (Batch, *common.Hash, error) {
 
 	batch.Coinbase = common.HexToAddress(coinbaseStr)
 	return batch, l2BlockStateRoot, nil
-}
-
-func scanForcedBatch(row pgx.Row) (ForcedBatch, error) {
-	forcedBatch := ForcedBatch{}
-	var (
-		gerStr      string
-		coinbaseStr string
-	)
-	if err := row.Scan(
-		&forcedBatch.BlockNumber,
-		&gerStr,
-		&forcedBatch.ForcedAt,
-		&forcedBatch.RawTxsData,
-		&coinbaseStr,
-		&forcedBatch.BlockNumber,
-	); err != nil {
-		return forcedBatch, err
-	}
-	forcedBatch.GlobalExitRoot = common.HexToHash(gerStr)
-	forcedBatch.Sequencer = common.HexToAddress(coinbaseStr)
-	return forcedBatch, nil
 }
 
 // GetEncodedTransactionsByBatchNumber returns the encoded field of all
