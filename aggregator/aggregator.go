@@ -965,13 +965,20 @@ func buildMonitoredTxID(batchNumber, batchNumberFinal uint64) string {
 }
 
 func (a *Aggregator) cleanupLockedProofs() {
-	select {
-	case <-a.ctx.Done():
-		return
-	case <-time.After(a.TimeCleanupLockedProofs.Duration):
-		err := a.State.CleanupLockedProofs(a.ctx, a.cfg.GeneratingProofCleanupThreshold, nil)
-		if err != nil {
-			log.Errorf("failed to cleanup locked proofs: %v", err)
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-time.After(a.TimeCleanupLockedProofs.Duration):
+			n, err := a.State.CleanupLockedProofs(a.ctx, a.cfg.GeneratingProofCleanupThreshold, nil)
+			if err != nil {
+				log.Errorf("failed to cleanup locked proofs: %v", err)
+			}
+			if n == 1 {
+				log.Warn("Found a stale proof and removed form cache")
+			} else if n > 1 {
+				log.Warnf("Found %d stale proofs and removed from cache", n)
+			}
 		}
 	}
 }

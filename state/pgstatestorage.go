@@ -1981,15 +1981,18 @@ func (p *PostgresStorage) CleanupGeneratedProofs(ctx context.Context, batchNumbe
 
 // CleanupLockedProofs deletes from the storage the proofs locked in generating
 // state for more than the provided threshold.
-func (p *PostgresStorage) CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) error {
+func (p *PostgresStorage) CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error) {
 	interval, err := toPostgresInterval(duration)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	sql := fmt.Sprintf("DELETE FROM state.proof WHERE generating_since < (NOW() - interval '%s')", interval)
 	e := p.getExecQuerier(dbTx)
-	_, err = e.Exec(ctx, sql)
-	return err
+	ct, err := e.Exec(ctx, sql)
+	if err != nil {
+		return 0, err
+	}
+	return ct.RowsAffected(), nil
 }
 
 // DeleteUngeneratedProofs deletes ungenerated proofs.

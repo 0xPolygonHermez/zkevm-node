@@ -89,8 +89,8 @@ TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
 SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
-CleanupLockedProofsInterval = "10m"
-GeneratingProofCleanupThreshold = "30m"
+CleanupLockedProofsInterval = "3m"
+GeneratingProofCleanupThreshold = "10m"
 
 [EthTxManager]
 PrivateKeys = [
