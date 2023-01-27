@@ -35,9 +35,6 @@ func TestSendFinalProof(t *testing.T) {
 	errBanana := errors.New("banana")
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
-	//currentNonce := uint64(1)
-	//estimatedGas := uint64(1)
-	//suggestedGasPrice := big.NewInt(1)
 	from := common.BytesToAddress([]byte("from"))
 	to := common.BytesToAddress([]byte("to"))
 	var value *big.Int
@@ -46,14 +43,6 @@ func TestSendFinalProof(t *testing.T) {
 		LocalExitRoot: common.BytesToHash([]byte("localExitRoot")),
 		StateRoot:     common.BytesToHash([]byte("stateRoot")),
 	}
-	// tx := types.NewTx(&types.LegacyTx{
-	// 	Nonce:    currentNonce,
-	// 	To:       &to,
-	// 	Value:    value,
-	// 	Gas:      estimatedGas,
-	// 	GasPrice: suggestedGasPrice,
-	// 	Data:     data,
-	// })
 	proofID := "proofId"
 	proverID := "proverID"
 	recursiveProof := &state.Proof{
@@ -129,41 +118,6 @@ func TestSendFinalProof(t *testing.T) {
 				assert.False(a.verifyingProof)
 			},
 		},
-		//{
-		//	name: "CleanupGeneratedProofs error",
-		//	setup: func(m mox, a *Aggregator) {
-		//		m.stateMock.On("GetBatchByNumber", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-		//			assert.True(a.verifyingProof)
-		//		}).Return(&finalBatch, nil).Once()
-		//		expectedInputs := ethmanTypes.FinalProofInputs{
-		//			FinalProof:       finalProof,
-		//			NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
-		//			NewStateRoot:     finalBatch.StateRoot.Bytes(),
-		//		}
-		//		m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
-		//			assert.True(a.verifyingProof)
-		//		}).Return(nil, nil).Once()
-		//		verifiedBatch := state.VerifiedBatch{
-		//			BatchNumber: batchNumFinal,
-		//		}
-		//		m.stateMock.On("GetLastVerifiedBatch", mock.Anything, nil).Return(&verifiedBatch, nil).Once()
-		//		m.etherman.On("GetLatestVerifiedBatchNum").Return(batchNumFinal, nil).Once()
-		//		m.stateMock.On("CleanupGeneratedProofs", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-		//			// test is done, stop the sendFinalProof method
-		//			a.exit()
-		//		}).Return(errors.New("banana")).Once()
-
-		//	},
-		//	asserts: func(a *Aggregator) {
-		//		proof, ok := a.proverProofs[proverID]
-		//		if assert.True(ok) {
-		//			assert.Equal(proofID, proof.ID)
-		//			assert.Equal(batchNum, proof.batchNum)
-		//			assert.Equal(batchNumFinal, proof.batchNumFinal)
-		//		}
-		//		assert.False(a.verifyingProof)
-		//	},
-		//},
 		{
 			name: "EthTxManager Add error",
 			setup: func(m mox, a *Aggregator) {
@@ -186,8 +140,6 @@ func TestSendFinalProof(t *testing.T) {
 				}).Return(nil).Once()
 			},
 			asserts: func(a *Aggregator) {
-				// _, ok := a.proverProofs[proverID]
-				// assert.False(ok)
 				assert.False(a.verifyingProof)
 			},
 		},
@@ -226,8 +178,6 @@ func TestSendFinalProof(t *testing.T) {
 				}).Return(nil).Once()
 			},
 			asserts: func(a *Aggregator) {
-				// _, ok := a.proverProofs[proverID]
-				// assert.False(ok)
 				assert.False(a.verifyingProof)
 			},
 		},
