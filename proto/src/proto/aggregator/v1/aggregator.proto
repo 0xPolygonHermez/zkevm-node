@@ -119,7 +119,8 @@ message GetProofRequest {
  * @param {version_proto} - .proto verion
  * @param {version_server} - server version
  * @param {pending_request_queue_ids} - list of identifierss of proof requests that are in the pending queue
- * @param {prover_id} - id of this prover instance; it changes if prover reboots
+ * @param {prover_name} - id of this prover server, normally specified via config.json, or UNSPECIFIED otherwise; it does not change if prover reboots
+ * @param {prover_id} - id of this prover instance or reboot; it changes if prover reboots; it is a UUID, automatically generated during the initialization
  * @param {number_of_cores} - number of cores in the system where the prover is running
  * @param {total_memory} - total memory in the system where the prover is running
  * @param {free_memory} - free memory in the system where the prover is running
@@ -140,10 +141,11 @@ message GetStatusResponse {
     string version_proto = 6;
     string version_server = 7;
     repeated string pending_request_queue_ids = 8;
-    string prover_id = 9;
-    uint64 number_of_cores = 10;
-    uint64 total_memory = 11;
-    uint64 free_memory = 12;
+    string prover_name = 9;
+    string prover_id = 10;
+    uint64 number_of_cores = 11;
+    uint64 total_memory = 12;
+    uint64 free_memory = 13;
 }
 
 /**

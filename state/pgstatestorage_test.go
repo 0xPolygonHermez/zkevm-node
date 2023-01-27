@@ -257,7 +257,7 @@ func TestCleanupLockedProofs(t *testing.T) {
 	batchNumber := uint64(42)
 	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1), ($2), ($3)", batchNumber, batchNumber+1, batchNumber+2)
 	require.NoError(err)
-	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating_since, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, batch_num_final, proof, proof_id, input_prover, prover, prover_id, generating_since, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
 	// proof with `generating_since` older than interval
 	now := time.Now().Round(time.Microsecond)
 	oneHourAgo := now.Add(-time.Hour).Round(time.Microsecond)
@@ -268,7 +268,7 @@ func TestCleanupLockedProofs(t *testing.T) {
 		BatchNumberFinal: batchNumber,
 		GeneratingSince:  &oneHourAgo,
 	}
-	_, err := testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, olderProof.BatchNumber, olderProof.BatchNumberFinal, olderProof.Proof, olderProof.ProofID, olderProof.InputProver, olderProof.Prover, olderProof.GeneratingSince, oneHourAgo, oneHourAgo)
+	_, err := testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, olderProof.BatchNumber, olderProof.BatchNumberFinal, olderProof.Proof, olderProof.ProofID, olderProof.InputProver, olderProof.Prover, olderProof.ProverID, olderProof.GeneratingSince, oneHourAgo, oneHourAgo)
 	require.NoError(err)
 	// proof with `generating_since` newer than interval
 	newerProofID := "newerProofID"
@@ -280,7 +280,7 @@ func TestCleanupLockedProofs(t *testing.T) {
 		CreatedAt:        oneHourAgo,
 		UpdatedAt:        now,
 	}
-	_, err = testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, newerProof.BatchNumber, newerProof.BatchNumberFinal, newerProof.Proof, newerProof.ProofID, newerProof.InputProver, newerProof.Prover, newerProof.GeneratingSince, oneHourAgo, now)
+	_, err = testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, newerProof.BatchNumber, newerProof.BatchNumberFinal, newerProof.Proof, newerProof.ProofID, newerProof.InputProver, newerProof.Prover, newerProof.ProverID, newerProof.GeneratingSince, oneHourAgo, now)
 	require.NoError(err)
 	// proof with `generating_since` nil (currently not generating)
 	olderNotGenProofID := "olderNotGenProofID"
@@ -291,13 +291,13 @@ func TestCleanupLockedProofs(t *testing.T) {
 		CreatedAt:        oneHourAgo,
 		UpdatedAt:        oneHourAgo,
 	}
-	_, err = testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, olderNotGenProof.BatchNumber, olderNotGenProof.BatchNumberFinal, olderNotGenProof.Proof, olderNotGenProof.ProofID, olderNotGenProof.InputProver, olderNotGenProof.Prover, olderNotGenProof.GeneratingSince, oneHourAgo, oneHourAgo)
+	_, err = testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, olderNotGenProof.BatchNumber, olderNotGenProof.BatchNumberFinal, olderNotGenProof.Proof, olderNotGenProof.ProofID, olderNotGenProof.InputProver, olderNotGenProof.Prover, olderNotGenProof.ProverID, olderNotGenProof.GeneratingSince, oneHourAgo, oneHourAgo)
 	require.NoError(err)
 
 	_, err = testState.CleanupLockedProofs(ctx, "1m", nil)
 
 	require.NoError(err)
-	rows, err := testState.PostgresStorage.Query(ctx, "SELECT batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating_since, created_at, updated_at FROM state.proof")
+	rows, err := testState.PostgresStorage.Query(ctx, "SELECT batch_num, batch_num_final, proof, proof_id, input_prover, prover, prover_id, generating_since, created_at, updated_at FROM state.proof")
 	require.NoError(err)
 	proofs := make([]state.Proof, 0, len(rows.RawValues()))
 	for rows.Next() {
@@ -309,6 +309,7 @@ func TestCleanupLockedProofs(t *testing.T) {
 			&proof.ProofID,
 			&proof.InputProver,
 			&proof.Prover,
+			&proof.ProverID,
 			&proof.GeneratingSince,
 			&proof.CreatedAt,
 			&proof.UpdatedAt,
