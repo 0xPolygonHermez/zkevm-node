@@ -18,8 +18,7 @@ import (
 const maxTopics = 4
 
 const (
-	addGlobalExitRootSQL                     = "INSERT INTO state.exit_root (block_num, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4)"
-	getLatestExitRootBlockNumSQL             = "SELECT block_num FROM state.exit_root ORDER BY id DESC LIMIT 1"
+	addGlobalExitRootSQL                     = "INSERT INTO state.exit_root (block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4, $5)"	getLatestExitRootBlockNumSQL             = "SELECT block_num FROM state.exit_root ORDER BY id DESC LIMIT 1"
 	addVirtualBatchSQL                       = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num) VALUES ($1, $2, $3, $4)"
 	addBlockSQL                              = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	getLastBlockSQL                          = "SELECT block_num, block_hash, parent_hash, received_at FROM state.block ORDER BY block_num DESC LIMIT 1"
@@ -206,7 +205,7 @@ func (p *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64, d
 // AddGlobalExitRoot adds a new ExitRoot to the db
 func (p *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot)
+	_, err := e.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.Timestamp, exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot)
 	return err
 }
 
