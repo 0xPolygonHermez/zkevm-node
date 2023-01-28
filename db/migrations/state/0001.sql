@@ -75,6 +75,7 @@ CREATE TABLE state.transaction
 
 CREATE TABLE state.exit_root
 (
+    id                   SERIAL PRIMARY KEY
     block_num            BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE,
     timestamp            TIMESTAMP WITH TIME ZONE NOT NULL,
     mainnet_exit_root    BYTEA,
