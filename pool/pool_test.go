@@ -149,6 +149,98 @@ func Test_AddTx(t *testing.T) {
 	assert.Equal(t, 1, c, "invalid number of txs in the pool")
 }
 
+func Test_AddPreEIP155Tx(t *testing.T) {
+	initOrResetDB()
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0xb48cA794d49EeC406A5dD2c547717e37b5952a83",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
+			{
+				Address: "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "200000000000000000000",
+			},
+		},
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	const chainID = 2576980377
+	cfg := pool.Config{
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
+
+	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81b"
+	b, err := hex.DecodeHex(batchL2Data)
+	require.NoError(t, err)
+	txs, _, err := state.DecodeTxs(b)
+	require.NoError(t, err)
+
+	tx := txs[0]
+
+	err = p.AddTx(ctx, tx)
+	require.NoError(t, err)
+
+	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.txs")
+	defer rows.Close() // nolint:staticcheck
+	require.NoError(t, err)
+
+	c := 0
+	for rows.Next() {
+		var hash, encoded, decoded, status string
+		err := rows.Scan(&hash, &encoded, &decoded, &status)
+		require.NoError(t, err)
+
+		b, err := tx.MarshalBinary()
+		require.NoError(t, err)
+
+		bJSON, err := tx.MarshalJSON()
+		require.NoError(t, err)
+
+		assert.Equal(t, tx.Hash().String(), hash, "invalid hash")
+		assert.Equal(t, hex.EncodeToHex(b), encoded, "invalid encoded")
+		assert.JSONEq(t, string(bJSON), decoded, "invalid decoded")
+		assert.Equal(t, string(pool.TxStatusPending), status, "invalid tx status")
+		c++
+	}
+
+	assert.Equal(t, 1, c, "invalid number of txs in the pool")
+}
+
 func Test_GetPendingTxs(t *testing.T) {
 	initOrResetDB()
 

@@ -206,7 +206,7 @@ func (p *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64, d
 // AddGlobalExitRoot adds a new ExitRoot to the db
 func (p *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.Timestamp, exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot)
+	_, err := e.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot)
 	return err
 }
 

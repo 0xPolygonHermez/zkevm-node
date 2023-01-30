@@ -654,9 +654,10 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				log.Errorf("error adding accumulatedInputHash for batch: %d. Error; %w", batch.BatchNumber, err)
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
-					log.Fatalf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %w", batch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %w", batch.BatchNumber, blockNumber, rollbackErr)
+					return rollbackErr
 				}
-				log.Fatalf("error adding accumulatedInputHash for batch: %d. Error; %w", batch.BatchNumber, err)
+				return err
 			}
 		}
 

@@ -163,8 +163,10 @@ benchmark-sequencer-erc20-transfers: stop
 	$(RUNPOOLDB)
 	$(RUNRPCDB) sleep 5
 	$(RUNZKPROVER)
-	$(RUNJSONRPC)
 	$(RUNSYNC)
+	sleep 2
+	$(RUNL2GASPRICER)
+	$(RUNJSONRPC)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	@ cd benchmarks/sequencer/erc20-transfers ; \

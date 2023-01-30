@@ -1,7 +1,7 @@
 package state
 
 import (
-	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -105,7 +105,7 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 		return GetZKCounterError("UsedPoseidonHashes")
 	}
 	if other.UsedPoseidonPaddings > z.UsedPoseidonPaddings {
-		return errors.New("underflow ZKCounter: UsedPoseidonPaddings")
+		return fmt.Errorf("underflow ZKCounter: UsedPoseidonPaddings")
 	}
 	if other.UsedMemAligns > z.UsedMemAligns {
 		return GetZKCounterError("UsedMemAligns")

@@ -125,7 +125,8 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 
 func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	// check chain id
-	if tx.ChainId().Uint64() != p.chainID {
+	txChainID := tx.ChainId().Uint64()
+	if txChainID != p.chainID && txChainID != 0 {
 		return ErrInvalidChainID
 	}
 
