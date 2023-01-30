@@ -12,6 +12,16 @@ CREATE TABLE state.block
     received_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
+CREATE TABLE state.forced_batch
+(
+    forced_batch_num BIGINT PRIMARY KEY,
+    global_exit_root VARCHAR,
+    timestamp        TIMESTAMP WITH TIME ZONE NOT NULL,
+    raw_txs_data     VARCHAR,
+    coinbase         VARCHAR,
+    block_num        BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE
+);
+
 CREATE TABLE state.batch
 ( --batch abstraction: will be created through trusted state
     batch_num        BIGINT PRIMARY KEY,
@@ -41,16 +51,6 @@ CREATE TABLE state.verified_batch
     state_root VARCHAR,
     block_num  BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE,
     is_trusted BOOLEAN DEFAULT true
-);
-
-CREATE TABLE state.forced_batch
-(
-    forced_batch_num BIGINT PRIMARY KEY,
-    global_exit_root VARCHAR,
-    timestamp        TIMESTAMP WITH TIME ZONE NOT NULL,
-    raw_txs_data     VARCHAR,
-    coinbase         VARCHAR,
-    block_num        BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE
 );
 
 CREATE TABLE state.l2block
