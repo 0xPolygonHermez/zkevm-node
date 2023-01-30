@@ -30,6 +30,9 @@ type Config struct {
 	// ElapsedTimeToCloseBatchWithoutTxsDueToNewGER it's time to close a batch bcs new globalExitRoot appeared
 	ElapsedTimeToCloseBatchWithoutTxsDueToNewGER types.Duration `mapstructure:"ElapsedTimeToCloseBatchWithoutTxsDueToNewGER"`
 
+	// MinTimeToCloseBatch enough time passed to close a batch.
+	MinTimeToCloseBatch types.Duration `mapstructure:"MinTimeToCloseBatch"`
+
 	// MaxTimeForBatchToBeOpen is time after which new batch should be closed
 	MaxTimeForBatchToBeOpen types.Duration `mapstructure:"MaxTimeForBatchToBeOpen"`
 
@@ -128,6 +131,13 @@ type FinalizerCfg struct {
 
 	// ClosingSignalsManagerWaitForL1OperationsInSec is used by the closing signals manager to wait for its operation
 	ClosingSignalsManagerWaitForL1OperationsInSec types.Duration `mapstructure:"ClosingSignalsManagerWaitForL1OperationsInSec"`
+	// SenderAddress defines which private key the eth tx manager needs to use
+	// to sign the L1 txs
+	SenderAddress string `mapstructure:"SenderAddress"`
+
+	// PrivateKeys defines all the key store files that are going
+	// to be read in order to provide the private keys to sign the L1 txs
+	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
 }
 
 // MaxSequenceSize is a wrapper type that parses token amount to big int

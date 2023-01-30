@@ -574,13 +574,11 @@
           "selected": true,
           "text": [
             "zkevm-json-rpc",
-            "zkevm-rpc-db",
             "zkevm-pool-db",
             "zkevm-sequencer"
           ],
           "value": [
             "zkevm-json-rpc",
-            "zkevm-rpc-db",
             "zkevm-pool-db",
             "zkevm-sequencer"
           ]

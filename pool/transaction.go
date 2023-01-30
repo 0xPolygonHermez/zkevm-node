@@ -41,8 +41,13 @@ type Transaction struct {
 }
 
 // IsClaimTx checks, if tx is a claim tx
-func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address) bool {
+func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address, freeClaimGasLimit uint64) bool {
 	if tx.To() == nil {
+		return false
+	}
+
+	txGas := tx.Gas()
+	if txGas > freeClaimGasLimit || txGas == 0 {
 		return false
 	}
 

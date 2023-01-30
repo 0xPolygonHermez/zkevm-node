@@ -48,6 +48,7 @@ type VerifiedBatch struct {
 	Aggregator  common.Address
 	TxHash      common.Hash
 	StateRoot   common.Hash
+	IsTrusted   bool
 }
 
 // VirtualBatch represents a VirtualBatch

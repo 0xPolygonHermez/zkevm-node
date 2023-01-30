@@ -17,6 +17,11 @@ const (
 	// EarliestBlockNumber represents the earliest block number
 	EarliestBlockNumber = BlockNumber(-1)
 
+	// LatestBatchNumber represents the latest batch number
+	LatestBatchNumber = BatchNumber(-2)
+	// EarliestBatchNumber represents the earliest batch number
+	EarliestBatchNumber = BatchNumber(-1)
+
 	// Earliest contains the string to represent the earliest block known.
 	Earliest = "earliest"
 	// Latest contains the string to represent the latest block known.
@@ -186,4 +191,59 @@ func (i *Index) UnmarshalJSON(buffer []byte) error {
 	}
 	*i = Index(n)
 	return nil
+}
+
+// BatchNumber is the number of a ethereum block
+type BatchNumber int64
+
+// UnmarshalJSON automatically decodes the user input for the block number, when a JSON RPC method is called
+func (b *BatchNumber) UnmarshalJSON(buffer []byte) error {
+	num, err := stringToBatchNumber(string(buffer))
+	if err != nil {
+		return err
+	}
+	*b = num
+	return nil
+}
+
+func (b *BatchNumber) getNumericBatchNumber(ctx context.Context, s stateInterface, dbTx pgx.Tx) (uint64, rpcError) {
+	bValue := LatestBatchNumber
+	if b != nil {
+		bValue = *b
+	}
+
+	switch bValue {
+	case LatestBatchNumber:
+		lastBatchNumber, err := s.GetLastBatchNumber(ctx, dbTx)
+		if err != nil {
+			return 0, newRPCError(defaultErrorCode, "failed to get the last batch number from state")
+		}
+
+		return lastBatchNumber, nil
+
+	case EarliestBatchNumber:
+		return 0, nil
+
+	default:
+		if bValue < 0 {
+			return 0, newRPCError(invalidParamsErrorCode, "invalid batch number: %v", bValue)
+		}
+		return uint64(bValue), nil
+	}
+}
+
+func stringToBatchNumber(str string) (BatchNumber, error) {
+	str = strings.Trim(str, "\"")
+	switch str {
+	case Earliest:
+		return EarliestBatchNumber, nil
+	case Latest, "":
+		return LatestBatchNumber, nil
+	}
+
+	n, err := encoding.DecodeUint64orHex(&str)
+	if err != nil {
+		return 0, err
+	}
+	return BatchNumber(n), nil
 }

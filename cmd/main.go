@@ -24,6 +24,10 @@ const (
 	SYNCHRONIZER = "synchronizer"
 	// BROADCAST is the broadcast component identifier.
 	BROADCAST = "broadcast-trusted-state"
+	// ETHTXMANAGER is the service that manages the tx sent to L1
+	ETHTXMANAGER = "eth-tx-manager"
+	// L2GASPRICER is the l2 gas pricer component identifier.
+	L2GASPRICER = "l2gaspricer"
 )
 
 var (
@@ -50,7 +54,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER),
+		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, ETHTXMANAGER, L2GASPRICER),
 	}
 	httpAPIFlag = cli.StringSliceFlag{
 		Name:     config.FlagHTTPAPI,
@@ -58,6 +62,12 @@ var (
 		Usage:    fmt.Sprintf("List of JSON RPC apis to be exposed by the server: --http.api=%v,%v,%v,%v,%v,%v", jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIDebug, jsonrpc.APIZKEVM, jsonrpc.APITxPool, jsonrpc.APIWeb3),
 		Required: false,
 		Value:    cli.NewStringSlice(jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIZKEVM, jsonrpc.APITxPool, jsonrpc.APIWeb3),
+	}
+	migrationsFlag = cli.BoolFlag{
+		Name:     config.FlagMigrations,
+		Aliases:  []string{"mig"},
+		Usage:    "Blocks the migrations in stateDB to not run them",
+		Required: false,
 	}
 )
 
@@ -83,19 +93,32 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Run the zkevm-node",
 			Action:  start,
-			Flags:   append(flags, &genesisFlag),
+			Flags:   append(flags, &genesisFlag, &migrationsFlag),
 		},
 		{
 			Name:    "approve",
 			Aliases: []string{"ap"},
 			Usage:   "Approve tokens to be spent by the smart contract",
 			Action:  approveTokens,
-			Flags: append(flags, &cli.StringFlag{
-				Name:     config.FlagAmount,
-				Aliases:  []string{"am"},
-				Usage:    "Amount that is gonna be approved",
-				Required: true,
-			},
+			Flags: append(flags,
+				&cli.StringFlag{
+					Name:     config.FlagKeyStorePath,
+					Aliases:  []string{""},
+					Usage:    "the path of the key store file containing the private key of the account going to sign and approve the tokens",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     config.FlagPassword,
+					Aliases:  []string{"pw"},
+					Usage:    "the password do decrypt the key store file",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     config.FlagAmount,
+					Aliases:  []string{"am"},
+					Usage:    "Amount that is gonna be approved",
+					Required: true,
+				},
 			),
 		},
 		{

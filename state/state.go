@@ -82,27 +82,29 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorSe
 		metrics.Register()
 	})
 
-	lastL2Block, err := storage.GetLastL2Block(context.Background(), nil)
-	if errors.Is(err, ErrStateNotSynchronized) {
-		lastL2Block = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0)})
-	} else if err != nil {
-		log.Fatalf("failed to load the last l2 block: %v", err)
-	}
-
 	s := &State{
 		cfg:                     cfg,
 		PostgresStorage:         storage,
 		executorClient:          executorClient,
 		tree:                    stateTree,
-		lastL2BlockSeen:         *lastL2Block,
 		newL2BlockEvents:        make(chan NewL2BlockEvent),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 	}
 
+	return s
+}
+
+// PrepareWebSocket allows the RPC to prepare ws
+func (s *State) PrepareWebSocket() {
+	lastL2Block, err := s.PostgresStorage.GetLastL2Block(context.Background(), nil)
+	if errors.Is(err, ErrStateNotSynchronized) {
+		lastL2Block = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0)})
+	} else if err != nil {
+		log.Fatalf("failed to load the last l2 block: %v", err)
+	}
+	s.lastL2BlockSeen = *lastL2Block
 	go s.monitorNewL2Blocks()
 	go s.handleEvents()
-
-	return s
 }
 
 // BeginStateTransaction starts a state transaction
@@ -1330,10 +1332,61 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	}
 	rootHex := root.Hex()
 	log.Info("Genesis root ", rootHex)
-	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+
+	// Decode txs and generate receipts
+	txs, receipts, err := generateGenesisTxsAndReceipts(genesis.Transactions)
+	if err != nil {
+		log.Error("error generating genesis txs and receipts. Error: ", err)
+		return newRoot, err
+	}
+
+	l2Block := types.NewBlock(header, txs, []*types.Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = block.ReceivedAt
 
-	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, []*types.Receipt{}, dbTx)
+	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, dbTx)
+}
+
+func generateGenesisTxsAndReceipts(transactions []GenesisTx) ([]*types.Transaction, []*types.Receipt, error) {
+	//Decode genesis raw txs
+	txs := []*types.Transaction{}
+	var receipts []*types.Receipt
+	var cumulativeGasUsed uint64
+	for i, tx := range transactions {
+		rawBytes, err := hex.DecodeHex(tx.RawTx)
+		if err != nil {
+			log.Error("error decoding string rawTxs. Error: ", err)
+			return []*types.Transaction{}, []*types.Receipt{}, err
+		}
+		txsAux, _, err := DecodeTxs(rawBytes)
+		if err != nil {
+			log.Error("error decoding rawBytes. Error: ", err)
+			return []*types.Transaction{}, []*types.Receipt{}, err
+		}
+		for _, tx := range txsAux {
+			t := tx
+			txs = append(txs, &t)
+		}
+
+		// Generate receipts
+		cumulativeGasUsed += tx.Receipt.GasUsed
+		txHash := txsAux[0].Hash()
+		receipt := types.Receipt{
+			Type:              0,
+			PostState:         []byte{},
+			Status:            uint64(tx.Receipt.Status),
+			CumulativeGasUsed: cumulativeGasUsed,
+			//Bloom
+			//Logs
+			TxHash:           txHash,
+			ContractAddress:  tx.CreateAddress,
+			GasUsed:          tx.Receipt.GasUsed,
+			BlockNumber:      big.NewInt(0),
+			TransactionIndex: uint(i),
+		}
+		receipts = append(receipts, &receipt)
+	}
+
+	return txs, receipts, nil
 }
 
 // CheckSupersetBatchTransactions verifies that processedTransactions is a
@@ -1432,6 +1485,11 @@ func (s *State) monitorNewL2Blocks() {
 	}
 
 	for {
+		if len(s.newL2BlockEventHandlers) == 0 {
+			waitNextCycle()
+			continue
+		}
+
 		lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
 		if errors.Is(err, ErrStateNotSynchronized) {
 			waitNextCycle()
@@ -1469,10 +1527,12 @@ func (s *State) monitorNewL2Blocks() {
 
 func (s *State) handleEvents() {
 	for newL2BlockEvent := range s.newL2BlockEvents {
-		log.Infof("reacting to new l2 block, Number %v, Hash %v", newL2BlockEvent.Block.NumberU64(), newL2BlockEvent.Block.Hash().String())
+		if len(s.newL2BlockEventHandlers) == 0 {
+			continue
+		}
+
 		wg := sync.WaitGroup{}
-		for index, handler := range s.newL2BlockEventHandlers {
-			log.Infof("executing new l2 block event handler for block, Number %v, Hash %v, Handler Index: %v", newL2BlockEvent.Block.NumberU64(), newL2BlockEvent.Block.Hash().String(), index)
+		for _, handler := range s.newL2BlockEventHandlers {
 			wg.Add(1)
 			go func(h NewL2BlockEventHandler) {
 				defer func() {
@@ -1501,6 +1561,7 @@ type NewL2BlockEvent struct {
 // RegisterNewL2BlockEventHandler add the provided handler to the list of handlers
 // that will be triggered when a new l2 block event is triggered
 func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
+	log.Info("new l2 block event handler registered")
 	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
 }
 

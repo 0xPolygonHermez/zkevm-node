@@ -58,4 +58,8 @@ type Config struct {
 
 	// ChainID is the L2 ChainID provided by the Network Config
 	ChainID uint64
+
+	// SenderAddress defines which private key the eth tx manager needs to use
+	// to sign the L1 txs
+	SenderAddress string `mapstructure:"SenderAddress"`
 }

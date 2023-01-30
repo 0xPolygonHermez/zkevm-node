@@ -1993,7 +1993,6 @@ func file_executor_proto_init() {
 			}
 		}
 	}
-	file_executor_proto_msgTypes[2].OneofWrappers = []interface{}{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
