@@ -34,8 +34,7 @@ func CalculateAndPrint(response *http.Response, elapsed time.Duration, sequencer
 	actualTotalTime := seqeuncerTime - sequencerTimeSub
 	actualExecutorTime := executorTime - executorTimeSub
 	Print(actualTotalTime, actualExecutorTime, workerTime)
-	log.Infof("[Transactions per second]: %v s", nTxs/int(actualTotalTime))
-	log.Infof("[Executor per second]: %v s", nTxs/int(actualTotalTime))
+	log.Infof("[Transactions per second]: %v", nTxs/int(actualTotalTime))
 }
 
 // Print prints the prometheus metrics
@@ -44,8 +43,8 @@ func Print(totalTime float64, executorTime float64, workerTime float64) {
 	log.Infof("[EXECUTOR Processing Time]: %v s", executorTime)
 	log.Infof("[SEQUENCER Processing Time]: %v s", totalTime-executorTime)
 	log.Infof("[WORKER Processing Time]: %v s", workerTime)
-	log.Infof("[EXECUTOR Time Percentage from TOTAL]: %.2f", (executorTime/totalTime)*oneHundred)
-	log.Infof("[WORKER Time Percentage from TOTAL]: %.2f", (workerTime/totalTime)*oneHundred)
+	log.Infof("[EXECUTOR Time Percentage from TOTAL]: %.2f %%", (executorTime/totalTime)*oneHundred)
+	log.Infof("[WORKER Time Percentage from TOTAL]: %.2f %%", (workerTime/totalTime)*oneHundred)
 }
 
 // GetValues gets the prometheus metric values
