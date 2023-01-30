@@ -311,7 +311,7 @@ func startMetricsHttpServer(c *config.Config) {
 		return
 	}
 	mux.Handle(metrics.Endpoint, promhttp.Handler())
-	metricsServer := &http.Server{
+	metricsServer := &http.Server{ // nolint
 		Handler: mux,
 	}
 	log.Infof("metrics server listening on port %d", c.Metrics.Port)

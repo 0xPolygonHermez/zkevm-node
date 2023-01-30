@@ -1,9 +1,9 @@
 package migrations_test
 
 import (
+	"database/sql"
 	"testing"
 	"time"
-	"database/sql"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -32,7 +32,6 @@ func (m migrationTest0002) InsertData(db *sql.DB) error {
 	_, err = db.Exec(insertProof)
 	return err
 }
-
 
 func (m migrationTest0002) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) {
 	// Insert new proof

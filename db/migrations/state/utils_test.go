@@ -6,10 +6,9 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/gobuffalo/packr/v2"
-
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/stdlib"
 	migrate "github.com/rubenv/sql-migrate"
@@ -45,7 +44,7 @@ type migrationTester interface {
 }
 
 var (
-	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	stateDBCfg      = dbutils.NewStateConfigFromEnv()
 	packrMigrations = map[string]*packr.Box{
 		db.StateMigrationName: packr.New(db.StateMigrationName, "./migrations/state"),
 		db.PoolMigrationName:  packr.New(db.PoolMigrationName, "./migrations/pool"),
