@@ -847,6 +847,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 			OldAccInputHash: previousBatch.AccInputHash.Bytes(),
 			OldBatchNum:     previousBatch.BatchNumber,
 			ChainId:         a.cfg.ChainID,
+			ForkId:          a.cfg.ForkId,
 			BatchL2Data:     batchToVerify.BatchL2Data,
 			GlobalExitRoot:  batchToVerify.GlobalExitRoot.Bytes(),
 			EthTimestamp:    uint64(batchToVerify.Timestamp.Unix()),
