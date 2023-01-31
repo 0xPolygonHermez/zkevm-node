@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
@@ -127,9 +129,12 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	if c.Metrics.Enabled {
-		go startMetricsHttpServer(c)
+		go startMetricsHttpServer(c.Metrics)
 	}
 
+	if c.Metrics.ProfilingEnabled {
+		go startProfilingHttpServer(c.Metrics)
+	}
 	waitSignal(cancelFuncs)
 
 	return nil
@@ -296,9 +301,38 @@ func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStor
 	return etm
 }
 
-func startMetricsHttpServer(c *config.Config) {
+func startProfilingHttpServer(c metrics.Config) {
+	log.Info("Starting profiling http server")
 	mux := http.NewServeMux()
-	address := fmt.Sprintf("%s:%d", c.Metrics.Host, c.Metrics.Port)
+	address := fmt.Sprintf("%s:%d", c.ProfilingHost, c.ProfilingPort)
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Errorf("failed to create tcp listener for profiling: %v", err)
+		return
+	}
+	mux.HandleFunc(metrics.ProfilingIndexEndpoint, pprof.Index)
+	mux.HandleFunc(metrics.ProfileEndpoint, pprof.Profile)
+	mux.HandleFunc(metrics.ProfilingCmdEndpoint, pprof.Cmdline)
+	mux.HandleFunc(metrics.ProfilingSymbolEndpoint, pprof.Symbol)
+	mux.HandleFunc(metrics.ProfilingTraceEndpoint, pprof.Trace)
+	profilingServer := &http.Server{
+		Handler:     mux,
+		ReadTimeout: 2 * time.Minute,
+	}
+	log.Infof("profiling server listening on port %d", c.ProfilingPort)
+	if err := profilingServer.Serve(lis); err != nil {
+		if err == http.ErrServerClosed {
+			log.Warnf("http server for profiling stopped")
+			return
+		}
+		log.Errorf("closed http connection for profiling server: %v", err)
+		return
+	}
+}
+
+func startMetricsHttpServer(c metrics.Config) {
+	mux := http.NewServeMux()
+	address := fmt.Sprintf("%s:%d", c.Host, c.Port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Errorf("failed to create tcp listener for metrics: %v", err)
@@ -306,9 +340,10 @@ func startMetricsHttpServer(c *config.Config) {
 	}
 	mux.Handle(metrics.Endpoint, promhttp.Handler())
 	metricsServer := &http.Server{
-		Handler: mux,
+		Handler:     mux,
+		ReadTimeout: 10 * time.Second,
 	}
-	log.Infof("metrics server listening on port %d", c.Metrics.Port)
+	log.Infof("metrics server listening on port %d", c.Port)
 	if err := metricsServer.Serve(lis); err != nil {
 		if err == http.ErrServerClosed {
 			log.Warnf("http server for metrics stopped")

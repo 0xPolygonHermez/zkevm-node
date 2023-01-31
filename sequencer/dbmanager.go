@@ -481,7 +481,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 		return nil, err
 	}
 
-	// Process Batch
+	// Fetch Forced Batch
 	forcedBatch, err := d.state.GetForcedBatch(d.ctx, forcedBatchNum, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
@@ -494,8 +494,8 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 		return nil, err
 	}
 
-	// TODO: callerLabel
-	processBatchResponse, err := d.state.ProcessSequencerBatch(d.ctx, request.BatchNumber, forcedBatch.RawTxsData, "", dbTx)
+	// Process Batch
+	processBatchResponse, err := d.state.ProcessSequencerBatch(d.ctx, request.BatchNumber, forcedBatch.RawTxsData, request.Caller, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
 			log.Errorf(
