@@ -15,7 +15,8 @@ func (m migrationTest0006) InsertData(db *sql.DB) error {
 }
 
 var indexes = []string{"transaction_l2_block_num_idx", "l2block_batch_num_idx", "l2block_received_at_idx",
-				"batch_timestamp_idx", "log_tx_hash_idx", "log_address_idx"}
+	"batch_timestamp_idx", "log_tx_hash_idx", "log_address_idx"}
+
 func (m migrationTest0006) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) {
 	for _, idx := range indexes {
 		// getIndex
