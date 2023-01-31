@@ -55,10 +55,12 @@ var (
 	ErrInvalidOpCode = errors.New("invalid opcode")
 	// ErrInvalidStatic indicates there is an invalid static call
 	ErrInvalidStatic = errors.New("invalid static call")
-	// ErrInvalidByteCodeStartsEF indicates there is a bytecode starting with 0xEF
-	ErrInvalidByteCodeStartsEF = errors.New("bytecode starting with 0xEF")
+	// ErrInvalidByteCodeStartsEF indicates there is a byte code starting with 0xEF
+	ErrInvalidByteCodeStartsEF = errors.New("byte code starting with 0xEF")
 	// ErrIntrinsicInvalidTxGasOverflow indicates the transaction gasLimit*gasPrice > MAX_UINT_256 - 1
 	ErrIntrinsicInvalidTxGasOverflow = errors.New("gas overflow")
+	// ErrUnsupportedForkId indicates that the fork id is not supported
+	ErrUnsupportedForkId = errors.New("unsupported fork id")
 )
 
 // ExecutionResult includes all output after executing given evm
