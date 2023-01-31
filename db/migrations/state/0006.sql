@@ -7,9 +7,9 @@ CREATE INDEX IF NOT EXISTS log_tx_hash_idx ON state.log (tx_hash);
 CREATE INDEX IF NOT EXISTS log_address_idx ON state.log (address);
 
 -- +migrate Down
-DROP INDEX IF EXISTS transaction_l2_block_num_idx;
-DROP INDEX IF EXISTS l2block_batch_num_idx;
-DROP INDEX IF EXISTS l2block_received_at_idx;
-DROP INDEX IF EXISTS batch_timestamp_idx;
-DROP INDEX IF EXISTS log_tx_hash_idx;
-DROP INDEX IF EXISTS log_address_idx;
+DROP INDEX IF EXISTS state.transaction_l2_block_num_idx;
+DROP INDEX IF EXISTS state.l2block_batch_num_idx;
+DROP INDEX IF EXISTS state.l2block_received_at_idx;
+DROP INDEX IF EXISTS state.batch_timestamp_idx;
+DROP INDEX IF EXISTS state.log_tx_hash_idx;
+DROP INDEX IF EXISTS state.log_address_idx;
