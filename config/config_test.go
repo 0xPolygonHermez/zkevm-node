@@ -336,11 +336,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Aggregator.CleanupLockedProofsInterval",
-			expectedValue: types.NewDuration(10 * time.Minute),
+			expectedValue: types.NewDuration(2 * time.Minute),
 		},
 		{
 			path:          "Aggregator.GeneratingProofCleanupThreshold",
-			expectedValue: "30m",
+			expectedValue: "10m",
 		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")
