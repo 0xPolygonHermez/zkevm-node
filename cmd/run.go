@@ -36,6 +36,11 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	two = 2
+	ten = 10
+)
+
 func start(cliCtx *cli.Context) error {
 	zkevm.PrintVersion(os.Stdout)
 
@@ -317,7 +322,7 @@ func startProfilingHttpServer(c metrics.Config) {
 	mux.HandleFunc(metrics.ProfilingTraceEndpoint, pprof.Trace)
 	profilingServer := &http.Server{
 		Handler:     mux,
-		ReadTimeout: 2 * time.Minute,
+		ReadTimeout: two * time.Minute,
 	}
 	log.Infof("profiling server listening on port %d", c.ProfilingPort)
 	if err := profilingServer.Serve(lis); err != nil {
@@ -339,9 +344,10 @@ func startMetricsHttpServer(c metrics.Config) {
 		return
 	}
 	mux.Handle(metrics.Endpoint, promhttp.Handler())
+
 	metricsServer := &http.Server{
 		Handler:     mux,
-		ReadTimeout: 10 * time.Second,
+		ReadTimeout: ten * time.Second,
 	}
 	log.Infof("metrics server listening on port %d", c.Port)
 	if err := metricsServer.Serve(lis); err != nil {
