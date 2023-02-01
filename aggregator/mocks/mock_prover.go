@@ -112,7 +112,7 @@ func (_m *ProverMock) ID() string {
 }
 
 // IsIdle provides a mock function with given fields:
-func (_m *ProverMock) IsIdle() bool {
+func (_m *ProverMock) IsIdle() (bool, error) {
 	ret := _m.Called()
 
 	var r0 bool
@@ -120,6 +120,27 @@ func (_m *ProverMock) IsIdle() bool {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Name provides a mock function with given fields:
+func (_m *ProverMock) Name() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
 	}
 
 	return r0

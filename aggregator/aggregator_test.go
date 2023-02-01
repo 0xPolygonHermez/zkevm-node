@@ -44,9 +44,11 @@ func TestSendFinalProof(t *testing.T) {
 		StateRoot:     common.BytesToHash([]byte("stateRoot")),
 	}
 	proofID := "proofId"
+	proverName := "proverName"
 	proverID := "proverID"
 	recursiveProof := &state.Proof{
-		Prover:           &proverID,
+		Prover:           &proverName,
+		ProverID:         &proverID,
 		ProofID:          &proofID,
 		BatchNumber:      batchNum,
 		BatchNumberFinal: batchNumFinal,
@@ -226,6 +228,7 @@ func TestTryAggregateProofs(t *testing.T) {
 		VerifyProofInterval: configTypes.NewDuration(10000000),
 	}
 	proofID := "proofId"
+	proverName := "proverName"
 	proverID := "proverID"
 	recursiveProof := "recursiveProof"
 	proverCtx := context.WithValue(context.Background(), "owner", "prover") //nolint:staticcheck
@@ -249,6 +252,7 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "getAndLockProofsToAggregate returns generic error",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, nil, errBanana).Once()
@@ -261,6 +265,7 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "getAndLockProofsToAggregate returns ErrNotFound",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, nil, state.ErrNotFound).Once()
@@ -273,6 +278,7 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "getAndLockProofsToAggregate error updating proofs",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
@@ -295,6 +301,7 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "AggregatedProof prover error",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
@@ -343,6 +350,7 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
@@ -392,6 +400,7 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "unlockProofsToAggregate error after WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID)
 				dbTx := &mocks.DbTxMock{}
@@ -433,6 +442,7 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "rollback after DeleteGeneratedProofs error in db transaction",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
@@ -484,6 +494,7 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "rollback after AddGeneratedProof error in db transaction",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
@@ -536,6 +547,7 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "not time to send final ok",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
@@ -570,7 +582,8 @@ func TestTryAggregateProofs(t *testing.T) {
 						proof := args[1].(*state.Proof)
 						assert.Equal(proof1.BatchNumber, proof.BatchNumber)
 						assert.Equal(proof2.BatchNumberFinal, proof.BatchNumberFinal)
-						assert.Equal(&proverID, proof.Prover)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
 						assert.Equal(string(b), proof.InputProver)
 						assert.Equal(recursiveProof, proof.Proof)
 						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
@@ -581,7 +594,8 @@ func TestTryAggregateProofs(t *testing.T) {
 						proof := args[1].(*state.Proof)
 						assert.Equal(proof1.BatchNumber, proof.BatchNumber)
 						assert.Equal(proof2.BatchNumberFinal, proof.BatchNumberFinal)
-						assert.Equal(&proverID, proof.Prover)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
 						assert.Equal(string(b), proof.InputProver)
 						assert.Equal(recursiveProof, proof.Proof)
 						assert.Nil(proof.GeneratingSince)
@@ -646,6 +660,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 		BatchNumber: batchNum,
 	}
 	proofID := "proofId"
+	proverName := "proverName"
 	proverID := "proverID"
 	recursiveProof := "recursiveProof"
 	errBanana := errors.New("banana")
@@ -660,6 +675,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 		{
 			name: "getAndLockBatchToProve returns generic error",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, errBanana).Once()
@@ -672,6 +688,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 		{
 			name: "getAndLockBatchToProve returns ErrNotFound",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, state.ErrNotFound).Once()
@@ -684,6 +701,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 		{
 			name: "BatchProof prover error",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
@@ -693,7 +711,8 @@ func TestTryGenerateBatchProof(t *testing.T) {
 						proof := args[1].(*state.Proof)
 						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
 						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
-						assert.Equal(&proverID, proof.Prover)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
 						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
 					},
 				).Return(nil).Once()
@@ -711,6 +730,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 		{
 			name: "WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
@@ -720,7 +740,8 @@ func TestTryGenerateBatchProof(t *testing.T) {
 						proof := args[1].(*state.Proof)
 						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
 						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
-						assert.Equal(&proverID, proof.Prover)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
 						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
 					},
 				).Return(nil).Once()
@@ -739,6 +760,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 		{
 			name: "DeleteGeneratedProofs error after WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return(proverID)
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
@@ -748,7 +770,8 @@ func TestTryGenerateBatchProof(t *testing.T) {
 						proof := args[1].(*state.Proof)
 						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
 						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
-						assert.Equal(&proverID, proof.Prover)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
 						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
 					},
 				).Return(nil).Once()
@@ -767,6 +790,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 		{
 			name: "not time to send final ok",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Times(3)
 				m.proverMock.On("ID").Return(proverID).Times(3)
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
@@ -776,7 +800,8 @@ func TestTryGenerateBatchProof(t *testing.T) {
 						proof := args[1].(*state.Proof)
 						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
 						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
-						assert.Equal(&proverID, proof.Prover)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
 						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
 					},
 				).Return(nil).Once()
@@ -792,7 +817,8 @@ func TestTryGenerateBatchProof(t *testing.T) {
 						proof := args[1].(*state.Proof)
 						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
 						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
-						assert.Equal(&proverID, proof.Prover)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
 						assert.Equal(string(b), proof.InputProver)
 						assert.Equal(recursiveProof, proof.Proof)
 						assert.Nil(proof.GeneratingSince)
@@ -851,6 +877,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 	batchNumFinal := uint64(42)
 	proofID := "proofID"
 	proof := "proof"
+	proverName := "proverName"
 	proverID := "proverID"
 	finalProofID := "finalProofID"
 	finalProof := pb.FinalProof{
@@ -896,6 +923,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 		{
 			name: "can't verify proof (verifyingProof = true)",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr").Once()
 				a.verifyingProof = true
@@ -910,6 +938,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 			name: "can't verify proof (veryfy time not reached yet)",
 			setup: func(m mox, a *Aggregator) {
 				a.TimeSendFinalProof = time.Now().Add(10 * time.Second)
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return("addr").Once()
 			},
@@ -921,6 +950,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 		{
 			name: "nil proof, error requesting the proof triggers defer",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr").Twice()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
@@ -942,6 +972,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 		{
 			name: "nil proof, error building the proof triggers defer",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr").Twice()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
@@ -964,6 +995,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 		{
 			name: "nil proof, generic error from GetProofReadyToVerify",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID).Once()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
@@ -978,6 +1010,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 		{
 			name: "nil proof, ErrNotFound from GetProofReadyToVerify",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID).Once()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
@@ -992,6 +1025,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 		{
 			name: "nil proof gets a proof ready to verify",
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return(proverID).Twice()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
@@ -1017,6 +1051,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 			name:  "error checking if proof is a complete sequence",
 			proof: &proofToVerify,
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID).Once()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
@@ -1032,6 +1067,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 			name:  "invalid proof (not consecutive to latest verified batch) rejected",
 			proof: &invalidProof,
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID).Once()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
@@ -1046,6 +1082,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 			name:  "invalid proof (not a complete sequence) rejected",
 			proof: &proofToVerify,
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Once()
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID).Once()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()
@@ -1061,6 +1098,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 			name:  "valid proof ok",
 			proof: &proofToVerify,
 			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return(proverID).Twice()
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&verifiedBatch, nil).Twice()

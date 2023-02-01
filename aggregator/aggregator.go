@@ -37,6 +37,7 @@ const (
 )
 
 type finalProofMsg struct {
+	proverName     string
 	proverID       string
 	recursiveProof *state.Proof
 	finalProof     *pb.FinalProof
@@ -172,7 +173,11 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 		return err
 	}
 
-	log := log.WithFields("proverId", prover.ID(), "proverAddr", prover.Addr())
+	log := log.WithFields(
+		"prover", prover.Name(),
+		"proverId", prover.ID(),
+		"proverAddr", prover.Addr(),
+	)
 	log.Debug("Establishing stream connection with prover")
 
 	for {
@@ -185,13 +190,19 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 			return ctx.Err()
 
 		default:
-			if !prover.IsIdle() {
+			isIdle, err := prover.IsIdle()
+			if err != nil {
+				log.Errorf("failed to check if prover is idle: %v", err)
+				time.Sleep(a.cfg.RetryTime.Duration)
+				continue
+			}
+			if !isIdle {
 				log.Debug("Prover is not idle")
 				time.Sleep(a.cfg.RetryTime.Duration)
 				continue
 			}
 
-			_, err := a.tryBuildFinalProof(ctx, prover, nil)
+			_, err = a.tryBuildFinalProof(ctx, prover, nil)
 			if err != nil {
 				log.Errorf("error checking proofs to verify: %v", err)
 			}
@@ -289,6 +300,7 @@ func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Cont
 // buildFinalProof builds and return the final proof for an aggregated/batch proof.
 func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (*pb.FinalProof, error) {
 	log := log.WithFields(
+		"prover", prover.Name(),
 		"proverId", prover.ID(),
 		"proverAddr", prover.Addr(),
 		"batches", fmt.Sprintf("%d-%d", proof.BatchNumber, proof.BatchNumberFinal),
@@ -333,8 +345,9 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 // generated proof.  If the proof is eligible, then the final proof generation
 // is triggered.
 func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (bool, error) {
+	proverName := prover.Name()
 	proverID := prover.ID()
-	log := log.WithFields("proverId", proverID, "proverAddr", prover.Addr())
+	log := log.WithFields("prover", proverName, "proverId", proverID, "proverAddr", prover.Addr())
 	log.Debug("tryBuildFinalProof start")
 
 	var err error
@@ -402,6 +415,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 	}
 
 	msg := finalProofMsg{
+		proverName:     proverName,
 		proverID:       proverID,
 		recursiveProof: proof,
 		finalProof:     finalProof,
@@ -544,8 +558,9 @@ func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover pro
 }
 
 func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterface) (bool, error) {
+	proverName := prover.Name()
 	proverID := prover.ID()
-	log := log.WithFields("proverId", proverID, "proverAddr", prover.Addr())
+	log := log.WithFields("prover", proverName, "proverId", proverID, "proverAddr", prover.Addr())
 	log.Debug("tryAggregateProofs start")
 
 	proof1, proof2, err0 := a.getAndLockProofsToAggregate(ctx, prover)
@@ -588,7 +603,8 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	proof := &state.Proof{
 		BatchNumber:      proof1.BatchNumber,
 		BatchNumberFinal: proof2.BatchNumberFinal,
-		Prover:           &proverID,
+		Prover:           &proverName,
+		ProverID:         &proverID,
 		InputProver:      string(b),
 		GeneratingSince:  &now,
 	}
@@ -697,11 +713,13 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverIn
 	}
 
 	proverID := prover.ID()
+	proverName := prover.Name()
 	now := time.Now().Round(time.Microsecond)
 	proof := &state.Proof{
 		BatchNumber:      batchToVerify.BatchNumber,
 		BatchNumberFinal: batchToVerify.BatchNumber,
-		Prover:           &proverID,
+		Prover:           &proverName,
+		ProverID:         &proverID,
 		GeneratingSince:  &now,
 	}
 
@@ -716,7 +734,7 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverIn
 }
 
 func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInterface) (bool, error) {
-	log := log.WithFields("proverId", prover.ID(), "proverAddr", prover.Addr())
+	log := log.WithFields("prover", prover.Name(), "proverId", prover.ID(), "proverAddr", prover.Addr())
 	log.Debug("tryGenerateBatchProof start")
 
 	batchToProve, proof, err0 := a.getAndLockBatchToProve(ctx, prover)
