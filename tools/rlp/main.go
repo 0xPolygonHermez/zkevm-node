@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/urfave/cli/v2"
 )
 
@@ -175,7 +174,6 @@ func encode(ctx *cli.Context) error {
 	s, _ := new(big.Int).SetString(sS, encoding.Base10)
 	log.Info("S: ", s)
 
-	var rawTxHex string
 	var txLegacy = types.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: gasPrice,
@@ -189,35 +187,13 @@ func encode(ctx *cli.Context) error {
 	}
 	tx := types.NewTx(&txLegacy)
 
-	V, R, S := tx.RawSignatureValues()
-	sign := 1 - (V.Uint64() & 1)
-
-	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
-		tx.Nonce(),
-		tx.GasPrice(),
-		tx.Gas(),
-		tx.To(),
-		tx.Value(),
-		tx.Data(),
-		tx.ChainId(), uint(0), uint(0),
-	})
+	rawBytes, err := state.EncodeTransactions([]types.Transaction{*tx})
 	if err != nil {
-		log.Error("error encoding rlp tx: ", err)
-		return fmt.Errorf("error encoding rlp tx: " + err.Error())
+		log.Error("error encoding txs: ", err)
+		return err
 	}
-	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
-	newRPadded := fmt.Sprintf("%064s", R.Text(hex.Base))
-	newSPadded := fmt.Sprintf("%064s", S.Text(hex.Base))
-	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
-	rawTxHex = rawTxHex + hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded
-
-	rawTx, err := hex.DecodeString(rawTxHex)
-	if err != nil {
-		log.Error("error coverting hex string to []byte. Error: ", err)
-		return fmt.Errorf("error coverting hex string to []byte. Error: " + err.Error())
-	}
-	log.Info("encoded tx with signature using RLP in []byte: ", rawTx)
-	log.Info("rawtx with signature using RLP in hex: ", hex.EncodeToString(rawTx))
+	log.Info("encoded tx with signature using RLP in []byte: ", rawBytes)
+	log.Info("rawtx with signature using RLP in hex: ", hex.EncodeToString(rawBytes))
 
 	return nil
 }
@@ -272,74 +248,6 @@ func decodeFullCallDataToTxs(txsData []byte) ([]types.Transaction, []byte, error
 
 	txsData = data[0].([]byte)
 
-	txs, err := decodeRawTxs(txsData)
+	txs, _, err := state.DecodeTxs(txsData)
 	return txs, txsData, err
-}
-
-func decodeRawTxs(txsData []byte) ([]types.Transaction, error) {
-	// Process coded txs
-	var pos int64
-	var txs []types.Transaction
-	const (
-		headerByteLength = 2
-		sLength          = 32
-		rLength          = 32
-		vLength          = 1
-		c0               = 192 // 192 is c0. This value is defined by the rlp protocol
-		ff               = 255 // max value of rlp header
-		shortRlp         = 55  // length of the short rlp codification
-		f7               = 247 // 192 + 55 = c0 + shortRlp
-		etherNewV        = 35
-		mul2             = 2
-	)
-	txDataLength := len(txsData)
-	for pos < int64(txDataLength) {
-		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
-		if err != nil {
-			log.Error("error parsing header length: ", err)
-			return []types.Transaction{}, err
-		}
-		// First byte is the length and must be ignored
-		len := num - c0 - 1
-
-		if len > shortRlp { // If rlp is bigger than length 55
-			// numH is the length of the bytes that give the length of the rlp
-			numH, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
-			if err != nil {
-				log.Error("error parsing length of the bytes: ", err)
-				return []types.Transaction{}, err
-			}
-			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
-			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1:pos+1+numH-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
-			if err != nil {
-				log.Error("error parsing length: ", err)
-				return []types.Transaction{}, err
-			}
-			len = n + 1 // +1 is the header. For example 0xf7
-		}
-
-		fullDataTx := txsData[pos : pos+len+rLength+sLength+vLength+headerByteLength]
-		txInfo := txsData[pos : pos+len+headerByteLength]
-		r := txsData[pos+len+headerByteLength : pos+len+rLength+headerByteLength]
-		s := txsData[pos+len+rLength+headerByteLength : pos+len+rLength+sLength+headerByteLength]
-		v := txsData[pos+len+rLength+sLength+headerByteLength : pos+len+rLength+sLength+vLength+headerByteLength]
-
-		pos = pos + len + rLength + sLength + vLength + headerByteLength
-
-		// Decode tx
-		var tx types.LegacyTx
-		err = rlp.DecodeBytes(txInfo, &tx)
-		if err != nil {
-			log.Error("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo))
-			return []types.Transaction{}, err
-		}
-
-		//tx.V = v-27+chainId*2+35
-		tx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(v), big.NewInt(ether155V)), new(big.Int).Add(new(big.Int).Mul(tx.V, big.NewInt(mul2)), big.NewInt(etherNewV)))
-		tx.R = new(big.Int).SetBytes(r)
-		tx.S = new(big.Int).SetBytes(s)
-
-		txs = append(txs, *types.NewTx(&tx))
-	}
-	return txs, nil
 }
