@@ -112,13 +112,7 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.IsProcessed = isProcessed(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
-
-		tx, err := DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
-		if err != nil {
-			return nil, err
-		}
-
-		result.Tx = *tx
+		result.Tx = txs[i]
 
 		results = append(results, result)
 
