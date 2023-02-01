@@ -1149,7 +1149,8 @@ func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHas
 	FROM state.log l
 	INNER JOIN state.transaction t ON t.hash = l.tx_hash
 	INNER JOIN state.l2block b ON b.block_num = t.l2_block_num 
-	WHERE t.hash = $1`
+	WHERE t.hash = $1
+	ORDER BY l.log_index ASC`
 	rows, err := q.Query(ctx, getTransactionLogsSQL, transactionHash.String())
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
@@ -1624,7 +1625,8 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		FROM state.log l
 	   INNER JOIN state.transaction t ON t.hash = l.tx_hash
 	   INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
-	   WHERE b.block_hash = $1`
+	   WHERE b.block_hash = $1
+	   ORDER BY b.block_num ASC, l.log_index ASC`
 	const getLogsByFilterSQL = `
 	  SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
 	    FROM state.log l
@@ -1636,7 +1638,7 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		 AND (l.topic2 = any($6) OR $6 IS NULL)
 		 AND (l.topic3 = any($7) OR $7 IS NULL)
 		 AND (b.created_at >= $8 OR $8 IS NULL)
-		ORDER BY b.block_num ASC`
+		 ORDER BY b.block_num ASC, l.log_index ASC`
 
 	var err error
 	var rows pgx.Rows
