@@ -48,7 +48,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 
 [Synchronizer]
 SyncInterval = "2s"
-SyncChunkSize = 10000
+SyncChunkSize = 100
 TrustedSequencerURI = ""
 GenBlockNumber = 8168980
 
