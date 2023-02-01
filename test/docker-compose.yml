@@ -50,6 +50,7 @@ services:
     image: zkevm-node
     ports:
       - 9092:9091 # needed if metrics enabled
+      - 6060:6060
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
