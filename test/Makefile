@@ -341,12 +341,12 @@ run: ## Runs a full node
 stop: ## Stops all services
 	$(STOP)
 
-.PHONY: sail
-sail: ## Builds docker images and run them
+.PHONY: ship
+ship: ## Builds docker images and run them
 	cd .. && make build-docker && cd ./test && make run
 
-.PHONY: resail
-resail: stop sail ## Executes `make stop` and `make sail` commands
+.PHONY: reship
+reship: stop ship ## Executes `make stop` and `make sail` commands
 
 .PHONY: restart
 restart: stop run ## Executes `make stop` and `make run` commands

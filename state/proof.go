@@ -1,5 +1,7 @@
 package state
 
+import "time"
+
 // Proof struct
 type Proof struct {
 	BatchNumber      uint64
@@ -8,5 +10,10 @@ type Proof struct {
 	InputProver      string
 	ProofID          *string
 	Prover           *string
-	Generating       bool
+	// GeneratingSince holds the timestamp for the moment in which the
+	// proof generation has started by a prover. Nil if the proof is not
+	// currently generating.
+	GeneratingSince *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }

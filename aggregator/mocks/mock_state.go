@@ -88,6 +88,27 @@ func (_m *StateMock) CleanupGeneratedProofs(ctx context.Context, batchNumber uin
 	return r0
 }
 
+// CleanupLockedProofs provides a mock function with given fields: ctx, duration, dbTx
+func (_m *StateMock) CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error) {
+	ret := _m.Called(ctx, duration, dbTx)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(context.Context, string, pgx.Tx) int64); ok {
+		r0 = rf(ctx, duration, dbTx)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, pgx.Tx) error); ok {
+		r1 = rf(ctx, duration, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // DeleteGeneratedProofs provides a mock function with given fields: ctx, batchNumber, batchNumberFinal, dbTx
 func (_m *StateMock) DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, batchNumberFinal, dbTx)
@@ -95,20 +116,6 @@ func (_m *StateMock) DeleteGeneratedProofs(ctx context.Context, batchNumber uint
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
 		r0 = rf(ctx, batchNumber, batchNumberFinal, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// DeleteReservedProof provides a mock function with given fields: ctx, proverID, proofID, batchNumber, batchNumberFinal, dbTx
-func (_m *StateMock) DeleteReservedProof(ctx context.Context, proverID string, proofID string, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, proverID, proofID, batchNumber, batchNumberFinal, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, uint64, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, proverID, proofID, batchNumber, batchNumberFinal, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

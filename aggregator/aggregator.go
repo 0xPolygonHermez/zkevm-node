@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -52,6 +53,7 @@ type Aggregator struct {
 	Ethman                  etherman
 	ProfitabilityChecker    aggregatorTxProfitabilityChecker
 	TimeSendFinalProof      time.Time
+	TimeCleanupLockedProofs types.Duration
 	StateDBMutex            *sync.Mutex
 	TimeSendFinalProofMutex *sync.RWMutex
 
@@ -87,6 +89,7 @@ func New(
 		ProfitabilityChecker:    profitabilityChecker,
 		StateDBMutex:            &sync.Mutex{},
 		TimeSendFinalProofMutex: &sync.RWMutex{},
+		TimeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 
 		finalProof: make(chan finalProofMsg),
 	}
@@ -139,6 +142,7 @@ func (a *Aggregator) Start(ctx context.Context) error {
 
 	a.resetVerifyProofTime()
 
+	go a.cleanupLockedProofs()
 	go a.sendFinalProof()
 
 	<-ctx.Done()
@@ -274,7 +278,7 @@ func (a *Aggregator) sendFinalProof() {
 
 func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Context, proof *state.Proof) {
 	log := log.WithFields("proofId", proof.ProofID, "batches", fmt.Sprintf("%d-%d", proof.BatchNumber, proof.BatchNumberFinal))
-	proof.Generating = false
+	proof.GeneratingSince = nil
 	err := a.State.UpdateGeneratedProof(ctx, proof, nil)
 	if err != nil {
 		log.Errorf("failed updating proof state (false): %v", err)
@@ -372,7 +376,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 		defer func() {
 			if err != nil {
 				// Set the generating state to false for the proof ("unlock" it)
-				proof.Generating = false
+				proof.GeneratingSince = nil
 				err2 := a.State.UpdateGeneratedProof(a.ctx, proof, nil)
 				if err2 != nil {
 					log.Errorf("failed to delete proof in progress, err: %v", err2)
@@ -455,7 +459,8 @@ func (a *Aggregator) getAndLockProofReadyToVerify(ctx context.Context, prover pr
 		return nil, err
 	}
 
-	proofToVerify.Generating = true
+	now := time.Now().Round(time.Microsecond)
+	proofToVerify.GeneratingSince = &now
 
 	err = a.State.UpdateGeneratedProof(ctx, proofToVerify, nil)
 	if err != nil {
@@ -473,10 +478,10 @@ func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.
 		return err
 	}
 
-	proof1.Generating = false
+	proof1.GeneratingSince = nil
 	err = a.State.UpdateGeneratedProof(ctx, proof1, dbTx)
 	if err == nil {
-		proof2.Generating = false
+		proof2.GeneratingSince = nil
 		err = a.State.UpdateGeneratedProof(ctx, proof2, dbTx)
 	}
 
@@ -513,10 +518,11 @@ func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover pro
 		return nil, nil, err
 	}
 
-	proof1.Generating = true
+	now := time.Now().Round(time.Microsecond)
+	proof1.GeneratingSince = &now
 	err = a.State.UpdateGeneratedProof(ctx, proof1, dbTx)
 	if err == nil {
-		proof2.Generating = true
+		proof2.GeneratingSince = &now
 		err = a.State.UpdateGeneratedProof(ctx, proof2, dbTx)
 	}
 
@@ -578,12 +584,13 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 		return false, fmt.Errorf("failed to serialize input prover, %w", err)
 	}
 
+	now := time.Now().Round(time.Microsecond)
 	proof := &state.Proof{
 		BatchNumber:      proof1.BatchNumber,
 		BatchNumberFinal: proof2.BatchNumberFinal,
 		Prover:           &proverID,
 		InputProver:      string(b),
-		Generating:       true,
+		GeneratingSince:  &now,
 	}
 
 	aggrProofID, err = prover.AggregatedProof(proof1.Proof, proof2.Proof)
@@ -645,7 +652,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	// NOTE(pg): prover is done, use a.ctx from now on
 
 	if !finalProofBuilt {
-		proof.Generating = false
+		proof.GeneratingSince = nil
 
 		// final proof has not been generated, update the recursive proof
 		err = a.State.UpdateGeneratedProof(a.ctx, proof, nil)
@@ -690,11 +697,12 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverIn
 	}
 
 	proverID := prover.ID()
+	now := time.Now().Round(time.Microsecond)
 	proof := &state.Proof{
 		BatchNumber:      batchToVerify.BatchNumber,
 		BatchNumberFinal: batchToVerify.BatchNumber,
 		Prover:           &proverID,
-		Generating:       true,
+		GeneratingSince:  &now,
 	}
 
 	// Avoid other prover to process the same batch
@@ -780,7 +788,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 	// NOTE(pg): prover is done, use a.ctx from now on
 
 	if !finalProofBuilt {
-		proof.Generating = false
+		proof.GeneratingSince = nil
 
 		// final proof has not been generated, update the recursive proof
 		err = a.State.UpdateGeneratedProof(a.ctx, proof, nil)
@@ -954,4 +962,23 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResu
 
 func buildMonitoredTxID(batchNumber, batchNumberFinal uint64) string {
 	return fmt.Sprintf(monitoredIDFormat, batchNumber, batchNumberFinal)
+}
+
+func (a *Aggregator) cleanupLockedProofs() {
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-time.After(a.TimeCleanupLockedProofs.Duration):
+			n, err := a.State.CleanupLockedProofs(a.ctx, a.cfg.GeneratingProofCleanupThreshold, nil)
+			if err != nil {
+				log.Errorf("failed to cleanup locked proofs: %v", err)
+			}
+			if n == 1 {
+				log.Warn("Found a stale proof and removed form cache")
+			} else if n > 1 {
+				log.Warnf("Found %d stale proofs and removed from cache", n)
+			}
+		}
+	}
 }
