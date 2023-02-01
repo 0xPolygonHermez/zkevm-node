@@ -82,12 +82,14 @@ func GetValues(metricsResponse *http.Response) (float64, float64, float64, error
 
 // FetchPrometheus fetches the prometheus metrics
 func FetchPrometheus() (*http.Response, error) {
+	log.Infof("Fetching prometheus metrics ...")
 	return http.Get(fmt.Sprintf("http://localhost:%d%s", shared.PrometheusPort, metricsLib.Endpoint))
 }
 
 // FetchProfiling fetches the profiling metrics
 func FetchProfiling() (string, error) {
 	fullUrl := fmt.Sprintf("http://localhost:%d%s", profilingPort, metricsLib.ProfileEndpoint)
+	log.Infof("Fetching profiling metrics from: %s ...", fullUrl)
 	cmd := exec.Command("go", "tool", "pprof", "-top", fullUrl)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
