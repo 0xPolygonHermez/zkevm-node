@@ -18,10 +18,6 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const (
-	ether155V = 27
-)
-
 func main() {
 	app := cli.NewApp()
 	app.Name = "RlpTool"
