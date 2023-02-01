@@ -312,7 +312,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	if tx != nil {
 		f.processRequest.Transactions = tx.RawTx
 	} else {
-		f.processRequest.Transactions = nil
+		f.processRequest.Transactions = []byte{}
 	}
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest)
 	if err != nil {
@@ -332,9 +332,14 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 		}
 		return fmt.Errorf("failed processing transaction, err: %w", result.ExecutorError)
 	} else {
-		err = f.handleSuccessfulTxProcessResp(ctx, tx, result)
-		if err != nil {
-			return err
+		// We have a successful processing if we are here, updating metadata
+		previousL2BlockStateRoot := f.batch.stateRoot
+		f.updateMetadata(result)
+		if tx != nil {
+			err = f.handleSuccessfulTxProcessResp(ctx, tx, result, previousL2BlockStateRoot)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -342,31 +347,20 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 }
 
 // handleSuccessfulTxProcessResp handles the response of a successful transaction processing.
-func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) error {
-	if tx == nil {
-		return nil
-	}
-
-	txResponse := result.Responses[0]
-	// Handle Transaction Error
-	if txResponse.RomError != nil {
-		f.handleTransactionError(ctx, txResponse, result, tx)
-		return txResponse.RomError
-	}
-
+func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, previousL2BlockStateRoot common.Hash) error {
 	// Check remaining resources
-	err := f.checkRemainingResources(result, tx, txResponse)
+	err := f.handleResourcesCheck(ctx, tx, result)
 	if err != nil {
 		return err
 	}
-
-	// We have a successful processing if we are here, updating metadata
-	previousL2BlockStateRoot := f.batch.stateRoot
-	f.processRequest.OldStateRoot = result.NewStateRoot
-	f.batch.stateRoot = result.NewStateRoot
-	f.batch.localExitRoot = result.NewLocalExitRoot
-
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
+	f.storeProcessedTx(previousL2BlockStateRoot, tx, result)
+
+	return nil
+}
+
+func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *TxTracker, result *state.ProcessBatchResponse) {
+	txResponse := result.Responses[0]
 	f.txsStore.Wg.Add(1)
 	f.txsStore.Ch <- &txToStore{
 		batchNumber:              f.batch.batchNumber,
@@ -378,6 +372,26 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 	f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
 	metrics.WorkerProcessingTime(time.Since(start))
 	f.batch.countOfTxs += 1
+}
+
+func (f *finalizer) updateMetadata(result *state.ProcessBatchResponse) {
+	f.processRequest.OldStateRoot = result.NewStateRoot
+	f.batch.stateRoot = result.NewStateRoot
+	f.batch.localExitRoot = result.NewLocalExitRoot
+}
+
+func (f *finalizer) handleResourcesCheck(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) error {
+	txResponse := result.Responses[0]
+	// Handle Transaction Error
+	if txResponse.RomError != nil {
+		f.handleTransactionError(ctx, txResponse, result, tx)
+		return txResponse.RomError
+	}
+
+	err := f.checkRemainingResources(result, tx, txResponse)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -566,7 +580,7 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 	receipt := ClosingBatchParameters{
 		BatchNumber:   f.batch.batchNumber,
 		StateRoot:     f.batch.stateRoot,
-		LocalExitRoot: f.processRequest.GlobalExitRoot,
+		LocalExitRoot: f.batch.localExitRoot,
 		Txs:           transactions,
 	}
 	return f.dbManager.CloseBatch(ctx, receipt)
