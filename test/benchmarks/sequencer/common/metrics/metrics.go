@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"net/http"
+	"os/exec"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -14,12 +15,13 @@ import (
 )
 
 const (
-	oneHundred = 100
+	oneHundred    = 100
+	profilingPort = 6060
 )
 
 // CalculateAndPrint calculates and prints the results
-func CalculateAndPrint(response *http.Response, elapsed time.Duration, sequencerTimeSub, executorTimeSub float64, nTxs int) {
-	seqeuncerTime, executorTime, workerTime, err := GetValues(response)
+func CalculateAndPrint(prometheusResp *http.Response, profilingResult string, elapsed time.Duration, sequencerTimeSub, executorTimeSub float64, nTxs int) {
+	sequencerTime, executorTime, workerTime, err := GetValues(prometheusResp)
 	if err != nil {
 		log.Fatalf("error getting prometheus metrics: %v", err)
 	}
@@ -31,14 +33,20 @@ func CalculateAndPrint(response *http.Response, elapsed time.Duration, sequencer
 	log.Info("######################")
 	log.Info("# Prometheus Metrics #")
 	log.Info("######################")
-	actualTotalTime := seqeuncerTime - sequencerTimeSub
+	actualTotalTime := sequencerTime - sequencerTimeSub
 	actualExecutorTime := executorTime - executorTimeSub
-	Print(actualTotalTime, actualExecutorTime, workerTime)
-	log.Infof("[Transactions per second]: %v", nTxs/int(actualTotalTime))
+	PrintPrometheus(actualTotalTime, actualExecutorTime, workerTime)
+	log.Infof("[Transactions per second]: %v", float64(nTxs)/actualTotalTime)
+	if profilingResult != "" {
+		log.Info("#####################")
+		log.Info("# Profiling Metrics #")
+		log.Info("#####################")
+		log.Infof("%v", profilingResult)
+	}
 }
 
-// Print prints the prometheus metrics
-func Print(totalTime float64, executorTime float64, workerTime float64) {
+// PrintPrometheus prints the prometheus metrics
+func PrintPrometheus(totalTime float64, executorTime float64, workerTime float64) {
 	log.Infof("[TOTAL Processing Time]: %v s", totalTime)
 	log.Infof("[EXECUTOR Processing Time]: %v s", executorTime)
 	log.Infof("[SEQUENCER Processing Time]: %v s", totalTime-executorTime)
@@ -51,7 +59,7 @@ func Print(totalTime float64, executorTime float64, workerTime float64) {
 func GetValues(metricsResponse *http.Response) (float64, float64, float64, error) {
 	var err error
 	if metricsResponse == nil {
-		metricsResponse, err = Fetch()
+		metricsResponse, err = FetchPrometheus()
 		if err != nil {
 			log.Fatalf("error getting prometheus metrics: %v", err)
 		}
@@ -72,7 +80,20 @@ func GetValues(metricsResponse *http.Response) (float64, float64, float64, error
 	return sequencerTotalProcessingTime, executorTotalProcessingTime, workerTotalProcessingTime, nil
 }
 
-// Fetch fetches the prometheus metrics
-func Fetch() (*http.Response, error) {
+// FetchPrometheus fetches the prometheus metrics
+func FetchPrometheus() (*http.Response, error) {
+	log.Infof("Fetching prometheus metrics ...")
 	return http.Get(fmt.Sprintf("http://localhost:%d%s", shared.PrometheusPort, metricsLib.Endpoint))
+}
+
+// FetchProfiling fetches the profiling metrics
+func FetchProfiling() (string, error) {
+	fullUrl := fmt.Sprintf("http://localhost:%d%s", profilingPort, metricsLib.ProfileEndpoint)
+	log.Infof("Fetching profiling metrics from: %s ...", fullUrl)
+	cmd := exec.Command("go", "tool", "pprof", "-top", fullUrl)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatalf("Error running pprof: %v\n%s", err, out)
+	}
+	return string(out), err
 }

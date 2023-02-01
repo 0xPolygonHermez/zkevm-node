@@ -37,6 +37,7 @@ type finalizer struct {
 	batchConstraints   batchConstraints
 	processRequest     state.ProcessRequest
 	sharedResourcesMux *sync.RWMutex
+	lastGERHash        common.Hash
 	// closing signals
 	nextGER                   common.Hash
 	nextGERDeadline           int64
@@ -91,6 +92,7 @@ func newFinalizer(
 		batchConstraints:   batchConstraints,
 		processRequest:     state.ProcessRequest{},
 		sharedResourcesMux: new(sync.RWMutex),
+		lastGERHash:        state.ZeroHash,
 		// closing signals
 		nextGER:                   common.Hash{},
 		nextGERDeadline:           0,
@@ -262,7 +264,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	// Process Forced Batches
 	if len(f.nextForcedBatches) > 0 {
-		lastBatchNumber, stateRoot, err = f.processForcedBatches(lastBatchNumber, stateRoot)
+		lastBatchNumber, stateRoot, err = f.processForcedBatches(ctx, lastBatchNumber, stateRoot)
 		if err != nil {
 			log.Errorf("failed to process forced batch, err: %s", err)
 		}
@@ -270,7 +272,9 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	// Take into consideration the GER
 	f.nextGERMux.Lock()
-	ger := f.nextGER
+	if f.nextGER != state.ZeroHash {
+		f.lastGERHash = f.nextGER
+	}
 	f.nextGER = state.ZeroHash
 	f.nextGERDeadline = 0
 	f.nextGERMux.Unlock()
@@ -280,11 +284,16 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	f.nextSendingToL1Deadline = 0
 	f.nextSendingToL1TimeoutMux.Unlock()
 
-	return f.openWIPBatch(ctx, lastBatchNumber+1, ger, stateRoot)
+	return f.openWIPBatch(ctx, lastBatchNumber+1, f.lastGERHash, stateRoot)
 }
 
 // processTransaction processes a single transaction.
 func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error {
+	var txHash string
+	if tx != nil {
+		txHash = tx.Hash.String()
+	}
+	log := log.WithFields("txHash", txHash, "batchNumber", f.processRequest.BatchNumber)
 	start := time.Now()
 	defer func() {
 		metrics.ProcessingTime(time.Since(start))
@@ -456,34 +465,57 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 }
 
 // processForcedBatches processes all the forced batches that are pending to be processed
-func (f *finalizer) processForcedBatches(lastBatchNumberInState uint64, stateRoot common.Hash) (uint64, common.Hash, error) {
+func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInState uint64, stateRoot common.Hash) (uint64, common.Hash, error) {
 	f.nextForcedBatchesMux.Lock()
-	// TODO: query for last included forced batch from database
-	// Then we do integrity check - if it is lower than the last batch number in the state we skip
-	// If it is higher than the last forced batch number in the state we get the one in order from database.
+	defer f.nextForcedBatchesMux.Unlock()
+
+	dbTx, err := f.dbManager.BeginStateTransaction(ctx)
+	if err != nil {
+		return 0, common.Hash{}, fmt.Errorf("failed to begin state transaction, err: %w", err)
+	}
+	lastTrustedForcedBatchNumber, err := f.dbManager.GetLastTrustedForcedBatchNumber(ctx, dbTx)
+	if err != nil {
+		return 0, common.Hash{}, fmt.Errorf("failed to get last trusted forced batch number, err: %w", err)
+	}
+	nextForcedBatchNum := lastTrustedForcedBatchNumber + 1
 
 	for _, forcedBatch := range f.nextForcedBatches {
-		processRequest := state.ProcessRequest{
-			BatchNumber:    lastBatchNumberInState + 1,
-			OldStateRoot:   stateRoot,
-			GlobalExitRoot: forcedBatch.GlobalExitRoot,
-			Transactions:   forcedBatch.RawTxsData,
-			Coinbase:       f.sequencerAddress,
-			Timestamp:      uint64(now().Unix()),
-			Caller:         state.SequencerCallerLabel,
+		// Skip already processed forced batches
+		if forcedBatch.ForcedBatchNumber < nextForcedBatchNum {
+			continue
 		}
-		response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, processRequest)
-		// TODO: design error handling for forced batches
-		if err != nil {
-			return lastBatchNumberInState, stateRoot, err
-		} else {
-			stateRoot = response.NewStateRoot
-			lastBatchNumberInState += 1
+		// Process in-between unprocessed forced batches
+		for forcedBatch.ForcedBatchNumber > nextForcedBatchNum {
+			lastBatchNumberInState, stateRoot = f.processForcedBatch(lastBatchNumberInState, stateRoot, forcedBatch)
+			nextForcedBatchNum += 1
 		}
+		// Process the current forced batch from the channel queue
+		lastBatchNumberInState, stateRoot = f.processForcedBatch(lastBatchNumberInState, stateRoot, forcedBatch)
+		nextForcedBatchNum += 1
 	}
 	f.nextForcedBatches = make([]state.ForcedBatch, 0)
-	f.nextForcedBatchesMux.Unlock()
 	return lastBatchNumberInState, stateRoot, nil
+}
+
+func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot common.Hash, forcedBatch state.ForcedBatch) (uint64, common.Hash) {
+	processRequest := state.ProcessRequest{
+		BatchNumber:    lastBatchNumberInState + 1,
+		OldStateRoot:   stateRoot,
+		GlobalExitRoot: forcedBatch.GlobalExitRoot,
+		Transactions:   forcedBatch.RawTxsData,
+		Coinbase:       f.sequencerAddress,
+		Timestamp:      uint64(now().Unix()),
+		Caller:         state.SequencerCallerLabel,
+	}
+	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, processRequest)
+	if err != nil {
+		// TODO: Think if need to design error handling for forced batches
+		log.Errorf("failed to process forced batch, err: %s", err)
+	} else {
+		stateRoot = response.NewStateRoot
+		lastBatchNumberInState += 1
+	}
+	return lastBatchNumberInState, stateRoot
 }
 
 // openWIPBatch opens a new batch in the state and returns it as WipBatch

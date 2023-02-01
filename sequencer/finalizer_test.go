@@ -466,20 +466,20 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 		RawTxsData:        RawTxsData2,
 	}
 	testCases := []struct {
-		name        string
-		forcedBatch []state.ForcedBatch
-		processErr  error
-		expectedErr error
+		name                            string
+		forcedBatch                     []state.ForcedBatch
+		getLastTrustedForcedBatchNumErr error
+		expectedErr                     error
 	}{
 		{
 			name:        "Success",
 			forcedBatch: []state.ForcedBatch{forcedBatch1, forcedBatch2},
 		},
 		{
-			name:        "Process Error",
-			forcedBatch: []state.ForcedBatch{forcedBatch1, forcedBatch2},
-			processErr:  testErr,
-			expectedErr: testErr,
+			name:                            "GetLastTrustedForcedBatchNumber_Error",
+			forcedBatch:                     []state.ForcedBatch{forcedBatch1},
+			getLastTrustedForcedBatchNumErr: testErr,
+			expectedErr:                     fmt.Errorf("failed to get last trusted forced batch number, err: %s", testErr),
 		},
 	}
 
@@ -488,6 +488,9 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 			// arrange
 			f.nextForcedBatches = tc.forcedBatch
 			internalBatchNumber := batchNumber
+			dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nil).Once()
+			dbManagerMock.On("GetLastTrustedForcedBatchNumber", ctx, dbTxMock).Return(uint64(1), tc.getLastTrustedForcedBatchNumErr).Once()
+
 			for _, forcedBatch := range tc.forcedBatch {
 				internalBatchNumber += 1
 				processRequest := state.ProcessRequest{
@@ -502,11 +505,11 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 				dbManagerMock.On("ProcessForcedBatch", forcedBatch.ForcedBatchNumber, processRequest).Return(&state.ProcessBatchResponse{
 					NewStateRoot:   stateRoot,
 					NewBatchNumber: internalBatchNumber,
-				}, tc.processErr).Once()
+				}, nilErr).Once()
 			}
 
 			// act
-			batchNumber, stateRoot, err = f.processForcedBatches(batchNumber, stateRoot)
+			batchNumber, stateRoot, err = f.processForcedBatches(ctx, batchNumber, stateRoot)
 
 			// assert
 			if tc.expectedErr != nil {

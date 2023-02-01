@@ -28,8 +28,9 @@ var (
 )
 
 const (
-	nTxs     = 10000
-	gasLimit = 21000
+	nTxs             = 10
+	gasLimit         = 21000
+	profilingEnabled = true
 )
 
 func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
@@ -40,9 +41,9 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 	setup.BootstrapSequencer(b, opsman)
 
 	var (
-		elapsed  time.Duration
-		response *http.Response
-		err      error
+		elapsed            time.Duration
+		prometheusResponse *http.Response
+		err                error
 	)
 
 	b.Run(fmt.Sprintf("sequencer_selecting_%d_txs", nTxs), func(b *testing.B) {
@@ -61,15 +62,24 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 		})
 		require.NoError(b, err)
 		elapsed = time.Since(start)
-		response, err = metrics.Fetch()
+		prometheusResponse, err = metrics.FetchPrometheus()
+
 		require.NoError(b, err)
 	})
+
+	var profilingResult string
+	if profilingEnabled {
+		profilingResult, err = metrics.FetchProfiling()
+		require.NoError(b, err)
+	}
 
 	err = operations.Teardown()
 	if err != nil {
 		log.Errorf("failed to teardown: %s", err)
 	}
-	metrics.CalculateAndPrint(response, elapsed, 0, 0, nTxs)
+
+	metrics.CalculateAndPrint(prometheusResponse, profilingResult, elapsed, 0, 0, nTxs)
+	fmt.Printf("%s\n", profilingResult)
 }
 
 func runTxSender(b *testing.B, l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64) {

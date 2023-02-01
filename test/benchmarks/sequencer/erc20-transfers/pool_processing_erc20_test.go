@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	nTxs      = 100
-	txTimeout = 60 * time.Second
+	nTxs             = 100
+	txTimeout        = 60 * time.Second
+	profilingEnabled = true
 )
 
 var (
@@ -71,20 +72,26 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 		})
 		require.NoError(b, err)
 		elapsed = time.Since(start)
-		response, err = metrics.Fetch()
+		response, err = metrics.FetchPrometheus()
 		require.NoError(b, err)
 	})
+
+	var profilingResult string
+	if profilingEnabled {
+		profilingResult, err = metrics.FetchProfiling()
+		require.NoError(b, err)
+	}
 
 	err = operations.Teardown()
 	if err != nil {
 		log.Errorf("failed to teardown: %s", err)
 	}
 
-	metrics.CalculateAndPrint(response, elapsed-deploySCElapsed, deploySCSequencerTime, deploySCExecutorOnlyTime, nTxs)
+	metrics.CalculateAndPrint(response, profilingResult, elapsed-deploySCElapsed, deploySCSequencerTime, deploySCExecutorOnlyTime, nTxs)
 	log.Infof("########################################")
 	log.Infof("# Deploying ERC20 SC and Mint Tx took: #")
 	log.Infof("########################################")
-	metrics.Print(deploySCSequencerTime, deploySCExecutorOnlyTime, 0)
+	metrics.PrintPrometheus(deploySCSequencerTime, deploySCExecutorOnlyTime, 0)
 }
 
 func deployERC20Contract(b *testing.B, client *ethclient.Client, ctx context.Context) error {
