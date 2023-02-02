@@ -3,7 +3,9 @@ package migrations_test
 import (
 	"database/sql"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -11,6 +13,31 @@ import (
 type migrationTest0006 struct{}
 
 func (m migrationTest0006) InsertData(db *sql.DB) error {
+	// Insert block to respect the FKey
+	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
+	if _, err := db.Exec(addBlock, 1, time.Now(), "0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"); err != nil {
+		return err
+	}
+	// Insert batches
+	for i := 0; i< 4; i++ {
+		_, err := db.Exec(`INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, state_root, acc_input_hash, timestamp, coinbase, raw_txs_data)
+	VALUES ($1, '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1', '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1',
+			'0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1', '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1',
+			$2, '0x2536C2745Ac4A584656A830f7bdCd329c94e8F30', $3)`, i, time.Now(), common.HexToHash("0x29e885edaf8e0000000000000000a23cf2d7d9f1"))
+		if err != nil {
+			return err
+		}
+	}
+	// Insert proof
+	const insertProof = `INSERT INTO state.proof (
+		batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating
+	) VALUES (
+		1, 1, '{"test": "test"}','proof_identifier','{"test": "test"}','prover 1', true
+	);`
+	_, err := db.Exec(insertProof)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -26,6 +53,21 @@ func (m migrationTest0006) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 		assert.NoError(t, row.Scan(&result))
 		assert.Equal(t, 1, result)
 	}
+	// Insert new proof
+	const insertNewProof = `INSERT INTO state.proof (
+		batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating_since, prover_id, updated_at, created_at
+	) VALUES (
+		2, 2, '{"test": "test"}','proof_identifier','{"test": "test"}','prover 1', $1, 'prover identifier', $1, $1
+	);`
+	_, err := db.Exec(insertNewProof, time.Now())
+	assert.NoError(t, err)
+	const insertOldProof = `INSERT INTO state.proof (
+		batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating
+	) VALUES (
+		3, 3, '{"test": "test"}','proof_identifier','{"test": "test"}','prover 1', true
+	);`
+	_, err = db.Exec(insertOldProof)
+	assert.Error(t, err)
 }
 
 func (m migrationTest0006) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
@@ -37,6 +79,21 @@ func (m migrationTest0006) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 		assert.NoError(t, row.Scan(&result))
 		assert.Equal(t, 0, result)
 	}
+	// Insert new proof
+	const insertNewProof = `INSERT INTO state.proof (
+		batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating_since, prover_id, updated_at, created_at
+	) VALUES (
+		3, 3, '{"test": "test"}','proof_identifier','{"test": "test"}','prover 1', $1, 'prover identifier', $1, $1
+	);`
+	_, err := db.Exec(insertNewProof, time.Now())
+	assert.Error(t, err)
+	const insertOldProof = `INSERT INTO state.proof (
+		batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating
+	) VALUES (
+		3, 3, '{"test": "test"}','proof_identifier','{"test": "test"}','prover 1', true
+	);`
+	_, err = db.Exec(insertOldProof)
+	assert.NoError(t, err)
 }
 
 func TestMigration0006(t *testing.T) {
