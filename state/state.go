@@ -478,12 +478,11 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*Proc
 	}
 	var result *ProcessBatchResponse
 
-	if len(request.Transactions) > 0 {
-		result, err = convertToProcessBatchResponse(res)
-		if err != nil {
-			return nil, err
-		}
+	result, err = convertToProcessBatchResponse(res)
+	if err != nil {
+		return nil, err
 	}
+
 	log.Debugf("ProcessBatch end")
 	log.Debugf("*******************************************")
 
