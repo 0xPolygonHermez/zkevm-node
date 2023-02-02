@@ -171,6 +171,12 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 	log := log.WithFields("proverId", prover.ID(), "proverAddr", prover.Addr())
 	log.Debug("Establishing stream connection with prover")
 
+	// Check if prover supports the required Fork ID
+	if !prover.SupportsForkID(a.cfg.ForkId) {
+		log.Warn("Prover does not support required fork ID")
+		return errors.New("prover does not support required fork ID")
+	}
+
 	for {
 		select {
 		case <-a.ctx.Done():

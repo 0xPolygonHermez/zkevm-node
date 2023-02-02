@@ -146,6 +146,7 @@ message GetStatusResponse {
     uint64 number_of_cores = 11;
     uint64 total_memory = 12;
     uint64 free_memory = 13;
+    uint64 fork_id = 14;
 }
 
 /**
