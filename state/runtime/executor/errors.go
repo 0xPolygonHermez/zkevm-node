@@ -83,6 +83,8 @@ const (
 	EXECUTOR_ERROR_COUNTERS_OVERFLOW_PADDING = 6
 	// EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON indicates that the poseidon counter exceeded the maximum
 	EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON = 7
+	// EXECUTOR_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
+	EXECUTOR_ERROR_UNSUPPORTED_FORK_ID = 8
 )
 
 // RomErr returns an instance of error related to the ExecutorError
@@ -247,6 +249,8 @@ func ExecutorErr(errorCode pb.ExecutorError) error {
 		return runtime.ErrOutOfCountersPadding
 	case EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON:
 		return runtime.ErrOutOfCountersPoseidon
+	case EXECUTOR_ERROR_UNSUPPORTED_FORK_ID:
+		return runtime.ErrUnsupportedForkId
 	}
 	return fmt.Errorf("unknown error")
 }
@@ -268,6 +272,8 @@ func ExecutorErrorCode(err error) pb.ExecutorError {
 		return pb.ExecutorError(EXECUTOR_ERROR_COUNTERS_OVERFLOW_PADDING)
 	case runtime.ErrOutOfCountersPoseidon:
 		return pb.ExecutorError(EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON)
+	case runtime.ErrUnsupportedForkId:
+		return pb.ExecutorError(EXECUTOR_ERROR_UNSUPPORTED_FORK_ID)
 	}
 	return math.MaxInt32
 }
