@@ -274,4 +274,6 @@ enum ExecutorError {
     EXECUTOR_ERROR_COUNTERS_OVERFLOW_PADDING = 6;
     // EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON indicates that the poseidon counter exceeded the maximum
     EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON = 7;
+    // EXECUTOR_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
+    EXECUTOR_ERROR_UNSUPPORTED_FORK_ID = 8;
 }

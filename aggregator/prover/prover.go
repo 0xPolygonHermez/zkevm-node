@@ -84,6 +84,16 @@ func (p *Prover) IsIdle() bool {
 	return status.Status == pb.GetStatusResponse_STATUS_IDLE
 }
 
+// SupportsForkID returns true if the prover supports the given fork id.
+func (p *Prover) SupportsForkID(forkID uint64) bool {
+	status, err := p.Status()
+	if err != nil {
+		log.Warnf("Error asking status for prover ID %s: %w", p.ID(), err)
+		return false
+	}
+	return status.ForkId == forkID
+}
+
 // BatchProof instructs the prover to generate a batch proof for the provided
 // input. It returns the ID of the proof being computed.
 func (p *Prover) BatchProof(input *pb.InputProver) (*string, error) {
