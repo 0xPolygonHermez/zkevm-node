@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -305,7 +306,42 @@ func Test_Defaults(t *testing.T) {
 			path:          "Metrics.Enabled",
 			expectedValue: false,
 		},
-		// TODO(pg): add Aggregator section
+		{
+			path:          "Aggregator.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
+			path:          "Aggregator.Port",
+			expectedValue: 50081,
+		},
+		{
+			path:          "Aggregator.RetryTime",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "Aggregator.VerifyProofInterval",
+			expectedValue: types.NewDuration(90 * time.Second),
+		},
+		{
+			path:          "Aggregator.TxProfitabilityCheckerType",
+			expectedValue: aggregator.TxProfitabilityCheckerType(aggregator.ProfitabilityAcceptAll),
+		},
+		{
+			path:          "Aggregator.TxProfitabilityMinReward",
+			expectedValue: aggregator.TokenAmountWithDecimals{Int: big.NewInt(1100000000000000000)},
+		},
+		{
+			path:          "Aggregator.ProofStatePollingInterval",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "Aggregator.CleanupLockedProofsInterval",
+			expectedValue: types.NewDuration(2 * time.Minute),
+		},
+		{
+			path:          "Aggregator.GeneratingProofCleanupThreshold",
+			expectedValue: "10m",
+		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")
 	require.NoError(t, err)

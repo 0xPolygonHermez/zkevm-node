@@ -5,6 +5,13 @@ networks:
 services:
   zkevm-rpc:
     container_name: zkevm-rpc
+    depends_on:
+      zkevm-pool-db:
+        condition: service_healthy
+      zkevm-state-db:
+        condition: service_healthy
+      zkevm-sync:
+        condition: service_started
     image: zkevm-node
     ports:
       - 8545:8545
@@ -23,6 +30,9 @@ services:
 
   zkevm-sync:
     container_name: zkevm-sync
+    depends_on:
+      zkevm-state-db:
+        condition: service_healthy
     image: zkevm-node
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
@@ -37,6 +47,11 @@ services:
   zkevm-state-db:
     container_name: zkevm-state-db
     image: postgres
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -51,11 +66,16 @@ services:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
       - POSTGRES_DB=state_db
-    command: ["postgres", "-N", "500"]
+    command: [ "postgres", "-N", "500" ]
 
   zkevm-pool-db:
     container_name: zkevm-pool-db
     image: postgres
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -68,7 +88,7 @@ services:
       - POSTGRES_USER=pool_user
       - POSTGRES_PASSWORD=pool_password
       - POSTGRES_DB=pool_db
-    command: ["postgres", "-N", "500"]
+    command: [ "postgres", "-N", "500" ]
 
   zkevm-prover:
     container_name: zkevm-prover

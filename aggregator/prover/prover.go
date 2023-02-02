@@ -10,7 +10,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
 var (
@@ -25,6 +24,7 @@ var (
 
 // Prover abstraction of the grpc prover client.
 type Prover struct {
+	name                      string
 	id                        string
 	address                   net.Addr
 	proofStatePollingInterval types.Duration
@@ -42,9 +42,13 @@ func New(stream pb.AggregatorService_ChannelServer, addr net.Addr, proofStatePol
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve prover id %w", err)
 	}
+	p.name = status.ProverName
 	p.id = status.ProverId
 	return p, nil
 }
+
+// Name returns the Prover name.
+func (p *Prover) Name() string { return p.name }
 
 // ID returns the Prover ID.
 func (p *Prover) ID() string { return p.id }
@@ -75,13 +79,12 @@ func (p *Prover) Status() (*pb.GetStatusResponse, error) {
 }
 
 // IsIdle returns true if the prover is idling.
-func (p *Prover) IsIdle() bool {
+func (p *Prover) IsIdle() (bool, error) {
 	status, err := p.Status()
 	if err != nil {
-		log.Warnf("Error asking status for prover ID %s: %w", p.ID(), err)
-		return false
+		return false, err
 	}
-	return status.Status == pb.GetStatusResponse_IDLE
+	return status.Status == pb.GetStatusResponse_IDLE, nil
 }
 
 // BatchProof instructs the prover to generate a batch proof for the provided
