@@ -14,5 +14,5 @@ func GetForkIDByBatchNumber(intervals []ForkIDInterval, batchNumber uint64) uint
 			return interval.ForkId
 		}
 	}
-	return 0
+	return 1
 }

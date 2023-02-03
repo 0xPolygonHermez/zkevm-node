@@ -91,6 +91,9 @@ func (p *Prover) SupportsForkID(forkID uint64) bool {
 		log.Warnf("Error asking status for prover ID %s: %w", p.ID(), err)
 		return false
 	}
+
+	log.Debugf("Prover %s supports fork ID %d", p.ID(), status.ForkId)
+
 	return status.ForkId == forkID
 }
 

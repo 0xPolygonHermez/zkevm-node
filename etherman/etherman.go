@@ -842,13 +842,13 @@ func (etherMan *Client) GetL2ChainID() (uint64, error) {
 // GetL2ForkID returns current L2 Fork ID
 func (etherMan *Client) GetL2ForkID() (uint64, error) {
 	// TODO: implement this
-	return 0, nil
+	return 1, nil
 }
 
 // GetL2ForkIDIntervals return L2 Fork ID intervals
 func (etherMan *Client) GetL2ForkIDIntervals() ([]state.ForkIDInterval, error) {
 	// TODO: implement this
-	return []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: 0}}, nil
+	return []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: 1}}, nil
 }
 
 // GetL1GasPrice gets the l1 gas price
