@@ -782,7 +782,7 @@ func scanForcedBatch(row pgx.Row) (ForcedBatch, error) {
 		coinbaseStr string
 	)
 	if err := row.Scan(
-		&forcedBatch.BlockNumber,
+		&forcedBatch.ForcedBatchNumber,
 		&gerStr,
 		&forcedBatch.ForcedAt,
 		&forcedBatch.RawTxsData,
