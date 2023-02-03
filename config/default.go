@@ -3,6 +3,7 @@ package config
 // DefaultValues is the default configuration
 const DefaultValues = `
 IsTrustedSequencer = false
+DefaultForkID = 1
 
 [Log]
 Environment = "development" # "production" or "development"
