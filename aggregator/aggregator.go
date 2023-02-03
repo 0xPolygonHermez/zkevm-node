@@ -152,7 +152,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 
 	// Check if prover supports the required Fork ID
 	if !prover.SupportsForkID(a.cfg.ForkId) {
-		log.Warn("Prover does not support required fork ID")
+		log.Warn("Prover does not support required fork ID.")
 		return errors.New("prover does not support required fork ID")
 	}
 
