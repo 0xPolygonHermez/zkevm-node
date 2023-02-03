@@ -119,7 +119,7 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
 		if err != nil {
 			timestamp := time.Now()
-			log.Errorf("error found in the executor: %v at %v", err, timestamp)
+			log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
 			debugInfo := &DebugInfo{
 				ErrorType: DebugInfoErrorType_EXECUTOR_RLP_ERROR,
 				Timestamp: timestamp,
