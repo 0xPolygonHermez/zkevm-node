@@ -1,8 +1,10 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -16,12 +18,12 @@ import (
 )
 
 // TestConvertToProcessBatchResponse for test purposes
-func TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	return convertToProcessBatchResponse(txs, response)
+func (s *State) TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	return s.convertToProcessBatchResponse(txs, response)
 }
 
-func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	responses, err := convertToProcessTransactionResponse(txs, response.Responses)
+func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	responses, err := s.convertToProcessTransactionResponse(txs, response.Responses)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +92,7 @@ func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) ([]*Inf
 	return results, nil
 }
 
-func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
+func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for i, response := range responses {
 		trace, err := convertToStructLogArray(response.ExecutionTrace)
@@ -113,6 +115,21 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]
+
+		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
+		if err != nil {
+			timestamp := time.Now()
+			log.Errorf("error found in the executor: %v at %v", err, timestamp)
+			debugInfo := &DebugInfo{
+				ErrorType: DebugInfoErrorType_EXECUTOR_RLP_ERROR,
+				Timestamp: timestamp,
+				Payload:   string(response.GetRlpTx()),
+			}
+			err = s.AddDebugInfo(context.Background(), debugInfo, nil)
+			if err != nil {
+				log.Errorf("error storing payload: %v", err)
+			}
+		}
 
 		results = append(results, result)
 
