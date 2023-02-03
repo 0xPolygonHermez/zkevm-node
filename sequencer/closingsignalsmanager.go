@@ -46,6 +46,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 func (c *closingSignalsManager) checkForcedBatches() {
 	for {
 		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
+		log.Debug(time.Now())
 
 		latestSentForcedBatchNumber, err := c.dbManager.GetLastTrustedForcedBatchNumber(c.ctx, nil)
 		if err != nil {

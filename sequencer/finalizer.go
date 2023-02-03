@@ -143,7 +143,11 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 		// Forced  batch ch
 		case fb := <-f.closingSignalCh.ForcedBatchCh:
 			f.nextForcedBatchesMux.Lock()
-			f.nextForcedBatches = append(f.nextForcedBatches, fb) // TODO: change insert sort if not exists
+
+			if !containsForcedBatch(f.nextForcedBatches, fb) {
+				f.nextForcedBatches = append(f.nextForcedBatches, fb) // TODO: change insert sort if not exists
+			}
+
 			if f.nextForcedBatchDeadline == 0 {
 				f.setNextForcedBatchDeadline()
 			}
@@ -178,6 +182,15 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			f.nextSendingToL1TimeoutMux.Unlock()
 		}
 	}
+}
+
+func containsForcedBatch(nextForcedBatches []state.ForcedBatch, fb state.ForcedBatch) bool {
+	for _, f := range nextForcedBatches {
+		if f.ForcedBatchNumber == fb.ForcedBatchNumber {
+			return true
+		}
+	}
+	return false
 }
 
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
