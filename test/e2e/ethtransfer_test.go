@@ -108,6 +108,6 @@ func TestEthTransfer(t *testing.T) {
 
 	// wait for l2 block number to be consolidated
 	log.Infof("waiting for the block number %v to be consolidated", l2BlockNumber.String())
-	err = operations.WaitL2BlockToBeConsolidated(l2BlockNumber, 6*time.Minute)
+	err = operations.WaitL2BlockToBeConsolidated(l2BlockNumber, 4*time.Minute)
 	require.NoError(t, err)
 }
