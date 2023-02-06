@@ -181,6 +181,11 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 	}
 	responsePrev, err := etherMan.EthClient.CodeAt(ctx, etherMan.cfg.PoEAddr, genBlock.Sub(genBlock, big.NewInt(1)))
 	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			if errors.Is(parsedErr, ErrMissingTrieNode) {
+				return true, nil
+			}
+		}
 		log.Error("error getting smc code for gen block number. Error: ", err)
 		return false, err
 	}
