@@ -22,28 +22,29 @@ func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface,
 func (c *closingSignalsManager) Start() {
 	go c.checkForcedBatches()
 	go c.checkGERUpdate()
-	go c.checkSendToL1Timeout()
+	// go c.checkSendToL1Timeout()
 }
 
-func (c *closingSignalsManager) checkSendToL1Timeout() {
-	for {
-		timestamp, err := c.dbManager.GetLatestVirtualBatchTimestamp(c.ctx, nil)
-		if err != nil {
-			log.Errorf("error checking latest virtual batch timestamp: %v", err)
-			time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
-		} else {
-			limit := time.Now().Unix() - int64(c.cfg.SendingToL1DeadlineTimeoutInSec.Duration.Seconds())
-
-			if timestamp.Unix() < limit {
-				c.closingSignalCh.SendingToL1TimeoutCh <- true
+/*
+	func (c *closingSignalsManager) checkSendToL1Timeout() {
+		for {
+			timestamp, err := c.dbManager.GetLatestVirtualBatchTimestamp(c.ctx, nil)
+			if err != nil {
+				log.Errorf("error checking latest virtual batch timestamp: %v", err)
 				time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
 			} else {
-				time.Sleep(time.Duration(limit-timestamp.Unix()) * time.Second)
+				limit := time.Now().Unix() - int64(c.cfg.SendingToL1DeadlineTimeoutInSec.Duration.Seconds())
+
+				if timestamp.Unix() < limit {
+					c.closingSignalCh.SendingToL1TimeoutCh <- true
+					time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
+				} else {
+					time.Sleep(time.Duration(limit-timestamp.Unix()) * time.Second)
+				}
 			}
 		}
 	}
-}
-
+*/
 func (c *closingSignalsManager) checkGERUpdate() {
 	var lastGERSent common.Hash
 
