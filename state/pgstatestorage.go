@@ -529,6 +529,21 @@ func (p *PostgresStorage) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.T
 	return batchNum, nil
 }
 
+// GetLatestVirtualBatchTimestamp gets last virtual batch timestamp
+func (p *PostgresStorage) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
+	const getLastVirtualBatchTimestampSQL = `SELECT MAX(timestamp) FROM state.virtual_batch`
+	var timestamp time.Time
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getLastVirtualBatchTimestampSQL).Scan(&timestamp)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Unix(0, 0), ErrNotFound
+	} else if err != nil {
+		return time.Unix(0, 0), err
+	}
+	return timestamp, nil
+}
+
 // SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
 // the roll-up in order to allow the components to know if the state
 // is synchronized or not
