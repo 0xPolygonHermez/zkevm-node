@@ -243,7 +243,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:1b56ab0
+    image: hermeznetwork/zkevm-prover:b9179f3
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
