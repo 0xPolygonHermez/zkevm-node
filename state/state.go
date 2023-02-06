@@ -444,7 +444,7 @@ func (s *State) ProcessSequencerBatch(
 	if err != nil {
 		return nil, err
 	}
-	result, err := convertToProcessBatchResponse(txs, processBatchResponse)
+	result, err := s.convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -800,7 +800,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 		}
 	}
 
-	processedBatch, err := convertToProcessBatchResponse(decodedTransactions, processed)
+	processedBatch, err := s.convertToProcessBatchResponse(decodedTransactions, processed)
 	if err != nil {
 		return err
 	}
@@ -909,7 +909,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		log.Debugf(tx.Hash().String())
 	}
 
-	convertedResponse, err := convertToProcessBatchResponse(txs, processBatchResponse)
+	convertedResponse, err := s.convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -1203,7 +1203,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		return result
 	}
 
-	response, err := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
+	response, err := s.convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
 	if err != nil {
 		result.Err = err
 		return result
