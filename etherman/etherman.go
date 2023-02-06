@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"math"
 	"math/big"
 	"strings"
 	"time"
@@ -851,6 +853,18 @@ func (etherMan *Client) GetPublicAddress() (common.Address, error) {
 // GetL2ChainID returns L2 Chain ID
 func (etherMan *Client) GetL2ChainID() (uint64, error) {
 	return etherMan.PoE.ChainID(&bind.CallOpts{Pending: false})
+}
+
+// GetL2ForkID returns current L2 Fork ID
+func (etherMan *Client) GetL2ForkID() (uint64, error) {
+	// TODO: implement this
+	return 0, nil
+}
+
+// GetL2ForkIDIntervals return L2 Fork ID intervals
+func (etherMan *Client) GetL2ForkIDIntervals() ([]state.ForkIDInterval, error) {
+	// TODO: implement this
+	return []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: 0}}, nil
 }
 
 func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {

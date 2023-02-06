@@ -65,6 +65,8 @@ const (
 	ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW
 	// ROM_ERROR_BATCH_DATA_TOO_BIG indicates the batch_l2_data is too big to be processed
 	ROM_ERROR_BATCH_DATA_TOO_BIG
+	// ROM_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
+	ROM_ERROR_UNSUPPORTED_FORK_ID
 	// EXECUTOR_ERROR_UNSPECIFIED indicates the execution ended successfully
 	EXECUTOR_ERROR_UNSPECIFIED = 0
 	// EXECUTOR_ERROR_NO_ERROR indicates there was no error
@@ -143,6 +145,8 @@ func RomErr(errorCode pb.RomError) error {
 		return runtime.ErrIntrinsicInvalidTxGasOverflow
 	case ROM_ERROR_BATCH_DATA_TOO_BIG:
 		return runtime.ErrBatchDataTooBig
+	case ROM_ERROR_UNSUPPORTED_FORK_ID:
+		return runtime.ErrUnsupportedForkId
 	}
 	return fmt.Errorf("unknown error")
 }
@@ -202,6 +206,8 @@ func RomErrorCode(err error) pb.RomError {
 		return pb.RomError(ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW)
 	case runtime.ErrBatchDataTooBig:
 		return pb.RomError(ROM_ERROR_BATCH_DATA_TOO_BIG)
+	case runtime.ErrUnsupportedForkId:
+		return pb.RomError(ROM_ERROR_UNSUPPORTED_FORK_ID)
 	}
 	return math.MaxInt32
 }
