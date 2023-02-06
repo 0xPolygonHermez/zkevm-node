@@ -167,6 +167,7 @@ func NewClient(cfg Config) (*Client, error) {
 	}, nil
 }
 
+// VerifyGenBlockNumber verifies if the genesis Block Number is valid
 func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
 	genBlock := big.NewInt(0).SetUint64(genBlockNumber)
 	response, err := etherMan.EthClient.CodeAt(ctx, etherMan.cfg.PoEAddr, genBlock)
@@ -187,8 +188,7 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 	if responsePrevString != "" {
 		return false, nil
 	}
-
-	return true, nil 
+	return true, nil
 }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
