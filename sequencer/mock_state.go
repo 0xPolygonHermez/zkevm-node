@@ -453,6 +453,27 @@ func (_m *StateMock) GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber
 	return r0, r1, r2
 }
 
+// GetLatestVirtualBatchTimestamp provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 time.Time
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) time.Time); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(time.Time)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetNonceByStateRoot provides a mock function with given fields: ctx, address, root
 func (_m *StateMock) GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	ret := _m.Called(ctx, address, root)

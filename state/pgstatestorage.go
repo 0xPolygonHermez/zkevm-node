@@ -531,7 +531,7 @@ func (p *PostgresStorage) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.T
 
 // GetLatestVirtualBatchTimestamp gets last virtual batch timestamp
 func (p *PostgresStorage) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
-	const getLastVirtualBatchTimestampSQL = `SELECT MAX(timestamp) FROM state.virtual_batch`
+	const getLastVirtualBatchTimestampSQL = `SELECT MAX(timestamp) FROM state.batch WHERE state_root IS NOT NULL`
 	var timestamp time.Time
 	e := p.getExecQuerier(dbTx)
 	err := e.QueryRow(ctx, getLastVirtualBatchTimestampSQL).Scan(&timestamp)
