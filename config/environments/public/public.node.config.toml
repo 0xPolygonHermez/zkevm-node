@@ -48,8 +48,8 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 
 [Synchronizer]
 SyncInterval = "2s"
-SyncChunkSize = 10000
-GenBlockNumber = 8168980
+SyncChunkSize = 100
+GenBlockNumber = 8168981
 
 [L2GasPriceSuggester]
 Type = "default"

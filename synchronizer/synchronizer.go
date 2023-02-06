@@ -76,7 +76,17 @@ func (s *ClientSynchronizer) Sync() error {
 	lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx, dbTx)
 	if err != nil {
 		if errors.Is(err, state.ErrStateNotSynchronized) {
-			log.Info("State is empty, setting genesis block")
+			log.Info("State is empty, verifying genesis block")
+			valid, err := s.etherMan.VerifyGenBlockNumber(s.ctx, s.cfg.GenBlockNumber)
+			if err != nil {
+				log.Error("error checking genesis block number. Error: ", err)
+				return err
+			} else if !valid {
+				log.Error("genesis Block number configured is not valid. It is required the block number where the PolygonZkEVM smc was deployed")
+				return fmt.Errorf("genesis Block number configured is not valid. It is required the block number where the PolygonZkEVM smc was deployed")
+			}
+			
+			log.Info("Setting genesis block")
 			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.cfg.GenBlockNumber))
 			if err != nil {
 				log.Fatal("error getting l1 block header for block ", s.cfg.GenBlockNumber, " : ", err)
