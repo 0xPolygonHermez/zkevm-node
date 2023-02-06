@@ -566,3 +566,8 @@ func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumbe
 func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error {
 	return d.txPool.UpdateTxStatus(ctx, hash, newStatus)
 }
+
+// GetLatestVirtualBatchTimestamp gets last virtual batch timestamp
+func (d *dbManager) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
+	return d.state.GetLatestVirtualBatchTimestamp(ctx, dbTx)
+}

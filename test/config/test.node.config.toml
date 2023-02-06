@@ -123,10 +123,10 @@ Port = 50060
 StoreBackend = "PostgreSQL"
 
 [MTClient]
-URI  = "34.245.104.156:50061"
+URI  = "zkevm-prover:50061"
 
 [Executor]
-URI = "34.245.104.156:50071"
+URI = "zkevm-prover:50071"
 
 [BroadcastServer]
 Host = "0.0.0.0"
