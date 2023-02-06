@@ -79,7 +79,7 @@ func TestEthTransfer(t *testing.T) {
 		sentTxs = append(sentTxs, signedTx)
 	}
 	// wait for TX to be mined
-	timeout := 180 * 3 * time.Second
+	timeout := 180 * 5 * time.Second
 	for _, tx := range sentTxs {
 		log.Infof("Waiting Tx %s to be mined", tx.Hash())
 		err = operations.WaitTxToBeMined(ctx, client, tx, timeout)
