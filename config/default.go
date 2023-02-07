@@ -3,6 +3,7 @@ package config
 // DefaultValues is the default configuration
 const DefaultValues = `
 IsTrustedSequencer = false
+DefaultForkID = 1
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -99,6 +100,8 @@ VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
+CleanupLockedProofsInterval = "2m"
+GeneratingProofCleanupThreshold = "10m"
 
 [L2GasPriceSuggester]
 Type = "default"

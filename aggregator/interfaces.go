@@ -15,9 +15,10 @@ import (
 // Consumer interfaces required by the package.
 
 type proverInterface interface {
+	Name() string
 	ID() string
 	Addr() string
-	IsIdle() bool
+	IsIdle() (bool, error)
 	BatchProof(input *pb.InputProver) (*string, error)
 	AggregatedProof(inputProof1, inputProof2 string) (*string, error)
 	FinalProof(inputProof string, aggregatorAddr string) (*string, error)
@@ -60,4 +61,5 @@ type stateInterface interface {
 	DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error
 	DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error
 	CleanupGeneratedProofs(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+	CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error)
 }
