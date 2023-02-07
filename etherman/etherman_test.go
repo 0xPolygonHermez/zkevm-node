@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"testing"
 	"time"
@@ -383,4 +384,17 @@ func TestErrorEtherScanPrice(t *testing.T) {
 	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625002), nil)
 	gp := etherman.GetL1GasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625002), gp)
+}
+
+func TestGetForks(t *testing.T) {
+	// Set up testing environment
+	etherman, _, _, _, _ := newTestingEnv()
+	ctx := context.Background()
+	forks, err := etherman.GetForks(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(forks))
+	assert.Equal(t, uint64(1), forks[0].ForkId)
+	assert.Equal(t, uint64(0), forks[0].FromBatchNumber)
+	assert.Equal(t, uint64(math.MaxUint64), forks[0].ToBatchNumber)
+	assert.Equal(t, "v1", forks[0].Version)
 }
