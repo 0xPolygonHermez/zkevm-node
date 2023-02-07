@@ -21,7 +21,7 @@ func InitOrResetPool(cfg db.Config) error {
 }
 
 // initOrReset will initializes the db running the migrations or
-// will reset all the known data and rerun the migrations
+// will reset all the known data and return the migrations
 func initOrReset(cfg db.Config, name string) error {
 	log.Infof("running migrations for %v", name)
 	// connect to database
