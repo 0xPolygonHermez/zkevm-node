@@ -64,7 +64,6 @@
     "inputFile": "input_executor_0.json",
     "inputFile2": "input_executor_1.json",
 
-    "rom": "config/scripts/rom.json",
     "keccakScriptFile": "config/scripts/keccak_script.json",
     "storageRomFile": "config/scripts/storage_sm_rom.json",
 
