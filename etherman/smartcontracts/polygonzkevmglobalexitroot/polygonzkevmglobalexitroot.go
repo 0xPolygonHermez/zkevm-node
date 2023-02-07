@@ -30,8 +30,8 @@ var (
 
 // PolygonzkevmglobalexitrootMetaData contains all meta data concerning the Polygonzkevmglobalexitroot contract.
 var PolygonzkevmglobalexitrootMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"version\",\"type\":\"uint8\"}],\"name\":\"Initialized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"mainnetExitRoot\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"rollupExitRoot\",\"type\":\"bytes32\"}],\"name\":\"UpdateGlobalExitRoot\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"bridgeAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastGlobalExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"globalExitRootMap\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_rollupAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_bridgeAddress\",\"type\":\"address\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastMainnetExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastRollupExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rollupAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"newRoot\",\"type\":\"bytes32\"}],\"name\":\"updateExitRoot\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
-	Bin: "0x608060405234801561001057600080fd5b506104f3806100206000396000f3fe608060405234801561001057600080fd5b50600436106100885760003560e01c80633ed691ef1161005b5780633ed691ef146100e7578063485cc955146101205780635ec6a8df14610133578063a3c573eb1461015e57600080fd5b806301fd90441461008d578063257b3632146100a9578063319cf735146100c957806333d6247d146100d2575b600080fd5b61009660015481565b6040519081526020015b60405180910390f35b6100966100b7366004610455565b60036020526000908152604090205481565b61009660025481565b6100e56100e0366004610455565b610171565b005b61009660025460015460408051602081019390935282015260009060600160405160208183030381529060405280519060200120905090565b6100e561012e36600461048a565b6102f3565b600554610146906001600160a01b031681565b6040516001600160a01b0390911681526020016100a0565b600454610146906001600160a01b031681565b6005546001600160a01b031633148061019457506004546001600160a01b031633145b6102315760405162461bcd60e51b815260206004820152604260248201527f506f6c79676f6e5a6b45564d476c6f62616c45786974526f6f743a3a7570646160448201527f746545786974526f6f743a204f6e6c7920616c6c6f77656420636f6e7472616360648201527f7473000000000000000000000000000000000000000000000000000000000000608482015260a4015b60405180910390fd5b6005546001600160a01b031633036102495760018190555b6004546001600160a01b031633036102615760028190555b60025460015460408051602081019390935282015260009060600160405160208183030381529060405280519060200120905060036000828152602001908152602001600020546000036102ef57600081815260036020526040808220429055600154600254915190927f61014378f82a0d809aefaf87a8ac9505b89c321808287a6e7810f29304c1fce391a35b5050565b600054610100900460ff16158080156103135750600054600160ff909116105b8061032d5750303b15801561032d575060005460ff166001145b61039f5760405162461bcd60e51b815260206004820152602e60248201527f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160448201527f647920696e697469616c697a65640000000000000000000000000000000000006064820152608401610228565b6000805460ff1916600117905580156103c2576000805461ff0019166101001790555b600580546001600160a01b038086167fffffffffffffffffffffffff00000000000000000000000000000000000000009283161790925560048054928516929091169190911790558015610450576000805461ff0019169055604051600181527f7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb38474024989060200160405180910390a15b505050565b60006020828403121561046757600080fd5b5035919050565b80356001600160a01b038116811461048557600080fd5b919050565b6000806040838503121561049d57600080fd5b6104a68361046e565b91506104b46020840161046e565b9050925092905056fea26469706673582212204755a4cbf50d99cfafb99c5429e784137da120dba2e519fdf39654b3c4a8a5d864736f6c634300080f0033",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_rollupAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_bridgeAddress\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"OnlyAllowedContracts\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"mainnetExitRoot\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"rollupExitRoot\",\"type\":\"bytes32\"}],\"name\":\"UpdateGlobalExitRoot\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"bridgeAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastGlobalExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"globalExitRootMap\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastMainnetExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastRollupExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rollupAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"newRoot\",\"type\":\"bytes32\"}],\"name\":\"updateExitRoot\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Bin: "0x60c060405234801561001057600080fd5b506040516103f83803806103f883398101604081905261002f91610062565b6001600160a01b0391821660a05216608052610095565b80516001600160a01b038116811461005d57600080fd5b919050565b6000806040838503121561007557600080fd5b61007e83610046565b915061008c60208401610046565b90509250929050565b60805160a0516103316100c76000396000818160e901526101bd015260008181610135015261017401526103316000f3fe608060405234801561001057600080fd5b506004361061007d5760003560e01c806333d6247d1161005b57806333d6247d146100c75780633ed691ef146100dc5780635ec6a8df146100e4578063a3c573eb1461013057600080fd5b806301fd904414610082578063257b36321461009e578063319cf735146100be575b600080fd5b61008b60005481565b6040519081526020015b60405180910390f35b61008b6100ac3660046102e2565b60026020526000908152604090205481565b61008b60015481565b6100da6100d53660046102e2565b610157565b005b61008b6102a6565b61010b7f000000000000000000000000000000000000000000000000000000000000000081565b60405173ffffffffffffffffffffffffffffffffffffffff9091168152602001610095565b61010b7f000000000000000000000000000000000000000000000000000000000000000081565b60005460015473ffffffffffffffffffffffffffffffffffffffff7f00000000000000000000000000000000000000000000000000000000000000001633036101a65750600182905581610222565b73ffffffffffffffffffffffffffffffffffffffff7f00000000000000000000000000000000000000000000000000000000000000001633036101f0576000839055829150610222565b6040517fb49365dd00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b60408051602080820184905281830185905282518083038401815260609092019092528051910120600090600081815260026020526040812054919250036102a05760008181526002602052604080822042905551849184917f61014378f82a0d809aefaf87a8ac9505b89c321808287a6e7810f29304c1fce39190a35b50505050565b60006102dd600154600054604080516020808201949094528082019290925280518083038201815260609092019052805191012090565b905090565b6000602082840312156102f457600080fd5b503591905056fea2646970667358221220e7dee8a420da2e0e8a9c8794bd77473a90d0da4f68ae0f3c0ca6c0994fea144d64736f6c63430008110033",
 }
 
 // PolygonzkevmglobalexitrootABI is the input ABI used to generate the binding from.
@@ -43,7 +43,7 @@ var PolygonzkevmglobalexitrootABI = PolygonzkevmglobalexitrootMetaData.ABI
 var PolygonzkevmglobalexitrootBin = PolygonzkevmglobalexitrootMetaData.Bin
 
 // DeployPolygonzkevmglobalexitroot deploys a new Ethereum contract, binding an instance of Polygonzkevmglobalexitroot to it.
-func DeployPolygonzkevmglobalexitroot(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Polygonzkevmglobalexitroot, error) {
+func DeployPolygonzkevmglobalexitroot(auth *bind.TransactOpts, backend bind.ContractBackend, _rollupAddress common.Address, _bridgeAddress common.Address) (common.Address, *types.Transaction, *Polygonzkevmglobalexitroot, error) {
 	parsed, err := PolygonzkevmglobalexitrootMetaData.GetAbi()
 	if err != nil {
 		return common.Address{}, nil, nil, err
@@ -52,7 +52,7 @@ func DeployPolygonzkevmglobalexitroot(auth *bind.TransactOpts, backend bind.Cont
 		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
 	}
 
-	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(PolygonzkevmglobalexitrootBin), backend)
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(PolygonzkevmglobalexitrootBin), backend, _rollupAddress, _bridgeAddress)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
@@ -387,27 +387,6 @@ func (_Polygonzkevmglobalexitroot *PolygonzkevmglobalexitrootCallerSession) Roll
 	return _Polygonzkevmglobalexitroot.Contract.RollupAddress(&_Polygonzkevmglobalexitroot.CallOpts)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x485cc955.
-//
-// Solidity: function initialize(address _rollupAddress, address _bridgeAddress) returns()
-func (_Polygonzkevmglobalexitroot *PolygonzkevmglobalexitrootTransactor) Initialize(opts *bind.TransactOpts, _rollupAddress common.Address, _bridgeAddress common.Address) (*types.Transaction, error) {
-	return _Polygonzkevmglobalexitroot.contract.Transact(opts, "initialize", _rollupAddress, _bridgeAddress)
-}
-
-// Initialize is a paid mutator transaction binding the contract method 0x485cc955.
-//
-// Solidity: function initialize(address _rollupAddress, address _bridgeAddress) returns()
-func (_Polygonzkevmglobalexitroot *PolygonzkevmglobalexitrootSession) Initialize(_rollupAddress common.Address, _bridgeAddress common.Address) (*types.Transaction, error) {
-	return _Polygonzkevmglobalexitroot.Contract.Initialize(&_Polygonzkevmglobalexitroot.TransactOpts, _rollupAddress, _bridgeAddress)
-}
-
-// Initialize is a paid mutator transaction binding the contract method 0x485cc955.
-//
-// Solidity: function initialize(address _rollupAddress, address _bridgeAddress) returns()
-func (_Polygonzkevmglobalexitroot *PolygonzkevmglobalexitrootTransactorSession) Initialize(_rollupAddress common.Address, _bridgeAddress common.Address) (*types.Transaction, error) {
-	return _Polygonzkevmglobalexitroot.Contract.Initialize(&_Polygonzkevmglobalexitroot.TransactOpts, _rollupAddress, _bridgeAddress)
-}
-
 // UpdateExitRoot is a paid mutator transaction binding the contract method 0x33d6247d.
 //
 // Solidity: function updateExitRoot(bytes32 newRoot) returns()
@@ -427,140 +406,6 @@ func (_Polygonzkevmglobalexitroot *PolygonzkevmglobalexitrootSession) UpdateExit
 // Solidity: function updateExitRoot(bytes32 newRoot) returns()
 func (_Polygonzkevmglobalexitroot *PolygonzkevmglobalexitrootTransactorSession) UpdateExitRoot(newRoot [32]byte) (*types.Transaction, error) {
 	return _Polygonzkevmglobalexitroot.Contract.UpdateExitRoot(&_Polygonzkevmglobalexitroot.TransactOpts, newRoot)
-}
-
-// PolygonzkevmglobalexitrootInitializedIterator is returned from FilterInitialized and is used to iterate over the raw logs and unpacked data for Initialized events raised by the Polygonzkevmglobalexitroot contract.
-type PolygonzkevmglobalexitrootInitializedIterator struct {
-	Event *PolygonzkevmglobalexitrootInitialized // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *PolygonzkevmglobalexitrootInitializedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(PolygonzkevmglobalexitrootInitialized)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(PolygonzkevmglobalexitrootInitialized)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *PolygonzkevmglobalexitrootInitializedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *PolygonzkevmglobalexitrootInitializedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// PolygonzkevmglobalexitrootInitialized represents a Initialized event raised by the Polygonzkevmglobalexitroot contract.
-type PolygonzkevmglobalexitrootInitialized struct {
-	Version uint8
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterInitialized is a free log retrieval operation binding the contract event 0x7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb3847402498.
-//
-// Solidity: event Initialized(uint8 version)
-func (_Polygonzkevmglobalexitroot *PolygonzkevmglobalexitrootFilterer) FilterInitialized(opts *bind.FilterOpts) (*PolygonzkevmglobalexitrootInitializedIterator, error) {
-
-	logs, sub, err := _Polygonzkevmglobalexitroot.contract.FilterLogs(opts, "Initialized")
-	if err != nil {
-		return nil, err
-	}
-	return &PolygonzkevmglobalexitrootInitializedIterator{contract: _Polygonzkevmglobalexitroot.contract, event: "Initialized", logs: logs, sub: sub}, nil
-}
-
-// WatchInitialized is a free log subscription operation binding the contract event 0x7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb3847402498.
-//
-// Solidity: event Initialized(uint8 version)
-func (_Polygonzkevmglobalexitroot *PolygonzkevmglobalexitrootFilterer) WatchInitialized(opts *bind.WatchOpts, sink chan<- *PolygonzkevmglobalexitrootInitialized) (event.Subscription, error) {
-
-	logs, sub, err := _Polygonzkevmglobalexitroot.contract.WatchLogs(opts, "Initialized")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(PolygonzkevmglobalexitrootInitialized)
-				if err := _Polygonzkevmglobalexitroot.contract.UnpackLog(event, "Initialized", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseInitialized is a log parse operation binding the contract event 0x7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb3847402498.
-//
-// Solidity: event Initialized(uint8 version)
-func (_Polygonzkevmglobalexitroot *PolygonzkevmglobalexitrootFilterer) ParseInitialized(log types.Log) (*PolygonzkevmglobalexitrootInitialized, error) {
-	event := new(PolygonzkevmglobalexitrootInitialized)
-	if err := _Polygonzkevmglobalexitroot.contract.UnpackLog(event, "Initialized", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
 }
 
 // PolygonzkevmglobalexitrootUpdateGlobalExitRootIterator is returned from FilterUpdateGlobalExitRoot and is used to iterate over the raw logs and unpacked data for UpdateGlobalExitRoot events raised by the Polygonzkevmglobalexitroot contract.

@@ -50,24 +50,24 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	const posBridge = 2
+	const posBridge = 1
 	calculatedBridgeAddr := crypto.CreateAddress(auth.From, nonce+posBridge)
-	const posPoE = 3
+	const posPoE = 2
 	calculatedPoEAddr := crypto.CreateAddress(auth.From, nonce+posPoE)
 	genesis := common.HexToHash("0xfd3434cd8f67e59d73488a2b8da242dd1f02849ea5dd99f0ca22c836c3d5b4a9") // Random value. Needs to be different to 0x0
-	exitManagerAddr, _, globalExitRoot, err := polygonzkevmglobalexitroot.DeployPolygonzkevmglobalexitroot(auth, client)
+	exitManagerAddr, _, globalExitRoot, err := polygonzkevmglobalexitroot.DeployPolygonzkevmglobalexitroot(auth, client, calculatedPoEAddr, calculatedBridgeAddr)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = globalExitRoot.Initialize(auth, calculatedPoEAddr, calculatedBridgeAddr)
-	if err != nil {
-		return nil, nil, common.Address{}, nil, err
-	}
+	// _, err = globalExitRoot.Initialize(auth, calculatedPoEAddr, calculatedBridgeAddr)
+	// if err != nil {
+	// 	return nil, nil, common.Address{}, nil, err
+	// }
 	bridgeAddr, _, br, err := polygonzkevmbridge.DeployPolygonzkevmbridge(auth, client)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	poeAddr, _, poe, err := polygonzkevm.DeployPolygonzkevm(auth, client)
+	poeAddr, _, poe, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, maticAddr, rollupVerifierAddr,bridgeAddr, 1000, 0)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
@@ -78,14 +78,12 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 
 	poeParams := polygonzkevm.PolygonZkEVMInitializePackedParameters{
 		Admin:                    auth.From,
-		ChainID:                  1000, //nolint:gomnd
 		TrustedSequencer:         auth.From,
 		PendingStateTimeout:      10000, //nolint:gomnd
-		ForceBatchAllowed:        true,
 		TrustedAggregator:        auth.From,
 		TrustedAggregatorTimeout: 10000, //nolint:gomnd
 	}
-	_, err = poe.Initialize(auth, exitManagerAddr, maticAddr, rollupVerifierAddr, bridgeAddr, poeParams, genesis, "http://localhost", "L2") //nolint:gomnd
+	_, err = poe.Initialize(auth, poeParams, genesis, "http://localhost", "L2", "v1") //nolint:gomnd
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
