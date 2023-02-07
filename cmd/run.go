@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"math"
 	"net"
 	"net/http"
 	"os"
@@ -80,21 +79,11 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 	// Read Fork ID FROM POE SC
-	// TODO: Uncomment when the POE SC is implemented
-	/*
-		currentForkID, err := etherman.GetL2ForkID()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		forkIDIntervals, err := etherman.GetL2ForkIDIntervals()
-		if err != nil {
-			log.Fatal(err)
-		}
-	*/
-
-	currentForkID := c.DefaultForkID
-	forkIDIntervals := []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: c.DefaultForkID}}
+	forkIDIntervals, err := etherman.GetForks(cliCtx.Context)
+	if err != nil || len(forkIDIntervals) == 0 {
+		log.Fatal("error getting forks: ", err)
+	}
+	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
 
 	c.Aggregator.ChainID = l2ChainID
 	c.Aggregator.ForkId = currentForkID
