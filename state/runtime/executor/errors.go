@@ -65,6 +65,8 @@ const (
 	ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW
 	// ROM_ERROR_BATCH_DATA_TOO_BIG indicates the batch_l2_data is too big to be processed
 	ROM_ERROR_BATCH_DATA_TOO_BIG
+	// ROM_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
+	ROM_ERROR_UNSUPPORTED_FORK_ID
 	// EXECUTOR_ERROR_UNSPECIFIED indicates the execution ended successfully
 	EXECUTOR_ERROR_UNSPECIFIED = 0
 	// EXECUTOR_ERROR_NO_ERROR indicates there was no error
@@ -81,6 +83,8 @@ const (
 	EXECUTOR_ERROR_COUNTERS_OVERFLOW_PADDING = 6
 	// EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON indicates that the poseidon counter exceeded the maximum
 	EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON = 7
+	// EXECUTOR_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
+	EXECUTOR_ERROR_UNSUPPORTED_FORK_ID = 8
 )
 
 // RomErr returns an instance of error related to the ExecutorError
@@ -143,6 +147,8 @@ func RomErr(errorCode pb.RomError) error {
 		return runtime.ErrIntrinsicInvalidTxGasOverflow
 	case ROM_ERROR_BATCH_DATA_TOO_BIG:
 		return runtime.ErrBatchDataTooBig
+	case ROM_ERROR_UNSUPPORTED_FORK_ID:
+		return runtime.ErrUnsupportedForkId
 	}
 	return fmt.Errorf("unknown error")
 }
@@ -202,6 +208,8 @@ func RomErrorCode(err error) pb.RomError {
 		return pb.RomError(ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW)
 	case runtime.ErrBatchDataTooBig:
 		return pb.RomError(ROM_ERROR_BATCH_DATA_TOO_BIG)
+	case runtime.ErrUnsupportedForkId:
+		return pb.RomError(ROM_ERROR_UNSUPPORTED_FORK_ID)
 	}
 	return math.MaxInt32
 }
@@ -241,6 +249,8 @@ func ExecutorErr(errorCode pb.ExecutorError) error {
 		return runtime.ErrOutOfCountersPadding
 	case EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON:
 		return runtime.ErrOutOfCountersPoseidon
+	case EXECUTOR_ERROR_UNSUPPORTED_FORK_ID:
+		return runtime.ErrUnsupportedForkId
 	}
 	return fmt.Errorf("unknown error")
 }
@@ -262,6 +272,8 @@ func ExecutorErrorCode(err error) pb.ExecutorError {
 		return pb.ExecutorError(EXECUTOR_ERROR_COUNTERS_OVERFLOW_PADDING)
 	case runtime.ErrOutOfCountersPoseidon:
 		return pb.ExecutorError(EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON)
+	case runtime.ErrUnsupportedForkId:
+		return pb.ExecutorError(EXECUTOR_ERROR_UNSUPPORTED_FORK_ID)
 	}
 	return math.MaxInt32
 }

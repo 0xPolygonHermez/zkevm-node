@@ -11,7 +11,7 @@ var (
 	//ErrContentLengthTooLarge content length is too large
 	ErrContentLengthTooLarge = errors.New("content length too large")
 	//ErrTimestampMustBeInsideRange Timestamp must be inside range
-	ErrTimestampMustBeInsideRange = errors.New("Timestamp must be inside range")
+	ErrTimestampMustBeInsideRange = errors.New("timestamp must be inside range")
 	//ErrInsufficientAllowance insufficient allowance
 	ErrInsufficientAllowance = errors.New("insufficient allowance")
 	//ErrBothGasPriceAndMaxFeeGasAreSpecified both gasPrice and (maxFeePerGas or maxPriorityFeePerGas) specified
