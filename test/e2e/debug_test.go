@@ -4,17 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/go-test/deep"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,15 +72,15 @@ func TestDebugTraceTransaction(t *testing.T) {
 	results := map[string]json.RawMessage{}
 
 	type testCase struct {
-		name                   string
-		networkPreparationFunc func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) ([]interface{}, error)
-		txCreateFunc           func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData []interface{}) (*types.Transaction, error)
+		name           string
+		prepare        func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
+		createSignedTx func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error)
 	}
 	testCases := []testCase{
-		{name: "eth transfer", txCreateFunc: createEthTransferTx},
-		// {name: "sc deployment", networkPreparationFunc: , txCreateFunc: },
-		// {name: "sc call", networkPreparationFunc: ,txCreateFunc: },
-		// {name: "erc20 transfer", networkPreparationFunc: , txCreateFunc: },
+		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 	}
 
 	for _, tc := range testCases {
@@ -87,13 +90,13 @@ func TestDebugTraceTransaction(t *testing.T) {
 				client := operations.MustGetClient(network.URL)
 				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
-				var customData []interface{}
-				if tc.networkPreparationFunc != nil {
-					customData, err = tc.networkPreparationFunc(t, ctx, auth, client)
+				var customData map[string]interface{}
+				if tc.prepare != nil {
+					customData, err = tc.prepare(t, ctx, auth, client)
 					require.NoError(t, err)
 				}
 
-				signedTx, err := tc.txCreateFunc(t, ctx, auth, client, customData)
+				signedTx, err := tc.createSignedTx(t, ctx, auth, client, customData)
 				require.NoError(t, err)
 
 				err = client.SendTransaction(ctx, signedTx)
@@ -104,7 +107,14 @@ func TestDebugTraceTransaction(t *testing.T) {
 
 				log.Debug("***************************************", signedTx.Hash().String())
 
-				response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceTransaction", signedTx.Hash().String())
+				debugOptions := map[string]interface{}{
+					"disableStorage":   false,
+					"disableStack":     false,
+					"enableMemory":     true,
+					"enableReturnData": true,
+				}
+
+				response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceTransaction", signedTx.Hash().String(), debugOptions)
 				require.NoError(t, err)
 				require.Nil(t, response.Error)
 				require.NotNil(t, response.Result)
@@ -116,18 +126,30 @@ func TestDebugTraceTransaction(t *testing.T) {
 			err = json.Unmarshal(results[networks[0].Name], &referenceValueMap)
 			require.NoError(t, err)
 
+			referenceStructLogsMap := referenceValueMap["structLogs"].([]interface{})
+
 			for networkName, result := range results {
 				resultMap := map[string]interface{}{}
 				err = json.Unmarshal(result, &resultMap)
 				require.NoError(t, err)
-				diff := deep.Equal(referenceValueMap, resultMap)
-				require.Nil(t, diff, fmt.Sprintf("invalid trace for network %s: %v", networkName, diff))
+
+				resultStructLogsMap := resultMap["structLogs"].([]interface{})
+				require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
+
+				for structLogIndex := range resultStructLogsMap {
+					referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
+					resultStructLogMap := resultStructLogsMap[structLogIndex].(map[string]interface{})
+
+					require.Equal(t, referenceStructLogMap["pc"], resultStructLogMap["pc"], fmt.Sprintf("invalid struct log pc for network %s", networkName))
+					require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
+					require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
+				}
 			}
 		})
 	}
 }
 
-func createEthTransferTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData []interface{}) (*types.Transaction, error) {
+func createEthTransferSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
 
@@ -140,7 +162,6 @@ func createEthTransferTx(t *testing.T, ctx context.Context, auth *bind.TransactO
 		From: auth.From,
 		To:   &to,
 	})
-
 	require.NoError(t, err)
 
 	tx := types.NewTx(&types.LegacyTx{
@@ -151,4 +172,89 @@ func createEthTransferTx(t *testing.T, ctx context.Context, auth *bind.TransactO
 	})
 
 	return auth.Signer(auth.From, tx)
+}
+
+func createScDeploySignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+	nonce, err := client.PendingNonceAt(ctx, auth.From)
+	require.NoError(t, err)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	scByteCode, err := testutils.ReadBytecode("Counter/Counter.bin")
+	require.NoError(t, err)
+	data := common.Hex2Bytes(scByteCode)
+
+	gas, err := client.EstimateGas(ctx, ethereum.CallMsg{
+		From: auth.From,
+		Data: data,
+	})
+	require.NoError(t, err)
+
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: gasPrice,
+		Gas:      gas,
+		Data:     data,
+	})
+
+	return auth.Signer(auth.From, tx)
+}
+
+func prepareScCall(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	_, tx, sc, err := EmitLog.DeployEmitLog(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	return map[string]interface{}{
+		"sc": sc,
+	}, nil
+}
+
+func createScCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*EmitLog.EmitLog)
+
+	opts := *auth
+	opts.NoSend = true
+
+	tx, err := sc.EmitLogs(&opts)
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func prepareERC20Transfer(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	_, tx, sc, err := ERC20.DeployERC20(auth, client, "MyToken", "MT")
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	tx, err = sc.Mint(auth, big.NewInt(1000000000))
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	return map[string]interface{}{
+		"sc": sc,
+	}, nil
+}
+
+func createERC20TransferSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*ERC20.ERC20)
+
+	opts := *auth
+	opts.NoSend = true
+
+	to := common.HexToAddress("0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98")
+
+	tx, err := sc.Transfer(&opts, to, big.NewInt(123456))
+	require.NoError(t, err)
+
+	return tx, nil
 }

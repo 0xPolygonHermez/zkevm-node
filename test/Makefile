@@ -182,6 +182,7 @@ stop-node: ## Stops the node
 	$(STOPL2GASPRICER)
 	$(STOPAGGREGATOR)
 	$(STOPSYNC)
+	$(STOPETHTXMANAGER)
 
 .PHONY: run-network
 run-network: ## Runs the l1 network

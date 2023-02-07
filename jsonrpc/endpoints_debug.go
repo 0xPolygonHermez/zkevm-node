@@ -15,7 +15,11 @@ type DebugEndpoints struct {
 }
 
 type traceConfig struct {
-	Tracer *string `json:"tracer"`
+	DisableStorage   bool    `json:"disableStorage"`
+	DisableStack     bool    `json:"disableStack"`
+	EnableMemory     bool    `json:"enableMemory"`
+	EnableReturnData bool    `json:"enableReturnData"`
+	Tracer           *string `json:"tracer"`
 }
 
 type traceTransactionResponse struct {
@@ -33,8 +37,8 @@ type StructLogRes struct {
 	GasCost       uint64             `json:"gasCost"`
 	Depth         int                `json:"depth"`
 	Error         string             `json:"error,omitempty"`
-	Stack         *[]argBig          `json:"stack,omitempty"`
-	Memory        *argBytes          `json:"memory,omitempty"`
+	Stack         *[]argBig          `json:"stack"`
+	Memory        *argBytes          `json:"memory"`
 	Storage       *map[string]string `json:"storage,omitempty"`
 	RefundCounter uint64             `json:"refund,omitempty"`
 }
@@ -63,7 +67,7 @@ func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (i
 		structLogs := make([]StructLogRes, 0, len(result.StructLogs))
 		for _, structLog := range result.StructLogs {
 			var stackRes *[]argBig
-			if len(structLog.Stack) > 0 {
+			if !cfg.DisableStack && len(structLog.Stack) > 0 {
 				stack := make([]argBig, 0, len(structLog.Stack))
 				for _, stackItem := range structLog.Stack {
 					if stackItem != nil {
@@ -74,7 +78,7 @@ func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (i
 			}
 
 			var memoryRes *argBytes
-			if len(structLog.Memory) > 0 {
+			if cfg.EnableMemory && len(structLog.Memory) > 0 {
 				memory := make(argBytes, 0, len(structLog.Memory))
 				for _, memoryItem := range structLog.Memory {
 					memory = append(memory, memoryItem)
@@ -83,7 +87,7 @@ func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (i
 			}
 
 			var storageRes *map[string]string
-			if len(structLog.Storage) > 0 {
+			if !cfg.DisableStorage && len(structLog.Storage) > 0 {
 				storage := make(map[string]string, len(structLog.Storage))
 				for storageKey, storageValue := range structLog.Storage {
 					storage[storageKey.Hex()] = storageValue.Hex()
@@ -96,9 +100,14 @@ func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (i
 				errRes = structLog.Err.Error()
 			}
 
+			op := structLog.Op
+			if op == "SHA3" {
+				op = "KECCAK256"
+			}
+
 			structLogs = append(structLogs, StructLogRes{
 				Pc:            structLog.Pc,
-				Op:            structLog.Op,
+				Op:            op,
 				Gas:           structLog.Gas,
 				GasCost:       structLog.GasCost,
 				Depth:         structLog.Depth,
@@ -110,10 +119,15 @@ func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (i
 			})
 		}
 
+		var returnValue interface{}
+		if cfg.EnableReturnData {
+			returnValue = common.Bytes2Hex(result.ReturnValue)
+		}
+
 		resp := traceTransactionResponse{
 			Gas:         result.GasUsed,
 			Failed:      failed,
-			ReturnValue: common.Bytes2Hex(result.ReturnValue),
+			ReturnValue: returnValue,
 			StructLogs:  structLogs,
 		}
 
