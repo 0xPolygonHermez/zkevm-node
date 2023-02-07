@@ -48,7 +48,6 @@ var (
 	emergencyStateActivatedSignatureHash        = crypto.Keccak256Hash([]byte("EmergencyStateActivated()"))
 	emergencyStateDeactivatedSignatureHash      = crypto.Keccak256Hash([]byte("EmergencyStateDeactivated()"))
 	updateZkEVMVersionSignatureHash             = crypto.Keccak256Hash([]byte("UpdateZkEVMVersion(uint64,uint64,string)"))
-	
 
 	// Proxy events
 	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
@@ -175,7 +174,7 @@ func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, e
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(1),
 		Addresses: etherMan.SCAddresses,
-		Topics: [][]common.Hash{{updateZkEVMVersionSignatureHash}},
+		Topics:    [][]common.Hash{{updateZkEVMVersionSignatureHash}},
 	}
 	logs, err := etherMan.EthClient.FilterLogs(ctx, query)
 	if err != nil {
@@ -189,7 +188,7 @@ func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, e
 		}
 		var fork state.ForkIDInterval
 		if i == 0 {
-			fork = state.ForkIDInterval {
+			fork = state.ForkIDInterval{
 				FromBatchNumber: zkevmVersion.NumBatch,
 				ToBatchNumber:   math.MaxUint64,
 				ForkId:          zkevmVersion.ForkID,
@@ -197,7 +196,7 @@ func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, e
 			}
 		} else {
 			forks[len(forks)-1].ToBatchNumber = zkevmVersion.NumBatch - 1
-			fork = state.ForkIDInterval {
+			fork = state.ForkIDInterval{
 				FromBatchNumber: zkevmVersion.NumBatch,
 				ToBatchNumber:   math.MaxUint64,
 				ForkId:          zkevmVersion.ForkID,
