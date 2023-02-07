@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -69,12 +70,30 @@ func start(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Read Fork ID FROM POE SC
+	// TODO: Uncomment when the POE SC is implemented
+	/*
+		currentForkID, err := etherman.GetL2ForkID()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		forkIDIntervals, err := etherman.GetL2ForkIDIntervals()
+		if err != nil {
+			log.Fatal(err)
+		}
+	*/
+
+	currentForkID := c.DefaultForkID
+	forkIDIntervals := []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: c.DefaultForkID}}
+
 	c.Aggregator.ChainID = l2ChainID
+	c.Aggregator.ForkId = currentForkID
 	c.RPC.ChainID = l2ChainID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
-	st := newState(ctx, c, l2ChainID, stateSqlDB)
+	st := newState(ctx, c, l2ChainID, currentForkID, forkIDIntervals, stateSqlDB)
 
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman, st)
 
@@ -277,7 +296,7 @@ func newAuthFromKeystore(path, password string, chainID uint64) (*bind.TransactO
 	return auth, nil
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.State {
+func newState(ctx context.Context, c *config.Config, l2ChainID uint64, currentForkID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
@@ -286,6 +305,8 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pg
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
 		ChainID:              l2ChainID,
+		CurrentForkID:        currentForkID,
+		ForkIDIntervals:      forkIDIntervals,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)

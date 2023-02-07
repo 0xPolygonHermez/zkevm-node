@@ -1,4 +1,5 @@
 IsTrustedSequencer = true
+DefaultForkID = 1
 
 [Log]
 Level = "debug"

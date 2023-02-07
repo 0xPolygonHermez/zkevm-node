@@ -58,4 +58,7 @@ type Config struct {
 
 	// ChainID is the L2 ChainID provided by the Network Config
 	ChainID uint64
+
+	// ForkID is the L2 ForkID provided by the Network Config
+	ForkId uint64
 }
