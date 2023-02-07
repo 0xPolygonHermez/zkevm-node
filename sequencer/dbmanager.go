@@ -262,6 +262,13 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		previousLastBatch = lastBatches[1]
 	}
 
+	lastBatchTxs, _, err := state.DecodeTxs(lastBatch.BatchL2Data)
+	if err != nil {
+		return nil, err
+	}
+
+	lastBatch.Transactions = lastBatchTxs
+
 	lastStateRoot, err := d.state.GetLastStateRoot(ctx, dbTx)
 	if err != nil {
 		return nil, err
