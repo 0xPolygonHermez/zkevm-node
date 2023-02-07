@@ -50,7 +50,8 @@ const (
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	IsTrustedSequencer  bool `mapstructure:"IsTrustedSequencer"`
+	IsTrustedSequencer  bool   `mapstructure:"IsTrustedSequencer"`
+	DefaultForkID       uint64 `mapstructure:"DefaultForkID"`
 	Log                 log.Config
 	Etherman            etherman.Config
 	EthTxManager        ethtxmanager.Config
