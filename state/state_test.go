@@ -2026,7 +2026,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
 
-	convertedResponse, err := state.TestConvertToProcessBatchResponse([]types.Transaction{*signedTx0, *signedTx1}, processBatchResponse)
+	convertedResponse, err := testState.TestConvertToProcessBatchResponse([]types.Transaction{*signedTx0, *signedTx1}, processBatchResponse)
 	require.NoError(t, err)
 	log.Debugf("%v", len(convertedResponse.Responses))
 
@@ -2391,7 +2391,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	require.Equal(t, uint64(1000000000), balance.Uint64())
 
 	// Preparation to be able to estimate gas
-	convertedResponse, err := state.TestConvertToProcessBatchResponse(transactions, processBatchResponse)
+	convertedResponse, err := testState.TestConvertToProcessBatchResponse(transactions, processBatchResponse)
 	require.NoError(t, err)
 	log.Debugf("%v", len(convertedResponse.Responses))
 
