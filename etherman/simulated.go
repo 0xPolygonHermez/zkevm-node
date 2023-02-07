@@ -59,15 +59,11 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	// _, err = globalExitRoot.Initialize(auth, calculatedPoEAddr, calculatedBridgeAddr)
-	// if err != nil {
-	// 	return nil, nil, common.Address{}, nil, err
-	// }
 	bridgeAddr, _, br, err := polygonzkevmbridge.DeployPolygonzkevmbridge(auth, client)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	poeAddr, _, poe, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, maticAddr, rollupVerifierAddr,bridgeAddr, 1000, 1)
+	poeAddr, _, poe, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, maticAddr, rollupVerifierAddr, bridgeAddr, 1000, 1) //nolint
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
