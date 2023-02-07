@@ -133,6 +133,21 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 	f.finalizeBatches(ctx)
 }
 
+func (f *finalizer) SortForcedBatches(fb []state.ForcedBatch) []state.ForcedBatch {
+	if len(fb) == 0 {
+		return fb
+	}
+	// Sort by ForcedBatchNumber
+	for i := 0; i < len(fb)-1; i++ {
+		for j := i + 1; j < len(fb); j++ {
+			if fb[i].ForcedBatchNumber > fb[j].ForcedBatchNumber {
+				fb[i], fb[j] = fb[j], fb[i]
+			}
+		}
+	}
+	return fb
+}
+
 // listenForClosingSignals listens for signals for the batch and sets the deadline for when they need to be closed.
 func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 	for {
@@ -143,10 +158,7 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 		// Forced  batch ch
 		case fb := <-f.closingSignalCh.ForcedBatchCh:
 			f.nextForcedBatchesMux.Lock()
-
-			if !containsForcedBatch(f.nextForcedBatches, fb) {
-				f.nextForcedBatches = append(f.nextForcedBatches, fb) // TODO: change insert sort if not exists
-			}
+			f.nextForcedBatches = f.SortForcedBatches(append(f.nextForcedBatches, fb))
 
 			if f.nextForcedBatchDeadline == 0 {
 				f.setNextForcedBatchDeadline()
@@ -182,15 +194,6 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			f.nextSendingToL1TimeoutMux.Unlock()
 		}
 	}
-}
-
-func containsForcedBatch(nextForcedBatches []state.ForcedBatch, fb state.ForcedBatch) bool {
-	for _, f := range nextForcedBatches {
-		if f.ForcedBatchNumber == fb.ForcedBatchNumber {
-			return true
-		}
-	}
-	return false
 }
 
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
@@ -495,6 +498,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInState uint64, stateRoot common.Hash) (uint64, common.Hash, error) {
 	f.nextForcedBatchesMux.Lock()
 	defer f.nextForcedBatchesMux.Unlock()
+	f.nextForcedBatchDeadline = 0
 
 	dbTx, err := f.dbManager.BeginStateTransaction(ctx)
 	if err != nil {
@@ -521,6 +525,7 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInS
 		nextForcedBatchNum += 1
 	}
 	f.nextForcedBatches = make([]state.ForcedBatch, 0)
+
 	return lastBatchNumberInState, stateRoot, nil
 }
 

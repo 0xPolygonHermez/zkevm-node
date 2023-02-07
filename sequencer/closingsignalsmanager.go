@@ -9,10 +9,11 @@ import (
 )
 
 type closingSignalsManager struct {
-	ctx             context.Context
-	dbManager       dbManagerInterface
-	closingSignalCh ClosingSignalCh
-	cfg             FinalizerCfg
+	ctx                    context.Context
+	dbManager              dbManagerInterface
+	closingSignalCh        ClosingSignalCh
+	cfg                    FinalizerCfg
+	lastForcedBatchNumSent uint64
 }
 
 func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface, closingSignalCh ClosingSignalCh, cfg FinalizerCfg) *closingSignalsManager {
@@ -68,13 +69,18 @@ func (c *closingSignalsManager) checkForcedBatches() {
 		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
 		log.Debug(time.Now())
 
-		latestSentForcedBatchNumber, err := c.dbManager.GetLastTrustedForcedBatchNumber(c.ctx, nil)
-		if err != nil {
-			log.Errorf("error getting last trusted forced batch number: %v", err)
-			continue
+		if c.lastForcedBatchNumSent == 0 { // TODO: reset c.lastForcedBatchNumSent = 0 on L2 Reorg
+			lastTrustedForcedBatchNum, err := c.dbManager.GetLastTrustedForcedBatchNumber(c.ctx, nil)
+			if err != nil {
+				log.Errorf("error getting last trusted forced batch number: %v", err)
+				continue
+			}
+			if lastTrustedForcedBatchNum > 0 {
+				c.lastForcedBatchNumSent = lastTrustedForcedBatchNum
+			}
 		}
 
-		forcedBatches, err := c.dbManager.GetForcedBatchesSince(c.ctx, latestSentForcedBatchNumber, nil)
+		forcedBatches, err := c.dbManager.GetForcedBatchesSince(c.ctx, c.lastForcedBatchNumSent, nil)
 		if err != nil {
 			log.Errorf("error checking forced batches: %v", err)
 			continue
@@ -82,6 +88,7 @@ func (c *closingSignalsManager) checkForcedBatches() {
 
 		for _, forcedBatch := range forcedBatches {
 			c.closingSignalCh.ForcedBatchCh <- *forcedBatch
+			c.lastForcedBatchNumSent = forcedBatch.ForcedBatchNumber
 		}
 	}
 }
