@@ -348,11 +348,11 @@ func TestVirtualBatch(t *testing.T) {
 	require.NoError(t, err)
 	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
 	virtualBatch := state.VirtualBatch{
-		BlockNumber:  1,
-		BatchNumber:  1,
-		Coinbase:     addr,
-		FeeRecipient: addr,
-		TxHash:       common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		BlockNumber:   1,
+		BatchNumber:   1,
+		Coinbase:      addr,
+		SequencerAddr: addr,
+		TxHash:        common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 	}
 	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 	require.NoError(t, err)

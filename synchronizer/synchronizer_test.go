@@ -614,11 +614,11 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Once()
 
 			virtualBatch := &state.VirtualBatch{
-				BatchNumber:  sequencedForceBatch.BatchNumber,
-				TxHash:       sequencedForceBatch.TxHash,
-				Coinbase:     sequencedForceBatch.Coinbase,
-				FeeRecipient: sequencedForceBatch.Coinbase,
-				BlockNumber:  ethermanBlock.BlockNumber,
+				BatchNumber:   sequencedForceBatch.BatchNumber,
+				TxHash:        sequencedForceBatch.TxHash,
+				Coinbase:      sequencedForceBatch.Coinbase,
+				SequencerAddr: sequencedForceBatch.Coinbase,
+				BlockNumber:   ethermanBlock.BlockNumber,
 			}
 
 			m.State.
