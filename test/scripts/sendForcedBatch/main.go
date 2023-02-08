@@ -138,7 +138,7 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 		fb, err := poe.ParseForceBatch(vLog)
 		if err == nil {
 			log.Debugf("log decoded: %+v", fb)
-			ger := fb.LastGlobalExitRoot
+			var ger common.Hash = fb.LastGlobalExitRoot
 			log.Info("GlobalExitRoot: ", ger)
 			log.Info("Transactions: ", common.Bytes2Hex(fb.Transactions))
 			fullBlock, err := ethClient.BlockByHash(ctx, vLog.BlockHash)
