@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum"
@@ -20,6 +22,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
+
+const fixedTxGasLimit uint64 = 100000
 
 func TestDebugTraceTransaction(t *testing.T) {
 	if testing.Short() {
@@ -77,10 +81,15 @@ func TestDebugTraceTransaction(t *testing.T) {
 		createSignedTx func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error)
 	}
 	testCases := []testCase{
+		// successful transactions
 		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
 		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
 		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
 		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		// failed transactions
+		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
 	}
 
 	for _, tc := range testCases {
@@ -103,7 +112,9 @@ func TestDebugTraceTransaction(t *testing.T) {
 				require.NoError(t, err)
 
 				err = operations.WaitTxToBeMined(ctx, client, signedTx, operations.DefaultTimeoutTxToBeMined)
-				require.NoError(t, err)
+				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+					require.NoError(t, err)
+				}
 
 				log.Debug("***************************************", signedTx.Hash().String())
 
@@ -250,6 +261,84 @@ func createERC20TransferSignedTx(t *testing.T, ctx context.Context, auth *bind.T
 
 	opts := *auth
 	opts.NoSend = true
+
+	to := common.HexToAddress("0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98")
+
+	tx, err := sc.Transfer(&opts, to, big.NewInt(123456))
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func createScDeployRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+	nonce, err := client.PendingNonceAt(ctx, auth.From)
+	require.NoError(t, err)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	scByteCode, err := testutils.ReadBytecode("Revert/Revert.bin")
+	require.NoError(t, err)
+	data := common.Hex2Bytes(scByteCode)
+
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: gasPrice,
+		Gas:      fixedTxGasLimit,
+		Data:     data,
+	})
+
+	return auth.Signer(auth.From, tx)
+}
+
+func prepareScCallReverted(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	_, tx, sc, err := Revert2.DeployRevert2(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	return map[string]interface{}{
+		"sc": sc,
+	}, nil
+}
+
+func createScCallRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Revert2.Revert2)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.GasLimit = fixedTxGasLimit
+
+	tx, err := sc.GenerateError(&opts)
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func prepareERC20TransferReverted(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	_, tx, sc, err := ERC20.DeployERC20(auth, client, "MyToken2", "MT2")
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	return map[string]interface{}{
+		"sc": sc,
+	}, nil
+}
+
+func createERC20TransferRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*ERC20.ERC20)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.GasLimit = fixedTxGasLimit
 
 	to := common.HexToAddress("0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98")
 
