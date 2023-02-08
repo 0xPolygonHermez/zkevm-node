@@ -52,7 +52,7 @@ type VerifiedBatch struct {
 
 // VirtualBatch represents a VirtualBatch
 type VirtualBatch struct {
-	BatchNumber uint64
+	BatchNumber  uint64
 	TxHash       common.Hash
 	Coinbase     common.Address
 	FeeRecipient common.Address

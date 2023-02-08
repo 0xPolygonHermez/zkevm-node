@@ -277,7 +277,7 @@ func TestVirtualBatch(t *testing.T) {
 	virtualBatch := state.VirtualBatch{
 		BlockNumber:  1,
 		BatchNumber:  1,
-		Coinbase: 	  addr,
+		Coinbase:     addr,
 		FeeRecipient: addr,
 		TxHash:       common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 	}
