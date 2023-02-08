@@ -155,16 +155,15 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 		case <-ctx.Done():
 			log.Infof("finalizer closing signal listener received context done, Err: %s", ctx.Err())
 			return
-		// Forced  batch ch
+		// ForcedBatch ch
 		case fb := <-f.closingSignalCh.ForcedBatchCh:
 			f.nextForcedBatchesMux.Lock()
 			f.nextForcedBatches = f.SortForcedBatches(append(f.nextForcedBatches, fb))
-
 			if f.nextForcedBatchDeadline == 0 {
 				f.setNextForcedBatchDeadline()
 			}
 			f.nextForcedBatchesMux.Unlock()
-		// globalExitRoot ch
+		// GlobalExitRoot ch
 		case ger := <-f.closingSignalCh.GERCh:
 			f.nextGERMux.Lock()
 			f.nextGER = ger
@@ -317,7 +316,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		f.processRequest.GlobalExitRoot = batch.globalExitRoot
 		f.processRequest.Transactions = make([]byte, 0, 1)
 	}
-	
+
 	return batch, err
 }
 
@@ -368,7 +367,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	} else {
 		// We have a successful processing if we are here, updating metadata
 		previousL2BlockStateRoot := f.batch.stateRoot
-		f.updateMetadata(result)
+		f.processRequest.OldStateRoot = result.NewStateRoot
+		f.batch.stateRoot = result.NewStateRoot
+		f.batch.localExitRoot = result.NewLocalExitRoot
 		if tx != nil {
 			err = f.handleSuccessfulTxProcessResp(ctx, tx, result, previousL2BlockStateRoot)
 			if err != nil {
@@ -406,12 +407,6 @@ func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *T
 	f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
 	metrics.WorkerProcessingTime(time.Since(start))
 	f.batch.countOfTxs += 1
-}
-
-func (f *finalizer) updateMetadata(result *state.ProcessBatchResponse) {
-	f.processRequest.OldStateRoot = result.NewStateRoot
-	f.batch.stateRoot = result.NewStateRoot
-	f.batch.localExitRoot = result.NewLocalExitRoot
 }
 
 func (f *finalizer) handleResourcesCheck(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) error {
