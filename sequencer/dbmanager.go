@@ -31,6 +31,10 @@ type dbManager struct {
 	batchConstraints batchConstraints
 }
 
+func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
+	return d.state.GetBatchByNumber(ctx, batchNumber, dbTx)
+}
+
 // ClosingBatchParameters contains the necessary parameters to close a batch
 type ClosingBatchParameters struct {
 	BatchNumber   uint64
@@ -327,8 +331,9 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 		if batchL2DataLen > 0 {
 			wipBatch.countOfTxs = len(lastBatch.Transactions)
-
-			batchResponse, err := d.state.ExecuteBatch(ctx, wipBatch.batchNumber, lastBatch.BatchL2Data, dbTx)
+			batchToExecute := *lastBatch
+			batchToExecute.BatchNumber = wipBatch.batchNumber
+			batchResponse, err := d.state.ExecuteBatch(ctx, batchToExecute, dbTx)
 			if err != nil {
 				return nil, err
 			}

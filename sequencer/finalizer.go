@@ -207,7 +207,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		} else {
 			if f.isBatchAlmostFull() {
 				// Wait for all transactions to be stored in the DB
-				f.txsStore.Wg.Wait()
+				log.Info("Closing batch, because it's almost full.")
 				// The perfect moment to finalize the batch
 				f.finalizeBatch(ctx)
 			} else {
@@ -218,7 +218,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			}
 		}
 
-		if f.isDeadlineEncountered() || f.batch.countOfTxs >= int(f.batchConstraints.MaxTxsPerBatch) {
+		if f.isDeadlineEncountered() || f.isBatchFull() {
 			f.finalizeBatch(ctx)
 		}
 
@@ -227,6 +227,14 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (f *finalizer) isBatchFull() bool {
+	if f.batch.countOfTxs >= int(f.batchConstraints.MaxTxsPerBatch) {
+		log.Info("Closing batch, because it's full.")
+		return true
+	}
+	return false
 }
 
 // finalizeBatch retries to until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
@@ -264,9 +272,10 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
+
 	// Reprocessing batch as sanity check
 	go func() {
-		err := f.reprocessBatch(ctx)
+		err := f.reprocessBatch(ctx, f.batch.batchNumber)
 		if err != nil {
 			// TODO: design error handling for reprocessing
 			log.Errorf("failed to reprocess batch, err: %s", err)
@@ -300,7 +309,16 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	f.nextSendingToL1Deadline = 0
 	f.nextSendingToL1TimeoutMux.Unlock()
 
-	return f.openWIPBatch(ctx, lastBatchNumber+1, f.lastGERHash, stateRoot)
+	batch, err := f.openWIPBatch(ctx, lastBatchNumber+1, f.lastGERHash, stateRoot)
+	if err == nil {
+		f.processRequest.Timestamp = batch.timestamp
+		f.processRequest.BatchNumber = batch.batchNumber
+		f.processRequest.OldStateRoot = stateRoot
+		f.processRequest.GlobalExitRoot = batch.globalExitRoot
+		f.processRequest.Transactions = make([]byte, 0, 1)
+	}
+	
+	return batch, err
 }
 
 // processTransaction processes a single transaction.
@@ -621,13 +639,20 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 }
 
 // reprocessBatch reprocesses a batch used as sanity check
-func (f *finalizer) reprocessBatch(ctx context.Context) error {
-	processRequest, err := f.prepareProcessRequestFromState(ctx, true)
+func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
+	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
-		log.Errorf("failed to prepare process request for reprocessing batch, err: %s", err)
-		return err
+		return fmt.Errorf("failed to get batch by number, err: %w", err)
 	}
-	processRequest.Caller = state.DiscardCallerLabel
+	processRequest := state.ProcessRequest{
+		BatchNumber:    batch.BatchNumber,
+		GlobalExitRoot: batch.GlobalExitRoot,
+		OldStateRoot:   batch.StateRoot,
+		Transactions:   batch.BatchL2Data,
+		Coinbase:       batch.Coinbase,
+		Timestamp:      uint64(batch.Timestamp.Unix()),
+		Caller:         state.DiscardCallerLabel,
+	}
 	result, err := f.executor.ProcessBatch(ctx, processRequest)
 	if err != nil || (result != nil && result.ExecutorError != nil) {
 		if result != nil && result.ExecutorError != nil {
@@ -635,6 +660,9 @@ func (f *finalizer) reprocessBatch(ctx context.Context) error {
 		}
 		log.Errorf("failed to reprocess batch, err: %s", err)
 		return err
+	}
+	if result.NewStateRoot != batch.StateRoot {
+		log.Errorf("reprocessed batch has different state root, expected: %s, got: %s", batch.StateRoot.Hex(), result.NewStateRoot.Hex())
 	}
 
 	return nil
@@ -719,14 +747,17 @@ func (f *finalizer) getOldStateRootFromBatches(batches []*state.Batch) common.Ha
 func (f *finalizer) isDeadlineEncountered() bool {
 	// Forced batch deadline
 	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
+		log.Info("Closing batch, forced batch deadline encountered.")
 		return true
 	}
 	// Global Exit Root deadline
 	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
+		log.Info("Closing batch, Global Exit Root deadline encountered.")
 		return true
 	}
 	// Delayed batch deadline
 	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline {
+		log.Info("Closing batch, Sending to L1 deadline encountered.")
 		return true
 	}
 

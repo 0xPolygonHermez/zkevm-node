@@ -802,7 +802,7 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 			}
 
 			// act
-			err := f.reprocessBatch(ctx)
+			err := f.reprocessBatch(ctx, tc.batches[0].BatchNumber)
 
 			// assert
 			if tc.expectedErr != nil {

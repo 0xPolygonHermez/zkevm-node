@@ -76,6 +76,9 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	}
 	firstSequence := sequences[0]
 	lastSequence := sequences[len(sequences)-1]
+	for _, seq := range sequences {
+		log.Warnf("sequence to send: %v", seq)
+	}
 	monitoredTxID := fmt.Sprintf(monitoredIDFormat, firstSequence.BatchNumber, lastSequence.BatchNumber)
 	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
 	if err != nil {

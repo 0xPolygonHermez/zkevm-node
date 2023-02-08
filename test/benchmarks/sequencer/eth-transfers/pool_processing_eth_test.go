@@ -35,7 +35,7 @@ const (
 
 func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 	ctx := context.Background()
-	defer func() { require.NoError(b, operations.Teardown()) }()
+	//defer func() { require.NoError(b, operations.Teardown()) }()
 	opsman, client, pl, senderNonce, gasPrice := setup.Environment(ctx, b)
 	transactions.SendAndWait(b, senderNonce, client, gasPrice, pl, ctx, nTxs, runTxSender)
 	setup.BootstrapSequencer(b, opsman)
@@ -73,7 +73,7 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 		require.NoError(b, err)
 	}
 
-	err = operations.Teardown()
+	//err = operations.Teardown()
 	if err != nil {
 		log.Errorf("failed to teardown: %s", err)
 	}
