@@ -52,6 +52,8 @@ func TestDebugTraceTransaction(t *testing.T) {
 	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
 	require.NoError(t, err)
 
+	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
+
 	networks := []struct {
 		Name         string
 		URL          string
@@ -60,13 +62,13 @@ func TestDebugTraceTransaction(t *testing.T) {
 		PrivateKey   string
 	}{
 		{
-			Name:       "Local L1",
+			Name:       l1NetworkName,
 			URL:        operations.DefaultL1NetworkURL,
 			ChainID:    operations.DefaultL1ChainID,
 			PrivateKey: operations.DefaultSequencerPrivateKey,
 		},
 		{
-			Name:       "Local L2",
+			Name:       l2NetworkName,
 			URL:        l2NetworkURL,
 			ChainID:    operations.DefaultL2ChainID,
 			PrivateKey: operations.DefaultSequencerPrivateKey,
@@ -82,7 +84,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
 		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
 		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
 		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
@@ -116,8 +118,6 @@ func TestDebugTraceTransaction(t *testing.T) {
 					require.NoError(t, err)
 				}
 
-				log.Debug("***************************************", signedTx.Hash().String())
-
 				debugOptions := map[string]interface{}{
 					"disableStorage":   false,
 					"disableStack":     false,
@@ -134,7 +134,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 			}
 
 			referenceValueMap := map[string]interface{}{}
-			err = json.Unmarshal(results[networks[0].Name], &referenceValueMap)
+			err = json.Unmarshal(results[l1NetworkName], &referenceValueMap)
 			require.NoError(t, err)
 
 			referenceStructLogsMap := referenceValueMap["structLogs"].([]interface{})
@@ -147,13 +147,45 @@ func TestDebugTraceTransaction(t *testing.T) {
 				resultStructLogsMap := resultMap["structLogs"].([]interface{})
 				require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
 
-				for structLogIndex := range resultStructLogsMap {
+				for structLogIndex := range referenceStructLogsMap {
 					referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
 					resultStructLogMap := resultStructLogsMap[structLogIndex].(map[string]interface{})
 
 					require.Equal(t, referenceStructLogMap["pc"], resultStructLogMap["pc"], fmt.Sprintf("invalid struct log pc for network %s", networkName))
 					require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
 					require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
+
+					referenceStack, found := referenceStructLogMap["stack"].([]interface{})
+					if found {
+						resultStack := resultStructLogMap["stack"].([]interface{})
+
+						require.Equal(t, len(referenceStack), len(resultStack))
+						for stackIndex := range referenceStack {
+							require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex])
+						}
+					}
+
+					referenceMemory, found := referenceStructLogMap["memory"].([]interface{})
+					if found {
+						resultMemory := resultStructLogMap["memory"].([]interface{})
+
+						require.Equal(t, len(referenceMemory), len(resultMemory))
+						for memoryIndex := range referenceMemory {
+							require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex])
+						}
+					}
+
+					referenceStorage, found := referenceStructLogMap["storage"].(map[string]interface{})
+					if found {
+						resultStorage := resultStructLogMap["storage"].(map[string]interface{})
+
+						require.Equal(t, len(referenceStorage), len(resultStorage))
+						for storageKey, referenceStorageValue := range referenceStorage {
+							resultStorageValue, found := resultStorage[storageKey]
+							require.True(t, found)
+							require.Equal(t, referenceStorageValue, resultStorageValue)
+						}
+					}
 				}
 			}
 		})

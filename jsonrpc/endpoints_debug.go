@@ -2,8 +2,10 @@ package jsonrpc
 
 import (
 	"context"
+	"encoding/hex"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
@@ -37,14 +39,14 @@ type StructLogRes struct {
 	GasCost       uint64             `json:"gasCost"`
 	Depth         int                `json:"depth"`
 	Error         string             `json:"error,omitempty"`
-	Stack         *[]argBig          `json:"stack"`
-	Memory        *argBytes          `json:"memory"`
+	Stack         []argBig           `json:"stack"`
+	Memory        []string           `json:"memory"`
 	Storage       *map[string]string `json:"storage,omitempty"`
 	RefundCounter uint64             `json:"refund,omitempty"`
 }
 
 // TraceTransaction creates a response for debug_traceTransaction request.
-// See https://geth.ethereum.org/docs/rpc/ns-debug#debug_tracetransaction
+// See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtracetransaction
 func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{}, rpcError) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		tracer := ""
@@ -64,65 +66,12 @@ func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (i
 		}
 
 		failed := result.Failed()
-		structLogs := make([]StructLogRes, 0, len(result.StructLogs))
-		for _, structLog := range result.StructLogs {
-			var stackRes *[]argBig
-			if !cfg.DisableStack && len(structLog.Stack) > 0 {
-				stack := make([]argBig, 0, len(structLog.Stack))
-				for _, stackItem := range structLog.Stack {
-					if stackItem != nil {
-						stack = append(stack, argBig(*stackItem))
-					}
-				}
-				stackRes = &stack
-			}
-
-			var memoryRes *argBytes
-			if cfg.EnableMemory && len(structLog.Memory) > 0 {
-				memory := make(argBytes, 0, len(structLog.Memory))
-				for _, memoryItem := range structLog.Memory {
-					memory = append(memory, memoryItem)
-				}
-				memoryRes = &memory
-			}
-
-			var storageRes *map[string]string
-			if !cfg.DisableStorage && len(structLog.Storage) > 0 {
-				storage := make(map[string]string, len(structLog.Storage))
-				for storageKey, storageValue := range structLog.Storage {
-					storage[storageKey.Hex()] = storageValue.Hex()
-				}
-				storageRes = &storage
-			}
-
-			errRes := ""
-			if structLog.Err != nil {
-				errRes = structLog.Err.Error()
-			}
-
-			op := structLog.Op
-			if op == "SHA3" {
-				op = "KECCAK256"
-			}
-
-			structLogs = append(structLogs, StructLogRes{
-				Pc:            structLog.Pc,
-				Op:            op,
-				Gas:           structLog.Gas,
-				GasCost:       structLog.GasCost,
-				Depth:         structLog.Depth,
-				Error:         errRes,
-				Stack:         stackRes,
-				Memory:        memoryRes,
-				Storage:       storageRes,
-				RefundCounter: structLog.RefundCounter,
-			})
-		}
-
 		var returnValue interface{}
 		if cfg.EnableReturnData {
 			returnValue = common.Bytes2Hex(result.ReturnValue)
 		}
+
+		structLogs := buildStructLogs(result.StructLogs, cfg)
 
 		resp := traceTransactionResponse{
 			Gas:         result.GasUsed,
@@ -133,4 +82,74 @@ func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (i
 
 		return resp, nil
 	})
+}
+
+// TraceTransaction creates a response for debug_traceBlockByNumber request.
+// See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbynumber
+func (d *DebugEndpoints) TraceBlockByNumber(number BlockNumber, cfg *traceConfig) (interface{}, rpcError) {
+	return "not implemented yet", nil
+}
+
+// TraceTransaction creates a response for debug_traceBlockByHash request.
+// See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbyhash
+func (d *DebugEndpoints) TraceBlockByHash(hash common.Hash, cfg *traceConfig) (interface{}, rpcError) {
+	return "not implemented yet", nil
+}
+
+func buildStructLogs(stateStructLogs []instrumentation.StructLog, cfg *traceConfig) []StructLogRes {
+	structLogs := make([]StructLogRes, 0, len(stateStructLogs))
+	for _, structLog := range stateStructLogs {
+
+		stack := make([]argBig, 0, len(structLog.Stack))
+		if !cfg.DisableStack && len(structLog.Stack) > 0 {
+			for _, stackItem := range structLog.Stack {
+				if stackItem != nil {
+					stack = append(stack, argBig(*stackItem))
+				}
+			}
+		}
+
+		memory := make([]string, 0, len(structLog.Memory))
+		if cfg.EnableMemory {
+			for _, memoryItem := range structLog.Memory {
+				slice32Bytes := make([]byte, 32)
+				slice32Bytes[31] = memoryItem
+				memoryStringItem := hex.EncodeToString(slice32Bytes)
+				memory = append(memory, memoryStringItem)
+			}
+		}
+
+		var storageRes *map[string]string
+		if !cfg.DisableStorage && len(structLog.Storage) > 0 {
+			storage := make(map[string]string, len(structLog.Storage))
+			for storageKey, storageValue := range structLog.Storage {
+				storage[storageKey.String()] = storageValue.String()
+			}
+			storageRes = &storage
+		}
+
+		errRes := ""
+		if structLog.Err != nil {
+			errRes = structLog.Err.Error()
+		}
+
+		op := structLog.Op
+		if op == "SHA3" {
+			op = "KECCAK256"
+		}
+
+		structLogs = append(structLogs, StructLogRes{
+			Pc:            structLog.Pc,
+			Op:            op,
+			Gas:           structLog.Gas,
+			GasCost:       structLog.GasCost,
+			Depth:         structLog.Depth,
+			Error:         errRes,
+			Stack:         stack,
+			Memory:        memory,
+			Storage:       storageRes,
+			RefundCounter: structLog.RefundCounter,
+		})
+	}
+	return structLogs
 }
