@@ -1,6 +1,20 @@
 package e2e
 
-/*
+import (
+	"context"
+	"math/big"
+	"testing"
+	"time"
+
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/stretchr/testify/require"
+)
+
 func TestEthTransfer(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -56,4 +70,3 @@ func TestEthTransfer(t *testing.T) {
 	err = operations.ApplyL2Txs(ctx, txs, auth, client)
 	require.NoError(t, err)
 }
-*/

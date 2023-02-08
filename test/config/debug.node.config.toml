@@ -66,7 +66,7 @@ MinTimeToCloseBatch = "5s"
 MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
-MaxTxsPerBatch = 1
+MaxTxsPerBatch = 150
 MaxBatchBytesSize = 150000
 MaxCumulativeGasUsed = 30000000
 MaxKeccakHashes = 468
@@ -89,7 +89,7 @@ MaxAllowedFailedCounter = 50
 	[Sequencer.Finalizer]
 		GERDeadlineTimeoutInSec = "1s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"
-		SendingToL1DeadlineTimeoutInSec = "520s"
+		SendingToL1DeadlineTimeoutInSec = "10s"
 		SleepDurationInMs = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 0

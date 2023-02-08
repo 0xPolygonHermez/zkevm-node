@@ -520,25 +520,34 @@ func (s *ClientSynchronizer) Stop() {
 
 func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
 	//Compare virtual state with trusted state
-	if hex.EncodeToString(batch.BatchL2Data) == hex.EncodeToString(tBatch.BatchL2Data) &&
-		batch.GlobalExitRoot.String() == tBatch.GlobalExitRoot.String() &&
-		batch.Timestamp.Unix() == tBatch.Timestamp.Unix() &&
-		batch.Coinbase.String() == tBatch.Coinbase.String() &&
-		newRoot == tBatch.StateRoot {
-		return false
+	isReorgDetected := false
+	reorgReasons := ""
+	if hex.EncodeToString(batch.BatchL2Data) != hex.EncodeToString(tBatch.BatchL2Data) {
+		reorgReasons += fmt.Sprintf("Different field BatchL2Data Virtual: %s, Trusted: %s\n", hex.EncodeToString(batch.BatchL2Data), hex.EncodeToString(tBatch.BatchL2Data))
+		isReorgDetected = true
 	}
-	log.Warn("Trusted Reorg detected")
-	log.Debug("batch.BatchL2Data: ", hex.EncodeToString(batch.BatchL2Data))
-	log.Debug("batch.globalExitRoot: ", batch.GlobalExitRoot)
-	log.Debug("batch.Timestamp: ", batch.Timestamp)
-	log.Debug("batch.Coinbase: ", batch.Coinbase)
-	log.Debug("newRoot: ", newRoot)
-	log.Debug("tBatch.BatchL2Data: ", hex.EncodeToString(tBatch.BatchL2Data))
-	log.Debug("tBatch.globalExitRoot: ", tBatch.GlobalExitRoot)
-	log.Debug("tBatch.Timestamp: ", tBatch.Timestamp)
-	log.Debug("tBatch.Coinbase: ", tBatch.Coinbase)
-	log.Debug("tBatch.StateRoot: ", tBatch.StateRoot)
-	return true
+	if batch.GlobalExitRoot.String() != tBatch.GlobalExitRoot.String() {
+		reorgReasons += fmt.Sprintf("Different field GlobalExitRoot Virtual: %s, Trusted: %s\n", batch.GlobalExitRoot.String(), tBatch.GlobalExitRoot.String())
+		isReorgDetected = true
+	}
+	if batch.Timestamp.Unix() != tBatch.Timestamp.Unix() {
+		reorgReasons += fmt.Sprintf("Different field Timestamp Virtual: %d, Trusted: %d\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix())
+		isReorgDetected = true
+	}
+	if batch.Coinbase.String() != tBatch.Coinbase.String() {
+		reorgReasons += fmt.Sprintf("Different field Coinbase Virtual: %s, Trusted: %s\n", batch.Coinbase.String(), tBatch.Coinbase.String())
+		isReorgDetected = true
+	}
+	if newRoot != tBatch.StateRoot {
+		reorgReasons += fmt.Sprintf("Different field StateRoot Virtual: %s, Trusted: %s\n", newRoot.String(), tBatch.StateRoot.String())
+		isReorgDetected = true
+	}
+
+	if isReorgDetected {
+		log.Warnf("Trusted Reorg detected for Batch Number: %d.\nReasons: %s", tBatch.BatchNumber, reorgReasons)
+	}
+
+	return isReorgDetected
 }
 
 func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {
