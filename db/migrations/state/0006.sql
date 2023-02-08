@@ -7,7 +7,7 @@ CREATE INDEX IF NOT EXISTS log_tx_hash_idx ON state.log (tx_hash);
 CREATE INDEX IF NOT EXISTS log_address_idx ON state.log (address);
 
 ALTER TABLE state.virtual_batch
-ADD COLUMN fee_recipient VARCHAR DEFAULT '0x0000000000000000000000000000000000000000';
+ADD COLUMN sequencer_addr VARCHAR DEFAULT '0x0000000000000000000000000000000000000000';
 
 -- +migrate Down
 DROP INDEX IF EXISTS state.transaction_l2_block_num_idx;
@@ -18,4 +18,4 @@ DROP INDEX IF EXISTS state.log_tx_hash_idx;
 DROP INDEX IF EXISTS state.log_address_idx;
 
 ALTER TABLE state.virtual_batch
-DROP COLUMN IF EXISTS fee_recipient;
+DROP COLUMN IF EXISTS sequencer_addr;

@@ -58,7 +58,7 @@ func (m migrationTest0006) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 	assert.NoError(t, err)
 	// Insert virtual batch
 	const insertVirtualBatch = `INSERT INTO state.virtual_batch (
-		batch_num, tx_hash, coinbase, block_num, fee_recipient)
+		batch_num, tx_hash, coinbase, block_num, sequencer_addr)
 		VALUES (2, '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1', '0x514910771af9ca656af840dff83e8264ecf986ca', 1, '0x514910771af9ca656af840dff83e8264ecf986ca');`
 	_, err = db.Exec(insertVirtualBatch)
 	assert.NoError(t, err)
@@ -81,7 +81,7 @@ func (m migrationTest0006) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 	assert.NoError(t, err)
 	// Insert virtual batch
 	insertVirtualBatch := `INSERT INTO state.virtual_batch (
-		batch_num, tx_hash, coinbase, block_num, fee_recipient,
+		batch_num, tx_hash, coinbase, block_num, sequencer_addr,
 		) VALUES (
 			3, '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1', '0x514910771af9ca656af840dff83e8264ecf986ca', 1, '0x514910771af9ca656af840dff83e8264ecf986ca');`
 	_, err = db.Exec(insertVirtualBatch)

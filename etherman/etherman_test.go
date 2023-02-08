@@ -181,7 +181,8 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[2].SequencedBatches[0][1].Transactions)
 	assert.Equal(t, currentBlock.Time(), blocks[2].SequencedBatches[0][0].Timestamp)
 	assert.Equal(t, ger, blocks[2].SequencedBatches[0][0].GlobalExitRoot)
-	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].FeeRecipient)
+	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].Coinbase)
+	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].SequencerAddr)
 	assert.Equal(t, currentBlock.Time(), blocks[2].SequencedBatches[0][0].MinForcedTimestamp)
 	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
 }
@@ -331,7 +332,8 @@ func TestSendSequences(t *testing.T) {
 	assert.Equal(t, 1, len(blocks[1].SequencedBatches))
 	assert.Equal(t, currentBlock.Time()-1, blocks[1].SequencedBatches[0][0].Timestamp)
 	assert.Equal(t, ger, blocks[1].SequencedBatches[0][0].GlobalExitRoot)
-	assert.Equal(t, auth.From, blocks[1].SequencedBatches[0][0].FeeRecipient)
+	assert.Equal(t, auth.From, blocks[1].SequencedBatches[0][0].Coinbase)
+	assert.Equal(t, auth.From, blocks[1].SequencedBatches[0][0].SequencerAddr)
 	assert.Equal(t, uint64(0), blocks[1].SequencedBatches[0][0].MinForcedTimestamp)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
