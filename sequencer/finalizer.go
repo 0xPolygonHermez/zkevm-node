@@ -203,22 +203,13 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			_ = f.processTransaction(ctx, tx)
-		} else {
-			if f.isBatchAlmostFull() {
-				// Wait for all transactions to be stored in the DB
-				log.Infof("Closing batch: %d, because it's almost full.", f.batch.batchNumber)
-				// The perfect moment to finalize the batch
-				f.finalizeBatch(ctx)
-			} else {
-				// wait for new txs
-				if f.cfg.SleepDurationInMs.Duration > 0 {
-					time.Sleep(f.cfg.SleepDurationInMs.Duration)
-				}
-			}
 		}
 
-		if f.isDeadlineEncountered() || f.isBatchFull() {
+		if f.isDeadlineEncountered() || f.isBatchAlmostFull() || f.isBatchFull() {
+			// TODO: double check that we log correctly the reason why we close batch
 			f.finalizeBatch(ctx)
+		} else if tx == nil && f.cfg.SleepDurationInMs.Duration > 0 {
+			time.Sleep(f.cfg.SleepDurationInMs.Duration)
 		}
 
 		if err := ctx.Err(); err != nil {
@@ -509,11 +500,8 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInS
 		// Skip already processed forced batches
 		if forcedBatch.ForcedBatchNumber < nextForcedBatchNum {
 			continue
-		}
-		// Process in-between unprocessed forced batches
-		for forcedBatch.ForcedBatchNumber > nextForcedBatchNum {
-			lastBatchNumberInState, stateRoot = f.processForcedBatch(lastBatchNumberInState, stateRoot, forcedBatch)
-			nextForcedBatchNum += 1
+		} else if forcedBatch.ForcedBatchNumber > nextForcedBatchNum {
+			return 0, common.Hash{}, fmt.Errorf("missing intermeddiary forced batch numbers expected %d, actual: %d", nextForcedBatchNum, forcedBatch.ForcedBatchNumber)
 		}
 		// Process the current forced batch from the channel queue
 		lastBatchNumberInState, stateRoot = f.processForcedBatch(lastBatchNumberInState, stateRoot, forcedBatch)
