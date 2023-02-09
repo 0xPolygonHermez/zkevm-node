@@ -195,14 +195,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 		///////////////////
 		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
 		timestamp := uint64(processingCtx.Timestamp.Unix())
-		currBatch = &WipBatch{
-			globalExitRoot:     processingCtx.GlobalExitRoot,
-			batchNumber:        processingCtx.BatchNumber,
-			coinbase:           processingCtx.Coinbase,
-			timestamp:          timestamp,
-			remainingResources: getMaxRemainingResources(finalizer.batchConstraints),
-		}
-		_, oldStateRoot, err := finalizer.getLastBatchNumAndStateRoot(ctx)
+		_, oldStateRoot, err := finalizer.getLastBatchNumAndOldStateRoot(ctx)
 		if err != nil {
 			log.Fatalf("failed to get old state root, err: %v", err)
 		}
@@ -213,6 +206,15 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 			Coinbase:       processingCtx.Coinbase,
 			Timestamp:      timestamp,
 			Caller:         state.SequencerCallerLabel,
+		}
+		currBatch = &WipBatch{
+			globalExitRoot:     processingCtx.GlobalExitRoot,
+			initialStateRoot:   oldStateRoot,
+			stateRoot:          oldStateRoot,
+			batchNumber:        processingCtx.BatchNumber,
+			coinbase:           processingCtx.Coinbase,
+			timestamp:          timestamp,
+			remainingResources: getMaxRemainingResources(finalizer.batchConstraints),
 		}
 	} else {
 		err := finalizer.syncWithState(ctx, &batchNum)

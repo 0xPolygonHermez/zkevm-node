@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
@@ -520,25 +521,29 @@ func (s *ClientSynchronizer) Stop() {
 
 func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
 	//Compare virtual state with trusted state
-	if hex.EncodeToString(batch.BatchL2Data) == hex.EncodeToString(tBatch.BatchL2Data) &&
-		batch.GlobalExitRoot.String() == tBatch.GlobalExitRoot.String() &&
-		batch.Timestamp.Unix() == tBatch.Timestamp.Unix() &&
-		batch.Coinbase.String() == tBatch.Coinbase.String() &&
-		newRoot == tBatch.StateRoot {
-		return false
+	var reorgReasons strings.Builder
+	if hex.EncodeToString(batch.BatchL2Data) != hex.EncodeToString(tBatch.BatchL2Data) {
+		reorgReasons.WriteString(fmt.Sprintf("Different field BatchL2Data. Virtual: %s, Trusted: %s\n", hex.EncodeToString(batch.BatchL2Data), hex.EncodeToString(tBatch.BatchL2Data)))
 	}
-	log.Warn("Trusted Reorg detected")
-	log.Debug("batch.BatchL2Data: ", hex.EncodeToString(batch.BatchL2Data))
-	log.Debug("batch.globalExitRoot: ", batch.GlobalExitRoot)
-	log.Debug("batch.Timestamp: ", batch.Timestamp)
-	log.Debug("batch.Coinbase: ", batch.Coinbase)
-	log.Debug("newRoot: ", newRoot)
-	log.Debug("tBatch.BatchL2Data: ", hex.EncodeToString(tBatch.BatchL2Data))
-	log.Debug("tBatch.globalExitRoot: ", tBatch.GlobalExitRoot)
-	log.Debug("tBatch.Timestamp: ", tBatch.Timestamp)
-	log.Debug("tBatch.Coinbase: ", tBatch.Coinbase)
-	log.Debug("tBatch.StateRoot: ", tBatch.StateRoot)
-	return true
+	if batch.GlobalExitRoot.String() != tBatch.GlobalExitRoot.String() {
+		reorgReasons.WriteString(fmt.Sprintf("Different field GlobalExitRoot. Virtual: %s, Trusted: %s\n", batch.GlobalExitRoot.String(), tBatch.GlobalExitRoot.String()))
+	}
+	if batch.Timestamp.Unix() != tBatch.Timestamp.Unix() {
+		reorgReasons.WriteString(fmt.Sprintf("Different field Timestamp. Virtual: %d, Trusted: %d\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix()))
+	}
+	if batch.Coinbase.String() != tBatch.Coinbase.String() {
+		reorgReasons.WriteString(fmt.Sprintf("Different field Coinbase. Virtual: %s, Trusted: %s\n", batch.Coinbase.String(), tBatch.Coinbase.String()))
+	}
+	if newRoot != tBatch.StateRoot {
+		reorgReasons.WriteString(fmt.Sprintf("Different field StateRoot. Virtual: %s, Trusted: %s\n", newRoot.String(), tBatch.StateRoot.String()))
+	}
+
+	if reorgReasons.Len() > 0 {
+		log.Warnf("Trusted Reorg detected for Batch Number: %d.\nReasons: %s", tBatch.BatchNumber, reorgReasons.String())
+		return true
+	}
+
+	return false
 }
 
 func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {
@@ -608,7 +613,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		}
 
 		// Reprocess batch to compare the stateRoot with tBatch.StateRoot and get accInputHash
-		p, err := s.state.ExecuteBatch(s.ctx, batch.BatchNumber, batch.BatchL2Data, dbTx)
+		p, err := s.state.ExecuteBatch(s.ctx, batch, dbTx)
 		if err != nil {
 			log.Errorf("error executing L1 batch: %+v, error: %w", batch, err)
 			rollbackErr := dbTx.Rollback(s.ctx)

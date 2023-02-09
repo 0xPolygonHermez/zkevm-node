@@ -122,7 +122,7 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 	} else {
 		f.processRequest, err = f.prepareProcessRequestFromState(ctx, false)
 		if err != nil {
-			log.Fatalf("failed to prepare process request from state, Err: %s", err)
+			log.Errorf("failed to prepare process request from state, Err: %s", err)
 		}
 	}
 
@@ -155,16 +155,15 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 		case <-ctx.Done():
 			log.Infof("finalizer closing signal listener received context done, Err: %s", ctx.Err())
 			return
-		// Forced  batch ch
+		// ForcedBatch ch
 		case fb := <-f.closingSignalCh.ForcedBatchCh:
 			f.nextForcedBatchesMux.Lock()
 			f.nextForcedBatches = f.SortForcedBatches(append(f.nextForcedBatches, fb))
-
 			if f.nextForcedBatchDeadline == 0 {
 				f.setNextForcedBatchDeadline()
 			}
 			f.nextForcedBatchesMux.Unlock()
-		// globalExitRoot ch
+		// GlobalExitRoot ch
 		case ger := <-f.closingSignalCh.GERCh:
 			f.nextGERMux.Lock()
 			f.nextGER = ger
@@ -207,7 +206,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		} else {
 			if f.isBatchAlmostFull() {
 				// Wait for all transactions to be stored in the DB
-				f.txsStore.Wg.Wait()
+				log.Infof("Closing batch: %d, because it's almost full.", f.batch.batchNumber)
 				// The perfect moment to finalize the batch
 				f.finalizeBatch(ctx)
 			} else {
@@ -218,7 +217,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			}
 		}
 
-		if f.isDeadlineEncountered() || f.batch.countOfTxs >= int(f.batchConstraints.MaxTxsPerBatch) {
+		if f.isDeadlineEncountered() || f.isBatchFull() {
 			f.finalizeBatch(ctx)
 		}
 
@@ -227,6 +226,14 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (f *finalizer) isBatchFull() bool {
+	if f.batch.countOfTxs >= int(f.batchConstraints.MaxTxsPerBatch) {
+		log.Infof("Closing batch: %d, because it's full.", f.batch.batchNumber)
+		return true
+	}
+	return false
 }
 
 // finalizeBatch retries to until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
@@ -264,9 +271,10 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
+
 	// Reprocessing batch as sanity check
 	go func() {
-		err := f.reprocessBatch(ctx)
+		err := f.reprocessBatch(ctx, f.batch.batchNumber)
 		if err != nil {
 			// TODO: design error handling for reprocessing
 			log.Errorf("failed to reprocess batch, err: %s", err)
@@ -300,7 +308,16 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	f.nextSendingToL1Deadline = 0
 	f.nextSendingToL1TimeoutMux.Unlock()
 
-	return f.openWIPBatch(ctx, lastBatchNumber+1, f.lastGERHash, stateRoot)
+	batch, err := f.openWIPBatch(ctx, lastBatchNumber+1, f.lastGERHash, stateRoot)
+	if err == nil {
+		f.processRequest.Timestamp = batch.timestamp
+		f.processRequest.BatchNumber = batch.batchNumber
+		f.processRequest.OldStateRoot = stateRoot
+		f.processRequest.GlobalExitRoot = batch.globalExitRoot
+		f.processRequest.Transactions = make([]byte, 0, 1)
+	}
+
+	return batch, err
 }
 
 // processTransaction processes a single transaction.
@@ -336,46 +353,45 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 		return err
 	}
 
-	if result != nil && result.ExecutorError != nil {
-		if result.ExecutorError == state.ErrBatchAlreadyClosed || result.ExecutorError == state.ErrInvalidBatchNumber {
-			log.Warnf("unexpected state local vs DB: %s", result.ExecutorError)
-			log.Info("reloading local sequence")
-			f.batch, err = f.dbManager.GetWIPBatch(ctx)
-			if err != nil {
-				log.Errorf("failed to get WIP Batch from state, err: %s", err)
-			}
-			return err
-		}
-		return fmt.Errorf("failed processing transaction, err: %w", result.ExecutorError)
-	} else {
-		// We have a successful processing if we are here, updating metadata
-		previousL2BlockStateRoot := f.batch.stateRoot
-		f.updateMetadata(result)
-		if tx != nil {
-			err = f.handleSuccessfulTxProcessResp(ctx, tx, result, previousL2BlockStateRoot)
-			if err != nil {
-				return err
-			}
-		}
+	err = f.handleSuccessfulTxProcessResp(ctx, tx, result)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
 // handleSuccessfulTxProcessResp handles the response of a successful transaction processing.
-func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, previousL2BlockStateRoot common.Hash) error {
+func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) error {
+	if len(result.Responses) > 0 {
+		// Handle Transaction Error
+		if result.Responses[0].RomError != nil {
+			f.handleTransactionError(ctx, result, tx)
+			return result.Responses[0].RomError
+		}
+	}
+
 	// Check remaining resources
-	err := f.handleResourcesCheck(ctx, tx, result)
+	err := f.checkRemainingResources(result, tx)
 	if err != nil {
 		return err
 	}
+
+	previousL2BlockStateRoot := f.batch.stateRoot
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
 	f.storeProcessedTx(previousL2BlockStateRoot, tx, result)
+	f.processRequest.OldStateRoot = result.NewStateRoot
+	f.batch.stateRoot = result.NewStateRoot
+	f.batch.localExitRoot = result.NewLocalExitRoot
 
 	return nil
 }
 
 func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *TxTracker, result *state.ProcessBatchResponse) {
+	if tx == nil || len(result.Responses) == 0 {
+		return
+	}
+
 	txResponse := result.Responses[0]
 	f.txsStore.Wg.Add(1)
 	f.txsStore.Ch <- &txToStore{
@@ -390,30 +406,9 @@ func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *T
 	f.batch.countOfTxs += 1
 }
 
-func (f *finalizer) updateMetadata(result *state.ProcessBatchResponse) {
-	f.processRequest.OldStateRoot = result.NewStateRoot
-	f.batch.stateRoot = result.NewStateRoot
-	f.batch.localExitRoot = result.NewLocalExitRoot
-}
-
-func (f *finalizer) handleResourcesCheck(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) error {
-	txResponse := result.Responses[0]
-	// Handle Transaction Error
-	if txResponse.RomError != nil {
-		f.handleTransactionError(ctx, txResponse, result, tx)
-		return txResponse.RomError
-	}
-
-	err := f.checkRemainingResources(result, tx, txResponse)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // handleTransactionError handles the error of a transaction
-func (f *finalizer) handleTransactionError(ctx context.Context, txResponse *state.ProcessTransactionResponse, result *state.ProcessBatchResponse, tx *TxTracker) {
+func (f *finalizer) handleTransactionError(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) {
+	txResponse := result.Responses[0]
 	errorCode := executor.RomErrorCode(txResponse.RomError)
 	addressInfo := result.ReadWriteAddresses[tx.From]
 
@@ -466,7 +461,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		if err != nil {
 			return fmt.Errorf("failed to get latest ger, err: %w", err)
 		}
-		_, oldStateRoot, err := f.getLastBatchNumAndStateRoot(ctx)
+		_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get old state root, err: %w", err)
 		}
@@ -591,6 +586,14 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
+	// We need to process the batch to update the state root before closing the batch
+	if f.batch.initialStateRoot == f.batch.stateRoot {
+		err := f.processTransaction(ctx, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
 		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
@@ -621,20 +624,36 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 }
 
 // reprocessBatch reprocesses a batch used as sanity check
-func (f *finalizer) reprocessBatch(ctx context.Context) error {
-	processRequest, err := f.prepareProcessRequestFromState(ctx, true)
+func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
+	_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
 	if err != nil {
-		log.Errorf("failed to prepare process request for reprocessing batch, err: %s", err)
+		return fmt.Errorf("failed to get old state root, err: %w", err)
+	}
+	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get batch by number, err: %w", err)
+	}
+	processRequest := state.ProcessRequest{
+		BatchNumber:    batch.BatchNumber,
+		GlobalExitRoot: batch.GlobalExitRoot,
+		OldStateRoot:   oldStateRoot,
+		Transactions:   batch.BatchL2Data,
+		Coinbase:       batch.Coinbase,
+		Timestamp:      uint64(batch.Timestamp.Unix()),
+		Caller:         state.DiscardCallerLabel,
+	}
+	result, err := f.executor.ProcessBatch(ctx, processRequest)
+	if err != nil {
+		log.Errorf("failed to process batch, err: %s", err)
 		return err
 	}
-	processRequest.Caller = state.DiscardCallerLabel
-	result, err := f.executor.ProcessBatch(ctx, processRequest)
-	if err != nil || (result != nil && result.ExecutorError != nil) {
-		if result != nil && result.ExecutorError != nil {
-			err = result.ExecutorError
-		}
-		log.Errorf("failed to reprocess batch, err: %s", err)
-		return err
+
+	if !result.IsBatchProcessed {
+		return fmt.Errorf("failed to process batch because OutOfCounters error")
+	}
+
+	if result.NewStateRoot != batch.StateRoot {
+		log.Errorf("reprocessed batch has different state root, expected: %s, got: %s", batch.StateRoot.Hex(), result.NewStateRoot.Hex())
 	}
 
 	return nil
@@ -672,7 +691,7 @@ func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs
 		}
 	} else {
 		txs = make([]byte, 0, 1)
-		batchNum, oldStateRoot, err = f.getLastBatchNumAndStateRoot(ctx)
+		batchNum, oldStateRoot, err = f.getLastBatchNumAndOldStateRoot(ctx)
 		if err != nil {
 			return state.ProcessRequest{}, err
 		}
@@ -689,7 +708,7 @@ func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs
 	}, nil
 }
 
-func (f *finalizer) getLastBatchNumAndStateRoot(ctx context.Context) (uint64, common.Hash, error) {
+func (f *finalizer) getLastBatchNumAndOldStateRoot(ctx context.Context) (uint64, common.Hash, error) {
 	const two = 2
 	var oldStateRoot common.Hash
 	batches, err := f.dbManager.GetLastNBatches(ctx, two)
@@ -719,14 +738,17 @@ func (f *finalizer) getOldStateRootFromBatches(batches []*state.Batch) common.Ha
 func (f *finalizer) isDeadlineEncountered() bool {
 	// Forced batch deadline
 	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
+		log.Infof("Closing batch: %d, forced batch deadline encountered.", f.batch.batchNumber)
 		return true
 	}
 	// Global Exit Root deadline
 	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
+		log.Infof("Closing batch: %d, Global Exit Root deadline encountered.", f.batch.batchNumber)
 		return true
 	}
 	// Delayed batch deadline
 	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline {
+		log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
 		return true
 	}
 
@@ -734,16 +756,21 @@ func (f *finalizer) isDeadlineEncountered() bool {
 }
 
 // checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
-func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker, txResponse *state.ProcessTransactionResponse) error {
+func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker) error {
+	if len(result.Responses) == 0 {
+		return nil
+	}
+
 	usedResources := batchResources{
 		zKCounters: result.UsedZkCounters,
 		bytes:      uint64(len(tx.RawTx)),
 	}
+
 	err := f.batch.remainingResources.sub(usedResources)
 	if err != nil {
 		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
 		start := time.Now()
-		f.worker.UpdateTx(txResponse.TxHash, tx.From, usedResources.zKCounters)
+		f.worker.UpdateTx(result.Responses[0].TxHash, tx.From, usedResources.zKCounters)
 		metrics.WorkerProcessingTime(time.Since(start))
 		return err
 	}

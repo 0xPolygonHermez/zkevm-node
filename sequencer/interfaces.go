@@ -55,7 +55,7 @@ type stateInterface interface {
 	GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error)
 	ProcessBatch(ctx context.Context, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
-	ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
+	ExecuteBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
@@ -100,6 +100,7 @@ type dbManagerInterface interface {
 	GetLastBatch(ctx context.Context) (*state.Batch, error)
 	GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error)
 	GetLastClosedBatch(ctx context.Context) (*state.Batch, error)
+	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
 	MarkReorgedTxsAsPending(ctx context.Context)
 	GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error)
@@ -129,7 +130,7 @@ type dbManagerStateInterface interface {
 	GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
-	ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
+	ExecuteBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
