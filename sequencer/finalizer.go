@@ -636,7 +636,7 @@ func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 	}
 	result, err := f.executor.ProcessBatch(ctx, processRequest)
 	if err != nil {
-		log.Fatalf("failed to process batch, err: %s", err)
+		log.Errorf("failed to process batch, err: %s", err)
 		return err
 	}
 
@@ -749,6 +749,10 @@ func (f *finalizer) isDeadlineEncountered() bool {
 
 // checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
 func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker) error {
+	if len(result.Responses) == 0 {
+		return nil
+	}
+
 	usedResources := batchResources{
 		zKCounters: result.UsedZkCounters,
 		bytes:      uint64(len(tx.RawTx)),

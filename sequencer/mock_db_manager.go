@@ -489,7 +489,7 @@ func (_m *DbManagerMock) StoreProcessedTransaction(ctx context.Context, batchNum
 	return r0
 }
 
-// UpdateTxStatus provides a mock function with given fields: ctx, hash, newStatus
+// UpdateTxStatus provides a mock function with given fields: ctx, oldHash, newStatus
 func (_m *DbManagerMock) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error {
 	ret := _m.Called(ctx, hash, newStatus)
 

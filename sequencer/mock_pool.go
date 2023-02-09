@@ -19,7 +19,7 @@ type PoolMock struct {
 	mock.Mock
 }
 
-// DeleteTransactionByHash provides a mock function with given fields: ctx, hash
+// DeleteTransactionByHash provides a mock function with given fields: ctx, oldHash
 func (_m *PoolMock) DeleteTransactionByHash(ctx context.Context, hash common.Hash) error {
 	ret := _m.Called(ctx, hash)
 
@@ -70,7 +70,7 @@ func (_m *PoolMock) GetPendingTxs(ctx context.Context, isClaims bool, limit uint
 	return r0, r1
 }
 
-// GetTxZkCountersByHash provides a mock function with given fields: ctx, hash
+// GetTxZkCountersByHash provides a mock function with given fields: ctx, oldHash
 func (_m *PoolMock) GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error) {
 	ret := _m.Called(ctx, hash)
 
@@ -121,7 +121,7 @@ func (_m *PoolMock) MarkWIPTxsAsPending(ctx context.Context) error {
 	return r0
 }
 
-// UpdateTxStatus provides a mock function with given fields: ctx, hash, newStatus
+// UpdateTxStatus provides a mock function with given fields: ctx, oldHash, newStatus
 func (_m *PoolMock) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error {
 	ret := _m.Called(ctx, hash, newStatus)
 

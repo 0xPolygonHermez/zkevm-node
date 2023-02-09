@@ -65,8 +65,8 @@ var (
 		GERFinalityNumberOfBlocks:      64,
 	}
 	seqAddr  = common.Address{}
-	hash     = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
-	hash2    = common.HexToHash("0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+	oldHash  = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
+	newHash  = common.HexToHash("0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	sender   = common.HexToAddress("0x3445324")
 	isSynced = func(ctx context.Context) bool {
 		return true
@@ -111,14 +111,14 @@ func TestNewFinalizer(t *testing.T) {
 //
 //	txs := make([]types.Transaction, 0)
 //	batchNum := f.batch.batchNumber + 1
-//	f.processRequest.GlobalExitRoot = hash
-//	f.processRequest.OldStateRoot = hash
+//	f.processRequest.GlobalExitRoot = oldHash
+//	f.processRequest.OldStateRoot = oldHash
 //	f.processRequest.Transactions = []byte{}
 //	expectedWipBatch := &WipBatch{
 //		batchNumber:        batchNum,
 //		coinbase:           f.sequencerAddress,
-//		initialStateRoot:   hash2,
-//		stateRoot:          hash2,
+//		initialStateRoot:   newHash,
+//		stateRoot:          newHash,
 //		timestamp:          uint64(now().Unix()),
 //		remainingResources: getMaxRemainingResources(f.batchConstraints),
 //	}
@@ -131,7 +131,7 @@ func TestNewFinalizer(t *testing.T) {
 //	batches := []*state.Batch{
 //		{
 //			BatchNumber: 0,
-//			StateRoot:   hash,
+//			StateRoot:   oldHash,
 //		},
 //	}
 //	testCases := []struct {
@@ -224,7 +224,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
 	nonce := uint64(0)
-	tx := &TxTracker{Hash: hash, From: sender}
+	tx := &TxTracker{Hash: oldHash, From: sender}
 	testCases := []struct {
 		name               string
 		error              pb.RomError
@@ -246,11 +246,11 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
 			if tc.expectedDeleteCall {
-				workerMock.On("DeleteTx", hash, sender).Return().Once()
-				dbManagerMock.On("UpdateTxStatus", ctx, hash, pool.TxStatusInvalid).Return(nil).Once()
+				workerMock.On("DeleteTx", oldHash, sender).Return().Once()
+				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, pool.TxStatusInvalid).Return(nil).Once()
 			}
 			if tc.expectedMoveCall {
-				workerMock.On("MoveTxToNotReady", hash, sender, &nonce, big.NewInt(0)).Return().Once()
+				workerMock.On("MoveTxToNotReady", oldHash, sender, &nonce, big.NewInt(0)).Return().Once()
 			}
 
 			result := &state.ProcessBatchResponse{
@@ -282,8 +282,8 @@ func TestFinalizer_syncWithState(t *testing.T) {
 	batches := []*state.Batch{
 		{
 			BatchNumber:    1,
-			StateRoot:      hash,
-			GlobalExitRoot: hash,
+			StateRoot:      oldHash,
+			GlobalExitRoot: oldHash,
 		},
 	}
 	testCases := []struct {
@@ -304,22 +304,22 @@ func TestFinalizer_syncWithState(t *testing.T) {
 			name:          "Success-Closed Batch",
 			lastBatchNum:  &one,
 			isBatchClosed: true,
-			ger:           hash,
+			ger:           oldHash,
 			batches:       batches,
 			expectedBatch: &WipBatch{
 				batchNumber:        one + 1,
 				coinbase:           f.sequencerAddress,
-				initialStateRoot:   hash,
-				stateRoot:          hash,
+				initialStateRoot:   oldHash,
+				stateRoot:          oldHash,
 				timestamp:          uint64(testNow().Unix()),
-				globalExitRoot:     hash,
+				globalExitRoot:     oldHash,
 				remainingResources: getMaxRemainingResources(f.batchConstraints),
 			},
 			expectedProcessingCtx: state.ProcessingContext{
 				BatchNumber:    one + 1,
 				Coinbase:       f.sequencerAddress,
 				Timestamp:      testNow(),
-				GlobalExitRoot: hash,
+				GlobalExitRoot: oldHash,
 			},
 			expectedErr: nil,
 		},
@@ -331,17 +331,17 @@ func TestFinalizer_syncWithState(t *testing.T) {
 			expectedBatch: &WipBatch{
 				batchNumber:        one,
 				coinbase:           f.sequencerAddress,
-				initialStateRoot:   hash,
-				stateRoot:          hash,
+				initialStateRoot:   oldHash,
+				stateRoot:          oldHash,
 				timestamp:          uint64(testNow().Unix()),
-				globalExitRoot:     hash,
+				globalExitRoot:     oldHash,
 				remainingResources: getMaxRemainingResources(f.batchConstraints),
 			},
 			expectedProcessingCtx: state.ProcessingContext{
 				BatchNumber:    one,
 				Coinbase:       f.sequencerAddress,
 				Timestamp:      testNow(),
-				GlobalExitRoot: hash,
+				GlobalExitRoot: oldHash,
 			},
 		},
 		{
@@ -349,7 +349,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 			lastBatchNum:       nil,
 			batches:            batches,
 			isBatchClosed:      true,
-			ger:                hash,
+			ger:                oldHash,
 			getLastBatchNumErr: testErr,
 			expectedErr:        fmt.Errorf("failed to get last batch number, err: %w", testErr),
 		},
@@ -358,7 +358,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 			lastBatchNum:     &one,
 			batches:          batches,
 			isBatchClosed:    true,
-			ger:              hash,
+			ger:              oldHash,
 			isBatchClosedErr: testErr,
 			expectedErr:      fmt.Errorf("failed to check if batch is closed, err: %w", testErr),
 		},
@@ -376,13 +376,13 @@ func TestFinalizer_syncWithState(t *testing.T) {
 			lastBatchNum:  &one,
 			batches:       batches,
 			isBatchClosed: true,
-			ger:           hash,
+			ger:           oldHash,
 			openBatchErr:  testErr,
 			expectedProcessingCtx: state.ProcessingContext{
 				BatchNumber:    one + 1,
 				Coinbase:       f.sequencerAddress,
 				Timestamp:      testNow(),
-				GlobalExitRoot: hash,
+				GlobalExitRoot: oldHash,
 			},
 			expectedErr: fmt.Errorf("failed to open new batch, err: %w", testErr),
 		},
@@ -450,15 +450,15 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 	RawTxsData2 = append(RawTxsData2, []byte("forced tx 3")...)
 	RawTxsData2 = append(RawTxsData2, []byte("forced tx 4")...)
 	batchNumber := f.batch.batchNumber
-	stateRoot := hash
+	stateRoot := oldHash
 	forcedBatch1 := state.ForcedBatch{
 		ForcedBatchNumber: 2,
-		GlobalExitRoot:    hash,
+		GlobalExitRoot:    oldHash,
 		RawTxsData:        RawTxsData1,
 	}
 	forcedBatch2 := state.ForcedBatch{
 		ForcedBatchNumber: 3,
-		GlobalExitRoot:    hash,
+		GlobalExitRoot:    oldHash,
 		RawTxsData:        RawTxsData2,
 	}
 	testCases := []struct {
@@ -529,10 +529,10 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 	expectedWipBatch := &WipBatch{
 		batchNumber:        batchNum,
 		coinbase:           f.sequencerAddress,
-		initialStateRoot:   hash,
-		stateRoot:          hash,
+		initialStateRoot:   oldHash,
+		stateRoot:          oldHash,
 		timestamp:          uint64(now().Unix()),
-		globalExitRoot:     hash,
+		globalExitRoot:     oldHash,
 		remainingResources: getMaxRemainingResources(f.batchConstraints),
 	}
 	testCases := []struct {
@@ -591,7 +591,7 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 			}
 
 			// act
-			wipBatch, err := f.openWIPBatch(ctx, batchNum, hash, hash)
+			wipBatch, err := f.openWIPBatch(ctx, batchNum, oldHash, oldHash)
 
 			// assert
 			if tc.expectedErr != nil {
@@ -681,7 +681,7 @@ func TestFinalizer_openBatch(t *testing.T) {
 				BatchNumber:    batchNum,
 				Coinbase:       f.sequencerAddress,
 				Timestamp:      now(),
-				GlobalExitRoot: hash,
+				GlobalExitRoot: oldHash,
 			},
 			expectedErr: nil,
 		},
@@ -700,7 +700,7 @@ func TestFinalizer_openBatch(t *testing.T) {
 			dbManagerMock.Mock.On("OpenBatch", mock.Anything, mock.Anything, mock.Anything).Return(tc.managerErr).Once()
 
 			// act
-			actualCtx, err := f.openBatch(ctx, tc.batchNum, hash, nil)
+			actualCtx, err := f.openBatch(ctx, tc.batchNum, oldHash, nil)
 
 			// assert
 			if tc.expectedErr != nil {
@@ -720,17 +720,35 @@ func TestFinalizer_openBatch(t *testing.T) {
 // TestFinalizer_reprocessBatch is a test for reprocessBatch which tests all possible cases of reprocessBatch
 func TestFinalizer_reprocessBatch(t *testing.T) {
 	// arrange
+	now = testNow
+	defer func() {
+		now = time.Now
+	}()
+
 	f = setupFinalizer(true)
 	n := uint(2)
 	expectedProcessBatchRequest := state.ProcessRequest{
-		BatchNumber:    f.batch.batchNumber,
-		OldStateRoot:   hash,
-		GlobalExitRoot: f.batch.globalExitRoot,
-		Coinbase:       f.sequencerAddress,
-		Timestamp:      f.batch.timestamp,
-		Caller:         state.DiscardCallerLabel,
+		BatchNumber:  f.batch.batchNumber,
+		OldStateRoot: oldHash,
+		Coinbase:     f.sequencerAddress,
+		Timestamp:    f.batch.timestamp,
+		Caller:       state.DiscardCallerLabel,
+	}
+	batches := []*state.Batch{
+		{
+			BatchNumber: f.batch.batchNumber,
+			StateRoot:   newHash,
+			Timestamp:   testNow(),
+		},
+		{
+			BatchNumber:    f.batch.batchNumber - 1,
+			GlobalExitRoot: oldHash,
+			StateRoot:      oldHash,
+			Timestamp:      testNow(),
+		},
 	}
 
+	// TODO: Add missing cases for this test
 	testCases := []struct {
 		name                       string
 		getLastNBatchesErr         error
@@ -742,15 +760,11 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 		expectedProcessBatchResult *state.ProcessBatchResponse
 	}{
 		{
-			name: "Success",
-			batches: []*state.Batch{
-				{
-					BatchNumber: f.batch.batchNumber,
-					StateRoot:   hash,
-				},
-			},
+			name:                   "Success",
+			batches:                batches,
 			expectedProcessRequest: expectedProcessBatchRequest,
 			expectedProcessBatchResult: &state.ProcessBatchResponse{
+				NewStateRoot:     newHash,
 				IsBatchProcessed: true,
 			},
 		},
@@ -758,7 +772,7 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 			name:               "GetLastNBatches Error",
 			getLastNBatchesErr: testErr,
 			internalErr:        testErr,
-			expectedErr:        fmt.Errorf("failed to get last %d batches, err: %w", n, testErr),
+			expectedErr:        fmt.Errorf("failed to get old state root, err: failed to get last %d batches, err: %w", n, testErr),
 		},
 		{
 			name:                   "ProcessBatch Error",
@@ -766,25 +780,15 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 			internalErr:            testErr,
 			expectedErr:            testErr,
 			expectedProcessRequest: expectedProcessBatchRequest,
-			batches: []*state.Batch{
-				{
-					BatchNumber: f.batch.batchNumber,
-					StateRoot:   hash,
-				},
-			},
+			batches:                batches,
 		},
 		{
 			name:                   "ProcessBatch Result Error",
 			processBatchErr:        testErr,
-			internalErr:            testErr2,
+			internalErr:            testErr,
 			expectedProcessRequest: expectedProcessBatchRequest,
-			expectedErr:            testErr2,
-			batches: []*state.Batch{
-				{
-					BatchNumber: f.batch.batchNumber,
-					StateRoot:   hash,
-				},
-			},
+			expectedErr:            testErr,
+			batches:                batches,
 			expectedProcessBatchResult: &state.ProcessBatchResponse{
 				IsBatchProcessed: false,
 				ExecutorError:    testErr2,
@@ -799,10 +803,11 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 			dbManagerMock.On("GetLastNBatches", ctx, n).Return(tc.batches, tc.getLastNBatchesErr).Once()
 			if tc.getLastNBatchesErr == nil {
 				executorMock.Mock.On("ProcessBatch", ctx, f.processRequest).Return(tc.expectedProcessBatchResult, tc.processBatchErr).Once()
+				dbManagerMock.On("GetBatchByNumber", ctx, f.batch.batchNumber, nil).Return(tc.batches[0], nil).Once()
 			}
 
 			// act
-			err := f.reprocessBatch(ctx, tc.batches[0].BatchNumber)
+			err := f.reprocessBatch(ctx, f.batch.batchNumber)
 
 			// assert
 			if tc.expectedErr != nil {
@@ -832,7 +837,7 @@ func TestFinalizer_prepareProcessRequestFromState(t *testing.T) {
 			name: "Success with 1 batch with txs",
 			batches: []*state.Batch{
 				{
-					StateRoot:   hash,
+					StateRoot:   oldHash,
 					BatchNumber: f.batch.batchNumber,
 					BatchL2Data: batchL2Data,
 				},
@@ -840,7 +845,7 @@ func TestFinalizer_prepareProcessRequestFromState(t *testing.T) {
 			fetchTxs: true,
 			expectedReq: state.ProcessRequest{
 				BatchNumber:    f.batch.batchNumber,
-				OldStateRoot:   hash,
+				OldStateRoot:   oldHash,
 				GlobalExitRoot: f.batch.globalExitRoot,
 				Coinbase:       f.sequencerAddress,
 				Timestamp:      f.batch.timestamp,
@@ -853,17 +858,17 @@ func TestFinalizer_prepareProcessRequestFromState(t *testing.T) {
 			name: "Success with 2 batches",
 			batches: []*state.Batch{
 				{
-					StateRoot:   hash,
+					StateRoot:   oldHash,
 					BatchNumber: f.batch.batchNumber,
 				},
 				{
-					StateRoot:   hash,
+					StateRoot:   oldHash,
 					BatchNumber: f.batch.batchNumber + 1,
 				},
 			},
 			expectedReq: state.ProcessRequest{
 				BatchNumber:    f.batch.batchNumber,
-				OldStateRoot:   hash,
+				OldStateRoot:   oldHash,
 				GlobalExitRoot: f.batch.globalExitRoot,
 				Coinbase:       f.sequencerAddress,
 				Timestamp:      f.batch.timestamp,
@@ -974,8 +979,11 @@ func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 func TestFinalizer_checkRemainingResources(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
-	txResponse := &state.ProcessTransactionResponse{TxHash: hash}
-	result := &state.ProcessBatchResponse{UsedZkCounters: state.ZKCounters{CumulativeGasUsed: 1000}}
+	txResponse := &state.ProcessTransactionResponse{TxHash: oldHash}
+	result := &state.ProcessBatchResponse{
+		UsedZkCounters: state.ZKCounters{CumulativeGasUsed: 1000},
+		Responses:      []*state.ProcessTransactionResponse{txResponse},
+	}
 	remainingResources := batchResources{
 		zKCounters: state.ZKCounters{CumulativeGasUsed: 9000},
 		bytes:      10000,
@@ -1175,10 +1183,10 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		wipBatch = &WipBatch{
 			batchNumber:        1,
 			coinbase:           seqAddr,
-			initialStateRoot:   hash,
-			stateRoot:          hash2,
-			timestamp:          uint64(time.Now().Unix()),
-			globalExitRoot:     hash,
+			initialStateRoot:   oldHash,
+			stateRoot:          newHash,
+			timestamp:          uint64(now().Unix()),
+			globalExitRoot:     oldHash,
 			remainingResources: getMaxRemainingResources(bc),
 		}
 	}
