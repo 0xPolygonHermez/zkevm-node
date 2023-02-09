@@ -645,7 +645,7 @@ func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 	}
 
 	if result.NewStateRoot != batch.StateRoot {
-		log.Fatalf("reprocessed batch has different state root, expected: %s, got: %s", batch.StateRoot.Hex(), result.NewStateRoot.Hex())
+		log.Errorf("reprocessed batch has different state root, expected: %s, got: %s", batch.StateRoot.Hex(), result.NewStateRoot.Hex())
 	}
 
 	return nil
