@@ -122,7 +122,7 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 	} else {
 		f.processRequest, err = f.prepareProcessRequestFromState(ctx, false)
 		if err != nil {
-			log.Fatalf("failed to prepare process request from state, Err: %s", err)
+			log.Errorf("failed to prepare process request from state, Err: %s", err)
 		}
 	}
 
