@@ -353,11 +353,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 		return err
 	}
 
-	if tx != nil {
-		err = f.handleSuccessfulTxProcessResp(ctx, tx, result)
-		if err != nil {
-			return err
-		}
+	err = f.handleSuccessfulTxProcessResp(ctx, tx, result)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -365,18 +363,15 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 
 // handleSuccessfulTxProcessResp handles the response of a successful transaction processing.
 func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) error {
+	if len(result.Responses) > 0 {
+		// Handle Transaction Error
+		if result.Responses[0].RomError != nil {
+			f.handleTransactionError(ctx, result, tx)
+			return result.Responses[0].RomError
+		}
+	}
+
 	// Check remaining resources
-	if len(result.Responses) == 0 {
-		return nil
-	}
-
-	txResponse := result.Responses[0]
-	// Handle Transaction Error
-	if txResponse.RomError != nil {
-		f.handleTransactionError(ctx, txResponse, result, tx)
-		return txResponse.RomError
-	}
-
 	err := f.checkRemainingResources(result, tx)
 	if err != nil {
 		return err
@@ -393,6 +388,10 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 }
 
 func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *TxTracker, result *state.ProcessBatchResponse) {
+	if tx == nil || len(result.Responses) == 0 {
+		return
+	}
+
 	txResponse := result.Responses[0]
 	f.txsStore.Wg.Add(1)
 	f.txsStore.Ch <- &txToStore{
@@ -408,7 +407,8 @@ func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *T
 }
 
 // handleTransactionError handles the error of a transaction
-func (f *finalizer) handleTransactionError(ctx context.Context, txResponse *state.ProcessTransactionResponse, result *state.ProcessBatchResponse, tx *TxTracker) {
+func (f *finalizer) handleTransactionError(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) {
+	txResponse := result.Responses[0]
 	errorCode := executor.RomErrorCode(txResponse.RomError)
 	addressInfo := result.ReadWriteAddresses[tx.From]
 
@@ -586,6 +586,14 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
+	// We need to process the batch to update the state root before closing the batch
+	if f.batch.initialStateRoot == f.batch.stateRoot {
+		err := f.processTransaction(ctx, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
 		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)

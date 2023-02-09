@@ -257,13 +257,14 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
 					sender: {Nonce: &nonce, Balance: big.NewInt(0)},
 				},
-			}
-			txResponse := &state.ProcessTransactionResponse{
-				RomError: executor.RomErr(tc.error),
+				Responses: []*state.ProcessTransactionResponse{{
+					RomError: executor.RomErr(tc.error),
+				},
+				},
 			}
 
 			// act
-			f.handleTransactionError(ctx, txResponse, result, tx)
+			f.handleTransactionError(ctx, result, tx)
 
 			// assert
 			workerMock.AssertExpectations(t)
