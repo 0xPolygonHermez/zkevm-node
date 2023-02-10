@@ -95,12 +95,12 @@ WeightBinaries = 1
 WeightSteps = 1
 MaxAllowedFailedCounter = 50
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "1s"
+		GERDeadlineTimeoutInSec = "5s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"
 		SendingToL1DeadlineTimeoutInSec = "20s"
 		SleepDurationInMs = "100ms"
 		ResourcePercentageToCloseBatch = 10
-		GERFinalityNumberOfBlocks = 0
+		GERFinalityNumberOfBlocks = 64
 		ClosingSignalsManagerWaitForL1OperationsInSec = "10s"
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]

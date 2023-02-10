@@ -55,7 +55,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",
-			expectedValue: types.NewDuration(300 * time.Second),
+			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "Sequencer.WaitBlocksToUpdateGER",
@@ -79,7 +79,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.ElapsedTimeToCloseBatchWithoutTxsDueToNewGER",
-			expectedValue: types.NewDuration(60 * time.Second),
+			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
@@ -131,7 +131,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
-			expectedValue: types.NewDuration(60 * time.Second),
+			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeoutInSec",
@@ -139,7 +139,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.Finalizer.SendingToL1DeadlineTimeoutInSec",
-			expectedValue: types.NewDuration(60 * time.Second),
+			expectedValue: types.NewDuration(20 * time.Second),
 		},
 		{
 			path:          "Sequencer.Finalizer.SleepDurationInMs",
@@ -147,7 +147,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.Finalizer.ResourcePercentageToCloseBatch",
-			expectedValue: uint32(90),
+			expectedValue: uint32(10),
 		},
 		{
 			path:          "Sequencer.Finalizer.GERFinalityNumberOfBlocks",

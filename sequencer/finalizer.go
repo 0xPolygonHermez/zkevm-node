@@ -444,6 +444,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) error {
 	f.sharedResourcesMux.Lock()
 	defer f.sharedResourcesMux.Unlock()
+	f.txsStore.Wg.Wait()
 
 	var err error
 	for !f.isSynced(ctx) {
