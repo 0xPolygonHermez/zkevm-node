@@ -61,7 +61,6 @@
 
     "inputFile": "input_executor.json",
     "outputPath": "output",
-    "romFile": "rom.json",
     "cmPolsFile_disabled": "zkevm.commit",
     "cmPolsFileC12a_disabled": "zkevm.c12a.commit",
     "cmPolsFileRecursive1_disabled": "zkevm.recursive1.commit",
