@@ -30,10 +30,11 @@ type GlobalExitRoot struct {
 
 // SequencedBatch represents virtual batch
 type SequencedBatch struct {
-	BatchNumber uint64
-	Coinbase    common.Address
-	TxHash      common.Hash
-	Nonce       uint64
+	BatchNumber  uint64
+	Coinbase     common.Address
+	TxHash       common.Hash
+	Nonce        uint64
+	FeeRecipient common.Address
 	polygonzkevm.PolygonZkEVMBatchData
 }
 

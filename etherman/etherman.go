@@ -662,7 +662,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	if err != nil {
 		return nil, err
 	}
-
+	feeRecipient := (data[1]).(common.Address)
 	sequencedBatches := make([]SequencedBatch, len(sequences))
 	for i, seq := range sequences {
 		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
@@ -671,6 +671,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 			Coinbase:              sequencer,
 			TxHash:                txHash,
 			Nonce:                 nonce,
+			FeeRecipient:          feeRecipient,
 			PolygonZkEVMBatchData: seq,
 		}
 	}

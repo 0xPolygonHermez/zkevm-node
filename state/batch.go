@@ -53,9 +53,10 @@ type VerifiedBatch struct {
 // VirtualBatch represents a VirtualBatch
 type VirtualBatch struct {
 	BatchNumber uint64
-	TxHash      common.Hash
-	Coinbase    common.Address
-	BlockNumber uint64
+	TxHash       common.Hash
+	Coinbase     common.Address
+	FeeRecipient common.Address
+	BlockNumber  uint64
 }
 
 // Sequence represents the sequence interval

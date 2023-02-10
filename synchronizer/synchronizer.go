@@ -571,10 +571,11 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 	}
 	for _, sbatch := range sequencedBatches {
 		virtualBatch := state.VirtualBatch{
-			BatchNumber: sbatch.BatchNumber,
-			TxHash:      sbatch.TxHash,
-			Coinbase:    sbatch.Coinbase,
-			BlockNumber: blockNumber,
+			BatchNumber:  sbatch.BatchNumber,
+			TxHash:       sbatch.TxHash,
+			Coinbase:     sbatch.Coinbase,
+			BlockNumber:  blockNumber,
+			FeeRecipient: sbatch.FeeRecipient,
 		}
 		batch := state.Batch{
 			BatchNumber:    sbatch.BatchNumber,
@@ -781,10 +782,11 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			return fmt.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches[i], fbatch)
 		}
 		virtualBatch := state.VirtualBatch{
-			BatchNumber: fbatch.BatchNumber,
-			TxHash:      fbatch.TxHash,
-			Coinbase:    fbatch.Coinbase,
-			BlockNumber: block.BlockNumber,
+			BatchNumber:  fbatch.BatchNumber,
+			TxHash:       fbatch.TxHash,
+			Coinbase:     fbatch.Coinbase,
+			FeeRecipient: fbatch.Coinbase,
+			BlockNumber:  block.BlockNumber,
 		}
 		batch := state.ProcessingContext{
 			BatchNumber:    fbatch.BatchNumber,

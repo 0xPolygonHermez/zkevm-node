@@ -38,6 +38,15 @@ func (m migrationTest0006) InsertData(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	// Insert virtual batch
+	const insertVirtualBatch = `INSERT INTO state.virtual_batch (
+		batch_num, tx_hash, coinbase, block_num
+		) VALUES (
+			1, '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1', '0x514910771af9ca656af840dff83e8264ecf986ca', 1);`
+	_, err = db.Exec(insertVirtualBatch)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -68,6 +77,12 @@ func (m migrationTest0006) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 	);`
 	_, err = db.Exec(insertOldProof)
 	assert.Error(t, err)
+	// Insert virtual batch
+	const insertVirtualBatch = `INSERT INTO state.virtual_batch (
+		batch_num, tx_hash, coinbase, block_num, fee_recipient)
+		VALUES (2, '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1', '0x514910771af9ca656af840dff83e8264ecf986ca', 1, '0x514910771af9ca656af840dff83e8264ecf986ca');`
+	_, err = db.Exec(insertVirtualBatch)
+	assert.NoError(t, err)
 }
 
 func (m migrationTest0006) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
@@ -93,6 +108,19 @@ func (m migrationTest0006) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 		3, 3, '{"test": "test"}','proof_identifier','{"test": "test"}','prover 1', true
 	);`
 	_, err = db.Exec(insertOldProof)
+	assert.NoError(t, err)
+	// Insert virtual batch
+	insertVirtualBatch := `INSERT INTO state.virtual_batch (
+		batch_num, tx_hash, coinbase, block_num, fee_recipient,
+		) VALUES (
+			3, '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1', '0x514910771af9ca656af840dff83e8264ecf986ca', 1, '0x514910771af9ca656af840dff83e8264ecf986ca');`
+	_, err = db.Exec(insertVirtualBatch)
+	assert.Error(t, err)
+	// Insert virtual batch
+	insertVirtualBatch = `INSERT INTO state.virtual_batch (
+		batch_num, tx_hash, coinbase, block_num)
+		VALUES (3, '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1', '0x514910771af9ca656af840dff83e8264ecf986ca', 1);`
+	_, err = db.Exec(insertVirtualBatch)
 	assert.NoError(t, err)
 }
 
