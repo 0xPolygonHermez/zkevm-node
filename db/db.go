@@ -97,21 +97,29 @@ func checkMigrations(cfg Config, packrName string, direction migrate.MigrationDi
 		return fmt.Errorf("packr box not found with name: %v", packrName)
 	}
 
-	var migrations = &migrate.PackrMigrationSource{Box: box}
-	planMigrations, _, err := migrate.PlanMigration(db, "postgres", migrations, direction, maxPlanMigration)
+	migrationSource := &migrate.PackrMigrationSource{Box: box}
+	migrations, err := migrationSource.FindMigrations()
 	if err != nil {
-		log.Error("error planning migrations. Error: ", err)
+		log.Errorf("error getting migrations from source: %v", err)
 		return err
 	}
-	nmigrations := len(planMigrations)
-	if nmigrations != 0 {
-		log.Errorf("error the component needs to run %d migrations before starting", nmigrations)
-		records, err := migrate.GetMigrationRecords(db, "postgres")
-		if err != nil {
-			log.Error("error getting migration records. Error: ", err)
-			return err
+
+	var expected int
+	for _, migration := range migrations {
+		if len(migration.Up) != 0 {
+			expected++
 		}
-		return fmt.Errorf("error the component needs to run %d migrations before starting. DB only contains %d migrations", nmigrations, len(records))
+	}
+
+	var actual int
+	query := `SELECT COUNT(1) FROM public.gorp_migrations`
+	err = db.QueryRow(query).Scan(&actual)
+	if err != nil {
+		log.Error("error getting migrations count: ", err)
+		return err
+	}
+	if expected != actual {
+		return fmt.Errorf("error the component needs to run %d migrations before starting. DB only contains %d migrations", expected, actual)
 	}
 	return nil
 }
