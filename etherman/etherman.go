@@ -2,6 +2,7 @@ package etherman
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -165,6 +166,35 @@ func NewClient(cfg Config) (*Client, error) {
 		cfg:  cfg,
 		auth: map[common.Address]bind.TransactOpts{},
 	}, nil
+}
+
+// VerifyGenBlockNumber verifies if the genesis Block Number is valid
+func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
+	genBlock := big.NewInt(0).SetUint64(genBlockNumber)
+	response, err := etherMan.EthClient.CodeAt(ctx, etherMan.cfg.PoEAddr, genBlock)
+	if err != nil {
+		log.Error("error getting smc code for gen block number. Error: ", err)
+		return false, err
+	}
+	responseString := hex.EncodeToString(response)
+	if responseString == "" {
+		return false, nil
+	}
+	responsePrev, err := etherMan.EthClient.CodeAt(ctx, etherMan.cfg.PoEAddr, genBlock.Sub(genBlock, big.NewInt(1)))
+	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			if errors.Is(parsedErr, ErrMissingTrieNode) {
+				return true, nil
+			}
+		}
+		log.Error("error getting smc code for gen block number. Error: ", err)
+		return false, err
+	}
+	responsePrevString := hex.EncodeToString(responsePrev)
+	if responsePrevString != "" {
+		return false, nil
+	}
+	return true, nil
 }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
