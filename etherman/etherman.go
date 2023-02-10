@@ -199,6 +199,47 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 	return true, nil
 }
 
+// GetForks returns fork information
+func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, error) {
+	// Filter query
+	query := ethereum.FilterQuery{
+		FromBlock: new(big.Int).SetUint64(1),
+		Addresses: etherMan.SCAddresses,
+		Topics: [][]common.Hash{{updateZkEVMVersionSignatureHash}},
+	}
+	logs, err := etherMan.EthClient.FilterLogs(ctx, query)
+	if err != nil {
+		return []state.ForkIDInterval{}, err
+	}
+	var forks []state.ForkIDInterval
+	for i, l := range logs {
+		zkevmVersion, err := etherMan.PoE.ParseUpdateZkEVMVersion(l)
+		if err != nil {
+			return []state.ForkIDInterval{}, err
+		}
+		var fork state.ForkIDInterval
+		if i == 0 {
+			fork = state.ForkIDInterval {
+				FromBatchNumber: zkevmVersion.NumBatch,
+				ToBatchNumber:   math.MaxUint64,
+				ForkId:          zkevmVersion.ForkID,
+				Version:         zkevmVersion.Version,
+			}
+		} else {
+			forks[len(forks)-1].ToBatchNumber = zkevmVersion.NumBatch - 1
+			fork = state.ForkIDInterval {
+				FromBatchNumber: zkevmVersion.NumBatch,
+				ToBatchNumber:   math.MaxUint64,
+				ForkId:          zkevmVersion.ForkID,
+				Version:         zkevmVersion.Version,
+			}
+		}
+		forks = append(forks, fork)
+	}
+	log.Debugf("Forks decoded: %+v", forks)
+	return forks, nil
+}
+
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
 // from block x to block y.
 func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]Block, map[common.Hash][]Order, error) {
