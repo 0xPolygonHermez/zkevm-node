@@ -61,7 +61,7 @@ var (
 		SleepDurationInMs: cfgTypes.Duration{
 			Duration: 60,
 		},
-		ResourcePercentageToCloseBatch: 90,
+		ResourcePercentageToCloseBatch: 10,
 		GERFinalityNumberOfBlocks:      64,
 	}
 	seqAddr  = common.Address{}

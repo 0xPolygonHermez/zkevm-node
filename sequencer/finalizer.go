@@ -145,6 +145,7 @@ func (f *finalizer) SortForcedBatches(fb []state.ForcedBatch) []state.ForcedBatc
 			}
 		}
 	}
+
 	return fb
 }
 
@@ -173,7 +174,6 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			f.nextGERMux.Unlock()
 		// L2Reorg ch
 		case l2ReorgEvent := <-f.closingSignalCh.L2ReorgCh:
-			f.sharedResourcesMux.Lock()
 			f.handlingL2Reorg = true
 			start := now()
 			go f.worker.HandleL2Reorg(l2ReorgEvent.TxHashes)
@@ -183,7 +183,6 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 				log.Errorf("failed to sync with state, Err: %s", err)
 			}
 			f.handlingL2Reorg = false
-			f.sharedResourcesMux.Unlock()
 		// Too much time without batches in L1 ch
 		case <-f.closingSignalCh.SendingToL1TimeoutCh:
 			f.nextSendingToL1TimeoutMux.Lock()
@@ -202,7 +201,9 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
+			f.sharedResourcesMux.Lock()
 			_ = f.processTransaction(ctx, tx)
+			f.sharedResourcesMux.Unlock()
 		} else {
 			if f.isBatchAlmostFull() {
 				// Wait for all transactions to be stored in the DB
@@ -253,6 +254,9 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 
 // newWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
+	f.sharedResourcesMux.Lock()
+	defer f.sharedResourcesMux.Unlock()
+
 	var err error
 	// Passing the batch without txs to the executor in order to update the State
 	if f.batch.countOfTxs == 0 {
@@ -331,8 +335,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	defer func() {
 		metrics.ProcessingTime(time.Since(start))
 	}()
-	f.sharedResourcesMux.Lock()
-	defer f.sharedResourcesMux.Unlock()
 
 	var ger common.Hash
 	if f.batch.isEmpty() {
@@ -392,6 +394,7 @@ func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *T
 		return
 	}
 
+	f.txsStore.Wg.Wait()
 	txResponse := result.Responses[0]
 	f.txsStore.Wg.Add(1)
 	f.txsStore.Ch <- &txToStore{
@@ -439,6 +442,10 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 
 // syncWithState syncs the WIP batch and processRequest with the state
 func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) error {
+	f.sharedResourcesMux.Lock()
+	defer f.sharedResourcesMux.Unlock()
+	f.txsStore.Wg.Wait()
+
 	var err error
 	for !f.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
@@ -748,7 +755,12 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	}
 	// Delayed batch deadline
 	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline {
-		log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
+		if f.batch.isEmpty() {
+			f.setNextSendingToL1Deadline()
+		} else {
+			log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
+		}
+
 		return true
 	}
 
