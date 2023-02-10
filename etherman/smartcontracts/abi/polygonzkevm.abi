@@ -1296,7 +1296,7 @@
 			},
 			{
 				"internalType": "address",
-				"name": "feeRecipient",
+				"name": "l2Coinbase",
 				"type": "address"
 			}
 		],
