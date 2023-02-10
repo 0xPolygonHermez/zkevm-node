@@ -17,7 +17,6 @@ const (
 	StateMigrationName = "zkevm-state-db"
 	// PoolMigrationName is the name of the migration used by packr to pack the migration file
 	PoolMigrationName = "zkevm-pool-db"
-	maxPlanMigration  = 1000
 )
 
 var packrMigrations = map[string]*packr.Box{
