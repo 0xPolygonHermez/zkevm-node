@@ -302,8 +302,6 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	f.nextGERMux.Lock()
 	if f.nextGER != state.ZeroHash {
 		f.lastGERHash = f.nextGER
-		log.Infof("==============================")
-		log.Infof("f.lastGERHash: %s", f.lastGERHash)
 	}
 	f.nextGER = state.ZeroHash
 	f.nextGERDeadline = 0
@@ -395,13 +393,6 @@ func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *T
 	if tx == nil || len(result.Responses) == 0 {
 		return
 	}
-	log.Infof("====================================================")
-	log.Infof("batch: %+v", f.batch)
-	log.Infof("batch.stateRoot: %s", f.batch.stateRoot.String())
-	log.Infof("batch.initialstateRoot: %s", f.batch.stateRoot.String())
-	log.Infof("batch.globalExitRoot: %s", f.batch.globalExitRoot.String())
-	log.Infof("processRequest: %+v", f.processRequest)
-	log.Infof("processRequest: %+v", f.processRequest)
 
 	f.txsStore.Wg.Wait()
 	txResponse := result.Responses[0]
