@@ -99,7 +99,7 @@ MaxAllowedFailedCounter = 50
 		ForcedBatchDeadlineTimeoutInSec = "60s"
 		SendingToL1DeadlineTimeoutInSec = "60s"
 		SleepDurationInMs = "100ms"
-		ResourcePercentageToCloseBatch = 90
+		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 64
 		ClosingSignalsManagerWaitForL1OperationsInSec = "10s"
 
