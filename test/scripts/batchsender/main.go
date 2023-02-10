@@ -289,7 +289,7 @@ func sendBatches(cliCtx *cli.Context) error {
 								}
 							}
 						case etherman.TrustedVerifyBatchesSigHash():
-							vb, err := ethman.PoE.ParseTrustedVerifyBatches(vLog)
+							vb, err := ethMan.PoE.ParseVerifyBatchesTrustedAggregator(vLog)
 							if err != nil {
 								return err
 							}
