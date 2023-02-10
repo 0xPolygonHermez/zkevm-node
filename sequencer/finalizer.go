@@ -763,7 +763,12 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	}
 	// Delayed batch deadline
 	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline {
-		log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
+		if f.batch.isEmpty() {
+			f.setNextSendingToL1Deadline()
+		} else {
+			log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
+		}
+
 		return true
 	}
 
