@@ -1,8 +1,10 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -16,26 +18,12 @@ import (
 )
 
 // TestConvertToProcessBatchResponse for test purposes
-func TestConvertToProcessBatchResponse(response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	return convertToProcessBatchResponse(response)
+func (s *State) TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	return s.convertToProcessBatchResponse(txs, response)
 }
 
-// ConvertToCounters extracts ZKCounters from a ProcessBatchResponse
-func ConvertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
-	return ZKCounters{
-		CumulativeGasUsed:    resp.CumulativeGasUsed,
-		UsedKeccakHashes:     resp.CntKeccakHashes,
-		UsedPoseidonHashes:   resp.CntPoseidonHashes,
-		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
-		UsedMemAligns:        resp.CntMemAligns,
-		UsedArithmetics:      resp.CntArithmetics,
-		UsedBinaries:         resp.CntBinaries,
-		UsedSteps:            resp.CntSteps,
-	}
-}
-
-func convertToProcessBatchResponse(response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	responses, err := convertToProcessTransactionResponse(response.Responses)
+func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	responses, err := s.convertToProcessTransactionResponse(txs, response.Responses)
 	if err != nil {
 		return nil, err
 	}
@@ -103,9 +91,9 @@ func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) (map[co
 	return results, nil
 }
 
-func convertToProcessTransactionResponse(responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
+func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
-	for _, response := range responses {
+	for i, response := range responses {
 		trace, err := convertToStructLogArray(response.ExecutionTrace)
 		if err != nil {
 			return nil, err
@@ -125,13 +113,22 @@ func convertToProcessTransactionResponse(responses []*pb.ProcessTransactionRespo
 		result.IsProcessed = isProcessed(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
+		result.Tx = txs[i]
 
-		tx, err := DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
+		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
 		if err != nil {
-			return nil, err
+			timestamp := time.Now()
+			log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
+			debugInfo := &DebugInfo{
+				ErrorType: DebugInfoErrorType_EXECUTOR_RLP_ERROR,
+				Timestamp: timestamp,
+				Payload:   string(response.GetRlpTx()),
+			}
+			err = s.AddDebugInfo(context.Background(), debugInfo, nil)
+			if err != nil {
+				log.Errorf("error storing payload: %v", err)
+			}
 		}
-
-		result.Tx = *tx
 
 		results = append(results, result)
 

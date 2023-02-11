@@ -2,10 +2,12 @@ package etherman
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"path/filepath"
 	"strings"
@@ -164,6 +166,35 @@ func NewClient(cfg Config) (*Client, error) {
 		cfg:  cfg,
 		auth: map[common.Address]bind.TransactOpts{},
 	}, nil
+}
+
+// VerifyGenBlockNumber verifies if the genesis Block Number is valid
+func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
+	genBlock := big.NewInt(0).SetUint64(genBlockNumber)
+	response, err := etherMan.EthClient.CodeAt(ctx, etherMan.cfg.PoEAddr, genBlock)
+	if err != nil {
+		log.Error("error getting smc code for gen block number. Error: ", err)
+		return false, err
+	}
+	responseString := hex.EncodeToString(response)
+	if responseString == "" {
+		return false, nil
+	}
+	responsePrev, err := etherMan.EthClient.CodeAt(ctx, etherMan.cfg.PoEAddr, genBlock.Sub(genBlock, big.NewInt(1)))
+	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			if errors.Is(parsedErr, ErrMissingTrieNode) {
+				return true, nil
+			}
+		}
+		log.Error("error getting smc code for gen block number. Error: ", err)
+		return false, err
+	}
+	responsePrevString := hex.EncodeToString(responsePrev)
+	if responsePrevString != "" {
+		return false, nil
+	}
+	return true, nil
 }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
@@ -836,6 +867,18 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 // GetL2ChainID returns L2 Chain ID
 func (etherMan *Client) GetL2ChainID() (uint64, error) {
 	return etherMan.PoE.ChainID(&bind.CallOpts{Pending: false})
+}
+
+// GetL2ForkID returns current L2 Fork ID
+func (etherMan *Client) GetL2ForkID() (uint64, error) {
+	// TODO: implement this
+	return 1, nil
+}
+
+// GetL2ForkIDIntervals return L2 Fork ID intervals
+func (etherMan *Client) GetL2ForkIDIntervals() ([]state.ForkIDInterval, error) {
+	// TODO: implement this
+	return []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: 1}}, nil
 }
 
 // GetL1GasPrice gets the l1 gas price

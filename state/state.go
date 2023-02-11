@@ -278,6 +278,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			Coinbase:         lastBatch.Coinbase.String(),
 			UpdateMerkleTree: cFalse,
 			ChainId:          s.cfg.ChainID,
+			ForkId:           s.cfg.CurrentForkID,
 		}
 
 		log.Debugf("EstimateGas[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
@@ -290,6 +291,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 		log.Debugf("EstimateGas[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 		log.Debugf("EstimateGas[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
+		log.Debugf("EstimateGas[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 
 		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -446,7 +448,13 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 	if err != nil {
 		return nil, err
 	}
-	result, err := convertToProcessBatchResponse(processBatchResponse)
+
+	txs, _, err := DecodeTxs(batchL2Data)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := s.convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -478,7 +486,12 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*Proc
 	}
 	var result *ProcessBatchResponse
 
-	result, err = convertToProcessBatchResponse(res)
+	txs, _, err := DecodeTxs(processBatchRequest.BatchL2Data)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err = s.convertToProcessBatchResponse(txs, res)
 	if err != nil {
 		return nil, err
 	}
@@ -502,6 +515,8 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) (*pb
 		return nil, err
 	}
 
+	forkId := s.GetForkIdByBatchNumber(batch.BatchNumber)
+
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      batch.BatchNumber - 1,
@@ -513,6 +528,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) (*pb
 		EthTimestamp:     uint64(batch.Timestamp.Unix()),
 		UpdateMerkleTree: cFalse,
 		ChainId:          s.cfg.ChainID,
+		ForkId:           forkId,
 	}
 
 	// Send Batch to the Executor
@@ -585,6 +601,7 @@ func (s *State) processBatch(
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
+		ForkId:           s.cfg.CurrentForkID,
 	}
 
 	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, caller)
@@ -788,7 +805,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 		}
 	}
 
-	processedBatch, err := convertToProcessBatchResponse(processed)
+	processedBatch, err := s.convertToProcessBatchResponse(decodedTransactions, processed)
 	if err != nil {
 		return err
 	}
@@ -862,6 +879,8 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		}
 	}
 
+	forkId := s.GetForkIdByBatchNumber(batch.BatchNumber)
+
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:                  batch.BatchNumber - 1,
@@ -875,6 +894,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		TxHashToGenerateCallTrace:    transactionHash.Bytes(),
 		TxHashToGenerateExecuteTrace: transactionHash.Bytes(),
 		ChainId:                      s.cfg.ChainID,
+		ForkId:                       forkId,
 	}
 
 	// Send Batch to the Executor
@@ -893,7 +913,16 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		log.Debugf(string(response.TxHash))
 	}
 
-	convertedResponse, err := convertToProcessBatchResponse(processBatchResponse)
+	txs, _, err := DecodeTxs(batchL2Data)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tx := range txs {
+		log.Debugf(tx.Hash().String())
+	}
+
+	convertedResponse, err := s.convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -1157,6 +1186,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		Coinbase:         lastBatch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
 		ChainId:          s.cfg.ChainID,
+		ForkId:           s.cfg.CurrentForkID,
 	}
 
 	if noZKEVMCounters {
@@ -1173,6 +1203,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
+	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -1186,7 +1217,8 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		result.Err = err
 		return result
 	}
-	response, err := convertToProcessBatchResponse(processBatchResponse)
+
+	response, err := s.convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
 	if err != nil {
 		result.Err = err
 		return result
@@ -1469,10 +1501,10 @@ func (s *State) WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumb
 	for {
 		batch, err := s.GetVerifiedBatch(ctx, batchNumber, nil)
 		if err != nil && err != ErrNotFound {
-			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
+			log.Errorf("error waiting verified batch [%d] to be synced: %v", batchNumber, err)
 			return err
 		} else if ctx.Err() != nil {
-			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
+			log.Errorf("error waiting verified batch [%d] to be synced: %v", batchNumber, err)
 			return ctx.Err()
 		} else if batch != nil {
 			break
@@ -1663,4 +1695,9 @@ func (s *State) LogExecutorError(responseError pb.ExecutorError, processBatchReq
 			log.Errorf("error storing payload: %v", err)
 		}
 	}
+}
+
+// GetForkIdByBatchNumber returns the fork id for the given batch number
+func (s *State) GetForkIdByBatchNumber(batchNumber uint64) uint64 {
+	return GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, batchNumber)
 }

@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
-	"net/http/pprof"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
@@ -34,11 +33,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
-)
-
-const (
-	two = 2
-	ten = 10
 )
 
 func start(cliCtx *cli.Context) error {
@@ -84,12 +78,30 @@ func start(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Read Fork ID FROM POE SC
+	// TODO: Uncomment when the POE SC is implemented
+	/*
+		currentForkID, err := etherman.GetL2ForkID()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		forkIDIntervals, err := etherman.GetL2ForkIDIntervals()
+		if err != nil {
+			log.Fatal(err)
+		}
+	*/
+
+	currentForkID := c.DefaultForkID
+	forkIDIntervals := []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: c.DefaultForkID}}
+
 	c.Aggregator.ChainID = l2ChainID
+	c.Aggregator.ForkId = currentForkID
 	c.RPC.ChainID = l2ChainID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
-	st := newState(ctx, c, l2ChainID, stateSqlDB)
+	st := newState(ctx, c, l2ChainID, currentForkID, forkIDIntervals, stateSqlDB)
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
 	if err != nil {
@@ -134,12 +146,9 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	if c.Metrics.Enabled {
-		go startMetricsHttpServer(c.Metrics)
+		go startMetricsHttpServer(c)
 	}
 
-	if c.Metrics.ProfilingEnabled {
-		go startProfilingHttpServer(c.Metrics)
-	}
 	waitSignal(cancelFuncs)
 
 	return nil
@@ -265,7 +274,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.State {
+func newState(ctx context.Context, c *config.Config, l2ChainID uint64, currentForkID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
@@ -274,6 +283,8 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pg
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
 		ChainID:              l2ChainID,
+		CurrentForkID:        currentForkID,
+		ForkIDIntervals:      forkIDIntervals,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
@@ -306,50 +317,19 @@ func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStor
 	return etm
 }
 
-func startProfilingHttpServer(c metrics.Config) {
-	log.Info("Starting profiling http server")
+func startMetricsHttpServer(c *config.Config) {
 	mux := http.NewServeMux()
-	address := fmt.Sprintf("%s:%d", c.ProfilingHost, c.ProfilingPort)
-	lis, err := net.Listen("tcp", address)
-	if err != nil {
-		log.Errorf("failed to create tcp listener for profiling: %v", err)
-		return
-	}
-	mux.HandleFunc(metrics.ProfilingIndexEndpoint, pprof.Index)
-	mux.HandleFunc(metrics.ProfileEndpoint, pprof.Profile)
-	mux.HandleFunc(metrics.ProfilingCmdEndpoint, pprof.Cmdline)
-	mux.HandleFunc(metrics.ProfilingSymbolEndpoint, pprof.Symbol)
-	mux.HandleFunc(metrics.ProfilingTraceEndpoint, pprof.Trace)
-	profilingServer := &http.Server{
-		Handler:     mux,
-		ReadTimeout: two * time.Minute,
-	}
-	log.Infof("profiling server listening on port %d", c.ProfilingPort)
-	if err := profilingServer.Serve(lis); err != nil {
-		if err == http.ErrServerClosed {
-			log.Warnf("http server for profiling stopped")
-			return
-		}
-		log.Errorf("closed http connection for profiling server: %v", err)
-		return
-	}
-}
-
-func startMetricsHttpServer(c metrics.Config) {
-	mux := http.NewServeMux()
-	address := fmt.Sprintf("%s:%d", c.Host, c.Port)
+	address := fmt.Sprintf("%s:%d", c.Metrics.Host, c.Metrics.Port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Errorf("failed to create tcp listener for metrics: %v", err)
 		return
 	}
 	mux.Handle(metrics.Endpoint, promhttp.Handler())
-
-	metricsServer := &http.Server{
-		Handler:     mux,
-		ReadTimeout: ten * time.Second,
+	metricsServer := &http.Server{ //nolint Potential Slowloris Attack
+		Handler: mux,
 	}
-	log.Infof("metrics server listening on port %d", c.Port)
+	log.Infof("metrics server listening on port %d", c.Metrics.Port)
 	if err := metricsServer.Serve(lis); err != nil {
 		if err == http.ErrServerClosed {
 			log.Warnf("http server for metrics stopped")

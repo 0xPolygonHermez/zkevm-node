@@ -142,7 +142,6 @@ benchmark-sequencer-eth-transfers: stop
 	$(RUNL1NETWORK)
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB)
 	sleep 5
 	$(RUNZKPROVER)
 	$(RUNSYNC)
@@ -360,12 +359,12 @@ run: ## Runs a full node
 stop: ## Stops all services
 	$(STOP)
 
-.PHONY: sail
-sail: ## Builds docker images and run them
+.PHONY: ship
+ship: ## Builds docker images and run them
 	cd .. && make build-docker && cd ./test && make run
 
-.PHONY: resail
-resail: stop sail ## Executes `make stop` and `make sail` commands
+.PHONY: reship
+reship: stop ship ## Executes `make stop` and `make sail` commands
 
 .PHONY: restart
 restart: stop run ## Executes `make stop` and `make run` commands
@@ -412,6 +411,10 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=txPool --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=PoolMock --filename=mock_pool.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../sequencer --outpkg=sequencer --structname=DbTxMock --filename=mock_dbtx.go
 	mockery --name=dbManagerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=DbManagerMock --filename=mock_db_manager.go
+	mockery --name=stateInterface --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
+	mockery --name=txPool --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=PoolMock --filename=mock_pool.go
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../sequencer/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
+	mockery --name=stateInterface --dir=../sequencer/broadcast --output=../sequencer/broadcast/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 
 	mockery --name=ethermanInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=ethermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=stateMock --filename=mock_state.go
@@ -433,6 +436,7 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=etherman --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=Etherman --filename=mock_etherman.go
 	mockery --name=ethTxManager --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManager --filename=mock_ethtxmanager.go
 	mockery --name=aggregatorTxProfitabilityChecker --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProfitabilityCheckerMock --filename=mock_profitabilitychecker.go
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../aggregator/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
 
 .PHONY: run-benchmarks
 run-benchmarks: run-db ## Runs benchmars

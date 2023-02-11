@@ -1,4 +1,5 @@
 IsTrustedSequencer = false
+DefaultForkID = 1
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -51,8 +52,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 [Synchronizer]
 SyncInterval = "1s"
 SyncChunkSize = 100
-TrustedSequencerURI = ""
-GenBlockNumber = 1
+GenBlockNumber = 57
 
 [Sequencer]
 MaxSequenceSize = "2000000"
@@ -106,6 +106,8 @@ TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
 SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+CleanupLockedProofsInterval = "2m"
+GeneratingProofCleanupThreshold = "10m"
 
 [EthTxManager]
 PrivateKeys = [
@@ -136,6 +138,3 @@ Port = 61090
 Host = "0.0.0.0"
 Port = 9091
 Enabled = false
-ProfilingHost = "0.0.0.0"
-ProfilingPort = 6060
-ProfilingEnabled = false

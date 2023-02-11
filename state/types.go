@@ -142,6 +142,8 @@ type InfoReadWrite struct {
 const (
 	// DebugInfoErrorType_EXECUTOR_ERROR indicates a error happened in the executor
 	DebugInfoErrorType_EXECUTOR_ERROR = "EXECUTOR ERROR"
+	// DebugInfoErrorType_EXECUTOR_RLP_ERROR indicates a error happened decoding the RLP returned by the executor
+	DebugInfoErrorType_EXECUTOR_RLP_ERROR = "EXECUTOR RLP ERROR"
 )
 
 // DebugInfo allows handling runtime debug info

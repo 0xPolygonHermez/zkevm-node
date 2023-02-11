@@ -3,6 +3,7 @@ package config
 // DefaultValues is the default configuration
 const DefaultValues = `
 IsTrustedSequencer = false
+DefaultForkID = 1
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -59,8 +60,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
-TrustedSequencerURI = ""
-GenBlockNumber = 1
+GenBlockNumber = 57
 
 [Sequencer]
 MaxSequenceSize = "2000000"
@@ -117,6 +117,8 @@ VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
+CleanupLockedProofsInterval = "2m"
+GeneratingProofCleanupThreshold = "10m"
 
 [L2GasPriceSuggester]
 Type = "default"

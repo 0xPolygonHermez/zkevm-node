@@ -59,7 +59,18 @@ type Config struct {
 	// ChainID is the L2 ChainID provided by the Network Config
 	ChainID uint64
 
+	// ForkID is the L2 ForkID provided by the Network Config
+	ForkId uint64
+
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
 	SenderAddress string `mapstructure:"SenderAddress"`
+
+	// CleanupLockedProofsInterval is the interval of time to clean up locked proofs.
+	CleanupLockedProofsInterval types.Duration `mapstructure:"CleanupLockedProofsInterval"`
+
+	// GeneratingProofCleanupThreshold represents the time interval after
+	// which a proof in generating state is considered to be stuck and
+	// allowed to be cleared.
+	GeneratingProofCleanupThreshold string `mapstructure:"GeneratingProofCleanupThreshold"`
 }
