@@ -12,10 +12,6 @@ Password = "state_password"
 Name = "state_db"
 Host = "localhost"
 Port = "5432"
-<<<<<<< HEAD
-EnableLog = false
-MaxConns = 10
-=======
 EnableLog = true
 MaxConns = 10
 
@@ -29,7 +25,6 @@ FreeClaimGasLimit = 1500000
 	Port = "5433"
 	EnableLog = false
 	MaxConns = 10
->>>>>>> develop
 
 [Pool]
 FreeClaimGasLimit = 1500000
@@ -77,13 +72,8 @@ WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 WaitBlocksToUpdateGER = 10
 WaitBlocksToConsiderGerFinal = 10
-<<<<<<< HEAD
-ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "5s"
-MinTimeToCloseBatch = "5s"
-=======
 ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
 MinTimeToCloseBatch = "60s"
->>>>>>> develop
 MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
@@ -107,7 +97,6 @@ WeightArithmetics = 1
 WeightBinaries = 1
 WeightSteps = 1
 MaxAllowedFailedCounter = 50
-<<<<<<< HEAD
 [Sequencer.Finalizer]
 GERDeadlineTimeoutInSec = "1s"
 ForcedBatchDeadlineTimeoutInSec = "60s"
@@ -120,24 +109,10 @@ SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 PrivateKeys = [{Path = "/pk/keystore.sequencer", Password = "testonly"}]
 [Sequencer.ProfitabilityChecker]
 SendBatchesEvenWhenNotProfitable = "true"
-=======
-SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-PrivateKeys = [{Path = "../test/sequencer.keystore", Password = "testonly"}]
-	[Sequencer.ProfitabilityChecker]
-		SendBatchesEvenWhenNotProfitable = "true"
->>>>>>> develop
 
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-<<<<<<< HEAD
-IntervalToConsolidateState = "10s"
-IntervalToSendFinalProof = "30s"
-TxProfitabilityCheckerType = "acceptall"
-TxProfitabilityMinReward = "1.1"
-IntervalFrequencyToGetProofGenerationState = "5s"
-SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
-=======
 RetryTime = "5s"
 VerifyProofInterval = "30s"
 TxProfitabilityCheckerType = "acceptall"
@@ -146,7 +121,6 @@ ProofStatePollingInterval = "5s"
 SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
->>>>>>> develop
 
 [EthTxManager]
 PrivateKeys = [

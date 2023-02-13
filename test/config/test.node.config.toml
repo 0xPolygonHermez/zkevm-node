@@ -60,13 +60,8 @@ WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 WaitBlocksToUpdateGER = 10
 WaitBlocksToConsiderGerFinal = 10
-<<<<<<< HEAD
-ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "5s"
-MinTimeToCloseBatch = "5s"
-=======
 ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
 MinTimeToCloseBatch = "60s"
->>>>>>> develop
 MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
@@ -90,7 +85,6 @@ WeightArithmetics = 1
 WeightBinaries = 1
 WeightSteps = 1
 MaxAllowedFailedCounter = 50
-<<<<<<< HEAD
 	[Sequencer.Finalizer]
 		GERDeadlineTimeoutInSec = "1s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"
@@ -101,12 +95,6 @@ MaxAllowedFailedCounter = 50
 		ClosingSignalsManagerWaitForL1OperationsInSec = "1s"
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
-=======
-SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
->>>>>>> develop
-	[Sequencer.ProfitabilityChecker]
-		SendBatchesEvenWhenNotProfitable = "true"
 
 [Aggregator]
 Host = "0.0.0.0"
@@ -117,11 +105,8 @@ TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
 SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
-<<<<<<< HEAD
-=======
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
->>>>>>> develop
 
 [EthTxManager]
 PrivateKeys = [
