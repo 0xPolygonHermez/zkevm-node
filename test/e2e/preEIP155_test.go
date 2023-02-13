@@ -1,6 +1,5 @@
 package e2e
 
-/*
 import (
 	"context"
 	"strings"
@@ -89,4 +88,3 @@ func TestPreEIP155Tx(t *testing.T) {
 		}
 	}
 }
-*/

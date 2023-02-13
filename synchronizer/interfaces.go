@@ -19,6 +19,7 @@ type ethermanInterface interface {
 	EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
 	GetLatestBatchNumber() (uint64, error)
 	GetTrustedSequencerURL() (string, error)
+	VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.

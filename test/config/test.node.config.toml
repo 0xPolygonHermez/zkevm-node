@@ -1,4 +1,5 @@
 IsTrustedSequencer = true
+DefaultForkID = 1
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -50,7 +51,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 [Synchronizer]
 SyncInterval = "1s"
 SyncChunkSize = 100
-TrustedSequencerURI = ""
+GenBlockNumber = 57
 
 [Sequencer]
 MaxSequenceSize = "2000000"
@@ -59,8 +60,13 @@ WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 WaitBlocksToUpdateGER = 10
 WaitBlocksToConsiderGerFinal = 10
+<<<<<<< HEAD
 ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "5s"
 MinTimeToCloseBatch = "5s"
+=======
+ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
+MinTimeToCloseBatch = "60s"
+>>>>>>> develop
 MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
@@ -84,6 +90,7 @@ WeightArithmetics = 1
 WeightBinaries = 1
 WeightSteps = 1
 MaxAllowedFailedCounter = 50
+<<<<<<< HEAD
 	[Sequencer.Finalizer]
 		GERDeadlineTimeoutInSec = "1s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"
@@ -94,6 +101,10 @@ MaxAllowedFailedCounter = 50
 		ClosingSignalsManagerWaitForL1OperationsInSec = "1s"
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+=======
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+>>>>>>> develop
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 
@@ -106,6 +117,11 @@ TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
 SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+<<<<<<< HEAD
+=======
+CleanupLockedProofsInterval = "2m"
+GeneratingProofCleanupThreshold = "10m"
+>>>>>>> develop
 
 [EthTxManager]
 PrivateKeys = [

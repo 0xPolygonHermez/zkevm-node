@@ -31,12 +31,11 @@ type txPool interface {
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
 	EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence) (*types.Transaction, error)
+	GetSendSequenceFee(numBatches uint64) (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 	GetLatestBatchNumber() (uint64, error)
 	GetLastBatchTimestamp() (uint64, error)
 	GetLatestBlockTimestamp(ctx context.Context) (uint64, error)
-	GetLatestBlockNumber(ctx context.Context) (uint64, error)
-	GetSendSequenceFee(numBatches uint64) (*big.Int, error)
 	BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence) (to *common.Address, data []byte, err error)
 }
 

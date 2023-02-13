@@ -48,6 +48,9 @@ var (
 	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
 
 	zkCounterErrPrefix = "ZKCounter: "
+	// ErrUnsupportedDuration is returned if the provided unit for a time
+	// interval is not supported by our conversion mechanism.
+	ErrUnsupportedDuration = errors.New("unsupported time duration")
 )
 
 func constructErrorFromRevert(err error, returnValue []byte) error {

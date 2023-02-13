@@ -255,3 +255,26 @@ func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 
 	return receipt
 }
+
+func toPostgresInterval(duration string) (string, error) {
+	unit := duration[len(duration)-1]
+	var pgUnit string
+
+	switch unit {
+	case 's':
+		pgUnit = "second"
+	case 'm':
+		pgUnit = "minute"
+	case 'h':
+		pgUnit = "hour"
+	default:
+		return "", ErrUnsupportedDuration
+	}
+
+	isMoreThanOne := duration[0] != '1' || len(duration) > 2 //nolint:gomnd
+	if isMoreThanOne {
+		pgUnit = pgUnit + "s"
+	}
+
+	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
+}

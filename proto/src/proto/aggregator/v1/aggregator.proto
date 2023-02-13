@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package aggregator.v1;
 
-option go_package = "github.com/0xPolygonHermez/zkevm-node/aggregator2/pb";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/proverclient/pb";
 
 message Version {
     string v0_0_1 = 1;
@@ -119,18 +119,19 @@ message GetProofRequest {
  * @param {version_proto} - .proto verion
  * @param {version_server} - server version
  * @param {pending_request_queue_ids} - list of identifierss of proof requests that are in the pending queue
- * @param {prover_id} - id of this prover instance; it changes if prover reboots
+ * @param {prover_name} - id of this prover server, normally specified via config.json, or UNSPECIFIED otherwise; it does not change if prover reboots
+ * @param {prover_id} - id of this prover instance or reboot; it changes if prover reboots; it is a UUID, automatically generated during the initialization
  * @param {number_of_cores} - number of cores in the system where the prover is running
  * @param {total_memory} - total memory in the system where the prover is running
  * @param {free_memory} - free memory in the system where the prover is running
  */
 message GetStatusResponse {
     enum Status {
-        UNSPECIFIED = 0;
-        BOOTING = 1;
-        COMPUTING = 2;
-        IDLE = 3;
-        HALT = 4;
+        STATUS_UNSPECIFIED = 0;
+        STATUS_BOOTING = 1;
+        STATUS_COMPUTING = 2;
+        STATUS_IDLE = 3;
+        STATUS_HALT = 4;
     }
     Status status = 1;
     string last_computed_request_id = 2;
@@ -140,10 +141,12 @@ message GetStatusResponse {
     string version_proto = 6;
     string version_server = 7;
     repeated string pending_request_queue_ids = 8;
-    string prover_id = 9;
-    uint64 number_of_cores = 10;
-    uint64 total_memory = 11;
-    uint64 free_memory = 12;
+    string prover_name = 9;
+    string prover_id = 10;
+    uint64 number_of_cores = 11;
+    uint64 total_memory = 12;
+    uint64 free_memory = 13;
+    uint64 fork_id = 14;
 }
 
 /**
@@ -153,10 +156,10 @@ message GetStatusResponse {
  *  - INTERNAL_ERROR: internal server error when delivering the response
  */
 enum Result {
-    UNSPECIFIED = 0;
-    OK = 1;
-    ERROR = 2;
-    INTERNAL_ERROR = 3;
+    RESULT_UNSPECIFIED = 0;
+    RESULT_OK = 1;
+    RESULT_ERROR = 2;
+    RESULT_INTERNAL_ERROR = 3;
 }
 
 /**
@@ -213,13 +216,13 @@ message CancelResponse {
  */
 message GetProofResponse {
     enum Result {
-        UNSPECIFIED = 0;
-        COMPLETED_OK = 1;
-        ERROR = 2;
-        COMPLETED_ERROR = 3;
-        PENDING = 4;
-        INTERNAL_ERROR = 5;
-        CANCEL = 6;
+        RESULT_UNSPECIFIED = 0;
+        RESULT_COMPLETED_OK = 1;
+        RESULT_ERROR = 2;
+        RESULT_COMPLETED_ERROR = 3;
+        RESULT_PENDING = 4;
+        RESULT_INTERNAL_ERROR = 5;
+        RESULT_CANCEL = 6;
     }
     string id = 1;
     oneof proof {
@@ -256,11 +259,12 @@ message PublicInputs {
     bytes old_acc_input_hash = 2;
     uint64 old_batch_num = 3;
     uint64 chain_id = 4;
-    bytes batch_l2_data = 5;
-    bytes global_exit_root = 6;
-    uint64 eth_timestamp = 7;
-    string sequencer_addr = 8;
-    string aggregator_addr = 9;
+    uint64 fork_id = 5;
+    bytes batch_l2_data = 6;
+    bytes global_exit_root = 7;
+    uint64 eth_timestamp = 8;
+    string sequencer_addr = 9;
+    string aggregator_addr = 10;
 }
 
 /**
@@ -310,4 +314,3 @@ message PublicInputsExtended {
     bytes new_local_exit_root = 4;
     uint64 new_batch_num = 5;
 }
-

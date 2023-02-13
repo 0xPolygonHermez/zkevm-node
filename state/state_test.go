@@ -1103,7 +1103,7 @@ func TestExecutorTransfer(t *testing.T) {
 	require.Equal(t, "21002", data.Balance)
 
 	// Read Modified Addresses from converted response
-	converted, err := state.TestConvertToProcessBatchResponse(processBatchResponse)
+	converted, err := testState.TestConvertToProcessBatchResponse([]types.Transaction{*signedTx}, processBatchResponse)
 	require.NoError(t, err)
 	convertedData := converted.ReadWriteAddresses[receiverAddress]
 	require.Equal(t, uint64(21002), convertedData.Balance.Uint64())
@@ -1129,7 +1129,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 		Link     string `json:"link"`
 	}
 
-	var testCases []TxHashTestCase
+	var testCases, testCases2 []TxHashTestCase
 
 	jsonFile, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/uniswap_formated.json"))
 	require.NoError(t, err)
@@ -1140,6 +1140,17 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 
 	err = json.Unmarshal(bytes, &testCases)
 	require.NoError(t, err)
+
+	jsonFile2, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/rlp.json"))
+	require.NoError(t, err)
+	defer func() { _ = jsonFile2.Close() }()
+
+	bytes2, err := ioutil.ReadAll(jsonFile2)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(bytes2, &testCases2)
+	require.NoError(t, err)
+	testCases = append(testCases, testCases2...)
 
 	for x, testCase := range testCases {
 		var stateRoot = state.ZeroHash
@@ -1186,6 +1197,8 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 			R:        r,
 			S:        s,
 		})
+		t.Log("chainID: ", tx.ChainId())
+		t.Log("txHash: ", tx.Hash())
 
 		require.Equal(t, testCase.Hash, tx.Hash().String())
 
@@ -2049,7 +2062,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
 
-	convertedResponse, err := state.TestConvertToProcessBatchResponse(processBatchResponse)
+	convertedResponse, err := testState.TestConvertToProcessBatchResponse([]types.Transaction{*signedTx0, *signedTx1}, processBatchResponse)
 	require.NoError(t, err)
 	log.Debugf("%v", len(convertedResponse.Responses))
 
@@ -2414,7 +2427,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	require.Equal(t, uint64(1000000000), balance.Uint64())
 
 	// Preparation to be able to estimate gas
-	convertedResponse, err := state.TestConvertToProcessBatchResponse(processBatchResponse)
+	convertedResponse, err := testState.TestConvertToProcessBatchResponse(transactions, processBatchResponse)
 	require.NoError(t, err)
 	log.Debugf("%v", len(convertedResponse.Responses))
 

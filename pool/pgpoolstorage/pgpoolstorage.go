@@ -58,7 +58,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 	gasPrice := tx.GasPrice().Uint64()
 	nonce := tx.Nonce()
 	sql := `
-		INSERT INTO pool.txs 
+		INSERT INTO pool.transaction 
 		(
 			hash,
 			encoded,
@@ -122,10 +122,10 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 		sql  string
 	)
 	if limit == 0 {
-		sql = "SELECT encoded, status, received_at FROM pool.txs WHERE status = $1 ORDER BY gas_price DESC"
+		sql = "SELECT encoded, status, received_at FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
-		sql = "SELECT encoded, status, received_at FROM pool.txs WHERE status = $1 AND is_claims = $2 ORDER BY gas_price DESC LIMIT $3"
+		sql = "SELECT encoded, status, received_at FROM pool.transaction WHERE status = $1 AND is_claims = $2 ORDER BY gas_price DESC LIMIT $3"
 		rows, err = p.db.Query(ctx, sql, status.String(), isClaims, limit)
 	}
 	if err != nil {
@@ -147,7 +147,7 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 
 // GetPendingTxHashesSince returns the pending tx since the given time.
 func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
-	sql := "SELECT hash FROM pool.txs WHERE status = $1 AND received_at >= $2"
+	sql := "SELECT hash FROM pool.transaction WHERE status = $1 AND received_at >= $2"
 	rows, err := p.db.Query(ctx, sql, pool.TxStatusPending, since)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			nonce,
 			failed_counter
 		FROM
-			pool.txs p1
+			pool.transaction p1
 		WHERE 
 			status = $1 AND
 			gas_price >= $2 AND
@@ -212,7 +212,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				nonce,
 				failed_counter
 			FROM
-				pool.txs p1
+				pool.transaction p1
 			WHERE
 				status = $1 AND
 				gas_price >= $2 AND 
@@ -297,7 +297,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 // CountTransactionsByStatus get number of transactions
 // accordingly to the provided status
 func (p *PostgresPoolStorage) CountTransactionsByStatus(ctx context.Context, status pool.TxStatus) (uint64, error) {
-	sql := "SELECT COUNT(*) FROM pool.txs WHERE status = $1"
+	sql := "SELECT COUNT(*) FROM pool.transaction WHERE status = $1"
 	var counter uint64
 	err := p.db.QueryRow(ctx, sql, status.String()).Scan(&counter)
 	if err != nil {
@@ -309,7 +309,7 @@ func (p *PostgresPoolStorage) CountTransactionsByStatus(ctx context.Context, sta
 // UpdateTxStatus updates a transaction status accordingly to the
 // provided status and hash
 func (p *PostgresPoolStorage) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error {
-	sql := "UPDATE pool.txs SET status = $1 WHERE hash = $2"
+	sql := "UPDATE pool.transaction SET status = $1 WHERE hash = $2"
 	if _, err := p.db.Exec(ctx, sql, newStatus, hash.Hex()); err != nil {
 		return err
 	}
@@ -318,7 +318,7 @@ func (p *PostgresPoolStorage) UpdateTxStatus(ctx context.Context, hash common.Ha
 
 // UpdateTxsStatus updates transactions status accordingly to the provided status and hashes
 func (p *PostgresPoolStorage) UpdateTxsStatus(ctx context.Context, hashes []string, newStatus pool.TxStatus) error {
-	sql := "UPDATE pool.txs SET status = $1 WHERE hash = ANY ($2)"
+	sql := "UPDATE pool.transaction SET status = $1 WHERE hash = ANY ($2)"
 	if _, err := p.db.Exec(ctx, sql, newStatus, hashes); err != nil {
 		return err
 	}
@@ -332,7 +332,7 @@ func (p *PostgresPoolStorage) DeleteTxsByHashes(ctx context.Context, hashes []co
 		hh = append(hh, h.Hex())
 	}
 
-	query := "DELETE FROM pool.txs WHERE hash = ANY ($1)"
+	query := "DELETE FROM pool.transaction WHERE hash = ANY ($1)"
 	if _, err := p.db.Exec(ctx, query, hh); err != nil {
 		return err
 	}
@@ -376,7 +376,7 @@ func (p *PostgresPoolStorage) GetGasPrice(ctx context.Context) (uint64, error) {
 // not.
 func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) {
 	var exists bool
-	req := "SELECT exists (SELECT 1 FROM pool.txs WHERE hash = $1 AND status = $2)"
+	req := "SELECT exists (SELECT 1 FROM pool.transaction WHERE hash = $1 AND status = $2)"
 	err := p.db.QueryRow(ctx, req, hash.Hex(), pool.TxStatusPending).Scan(&exists)
 	if err != nil && err != sql.ErrNoRows {
 		return false, err
@@ -388,7 +388,7 @@ func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash)
 // GetTxsByFromAndNonce get all the transactions from the pool with the same from and nonce
 func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]pool.Transaction, error) {
 	sql := `SELECT encoded, status, received_at
-	          FROM pool.txs
+	          FROM pool.transaction
 			 WHERE from_address = $1
 			   AND nonce = $2`
 	rows, err := p.db.Query(ctx, sql, from.String(), nonce)
@@ -414,7 +414,7 @@ func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from com
 // GetTxFromAddressFromByHash gets tx from address by hash
 func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error) {
 	query := `SELECT from_address, nonce
-			  FROM pool.txs
+			  FROM pool.transaction
 			  WHERE hash = $1
 	`
 
@@ -432,7 +432,7 @@ func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx context.Context, ha
 
 // IncrementFailedCounter increment for failed txs failed counter
 func (p *PostgresPoolStorage) IncrementFailedCounter(ctx context.Context, hashes []string) error {
-	sql := "UPDATE pool.txs SET failed_counter = failed_counter + 1 WHERE hash = ANY ($1)"
+	sql := "UPDATE pool.transaction SET failed_counter = failed_counter + 1 WHERE hash = ANY ($1)"
 	if _, err := p.db.Exec(ctx, sql, hashes); err != nil {
 		return err
 	}
@@ -442,7 +442,7 @@ func (p *PostgresPoolStorage) IncrementFailedCounter(ctx context.Context, hashes
 // GetNonce gets the nonce to the provided address accordingly to the txs in the pool
 func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Address) (uint64, error) {
 	sql := `SELECT MAX(nonce)
-              FROM pool.txs
+              FROM pool.transaction
              WHERE from_address = $1
                AND (status = $2 OR status = $3)`
 	rows, err := p.db.Query(ctx, sql, address.String(), pool.TxStatusPending, pool.TxStatusSelected)
@@ -482,7 +482,7 @@ func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash)
 	)
 
 	sql := `SELECT encoded, status, received_at
-	          FROM pool.txs
+	          FROM pool.transaction
 			 WHERE hash = $1`
 	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&encoded, &status, &receivedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -536,7 +536,7 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 
 // DeleteTransactionByHash deletes tx by its hash
 func (p *PostgresPoolStorage) DeleteTransactionByHash(ctx context.Context, hash common.Hash) error {
-	query := "DELETE FROM pool.txs WHERE hash = $1"
+	query := "DELETE FROM pool.transaction WHERE hash = $1"
 	if _, err := p.db.Exec(ctx, query, hash); err != nil {
 		return err
 	}
@@ -548,7 +548,7 @@ func (p *PostgresPoolStorage) GetTxZkCountersByHash(ctx context.Context, hash co
 	var zkCounters state.ZKCounters
 
 	sql := `SELECT cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
-			used_arithmetics, used_binaries, used_steps FROM pool.txs WHERE hash = $1`
+			used_arithmetics, used_binaries, used_steps FROM pool.transaction WHERE hash = $1`
 	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&zkCounters.CumulativeGasUsed, &zkCounters.UsedKeccakHashes,
 		&zkCounters.UsedPoseidonHashes, &zkCounters.UsedPoseidonPaddings,
 		&zkCounters.UsedMemAligns, &zkCounters.UsedArithmetics, &zkCounters.UsedBinaries, &zkCounters.UsedSteps)
@@ -563,7 +563,7 @@ func (p *PostgresPoolStorage) GetTxZkCountersByHash(ctx context.Context, hash co
 
 // MarkWIPTxsAsPending updates WIP txs status to pending
 func (p *PostgresPoolStorage) MarkWIPTxsAsPending(ctx context.Context) error {
-	const query = `UPDATE pool.txs SET status = $1 WHERE status = $2`
+	const query = `UPDATE pool.transaction SET status = $1 WHERE status = $2`
 	if _, err := p.db.Exec(ctx, query, pool.TxStatusPending, pool.TxStatusWIP); err != nil {
 		return err
 	}

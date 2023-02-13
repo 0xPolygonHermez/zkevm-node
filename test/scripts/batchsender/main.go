@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 	"os"
 	"strconv"
@@ -154,6 +155,13 @@ func sendBatches(cliCtx *cli.Context) error {
 		nb = nBatches
 	}
 
+	nonce, err := ethMan.CurrentNonce(ctx, auth.From)
+	if err != nil {
+		err := fmt.Errorf("failed to get current nonce: %w", err)
+		log.Error(err.Error())
+		return err
+	}
+
 	for i := 0; i < ns; i++ {
 		currentBlock, err := ethMan.EthClient.BlockByNumber(ctx, nil)
 		if err != nil {
@@ -186,6 +194,36 @@ func sendBatches(cliCtx *cli.Context) error {
 		}
 		err = ethMan.SendTx(ctx, signedTx)
 		if err != nil {
+			return err
+		}
+		gas, err := ethMan.EstimateGas(ctx, auth.From, to, nil, data)
+		if err != nil {
+			err := fmt.Errorf("failed to estimate gas: %w", err)
+			log.Error(err.Error())
+			return err
+		}
+		// get gas price
+		gasPrice, err := ethMan.SuggestedGasPrice(ctx)
+		if err != nil {
+			err := fmt.Errorf("failed to get suggested gas price: %w", err)
+			log.Error(err.Error())
+			return err
+		}
+		tx = ethTypes.NewTx(&ethTypes.LegacyTx{
+			Nonce:    nonce,
+			Gas:      gas + uint64(i),
+			GasPrice: gasPrice,
+			To:       to,
+			Data:     data,
+		})
+		signedTx, err = ethMan.SignTx(ctx, auth.From, tx)
+		if err != nil {
+			log.Error(err.Error())
+			return err
+		}
+		err = ethMan.SendTx(ctx, signedTx)
+		if err != nil {
+			log.Error(err.Error())
 			return err
 		}
 

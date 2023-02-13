@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -84,12 +85,30 @@ func start(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Read Fork ID FROM POE SC
+	// TODO: Uncomment when the POE SC is implemented
+	/*
+		currentForkID, err := etherman.GetL2ForkID()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		forkIDIntervals, err := etherman.GetL2ForkIDIntervals()
+		if err != nil {
+			log.Fatal(err)
+		}
+	*/
+
+	currentForkID := c.DefaultForkID
+	forkIDIntervals := []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: c.DefaultForkID}}
+
 	c.Aggregator.ChainID = l2ChainID
+	c.Aggregator.ForkId = currentForkID
 	c.RPC.ChainID = l2ChainID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
-	st := newState(ctx, c, l2ChainID, stateSqlDB)
+	st := newState(ctx, c, l2ChainID, currentForkID, forkIDIntervals, stateSqlDB)
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
 	if err != nil {
@@ -265,7 +284,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.State {
+func newState(ctx context.Context, c *config.Config, l2ChainID uint64, currentForkID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
@@ -274,6 +293,8 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pg
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
 		ChainID:              l2ChainID,
+		CurrentForkID:        currentForkID,
+		ForkIDIntervals:      forkIDIntervals,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
@@ -307,7 +328,6 @@ func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStor
 }
 
 func startProfilingHttpServer(c metrics.Config) {
-	log.Info("Starting profiling http server")
 	mux := http.NewServeMux()
 	address := fmt.Sprintf("%s:%d", c.ProfilingHost, c.ProfilingPort)
 	lis, err := net.Listen("tcp", address)
