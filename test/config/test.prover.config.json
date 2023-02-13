@@ -10,10 +10,7 @@
     "runAggregatorClient": false,
     "runAggregatorClientMock": true, 
     "aggregatorClientMockTimeout": 15000000,
-<<<<<<< HEAD
-=======
     "proverName": "test-prover",
->>>>>>> develop
     
     "runFileGenBatchProof": false,
     "runFileGenAggregatedProof": false,
