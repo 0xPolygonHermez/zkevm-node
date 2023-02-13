@@ -96,6 +96,6 @@ func (m migrationTest0002) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 	assert.NoError(t, err)
 }
 
-func TestMigration0006(t *testing.T) {
-	runMigrationTest(t, 6, migrationTest0002{})
+func TestMigration0002(t *testing.T) {
+	runMigrationTest(t, 2, migrationTest0002{})
 }
