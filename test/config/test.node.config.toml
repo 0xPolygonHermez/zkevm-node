@@ -52,7 +52,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 [Synchronizer]
 SyncInterval = "1s"
 SyncChunkSize = 100
-GenBlockNumber = 57
+GenBlockNumber = 63
 
 [Sequencer]
 MaxSequenceSize = "2000000"
