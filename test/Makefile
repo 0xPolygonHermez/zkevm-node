@@ -160,7 +160,7 @@ benchmark-sequencer-erc20-transfers: stop
 	$(RUNL1NETWORK)
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB) sleep 5
+	sleep 5
 	$(RUNZKPROVER)
 	$(RUNSYNC)
 	sleep 2
