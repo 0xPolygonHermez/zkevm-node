@@ -57,8 +57,8 @@ GenBlockNumber = 63
 [Sequencer]
 MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "5s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+WaitPeriodSendSequence = "15s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 WaitBlocksToUpdateGER = 10
 WaitBlocksToConsiderGerFinal = 10
 ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
@@ -87,13 +87,13 @@ WeightBinaries = 1
 WeightSteps = 1
 MaxAllowedFailedCounter = 50
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "1s"
+		GERDeadlineTimeoutInSec = "2s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"
 		SendingToL1DeadlineTimeoutInSec = "20s"
 		SleepDurationInMs = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 0
-		ClosingSignalsManagerWaitForL1OperationsInSec = "1s"
+		ClosingSignalsManagerWaitForL1OperationsInSec = "2s"
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 
