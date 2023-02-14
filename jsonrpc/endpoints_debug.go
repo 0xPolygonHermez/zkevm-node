@@ -61,7 +61,7 @@ func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (i
 	})
 }
 
-// TraceTransaction creates a response for debug_traceBlockByNumber request.
+// TraceBlockByNumber creates a response for debug_traceBlockByNumber request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbynumber
 func (d *DebugEndpoints) TraceBlockByNumber(number BlockNumber, cfg *traceConfig) (interface{}, rpcError) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
@@ -86,7 +86,7 @@ func (d *DebugEndpoints) TraceBlockByNumber(number BlockNumber, cfg *traceConfig
 	})
 }
 
-// TraceTransaction creates a response for debug_traceBlockByHash request.
+// TraceBlockByHash creates a response for debug_traceBlockByHash request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbyhash
 func (d *DebugEndpoints) TraceBlockByHash(hash common.Hash, cfg *traceConfig) (interface{}, rpcError) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
@@ -161,7 +161,6 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.StructLog, cfg *traceConfig) []StructLogRes {
 	structLogs := make([]StructLogRes, 0, len(stateStructLogs))
 	for _, structLog := range stateStructLogs {
-
 		stack := make([]argBig, 0, len(structLog.Stack))
 		if !cfg.DisableStack && len(structLog.Stack) > 0 {
 			for _, stackItem := range structLog.Stack {
@@ -171,11 +170,12 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 			}
 		}
 
+		const memoryArraySize = 32
 		memory := make([]string, 0, len(structLog.Memory))
 		if cfg.EnableMemory {
 			for _, memoryItem := range structLog.Memory {
-				slice32Bytes := make([]byte, 32)
-				slice32Bytes[31] = memoryItem
+				slice32Bytes := make([]byte, memoryArraySize)
+				slice32Bytes[memoryArraySize-1] = memoryItem
 				memoryStringItem := hex.EncodeToString(slice32Bytes)
 				memory = append(memory, memoryStringItem)
 			}
