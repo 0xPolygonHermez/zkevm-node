@@ -53,7 +53,7 @@ func RlpFieldsToLegacyTx(fields [][]byte, v, r, s []byte) (tx *types.LegacyTx, e
 	value := big.NewInt(0).SetBytes(fields[4])
 	data := fields[5]
 
-	txV := big.NewInt(0)
+	txV := big.NewInt(0).SetBytes(v)
 	if len(fields) >= fieldsSizeWithChainID {
 		chainID := big.NewInt(0).SetBytes(fields[6])
 
