@@ -97,8 +97,6 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *state.Batch) (*pb.G
 	if err == nil {
 		mainnetExitRoot = ger.MainnetExitRoot.String()
 		rollupExitRoot = ger.RollupExitRoot.String()
-		// TODO: line commented to be able to compile. This should be reviewed (TR)
-		// globalExitRootTimestamp = uint64(ger.Timestamp.Unix())
 	} else if err != state.ErrNotFound {
 		return nil, err
 	}

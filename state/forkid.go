@@ -5,6 +5,7 @@ type ForkIDInterval struct {
 	FromBatchNumber uint64
 	ToBatchNumber   uint64
 	ForkId          uint64
+	Version         string
 }
 
 // GetForkIDByBatchNumber returns the fork id for a given batch number

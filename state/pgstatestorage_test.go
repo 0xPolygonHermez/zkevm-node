@@ -396,3 +396,44 @@ func TestCleanupLockedProofs(t *testing.T) {
 	assert.Contains(proofs, olderNotGenProof)
 	assert.Contains(proofs, newerProof)
 }
+
+func TestVirtualBatch(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, dbTx)
+	assert.NoError(t, err)
+	//require.NoError(t, tx.Commit(ctx))
+
+	lastBlock, err := testState.GetLastBlock(ctx, dbTx)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), lastBlock.BlockNumber)
+
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
+
+	require.NoError(t, err)
+	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	virtualBatch := state.VirtualBatch{
+		BlockNumber:   1,
+		BatchNumber:   1,
+		Coinbase:      addr,
+		SequencerAddr: addr,
+		TxHash:        common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
+	require.NoError(t, err)
+
+	actualVirtualBatch, err := testState.GetVirtualBatch(ctx, 1, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, virtualBatch, *actualVirtualBatch)
+	require.NoError(t, dbTx.Commit(ctx))
+}

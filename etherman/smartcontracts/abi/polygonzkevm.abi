@@ -1,5 +1,249 @@
 [
 	{
+		"inputs": [
+			{
+				"internalType": "contract IPolygonZkEVMGlobalExitRoot",
+				"name": "_globalExitRootManager",
+				"type": "address"
+			},
+			{
+				"internalType": "contract IERC20Upgradeable",
+				"name": "_matic",
+				"type": "address"
+			},
+			{
+				"internalType": "contract IVerifierRollup",
+				"name": "_rollupVerifier",
+				"type": "address"
+			},
+			{
+				"internalType": "contract IPolygonZkEVMBridge",
+				"name": "_bridgeAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "uint64",
+				"name": "_chainID",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "_forkID",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [],
+		"name": "BatchAlreadyVerified",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "BatchNotSequencedOrNotSequenceEnd",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "ExceedMaxVerifyBatches",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "FinalNumBatchBelowLastVerifiedBatch",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "FinalNumBatchDoesNotMatchPendingState",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "FinalPendingStateNumInvalid",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "ForceBatchTimeoutNotExpired",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "ForceBatchesOverflow",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "ForcedDataDoesNotMatch",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "GlobalExitRootNotExist",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "HaltTimeoutNotExpired",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "InitNumBatchAboveLastVerifiedBatch",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "InitNumBatchDoesNotMatchPendingState",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "InvalidProof",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "InvalidRangeBatchTimeTarget",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "InvalidRangeMultiplierBatchFee",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "NewAccInputHashDoesNotExist",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "NewPendingStateTimeoutMustBeLower",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "NewTrustedAggregatorTimeoutMustBeLower",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "NotEnoughMaticAmount",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OldAccInputHashDoesNotExist",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OldStateRootDoesNotExist",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OnlyAdmin",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OnlyEmergencyState",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OnlyNotEmergencyState",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OnlyPendingAdmin",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OnlyTrustedAggregator",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OnlyTrustedSequencer",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "PendingStateDoesNotExist",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "PendingStateInvalid",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "PendingStateNotConsolidable",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "PendingStateTimeoutExceedHaltAggregationTimeout",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "SequenceZeroBatches",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "SequencedTimestampBelowForcedTimestamp",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "SequencedTimestampInvalid",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "StoredRootMustBeDifferentThanNewRoot",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "TransactionsLengthAboveMax",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "TrustedAggregatorTimeoutExceedHaltAggregationTimeout",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "TrustedAggregatorTimeoutNotExpired",
+		"type": "error"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "newAdmin",
+				"type": "address"
+			}
+		],
+		"name": "AcceptAdminRole",
+		"type": "event"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -174,32 +418,6 @@
 		"inputs": [
 			{
 				"indexed": false,
-				"internalType": "address",
-				"name": "newAdmin",
-				"type": "address"
-			}
-		],
-		"name": "SetAdmin",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "bool",
-				"name": "newForceBatchAllowed",
-				"type": "bool"
-			}
-		],
-		"name": "SetForceBatchAllowed",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
 				"internalType": "uint16",
 				"name": "newMultiplierBatchFee",
 				"type": "uint16"
@@ -279,36 +497,49 @@
 			{
 				"indexed": false,
 				"internalType": "uint64",
-				"name": "newVeryBatchTimeTarget",
+				"name": "newVerifyBatchTimeTarget",
 				"type": "uint64"
 			}
 		],
-		"name": "SetVeryBatchTimeTarget",
+		"name": "SetVerifyBatchTimeTarget",
 		"type": "event"
 	},
 	{
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": true,
+				"indexed": false,
+				"internalType": "address",
+				"name": "newPendingAdmin",
+				"type": "address"
+			}
+		],
+		"name": "TransferAdminRole",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
 				"internalType": "uint64",
 				"name": "numBatch",
 				"type": "uint64"
 			},
 			{
 				"indexed": false,
-				"internalType": "bytes32",
-				"name": "stateRoot",
-				"type": "bytes32"
+				"internalType": "uint64",
+				"name": "forkID",
+				"type": "uint64"
 			},
 			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "aggregator",
-				"type": "address"
+				"indexed": false,
+				"internalType": "string",
+				"name": "version",
+				"type": "string"
 			}
 		],
-		"name": "TrustedVerifyBatches",
+		"name": "UpdateZkEVMVersion",
 		"type": "event"
 	},
 	{
@@ -337,68 +568,35 @@
 		"type": "event"
 	},
 	{
-		"inputs": [],
-		"name": "FORCE_BATCH_TIMEOUT",
-		"outputs": [
+		"anonymous": false,
+		"inputs": [
 			{
+				"indexed": true,
 				"internalType": "uint64",
-				"name": "",
+				"name": "numBatch",
 				"type": "uint64"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "stateRoot",
+				"type": "bytes32"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "aggregator",
+				"type": "address"
 			}
 		],
-		"stateMutability": "view",
-		"type": "function"
+		"name": "VerifyBatchesTrustedAggregator",
+		"type": "event"
 	},
 	{
 		"inputs": [],
-		"name": "HALT_AGGREGATION_TIMEOUT",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "MAX_BATCH_MULTIPLIER",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "MAX_TRANSACTIONS_BYTE_LENGTH",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "MAX_VERIFY_BATCHES",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"stateMutability": "view",
+		"name": "acceptAdminRole",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -537,19 +735,6 @@
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "forceBatchAllowed",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"inputs": [
 			{
 				"internalType": "uint64",
@@ -563,6 +748,19 @@
 				"internalType": "bytes32",
 				"name": "",
 				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "forkID",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -649,36 +847,11 @@
 	{
 		"inputs": [
 			{
-				"internalType": "contract IPolygonZkEVMGlobalExitRoot",
-				"name": "_globalExitRootManager",
-				"type": "address"
-			},
-			{
-				"internalType": "contract IERC20Upgradeable",
-				"name": "_matic",
-				"type": "address"
-			},
-			{
-				"internalType": "contract IVerifierRollup",
-				"name": "_rollupVerifier",
-				"type": "address"
-			},
-			{
-				"internalType": "contract IPolygonZkEVMBridge",
-				"name": "_bridgeAddress",
-				"type": "address"
-			},
-			{
 				"components": [
 					{
 						"internalType": "address",
 						"name": "admin",
 						"type": "address"
-					},
-					{
-						"internalType": "uint64",
-						"name": "chainID",
-						"type": "uint64"
 					},
 					{
 						"internalType": "address",
@@ -689,11 +862,6 @@
 						"internalType": "uint64",
 						"name": "pendingStateTimeout",
 						"type": "uint64"
-					},
-					{
-						"internalType": "bool",
-						"name": "forceBatchAllowed",
-						"type": "bool"
 					},
 					{
 						"internalType": "address",
@@ -723,6 +891,11 @@
 			{
 				"internalType": "string",
 				"name": "_networkName",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_version",
 				"type": "string"
 			}
 		],
@@ -961,6 +1134,19 @@
 	},
 	{
 		"inputs": [],
+		"name": "pendingAdmin",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "pendingStateTimeout",
 		"outputs": [
 			{
@@ -1107,6 +1293,11 @@
 				"internalType": "struct PolygonZkEVM.BatchData[]",
 				"name": "batches",
 				"type": "tuple[]"
+			},
+			{
+				"internalType": "address",
+				"name": "l2Coinbase",
+				"type": "address"
 			}
 		],
 		"name": "sequenceBatches",
@@ -1171,32 +1362,6 @@
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newAdmin",
-				"type": "address"
-			}
-		],
-		"name": "setAdmin",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bool",
-				"name": "newForceBatchAllowed",
-				"type": "bool"
-			}
-		],
-		"name": "setForceBatchAllowed",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -1281,11 +1446,24 @@
 		"inputs": [
 			{
 				"internalType": "uint64",
-				"name": "newVeryBatchTimeTarget",
+				"name": "newVerifyBatchTimeTarget",
 				"type": "uint64"
 			}
 		],
-		"name": "setVeryBatchTimeTarget",
+		"name": "setVerifyBatchTimeTarget",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newPendingAdmin",
+				"type": "address"
+			}
+		],
+		"name": "transferAdminRole",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -1356,51 +1534,16 @@
 		"type": "function"
 	},
 	{
-		"inputs": [
+		"inputs": [],
+		"name": "verifyBatchTimeTarget",
+		"outputs": [
 			{
 				"internalType": "uint64",
-				"name": "pendingStateNum",
+				"name": "",
 				"type": "uint64"
-			},
-			{
-				"internalType": "uint64",
-				"name": "initNumBatch",
-				"type": "uint64"
-			},
-			{
-				"internalType": "uint64",
-				"name": "finalNewBatch",
-				"type": "uint64"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "newLocalExitRoot",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "newStateRoot",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "uint256[2]",
-				"name": "proofA",
-				"type": "uint256[2]"
-			},
-			{
-				"internalType": "uint256[2][2]",
-				"name": "proofB",
-				"type": "uint256[2][2]"
-			},
-			{
-				"internalType": "uint256[2]",
-				"name": "proofC",
-				"type": "uint256[2]"
 			}
 		],
-		"name": "trustedVerifyBatches",
-		"outputs": [],
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -1452,16 +1595,51 @@
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "veryBatchTimeTarget",
-		"outputs": [
+		"inputs": [
 			{
 				"internalType": "uint64",
-				"name": "",
+				"name": "pendingStateNum",
 				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "initNumBatch",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "finalNewBatch",
+				"type": "uint64"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "newLocalExitRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "newStateRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256[2]",
+				"name": "proofA",
+				"type": "uint256[2]"
+			},
+			{
+				"internalType": "uint256[2][2]",
+				"name": "proofB",
+				"type": "uint256[2][2]"
+			},
+			{
+				"internalType": "uint256[2]",
+				"name": "proofC",
+				"type": "uint256[2]"
 			}
 		],
-		"stateMutability": "view",
+		"name": "verifyBatchesTrustedAggregator",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	}
 ]

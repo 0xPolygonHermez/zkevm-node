@@ -27,7 +27,7 @@ const (
 	txMaxSize = 4 * txSlotSize // 128KB
 
 	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
-	bridgeClaimMethodSignature = "0x7b6323c1"
+	bridgeClaimMethodSignature = "0x2cffd02e"
 )
 
 var (
