@@ -49,7 +49,7 @@ const (
 	DefaultL2NetworkWebSocketURL        = "ws://localhost:8133"
 	DefaultL2ChainID             uint64 = 1001
 
-	DefaultTimeoutTxToBeMined = 2 * time.Minute
+	DefaultTimeoutTxToBeMined = 5 * time.Minute
 )
 
 var (
