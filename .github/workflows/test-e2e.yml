@@ -20,7 +20,7 @@ jobs:
       matrix:
         go-version: [ 1.17.x ]
         goarch: [ "amd64" ]
-        e2e-group: [ 1, 2, 3, 4 ]
+        e2e-group: [ 1, 2, 3, 4, 5 ]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -59,7 +59,7 @@ jobs:
       matrix:
         go-version: [ 1.17.x ]
         goarch: [ "amd64" ]
-        e2e-group: [ 1, 2, 3, 4 ]
+        e2e-group: [ 1, 2, 3, 4, 5 ]
     runs-on: ubuntu-latest
     steps:
     - name: Fork based /ok-to-test checkout

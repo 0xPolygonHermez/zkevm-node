@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
@@ -140,6 +141,184 @@ func TestDebugTraceTransaction(t *testing.T) {
 			referenceStructLogsMap := referenceValueMap["structLogs"].([]interface{})
 
 			for networkName, result := range results {
+				if networkName == l1NetworkName {
+					continue
+				}
+
+				resultMap := map[string]interface{}{}
+				err = json.Unmarshal(result, &resultMap)
+				require.NoError(t, err)
+
+				resultStructLogsMap := resultMap["structLogs"].([]interface{})
+				require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
+
+				for structLogIndex := range referenceStructLogsMap {
+					referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
+					resultStructLogMap := resultStructLogsMap[structLogIndex].(map[string]interface{})
+
+					require.Equal(t, referenceStructLogMap["pc"], resultStructLogMap["pc"], fmt.Sprintf("invalid struct log pc for network %s", networkName))
+					require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
+					require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
+
+					referenceStack, found := referenceStructLogMap["stack"].([]interface{})
+					if found {
+						resultStack := resultStructLogMap["stack"].([]interface{})
+
+						require.Equal(t, len(referenceStack), len(resultStack))
+						for stackIndex := range referenceStack {
+							require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex])
+						}
+					}
+
+					referenceMemory, found := referenceStructLogMap["memory"].([]interface{})
+					if found {
+						resultMemory := resultStructLogMap["memory"].([]interface{})
+
+						require.Equal(t, len(referenceMemory), len(resultMemory))
+						for memoryIndex := range referenceMemory {
+							require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex])
+						}
+					}
+
+					referenceStorage, found := referenceStructLogMap["storage"].(map[string]interface{})
+					if found {
+						resultStorage := resultStructLogMap["storage"].(map[string]interface{})
+
+						require.Equal(t, len(referenceStorage), len(resultStorage))
+						for storageKey, referenceStorageValue := range referenceStorage {
+							resultStorageValue, found := resultStorage[storageKey]
+							require.True(t, found)
+							require.Equal(t, referenceStorageValue, resultStorageValue)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestDebugTraceBlock(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	const l2NetworkURL = "http://localhost:8124"
+	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	// defer func() {
+	// 	require.NoError(t, operations.Teardown())
+	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	// }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+	require.NoError(t, err)
+
+	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
+
+	networks := []struct {
+		Name         string
+		URL          string
+		WebSocketURL string
+		ChainID      uint64
+		PrivateKey   string
+	}{
+		{
+			Name:       l1NetworkName,
+			URL:        operations.DefaultL1NetworkURL,
+			ChainID:    operations.DefaultL1ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+		{
+			Name:       l2NetworkName,
+			URL:        l2NetworkURL,
+			ChainID:    operations.DefaultL2ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+	}
+
+	results := map[string]json.RawMessage{}
+
+	type testCase struct {
+		name           string
+		prepare        func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
+		createSignedTx func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error)
+	}
+	testCases := []testCase{
+		// successful transactions
+		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		// failed transactions
+		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		// {name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, network := range networks {
+				log.Debugf(network.Name)
+				client := operations.MustGetClient(network.URL)
+				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+				var customData map[string]interface{}
+				if tc.prepare != nil {
+					customData, err = tc.prepare(t, ctx, auth, client)
+					require.NoError(t, err)
+				}
+
+				signedTx, err := tc.createSignedTx(t, ctx, auth, client, customData)
+				require.NoError(t, err)
+
+				err = client.SendTransaction(ctx, signedTx)
+				require.NoError(t, err)
+
+				err = operations.WaitTxToBeMined(ctx, client, signedTx, operations.DefaultTimeoutTxToBeMined)
+				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+					require.NoError(t, err)
+				}
+
+				receipt, err := client.TransactionReceipt(ctx, signedTx.Hash())
+				require.NoError(t, err)
+
+				debugOptions := map[string]interface{}{
+					"disableStorage":   false,
+					"disableStack":     false,
+					"enableMemory":     true,
+					"enableReturnData": true,
+				}
+
+				response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(receipt.BlockNumber), debugOptions)
+				require.NoError(t, err)
+				require.Nil(t, response.Error)
+				require.NotNil(t, response.Result)
+
+				results[network.Name] = response.Result
+			}
+
+			referenceValueMap := map[string]interface{}{}
+			err = json.Unmarshal(results[l1NetworkName], &referenceValueMap)
+			require.NoError(t, err)
+
+			referenceStructLogsMap := referenceValueMap["structLogs"].([]interface{})
+
+			for networkName, result := range results {
+				if networkName == l1NetworkName {
+					continue
+				}
+
 				resultMap := map[string]interface{}{}
 				err = json.Unmarshal(result, &resultMap)
 				require.NoError(t, err)
