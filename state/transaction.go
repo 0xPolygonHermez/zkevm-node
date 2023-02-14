@@ -38,7 +38,7 @@ func RlpFieldsToLegacyTx(fields [][]byte, v, r, s []byte) (tx *types.LegacyTx, e
 		fieldsSizeWithChainID    = 7
 	)
 
-	if len(fields) != fieldsSizeWithoutChainID && len(fields) != fieldsSizeWithChainID {
+	if len(fields) < fieldsSizeWithoutChainID {
 		return nil, types.ErrTxTypeNotSupported
 	}
 
