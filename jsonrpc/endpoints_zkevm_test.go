@@ -319,10 +319,10 @@ func TestBatchNumberByBlockNumber(t *testing.T) {
 			require.NoError(t, err)
 
 			if res.Result != nil {
-				var result uint64
+				var result argUint64
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
-				assert.Equal(t, tc.ExpectedResult, result)
+				assert.Equal(t, tc.ExpectedResult, uint64(result))
 			}
 
 			if res.Error != nil || tc.ExpectedError != nil {

@@ -10,10 +10,7 @@
       "summary": "Returns the latest block number that is connected to the latest batch verified.",
       "params": [],
       "result": {
-        "name": "result",
-        "schema": {
-          "$ref": "#/components/contentDescriptors/BlockNumber"
-        }
+        "$ref": "#/components/contentDescriptors/BlockNumber"
       },
       "examples": [
         {
@@ -113,10 +110,7 @@
       "summary": "Returns the latest batch number.",
       "params": [],
       "result": {
-        "name": "result",
-        "schema": {
-          "$ref": "#/components/contentDescriptors/BatchNumber"
-        }
+        "$ref": "#/components/contentDescriptors/BatchNumber"
       },
       "examples": [
         {
@@ -136,10 +130,7 @@
       "summary": "Returns the latest virtual batch number.",
       "params": [],
       "result": {
-        "name": "result",
-        "schema": {
-          "$ref": "#/components/contentDescriptors/BatchNumber"
-        }
+        "$ref": "#/components/contentDescriptors/BatchNumber"
       },
       "examples": [
         {
@@ -159,10 +150,7 @@
       "summary": "Returns the latest verified batch number.",
       "params": [],
       "result": {
-        "name": "result",
-        "schema": {
-          "$ref": "#/components/contentDescriptors/BatchNumber"
-        }
+        "$ref": "#/components/contentDescriptors/BatchNumber"
       },
       "examples": [
         {
@@ -186,10 +174,7 @@
         }
       ],
       "result": {
-        "name": "result",
-        "schema": {
-          "$ref": "#/components/contentDescriptors/BatchNumber"
-        }
+        "$ref": "#/components/contentDescriptors/BatchNumber"
       },
       "examples": [
         {
