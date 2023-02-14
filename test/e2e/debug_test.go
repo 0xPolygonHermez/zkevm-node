@@ -209,10 +209,10 @@ func TestDebugTraceBlock(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	// defer func() {
-	// 	require.NoError(t, operations.Teardown())
-	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	// }()
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	}()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -250,20 +250,30 @@ func TestDebugTraceBlock(t *testing.T) {
 	results := map[string]json.RawMessage{}
 
 	type testCase struct {
-		name           string
-		prepare        func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
-		createSignedTx func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error)
+		name              string
+		blockNumberOrHash string
+		prepare           func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
+		createSignedTx    func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error)
 	}
 	testCases := []testCase{
 		// successful transactions
-		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		{name: "eth transfer - by number", blockNumberOrHash: "number", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment - by number", blockNumberOrHash: "number", createSignedTx: createScDeploySignedTx},
+		{name: "sc call - by number", blockNumberOrHash: "number", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer - by number", blockNumberOrHash: "number", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+
+		{name: "eth transfer - by hash", blockNumberOrHash: "hash", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment - by hash", blockNumberOrHash: "hash", createSignedTx: createScDeploySignedTx},
+		{name: "sc call - by hash", blockNumberOrHash: "hash", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer - by hash", blockNumberOrHash: "hash", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		// failed transactions
-		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
-		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
-		// {name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		{name: "sc deployment reverted - by number", blockNumberOrHash: "number", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted - by number", blockNumberOrHash: "number", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted - by number", blockNumberOrHash: "number", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+
+		{name: "sc deployment reverted - by hash", blockNumberOrHash: "hash", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted - by hash", blockNumberOrHash: "hash", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted - by hash", blockNumberOrHash: "hash", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
 	}
 
 	for _, tc := range testCases {
@@ -300,7 +310,12 @@ func TestDebugTraceBlock(t *testing.T) {
 					"enableReturnData": true,
 				}
 
-				response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(receipt.BlockNumber), debugOptions)
+				var response jsonrpc.Response
+				if tc.blockNumberOrHash == "number" {
+					response, err = jsonrpc.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(receipt.BlockNumber), debugOptions)
+				} else {
+					response, err = jsonrpc.JSONRPCCall(network.URL, "debug_traceBlockByHash", receipt.BlockHash.String(), debugOptions)
+				}
 				require.NoError(t, err)
 				require.Nil(t, response.Error)
 				require.NotNil(t, response.Result)
@@ -308,61 +323,68 @@ func TestDebugTraceBlock(t *testing.T) {
 				results[network.Name] = response.Result
 			}
 
-			referenceValueMap := map[string]interface{}{}
-			err = json.Unmarshal(results[l1NetworkName], &referenceValueMap)
+			referenceTransactions := []interface{}{}
+			err = json.Unmarshal(results[l1NetworkName], &referenceTransactions)
 			require.NoError(t, err)
-
-			referenceStructLogsMap := referenceValueMap["structLogs"].([]interface{})
 
 			for networkName, result := range results {
 				if networkName == l1NetworkName {
 					continue
 				}
 
-				resultMap := map[string]interface{}{}
-				err = json.Unmarshal(result, &resultMap)
+				resultTransactions := []interface{}{}
+				err = json.Unmarshal(result, &resultTransactions)
 				require.NoError(t, err)
 
-				resultStructLogsMap := resultMap["structLogs"].([]interface{})
-				require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
+				for transactionIndex := range referenceTransactions {
+					referenceTransactionMap := referenceTransactions[transactionIndex].(map[string]interface{})
+					referenceResultMap := referenceTransactionMap["result"].(map[string]interface{})
+					referenceStructLogsMap := referenceResultMap["structLogs"].([]interface{})
 
-				for structLogIndex := range referenceStructLogsMap {
-					referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
-					resultStructLogMap := resultStructLogsMap[structLogIndex].(map[string]interface{})
+					resultTransactionMap := resultTransactions[transactionIndex].(map[string]interface{})
+					resultResultMap := resultTransactionMap["result"].(map[string]interface{})
+					resultStructLogsMap := resultResultMap["structLogs"].([]interface{})
 
-					require.Equal(t, referenceStructLogMap["pc"], resultStructLogMap["pc"], fmt.Sprintf("invalid struct log pc for network %s", networkName))
-					require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
-					require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
+					require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
 
-					referenceStack, found := referenceStructLogMap["stack"].([]interface{})
-					if found {
-						resultStack := resultStructLogMap["stack"].([]interface{})
+					for structLogIndex := range referenceStructLogsMap {
+						referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
+						resultStructLogMap := resultStructLogsMap[structLogIndex].(map[string]interface{})
 
-						require.Equal(t, len(referenceStack), len(resultStack))
-						for stackIndex := range referenceStack {
-							require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex])
+						require.Equal(t, referenceStructLogMap["pc"], resultStructLogMap["pc"], fmt.Sprintf("invalid struct log pc for network %s", networkName))
+						require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
+						require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
+
+						referenceStack, found := referenceStructLogMap["stack"].([]interface{})
+						if found {
+							resultStack := resultStructLogMap["stack"].([]interface{})
+
+							require.Equal(t, len(referenceStack), len(resultStack))
+							for stackIndex := range referenceStack {
+								require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex])
+							}
 						}
-					}
 
-					referenceMemory, found := referenceStructLogMap["memory"].([]interface{})
-					if found {
-						resultMemory := resultStructLogMap["memory"].([]interface{})
+						referenceMemory, found := referenceStructLogMap["memory"].([]interface{})
+						if found {
+							resultMemory := resultStructLogMap["memory"].([]interface{})
 
-						require.Equal(t, len(referenceMemory), len(resultMemory))
-						for memoryIndex := range referenceMemory {
-							require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex])
+							require.Equal(t, len(referenceMemory), len(resultMemory))
+							for memoryIndex := range referenceMemory {
+								require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex])
+							}
 						}
-					}
 
-					referenceStorage, found := referenceStructLogMap["storage"].(map[string]interface{})
-					if found {
-						resultStorage := resultStructLogMap["storage"].(map[string]interface{})
+						referenceStorage, found := referenceStructLogMap["storage"].(map[string]interface{})
+						if found {
+							resultStorage := resultStructLogMap["storage"].(map[string]interface{})
 
-						require.Equal(t, len(referenceStorage), len(resultStorage))
-						for storageKey, referenceStorageValue := range referenceStorage {
-							resultStorageValue, found := resultStorage[storageKey]
-							require.True(t, found)
-							require.Equal(t, referenceStorageValue, resultStorageValue)
+							require.Equal(t, len(referenceStorage), len(resultStorage))
+							for storageKey, referenceStorageValue := range referenceStorage {
+								resultStorageValue, found := resultStorage[storageKey]
+								require.True(t, found)
+								require.Equal(t, referenceStorageValue, resultStorageValue)
+							}
 						}
 					}
 				}
