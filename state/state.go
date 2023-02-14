@@ -479,6 +479,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*Proc
 		EthTimestamp:     request.Timestamp,
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
+		ForkId:           s.cfg.CurrentForkID,
 	}
 	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, request.Caller)
 	if err != nil {
