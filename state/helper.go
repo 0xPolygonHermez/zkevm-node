@@ -150,7 +150,6 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 		ff               = 255 // max value of rlp header
 		shortRlp         = 55  // length of the short rlp codification
 		f7               = 247 // 192 + 55 = c0 + shortRlp
-		mul2             = 2
 	)
 	txDataLength := len(txsData)
 	if txDataLength == 0 {
@@ -190,20 +189,11 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 			return []types.Transaction{}, []byte{}, err
 		}
 
-		legacyTx, chainID, err := RlpFieldsToLegacyTx(rlpFields)
+		legacyTx, err := RlpFieldsToLegacyTx(rlpFields, vData, rData, sData)
 		if err != nil {
 			log.Debug("error creating tx from rlp fields: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
 			return []types.Transaction{}, []byte{}, err
 		}
-
-		if chainID != nil {
-			//v = v-27+chainId*2+35
-			legacyTx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(vData), big.NewInt(ether155V)), new(big.Int).Add(new(big.Int).Mul(chainID, big.NewInt(mul2)), big.NewInt(etherPre155V)))
-		} else {
-			legacyTx.V = new(big.Int).SetBytes(vData)
-		}
-		legacyTx.R = new(big.Int).SetBytes(rData)
-		legacyTx.S = new(big.Int).SetBytes(sData)
 
 		tx := types.NewTx(legacyTx)
 		txs = append(txs, *tx)

@@ -32,16 +32,14 @@ func GetSender(tx types.Transaction) (common.Address, error) {
 // [6] V        *big.Int
 // [7] R        *big.Int
 // [8] S        *big.Int
-func RlpFieldsToLegacyTx(fields [][]byte) (tx *types.LegacyTx, chainID *big.Int, err error) {
+func RlpFieldsToLegacyTx(fields [][]byte, v, r, s []byte) (tx *types.LegacyTx, err error) {
 	const (
 		fieldsSizeWithoutChainID = 6
-		fieldsSizeWithV          = 7
-		fieldsSizeWithVR         = 8
-		fieldsSizeWithVRS        = 9
+		fieldsSizeWithChainID    = 7
 	)
 
-	if len(fields) != fieldsSizeWithoutChainID && len(fields) != fieldsSizeWithV && len(fields) != fieldsSizeWithVRS {
-		return nil, nil, types.ErrTxTypeNotSupported
+	if len(fields) != fieldsSizeWithoutChainID && len(fields) != fieldsSizeWithChainID {
+		return nil, types.ErrTxTypeNotSupported
 	}
 
 	nonce := big.NewInt(0).SetBytes(fields[0]).Uint64()
@@ -55,22 +53,25 @@ func RlpFieldsToLegacyTx(fields [][]byte) (tx *types.LegacyTx, chainID *big.Int,
 	value := big.NewInt(0).SetBytes(fields[4])
 	data := fields[5]
 
-	v := big.NewInt(0)
-	if len(fields) >= fieldsSizeWithV {
-		v = big.NewInt(0).SetBytes(fields[6])
-		chainID = big.NewInt(0).Sub(v, big.NewInt(0).SetUint64(etherPre155V))
-		chainID = big.NewInt(0).Quo(chainID, big.NewInt(double))
+	txV := big.NewInt(0)
+	if len(fields) >= fieldsSizeWithChainID {
+		chainID := big.NewInt(0).SetBytes(fields[6])
+
+		// a = chainId * 2
+		// b = v - 27
+		// c = a + 35
+		// v = b + c
+		//
+		// same as:
+		// v = v-27+chainId*2+35
+		a := new(big.Int).Mul(chainID, big.NewInt(double))
+		b := new(big.Int).Sub(new(big.Int).SetBytes(v), big.NewInt(ether155V))
+		c := new(big.Int).Add(a, big.NewInt(etherPre155V))
+		txV = new(big.Int).Add(b, c)
 	}
 
-	r := big.NewInt(0)
-	if len(fields) >= fieldsSizeWithVR {
-		r = big.NewInt(0).SetBytes(fields[7])
-	}
-
-	s := big.NewInt(0)
-	if len(fields) >= fieldsSizeWithVRS {
-		s = big.NewInt(0).SetBytes(fields[8])
-	}
+	txR := big.NewInt(0).SetBytes(r)
+	txS := big.NewInt(0).SetBytes(s)
 
 	return &types.LegacyTx{
 		Nonce:    nonce,
@@ -79,8 +80,8 @@ func RlpFieldsToLegacyTx(fields [][]byte) (tx *types.LegacyTx, chainID *big.Int,
 		To:       to,
 		Value:    value,
 		Data:     data,
-		V:        v,
-		R:        r,
-		S:        s,
-	}, chainID, nil
+		V:        txV,
+		R:        txR,
+		S:        txS,
+	}, nil
 }
