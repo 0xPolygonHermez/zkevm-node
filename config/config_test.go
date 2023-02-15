@@ -59,28 +59,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "Sequencer.WaitBlocksToUpdateGER",
-			expectedValue: uint64(10),
-		},
-		{
-			path:          "Sequencer.WaitBlocksToConsiderGerFinal",
-			expectedValue: uint64(10),
-		},
-		{
 			path:          "Sequencer.MaxTxsPerBatch",
 			expectedValue: uint64(150),
 		},
 		{
 			path:          "Sequencer.MaxBatchBytesSize",
 			expectedValue: uint64(150000),
-		},
-		{
-			path:          "Sequencer.MaxTimeForBatchToBeOpen",
-			expectedValue: types.NewDuration(15 * time.Second),
-		},
-		{
-			path:          "Sequencer.ElapsedTimeToCloseBatchWithoutTxsDueToNewGER",
-			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",

@@ -21,21 +21,6 @@ type Config struct {
 	// LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
 	LastBatchVirtualizationTimeMaxWaitPeriod types.Duration `mapstructure:"LastBatchVirtualizationTimeMaxWaitPeriod"`
 
-	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
-	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`
-
-	// WaitBlocksToConsiderGerFinal is number of blocks for sequencer to consider globalExitRoot final
-	WaitBlocksToConsiderGerFinal uint64 `mapstructure:"WaitBlocksToConsiderGerFinal"`
-
-	// ElapsedTimeToCloseBatchWithoutTxsDueToNewGER it's time to close a batch bcs new globalExitRoot appeared
-	ElapsedTimeToCloseBatchWithoutTxsDueToNewGER types.Duration `mapstructure:"ElapsedTimeToCloseBatchWithoutTxsDueToNewGER"`
-
-	// MinTimeToCloseBatch enough time passed to close a batch.
-	MinTimeToCloseBatch types.Duration `mapstructure:"MinTimeToCloseBatch"`
-
-	// MaxTimeForBatchToBeOpen is time after which new batch should be closed
-	MaxTimeForBatchToBeOpen types.Duration `mapstructure:"MaxTimeForBatchToBeOpen"`
-
 	// BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
 	BlocksAmountForTxsToBeDeleted uint64 `mapstructure:"BlocksAmountForTxsToBeDeleted"`
 
