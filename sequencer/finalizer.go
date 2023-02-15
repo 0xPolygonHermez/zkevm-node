@@ -416,6 +416,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 	addressInfo := result.ReadWriteAddresses[tx.From]
 
 	if executor.IsROMOutOfCountersError(errorCode) {
+		log.Errorf("ROM out of counters error, marking tx with Hash: %s as INVALID, errorCode: %s", tx.Hash.String(), errorCode.String())
 		start := time.Now()
 		f.worker.DeleteTx(tx.Hash, tx.From)
 		metrics.WorkerProcessingTime(time.Since(start))
@@ -426,6 +427,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			}
 		}()
 	} else if executor.IsIntrinsicError(errorCode) {
+		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY, to not ready, err: %s", tx.Hash, txResponse.RomError)
 		var (
 			nonce   *uint64
 			balance *big.Int

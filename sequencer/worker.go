@@ -115,6 +115,9 @@ func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, from
 func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
+	if touchedAddresses == nil || len(touchedAddresses) == 0 {
+		log.Errorf("UpdateAfterSingleSuccessfulTxExecution touchedAddresses is nil or empty")
+	}
 
 	touchedFrom, found := touchedAddresses[from]
 	if found {
