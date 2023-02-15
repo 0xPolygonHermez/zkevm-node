@@ -105,11 +105,6 @@ UpdatePeriod = "10s"
 Factor = 0.5
 DefaultGasPriceWei = 1000000000
 
-[MTServer]
-Host = "0.0.0.0"
-Port = 50060
-StoreBackend = "PostgreSQL"
-
 [MTClient]
 URI  = "zkevm-prover:50061"
 
