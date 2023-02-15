@@ -20,11 +20,11 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// *
+//*
 // @dev Result
-//   - OK: succesfully completed
-//   - ERROR: request is not correct, i.e. input data is wrong
-//   - INTERNAL_ERROR: internal server error when delivering the response
+//  - OK: succesfully completed
+//  - ERROR: request is not correct, i.e. input data is wrong
+//  - INTERNAL_ERROR: internal server error when delivering the response
 type Result int32
 
 const (
@@ -247,7 +247,6 @@ type AggregatorMessage struct {
 
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Types that are assignable to Request:
-	//
 	//	*AggregatorMessage_GetStatusRequest
 	//	*AggregatorMessage_GenBatchProofRequest
 	//	*AggregatorMessage_GenAggregatedProofRequest
@@ -392,7 +391,6 @@ type ProverMessage struct {
 
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Types that are assignable to Response:
-	//
 	//	*ProverMessage_GetStatusResponse
 	//	*ProverMessage_GenBatchProofResponse
 	//	*ProverMessage_GenAggregatedProofResponse
@@ -530,7 +528,7 @@ func (*ProverMessage_CancelResponse) isProverMessage_Response() {}
 
 func (*ProverMessage_GetProofResponse) isProverMessage_Response() {}
 
-// *
+//*
 // @dev GetStatusRequest
 type GetStatusRequest struct {
 	state         protoimpl.MessageState
@@ -570,7 +568,7 @@ func (*GetStatusRequest) Descriptor() ([]byte, []int) {
 	return file_aggregator_proto_rawDescGZIP(), []int{3}
 }
 
-// *
+//*
 // @dev GenBatchProofRequest
 // @param {input} - input prover
 type GenBatchProofRequest struct {
@@ -620,7 +618,7 @@ func (x *GenBatchProofRequest) GetInput() *InputProver {
 	return nil
 }
 
-// *
+//*
 // @dev GenAggregatedProofRequest
 // @param {recursive_proof_1} - proof json of the first batch to aggregate
 // @param {recursive_proof_2} - proof json of the second batch to aggregate
@@ -679,7 +677,7 @@ func (x *GenAggregatedProofRequest) GetRecursiveProof_2() string {
 	return ""
 }
 
-// *
+//*
 // @dev GenFinalProofRequest
 // @param {recursive_proof} - proof json of the batch or aggregated proof to finalise
 // @param {aggregator_addr} - address of the aggregator
@@ -738,7 +736,7 @@ func (x *GenFinalProofRequest) GetAggregatorAddr() string {
 	return ""
 }
 
-// *
+//*
 // @dev CancelRequest
 // @param {id} - identifier of the proof request to cancel
 type CancelRequest struct {
@@ -788,7 +786,7 @@ func (x *CancelRequest) GetId() string {
 	return ""
 }
 
-// *
+//*
 // @dev Request GetProof
 // @param {id} - proof identifier of the proof request
 // @param {timeout} - time to wait until the service responds
@@ -847,7 +845,7 @@ func (x *GetProofRequest) GetTimeout() uint64 {
 	return 0
 }
 
-// *
+//*
 // @dev Response GetStatus
 // @param {status} - server status
 // - BOOTING: being ready to compute proofs
@@ -1076,7 +1074,7 @@ func (x *GenBatchProofResponse) GetResult() Result {
 	return Result_RESULT_UNSPECIFIED
 }
 
-// *
+//*
 // @dev GenAggregatedProofResponse
 // @param {id} - proof identifier, to be used in GetProofRequest()
 // @param {result} - request result
@@ -1135,7 +1133,7 @@ func (x *GenAggregatedProofResponse) GetResult() Result {
 	return Result_RESULT_UNSPECIFIED
 }
 
-// *
+//*
 // @dev Response GenFinalProof
 // @param {id} - proof identifier, to be used in GetProofRequest()
 // @param {result} - request result
@@ -1194,7 +1192,7 @@ func (x *GenFinalProofResponse) GetResult() Result {
 	return Result_RESULT_UNSPECIFIED
 }
 
-// *
+//*
 // @dev CancelResponse
 // @param {result} - request result
 type CancelResponse struct {
@@ -1244,19 +1242,18 @@ func (x *CancelResponse) GetResult() Result {
 	return Result_RESULT_UNSPECIFIED
 }
 
-// *
+//*
 // @dev GetProofResponse
 // @param {id} - proof identifier
 // @param {final_proof} - groth16 proof + public circuit inputs
 // @param {recursive_proof} - recursive proof json
 // @param {result} - proof result
-//   - COMPLETED_OK: proof has been computed successfully and it is valid
-//   - ERROR: request error
-//   - COMPLETED_ERROR: proof has been computed successfully and it is not valid
-//   - PENDING: proof is being computed
-//   - INTERNAL_ERROR: server error during proof computation
-//   - CANCEL: proof has been cancelled
-//
+//  - COMPLETED_OK: proof has been computed successfully and it is valid
+//  - ERROR: request error
+//  - COMPLETED_ERROR: proof has been computed successfully and it is not valid
+//  - PENDING: proof is being computed
+//  - INTERNAL_ERROR: server error during proof computation
+//  - CANCEL: proof has been cancelled
 // @param {result_string} - extends result information
 type GetProofResponse struct {
 	state         protoimpl.MessageState
@@ -1265,7 +1262,6 @@ type GetProofResponse struct {
 
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Types that are assignable to Proof:
-	//
 	//	*GetProofResponse_FinalProof
 	//	*GetProofResponse_RecursiveProof
 	Proof        isGetProofResponse_Proof `protobuf_oneof:"proof"`
@@ -1363,6 +1359,7 @@ func (*GetProofResponse_FinalProof) isGetProofResponse_Proof() {}
 
 func (*GetProofResponse_RecursiveProof) isGetProofResponse_Proof() {}
 
+//
 // @dev FinalProof
 // @param {proof} - groth16 proof
 // @param {public} - public circuit inputs
@@ -1421,6 +1418,7 @@ func (x *FinalProof) GetPublic() *PublicInputsExtended {
 	return nil
 }
 
+//
 // @dev PublicInputs
 // @param {old_state_root}
 // @param {old_acc_input_hash}
@@ -1549,7 +1547,7 @@ func (x *PublicInputs) GetAggregatorAddr() string {
 	return ""
 }
 
-// *
+//*
 // @dev ProofB
 // @param {proofs} - two elliptic curves points
 type ProofB struct {
@@ -1599,7 +1597,7 @@ func (x *ProofB) GetProofs() []string {
 	return nil
 }
 
-// *
+//*
 // @dev Proof
 // @param {proof_a} - elliptic curve point
 // @param {proof_b} - two elliptic curves points
@@ -1667,7 +1665,7 @@ func (x *Proof) GetProofC() []string {
 	return nil
 }
 
-// *
+//*
 // @dev InputProver
 // @param {public_inputs} - public inputs
 // @param {db} - database containing all key-values in smt matching the old state root
@@ -1735,7 +1733,7 @@ func (x *InputProver) GetContractsBytecode() map[string]string {
 	return nil
 }
 
-// *
+//*
 // @dev PublicInputsExtended
 // @param {public_inputs} - public inputs
 // @param {new_state_root} - final state root. Used as a sanity check.

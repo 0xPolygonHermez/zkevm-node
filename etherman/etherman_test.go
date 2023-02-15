@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"testing"
 	"time"
@@ -163,7 +164,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 		MinForcedTimestamp: 0,
 		Transactions:       common.Hex2Bytes(rawTxs),
 	})
-	_, err = etherman.PoE.SequenceBatches(auth, sequences)
+	_, err = etherman.PoE.SequenceBatches(auth, sequences, auth.From)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -180,6 +181,8 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[2].SequencedBatches[0][1].Transactions)
 	assert.Equal(t, currentBlock.Time(), blocks[2].SequencedBatches[0][0].Timestamp)
 	assert.Equal(t, ger, blocks[2].SequencedBatches[0][0].GlobalExitRoot)
+	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].Coinbase)
+	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].SequencerAddr)
 	assert.Equal(t, currentBlock.Time(), blocks[2].SequencedBatches[0][0].MinForcedTimestamp)
 	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
 }
@@ -201,7 +204,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 		MinForcedTimestamp: 0,
 		Transactions:       common.Hex2Bytes(rawTxs),
 	}
-	_, err = etherman.PoE.SequenceBatches(auth, []polygonzkevm.PolygonZkEVMBatchData{tx})
+	_, err = etherman.PoE.SequenceBatches(auth, []polygonzkevm.PolygonZkEVMBatchData{tx}, auth.From)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -212,7 +215,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 		proofC = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
 		proofB = [2][2]*big.Int{proofC, proofC}
 	)
-	_, err = etherman.PoE.TrustedVerifyBatches(auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, proofA, proofB, proofC)
+	_, err = etherman.PoE.VerifyBatchesTrustedAggregator(auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, proofA, proofB, proofC)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -329,6 +332,8 @@ func TestSendSequences(t *testing.T) {
 	assert.Equal(t, 1, len(blocks[1].SequencedBatches))
 	assert.Equal(t, currentBlock.Time()-1, blocks[1].SequencedBatches[0][0].Timestamp)
 	assert.Equal(t, ger, blocks[1].SequencedBatches[0][0].GlobalExitRoot)
+	assert.Equal(t, auth.From, blocks[1].SequencedBatches[0][0].Coinbase)
+	assert.Equal(t, auth.From, blocks[1].SequencedBatches[0][0].SequencerAddr)
 	assert.Equal(t, uint64(0), blocks[1].SequencedBatches[0][0].MinForcedTimestamp)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
@@ -383,4 +388,17 @@ func TestErrorEtherScanPrice(t *testing.T) {
 	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625002), nil)
 	gp := etherman.GetL1GasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625002), gp)
+}
+
+func TestGetForks(t *testing.T) {
+	// Set up testing environment
+	etherman, _, _, _, _ := newTestingEnv()
+	ctx := context.Background()
+	forks, err := etherman.GetForks(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(forks))
+	assert.Equal(t, uint64(1), forks[0].ForkId)
+	assert.Equal(t, uint64(0), forks[0].FromBatchNumber)
+	assert.Equal(t, uint64(math.MaxUint64), forks[0].ToBatchNumber)
+	assert.Equal(t, "v1", forks[0].Version)
 }

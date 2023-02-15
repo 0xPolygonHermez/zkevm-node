@@ -18,9 +18,8 @@ import (
 const maxTopics = 4
 
 const (
-	addGlobalExitRootSQL                     = "INSERT INTO state.exit_root (block_num, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4)"
+	addGlobalExitRootSQL                     = "INSERT INTO state.exit_root (block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4, $5)"
 	getLatestExitRootBlockNumSQL             = "SELECT block_num FROM state.exit_root ORDER BY id DESC LIMIT 1"
-	addVirtualBatchSQL                       = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num) VALUES ($1, $2, $3, $4)"
 	addBlockSQL                              = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	getLastBlockSQL                          = "SELECT block_num, block_hash, parent_hash, received_at FROM state.block ORDER BY block_num DESC LIMIT 1"
 	getPreviousBlockSQL                      = "SELECT block_num, block_hash, parent_hash, received_at FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
@@ -39,8 +38,6 @@ const (
 	updateLastBatchSeenSQL                   = "UPDATE state.sync_info SET last_batch_num_seen = $1"
 	isBatchClosedSQL                         = "SELECT global_exit_root IS NOT NULL AND state_root IS NOT NULL FROM state.batch WHERE batch_num = $1 LIMIT 1"
 	addGenesisBatchSQL                       = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-	openBatchSQL                             = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, forced_batch_num) VALUES ($1, $2, $3, $4, $5)"
-	closeBatchSQL                            = "UPDATE state.batch SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4 WHERE batch_num = $5"
 	getL2BlockByNumberSQL                    = "SELECT header, uncles, received_at FROM state.l2block b WHERE b.block_num = $1"
 	getL2BlockHeaderByNumberSQL              = "SELECT header FROM state.l2block b WHERE b.block_num = $1"
 	getTransactionByHashSQL                  = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
@@ -49,9 +46,7 @@ const (
 	getL2BlockTransactionCountByHashSQL      = "SELECT COUNT(*) FROM state.transaction t INNER JOIN state.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
 	getL2BlockTransactionCountByNumberSQL    = "SELECT COUNT(*) FROM state.transaction t WHERE t.l2_block_num = $1"
 	getLastConsolidatedBlockNumberSQL        = "SELECT b.block_num FROM state.l2block b INNER JOIN state.verified_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
-	getLastVirtualBlockHeaderSQL             = "SELECT b.header FROM state.l2block b INNER JOIN state.virtual_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockByHashSQL                      = "SELECT header, uncles, received_at FROM state.l2block b WHERE b.block_hash = $1"
-	getLastL2BlockSQL                        = "SELECT header, uncles, received_at FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockHeaderByHashSQL                = "SELECT header FROM state.l2block b WHERE b.block_hash = $1"
 	getTxsByBlockNumSQL                      = "SELECT encoded FROM state.transaction WHERE l2_block_num = $1"
 	getL2BlockHashesSinceSQL                 = "SELECT block_hash FROM state.l2block WHERE created_at >= $1"
@@ -210,7 +205,7 @@ func (p *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64, d
 // AddGlobalExitRoot adds a new ExitRoot to the db
 func (p *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot)
+	_, err := e.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.Timestamp, exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot)
 	return err
 }
 
@@ -315,7 +310,7 @@ func (p *PostgresStorage) GetTimeForLatestBatchVirtualization(ctx context.Contex
 // AddForcedBatch adds a new ForcedBatch to the db
 func (p *PostgresStorage) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, tx pgx.Tx) error {
 	const addForcedBatchSQL = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, block_num) VALUES ($1, $2, $3, $4, $5, $6)"
-	_, err := tx.Exec(ctx, addForcedBatchSQL, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, forcedBatch.RawTxsData, forcedBatch.Sequencer.String(), forcedBatch.BlockNumber)
+	_, err := tx.Exec(ctx, addForcedBatchSQL, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, hex.EncodeToString(forcedBatch.RawTxsData), forcedBatch.Sequencer.String(), forcedBatch.BlockNumber)
 	return err
 }
 
@@ -342,6 +337,32 @@ func (p *PostgresStorage) GetForcedBatch(ctx context.Context, forcedBatchNumber 
 	forcedBatch.Sequencer = common.HexToAddress(seq)
 	forcedBatch.GlobalExitRoot = common.HexToHash(globalExitRoot)
 	return &forcedBatch, nil
+}
+
+// GetForcedBatchesSince gets L1 forced batches since forcedBatchNumber
+func (p *PostgresStorage) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*ForcedBatch, error) {
+	const getForcedBatchesSQL = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, block_num FROM state.forced_batch WHERE forced_batch_num > $1"
+	q := p.getExecQuerier(dbTx)
+	rows, err := q.Query(ctx, getForcedBatchesSQL, forcedBatchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return []*ForcedBatch{}, nil
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	forcesBatches := make([]*ForcedBatch, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		forcedBatch, err := scanForcedBatch(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		forcesBatches = append(forcesBatches, &forcedBatch)
+	}
+
+	return forcesBatches, nil
 }
 
 // AddVerifiedBatch adds a new VerifiedBatch to the db
@@ -429,7 +450,7 @@ func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2
                                                           WHERE l2b.block_num = $1))
                /* OR if $1 is null, this means we want to get the most updated information from state, so it considers all the batches.
                 * this is generally used by estimate gas, process unsigned transactions and it is required by claim transactions to add
-                * the open batch to the result and get the most updated GER synced from L1 and stored in the current open batch when 
+                * the open batch to the result and get the most updated globalExitRoot synced from L1 and stored in the current open batch when 
                 * there was not transactions yet to create a l2 block with it */
             OR $1 IS NULL
          ORDER BY b.batch_num DESC
@@ -505,6 +526,21 @@ func (p *PostgresStorage) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.T
 		return 0, err
 	}
 	return batchNum, nil
+}
+
+// GetLatestVirtualBatchTimestamp gets last virtual batch timestamp
+func (p *PostgresStorage) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
+	const getLastVirtualBatchTimestampSQL = `SELECT COALESCE(MAX(block.received_at), NOW()) FROM state.virtual_batch INNER JOIN state.block ON state.block.block_num = virtual_batch.block_num`
+	var timestamp time.Time
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getLastVirtualBatchTimestampSQL).Scan(&timestamp)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Unix(0, 0), ErrNotFound
+	} else if err != nil {
+		return time.Unix(0, 0), err
+	}
+	return timestamp, nil
 }
 
 // SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
@@ -586,6 +622,37 @@ func (p *PostgresStorage) GetBatchByL2BlockNumber(ctx context.Context, l2BlockNu
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+	return &batch, nil
+}
+
+// GetVirtualBatchByNumber gets batch from batch table that exists on virtual batch
+func (p *PostgresStorage) GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	const query = `
+		SELECT
+			batch_num,
+			global_exit_root,
+			local_exit_root,
+			acc_input_hash,
+			state_root,
+			timestamp,
+			coinbase,
+			raw_txs_data,
+			forced_batch_num
+		FROM
+			state.batch
+		WHERE
+			batch_num = $1 AND
+			EXISTS (SELECT batch_num FROM state.virtual_batch WHERE batch_num = $1)
+		`
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, query, batchNumber)
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}
@@ -722,6 +789,27 @@ func scanBatchWithL2BlockStateRoot(row pgx.Row) (Batch, *common.Hash, error) {
 	return batch, l2BlockStateRoot, nil
 }
 
+func scanForcedBatch(row pgx.Row) (ForcedBatch, error) {
+	forcedBatch := ForcedBatch{}
+	var (
+		gerStr      string
+		coinbaseStr string
+	)
+	if err := row.Scan(
+		&forcedBatch.ForcedBatchNumber,
+		&gerStr,
+		&forcedBatch.ForcedAt,
+		&forcedBatch.RawTxsData,
+		&coinbaseStr,
+		&forcedBatch.BlockNumber,
+	); err != nil {
+		return forcedBatch, err
+	}
+	forcedBatch.GlobalExitRoot = common.HexToHash(gerStr)
+	forcedBatch.Sequencer = common.HexToAddress(coinbaseStr)
+	return forcedBatch, nil
+}
+
 // GetEncodedTransactionsByBatchNumber returns the encoded field of all
 // transactions in the given batch.
 func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []string, err error) {
@@ -788,32 +876,35 @@ func (p *PostgresStorage) GetTxsHashesByBatchNumber(ctx context.Context, batchNu
 
 // AddVirtualBatch adds a new virtual batch to the storage.
 func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, dbTx pgx.Tx) error {
+	const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr) VALUES ($1, $2, $3, $4, $5)"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber)
+	_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String())
 	return err
 }
 
 // GetVirtualBatch get an L1 virtualBatch.
 func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*VirtualBatch, error) {
 	var (
-		virtualBatch VirtualBatch
-		txHash       string
-		coinbase     string
+		virtualBatch  VirtualBatch
+		txHash        string
+		coinbase      string
+		sequencerAddr string
 	)
 
 	const getVirtualBatchSQL = `
-    SELECT block_num, batch_num, tx_hash, coinbase
+    SELECT block_num, batch_num, tx_hash, coinbase, sequencer_addr
       FROM state.virtual_batch
      WHERE batch_num = $1`
 
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase)
+	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase, &sequencerAddr)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}
 	virtualBatch.Coinbase = common.HexToAddress(coinbase)
+	virtualBatch.SequencerAddr = common.HexToAddress(sequencerAddr)
 	virtualBatch.TxHash = common.HexToHash(txHash)
 	return &virtualBatch, nil
 }
@@ -841,10 +932,12 @@ func (p *PostgresStorage) storeGenesisBatch(ctx context.Context, batch Batch, db
 }
 
 // openBatch adds a new batch into the state, with the necessary data to start processing transactions within it.
-// It's meant to be used by sequencers, since they don't necessarely know what transactions are going to be added
+// It's meant to be used by sequencers, since they don't necessarily know what transactions are going to be added
 // in this batch yet. In other words it's the creation of a WIP batch.
-// Note that this will add a batch with batch number N + 1, where N it's the greates batch number on the state.
+// Note that this will add a batch with batch number N + 1, where N it's the greatest batch number on the state.
 func (p *PostgresStorage) openBatch(ctx context.Context, batchContext ProcessingContext, dbTx pgx.Tx) error {
+	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, forced_batch_num) VALUES ($1, $2, $3, $4, $5)"
+
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(
 		ctx, openBatchSQL,
@@ -857,9 +950,11 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 	return err
 }
 
-func (p *PostgresStorage) closeBatch(ctx context.Context, receipt ProcessingReceipt, rawTxs []byte, dbTx pgx.Tx) error {
+func (p *PostgresStorage) closeBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error {
+	const closeBatchSQL = "UPDATE state.batch SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4 WHERE batch_num = $5"
+
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, closeBatchSQL, receipt.StateRoot.String(), receipt.LocalExitRoot.String(), receipt.AccInputHash.String(), rawTxs, receipt.BatchNumber)
+	_, err := e.Exec(ctx, closeBatchSQL, receipt.StateRoot.String(), receipt.LocalExitRoot.String(), receipt.AccInputHash.String(), receipt.BatchL2Data, receipt.BatchNumber)
 	return err
 }
 
@@ -886,7 +981,7 @@ func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.H
 	}
 
 	if isBatchHasTxs {
-		return errors.New("batch has txs, can't change GER")
+		return errors.New("batch has txs, can't change globalExitRoot")
 	}
 
 	const updateGER = `
@@ -949,6 +1044,22 @@ func (p *PostgresStorage) GetNextForcedBatches(ctx context.Context, nextForcedBa
 	}
 
 	return batches, nil
+}
+
+// GetBatchNumberOfL2Block gets a batch number for l2 block by its number
+func (p *PostgresStorage) GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	getBatchNumByBlockNum := "SELECT batch_num FROM state.l2block WHERE block_num = $1"
+	batchNumber := uint64(0)
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getBatchNumByBlockNum, blockNumber).
+		Scan(&batchNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return batchNumber, ErrNotFound
+	} else if err != nil {
+		return batchNumber, err
+	}
+	return batchNumber, nil
 }
 
 // BatchNumberByL2BlockNumber gets a batch number by a l2 block number
@@ -1309,9 +1420,10 @@ func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx)
 
 // GetLastL2BlockHeader gets the last l2 block number
 func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+	const query = "SELECT b.header FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	header := &types.Header{}
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getLastVirtualBlockHeaderSQL).Scan(&header)
+	err := q.QueryRow(ctx, query).Scan(&header)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
@@ -1324,6 +1436,7 @@ func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx)
 
 // GetLastL2Block retrieves the latest L2 Block from the State data base
 func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error) {
+	const getLastL2BlockSQL = "SELECT header, uncles, received_at FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	var (
 		headerStr  string
 		unclesStr  string
@@ -2015,6 +2128,57 @@ func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
 	return err
+}
+
+// GetLastClosedBatch returns the latest closed batch
+func (p *PostgresStorage) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
+	const getLastClosedBatchSQL = `
+		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data
+			FROM state.batch bt
+			WHERE global_exit_root IS NOT NULL AND state_root IS NOT NULL
+			ORDER BY bt.batch_num DESC
+			LIMIT 1;`
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getLastClosedBatchSQL)
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+	return &batch, nil
+}
+
+// UpdateBatchL2Data updates data tx data in a batch
+func (p *PostgresStorage) UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error {
+	const updateL2DataSQL = "UPDATE state.batch SET raw_txs_data = $2 WHERE batch_num = $1"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, updateL2DataSQL, batchNumber, batchL2Data)
+	return err
+}
+
+// AddAccumulatedInputHash adds the accumulated input hash
+func (p *PostgresStorage) AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error {
+	const addAccInputHashBatchSQL = "UPDATE state.batch SET acc_input_hash = $1 WHERE batch_num = $2"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addAccInputHashBatchSQL, accInputHash.String(), batchNum)
+	return err
+}
+
+// GetLastTrustedForcedBatchNumber get last trusted forced batch number
+func (p *PostgresStorage) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	const getLastTrustedForcedBatchNumberSQL = "SELECT COALESCE(MAX(forced_batch_num), 0) FROM state.batch"
+	var forcedBatchNumber uint64
+	q := p.getExecQuerier(dbTx)
+
+	err := q.QueryRow(ctx, getLastTrustedForcedBatchNumberSQL).Scan(&forcedBatchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrStateNotSynchronized
+	}
+	return forcedBatchNumber, err
 }
 
 // AddDebugInfo is used to store debug info useful during runtime

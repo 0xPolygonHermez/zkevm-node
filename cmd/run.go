@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"math"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
@@ -22,7 +23,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
-	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
@@ -34,6 +34,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
+)
+
+const (
+	two = 2
+	ten = 10
 )
 
 func start(cliCtx *cli.Context) error {
@@ -80,21 +85,11 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 	// Read Fork ID FROM POE SC
-	// TODO: Uncomment when the POE SC is implemented
-	/*
-		currentForkID, err := etherman.GetL2ForkID()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		forkIDIntervals, err := etherman.GetL2ForkIDIntervals()
-		if err != nil {
-			log.Fatal(err)
-		}
-	*/
-
-	currentForkID := c.DefaultForkID
-	forkIDIntervals := []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: c.DefaultForkID}}
+	forkIDIntervals, err := etherman.GetForks(cliCtx.Context)
+	if err != nil || len(forkIDIntervals) == 0 {
+		log.Fatal("error getting forks: ", err)
+	}
+	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
 
 	c.Aggregator.ChainID = l2ChainID
 	c.Aggregator.ForkId = currentForkID
@@ -147,9 +142,12 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	if c.Metrics.Enabled {
-		go startMetricsHttpServer(c)
+		go startMetricsHttpServer(c.Metrics)
 	}
 
+	if c.Metrics.ProfilingEnabled {
+		go startProfilingHttpServer(c.Metrics)
+	}
 	waitSignal(cancelFuncs)
 
 	return nil
@@ -210,17 +208,12 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, apis ma
 }
 
 func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State) *sequencer.Sequencer {
-	pg, err := pricegetter.NewClient(cfg.PriceGetter)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	etherman, err := newEtherman(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, privateKey := range cfg.Sequencer.PrivateKeys {
+	for _, privateKey := range cfg.Sequencer.Finalizer.PrivateKeys {
 		_, err := etherman.LoadAuthFromKeyStore(privateKey.Path, privateKey.Password)
 		if err != nil {
 			log.Fatal(err)
@@ -229,7 +222,7 @@ func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanage
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
-	seq, err := sequencer.New(cfg.Sequencer, pool, st, etherman, pg, ethTxManager)
+	seq, err := sequencer.New(cfg.Sequencer, pool, st, etherman, ethTxManager)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -323,19 +316,49 @@ func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStor
 	return etm
 }
 
-func startMetricsHttpServer(c *config.Config) {
+func startProfilingHttpServer(c metrics.Config) {
 	mux := http.NewServeMux()
-	address := fmt.Sprintf("%s:%d", c.Metrics.Host, c.Metrics.Port)
+	address := fmt.Sprintf("%s:%d", c.ProfilingHost, c.ProfilingPort)
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Errorf("failed to create tcp listener for profiling: %v", err)
+		return
+	}
+	mux.HandleFunc(metrics.ProfilingIndexEndpoint, pprof.Index)
+	mux.HandleFunc(metrics.ProfileEndpoint, pprof.Profile)
+	mux.HandleFunc(metrics.ProfilingCmdEndpoint, pprof.Cmdline)
+	mux.HandleFunc(metrics.ProfilingSymbolEndpoint, pprof.Symbol)
+	mux.HandleFunc(metrics.ProfilingTraceEndpoint, pprof.Trace)
+	profilingServer := &http.Server{
+		Handler:     mux,
+		ReadTimeout: two * time.Minute,
+	}
+	log.Infof("profiling server listening on port %d", c.ProfilingPort)
+	if err := profilingServer.Serve(lis); err != nil {
+		if err == http.ErrServerClosed {
+			log.Warnf("http server for profiling stopped")
+			return
+		}
+		log.Errorf("closed http connection for profiling server: %v", err)
+		return
+	}
+}
+
+func startMetricsHttpServer(c metrics.Config) {
+	mux := http.NewServeMux()
+	address := fmt.Sprintf("%s:%d", c.Host, c.Port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Errorf("failed to create tcp listener for metrics: %v", err)
 		return
 	}
 	mux.Handle(metrics.Endpoint, promhttp.Handler())
-	metricsServer := &http.Server{ //nolint Potential Slowloris Attack
-		Handler: mux,
+
+	metricsServer := &http.Server{
+		Handler:     mux,
+		ReadTimeout: ten * time.Second,
 	}
-	log.Infof("metrics server listening on port %d", c.Metrics.Port)
+	log.Infof("metrics server listening on port %d", c.Port)
 	if err := metricsServer.Serve(lis); err != nil {
 		if err == http.ErrServerClosed {
 			log.Warnf("http server for metrics stopped")

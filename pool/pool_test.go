@@ -124,7 +124,7 @@ func Test_AddTx(t *testing.T) {
 		t.Error(err)
 	}
 
-	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.txs")
+	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.transaction")
 	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
@@ -215,7 +215,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	err = p.AddTx(ctx, tx)
 	require.NoError(t, err)
 
-	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.txs")
+	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.transaction")
 	defer rows.Close() // nolint:staticcheck
 	require.NoError(t, err)
 
@@ -556,7 +556,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	}
 
 	var count int
-	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE status = $1", pool.TxStatusInvalid).Scan(&count)
+	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.transaction WHERE status = $1", pool.TxStatusInvalid).Scan(&count)
 	if err != nil {
 		t.Error(err)
 	}
@@ -621,7 +621,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 		t.Error(err)
 	}
 
-	rows, err := poolSqlDB.Query(ctx, "SELECT status FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
+	rows, err := poolSqlDB.Query(ctx, "SELECT status FROM pool.transaction WHERE hash = $1", signedTx.Hash().Hex())
 	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
@@ -898,7 +898,7 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 	}
 
 	var count int
-	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs").Scan(&count)
+	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.transaction").Scan(&count)
 	if err != nil {
 		t.Error(err)
 	}

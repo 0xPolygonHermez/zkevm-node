@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -27,6 +28,9 @@ type storage interface {
 	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
 	GetTxByHash(ctx context.Context, hash common.Hash) (*Transaction, error)
 	IncrementFailedCounter(ctx context.Context, hashes []string) error
+	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
+	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
+	MarkWIPTxsAsPending(ctx context.Context) error
 }
 
 type stateInterface interface {

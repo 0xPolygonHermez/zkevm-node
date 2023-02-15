@@ -8,10 +8,12 @@ import (
 )
 
 const (
-	prefix                 = "state_"
-	executorProcessingTime = prefix + "executor_processing_time"
-
-	callerLabelName = "caller"
+	// Prefix for the metrics of the state package.
+	Prefix = "state_"
+	// ExecutorProcessingTimeName is the name of the metric that shows the processing time in the executor.
+	ExecutorProcessingTimeName = Prefix + "executor_processing_time"
+	// CallerLabelName is the name of the label for the caller.
+	CallerLabelName = "caller"
 )
 
 // Register the metrics for the sequencer package.
@@ -19,10 +21,10 @@ func Register() {
 	histogramVecs := []metrics.HistogramVecOpts{
 		{
 			HistogramOpts: prometheus.HistogramOpts{
-				Name: executorProcessingTime,
+				Name: ExecutorProcessingTimeName,
 				Help: "[STATE] processing time in executor",
 			},
-			Labels: []string{callerLabelName},
+			Labels: []string{CallerLabelName},
 		},
 	}
 
@@ -33,5 +35,5 @@ func Register() {
 // and for the given label.
 func ExecutorProcessingTime(caller string, lastExecutionTime time.Duration) {
 	execTimeInSeconds := float64(lastExecutionTime) / float64(time.Second)
-	metrics.HistogramVecObserve(executorProcessingTime, string(caller), execTimeInSeconds)
+	metrics.HistogramVecObserve(ExecutorProcessingTimeName, string(caller), execTimeInSeconds)
 }

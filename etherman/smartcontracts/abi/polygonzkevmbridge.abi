@@ -1,5 +1,85 @@
 [
 	{
+		"inputs": [],
+		"name": "AlreadyClaimed",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "AmountDoesNotMatchMsgValue",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "DestinationNetworkInvalid",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "EtherTransferFailed",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "GlobalExitRootInvalid",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "InvalidSmtProof",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "MerkleTreeFull",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "MessageFailed",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "MsgValueNotZero",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "NotValidAmount",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "NotValidOwner",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "NotValidSignature",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "NotValidSpender",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OnlyEmergencyState",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OnlyNotEmergencyState",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "OnlyPolygonZkEVM",
+		"type": "error"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -136,49 +216,16 @@
 				"internalType": "address",
 				"name": "wrappedTokenAddress",
 				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "metadata",
+				"type": "bytes"
 			}
 		],
 		"name": "NewWrappedToken",
 		"type": "event"
-	},
-	{
-		"inputs": [],
-		"name": "LEAF_TYPE_ASSET",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "LEAF_TYPE_MESSAGE",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "MAINNET_NETWORK_ID",
-		"outputs": [
-			{
-				"internalType": "uint32",
-				"name": "",
-				"type": "uint32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
 	},
 	{
 		"inputs": [],
@@ -246,9 +293,9 @@
 	{
 		"inputs": [
 			{
-				"internalType": "bytes32[]",
+				"internalType": "bytes32[32]",
 				"name": "smtProof",
-				"type": "bytes32[]"
+				"type": "bytes32[32]"
 			},
 			{
 				"internalType": "uint32",
@@ -304,9 +351,9 @@
 	{
 		"inputs": [
 			{
-				"internalType": "bytes32[]",
+				"internalType": "bytes32[32]",
 				"name": "smtProof",
-				"type": "bytes32[]"
+				"type": "bytes32[32]"
 			},
 			{
 				"internalType": "uint32",
@@ -489,7 +536,7 @@
 		"name": "globalExitRootManager",
 		"outputs": [
 			{
-				"internalType": "contract IPolygonZkEVMGlobalExitRoot",
+				"internalType": "contract IBasePolygonZkEVMGlobalExitRoot",
 				"name": "",
 				"type": "address"
 			}
@@ -505,7 +552,7 @@
 				"type": "uint32"
 			},
 			{
-				"internalType": "contract IPolygonZkEVMGlobalExitRoot",
+				"internalType": "contract IBasePolygonZkEVMGlobalExitRoot",
 				"name": "_globalExitRootManager",
 				"type": "address"
 			},
@@ -644,14 +691,14 @@
 				"type": "bytes32"
 			},
 			{
-				"internalType": "bytes32[]",
+				"internalType": "bytes32[32]",
 				"name": "smtProof",
-				"type": "bytes32[]"
+				"type": "bytes32[32]"
 			},
 			{
-				"internalType": "uint64",
+				"internalType": "uint32",
 				"name": "index",
-				"type": "uint64"
+				"type": "uint32"
 			},
 			{
 				"internalType": "bytes32",

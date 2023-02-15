@@ -18,7 +18,7 @@ const (
 	etherPre155V = 35
 )
 
-// EncodeTransactions RLP encodes the given transactions.
+// EncodeTransactions RLP encodes the given transactions
 func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	var batchL2Data []byte
 
@@ -63,6 +63,40 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	}
 
 	return batchL2Data, nil
+}
+
+// EncodeTransaction RLP encodes the given transaction
+func EncodeTransaction(tx types.Transaction) ([]byte, error) {
+	v, r, s := tx.RawSignatureValues()
+	sign := 1 - (v.Uint64() & 1)
+
+	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
+	log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID)
+
+	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+		nonce,
+		gasPrice,
+		gas,
+		to,
+		value,
+		data,
+		chainID, uint(0), uint(0),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
+	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
+	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
+	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+	if err != nil {
+		return nil, err
+	}
+
+	return txData, nil
 }
 
 // EncodeUnsignedTransaction RLP encodes the given unsigned transaction
@@ -116,7 +150,6 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 		ff               = 255 // max value of rlp header
 		shortRlp         = 55  // length of the short rlp codification
 		f7               = 247 // 192 + 55 = c0 + shortRlp
-		mul2             = 2
 	)
 	txDataLength := len(txsData)
 	if txDataLength == 0 {
@@ -156,20 +189,11 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 			return []types.Transaction{}, []byte{}, err
 		}
 
-		legacyTx, chainID, err := RlpFieldsToLegacyTx(rlpFields)
+		legacyTx, err := RlpFieldsToLegacyTx(rlpFields, vData, rData, sData)
 		if err != nil {
 			log.Debug("error creating tx from rlp fields: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
 			return []types.Transaction{}, []byte{}, err
 		}
-
-		if chainID != nil {
-			//v = v-27+chainId*2+35
-			legacyTx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(vData), big.NewInt(ether155V)), new(big.Int).Add(new(big.Int).Mul(chainID, big.NewInt(mul2)), big.NewInt(etherPre155V)))
-		} else {
-			legacyTx.V = new(big.Int).SetBytes(vData)
-		}
-		legacyTx.R = new(big.Int).SetBytes(rData)
-		legacyTx.S = new(big.Int).SetBytes(sData)
 
 		tx := types.NewTx(legacyTx)
 		txs = append(txs, *tx)

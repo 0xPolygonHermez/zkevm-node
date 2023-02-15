@@ -68,7 +68,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// add sequence to be monitored
-	sender := common.HexToAddress(s.cfg.SenderAddress)
+	sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
 	to, data, err := s.etherman.BuildSequenceBatchesTxData(sender, sequences)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
@@ -95,7 +95,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 
 	currentBatchNumToSequence := lastVirtualBatchNum + 1
 	sequences := []types.Sequence{}
-	var estimatedGas uint64
+	// var estimatedGas uint64
 
 	var tx *ethTypes.Transaction
 
@@ -128,12 +128,12 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		})
 
 		// Check if can be send
-		sender := common.HexToAddress(s.cfg.SenderAddress)
+		sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
 		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
 
 		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
 			metrics.SequencesOvesizedDataError()
-			log.Infof("oversized Data on TX hash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
+			log.Infof("oversized Data on TX oldHash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
 			err = core.ErrOversizedData
 		}
 
@@ -146,7 +146,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 			}
 			return sequences, err
 		}
-		estimatedGas = tx.Gas()
+		// estimatedGas = tx.Gas()
 
 		// Increase batch num for next iteration
 		currentBatchNumToSequence++
@@ -164,11 +164,11 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		return sequences, nil
 	}
 	if lastBatchVirtualizationTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
-		// check profitability
-		if s.checker.IsSendSequencesProfitable(new(big.Int).SetUint64(estimatedGas), sequences) {
-			log.Info("sequence should be sent to L1, because too long since didn't send anything to L1")
-			return sequences, nil
-		}
+		// TODO: implement check profitability
+		// if s.checker.IsSendSequencesProfitable(new(big.Int).SetUint64(estimatedGas), sequences) {
+		log.Info("sequence should be sent to L1, because too long since didn't send anything to L1")
+		return sequences, nil
+		//}
 	}
 
 	log.Info("not enough time has passed since last batch was virtualized, and the sequence could be bigger")

@@ -46,6 +46,8 @@ var (
 	// ErrInsufficientFunds is returned if the total cost of executing a transaction
 	// is higher than the balance of the user's account.
 	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
+
+	zkCounterErrPrefix = "ZKCounter: "
 	// ErrUnsupportedDuration is returned if the provided unit for a time
 	// interval is not supported by our conversion mechanism.
 	ErrUnsupportedDuration = errors.New("unsupported time duration")
@@ -58,4 +60,9 @@ func constructErrorFromRevert(err error, returnValue []byte) error {
 	}
 
 	return fmt.Errorf("%w: %s", err, revertErrMsg)
+}
+
+// GetZKCounterError returns the error associated with the zkCounter
+func GetZKCounterError(name string) error {
+	return errors.New(zkCounterErrPrefix + name)
 }
