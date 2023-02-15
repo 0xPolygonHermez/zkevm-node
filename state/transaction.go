@@ -46,7 +46,8 @@ func RlpFieldsToLegacyTx(fields [][]byte, v, r, s []byte) (tx *types.LegacyTx, e
 	gasPrice := big.NewInt(0).SetBytes(fields[1])
 	gas := big.NewInt(0).SetBytes(fields[2]).Uint64()
 	var to *common.Address
-	if fields[3] != nil {
+
+	if fields[3] != nil && len(fields[3]) != 0 {
 		tmp := common.BytesToAddress(fields[3])
 		to = &tmp
 	}
