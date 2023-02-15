@@ -86,18 +86,18 @@ WeightArithmetics = 1
 WeightBinaries = 1
 WeightSteps = 1
 MaxAllowedFailedCounter = 50
-[Sequencer.Finalizer]
-GERDeadlineTimeoutInSec = "1s"
-ForcedBatchDeadlineTimeoutInSec = "60s"
-SendingToL1DeadlineTimeoutInSec = "10s"
-SleepDurationInMs = "100ms"
-ResourcePercentageToCloseBatch = 10
-GERFinalityNumberOfBlocks = 0
-ClosingSignalsManagerWaitForL1OperationsInSec = "1s"
-SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-PrivateKeys = [{Path = "/pk/keystore.sequencer", Password = "testonly"}]
-[Sequencer.ProfitabilityChecker]
-SendBatchesEvenWhenNotProfitable = "true"
+	[Sequencer.Finalizer]
+		GERDeadlineTimeoutInSec = "1s"
+		ForcedBatchDeadlineTimeoutInSec = "60s"
+		SendingToL1DeadlineTimeoutInSec = "20s"
+		SleepDurationInMs = "100ms"
+		ResourcePercentageToCloseBatch = 10
+		GERFinalityNumberOfBlocks = 0
+		ClosingSignalsManagerWaitForL1OperationsInSec = "1s"
+		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+		PrivateKeys = [{Path = "./test/sequencer.keystore", Password = "testonly"}]
+	[Sequencer.ProfitabilityChecker]
+		SendBatchesEvenWhenNotProfitable = "true"
 
 [Aggregator]
 Host = "0.0.0.0"
