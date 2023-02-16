@@ -120,7 +120,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 			GlobalExitRoot: batch.GlobalExitRoot,
 			Timestamp:      batch.Timestamp.Unix(),
 			BatchL2Data:    batch.BatchL2Data,
-			BatchNumber: batch.BatchNumber,
+			BatchNumber:    batch.BatchNumber,
 		}
 
 		if batch.ForcedBatchNum != nil {

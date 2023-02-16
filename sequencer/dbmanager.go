@@ -530,7 +530,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 		if !isClosed {
 			closingErr := d.state.CloseBatch(d.ctx, processingReceipt, dbTx)
 			tryToCloseAndCommit = closingErr != nil
-			if tryToCloseAndCommit == true {
+			if tryToCloseAndCommit {
 				continue
 			}
 			isClosed = true
