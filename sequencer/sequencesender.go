@@ -14,7 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
@@ -138,7 +138,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
 			metrics.SequencesOvesizedDataError()
 			log.Infof("oversized Data on TX oldHash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
-			err = core.ErrOversizedData
+			err = txpool.ErrOversizedData
 		}
 		if err != nil {
 			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
@@ -253,6 +253,6 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 
 func isDataForEthTxTooBig(err error) bool {
 	return errors.Is(err, ethman.ErrGasRequiredExceedsAllowance) ||
-		errors.Is(err, core.ErrOversizedData) ||
+		errors.Is(err, txpool.ErrOversizedData) ||
 		errors.Is(err, ethman.ErrContentLengthTooLarge)
 }
