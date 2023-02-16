@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -312,10 +313,12 @@ func TestSendSequences(t *testing.T) {
 	require.NoError(t, err)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx1})
+	require.NoError(t, err)
 	sequence := ethmanTypes.Sequence{
 		GlobalExitRoot: ger,
 		Timestamp:      int64(currentBlock.Time() - 1),
-		Txs:            []types.Transaction{*tx1},
+		BatchL2Data:    batchL2Data,
 	}
 	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence})
 	require.NoError(t, err)

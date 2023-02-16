@@ -115,30 +115,31 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		if err != nil {
 			return nil, err
 		}
-		txs, err := s.state.GetTransactionsByBatchNumber(ctx, currentBatchNumToSequence, nil)
-		if err != nil {
-			return nil, err
-		}
 
-		sequences = append(sequences, types.Sequence{
+		seq := types.Sequence{
 			GlobalExitRoot: batch.GlobalExitRoot,
 			Timestamp:      batch.Timestamp.Unix(),
-			// ForceBatchesNum: TODO,
-			Txs:         txs,
+			BatchL2Data:    batch.BatchL2Data,
 			BatchNumber: batch.BatchNumber,
-			IsForced:    batch.ForcedBatchNum != nil,
-		})
+		}
 
+		if batch.ForcedBatchNum != nil {
+			forcedBatch, err := s.state.GetForcedBatch(ctx, *batch.ForcedBatchNum, nil)
+			if err != nil {
+				return nil, err
+			}
+			seq.ForcedBatchTimestamp = forcedBatch.ForcedAt.Unix()
+		}
+
+		sequences = append(sequences, seq)
 		// Check if can be send
 		sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
 		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
-
 		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
 			metrics.SequencesOvesizedDataError()
 			log.Infof("oversized Data on TX oldHash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
 			err = core.ErrOversizedData
 		}
-
 		if err != nil {
 			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
@@ -241,7 +242,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 			currentBatchNumToSequence, err,
 		)
 	}
-	if !currSequence.IsForced {
+	if currSequence.ForcedBatchTimestamp == 0 {
 		// Remove the latest item and send the sequences
 		log.Infof(
 			"Done building sequences, selected batches to %d. Batch %d excluded due to unknown error: %v",

@@ -61,6 +61,7 @@ type WipBatch struct {
 	globalExitRoot     common.Hash // 0x000...0 (ZeroHash) means to not update
 	remainingResources batchResources
 	countOfTxs         int
+	AccInputHash       common.Hash
 }
 
 func (w *WipBatch) isEmpty() bool {
@@ -385,6 +386,7 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 	f.processRequest.OldStateRoot = result.NewStateRoot
 	f.batch.stateRoot = result.NewStateRoot
 	f.batch.localExitRoot = result.NewLocalExitRoot
+	f.batch.AccInputHash = result.NewAccInputHash
 
 	return nil
 }
@@ -616,6 +618,7 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 		StateRoot:     f.batch.stateRoot,
 		LocalExitRoot: f.batch.localExitRoot,
 		Txs:           transactions,
+		AccInputHash:  f.batch.AccInputHash,
 	}
 	return f.dbManager.CloseBatch(ctx, receipt)
 }
