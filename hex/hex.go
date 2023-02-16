@@ -95,10 +95,11 @@ func EncodeBig(bigint *big.Int) string {
 	return fmt.Sprintf("%#x", bigint)
 }
 
-// DecodeHexToBig converts a hex number to a big.Int value
-func DecodeHexToBig(hexNum string) *big.Int {
+// DecodeBig converts a hex number to a big.Int value
+func DecodeBig(hexNum string) *big.Int {
+	str := strings.TrimPrefix(hexNum, "0x")
 	createdNum := new(big.Int)
-	createdNum.SetString(hexNum, Base)
+	createdNum.SetString(str, Base)
 
 	return createdNum
 }

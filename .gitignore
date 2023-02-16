@@ -7,11 +7,13 @@
 /test/vectors/src/**/*sh
 /test/vectors/src/package.json
 
-/test/contracts/**/*.abi
-/test/contracts/**/*.bin
 /test/contracts/bin/**/*.bin
 /test/contracts/bin/**/*.abi
 
 **/.DS_Store
 .vscode
 .idea/
+
+out.dat
+
+cmd/__debug_bin

@@ -1,21 +1,23 @@
-> WARNING: This documentation is outdated, it will be updated soon
+# Steps to run/develop on the environment locally
 
-# Steps to run environment locally
+# Warning:
+
+>Currently the Executor/Prover does not run on ARM-powered Macs. For Windows users, WSL/WSL2 use is not recommended. 
 
 ## Overview
 
 This documentation will help you running the following components:
 
-- zkEVM Node Database
-- Explorer Database
+- zkEVM Node Databases
+- Explorer Databases
 - L1 Network
 - Prover
-- zkEVM Node
-- Explorer
+- zkEVM Node components
+- Explorers
 
 ## Requirements
 
-The current version of the environment requires `go`, `docker` and `docker-compose` to be previously installed, check the links bellow to understand how to install them:
+The current version of the environment requires `go`, `docker` and `docker-compose` to be previously installed, check the links below to understand how to install them:
 
 - <https://go.dev/doc/install>
 - <https://www.docker.com/get-started>
@@ -28,11 +30,25 @@ If you haven't build the `zkevm-node` image yet, you must run:
 make build-docker
 ```
 
+## A look at how the binary works:
+
+The `zkevm-node` allows certain commands to interact with smart contracts, run certain components, create encryption files and print out debug information.
+
+To interact with the binary program we provide docker compose files, and a Makefile to spin up/down the different services and components, ensuring a smooth deployment locally and better interface in command line for developers.
+
 ## Controlling the environment
 
 > All the data is stored inside of each docker container, this means once you remove the container, the data will be lost.
 
 To run the environment:
+
+The `test/` directory contains scripts and files for developing and debugging.
+
+```bash
+cd test/
+```
+
+Then:
 
 ```bash
 make run
@@ -56,63 +72,96 @@ The `make run` will execute the containers needed to run the environment but thi
 
 If you need sample data already deployed to the network, we have the following scripts:
 
-First initialize the network for the L2 node:
-
-```bash
-make init-network
-```
-
-To add some examples of transactions and smart contracts:
+**To add some examples of transactions and smart contracts:**
 
 ```bash
 make deploy-sc
 ```
 
-To deploy a full a uniswap environment:
+**To deploy a full a uniswap environment:**
 
 ```bash
 make deploy-uniswap
 ```
 
+**To grant the Matic smart contract a set amount of tokens, run:**
+
+```bash
+make run-approve-matic
+```
+
 ## Accessing the environment
 
-- zkEVM Node Database 
-  - `Type:` Postgres DB
-  - `User:` test_user
-  - `Password:` test_password
-  - `Database:` test_db
-  - `Host:` localhost
-  - `Port:` 5432
-  - `Url:` <postgres://test_user:test_password@localhost:5432/test_db>
-- Explorer Database
-  - `Type:` Postgres DB
-  - `User:` test_user
-  - `Password:` test_password
-  - `Database:` explorer
-  - `Host:` localhost
-  - `Port:` 5433
-  - `Url:` <postgres://test_user:test_password@localhost:5433/explorer>
-- L1 Network
-  - `Type:` Geth
-  - `Host:` localhost
-  - `Port:` 8545
-  - `Url:` <http://localhost:8545>
+- **Databases**:
+  - zkEVM Node *State* Database 
+    - `Type:` Postgres DB
+    - `User:` state_user
+    - `Password:` state_password
+    - `Database:` state-db
+    - `Host:` localhost
+    - `Port:` 5432
+    - `Url:` <postgres://state_user:srare_password@localhost:5432/state-db>
+  - zkEVM Node *Pool* Database 
+    - `Type:` Postgres DB
+    - `User:` pool_user
+    - `Password:` pool_password
+    - `Database:` pool_db
+    - `Host:` localhost
+    - `Port:` 5433
+    - `Url:` <postgres://pool_user:pool_password@localhost:5433/pool_db>
+  - zkEVM Node *JSON-RPC* Database 
+    - `Type:` Postgres DB
+    - `User:` rpc_user
+    - `Password:` rpc_password
+    - `Database:` rpc_db
+    - `Host:` localhost
+    - `Port:` 5434
+    - `Url:` <postgres://rpc_user:rpc_password@localhost:5434/rpc_db>
+  - Explorer L1 Database
+    - `Type:` Postgres DB
+    - `User:` l1_explorer_user
+    - `Password:` l1_explorer_password
+    - `Database:` l1_explorer_db
+    - `Host:` localhost
+    - `Port:` 5435
+    - `Url:` <postgres://l1_explorer_user:l1_explorer_password@localhost:5435/l1_explorer_db>
+  - Explorer L2 Database
+    - `Type:` Postgres DB
+    - `User:` l2_explorer_user
+    - `Password:` l2_explorer_password
+    - `Database:` l2_explorer_db
+    - `Host:` localhost
+    - `Port:` 5436
+    - `Url:` <postgres://l2_explorer_user:l2_explorer_password@localhost:5436/l2_explorer_db>
+- **Networks**:
+  - L1 Network
+    - `Type:` Geth
+    - `Host:` localhost
+    - `Port:` 8545
+    - `Url:` <http://localhost:8545>
+  - zkEVM Node
+    - `Type:` JSON RPC
+    - `Host:` localhost
+    - `Port:` 8123
+    - `Url:` <http://localhost:8123>
+- **Explorers**:
+  - Explorer L1
+    - `Type:` Web
+    - `Host:` localhost
+    - `Port:` 4000
+    - `Url:` <http://localhost:4000>
+  - Explorer L2
+    - `Type:` Web
+    - `Host:` localhost
+    - `Port:` 4001
+    - `Url:` <http://localhost:4000>
 - Prover
   - `Type:` Mock
   - `Host:` localhost
-  - `Port:` 50001
+  - `Port:` Depending on the prover image, if it's mock or not: 
+    - Prod prover: 50052 for Prover, 50061 for Merkle Tree, 50071 for Executor
+    - Mock prover: 43061 for MT, 43071 for Executor
   - `Url:` <http://localhost:50001>
-- zkEVM Node
-  - `Type:` JSON RPC
-  - `Host:` localhost
-  - `Port:` 8123
-  - `Url:` <http://localhost:8123>
-- Explorer
-  - `Type:` Web
-  - `Host:` localhost
-  - `Port:` 4000
-  - `Url:` <http://localhost:4000>
-
 ## Metamask
 
 > Metamask requires the network to be running while configuring it, so make sure your network is running before starting.
@@ -124,9 +173,9 @@ To configure your Metamask to use your local environment, follow these steps:
 3. On the left menu, click on Networks
 4. Click on `Add Network` button
 5. Fill up the L2 network information
-    1. `Network Name:` Polygon Hermez - Local
+    1. `Network Name:` Polygon zkEVM - Local
     2. `New RPC URL:` <http://localhost:8123>
-    3. `ChainID:` 1000
+    3. `ChainID:` 1001
     4. `Currency Symbol:` ETH
     5. `Block Explorer URL:` <http://localhost:4000>
 6. Click on Save
@@ -142,7 +191,7 @@ To configure your Metamask to use your local environment, follow these steps:
 
 | Address | Description |
 |---|---|
-| 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9 | Proof of Efficiency |
+| 0xa513E6E4b8f2a923D98304ec87F64353C4D5C853 | Proof of Efficiency |
 | 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 | Bridge |
 | 0x5FbDB2315678afecb367f032d93F642f64180aa3 | Matic token |
 | 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0 | GlobalExitRootManager |

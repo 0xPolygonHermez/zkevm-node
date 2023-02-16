@@ -64,6 +64,8 @@ Required services and components:
 
 There must be only one synchronizer, and it's recommended that it has exclusive access to an executor instance, although it's not necessary. This role can perfectly be run in a single instance, however, the JSON RPC and executor services can benefit from running in multiple instances, if the performance decreases due to the number of requests received
 
+[`zkEVM RPC Custom endpoints documentation`](./docs/zkEVM-custom-endpoints.md)
+
 ### Trusted sequencer
 
 This role can only be performed by a single entity. This is enforced in the smart contract, as the related methods of the trusted sequencer can only be performed by the owner of a particular private key.
@@ -104,7 +106,7 @@ It's recommended to use `make` for building, and testing the code, ... Run `make
 
 ## Running the node
 
-- [Running localy](docs/running_local.md)
+- [Running locally](docs/running_local.md)
 - [Running on production](docs/production-setup.md)
 
 ### Requirements

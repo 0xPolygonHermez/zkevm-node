@@ -3,10 +3,12 @@ package config
 // DefaultValues is the default configuration
 const DefaultValues = `
 IsTrustedSequencer = false
+DefaultForkID = 1
 
 [Log]
+Environment = "development" # "production" or "development"
 Level = "debug"
-Outputs = ["stdout"]
+Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
@@ -17,33 +19,30 @@ Port = "5432"
 EnableLog = false
 MaxConns = 200
 
-[PoolDB]
-User = "pool_user"
-Password = "pool_password"
-Name = "pool_db"
-Host = "localhost"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
+[Pool]
+FreeClaimGasLimit = 150000
+	[Pool.DB]
+	User = "pool_user"
+	Password = "pool_password"
+	Name = "pool_db"
+	Host = "localhost"
+	Port = "5432"
+	EnableLog = false
+	MaxConns = 200
 
 [Etherman]
 URL = "http://localhost:8545"
 L1ChainID = 1337
-PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+PoEAddr = "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+GlobalExitRootManagerAddr = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"
 MultiGasProvider = true
-	[Etherscan]
+	[Etherman.Etherscan]
 		ApiKey = ""
 
 [EthTxManager]
-MaxSendBatchTxRetries = 10
-MaxVerifyBatchTxRetries = 10
-FrequencyForResendingFailedSendBatches = "1s"
-FrequencyForResendingFailedVerifyBatch = "1s"
+FrequencyToMonitorTxs = "1s"
 WaitTxToBeMined = "2m"
-PercentageToIncreaseGasPrice = 10
-PercentageToIncreaseGasLimit = 10
 
 [RPC]
 Host = "0.0.0.0"
@@ -54,34 +53,24 @@ MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
-	[RPC.DB]
-		User = "rpc_user"
-		Password = "rpc_password"
-		Name = "rpc_db"
-		Host = "localhost"
-		Port = "5432"
-		EnableLog = false
-		MaxConns = 200
+	[RPC.WebSockets]
+		Enabled = false
+		Port = 8133
 
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
-TrustedSequencerURI = ""
-GenBlockNumber = 1
+GenBlockNumber = 63
 
 [Sequencer]
 MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "15s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "300s"
-WaitBlocksToUpdateGER = 10
-WaitBlocksToConsiderGerFinal = 10
-ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
-MaxTimeForBatchToBeOpen = "15s"
+WaitPeriodSendSequence = "5s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
-MaxBatchBytesSize = 30000
+MaxBatchBytesSize = 150000
 MaxCumulativeGasUsed = 30000000
 MaxKeccakHashes = 468
 MaxPoseidonHashes = 279620
@@ -90,21 +79,43 @@ MaxMemAligns = 262144
 MaxArithmetics = 262144
 MaxBinaries = 262144
 MaxSteps = 8388608
+WeightBatchBytesSize = 1
+WeightCumulativeGasUsed = 1
+WeightKeccakHashes = 1
+WeightPoseidonHashes = 1
+WeightPoseidonPaddings = 1
+WeightMemAligns = 1
+WeightArithmetics = 1
+WeightBinaries = 1
+WeightSteps = 1
 MaxAllowedFailedCounter = 50
-	[Sequencer.ProfitabilityChecker]
-		SendBatchesEvenWhenNotProfitable = "true"
+	[Sequencer.Finalizer]
+		GERDeadlineTimeoutInSec = "5s"
+		ForcedBatchDeadlineTimeoutInSec = "60s"
+		SendingToL1DeadlineTimeoutInSec = "20s"
+		SleepDurationInMs = "100ms"
+		ResourcePercentageToCloseBatch = 10
+		GERFinalityNumberOfBlocks = 64
+		ClosingSignalsManagerWaitForL1OperationsInSec = "10s"
+		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 
 [PriceGetter]
 Type = "default"
 DefaultPrice = "2000"
 
 [Aggregator]
-IntervalFrequencyToGetProofGenerationState = "5s"
-IntervalToConsolidateState = "3s"
+Host = "0.0.0.0"
+Port = 50081
+RetryTime = "5s"
+VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
+ProofStatePollingInterval = "5s"
+CleanupLockedProofsInterval = "2m"
+GeneratingProofCleanupThreshold = "10m"
 
-[GasPriceEstimator]
+[L2GasPriceSuggester]
 Type = "default"
 DefaultGasPriceWei = 1000000000
 
@@ -125,4 +136,9 @@ URI = "127.0.0.1:50071"
 [BroadcastServer]
 Host = "0.0.0.0"
 Port = 61090
+
+[Metrics]
+Host = "0.0.0.0"
+Port = 9091
+Enabled = false
 `

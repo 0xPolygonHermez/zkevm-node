@@ -13,8 +13,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -39,31 +40,38 @@ const (
 	FlagComponents = "components"
 	// FlagHTTPAPI is the flag for http.api.
 	FlagHTTPAPI = "http.api"
+	// FlagKeyStorePath is the path of the key store file containing the private key of the account going to sing and approve the tokens
+	FlagKeyStorePath = "key-store-path"
+	// FlagPassword is the password needed to decrypt the key store
+	FlagPassword = "password"
+	// FlagMigrations is the flag for migrations.
+	FlagMigrations = "migrations"
 )
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer"`
-	Log                log.Config
-	Etherman           etherman.Config
-	EthTxManager       ethtxmanager.Config
-	RPC                jsonrpc.Config
-	Synchronizer       synchronizer.Config
-	Sequencer          sequencer.Config
-	PriceGetter        pricegetter.Config
-	Aggregator         aggregator.Config
-	Provers            proverclient.Config
-	NetworkConfig      NetworkConfig
-	GasPriceEstimator  gasprice.Config
-	Executor           executor.Config
-	BroadcastServer    broadcast.ServerConfig
-	MTClient           merkletree.Config
-	StateDB            db.Config
-	PoolDB             db.Config
+	IsTrustedSequencer  bool   `mapstructure:"IsTrustedSequencer"`
+	DefaultForkID       uint64 `mapstructure:"DefaultForkID"`
+	Log                 log.Config
+	Etherman            etherman.Config
+	EthTxManager        ethtxmanager.Config
+	Pool                pool.Config
+	RPC                 jsonrpc.Config
+	Synchronizer        synchronizer.Config
+	Sequencer           sequencer.Config
+	PriceGetter         pricegetter.Config
+	Aggregator          aggregator.Config
+	NetworkConfig       NetworkConfig
+	L2GasPriceSuggester gasprice.Config
+	Executor            executor.Config
+	BroadcastServer     broadcast.ServerConfig
+	MTClient            merkletree.Config
+	StateDB             db.Config
+	Metrics             metrics.Config
 }
 
-// Load loads the configuration
-func Load(ctx *cli.Context) (*Config, error) {
+// Default parses the default configuration values.
+func Default() (*Config, error) {
 	var cfg Config
 	viper.SetConfigType("toml")
 
@@ -72,6 +80,15 @@ func Load(ctx *cli.Context) (*Config, error) {
 		return nil, err
 	}
 	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// Load loads the configuration
+func Load(ctx *cli.Context) (*Config, error) {
+	cfg, err := Default()
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +118,12 @@ func Load(ctx *cli.Context) (*Config, error) {
 		}
 	}
 
-	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	decodeHooks := []viper.DecoderConfigOption{
+		// this allows arrays to be decoded from env var separated by ",", example: MY_VAR="value1,value2,value3"
+		viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(mapstructure.TextUnmarshallerHookFunc(), mapstructure.StringToSliceHookFunc(","))),
+	}
+
+	err = viper.Unmarshal(&cfg, decodeHooks...)
 	if err != nil {
 		return nil, err
 	}
@@ -114,5 +136,5 @@ func Load(ctx *cli.Context) (*Config, error) {
 		}
 		log.Debugf("Configuration loaded: \n%s\n", string(cfgJSON))
 	*/
-	return &cfg, nil
+	return cfg, nil
 }

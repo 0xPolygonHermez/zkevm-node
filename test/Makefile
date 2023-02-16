@@ -1,12 +1,13 @@
 DOCKERCOMPOSE := docker-compose -f docker-compose.yml
 DOCKERCOMPOSEAPPSEQ := zkevm-sequencer
+DOCKERCOMPOSEAPPL2GASP := zkevm-l2gaspricer
 DOCKERCOMPOSEAPPAGG := zkevm-aggregator
 DOCKERCOMPOSEAPPRPC := zkevm-json-rpc
 DOCKERCOMPOSEAPPSYNC := zkevm-sync
 DOCKERCOMPOSEAPPBROADCAST := zkevm-broadcast
+DOCKERCOMPOSEAPPETHTXMANAGER := zkevm-eth-tx-manager
 DOCKERCOMPOSESTATEDB := zkevm-state-db
 DOCKERCOMPOSEPOOLDB := zkevm-pool-db
-DOCKERCOMPOSERPCDB := zkevm-rpc-db
 DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
 DOCKERCOMPOSEEXPLORERL1 := zkevm-explorer-l1
 DOCKERCOMPOSEEXPLORERL1DB := zkevm-explorer-l1-db
@@ -18,15 +19,19 @@ DOCKERCOMPOSEZKPROVERMOCK := zkprover-mock
 DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
 DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
 DOCKERCOMPOSENODEAPPROVE := zkevm-approve
+DOCKERCOMPOSEMETRICS := zkevm-metrics
+DOCKERCOMPOSEGRAFANA := grafana
 
 RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
 RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
-RUNRPCDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSERPCDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
+RUNL2GASPRICER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPL2GASP)
 RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
 RUNSYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
 RUNBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
+RUNETHTXMANAGER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPETHTXMANAGER)
+RUNGRAFANA := DOCKERGID=`stat -c '%g' /var/run/docker.sock` $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEGRAFANA)
 
 RUNL1NETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
 RUNEXPLORERL1 := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL1)
@@ -42,16 +47,20 @@ RUNPERMISSIONLESSNODE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSNOD
 
 RUNAPPROVE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENODEAPPROVE)
 
+RUNMETRICS := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEMETRICS)
+
 RUN := $(DOCKERCOMPOSE) up -d
 
 STOPSTATEDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSESTATEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSESTATEDB)
 STOPPOOLDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPOOLDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPOOLDB)
-STOPRPCDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSERPCDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSERPCDB)
 STOPSEQUENCER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
+STOPL2GASPRICER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPL2GASP) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPL2GASP)
 STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
 STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
 STOPSYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
 STOPBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
+STOPETHTXMANAGER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPETHTXMANAGER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPETHTXMANAGER)
+STOPGRAFANA := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEGRAFANA) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEGRAFANA)
 
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
 STOPEXPLORERL1 := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL1) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL1)
@@ -67,13 +76,14 @@ STOPPERMISSIONLESSNODE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSNOD
 
 STOPAPPROVE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENODEAPPROVE) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENODEAPPROVE)
 
+STOPMETRICS := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEMETRICS) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEMETRICS)
+
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
 .PHONY: test-full-non-e2e
 test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB)
 	$(RUNZKPROVER)
 	sleep 5
 	$(RUNZKPROVERMOCK)
@@ -81,54 +91,105 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNL1NETWORK)
 	sleep 15
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ./...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -timeout 60s ../...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB); sleep 5
+	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
 
 .PHONY: test-e2e-group-2
 test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB); sleep 5
+	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
 
 .PHONY: test-e2e-group-3
 test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB); sleep 5
+	sleep 5
 	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
+
+.PHONY: test-e2e-group-4
+test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	sleep 5
+	$(RUNZKPROVER)
+	$(RUNETHTXMANAGER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
+
+.PHONY: benchmark-sequencer-eth-transfers
+benchmark-sequencer-eth-transfers: stop
+	$(RUNL1NETWORK)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	sleep 5
+	$(RUNZKPROVER)
+	$(RUNSYNC)
+	sleep 2
+	$(RUNL2GASPRICER)
+	$(RUNJSONRPC)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	@ cd benchmarks/sequencer/eth-transfers ; \
+ 	mkdir -p results ; \
+ 	touch ./results/out.dat ; \
+	go test -bench=. -timeout=600m | tee ./results/out.dat ;
+
+.PHONY: benchmark-sequencer-erc20-transfers
+benchmark-sequencer-erc20-transfers: stop
+	$(RUNL1NETWORK)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	sleep 5
+	$(RUNZKPROVER)
+	$(RUNSYNC)
+	sleep 2
+	$(RUNL2GASPRICER)
+	$(RUNJSONRPC)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	@ cd benchmarks/sequencer/erc20-transfers ; \
+ 	mkdir -p results ; \
+ 	touch ./results/out.dat ; \
+	go test -bench=. -timeout=600m | tee ./results/out.dat ;
 
 .PHONY: run-db
 run-db: ## Runs the node database
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB)
 
 .PHONY: stop-db
 stop-db: ## Stops the node database
-	$(STOPRPCDB)
 	$(STOPPOOLDB)
 	$(STOPSTATEDB)
 
 .PHONY: run-node
 run-node: ## Runs the node
+	$(RUNETHTXMANAGER)
 	$(RUNSYNC)
+	sleep 2
 	$(RUNSEQUENCER)
+	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
 
@@ -136,6 +197,7 @@ run-node: ## Runs the node
 stop-node: ## Stops the node
 	$(STOPSEQUENCER)
 	$(STOPJSONRPC)
+	$(STOPL2GASPRICER)
 	$(STOPAGGREGATOR)
 	$(STOPSYNC)
 
@@ -163,13 +225,19 @@ run-zkprover-mock: ## Runs zkprover-mock
 stop-zkprover-mock: ## Stops zkprover-mock
 	$(STOPZKPROVERMOCK)
 
-.PHONY: run-explorer
-run-explorer: ## Runs the explorer
+.PHONY: run-l1-explorer
+run-l1-explorer: ## Runs L1 blockscan explorer 
 	$(RUNEXPLORERL1DB)
+	$(RUNEXPLORERL1)
+
+.PHONY: run-l2-explorer
+run-l2-explorer: ## Runs L2 blockscan explorer
 	$(RUNEXPLORERL2DB)
 	$(RUNEXPLORERJSONRPC)
-	$(RUNEXPLORERL1)
 	$(RUNEXPLORERL2)
+
+.PHONY: run-explorer
+run-explorer: run-l1-explorer run-l2-explorer ## Runs both L1 and L2 explorers
 
 .PHONY: stop-explorer
 stop-explorer: ## Stops the explorer
@@ -195,7 +263,31 @@ run-seq: ## runs the sequencer
 
 .PHONY: stop-seq
 stop-seq: ## stops the sequencer
-	$(RUNSEQUENCER)
+	$(STOPSEQUENCER)
+	
+.PHONY: run-sync
+run-sync: ## runs the synchronizer
+	$(RUNSYNC)
+
+.PHONY: stop-sync
+stop-sync: ## stops the synchronizer
+	$(STOPSYNC)
+
+.PHONY: run-json-rpc
+run-json-rpc: ## runs the JSON-RPC
+	$(RUNJSONRPC)
+
+.PHONY: stop-json-rpc
+stop-json-rpc: ## stops the JSON-RPC
+	$(STOPJSONRPC)
+
+.PHONY: run-l2gaspricer
+run-l2gaspricer: ## runs the L2 Gas Price component
+	$(RUNL2GASPRICER)
+
+.PHONY: stop-l2gaspricer
+stop-l2gaspricer: ## stops the L2 Gas Price component
+	$(STOPL2GASPRICER)
 
 .PHONY: run-broadcast
 run-broadcast: ## Runs the broadcast service
@@ -204,6 +296,30 @@ run-broadcast: ## Runs the broadcast service
 .PHONY: stop-broadcast
 stop-broadcast: ## Stops the broadcast service
 	$(STOPBROADCAST)
+
+.PHONY: run-eth-tx-manager
+run-eth-tx-manager: ## Runs the eth tx manager service
+	$(RUNETHTXMANAGER)
+
+.PHONY: stop-eth-tx-manager
+stop-eth-tx-manager: ## Stops the eth tx manager service
+	$(STOPETHTXMANAGER)
+	
+.PHONY: run-agg
+run-agg: ## Runs the aggregator service
+	$(RUNAGGREGATOR)
+
+.PHONY: stop-agg
+stop-agg: ## Stops the aggregator service
+	$(STOPAGGREGATOR)
+
+.PHONY: run-grafana
+run-grafana: ## Runs the grafana service
+	$(RUNGRAFANA)
+
+.PHONY: stop-grafana
+stop-grafana: ## Stops the grafana service
+	$(STOPGRAFANA)
 
 .PHONY: run-permissionless
 run-permissionless: ## Runs the permissionless node
@@ -227,22 +343,39 @@ stop-approve-matic: ## Stops approve in node container
 run: ## Runs a full node
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB)
 	$(RUNL1NETWORK)
-	sleep 2
+	sleep 1
 	$(RUNZKPROVER)
-	sleep 5
+	sleep 3
+	$(RUNSYNC)
+	sleep 2
+	$(RUNETHTXMANAGER)
 	$(RUNSEQUENCER)
+	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
-	$(RUNSYNC)
 
 .PHONY: stop
 stop: ## Stops all services
 	$(STOP)
 
+.PHONY: ship
+ship: ## Builds docker images and run them
+	cd .. && make build-docker && cd ./test && make run
+
+.PHONY: reship
+reship: stop ship ## Executes `make stop` and `make sail` commands
+
 .PHONY: restart
 restart: stop run ## Executes `make stop` and `make run` commands
+
+.PHONY: run-metrics
+run-metrics: ## Runs the metrics container
+	$(RUNMETRICS)
+
+.PHONY: stop-metrics
+stop-metrics: ## Stops the metrics container
+	$(STOPMETRICS)
 
 .PHONY: init-network
 init-network: ## Initializes the network
@@ -251,6 +384,10 @@ init-network: ## Initializes the network
 .PHONY: deploy-sc
 deploy-sc: ## deploys some examples of transactions and smart contracts
 	go run ./scripts/deploy_sc/main.go .
+
+.PHONY: send-transfers
+send-transfers: ## sends some ETH transfers txs to test the network
+	go run ./scripts/send_transfers/main.go .
 
 .PHONY: deploy-uniswap
 deploy-uniswap: ## deploy the uniswap environment to the network
@@ -264,31 +401,37 @@ run-db-scripts: ## Executes scripts on the db after it has been initialized, pot
 generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=storageInterface --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=storageMock --filename=mock_storage_test.go
 	mockery --name=jsonRPCTxPool --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=poolMock --filename=mock_pool_test.go
-	mockery --name=gasPriceEstimator --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
 	mockery --name=stateInterface --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../jsonrpc --outpkg=jsonrpc --structname=dbTxMock --filename=mock_dbtx_test.go
 
-	mockery --name=txManager --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=TxmanagerMock --filename=mock_txmanager.go
-	mockery --name=etherman --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
-	mockery --name=stateInterface --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
-	mockery --name=txPool --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=PoolMock --filename=mock_pool.go
-	mockery --name=gasPriceEstimator --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=GasPriceEstimatorMock --filename=mock_gaspriceestimator.go
-	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../sequencer/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
-	mockery --name=etherman --dir=../sequencer/profitabilitychecker --output=../sequencer/profitabilitychecker/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
+	mockery --name=workerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=WorkerMock --filename=mock_worker.go
+	mockery --name=stateInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=StateMock --filename=mock_state.go
+	mockery --name=txPool --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=PoolMock --filename=mock_pool.go
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../sequencer --outpkg=sequencer --structname=DbTxMock --filename=mock_dbtx.go
+	mockery --name=dbManagerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=DbManagerMock --filename=mock_db_manager.go
 	mockery --name=stateInterface --dir=../sequencer/broadcast --output=../sequencer/broadcast/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 
 	mockery --name=ethermanInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=ethermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=stateMock --filename=mock_state.go
+	mockery --name=ethTxManager --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=ethTxManagerMock --filename=mock_ethtxmanager.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go
 
 	mockery --name=GasPricer --srcpkg=github.com/ethereum/go-ethereum --output=../etherman --outpkg=etherman --structname=etherscanMock --filename=mock_etherscan.go
 	mockery --name=GasPricer --srcpkg=github.com/ethereum/go-ethereum --output=../etherman --outpkg=etherman --structname=ethGasStationMock --filename=mock_ethgasstation.go
 
+	mockery --name=ethermanInterface --dir=../ethtxmanager --output=../ethtxmanager --outpkg=ethtxmanager --structname=ethermanMock --filename=mock_etherman_test.go
+	mockery --name=stateInterface --dir=../ethtxmanager --output=../ethtxmanager --outpkg=ethtxmanager --structname=stateMock --filename=mock_state_test.go
+
+	mockery --name=pool --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=poolMock --filename=mock_pool.go
+	mockery --name=ethermanInterface --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=ethermanMock --filename=mock_etherman.go
+
 	## mocks for the aggregator tests
 	mockery --name=stateInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
-	mockery --name=proverClientInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProverClientMock --filename=mock_proverclient.go
+	mockery --name=proverInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProverMock --filename=mock_prover.go
 	mockery --name=etherman --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=Etherman --filename=mock_etherman.go
 	mockery --name=ethTxManager --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManager --filename=mock_ethtxmanager.go
+	mockery --name=aggregatorTxProfitabilityChecker --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProfitabilityCheckerMock --filename=mock_profitabilitychecker.go
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../aggregator/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
 
 .PHONY: run-benchmarks
 run-benchmarks: run-db ## Runs benchmars

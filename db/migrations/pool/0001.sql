@@ -4,7 +4,7 @@ DROP SCHEMA IF EXISTS pool CASCADE;
 -- +migrate Up
 CREATE SCHEMA pool;
 
-CREATE TABLE pool.txs
+CREATE TABLE pool.transaction
 (
     hash                   VARCHAR PRIMARY KEY,
     encoded                VARCHAR,
@@ -21,11 +21,13 @@ CREATE TABLE pool.txs
     used_arithmetics       INTEGER,
     used_binaries          INTEGER,
     used_steps             INTEGER,
+    failed_counter         DECIMAL(78, 0) DEFAULT 0,
     received_at            TIMESTAMP WITH TIME ZONE NOT NULL,
     from_address           varchar                  NOT NULL
 );
 
-CREATE INDEX idx_state_gas_price_nonce ON pool.txs (status, gas_price, nonce);
+CREATE INDEX idx_state_gas_price_nonce ON pool.transaction (status, gas_price, nonce);
+CREATE INDEX idx_failed_counter ON pool.transaction (failed_counter);
 
 CREATE TABLE pool.gas_price
 (

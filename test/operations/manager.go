@@ -6,18 +6,19 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
-	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -26,23 +27,27 @@ import (
 )
 
 const (
-	poeAddress         = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+	poeAddress         = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"
 	maticTokenAddress  = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	cmdFolder          = "test"
 )
 
-// Public constants
+// Public shared
 const (
 	DefaultSequencerAddress     = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	DefaultSequencerPrivateKey  = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 	DefaultSequencerBalance     = 400000
 	DefaultMaxCumulativeGasUsed = 800000
 
-	DefaultL1NetworkURL        = "http://localhost:8545"
-	DefaultL1ChainID    uint64 = 1337
-	DefaultL2NetworkURL        = "http://localhost:8123"
-	DefaultL2ChainID    uint64 = 1001
+	DefaultL1NetworkURL                 = "http://localhost:8545"
+	DefaultL1NetworkWebSocketURL        = "ws://localhost:8546"
+	DefaultL1ChainID             uint64 = 1337
+
+	DefaultL2NetworkURL                 = "http://localhost:8123"
+	DefaultL2NetworkWebSocketURL        = "ws://localhost:8133"
+	DefaultL2ChainID             uint64 = 1001
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 )
@@ -50,7 +55,6 @@ const (
 var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
-	rpcDBCfg   = dbutils.NewRPCConfigFromEnv()
 
 	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
 	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
@@ -156,76 +160,104 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 	return err
 }
 
-// ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
-// the final state.
-func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globalExitRoot string) error {
-	panic("not implemented yet")
-	// // store current batch number to check later when the state is updated
-	// currentBatchNumber, err := m.st.GetLastBatchNumberSeenOnEthereum(m.ctx, nil)
-	// if err != nil {
-	// 	return err
-	// }
+// ApplyL1Txs sends the given L1 txs, waits for them to be consolidated and
+// checks the final state.
+func ApplyL1Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
+	_, err := applyTxs(ctx, txs, auth, client)
+	return err
+}
 
-	// var txs []*types.Transaction
-	// for _, vectorTx := range vectorTxs {
-	// 	if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
-	// 		var tx types.LegacyTx
-	// 		bytes, err := hex.DecodeHex(vectorTx.RawTx)
-	// 		if err != nil {
-	// 			return err
-	// 		}
+// ApplyL2Txs sends the given L2 txs, waits for them to be consolidated and
+// checks the final state.
+func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
+	var err error
+	if auth == nil {
+		auth, err = GetAuth(DefaultSequencerPrivateKey, DefaultL2ChainID)
+		if err != nil {
+			return err
+		}
+	}
 
-	// 		err = rlp.DecodeBytes(bytes, &tx)
-	// 		if err == nil {
-	// 			txs = append(txs, types.NewTx(&tx))
-	// 		}
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	}
-	// }
-	// // Create Batch
-	// batch := &state.Batch{
-	// 	BlockNumber:        uint64(0),
-	// 	Sequencer:          common.HexToAddress(m.cfg.Sequencer.Address),
-	// 	Aggregator:         common.HexToAddress(aggregatorAddress),
-	// 	ConsolidatedTxHash: common.Hash{},
-	// 	Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
-	// 	Uncles:             nil,
-	// 	Transactions:       txs,
-	// 	RawTxsData:         nil,
-	// 	MaticCollateral:    big.NewInt(1),
-	// 	ChainID:            big.NewInt(int64(m.cfg.NetworkConfig.ChainID)),
-	// 	GlobalExitRoot:     common.HexToHash(globalExitRoot),
-	// }
+	if client == nil {
+		client, err = ethclient.Dial(DefaultL2NetworkURL)
+		if err != nil {
+			return err
+		}
+	}
 
-	// // Create Batch Processor
-	// bp, err := m.st.NewBatchProcessor(m.ctx, common.HexToAddress(m.cfg.Sequencer.Address), common.Hex2Bytes(strings.TrimPrefix(initialRoot, "0x")), "")
-	// if err != nil {
-	// 	return err
-	// }
+	sentTxs, err := applyTxs(ctx, txs, auth, client)
+	if err != nil {
+		return err
+	}
 
-	// err = bp.ProcessBatch(m.ctx, batch)
-	// if err != nil {
-	// 	return err
-	// }
+	var l2BlockNumber *big.Int
+	for _, tx := range sentTxs {
+		// check transaction nonce against transaction reported L2 block number
+		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		if err != nil {
+			return err
+		}
 
-	// // Wait for sequencer to select txs from pool and propose a new batch
-	// // Wait for the synchronizer to update state
-	// err = Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
-	// 	// using a closure here to capture st and currentBatchNumber
-	// 	latestBatchNumber, err := m.st.GetLastBatchNumberConsolidatedOnEthereum(m.ctx, "")
-	// 	if err != nil {
-	// 		return false, err
-	// 	}
-	// 	done := latestBatchNumber > currentBatchNumber
-	// 	return done, nil
-	// })
-	// // if the state is not expected to change waitPoll can timeout
-	// if initialRoot != "" && finalRoot != "" && initialRoot != finalRoot && err != nil {
-	// 	return err
-	// }
-	// return nil
+		// get L2 block number
+		l2BlockNumber = receipt.BlockNumber
+		expectedNonce := l2BlockNumber.Uint64() - 1
+		if tx.Nonce() != expectedNonce {
+			return fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
+		}
+	}
+
+	// wait for l2 block to be virtualized
+	log.Infof("waiting for the block number %v to be virtualized", l2BlockNumber.String())
+	err = WaitL2BlockToBeVirtualized(l2BlockNumber, 4*time.Minute) //nolint:gomnd
+	if err != nil {
+		return err
+	}
+
+	// wait for l2 block number to be consolidated
+	log.Infof("waiting for the block number %v to be consolidated", l2BlockNumber.String())
+	err = WaitL2BlockToBeConsolidated(l2BlockNumber, 4*time.Minute) //nolint:gomnd
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) ([]*types.Transaction, error) {
+	var sentTxs []*types.Transaction
+
+	for i := 0; i < len(txs); i++ {
+		signedTx, err := auth.Signer(auth.From, txs[i])
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
+		err = client.SendTransaction(context.Background(), signedTx)
+		if err != nil {
+			return nil, err
+		}
+
+		sentTxs = append(sentTxs, signedTx)
+	}
+
+	// wait for TX to be mined
+	timeout := 180 * time.Second //nolint:gomnd
+	for _, tx := range sentTxs {
+		log.Infof("Waiting Tx %s to be mined", tx.Hash())
+		err := WaitTxToBeMined(ctx, client, tx, timeout)
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("Tx %s mined successfully", tx.Hash())
+	}
+	nTxs := len(txs)
+	if nTxs > 1 {
+		log.Infof("%d transactions added into the trusted state successfully.", nTxs)
+	} else {
+		log.Info("transaction added into the trusted state successfully.")
+	}
+
+	return sentTxs, nil
 }
 
 // GetAuth configures and returns an auth object.
@@ -257,7 +289,7 @@ func (m *Manager) Setup() error {
 	}
 
 	// Approve matic
-	err = approveMatic()
+	err = ApproveMatic()
 	if err != nil {
 		return err
 	}
@@ -455,7 +487,8 @@ func (m *Manager) StartNode() error {
 	return StartComponent("node", nodeUpCondition)
 }
 
-func approveMatic() error {
+// ApproveMatic runs the approving matic command
+func ApproveMatic() error {
 	return StartComponent("approve-matic")
 }
 
@@ -464,7 +497,23 @@ func stopNode() error {
 }
 
 func runCmd(c *exec.Cmd) error {
-	c.Dir = "../../test"
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("failed to get current work directory: %w", err)
+	}
+
+	if strings.Contains(dir, cmdFolder) {
+		// Making the change dir to work in any nesting directory level inside cmd folder
+		base := filepath.Base(dir)
+		for base != cmdFolder {
+			dir = filepath.Dir(dir)
+			base = filepath.Base(dir)
+		}
+	} else {
+		dir = fmt.Sprintf("../../%s", cmdFolder)
+	}
+	c.Dir = dir
+
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()
@@ -533,9 +582,6 @@ func initOrResetDB() {
 		panic(err)
 	}
 	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
-		panic(err)
-	}
-	if err := dbutils.InitOrResetRPC(rpcDBCfg); err != nil {
 		panic(err)
 	}
 }

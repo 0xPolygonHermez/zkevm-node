@@ -9,13 +9,30 @@ import (
 
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
+	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/jackc/pgx/v4"
+)
+
+const (
+	ethTxManagerOwner = "sequencer"
+	monitoredIDFormat = "sequence-from-%v-to-%v"
 )
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+	// process monitored sequences before starting a next cycle
+	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
+		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
+			resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
+			resultLog.Fatal("failed to send sequence, TODO: review this fatal and define what to do in this case")
+		}
+	}, nil)
+
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
@@ -38,18 +55,32 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
-		log.Errorf("failed to get last virtual batch num, err: %w", err)
+		log.Errorf("failed to get last virtual batch num, err: %v", err)
 		return
 	}
 
 	// Send sequences to L1
+	sequenceCount := len(sequences)
 	log.Infof(
 		"sending sequences to L1. From batch %d to batch %d",
-		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(len(sequences)),
+		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(sequenceCount),
 	)
-	err = s.txManager.SequenceBatches(ctx, sequences)
+	metrics.SequencesSentToL1(float64(sequenceCount))
+
+	// add sequence to be monitored
+	sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
+	to, data, err := s.etherman.BuildSequenceBatchesTxData(sender, sequences)
 	if err != nil {
-		log.Error("error sending new sequenceBatches: ", err)
+		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
+		return
+	}
+	firstSequence := sequences[0]
+	lastSequence := sequences[len(sequences)-1]
+	monitoredTxID := fmt.Sprintf(monitoredIDFormat, firstSequence.BatchNumber, lastSequence.BatchNumber)
+	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
+	if err != nil {
+		log.Error("error to add sequences tx to eth tx manager: ", err)
+		return
 	}
 }
 
@@ -64,9 +95,9 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 
 	currentBatchNumToSequence := lastVirtualBatchNum + 1
 	sequences := []types.Sequence{}
-	var estimatedGas uint64
+	// var estimatedGas uint64
 
-	var tx *ethtypes.Transaction
+	var tx *ethTypes.Transaction
 
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	for {
@@ -92,14 +123,17 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 			GlobalExitRoot: batch.GlobalExitRoot,
 			Timestamp:      batch.Timestamp.Unix(),
 			// ForceBatchesNum: TODO,
-			Txs: txs,
+			Txs:         txs,
+			BatchNumber: batch.BatchNumber,
 		})
 
 		// Check if can be send
-		tx, err = s.etherman.EstimateGasSequenceBatches(sequences)
+		sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
+		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
 
 		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
-			log.Infof("oversized Data on TX hash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
+			metrics.SequencesOvesizedDataError()
+			log.Infof("oversized Data on TX oldHash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
 			err = core.ErrOversizedData
 		}
 
@@ -107,12 +141,12 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
 				// Handling the error gracefully, re-processing the sequence as a sanity check
-				_, err = s.etherman.EstimateGasSequenceBatches(sequences)
+				_, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
 				return sequences, err
 			}
 			return sequences, err
 		}
-		estimatedGas = tx.Gas()
+		// estimatedGas = tx.Gas()
 
 		// Increase batch num for next iteration
 		currentBatchNumToSequence++
@@ -130,11 +164,11 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		return sequences, nil
 	}
 	if lastBatchVirtualizationTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
-		// check profitability
-		if s.checker.IsSendSequencesProfitable(new(big.Int).SetUint64(estimatedGas), sequences) {
-			log.Info("sequence should be sent to L1, because too long since didn't send anything to L1")
-			return sequences, nil
-		}
+		// TODO: implement check profitability
+		// if s.checker.IsSendSequencesProfitable(new(big.Int).SetUint64(estimatedGas), sequences) {
+		log.Info("sequence should be sent to L1, because too long since didn't send anything to L1")
+		return sequences, nil
+		//}
 	}
 
 	log.Info("not enough time has passed since last batch was virtualized, and the sequence could be bigger")

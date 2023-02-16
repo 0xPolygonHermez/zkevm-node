@@ -11,9 +11,11 @@ import (
 // processed.
 type Sequence struct {
 	GlobalExitRoot, StateRoot, LocalExitRoot common.Hash
+	AccInputHash                             common.Hash
 	Timestamp                                int64
 	Txs                                      []types.Transaction
 	IsSequenceTooBig                         bool
+	BatchNumber                              uint64
 }
 
 // IsEmpty checks is sequence struct is empty

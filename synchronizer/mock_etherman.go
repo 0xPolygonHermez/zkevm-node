@@ -140,6 +140,27 @@ func (_m *ethermanMock) HeaderByNumber(ctx context.Context, number *big.Int) (*t
 	return r0, r1
 }
 
+// VerifyGenBlockNumber provides a mock function with given fields: ctx, genBlockNumber
+func (_m *ethermanMock) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
+	ret := _m.Called(ctx, genBlockNumber)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) bool); ok {
+		r0 = rf(ctx, genBlockNumber)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+		r1 = rf(ctx, genBlockNumber)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 type mockConstructorTestingTnewEthermanMock interface {
 	mock.TestingT
 	Cleanup(func())

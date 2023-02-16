@@ -78,8 +78,8 @@ func loadGenesisFileConfig(ctx *cli.Context) (NetworkConfig, error) {
 			Actions: []*state.GenesisAction{},
 		}
 
-		const l2GlobalExitRootManagerSCName = "GlobalExitRootManagerL2"
-		const l2BridgeSCName = "Bridge"
+		const l2GlobalExitRootManagerSCName = "PolygonZkEVMGlobalExitRootL2 proxy"
+		const l2BridgeSCName = "PolygonZkEVMBridge proxy"
 
 		for _, account := range cfgJSON.Genesis {
 			if account.ContractName == l2GlobalExitRootManagerSCName {

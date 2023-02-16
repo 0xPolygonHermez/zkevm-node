@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -21,6 +23,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,6 +82,7 @@ func TestJSONRPC(t *testing.T) {
 }
 
 func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, error) {
+	ctx := context.Background()
 	client := operations.MustGetClient(url)
 	auth := operations.MustGetAuth(privateKey, chainId)
 
@@ -93,11 +98,7 @@ func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, er
 	return sc, nil
 }
 
-func createTX(ethdeployment string, chainId uint64, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	client, err := ethclient.Dial(ethdeployment)
-	if err != nil {
-		return nil, err
-	}
+func createTX(client *ethclient.Client, chainId uint64, to common.Address, amount *big.Int) (*types.Transaction, error) {
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, chainId)
 	if err != nil {
 		return nil, err
@@ -137,6 +138,7 @@ func Test_Filters(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	ctx := context.Background()
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
@@ -147,16 +149,6 @@ func Test_Filters(t *testing.T) {
 		require.NotNil(t, response.Result)
 
 		var filterId string
-		err = json.Unmarshal(response.Result, &filterId)
-		require.NoError(t, err)
-		require.NotEmpty(t, filterId)
-
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newPendingTransactionFilter")
-		require.NoError(t, err)
-		require.Nil(t, response.Error)
-		require.NotNil(t, response.Result)
-
-		filterId = ""
 		err = json.Unmarshal(response.Result, &filterId)
 		require.NoError(t, err)
 		require.NotEmpty(t, filterId)
@@ -279,7 +271,6 @@ func Test_Filters(t *testing.T) {
 		require.NotEmpty(t, filterId)
 
 		// Create TX: new block on L2 (l1 block generated every 1s)
-
 		tx, err := createTX(network.URL, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
 		require.NoError(t, err)
 		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
@@ -360,6 +351,7 @@ func Test_Block(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	ctx := context.Background()
 	Setup()
 	defer Teardown()
 	type rpcTx struct {
@@ -387,7 +379,7 @@ func Test_Block(t *testing.T) {
 		client, err := ethclient.Dial(network.URL)
 		require.NoError(t, err)
 
-		tx, err := createTX(network.URL, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
+		tx, err := createTX(client, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
 		require.NoError(t, err)
 		// no block number yet... will wait
 		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
@@ -480,10 +472,12 @@ func Test_Block(t *testing.T) {
 		require.Equal(t, hexutil.EncodeBig(tx.ChainId()), newTx.ChainID)
 	}
 }
+
 func Test_Transactions(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	ctx := context.Background()
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
@@ -494,7 +488,7 @@ func Test_Transactions(t *testing.T) {
 
 		// Test Case: Successful transfer
 
-		tx, err := createTX(network.URL, network.ChainID, destination, big.NewInt(100000))
+		tx, err := createTX(client, network.ChainID, destination, big.NewInt(100000))
 		require.NoError(t, err)
 		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
@@ -556,6 +550,19 @@ func Test_Transactions(t *testing.T) {
 		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
 		err = client.SendTransaction(context.Background(), signedTx)
 		require.ErrorContains(t, err, pool.ErrInsufficientFunds.Error())
+
+		// no contract code at given address test
+
+		// deploy contract with not enough gas for storage, just execution
+		address := common.HexToAddress("0xDEADBEEF596a836C9063a7EE35dA94DDA3b57B62")
+		instance, err := Double.NewDouble(address, client)
+		require.NoError(t, err)
+
+		callOpts := &bind.CallOpts{Pending: false}
+
+		payload := big.NewInt(5)
+		_, err = instance.Double(callOpts, payload)
+		require.ErrorContains(t, err, "no contract code at given address")
 	}
 }
 
@@ -563,6 +570,7 @@ func Test_Misc(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	ctx := context.Background()
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
@@ -627,5 +635,160 @@ func Test_Misc(t *testing.T) {
 		require.Nil(t, response.Result)
 		require.Equal(t, invalidParamsErrorCode, response.Error.Code)
 		require.Equal(t, "too many arguments, want at most 0", response.Error.Message)
+	}
+}
+
+func Test_WebSocketsRequest(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	ctx := context.Background()
+	Setup()
+	defer Teardown()
+
+	acc := common.HexToAddress(operations.DefaultSequencerAddress)
+
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+
+		client, err := ethclient.Dial(network.URL)
+		require.NoError(t, err)
+
+		expectedBalance, err := client.BalanceAt(ctx, acc, nil)
+		require.NoError(t, err)
+
+		wsConn, _, err := websocket.DefaultDialer.Dial(network.WebSocketURL, nil)
+		require.NoError(t, err)
+
+		receivedMessages := make(chan []byte)
+		go func() {
+			for {
+				_, message, err := wsConn.ReadMessage()
+				require.NoError(t, err)
+				receivedMessages <- message
+				wsConn.Close()
+				break
+			}
+		}()
+
+		params := []string{acc.String(), "latest"}
+		jParam, err := json.Marshal(params)
+		require.NoError(t, err)
+
+		req := jsonrpc.Request{JSONRPC: "2.0", ID: float64(1), Method: "eth_getBalance", Params: jParam}
+		jReq, _ := json.Marshal(req)
+
+		err = wsConn.WriteMessage(websocket.TextMessage, jReq)
+		require.NoError(t, err)
+
+		receivedMessage := <-receivedMessages
+
+		resp := jsonrpc.Response{}
+		err = json.Unmarshal(receivedMessage, &resp)
+		require.NoError(t, err)
+
+		assert.Equal(t, req.JSONRPC, resp.JSONRPC)
+		assert.Equal(t, req.ID, resp.ID)
+		assert.Nil(t, resp.Error)
+		assert.NotNil(t, resp.Result)
+
+		result := ""
+		err = json.Unmarshal(resp.Result, &result)
+		require.NoError(t, err)
+
+		str := strings.TrimPrefix(result, "0x")
+		balance := hex.DecodeBig(str)
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedBalance.String(), balance.String())
+	}
+}
+
+func Test_WebSocketsSubscription(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	Setup()
+	defer Teardown()
+
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+
+		wsConn, _, err := websocket.DefaultDialer.Dial(network.WebSocketURL, nil)
+		require.NoError(t, err)
+
+		receivedMessages := make(chan []byte)
+		go func() {
+			for {
+				_, message, err := wsConn.ReadMessage()
+				require.NoError(t, err)
+				receivedMessages <- message
+				break
+			}
+		}()
+
+		params := []string{"newHeads"}
+		jParam, err := json.Marshal(params)
+		require.NoError(t, err)
+
+		req := jsonrpc.Request{JSONRPC: "2.0", ID: float64(1), Method: "eth_subscribe", Params: jParam}
+		jReq, _ := json.Marshal(req)
+
+		err = wsConn.WriteMessage(websocket.TextMessage, jReq)
+		require.NoError(t, err)
+
+		subscriptionMessage := <-receivedMessages
+
+		resp := jsonrpc.Response{}
+		err = json.Unmarshal(subscriptionMessage, &resp)
+		require.NoError(t, err)
+
+		assert.Equal(t, req.JSONRPC, resp.JSONRPC)
+		assert.Equal(t, req.ID, resp.ID)
+		assert.Nil(t, resp.Error)
+		assert.NotNil(t, resp.Result)
+
+		subscription := ""
+		err = json.Unmarshal(resp.Result, &subscription)
+		require.NoError(t, err)
+
+		assert.NotEmpty(t, subscription)
+
+		const numberOfBlocks = 3
+
+		go func() {
+			for i := 0; i <= numberOfBlocks; i++ {
+				_, message, err := wsConn.ReadMessage()
+				require.NoError(t, err)
+				receivedMessages <- message
+			}
+			wsConn.Close()
+		}()
+
+		client, err := ethclient.Dial(network.URL)
+		require.NoError(t, err)
+		for i := 0; i <= numberOfBlocks; i++ {
+			tx, err := createTX(client, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000000000))
+			require.NoError(t, err)
+			err = operations.WaitTxToBeMined(context.Background(), client, tx, operations.DefaultTimeoutTxToBeMined)
+			require.NoError(t, err)
+		}
+
+		for i := 0; i <= numberOfBlocks; i++ {
+			receivedMessage := <-receivedMessages
+			resp := jsonrpc.SubscriptionResponse{}
+
+			err = json.Unmarshal(receivedMessage, &resp)
+			require.NoError(t, err)
+
+			assert.Equal(t, req.JSONRPC, resp.JSONRPC)
+			assert.Equal(t, "eth_subscription", resp.Method)
+			assert.Equal(t, subscription, resp.Params.Subscription)
+
+			block := map[string]interface{}{}
+			err = json.Unmarshal(resp.Params.Result, &block)
+			require.NoError(t, err)
+			assert.NotEmpty(t, block["hash"].(string))
+		}
 	}
 }

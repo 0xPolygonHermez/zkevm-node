@@ -1,0 +1,138 @@
+IsTrustedSequencer = true
+DefaultForkID = 1
+
+[Log]
+Environment = "development" # "production" or "development"
+Level = "debug"
+Outputs = ["stderr"]
+
+[StateDB]
+User = "state_user"
+Password = "state_password"
+Name = "state_db"
+Host = "localhost"
+Port = "5432"
+EnableLog = true
+MaxConns = 10
+
+[Pool]
+FreeClaimGasLimit = 1500000
+	[Pool.DB]
+	User = "pool_user"
+	Password = "pool_password"
+	Name = "pool_db"
+	Host = "localhost"
+	Port = "5433"
+	EnableLog = false
+	MaxConns = 10
+
+[Etherman]
+URL = "http://localhost:8545"
+L1ChainID = 1337
+PoEAddr = "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"
+MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+GlobalExitRootManagerAddr = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"
+MultiGasProvider = false
+	[Etherman.Etherscan]
+		ApiKey = ""
+
+[RPC]
+Host = "0.0.0.0"
+Port = 8123
+ReadTimeoutInSec = 60
+WriteTimeoutInSec = 60
+MaxRequestsPerIPAndSecond = 10000
+SequencerNodeURI = ""
+BroadcastURI = "127.0.0.1:61090"
+DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+	[RPC.WebSockets]
+		Enabled = true
+		Port = 8133
+
+[Synchronizer]
+SyncInterval = "5s"
+SyncChunkSize = 100
+GenBlockNumber = 63
+
+[Sequencer]
+MaxSequenceSize = "2000000"
+WaitPeriodPoolIsEmpty = "1s"
+WaitPeriodSendSequence = "5s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+BlocksAmountForTxsToBeDeleted = 100
+FrequencyToCheckTxsForDelete = "12h"
+MaxTxsPerBatch = 150
+MaxBatchBytesSize = 150000
+MaxCumulativeGasUsed = 30000000
+MaxKeccakHashes = 468
+MaxPoseidonHashes = 279620
+MaxPoseidonPaddings = 149796
+MaxMemAligns = 262144
+MaxArithmetics = 262144
+MaxBinaries = 262144
+MaxSteps = 8388608
+WeightBatchBytesSize = 1
+WeightCumulativeGasUsed = 1
+WeightKeccakHashes = 1
+WeightPoseidonHashes = 1
+WeightPoseidonPaddings = 1
+WeightMemAligns = 1
+WeightArithmetics = 1
+WeightBinaries = 1
+WeightSteps = 1
+MaxAllowedFailedCounter = 50
+	[Sequencer.Finalizer]
+		GERDeadlineTimeoutInSec = "1s"
+		ForcedBatchDeadlineTimeoutInSec = "60s"
+		SendingToL1DeadlineTimeoutInSec = "20s"
+		SleepDurationInMs = "100ms"
+		ResourcePercentageToCloseBatch = 10
+		GERFinalityNumberOfBlocks = 0
+		ClosingSignalsManagerWaitForL1OperationsInSec = "1s"
+		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+		PrivateKeys = [{Path = "./test/sequencer.keystore", Password = "testonly"}]
+
+[Aggregator]
+Host = "0.0.0.0"
+Port = 50081
+RetryTime = "5s"
+VerifyProofInterval = "30s"
+TxProfitabilityCheckerType = "acceptall"
+TxProfitabilityMinReward = "1.1"
+ProofStatePollingInterval = "5s"
+SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+CleanupLockedProofsInterval = "2m"
+GeneratingProofCleanupThreshold = "10m"
+
+[EthTxManager]
+PrivateKeys = [
+	{Path = "../test/sequencer.keystore", Password = "testonly"},
+	{Path = "../test/aggregator.keystore", Password = "testonly"}
+]
+
+[L2GasPriceSuggester]
+Type = "default"
+DefaultGasPriceWei = 1000000000
+
+[MTServer]
+Host = "0.0.0.0"
+Port = 50060
+StoreBackend = "PostgreSQL"
+
+[MTClient]
+URI = "127.0.0.1:50061"
+
+[Executor]
+URI = "127.0.0.1:50071"
+
+[BroadcastServer]
+Host = "0.0.0.0"
+Port = 61090
+
+[Metrics]
+Host = "0.0.0.0"
+Port = 9091
+Enabled = false
+ProfilingHost = "0.0.0.0"
+ProfilingPort = 6060
+ProfilingEnabled = false

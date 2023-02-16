@@ -14,9 +14,11 @@ type Batch struct {
 	BatchL2Data    []byte
 	StateRoot      common.Hash
 	LocalExitRoot  common.Hash
+	AccInputHash   common.Hash
 	Timestamp      time.Time
 	Transactions   []types.Transaction
 	GlobalExitRoot common.Hash
+	ForcedBatchNum *uint64
 }
 
 // ProcessingContext is the necessary data that a batch needs to provide to the runtime,
@@ -26,14 +28,17 @@ type ProcessingContext struct {
 	Coinbase       common.Address
 	Timestamp      time.Time
 	GlobalExitRoot common.Hash
+	ForcedBatchNum *uint64
 }
 
-// ProcessingReceipt indicates the outcome (StateRoot, LocalExitRoot) of processing a batch
+// ProcessingReceipt indicates the outcome (StateRoot, AccInputHash) of processing a batch
 type ProcessingReceipt struct {
 	BatchNumber   uint64
 	StateRoot     common.Hash
 	LocalExitRoot common.Hash
-	Txs           []types.Transaction
+	AccInputHash  common.Hash
+	// Txs           []types.Transaction
+	BatchL2Data []byte
 }
 
 // VerifiedBatch represents a VerifiedBatch
@@ -42,12 +47,21 @@ type VerifiedBatch struct {
 	BatchNumber uint64
 	Aggregator  common.Address
 	TxHash      common.Hash
+	StateRoot   common.Hash
+	IsTrusted   bool
 }
 
 // VirtualBatch represents a VirtualBatch
 type VirtualBatch struct {
-	BatchNumber uint64
-	TxHash      common.Hash
-	Coinbase    common.Address
-	BlockNumber uint64
+	BatchNumber   uint64
+	TxHash        common.Hash
+	Coinbase      common.Address
+	SequencerAddr common.Address
+	BlockNumber   uint64
+}
+
+// Sequence represents the sequence interval
+type Sequence struct {
+	FromBatchNumber uint64
+	ToBatchNumber   uint64
 }

@@ -1,6 +1,7 @@
 [Log]
-Level = "debug"
-Outputs = ["stdout"]
+Environment = "development" # "production" or "development"
+Level = "info"
+Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
@@ -11,25 +12,25 @@ Port = "5432"
 EnableLog = false
 MaxConns = 200
 
-[PoolDB]
-User = "pool_user"
-Password = "pool_password"
-Name = "pool_db"
-Host = "zkevm-pool-db"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
+[Pool]
+FreeClaimGasLimit = 1500000
+	[Pool.DB]
+	User = "pool_user"
+	Password = "pool_password"
+	Name = "pool_db"
+	Host = "zkevm-pool-db"
+	Port = "5432"
+	EnableLog = false
+	MaxConns = 200
 
 [Etherman]
 URL = "http://your.L1node.url"
 L1ChainID = 5
-PrivateKeyPath = "/pk/keystore"
-PrivateKeyPassword = "testonly"
-PoEAddr = "0x14cB06e8dE2222912138F9a062E5a4d9F4821409"
-MaticAddr = "0x4701Aa9471d7bfAc765D87dcb1Ea6BB23AD32733"
-GlobalExitRootManagerAddr = "0x762d09Ed110ace4EaC94acbb67b1C35D16C3297b"
+PoEAddr = "0x5e2e663A39205348cE985Bccc9673Ca25AeE727E"
+MaticAddr = "0x957601b24ce513E64C7D77c9EB169501B7CC4D71"
+GlobalExitRootManagerAddr = "0x715fC3A1422de7Ae2EA483d1DA8415E8dD45bAd3"
 MultiGasProvider = false
-	[Etherscan]
+	[Etherman.Etherscan]
 		ApiKey = ""
 
 [RPC]
@@ -41,21 +42,16 @@ MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://public.zkevm-test.net:2083"
 BroadcastURI = "public-grpc.zkevm-test.net:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
-	[RPC.DB]
-		User = "rpc_user"
-		Password = "rpc_password"
-		Name = "rpc_db"
-		Host = "zkevm-rpc-db"
-		Port = "5432"
-		EnableLog = false
-		MaxConns = 100
+	[RPC.WebSockets]
+		Enabled = true
+		Port = 8546
 
 [Synchronizer]
 SyncInterval = "2s"
-SyncChunkSize = 10000
-TrustedSequencerURI = ""
+SyncChunkSize = 100
+GenBlockNumber = 8168981
 
-[GasPriceEstimator]
+[L2GasPriceSuggester]
 Type = "default"
 DefaultGasPriceWei = 1000000000
 
@@ -64,3 +60,11 @@ URI = "zkevm-prover:50061"
 
 [Executor]
 URI = "zkevm-prover:50071"
+
+[Metrics]
+Host = "0.0.0.0"
+Port = 9091
+Enabled = false
+ProfilingHost = "0.0.0.0"
+ProfilingPort = 6060
+ProfilingEnabled = false
