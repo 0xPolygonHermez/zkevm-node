@@ -30,7 +30,6 @@ import (
 
 const (
 	invalidParamsErrorCode = -32602
-	defaultErrorCode       = -32000
 	toAddressHex           = "0x4d5Cf5032B2a844602278b01199ED191A86c93ff"
 )
 
