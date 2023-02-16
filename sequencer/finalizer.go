@@ -547,10 +547,11 @@ func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot 
 	if err != nil {
 		// TODO: Think if need to design error handling for forced batches
 		log.Errorf("failed to process forced batch, err: %s", err)
-	} else {
-		stateRoot = response.NewStateRoot
-		lastBatchNumberInState += 1
 	}
+
+	stateRoot = response.NewStateRoot
+	lastBatchNumberInState += 1
+
 	return lastBatchNumberInState, stateRoot
 }
 
