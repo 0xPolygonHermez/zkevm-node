@@ -87,3 +87,11 @@ type DebugInfo struct {
 	Timestamp time.Time
 	Payload   string
 }
+
+type TraceConfig struct {
+	DisableStorage   bool
+	DisableStack     bool
+	EnableMemory     bool
+	EnableReturnData bool
+	Tracer           *string
+}

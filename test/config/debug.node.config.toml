@@ -110,10 +110,12 @@ Port = 50060
 StoreBackend = "PostgreSQL"
 
 [MTClient]
-URI = "127.0.0.1:50061"
+# URI  = "127.0.0.1:50061"
+URI = "51.210.116.237:50068"
 
 [Executor]
-URI = "127.0.0.1:50071"
+# URI = "127.0.0.1:50071"
+URI = "51.210.116.237:50078"
 
 [BroadcastServer]
 Host = "0.0.0.0"

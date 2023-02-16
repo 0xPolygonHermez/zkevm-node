@@ -33,24 +33,10 @@ type traceBlockTransactionResponse struct {
 }
 
 type traceTransactionResponse struct {
-	Gas         uint64         `json:"gas"`
-	Failed      bool           `json:"failed"`
-	ReturnValue interface{}    `json:"returnValue"`
-	StructLogs  []StructLogRes `json:"structLogs"`
-}
-
-// StructLogRes represents a log response.
-type StructLogRes struct {
-	Pc            uint64             `json:"pc"`
-	Op            string             `json:"op"`
-	Gas           uint64             `json:"gas"`
-	GasCost       uint64             `json:"gasCost"`
-	Depth         int                `json:"depth"`
-	Error         string             `json:"error,omitempty"`
-	Stack         []argBig           `json:"stack"`
-	Memory        []string           `json:"memory"`
-	Storage       *map[string]string `json:"storage,omitempty"`
-	RefundCounter uint64             `json:"refund,omitempty"`
+	Gas         uint64                   `json:"gas"`
+	Failed      bool                     `json:"failed"`
+	ReturnValue interface{}              `json:"returnValue"`
+	StructLogs  []map[string]interface{} `json:"structLogs"`
 }
 
 // TraceTransaction creates a response for debug_traceTransaction request.
@@ -124,19 +110,24 @@ func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*types.Trans
 }
 
 func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.Hash, cfg *traceConfig, dbTx pgx.Tx) (interface{}, rpcError) {
-	tracer := ""
-	if cfg != nil && cfg.Tracer != nil {
-		tracer = *cfg.Tracer
+	traceConfig := state.TraceConfig{}
+
+	if cfg != nil {
+		traceConfig.DisableStack = cfg.DisableStack
+		traceConfig.DisableStorage = cfg.DisableStorage
+		traceConfig.EnableMemory = cfg.EnableMemory
+		traceConfig.EnableReturnData = cfg.EnableReturnData
+		traceConfig.Tracer = cfg.Tracer
 	}
 
-	result, err := d.state.DebugTransaction(ctx, hash, tracer, dbTx)
+	result, err := d.state.DebugTransaction(ctx, hash, traceConfig, dbTx)
 	if err != nil {
 		const errorMessage = "failed to get trace"
 		log.Infof("%v: %v", errorMessage, err)
 		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
-	if tracer != "" && len(result.ExecutorTraceResult) > 0 {
+	if traceConfig.Tracer != nil && *traceConfig.Tracer != "" && len(result.ExecutorTraceResult) > 0 {
 		return result.ExecutorTraceResult, nil
 	}
 
@@ -158,38 +149,9 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 	return resp, nil
 }
 
-func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.StructLog, cfg *traceConfig) []StructLogRes {
-	structLogs := make([]StructLogRes, 0, len(stateStructLogs))
+func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.StructLog, cfg *traceConfig) []map[string]interface{} {
+	structLogs := make([]map[string]interface{}, 0, len(stateStructLogs))
 	for _, structLog := range stateStructLogs {
-		stack := make([]argBig, 0, len(structLog.Stack))
-		if !cfg.DisableStack && len(structLog.Stack) > 0 {
-			for _, stackItem := range structLog.Stack {
-				if stackItem != nil {
-					stack = append(stack, argBig(*stackItem))
-				}
-			}
-		}
-
-		const memoryArraySize = 32
-		memory := make([]string, 0, len(structLog.Memory))
-		if cfg.EnableMemory {
-			for _, memoryItem := range structLog.Memory {
-				slice32Bytes := make([]byte, memoryArraySize)
-				slice32Bytes[memoryArraySize-1] = memoryItem
-				memoryStringItem := hex.EncodeToString(slice32Bytes)
-				memory = append(memory, memoryStringItem)
-			}
-		}
-
-		var storageRes *map[string]string
-		if !cfg.DisableStorage && len(structLog.Storage) > 0 {
-			storage := make(map[string]string, len(structLog.Storage))
-			for storageKey, storageValue := range structLog.Storage {
-				storage[storageKey.String()] = storageValue.String()
-			}
-			storageRes = &storage
-		}
-
 		errRes := ""
 		if structLog.Err != nil {
 			errRes = structLog.Err.Error()
@@ -200,18 +162,49 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 			op = "KECCAK256"
 		}
 
-		structLogs = append(structLogs, StructLogRes{
-			Pc:            structLog.Pc,
-			Op:            op,
-			Gas:           structLog.Gas,
-			GasCost:       structLog.GasCost,
-			Depth:         structLog.Depth,
-			Error:         errRes,
-			Stack:         stack,
-			Memory:        memory,
-			Storage:       storageRes,
-			RefundCounter: structLog.RefundCounter,
-		})
+		structLogRes := map[string]interface{}{
+			"pc":            structLog.Pc,
+			"op":            op,
+			"gas":           structLog.Gas,
+			"gasCost":       structLog.GasCost,
+			"depth":         structLog.Depth,
+			"error":         errRes,
+			"refundCounter": structLog.RefundCounter,
+		}
+
+		stack := make([]argBig, 0, len(structLog.Stack))
+		if !cfg.DisableStack && len(structLog.Stack) > 0 {
+			for _, stackItem := range structLog.Stack {
+				if stackItem != nil {
+					stack = append(stack, argBig(*stackItem))
+				}
+			}
+		}
+		structLogRes["stack"] = stack
+
+		const memoryChunkSize = 32
+		memory := make([]string, 0, len(structLog.Memory))
+		if cfg.EnableMemory {
+			for i := 0; i < len(structLog.Memory); i = i + memoryChunkSize {
+				slice32Bytes := make([]byte, memoryChunkSize)
+				copy(slice32Bytes, structLog.Memory[i:i+memoryChunkSize])
+				memoryStringItem := hex.EncodeToString(slice32Bytes)
+				memory = append(memory, memoryStringItem)
+			}
+		}
+		structLogRes["memory"] = memory
+
+		var storageRes *map[string]string
+		if !cfg.DisableStorage && len(structLog.Storage) > 0 {
+			storage := make(map[string]string, len(structLog.Storage))
+			for storageKey, storageValue := range structLog.Storage {
+				storage[storageKey.String()] = storageValue.String()
+			}
+			storageRes = &storage
+			structLogRes["storage"] = storageRes
+		}
+
+		structLogs = append(structLogs, structLogRes)
 	}
 	return structLogs
 }

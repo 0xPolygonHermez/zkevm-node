@@ -842,7 +842,7 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 }
 
 // DebugTransaction re-executes a tx to generate its trace
-func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
+func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, traceConfig TraceConfig, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
 
 	// Get the transaction
@@ -883,19 +883,36 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	forkId := s.GetForkIdByBatchNumber(batch.BatchNumber)
 
 	// Create Batch
-	processBatchRequest := &pb.ProcessBatchRequest{
-		OldBatchNum:                  batch.BatchNumber - 1,
-		BatchL2Data:                  batchL2Data,
-		OldStateRoot:                 pBatch.StateRoot.Bytes(),
-		GlobalExitRoot:               batch.GlobalExitRoot.Bytes(),
-		OldAccInputHash:              pBatch.AccInputHash.Bytes(),
-		EthTimestamp:                 uint64(batch.Timestamp.Unix()),
-		Coinbase:                     batch.Coinbase.String(),
-		UpdateMerkleTree:             cFalse,
+	traceConfigRequest := &pb.TraceConfig{
 		TxHashToGenerateCallTrace:    transactionHash.Bytes(),
 		TxHashToGenerateExecuteTrace: transactionHash.Bytes(),
-		ChainId:                      s.cfg.ChainID,
-		ForkId:                       forkId,
+	}
+
+	if traceConfig.DisableStorage {
+		traceConfigRequest.DisableStorage = cTrue
+	}
+	if traceConfig.DisableStack {
+		traceConfigRequest.DisableStack = cTrue
+	}
+	if traceConfig.EnableMemory {
+		traceConfigRequest.EnableMemory = cTrue
+	}
+	if traceConfig.EnableReturnData {
+		traceConfigRequest.EnableReturnData = cTrue
+	}
+
+	processBatchRequest := &pb.ProcessBatchRequest{
+		OldBatchNum:      batch.BatchNumber - 1,
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     pBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   batch.GlobalExitRoot.Bytes(),
+		OldAccInputHash:  pBatch.AccInputHash.Bytes(),
+		EthTimestamp:     uint64(batch.Timestamp.Unix()),
+		Coinbase:         batch.Coinbase.String(),
+		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
+		ForkId:           forkId,
+		TraceConfig:      traceConfigRequest,
 	}
 
 	// Send Batch to the Executor
@@ -946,12 +963,12 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	result.StateRoot = response.StateRoot.Bytes()
 	result.StructLogs = response.ExecutionTrace
 
-	if tracer == "" {
+	if traceConfig.Tracer == nil || *traceConfig.Tracer == "" {
 		return result, nil
 	}
 
 	// Parse the executor-like trace using the FakeEVM
-	jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
+	jsTracer, err := js.NewJsTracer(*traceConfig.Tracer, new(tracers.Context))
 	if err != nil {
 		log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
 		return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)

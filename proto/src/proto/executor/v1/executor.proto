@@ -20,15 +20,14 @@ message ProcessBatchRequest {
     uint64 eth_timestamp = 8;
     string coinbase = 9;
     uint32 update_merkle_tree = 10;
-    bytes tx_hash_to_generate_execute_trace = 11;
-    bytes tx_hash_to_generate_call_trace = 12;
     // flag to indicate that counters should not be taken into account
-    uint64 no_counters = 13;
+    uint64 no_counters = 11;
     // from is used for unsigned transactions with sender
-    string from = 14;
+    string from = 12;
     // For testing purposes only
-    map<string, string> db = 15;
-    map<string, string> contracts_bytecode = 16; // For debug/testing purpposes only. Don't fill this on production
+    map<string, string> db = 13;
+    map<string, string> contracts_bytecode = 14; // For debug/testing purpposes only. Don't fill this on production
+    TraceConfig trace_config = 15;
 }
 
 message ProcessBatchResponse {
@@ -49,6 +48,21 @@ message ProcessBatchResponse {
     map<string, InfoReadWrite> read_write_addresses = 15;
 }
 
+// Trace configuration request params
+message TraceConfig {
+    // Disables storage (default=false)
+    uint32 disable_storage = 1;
+    // Disables stack (default=false)
+    uint32 disable_stack = 2;
+    // Enables memory (default=false)
+    uint32 enable_memory = 3;
+    // Enables return data (default=false)
+    uint32 enable_return_data = 4;
+    // Hash of tx in batch to retrieve the execution trace
+    bytes tx_hash_to_generate_execute_trace = 5;
+    // Hash of tx in batch to retrieve the call trace
+    bytes tx_hash_to_generate_call_trace = 6;
+}
 message InfoReadWrite {
     // If nonce="" then it has not been set; if set, string is in decimal (base 10)
     string nonce = 1;
