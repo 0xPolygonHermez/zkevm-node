@@ -234,7 +234,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	// Unknown error
 	if len(sequences) == 1 {
 		// TODO: gracefully handle this situation by creating an L2 reorg
-		log.Fatalf(
+		log.Errorf(
 			"Error when estimating gas for BatchNum %d (alone in the sequences): %v",
 			currentBatchNumToSequence, err,
 		)

@@ -450,7 +450,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 	}
 
 	txs, _, err := DecodeTxs(batchL2Data)
-	if err != nil {
+	if err != nil && !errors.Is(err, InvalidData) {
 		return nil, err
 	}
 
@@ -487,7 +487,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*Proc
 	}
 
 	txs, _, err := DecodeTxs(request.Transactions)
-	if err != nil {
+	if err != nil && !errors.Is(err, InvalidData) {
 		return nil, err
 	}
 
@@ -765,7 +765,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 ) error {
 	// Decode transactions
 	decodedTransactions, _, err := DecodeTxs(encodedTxs)
-	if err != nil {
+	if err != nil && !errors.Is(err, InvalidData) {
 		log.Debugf("error decoding transactions: %w", err)
 		return err
 	}
@@ -917,7 +917,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	txs, _, err := DecodeTxs(batchL2Data)
-	if err != nil {
+	if err != nil && !errors.Is(err, InvalidData) {
 		return nil, err
 	}
 
