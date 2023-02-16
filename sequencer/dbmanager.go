@@ -524,22 +524,22 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 		BatchL2Data:   forcedBatch.RawTxsData,
 	}
 
-	closingErr := d.state.CloseBatch(d.ctx, processingReceipt, dbTx)
-	if closingErr != nil {
-		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
-			log.Errorf(
-				"failed to rollback dbTx when closing forced batch that gave err: %v. Rollback err: %v",
-				rollbackErr, closingErr,
-			)
+	isClosed := false
+	tryToCloseAndCommit := true
+	for tryToCloseAndCommit {
+		if !isClosed {
+			closingErr := d.state.CloseBatch(d.ctx, processingReceipt, dbTx)
+			tryToCloseAndCommit = closingErr != nil
+			if tryToCloseAndCommit == true {
+				continue
+			}
+			isClosed = true
 		}
-		log.Errorf("failed to close a forced batch, err: %v", closingErr)
-		return nil, closingErr
-	}
 
-	// All done
-	if err := dbTx.Commit(d.ctx); err != nil {
-		log.Errorf("failed to commit dbTx when processing a forced batch, err: %v", err)
-		return nil, err
+		if err := dbTx.Commit(d.ctx); err != nil {
+			log.Errorf("failed to commit dbTx when processing a forced batch, err: %v", err)
+		}
+		tryToCloseAndCommit = err != nil
 	}
 
 	return processBatchResponse, nil

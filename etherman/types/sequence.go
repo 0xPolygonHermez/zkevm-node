@@ -16,6 +16,7 @@ type Sequence struct {
 	Txs                                      []types.Transaction
 	IsSequenceTooBig                         bool
 	BatchNumber                              uint64
+	IsForced                                 bool
 }
 
 // IsEmpty checks is sequence struct is empty

@@ -119,12 +119,14 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		if err != nil {
 			return nil, err
 		}
+
 		sequences = append(sequences, types.Sequence{
 			GlobalExitRoot: batch.GlobalExitRoot,
 			Timestamp:      batch.Timestamp.Unix(),
 			// ForceBatchesNum: TODO,
 			Txs:         txs,
 			BatchNumber: batch.BatchNumber,
+			IsForced:    batch.ForcedBatchNum != nil,
 		})
 
 		// Check if can be send
@@ -189,7 +191,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	if errors.Is(err, ethman.ErrInsufficientAllowance) {
 		return nil, err
 	}
-
+	currSequence := sequences[len(sequences)-1]
 	if isDataForEthTxTooBig(err) {
 		if len(sequences) == 1 {
 			// TODO: gracefully handle this situation by creating an L2 reorg
@@ -239,12 +241,15 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 			currentBatchNumToSequence, err,
 		)
 	}
-	// Remove the latest item and send the sequences
-	log.Infof(
-		"Done building sequences, selected batches to %d. Batch %d excluded due to unknown error: %v",
-		currentBatchNumToSequence, currentBatchNumToSequence+1, err,
-	)
-	sequences = sequences[:len(sequences)-1]
+	if !currSequence.IsForced {
+		// Remove the latest item and send the sequences
+		log.Infof(
+			"Done building sequences, selected batches to %d. Batch %d excluded due to unknown error: %v",
+			currentBatchNumToSequence, currentBatchNumToSequence+1, err,
+		)
+		sequences = sequences[:len(sequences)-1]
+	}
+
 	return sequences, nil
 }
 
