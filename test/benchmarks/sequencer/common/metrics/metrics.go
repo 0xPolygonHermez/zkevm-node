@@ -90,7 +90,7 @@ func FetchPrometheus() (*http.Response, error) {
 func FetchProfiling() (string, error) {
 	fullUrl := fmt.Sprintf("http://localhost:%d%s", profilingPort, metricsLib.ProfileEndpoint)
 	log.Infof("Fetching profiling metrics from: %s ...", fullUrl)
-	cmd := exec.Command("go", "tool", "pprof", "-top", fullUrl)
+	cmd := exec.Command("go", "tool", "pprof", "-show=sequencer", "-top", fullUrl)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("Error running pprof: %v\n%s", err, out)

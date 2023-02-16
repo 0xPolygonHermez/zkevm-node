@@ -28,7 +28,7 @@ var (
 )
 
 const (
-	nTxs             = 10
+	nTxs             = 10000
 	gasLimit         = 21000
 	profilingEnabled = true
 )

@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	nTxs             = 100
+	nTxs             = 10000
 	txTimeout        = 60 * time.Second
 	profilingEnabled = true
 )
