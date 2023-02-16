@@ -14,7 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Double"
-	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog2"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Storage"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -31,6 +31,11 @@ import (
 const (
 	invalidParamsErrorCode = -32602
 	defaultErrorCode       = -32000
+	toAddressHex           = "0x4d5Cf5032B2a844602278b01199ED191A86c93ff"
+)
+
+var (
+	toAddress = common.HexToAddress(toAddressHex)
 )
 
 func Setup() {
@@ -98,11 +103,7 @@ func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, er
 	return sc, nil
 }
 
-func createTX(client *ethclient.Client, chainId uint64, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, chainId)
-	if err != nil {
-		return nil, err
-	}
+func createTX(client *ethclient.Client, auth *bind.TransactOpts, to common.Address, amount *big.Int) (*types.Transaction, error) {
 	nonce, err := client.NonceAt(context.Background(), auth.From, nil)
 	if err != nil {
 		return nil, err
@@ -142,6 +143,7 @@ func Test_Filters(t *testing.T) {
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
+		// test newBlockFilter creation
 		log.Infof("Network %s", network.Name)
 		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
 		require.NoError(t, err)
@@ -153,17 +155,18 @@ func Test_Filters(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, filterId)
 
+		// test newFilter creation with block range and block hash
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
 			"BlockHash": common.HexToHash("0x1"),
 			"FromBlock": "0x1",
 			"ToBlock":   "0x2",
 		})
 		require.NoError(t, err)
-
 		require.NotNil(t, response.Error)
 		require.Equal(t, invalidParamsErrorCode, response.Error.Code)
 		require.Equal(t, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other", response.Error.Message)
 
+		// test newFilter creation with block hash
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
 			"BlockHash": common.HexToHash("0x1"),
 			"Addresses": []common.Address{
@@ -182,6 +185,7 @@ func Test_Filters(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, filterId)
 
+		// test newFilter creation with block range
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
 			"FromBlock": "0x1",
 			"ToBlock":   "0x2",
@@ -201,6 +205,7 @@ func Test_Filters(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, filterId)
 
+		// test uninstallFilter when filter is installed
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_uninstallFilter", filterId)
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
@@ -211,6 +216,7 @@ func Test_Filters(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, uninstalled)
 
+		// test uninstallFilter when filter doesn't exist or was already uninstalled
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_uninstallFilter", filterId)
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
@@ -221,44 +227,12 @@ func Test_Filters(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, uninstalled)
 
-		// logs
-
-		// generate some logs first...
 		client := operations.MustGetClient(network.URL)
 		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
-		_, scTx, sc, err := EmitLog2.DeployEmitLog2(auth, client)
+
+		// test getFilterChanges for a blockFilter ID
+		blockBeforeFilter, err := client.BlockByNumber(ctx, nil)
 		require.NoError(t, err)
-
-		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
-		require.NoError(t, err)
-
-		scCallTx, err := sc.EmitLogs(auth)
-		require.NoError(t, err)
-
-		err = operations.WaitTxToBeMined(ctx, client, scCallTx, operations.DefaultTimeoutTxToBeMined)
-		require.NoError(t, err)
-
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getLogs", map[string]interface{}{
-			"Addresses": []common.Address{common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")},
-			"Topics":    nil,
-			"FromBlock": "0x0",
-			"ToBlock":   "latest",
-		})
-		require.NoError(t, err)
-		require.Nil(t, response.Error)
-		require.NotNil(t, response.Result)
-
-		var logs []types.Log
-		err = json.Unmarshal(response.Result, &logs)
-		require.NoError(t, err)
-		log.Infof("\nHow many logs: %d\n", len(logs))
-		if len(logs) >= 2 {
-			require.GreaterOrEqual(t, logs[1].BlockNumber, logs[0].BlockNumber)
-		}
-
-		// GetFilterChanges - passing an ID from newBlockFilter
-
-		// TODO FIXME comparison between GetFilterChanges L1 vs L2
 
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
 		require.NoError(t, err)
@@ -268,15 +242,15 @@ func Test_Filters(t *testing.T) {
 		var blockFilterId string
 		err = json.Unmarshal(response.Result, &blockFilterId)
 		require.NoError(t, err)
-		require.NotEmpty(t, filterId)
+		require.NotEmpty(t, blockFilterId)
 
-		// Create TX: new block on L2 (l1 block generated every 1s)
-		tx, err := createTX(network.URL, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
+		// force a block to be generated sending a eth transfer tx
+		tx, err := createTX(client, auth, toAddress, big.NewInt(1000))
 		require.NoError(t, err)
 		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		blockAfterFilter, err := client.BlockByNumber(ctx, nil)
 		require.NoError(t, err)
 
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", blockFilterId)
@@ -284,27 +258,78 @@ func Test_Filters(t *testing.T) {
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
 
-		var changes []common.Hash
-		err = json.Unmarshal(response.Result, &changes)
+		var blockFilterChanges []common.Hash
+		err = json.Unmarshal(response.Result, &blockFilterChanges)
 		require.NoError(t, err)
-		log.Infof("\nHow many changes: %d\n", len(changes))
-		require.NotEmpty(t, changes)
 
-		if len(changes) >= 1 {
-			for _, change := range changes {
-				log.Infof("\n> %s => %s", change, receipt.BlockHash)
-			}
-		}
-		require.Contains(t, changes, receipt.BlockHash)
+		assert.NotEqual(t, blockBeforeFilter.Hash().String(), blockFilterChanges[0].String())
+		assert.Equal(t, blockAfterFilter.Hash().String(), blockFilterChanges[len(blockFilterChanges)-1].String())
 
-		// Wrong [any]FilterID
-
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", common.HexToHash("0x42"))
+		// test getFilterChanges for a logFilter ID
+		// create a SC to emit some logs
+		scAddr, scTx, sc, err := EmitLog.DeployEmitLog(auth, client)
 		require.NoError(t, err)
-		require.NotNil(t, response.Error)
-		require.Equal(t, defaultErrorCode, response.Error.Code)
-		require.Equal(t, "filter not found", response.Error.Message)
-		require.Nil(t, response.Result)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
+			"Addresses": []common.Address{scAddr},
+		})
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		logFilterId := ""
+		err = json.Unmarshal(response.Result, &logFilterId)
+		require.NoError(t, err)
+		require.NotEmpty(t, logFilterId)
+
+		// emit logs
+		tx, err = sc.EmitLogs(auth)
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		logs, err := client.FilterLogs(ctx, ethereum.FilterQuery{Addresses: []common.Address{scAddr}})
+		require.NoError(t, err)
+
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", logFilterId)
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		var logFilterChanges []types.Log
+		err = json.Unmarshal(response.Result, &logFilterChanges)
+		require.NoError(t, err)
+
+		assert.Equal(t, 10, len(logs))
+		assert.Equal(t, 10, len(logFilterChanges))
+		assert.True(t, reflect.DeepEqual(logs, logFilterChanges))
+
+		// emit more logs
+		tx, err = sc.EmitLogs(auth)
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		tx, err = sc.EmitLogs(auth)
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		logs, err = client.FilterLogs(ctx, ethereum.FilterQuery{Addresses: []common.Address{scAddr}})
+		require.NoError(t, err)
+
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", logFilterId)
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		err = json.Unmarshal(response.Result, &logFilterChanges)
+		require.NoError(t, err)
+
+		assert.Equal(t, 30, len(logs))
+		assert.Equal(t, 20, len(logFilterChanges))
 	}
 }
 
@@ -314,7 +339,7 @@ func Test_Gas(t *testing.T) {
 	}
 	Setup()
 	defer Teardown()
-	var Address1 = common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")
+	var Address1 = toAddress
 	var Values = []*big.Int{
 		big.NewInt(1000),
 		big.NewInt(10000000),
@@ -378,8 +403,10 @@ func Test_Block(t *testing.T) {
 		log.Infof("Network %s", network.Name)
 		client, err := ethclient.Dial(network.URL)
 		require.NoError(t, err)
+		auth, err := operations.GetAuth(network.PrivateKey, network.ChainID)
+		require.NoError(t, err)
 
-		tx, err := createTX(client, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
+		tx, err := createTX(client, auth, toAddress, big.NewInt(1000))
 		require.NoError(t, err)
 		// no block number yet... will wait
 		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
@@ -484,24 +511,20 @@ func Test_Transactions(t *testing.T) {
 		log.Infof("Network %s", network.Name)
 		client, err := ethclient.Dial(network.URL)
 		require.NoError(t, err)
-		destination := common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")
+		auth, err := operations.GetAuth(network.PrivateKey, network.ChainID)
+		require.NoError(t, err)
 
 		// Test Case: Successful transfer
-
-		tx, err := createTX(client, network.ChainID, destination, big.NewInt(100000))
+		tx, err := createTX(client, auth, toAddress, big.NewInt(100000))
 		require.NoError(t, err)
 		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		// Setup for test cases
-
-		auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, network.ChainID)
-		require.NoError(t, err)
-
 		nonce, err := client.NonceAt(context.Background(), auth.From, nil)
 		require.NoError(t, err)
 
-		gasLimit, err := client.EstimateGas(context.Background(), ethereum.CallMsg{From: auth.From, To: &destination, Value: big.NewInt(10000)})
+		gasLimit, err := client.EstimateGas(context.Background(), ethereum.CallMsg{From: auth.From, To: &toAddress, Value: big.NewInt(10000)})
 		require.NoError(t, err)
 
 		gasPrice, err := client.SuggestGasPrice(context.Background())
@@ -510,7 +533,7 @@ func Test_Transactions(t *testing.T) {
 		// Test Case: TX with invalid nonce
 
 		tx = types.NewTransaction(nonce-1, // Nonce will be lower than the current getNonceAt()
-			destination, big.NewInt(100), gasLimit, gasPrice, nil)
+			toAddress, big.NewInt(100), gasLimit, gasPrice, nil)
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 
@@ -543,7 +566,7 @@ func Test_Transactions(t *testing.T) {
 
 		log.Infof("Balance: %d", balance)
 
-		tx = types.NewTransaction(nonce, destination, big.NewInt(0).Add(balance, big.NewInt(10)), gasLimit, gasPrice, nil)
+		tx = types.NewTransaction(nonce, toAddress, big.NewInt(0).Add(balance, big.NewInt(10)), gasLimit, gasPrice, nil)
 		signedTx, err = auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 
@@ -765,10 +788,10 @@ func Test_WebSocketsSubscription(t *testing.T) {
 			wsConn.Close()
 		}()
 
-		client, err := ethclient.Dial(network.URL)
-		require.NoError(t, err)
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 		for i := 0; i <= numberOfBlocks; i++ {
-			tx, err := createTX(client, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000000000))
+			tx, err := createTX(client, auth, toAddress, big.NewInt(1000000000))
 			require.NoError(t, err)
 			err = operations.WaitTxToBeMined(context.Background(), client, tx, operations.DefaultTimeoutTxToBeMined)
 			require.NoError(t, err)
