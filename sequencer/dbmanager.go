@@ -553,8 +553,8 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 }
 
 // GetForcedBatchesSince gets L1 forced batches since timestamp
-func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
-	return d.state.GetForcedBatchesSince(ctx, forcedBatchNumber, dbTx)
+func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+	return d.state.GetForcedBatchesSince(ctx, forcedBatchNumber, maxBlockNumber, dbTx)
 }
 
 // GetLastL2BlockHeader gets the last l2 block number

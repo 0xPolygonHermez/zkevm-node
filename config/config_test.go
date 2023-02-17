@@ -139,8 +139,20 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForL1OperationsInSec",
+			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1TimeoutInSec",
 			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGERInSec",
+			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatchesInSec",
+			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks",
+			expectedValue: uint64(64),
 		},
 		{
 			path:          "Etherman.URL",
