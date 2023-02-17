@@ -159,18 +159,25 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
 		if err != nil {
 			log.Debug("error parsing header length: ", err)
-			return []types.Transaction{}, []byte{}, err
+			return []types.Transaction{}, txsData, err
 		}
 		// First byte is the length and must be ignored
 		len := num - c0
 		if len > shortRlp { // If rlp is bigger than length 55
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
+			if (pos + 1 + num - f7) > int64(txDataLength) {
+				log.Debug("error parsing length: ", err)
+				return []types.Transaction{}, txsData, err
+			}
 			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1:pos+1+num-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
 			if err != nil {
 				log.Debug("error parsing length: ", err)
-				return []types.Transaction{}, []byte{}, err
+				return []types.Transaction{}, txsData, err
 			}
 			len = n + num - f7 // num - f7 is the header. For example 0xf7
+		}
+		if len > int64(txDataLength) || len < 0 {
+			return []types.Transaction{}, txsData, InvalidData
 		}
 
 		fullDataTx := txsData[pos : pos+len+rLength+sLength+vLength+headerByteLength]
@@ -186,13 +193,13 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 		err = rlp.DecodeBytes(txInfo, &rlpFields)
 		if err != nil {
 			log.Debug("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
-			return []types.Transaction{}, []byte{}, err
+			return []types.Transaction{}, txsData, err
 		}
 
 		legacyTx, err := RlpFieldsToLegacyTx(rlpFields, vData, rData, sData)
 		if err != nil {
 			log.Debug("error creating tx from rlp fields: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
-			return []types.Transaction{}, []byte{}, err
+			return []types.Transaction{}, txsData, err
 		}
 
 		tx := types.NewTx(legacyTx)

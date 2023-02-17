@@ -213,7 +213,7 @@ func (t *jsTracer) CaptureStart(env *fakevm.FakeEVM, from common.Address, to com
 	t.ctx["value"] = valueBig
 	t.ctx["block"] = t.vm.ToValue(env.Context.BlockNumber.Uint64())
 	// Update list of precompiles based on current block
-	rules := env.ChainConfig().Rules(env.Context.BlockNumber, env.Context.Random != nil)
+	rules := env.ChainConfig().Rules(env.Context.BlockNumber, env.Context.Random != nil, env.Context.Time)
 	t.activePrecompiles = vm.ActivePrecompiles(rules)
 	t.ctx["intrinsicGas"] = t.vm.ToValue(t.gasLimit - gas)
 }

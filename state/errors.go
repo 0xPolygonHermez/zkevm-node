@@ -51,6 +51,9 @@ var (
 	// ErrUnsupportedDuration is returned if the provided unit for a time
 	// interval is not supported by our conversion mechanism.
 	ErrUnsupportedDuration = errors.New("unsupported time duration")
+
+	// InvalidData is the error when the raw txs is unexpected
+	InvalidData = errors.New("invalid data")
 )
 
 func constructErrorFromRevert(err error, returnValue []byte) error {
