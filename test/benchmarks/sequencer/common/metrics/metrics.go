@@ -21,22 +21,32 @@ const (
 
 // CalculateAndPrint calculates and prints the results
 func CalculateAndPrint(prometheusResp *http.Response, profilingResult string, elapsed time.Duration, sequencerTimeSub, executorTimeSub float64, nTxs int) {
-	sequencerTime, executorTime, workerTime, err := GetValues(prometheusResp)
-	if err != nil {
-		log.Fatalf("error getting prometheus metrics: %v", err)
+	var (
+		sequencerTime, executorTime, workerTime float64
+		err                                     error
+	)
+	if prometheusResp != nil {
+		sequencerTime, executorTime, workerTime, err = GetValues(prometheusResp)
+		if err != nil {
+			log.Fatalf("error getting prometheus metrics: %v", err)
+		}
 	}
 
 	log.Info("##########")
 	log.Info("# Result #")
 	log.Info("##########")
-	log.Infof("Total time took for the sequencer To select all txs from the pool: %v", elapsed)
-	log.Info("######################")
-	log.Info("# Prometheus Metrics #")
-	log.Info("######################")
-	actualTotalTime := sequencerTime - sequencerTimeSub
-	actualExecutorTime := executorTime - executorTimeSub
-	PrintPrometheus(actualTotalTime, actualExecutorTime, workerTime)
-	log.Infof("[Transactions per second]: %v", float64(nTxs)/actualTotalTime)
+	log.Infof("Total time took for the sequencer to select all txs from the pool: %v", elapsed)
+
+	if prometheusResp != nil {
+		log.Info("######################")
+		log.Info("# Prometheus Metrics #")
+		log.Info("######################")
+		actualTotalTime := sequencerTime - sequencerTimeSub
+		actualExecutorTime := executorTime - executorTimeSub
+		PrintPrometheus(actualTotalTime, actualExecutorTime, workerTime)
+		log.Infof("[Transactions per second]: %v", float64(nTxs)/actualTotalTime)
+
+	}
 	if profilingResult != "" {
 		log.Info("#####################")
 		log.Info("# Profiling Metrics #")
@@ -90,7 +100,7 @@ func FetchPrometheus() (*http.Response, error) {
 func FetchProfiling() (string, error) {
 	fullUrl := fmt.Sprintf("http://localhost:%d%s", profilingPort, metricsLib.ProfileEndpoint)
 	log.Infof("Fetching profiling metrics from: %s ...", fullUrl)
-	cmd := exec.Command("go", "tool", "pprof", "-top", fullUrl)
+	cmd := exec.Command("go", "tool", "pprof", "-show=sequencer", "-top", fullUrl)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("Error running pprof: %v\n%s", err, out)
