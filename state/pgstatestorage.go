@@ -2244,3 +2244,46 @@ func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumbe
 	}
 	return
 }
+
+// GetLatestGer is used to get the latest ger
+func (p *PostgresStorage) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (GlobalExitRoot, time.Time, error) {
+	lastBlock, err := p.GetLastBlock(ctx, nil)
+	if err != nil {
+		return GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %w", err)
+	}
+
+	blockNumber := lastBlock.BlockNumber
+
+	maxBlockNumber := uint64(0)
+	if gerFinalityNumberOfBlocks <= blockNumber {
+		maxBlockNumber = blockNumber - gerFinalityNumberOfBlocks
+	}
+	ger, receivedAt, err := p.GetLatestGlobalExitRoot(ctx, maxBlockNumber, nil)
+	if err != nil && errors.Is(err, ErrNotFound) {
+		return GlobalExitRoot{}, time.Time{}, nil
+	} else if err != nil {
+		return GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
+	} else {
+		return ger, receivedAt, nil
+	}
+}
+
+// GetBatchByForcedBatchNum returns the batch with the given forced batch number.
+func (p *PostgresStorage) GetBatchByForcedBatchNum(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	const getForcedBatchByNumberSQL = `
+		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num
+		  FROM state.batch
+		 WHERE forced_batch_num = $1`
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getForcedBatchByNumberSQL, forcedBatchNumber)
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &batch, nil
+}

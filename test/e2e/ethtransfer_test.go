@@ -67,6 +67,6 @@ func TestEthTransfer(t *testing.T) {
 		txs = append(txs, tx)
 	}
 
-	err = operations.ApplyL2Txs(ctx, txs, auth, client)
+	_, err = operations.ApplyL2Txs(ctx, txs, auth, client)
 	require.NoError(t, err)
 }

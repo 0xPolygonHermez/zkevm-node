@@ -27,6 +27,10 @@ const (
 	profilingEnabled = false
 )
 
+var (
+	erc20SC *ERC20.ERC20
+)
+
 func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 	start := time.Now()
 	opsman, client, pl, auth := setup.Environment(params.Ctx, b)
@@ -41,7 +45,7 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 	}
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
 	require.NoError(b, err)
-	err = transactions.SendAndWait(params.Ctx, auth, client, pl.CountTransactionsByStatus, params.NumberOfTxs, TxSender)
+	err = transactions.SendAndWait(params.Ctx, auth, client, pl.CountTransactionsByStatus, params.NumberOfTxs, erc20SC, TxSender)
 	require.NoError(b, err)
 
 	var (
