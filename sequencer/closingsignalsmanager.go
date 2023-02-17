@@ -31,13 +31,13 @@ func (c *closingSignalsManager) checkSendToL1Timeout() {
 		timestamp, err := c.dbManager.GetLatestVirtualBatchTimestamp(c.ctx, nil)
 		if err != nil {
 			log.Errorf("error checking latest virtual batch timestamp: %v", err)
-			time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1TimeoutInSec.Duration)
+			time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration)
 		} else {
-			limit := time.Now().Unix() - int64(c.cfg.SendingToL1DeadlineTimeoutInSec.Duration.Seconds())
+			limit := time.Now().Unix() - int64(c.cfg.SendingToL1DeadlineTimeout.Duration.Seconds())
 
 			if timestamp.Unix() < limit {
 				c.closingSignalCh.SendingToL1TimeoutCh <- true
-				time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1TimeoutInSec.Duration)
+				time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration)
 			} else {
 				time.Sleep(time.Duration(limit-timestamp.Unix()) * time.Second)
 			}

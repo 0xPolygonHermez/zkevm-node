@@ -114,14 +114,14 @@ type FinalizerCfg struct {
 	// GERFinalityNumberOfBlocks is number of blocks to consider GER final
 	GERFinalityNumberOfBlocks uint64 `mapstructure:"GERFinalityNumberOfBlocks"`
 
-	// ClosingSignalsManagerWaitForCheckingL1TimeoutInSec is used by the closing signals manager to wait for its operation
-	ClosingSignalsManagerWaitForCheckingL1TimeoutInSec types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingL1TimeoutInSec"`
+	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForCheckingL1Timeout types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingL1Timeout"`
 
-	// ClosingSignalsManagerWaitForCheckingGERInSec is used by the closing signals manager to wait for its operation
-	ClosingSignalsManagerWaitForCheckingGERInSec types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingGERInSec"`
+	// ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForCheckingGER types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingGER"`
 
-	// ClosingSignalsManagerWaitForCheckingL1TimeoutInSec is used by the closing signals manager to wait for its operation
-	ClosingSignalsManagerWaitForCheckingForcedBatchesInSec types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingForcedBatchesInSec"`
+	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForCheckingForcedBatches types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingForcedBatches"`
 
 	// ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
 	ForcedBatchesFinalityNumberOfBlocks uint64 `mapstructure:"ForcedBatchesFinalityNumberOfBlocks"`

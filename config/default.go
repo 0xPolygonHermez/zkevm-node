@@ -96,9 +96,9 @@ MaxAllowedFailedCounter = 50
 		SleepDurationInMs = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 64
-		ClosingSignalsManagerWaitForCheckingL1TimeoutInSec = "10s"
-		ClosingSignalsManagerWaitForCheckingGERInSec = "10s"
-		ClosingSignalsManagerWaitForCheckingForcedBatchesInSec = "10s"
+		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
+		ClosingSignalsManagerWaitForCheckingGER = "10s"
+		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]

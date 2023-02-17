@@ -139,15 +139,15 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1TimeoutInSec",
+			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGERInSec",
+			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatchesInSec",
+			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
