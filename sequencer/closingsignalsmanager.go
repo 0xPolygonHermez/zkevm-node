@@ -31,13 +31,13 @@ func (c *closingSignalsManager) checkSendToL1Timeout() {
 		timestamp, err := c.dbManager.GetLatestVirtualBatchTimestamp(c.ctx, nil)
 		if err != nil {
 			log.Errorf("error checking latest virtual batch timestamp: %v", err)
-			time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
+			time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration)
 		} else {
-			limit := time.Now().Unix() - int64(c.cfg.SendingToL1DeadlineTimeoutInSec.Duration.Seconds())
+			limit := time.Now().Unix() - int64(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration.Seconds())
 
 			if timestamp.Unix() < limit {
 				c.closingSignalCh.SendingToL1TimeoutCh <- true
-				time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
+				time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration)
 			} else {
 				time.Sleep(time.Duration(limit-timestamp.Unix()) * time.Second)
 			}
@@ -49,7 +49,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 	var lastGERSent common.Hash
 
 	for {
-		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
+		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingGER.Duration)
 
 		ger, _, err := c.dbManager.GetLatestGer(c.ctx, c.cfg.GERFinalityNumberOfBlocks)
 		if err != nil {
@@ -66,8 +66,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 
 func (c *closingSignalsManager) checkForcedBatches() {
 	for {
-		time.Sleep(c.cfg.ClosingSignalsManagerWaitForL1OperationsInSec.Duration)
-		log.Debug(time.Now())
+		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingForcedBatches.Duration)
 
 		if c.lastForcedBatchNumSent == 0 { // TODO: reset c.lastForcedBatchNumSent = 0 on L2 Reorg
 			lastTrustedForcedBatchNum, err := c.dbManager.GetLastTrustedForcedBatchNumber(c.ctx, nil)
@@ -79,8 +78,23 @@ func (c *closingSignalsManager) checkForcedBatches() {
 				c.lastForcedBatchNumSent = lastTrustedForcedBatchNum
 			}
 		}
+		// Take into account L1 finality
+		lastBlock, err := c.dbManager.GetLastBlock(c.ctx, nil)
+		if err != nil {
+			log.Errorf("failed to get latest eth block number, err: %w", err)
+			continue
+		}
 
-		forcedBatches, err := c.dbManager.GetForcedBatchesSince(c.ctx, c.lastForcedBatchNumSent, nil)
+		blockNumber := lastBlock.BlockNumber
+
+		maxBlockNumber := uint64(0)
+		finalityNumberOfBlocks := c.cfg.ForcedBatchesFinalityNumberOfBlocks
+
+		if finalityNumberOfBlocks <= blockNumber {
+			maxBlockNumber = blockNumber - finalityNumberOfBlocks
+		}
+
+		forcedBatches, err := c.dbManager.GetForcedBatchesSince(c.ctx, c.lastForcedBatchNumSent, maxBlockNumber, nil)
 		if err != nil {
 			log.Errorf("error checking forced batches: %v", err)
 			continue
