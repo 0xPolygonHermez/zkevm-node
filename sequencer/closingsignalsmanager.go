@@ -33,7 +33,7 @@ func (c *closingSignalsManager) checkSendToL1Timeout() {
 			log.Errorf("error checking latest virtual batch timestamp: %v", err)
 			time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration)
 		} else {
-			limit := time.Now().Unix() - int64(c.cfg.SendingToL1DeadlineTimeout.Duration.Seconds())
+			limit := time.Now().Unix() - int64(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration.Seconds())
 
 			if timestamp.Unix() < limit {
 				c.closingSignalCh.SendingToL1TimeoutCh <- true
@@ -49,7 +49,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 	var lastGERSent common.Hash
 
 	for {
-		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingGERInSec.Duration)
+		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingGER.Duration)
 
 		ger, _, err := c.dbManager.GetLatestGer(c.ctx, c.cfg.GERFinalityNumberOfBlocks)
 		if err != nil {
@@ -66,7 +66,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 
 func (c *closingSignalsManager) checkForcedBatches() {
 	for {
-		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingForcedBatchesInSec.Duration)
+		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingForcedBatches.Duration)
 
 		if c.lastForcedBatchNumSent == 0 { // TODO: reset c.lastForcedBatchNumSent = 0 on L2 Reorg
 			lastTrustedForcedBatchNum, err := c.dbManager.GetLastTrustedForcedBatchNumber(c.ctx, nil)
