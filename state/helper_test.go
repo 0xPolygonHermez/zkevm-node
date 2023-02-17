@@ -42,6 +42,7 @@ func TestDecodeRandomBatchL2Data(t *testing.T) {
 
 func TestDecodePre155BatchL2Data(t *testing.T) {
 	pre155, err := hex.DecodeString("e480843b9aca00826163941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77cb7d2a666860f3c6b8f5ef96f86c7ec5562e97fd04c2e10f3755ff3a0456f9feb246df95217bf9082f84f9e40adb0049c6664a5bb4c9cbe34ab1a73e77bab26ed1b")
+	require.NoError(t, err)
 	txs, _, err := state.DecodeTxs(pre155)
 	require.NoError(t, err)
 	t.Log("Txs decoded: ", txs, len(txs))
@@ -75,7 +76,7 @@ func TestDecodePre155Tx(t *testing.T) {
 	tx, err := state.DecodeTx(pre155)
 	require.NoError(t, err)
 	t.Log("Txs decoded: ", tx)
-	v, r, s :=tx.RawSignatureValues()
+	v, r, s := tx.RawSignatureValues()
 	assert.Equal(t, "0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98", tx.To().String())
 	assert.Equal(t, "1b", fmt.Sprintf("%x", v))
 	assert.Equal(t, "b7d2a666860f3c6b8f5ef96f86c7ec5562e97fd04c2e10f3755ff3a0456f9feb", fmt.Sprintf("%x", r))
@@ -88,6 +89,7 @@ func TestDecodePre155Tx(t *testing.T) {
 
 func TestEncodePre155BatchL2Data(t *testing.T) {
 	pre155, err := hex.DecodeString("e480843b9aca00826163941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77cb7d2a666860f3c6b8f5ef96f86c7ec5562e97fd04c2e10f3755ff3a0456f9feb246df95217bf9082f84f9e40adb0049c6664a5bb4c9cbe34ab1a73e77bab26ed1b")
+	require.NoError(t, err)
 	txs, _, err := state.DecodeTxs(pre155)
 	require.NoError(t, err)
 	rawtxs, err := state.EncodeTransactions(txs)

@@ -165,7 +165,7 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 		len := num - c0
 		if len > shortRlp { // If rlp is bigger than length 55
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
-			if (pos+1+num-f7) > int64(txDataLength) {
+			if (pos + 1 + num - f7) > int64(txDataLength) {
 				log.Debug("error parsing length: ", err)
 				return []types.Transaction{}, txsData, err
 			}
