@@ -324,9 +324,13 @@ func (e *EthEndpoints) GetLogs(filter LogFilter) (interface{}, rpcError) {
 
 func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, rpcError) {
 	var err error
-	fromBlock, rpcErr := filter.FromBlock.getNumericBlockNumber(ctx, e.state, dbTx)
-	if rpcErr != nil {
-		return nil, rpcErr
+	var fromBlock uint64 = 0
+	if filter.FromBlock != nil {
+		var rpcErr rpcError
+		fromBlock, rpcErr = filter.FromBlock.getNumericBlockNumber(ctx, e.state, dbTx)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
 	}
 
 	toBlock, rpcErr := filter.ToBlock.getNumericBlockNumber(ctx, e.state, dbTx)
