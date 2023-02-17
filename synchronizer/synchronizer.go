@@ -577,6 +577,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		}
 		// ForcedBatch must be processed
 		if sbatch.MinForcedTimestamp > 0 { // If this is true means that the batch is forced
+			log.Debug("FORCED BATCH SEQUENCED!")
 			// Read forcedBatches from db
 			forcedBatches, err := s.state.GetNextForcedBatches(s.ctx, 1, dbTx)
 			if err != nil {
