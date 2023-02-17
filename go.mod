@@ -12,8 +12,8 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/iden3/go-iden3-crypto v0.0.14-0.20220413123345-edc36bfa5247
-	github.com/jackc/pgconn v1.13.0
-	github.com/jackc/pgx/v4 v4.17.2
+	github.com/jackc/pgconn v1.14.0
+	github.com/jackc/pgx/v4 v4.18.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/common v0.39.0
@@ -24,7 +24,7 @@ require (
 	github.com/umbracle/ethgo v0.1.3
 	github.com/urfave/cli/v2 v2.24.3
 	go.uber.org/zap v1.24.0
-	golang.org/x/crypto v0.1.0
+	golang.org/x/crypto v0.6.0
 	golang.org/x/sync v0.1.0
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
@@ -75,9 +75,9 @@ require (
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgproto3/v2 v2.3.1 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
-	github.com/jackc/pgtype v1.12.0 // indirect
+	github.com/jackc/pgproto3/v2 v2.3.2 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/pgtype v1.14.0 // indirect
 	github.com/jackc/puddle v1.3.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
@@ -121,9 +121,9 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771 // indirect
-	golang.org/x/net v0.5.0 // indirect
+	golang.org/x/net v0.6.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/term v0.4.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/time v0.1.0 // indirect
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
