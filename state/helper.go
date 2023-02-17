@@ -172,7 +172,7 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 			}
 			len = n + num - f7 // num - f7 is the header. For example 0xf7
 		}
-		if len > int64(txDataLength) {
+		if len > int64(txDataLength) || len < 0 {
 			return []types.Transaction{}, []byte{}, InvalidData
 		}
 
