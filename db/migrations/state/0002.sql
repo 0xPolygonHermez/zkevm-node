@@ -26,6 +26,13 @@ CREATE INDEX IF NOT EXISTS log_address_idx ON state.log (address);
 ALTER TABLE state.virtual_batch
 ADD COLUMN sequencer_addr VARCHAR DEFAULT '0x0000000000000000000000000000000000000000';
 
+CREATE TABLE IF NOT EXISTS state.trusted_reorg
+(
+    id        SERIAL PRIMARY KEY,
+    batch_num BIGINT,
+    reason    VARCHAR NOT NULL
+);
+
 -- +migrate Down
 UPDATE state.proof
 SET prover = prover_id;
@@ -51,3 +58,5 @@ DROP INDEX IF EXISTS state.log_address_idx;
 
 ALTER TABLE state.virtual_batch
 DROP COLUMN IF EXISTS sequencer_addr;
+
+DROP TABLE IF EXISTS state.trusted_reorg;

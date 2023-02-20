@@ -83,6 +83,11 @@ func (m migrationTest0002) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 		VALUES (2, '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1', '0x514910771af9ca656af840dff83e8264ecf986ca', 1, '0x514910771af9ca656af840dff83e8264ecf986ca');`
 	_, err = db.Exec(insertVirtualBatch)
 	assert.NoError(t, err)
+	// Insert reorg
+	const insertReorg = `INSERT INTO state.trusted_reorg (batch_num, reason)
+		VALUES (2, 'reason of the trusted reorg');`
+	_, err = db.Exec(insertReorg)
+	assert.NoError(t, err)
 }
 
 func (m migrationTest0002) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
@@ -122,6 +127,11 @@ func (m migrationTest0002) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 		VALUES (3, '0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1', '0x514910771af9ca656af840dff83e8264ecf986ca', 1);`
 	_, err = db.Exec(insertVirtualBatch)
 	assert.NoError(t, err)
+	// Insert reorg
+	const insertReorg = `INSERT INTO state.trusted_reorg (batch_num, reason)
+		VALUES (2, 'reason of the trusted reorg');`
+	_, err = db.Exec(insertReorg)
+	assert.Error(t, err)
 }
 
 func TestMigration0002(t *testing.T) {
