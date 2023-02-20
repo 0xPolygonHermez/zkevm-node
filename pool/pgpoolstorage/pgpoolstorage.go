@@ -76,10 +76,11 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			used_binaries,
 			used_steps,
 			received_at,
-			from_address
+			from_address,
+			preprocessed_state_root
 		) 
 		VALUES 
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 	`
 
 	// Get FromAddress from the JSON data
@@ -106,7 +107,8 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		tx.UsedBinaries,
 		tx.UsedSteps,
 		tx.ReceivedAt,
-		fromAddress); err != nil {
+		fromAddress,
+		tx.PreprocessedStateRoot.String()); err != nil {
 		return err
 	}
 	return nil
@@ -122,10 +124,10 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 		sql  string
 	)
 	if limit == 0 {
-		sql = "SELECT encoded, status, received_at FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
+		sql = "SELECT encoded, status, received_at, preprocessed_state_root FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
-		sql = "SELECT encoded, status, received_at FROM pool.transaction WHERE status = $1 AND is_claims = $2 ORDER BY gas_price DESC LIMIT $3"
+		sql = "SELECT encoded, status, received_at, preprocessed_state_root FROM pool.transaction WHERE status = $1 AND is_claims = $2 ORDER BY gas_price DESC LIMIT $3"
 		rows, err = p.db.Query(ctx, sql, status.String(), isClaims, limit)
 	}
 	if err != nil {
@@ -167,6 +169,23 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 	return hashes, nil
 }
 
+// GetPreprocessedStateRoot returns the preprocessed state root of the latest pending tx for the given address
+func (p *PostgresPoolStorage) GetPreprocessedStateRoot(ctx context.Context, address common.Address) (common.Hash, error) {
+	const sql = "SELECT preprocessed_state_root FROM pool.transaction WHERE status IN ($1, $2) AND from_address = $3 ORDER BY nonce DESC limit 1"
+	var stateStr *string
+
+	err := p.db.QueryRow(ctx, sql, pool.TxStatusPending, pool.TxStatusWIP, address.String()).Scan(&stateStr)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	if stateStr == nil {
+		return common.HexToHash(*stateStr), nil
+	}
+
+	return common.Hash{}, nil
+}
+
 // GetTxs gets txs with the lowest nonce
 func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*pool.Transaction, error) {
 	query := `
@@ -183,7 +202,8 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			used_steps,
 			received_at,
 			nonce,
-			failed_counter
+			failed_counter,
+			preprocessed_state_root
 		FROM
 			pool.transaction p1
 		WHERE 
@@ -211,7 +231,8 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				used_steps,
 				received_at,
 				nonce,
-				failed_counter
+				failed_counter,
+				preprocessed_state_root
 			FROM
 				pool.transaction p1
 			WHERE
@@ -234,6 +255,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
 		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
 		nonce, failedCounter uint64
+		stateStr             *string
 	)
 
 	args := []interface{}{filterStatus, minGasPrice, isClaims, limit}
@@ -261,6 +283,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			&receivedAt,
 			&nonce,
 			&failedCounter,
+			&stateStr,
 		)
 
 		if err != nil {
@@ -273,6 +296,10 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		}
 		if err := tx.UnmarshalBinary(b); err != nil {
 			return nil, err
+		}
+
+		if stateStr != nil {
+			tx.PreprocessedStateRoot = common.HexToHash(*stateStr)
 		}
 
 		tx.Status = pool.TxStatus(status)
@@ -388,7 +415,7 @@ func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash)
 
 // GetTxsByFromAndNonce get all the transactions from the pool with the same from and nonce
 func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]pool.Transaction, error) {
-	sql := `SELECT encoded, status, received_at
+	sql := `SELECT encoded, status, received_at, preprocessed_state_root
 	          FROM pool.transaction
 			 WHERE from_address = $1
 			   AND nonce = $2`
@@ -480,12 +507,13 @@ func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash)
 	var (
 		encoded, status string
 		receivedAt      time.Time
+		stateStr        *string
 	)
 
-	sql := `SELECT encoded, status, received_at
+	sql := `SELECT encoded, status, received_at, preprocessed_state_root
 	          FROM pool.transaction
 			 WHERE hash = $1`
-	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&encoded, &status, &receivedAt)
+	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&encoded, &status, &receivedAt, &stateStr)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -501,20 +529,28 @@ func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash)
 	if err := tx.UnmarshalBinary(b); err != nil {
 		return nil, err
 	}
-	return &pool.Transaction{
+
+	poolTx := &pool.Transaction{
 		ReceivedAt:  receivedAt,
 		Status:      pool.TxStatus(status),
 		Transaction: *tx,
-	}, nil
+	}
+
+	if stateStr != nil {
+		poolTx.PreprocessedStateRoot = common.HexToHash(*stateStr)
+	}
+
+	return poolTx, nil
 }
 
 func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	var (
 		encoded, status string
 		receivedAt      time.Time
+		stateStr        *string
 	)
 
-	if err := rows.Scan(&encoded, &status, &receivedAt); err != nil {
+	if err := rows.Scan(&encoded, &status, &receivedAt, &stateStr); err != nil {
 		return nil, err
 	}
 
@@ -527,6 +563,10 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 
 	if err := tx.UnmarshalBinary(b); err != nil {
 		return nil, err
+	}
+
+	if stateStr != nil {
+		tx.PreprocessedStateRoot = common.HexToHash(*stateStr)
 	}
 
 	tx.Status = pool.TxStatus(status)

@@ -36,8 +36,9 @@ type Transaction struct {
 	Status   TxStatus
 	IsClaims bool
 	state.ZKCounters
-	FailedCounter uint64
-	ReceivedAt    time.Time
+	FailedCounter         uint64
+	ReceivedAt            time.Time
+	PreprocessedStateRoot common.Hash
 }
 
 // IsClaimTx checks, if tx is a claim tx

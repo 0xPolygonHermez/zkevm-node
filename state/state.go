@@ -1152,7 +1152,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 }
 
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
-func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, preprocessedStateRoot common.Hash, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	lastBatches, err := s.PostgresStorage.GetLastNBatches(ctx, two, dbTx)
 	if err != nil {
 		return nil, err
@@ -1173,16 +1173,20 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 		return nil, err
 	}
 
+	if preprocessedStateRoot == ZeroHash {
+		preprocessedStateRoot = lastBatch.StateRoot
+	}
+
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber,
 		BatchL2Data:      batchL2Data,
-		OldStateRoot:     lastBatch.StateRoot.Bytes(),
+		OldStateRoot:     preprocessedStateRoot.Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		Coinbase:         lastBatch.Coinbase.String(),
-		UpdateMerkleTree: cFalse,
+		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           s.cfg.CurrentForkID,
 	}

@@ -31,6 +31,7 @@ type storage interface {
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
+	GetPreprocessedStateRoot(ctx context.Context, address common.Address) (common.Hash, error)
 }
 
 type stateInterface interface {
@@ -38,5 +39,5 @@ type stateInterface interface {
 	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetNonce(ctx context.Context, address common.Address, batchNumber uint64, dbTx pgx.Tx) (uint64, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
-	PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
+	PreProcessTransaction(ctx context.Context, tx *types.Transaction, preprocessedStateRoot common.Hash, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 }

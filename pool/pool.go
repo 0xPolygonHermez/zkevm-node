@@ -77,21 +77,35 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
 	// Execute transaction to calculate its zkCounters
-	zkCounters, err := p.PreExecuteTx(ctx, tx)
-	if err != nil {
-		poolTx.ZKCounters = zkCounters
-	}
+	// TODO: Decide if we activate this
+	/*
+		zkCounters, stateRoot, err := p.PreExecuteTx(ctx, tx)
+		if err != nil {
+			poolTx.ZKCounters = zkCounters
+			poolTx.PreprocessedStateRoot = stateRoot
+		}
+	*/
 
 	return p.storage.AddTx(ctx, poolTx)
 }
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error) {
-	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, common.Hash, error) {
+	sender, err := state.GetSender(tx)
 	if err != nil {
-		return state.ZKCounters{}, err
+		return state.ZKCounters{}, common.Hash{}, err
 	}
-	return processBatchResponse.UsedZkCounters, nil
+
+	stateRoot, err := p.storage.GetPreprocessedStateRoot(ctx, sender)
+	if err != nil {
+		return state.ZKCounters{}, common.Hash{}, err
+	}
+
+	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, stateRoot, nil)
+	if err != nil {
+		return state.ZKCounters{}, common.Hash{}, err
+	}
+	return processBatchResponse.UsedZkCounters, processBatchResponse.NewStateRoot, nil
 }
 
 // GetPendingTxs from the pool
