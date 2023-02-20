@@ -50,7 +50,7 @@ type stateInterface interface {
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
 	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
 	AddTrustedReorg(ctx context.Context, batchNumber uint64, reason string, dbTx pgx.Tx) error
-	GetTransactionsSinceBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*state.Transaction, error)
+	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }
@@ -60,6 +60,6 @@ type ethTxManager interface {
 }
 
 type poolInterface interface {
-	DeleteReorgedTransactions(ctx context.Context, txs []*state.transaction) error
-	InsertReorgedTransactions(ctx context.Context, txs []*state.Transaction) error
+	DeleteReorgedTransactions(ctx context.Context, txs []*types.Transaction) error
+	AddTx(ctx context.Context, tx types.Transaction) error
 }
