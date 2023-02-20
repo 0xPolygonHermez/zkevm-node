@@ -769,7 +769,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	assert.Equal(t, 0, len(txHashes))
 }
 
-func Test_DeleteTxsByHashes(t *testing.T) {
+func Test_DeleteTransactionsByHashes(t *testing.T) {
 	ctx := context.Background()
 	initOrResetDB()
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)

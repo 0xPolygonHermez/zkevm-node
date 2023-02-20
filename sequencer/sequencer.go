@@ -239,7 +239,7 @@ func (s *Sequencer) trackOldTxs(ctx context.Context) {
 			continue
 		}
 		log.Infof("will try to delete %d redundant txs", len(txHashes))
-		err = s.pool.DeleteTxsByHashes(ctx, txHashes)
+		err = s.pool.DeleteTransactionsByHashes(ctx, txHashes)
 		if err != nil {
 			log.Errorf("failed to delete txs from the pool, err: %v", err)
 			continue
