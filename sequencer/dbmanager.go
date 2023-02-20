@@ -460,14 +460,6 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 	return nil
 }
 
-// MarkReorgedTxsAsPending marks all reorged tx as pending in the pool
-func (d *dbManager) MarkReorgedTxsAsPending(ctx context.Context) {
-	err := d.txPool.MarkReorgedTxsAsPending(ctx)
-	if err != nil {
-		log.Errorf("error marking reorged txs as pending: %v", err)
-	}
-}
-
 // ProcessForcedBatch process a forced batch
 func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
 	// Open Batch

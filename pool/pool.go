@@ -246,35 +246,13 @@ func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx typ
 	return nil
 }
 
-// MarkReorgedTxsAsPending updated reorged txs status from selected to pending
-func (p *Pool) MarkReorgedTxsAsPending(ctx context.Context) error {
-	// TODO: Change status to "reorged"
+// DeleteTransactions deletes transactions from the pool
+func (p *Pool) DeleteTransactions(ctx context.Context, transactions []*types.Transaction) error {
+	hashes := []common.Hash{}
 
-	// get selected transactions from pool
-	selectedTxs, err := p.GetSelectedTxs(ctx, 0)
-	if err != nil {
-		return err
+	for _, tx := range transactions {
+		hashes = append(hashes, tx.Hash())
 	}
 
-	txsHashesToUpdate := []string{}
-	// look for non existent transactions on state
-	for _, selectedTx := range selectedTxs {
-		txHash := selectedTx.Hash()
-		_, err := p.state.GetTransactionByHash(ctx, txHash, nil)
-		if errors.Is(err, state.ErrNotFound) {
-			txsHashesToUpdate = append(txsHashesToUpdate, txHash.String())
-		} else if err != nil {
-			return err
-		}
-	}
-
-	// revert pool state from selected to pending on the pool
-	err = p.UpdateTxsStatus(ctx, txsHashesToUpdate, TxStatusPending)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return p.storage.DeleteTransactionsByHashes(ctx, hashes)
 }
-
-// TODO: Create a method for the synchronizer to update Tx Statuses to "pending" or "reorged"

@@ -152,3 +152,10 @@ type DebugInfo struct {
 	Timestamp time.Time
 	Payload   string
 }
+
+// TrustedReorg represents a trusted reorg
+type TrustedReorg struct {
+	Timestamp   time.Time
+	BatchNumber uint64
+	Reason      string
+}

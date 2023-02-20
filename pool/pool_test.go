@@ -669,71 +669,6 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	assert.Equal(t, expectedGasPrice, gasPrice)
 }
 
-func TestMarkReorgedTxsAsPending(t *testing.T) {
-	initOrResetDB()
-	ctx := context.Background()
-	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	defer stateSqlDB.Close() //nolint:gosec,errcheck
-
-	st := newState(stateSqlDB)
-
-	genesisBlock := state.Block{
-		BlockNumber: 0,
-		BlockHash:   state.ZeroHash,
-		ParentHash:  state.ZeroHash,
-		ReceivedAt:  time.Now(),
-	}
-	dbTx, err := st.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
-	require.NoError(t, err)
-	require.NoError(t, dbTx.Commit(ctx))
-
-	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
-	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
-	require.NoError(t, err)
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
-	require.NoError(t, err)
-
-	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	signedTx1, err := auth.Signer(auth.From, tx1)
-	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx1); err != nil {
-		t.Error(err)
-	}
-
-	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	signedTx2, err := auth.Signer(auth.From, tx2)
-	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx2); err != nil {
-		t.Error(err)
-	}
-
-	err = p.UpdateTxsStatus(ctx, []string{signedTx1.Hash().String(), signedTx2.Hash().String()}, pool.TxStatusSelected)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = p.MarkReorgedTxsAsPending(ctx)
-	require.NoError(t, err)
-	txs, err := p.GetPendingTxs(ctx, false, 100)
-	require.NoError(t, err)
-	require.Equal(t, signedTx1.Hash().Hex(), txs[1].Hash().Hex())
-	require.Equal(t, signedTx2.Hash().Hex(), txs[0].Hash().Hex())
-}
-
 func TestGetPendingTxSince(t *testing.T) {
 	initOrResetDB()
 
@@ -892,7 +827,7 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.DeleteTxsByHashes(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()})
+	err = p.DeleteTransactionsByHashes(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()})
 	if err != nil {
 		t.Error(err)
 	}
