@@ -45,6 +45,7 @@ func NewSynchronizer(
 	isTrustedSequencer bool,
 	ethMan ethermanInterface,
 	st stateInterface,
+	pool poolInterface,
 	ethTxManager ethTxManager,
 	genesis state.Genesis,
 	cfg Config) (Synchronizer, error) {
@@ -54,6 +55,7 @@ func NewSynchronizer(
 		isTrustedSequencer: isTrustedSequencer,
 		state:              st,
 		etherMan:           ethMan,
+		pool:               pool,
 		ctx:                ctx,
 		cancelCtx:          cancel,
 		ethTxManager:       ethTxManager,
@@ -548,10 +550,15 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 	}
 
 	if reorgReasons.Len() > 0 {
-		log.Warnf("Trusted Reorg detected for Batch Number: %d.\nReasons: %s", tBatch.BatchNumber, reorgReasons.String())
+		reason := reorgReasons.String()
+		log.Warnf("Trusted Reorg detected for Batch Number: %d.\nReasons: %s", tBatch.BatchNumber, reason)
+		// Store trusted reorg register
+		err := s.state.AddTrustedReorg(s.ctx, tBatch.BatchNumber, reason, dbTx)
+		if err != nil {
+			log.Error("error storing tursted reorg register into the db. Error: ", err)
+		}
 		return true
 	}
-
 	return false
 }
 
@@ -680,6 +687,45 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		// Call the check trusted state method to compare trusted and virtual state
 		status := s.checkTrustedState(batch, tBatch, newRoot, dbTx)
 		if status {
+			// Get transactions that have to be included in the pool again
+			txs, err := state.GetTransactionsSinceBatchNumber(s.ctx, tBatch.BatchNumber, dbTx)
+			if err != nil {
+				log.Errorf("error getting txs from trusted state. BatchNumber: %d, BlockNumber: %d, error: %w", tBatch.BatchNumber, blockNumber, err)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %w", tBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+					return rollbackErr
+				}
+				log.Errorf("error getting txs from trusted state. BatchNumber: %d, BlockNumber: %d, error: %w", tBatch.BatchNumber, blockNumber, err)
+				return err
+			}
+
+			// Remove txs from the pool
+			err := s.pool.DeleteReorgedTransactions(ctx, txs)
+			if err != nil {
+				log.Errorf("error deleting txs from the pool. Rolling back the state. BatchNumber: %d, BlockNumber: %d, error: %w", tBatch.BatchNumber, blockNumber, err)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %w", tBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+					return rollbackErr
+				}
+				log.Errorf("error deleting txs from the pool. Rolling back the state. BatchNumber: %d, BlockNumber: %d, error: %w", tBatch.BatchNumber, blockNumber, err)
+				return err
+			}
+
+			// Add txs to the pool
+			err := s.pool.InsertReorgedTransactions(s.ctx, txs)
+			if err != nil {
+				log.Errorf("error storing txs into the pool again. Rolling back the state. BatchNumber: %d, BlockNumber: %d, error: %w", tBatch.BatchNumber, blockNumber, err)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %w", tBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+					return rollbackErr
+				}
+				log.Errorf("error storing txs into the pool again. Rolling back the state. BatchNumber: %d, BlockNumber: %d, error: %w", tBatch.BatchNumber, blockNumber, err)
+				return err
+			}
+
 			// Reset trusted state
 			previousBatchNumber := batch.BatchNumber - 1
 			log.Warnf("Trusted reorg detected, discarding batches until batchNum %d", previousBatchNumber)

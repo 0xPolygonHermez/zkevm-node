@@ -126,7 +126,8 @@ func start(cliCtx *cli.Context) error {
 			go runJSONRPCServer(*c, poolInstance, st, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
-			go runSynchronizer(*c, etherman, etm, st)
+			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			go runSynchronizer(*c, etherman, etm, st, poolInstance)
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, st)
@@ -188,8 +189,8 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman, nil
 }
 
-func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
-	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, ethTxManager, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
+func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool) {
+	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, pool, ethTxManager, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
 	}
