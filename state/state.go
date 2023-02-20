@@ -1151,6 +1151,56 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	return jsTracer.GetResult()
 }
 
+// PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
+func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	lastBatches, err := s.PostgresStorage.GetLastNBatches(ctx, two, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get latest batch from the database to get globalExitRoot and Timestamp
+	lastBatch := lastBatches[0]
+
+	// Get batch before latest to get state root and local exit root
+	previousBatch := lastBatches[0]
+	if len(lastBatches) > 1 {
+		previousBatch = lastBatches[1]
+	}
+
+	batchL2Data, err := EncodeTransaction(*tx)
+	if err != nil {
+		log.Errorf("error encoding unsigned transaction ", err)
+		return nil, err
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		OldBatchNum:      lastBatch.BatchNumber,
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     lastBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		Coinbase:         lastBatch.Coinbase.String(),
+		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
+		ForkId:           s.cfg.CurrentForkID,
+	}
+
+	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, DiscardCallerLabel)
+	if err != nil {
+		return nil, err
+	}
+
+	var result *ProcessBatchResponse
+	result, err = s.convertToProcessBatchResponse([]types.Transaction{*tx}, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // ProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
 	result := new(runtime.ExecutionResult)

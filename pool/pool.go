@@ -76,7 +76,22 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
+	// Execute transaction to calculate its zkCounters
+	zkCounters, err := p.PreExecuteTx(ctx, tx)
+	if err != nil {
+		poolTx.ZKCounters = zkCounters
+	}
+
 	return p.storage.AddTx(ctx, poolTx)
+}
+
+// PreExecuteTx executes a transaction to calculate its zkCounters
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error) {
+	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
+	if err != nil {
+		return state.ZKCounters{}, err
+	}
+	return processBatchResponse.UsedZkCounters, nil
 }
 
 // GetPendingTxs from the pool
