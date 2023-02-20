@@ -132,6 +132,10 @@ func (s *ClientSynchronizer) Sync() error {
 			//Sync L1Blocks
 			if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
 				log.Warn("error syncing blocks: ", err)
+				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
+				if err != nil {
+					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)
+				}
 				if s.ctx.Err() != nil {
 					continue
 				}
