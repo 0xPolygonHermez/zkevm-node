@@ -1756,7 +1756,7 @@ func TestAddGetL2Block(t *testing.T) {
 
 	// Create block to be able to calculate its hash
 	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
-	block.ReceivedAt = time
+	l2Block.ReceivedAt = time
 
 	receipt.BlockHash = l2Block.Hash()
 
@@ -1771,6 +1771,8 @@ func TestAddGetL2Block(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, l2Block.Hash(), result.Hash())
+	assert.Equal(t, l2Block.ReceivedAt.Unix(), result.ReceivedAt.Unix())
+	assert.Equal(t, l2Block.Time(), result.Time())
 
 	require.NoError(t, dbTx.Commit(ctx))
 }

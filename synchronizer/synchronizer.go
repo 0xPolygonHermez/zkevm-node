@@ -666,6 +666,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 					return err
 				}
 				tBatch = &batch
+				tBatch.StateRoot = newRoot
 			} else {
 				log.Error("error checking trusted state: ", err)
 				rollbackErr := dbTx.Rollback(s.ctx)
