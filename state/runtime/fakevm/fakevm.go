@@ -38,7 +38,7 @@ func NewFakeEVM(blockCtx vm.BlockContext, txCtx vm.TxContext, chainConfig *param
 		TxContext:   txCtx,
 		Config:      config,
 		chainConfig: chainConfig,
-		chainRules:  chainConfig.Rules(blockCtx.BlockNumber, blockCtx.Random != nil),
+		chainRules:  chainConfig.Rules(blockCtx.BlockNumber, blockCtx.Random != nil, blockCtx.Time),
 	}
 	return evm
 }

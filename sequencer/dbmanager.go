@@ -480,7 +480,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	}
 	dbTx, err := d.state.BeginStateTransaction(d.ctx)
 	if err != nil {
-		log.Errorf("failed to begin state transaction for opening a batch, err: %v", err)
+		log.Errorf("failed to begin state transaction for opening a forced batch, err: %v", err)
 		return nil, err
 	}
 
@@ -488,7 +488,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
 			log.Errorf(
-				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
+				"failed to rollback dbTx when opening a forced batch that gave err: %v. Rollback err: %v",
 				rollbackErr, err,
 			)
 		}
@@ -512,14 +512,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	// Process Batch
 	processBatchResponse, err := d.state.ProcessSequencerBatch(d.ctx, request.BatchNumber, forcedBatch.RawTxsData, request.Caller, dbTx)
 	if err != nil {
-		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
-			log.Errorf(
-				"failed to rollback dbTx processing forced batch err: %v. Rollback err: %v",
-				rollbackErr, err,
-			)
-		}
-		log.Errorf("failed to process a batch, err: %v", err)
-		return nil, err
+		log.Errorf("failed to process a forced batch, err: %v", err)
 	}
 
 	// Close Batch
@@ -531,30 +524,30 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 		BatchL2Data:   forcedBatch.RawTxsData,
 	}
 
-	err = d.state.CloseBatch(d.ctx, processingReceipt, dbTx)
-	if err != nil {
-		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
-			log.Errorf(
-				"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
-				rollbackErr, err,
-			)
+	isClosed := false
+	tryToCloseAndCommit := true
+	for tryToCloseAndCommit {
+		if !isClosed {
+			closingErr := d.state.CloseBatch(d.ctx, processingReceipt, dbTx)
+			tryToCloseAndCommit = closingErr != nil
+			if tryToCloseAndCommit {
+				continue
+			}
+			isClosed = true
 		}
-		log.Errorf("failed to close a batch, err: %v", err)
-		return nil, err
-	}
 
-	// All done
-	if err := dbTx.Commit(d.ctx); err != nil {
-		log.Errorf("failed to commit dbTx when opening batch, err: %v", err)
-		return nil, err
+		if err := dbTx.Commit(d.ctx); err != nil {
+			log.Errorf("failed to commit dbTx when processing a forced batch, err: %v", err)
+		}
+		tryToCloseAndCommit = err != nil
 	}
 
 	return processBatchResponse, nil
 }
 
 // GetForcedBatchesSince gets L1 forced batches since timestamp
-func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
-	return d.state.GetForcedBatchesSince(ctx, forcedBatchNumber, dbTx)
+func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+	return d.state.GetForcedBatchesSince(ctx, forcedBatchNumber, maxBlockNumber, dbTx)
 }
 
 // GetLastL2BlockHeader gets the last l2 block number

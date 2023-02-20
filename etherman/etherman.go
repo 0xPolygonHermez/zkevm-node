@@ -425,15 +425,11 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
 	var batches []polygonzkevm.PolygonZkEVMBatchData
 	for _, seq := range sequences {
-		batchL2Data, err := state.EncodeTransactions(seq.Txs)
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode transactions, err: %v", err)
-		}
 		batch := polygonzkevm.PolygonZkEVMBatchData{
-			Transactions:       batchL2Data,
+			Transactions:       seq.BatchL2Data,
 			GlobalExitRoot:     seq.GlobalExitRoot,
 			Timestamp:          uint64(seq.Timestamp),
-			MinForcedTimestamp: 0, // TODO If this batch is forced, this value must be different than zero. If it is a non forced sequence, then the value will be valid
+			MinForcedTimestamp: uint64(seq.ForcedBatchTimestamp),
 		}
 
 		batches = append(batches, batch)
@@ -571,7 +567,6 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 	}
 	t := time.Unix(int64(fullBlock.Time()), 0)
 	forcedBatch.ForcedAt = t
-
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
 		block := prepareBlock(vLog, t, fullBlock)
 		block.ForcedBatches = append(block.ForcedBatches, forcedBatch)

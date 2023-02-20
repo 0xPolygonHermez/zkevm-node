@@ -37,7 +37,7 @@ for each of the jobs looks like this:
 ```
 strategy:
   matrix:
-    go-version: [ 1.17.x ]
+    go-version: [ 1.18.x ]
     goarch: [ "amd64" ]
     e2e-group: [ 1, 2, 3 ]
 ```
@@ -54,7 +54,7 @@ groups 1 and 3, the matrix strategy config should look like:
 ```
 strategy:
   matrix:
-    go-version: [ 1.17.x ]
+    go-version: [ 1.18.x ]
     goarch: [ "amd64" ]
     e2e-group: [ 2 ]
 ```
@@ -62,7 +62,7 @@ If we want to re-add group 1:
 ```
 strategy:
   matrix:
-    go-version: [ 1.17.x ]
+    go-version: [ 1.18.x ]
     goarch: [ "amd64" ]
     e2e-group: [ 1, 2 ]
 ```

@@ -294,7 +294,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	if len(f.nextForcedBatches) > 0 {
 		lastBatchNumber, stateRoot, err = f.processForcedBatches(ctx, lastBatchNumber, stateRoot)
 		if err != nil {
-			log.Errorf("failed to process forced batch, err: %s", err)
+			log.Warnf("failed to process forced batch, err: %s", err)
 		}
 	}
 
@@ -545,12 +545,16 @@ func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot 
 	}
 	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, processRequest)
 	if err != nil {
-		// TODO: Think if need to design error handling for forced batches
-		log.Errorf("failed to process forced batch, err: %s", err)
-	} else {
-		stateRoot = response.NewStateRoot
-		lastBatchNumberInState += 1
+		log.Warnf("failed to process forced batch, err: %s", err)
 	}
+
+	f.nextGERMux.Lock()
+	f.lastGERHash = forcedBatch.GlobalExitRoot
+	f.nextGERMux.Unlock()
+
+	stateRoot = response.NewStateRoot
+	lastBatchNumberInState += 1
+
 	return lastBatchNumberInState, stateRoot
 }
 

@@ -114,8 +114,18 @@ type FinalizerCfg struct {
 	// GERFinalityNumberOfBlocks is number of blocks to consider GER final
 	GERFinalityNumberOfBlocks uint64 `mapstructure:"GERFinalityNumberOfBlocks"`
 
-	// ClosingSignalsManagerWaitForL1OperationsInSec is used by the closing signals manager to wait for its operation
-	ClosingSignalsManagerWaitForL1OperationsInSec types.Duration `mapstructure:"ClosingSignalsManagerWaitForL1OperationsInSec"`
+	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForCheckingL1Timeout types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingL1Timeout"`
+
+	// ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForCheckingGER types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingGER"`
+
+	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForCheckingForcedBatches types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingForcedBatches"`
+
+	// ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
+	ForcedBatchesFinalityNumberOfBlocks uint64 `mapstructure:"ForcedBatchesFinalityNumberOfBlocks"`
+
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
 	SenderAddress string `mapstructure:"SenderAddress"`

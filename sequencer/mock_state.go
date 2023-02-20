@@ -178,13 +178,13 @@ func (_m *StateMock) GetForcedBatch(ctx context.Context, forcedBatchNumber uint6
 	return r0, r1
 }
 
-// GetForcedBatchesSince provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
-func (_m *StateMock) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
-	ret := _m.Called(ctx, forcedBatchNumber, dbTx)
+// GetForcedBatchesSince provides a mock function with given fields: ctx, forcedBatchNumber, maxBlockNumber, dbTx
+func (_m *StateMock) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber uint64, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+	ret := _m.Called(ctx, forcedBatchNumber, maxBlockNumber, dbTx)
 
 	var r0 []*state.ForcedBatch
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []*state.ForcedBatch); ok {
-		r0 = rf(ctx, forcedBatchNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) []*state.ForcedBatch); ok {
+		r0 = rf(ctx, forcedBatchNumber, maxBlockNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*state.ForcedBatch)
@@ -192,8 +192,8 @@ func (_m *StateMock) GetForcedBatchesSince(ctx context.Context, forcedBatchNumbe
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, forcedBatchNumber, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, forcedBatchNumber, maxBlockNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

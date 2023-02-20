@@ -14,7 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
@@ -115,28 +115,31 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		if err != nil {
 			return nil, err
 		}
-		txs, err := s.state.GetTransactionsByBatchNumber(ctx, currentBatchNumToSequence, nil)
-		if err != nil {
-			return nil, err
-		}
-		sequences = append(sequences, types.Sequence{
+
+		seq := types.Sequence{
 			GlobalExitRoot: batch.GlobalExitRoot,
 			Timestamp:      batch.Timestamp.Unix(),
-			// ForceBatchesNum: TODO,
-			Txs:         txs,
-			BatchNumber: batch.BatchNumber,
-		})
+			BatchL2Data:    batch.BatchL2Data,
+			BatchNumber:    batch.BatchNumber,
+		}
 
+		if batch.ForcedBatchNum != nil {
+			forcedBatch, err := s.state.GetForcedBatch(ctx, *batch.ForcedBatchNum, nil)
+			if err != nil {
+				return nil, err
+			}
+			seq.ForcedBatchTimestamp = forcedBatch.ForcedAt.Unix()
+		}
+
+		sequences = append(sequences, seq)
 		// Check if can be send
 		sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
 		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
-
 		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
 			metrics.SequencesOvesizedDataError()
 			log.Infof("oversized Data on TX oldHash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
-			err = core.ErrOversizedData
+			err = txpool.ErrOversizedData
 		}
-
 		if err != nil {
 			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
@@ -189,7 +192,6 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	if errors.Is(err, ethman.ErrInsufficientAllowance) {
 		return nil, err
 	}
-
 	if isDataForEthTxTooBig(err) {
 		if len(sequences) == 1 {
 			// TODO: gracefully handle this situation by creating an L2 reorg
@@ -234,7 +236,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	// Unknown error
 	if len(sequences) == 1 {
 		// TODO: gracefully handle this situation by creating an L2 reorg
-		log.Fatalf(
+		log.Errorf(
 			"Error when estimating gas for BatchNum %d (alone in the sequences): %v",
 			currentBatchNumToSequence, err,
 		)
@@ -245,11 +247,12 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 		currentBatchNumToSequence, currentBatchNumToSequence+1, err,
 	)
 	sequences = sequences[:len(sequences)-1]
+
 	return sequences, nil
 }
 
 func isDataForEthTxTooBig(err error) bool {
 	return errors.Is(err, ethman.ErrGasRequiredExceedsAllowance) ||
-		errors.Is(err, core.ErrOversizedData) ||
+		errors.Is(err, txpool.ErrOversizedData) ||
 		errors.Is(err, ethman.ErrContentLengthTooLarge)
 }
