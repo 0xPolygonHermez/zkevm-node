@@ -2192,10 +2192,10 @@ func (p *PostgresStorage) AddDebugInfo(ctx context.Context, info *DebugInfo, dbT
 
 // AddTrustedReorg is used to store trusted reorgs
 func (p *PostgresStorage) AddTrustedReorg(ctx context.Context, reorg *TrustedReorg, dbTx pgx.Tx) error {
-	const insertTrustedReorgSQL = "INSERT INTO state.trusted_reorg (timestamp, batch_num, reason) VALUES ($1, $2, $3)"
+	const insertTrustedReorgSQL = "INSERT INTO state.trusted_reorg (timestamp, batch_num, reason) VALUES (NOW(), $2, $3)"
 
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, insertTrustedReorgSQL, reorg.Timestamp, reorg.BatchNumber, reorg.Reason)
+	_, err := e.Exec(ctx, insertTrustedReorgSQL, reorg.BatchNumber, reorg.Reason)
 	return err
 }
 

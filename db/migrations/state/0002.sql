@@ -28,7 +28,7 @@ ADD COLUMN sequencer_addr VARCHAR DEFAULT '0x00000000000000000000000000000000000
 
 CREATE TABLE IF NOT EXISTS state.trusted_reorg
 (
-    timestamp timestamp,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     batch_num BIGINT,
     reason    VARCHAR NOT NULL
 );

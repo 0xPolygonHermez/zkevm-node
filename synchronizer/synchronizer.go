@@ -33,6 +33,7 @@ type ClientSynchronizer struct {
 	isTrustedSequencer bool
 	etherMan           ethermanInterface
 	state              stateInterface
+	pool               poolInterface
 	ethTxManager       ethTxManager
 	ctx                context.Context
 	cancelCtx          context.CancelFunc
@@ -551,9 +552,13 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 
 	if reorgReasons.Len() > 0 {
 		reason := reorgReasons.String()
-		log.Warnf("Trusted Reorg detected for Batch Number: %d.\nReasons: %s", tBatch.BatchNumber, reason)
+		log.Warnf("Trusted Reorg detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
 		// Store trusted reorg register
-		err := s.state.AddTrustedReorg(s.ctx, tBatch.BatchNumber, reason, dbTx)
+		tr := state.TrustedReorg {
+			BatchNumber: tBatch.BatchNumber,
+			Reason: reason,
+		}
+		err := s.state.AddTrustedReorg(s.ctx, &tr, dbTx)
 		if err != nil {
 			log.Error("error storing tursted reorg register into the db. Error: ", err)
 		}
@@ -1100,10 +1105,11 @@ func (s *ClientSynchronizer) reorgPool(batchNumber uint64, dbTx pgx.Tx) error {
 
 	// Add txs to the pool
 	for _, tx := range txs {
-		err = s.pool.AddTx(s.ctx, tx)
+		err = s.pool.AddTx(s.ctx, *tx)
 		if err != nil {
 			log.Errorf("error storing tx into the pool again. TxHash: %s. BatchNumber: %d, error: %v", tx.Hash().String(), batchNumber, err)
 			return err
 		}
 	}
+	return nil
 }
