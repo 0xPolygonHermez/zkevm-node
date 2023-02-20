@@ -247,7 +247,5 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 
 // HandleL2Reorg handles the L2 reorg signal
 func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
-	// 1. Delete related txs from w.efficiencyList
-	// 2. Mark the affected addresses as "reorged" in w.Pool
-	// 3. Update these addresses (go to MT, update nonce and balance into w.Pool)
+	log.Fatal("L2 Reorg detected. Restarting to sync with the new L2 state...")
 }
