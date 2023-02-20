@@ -554,9 +554,9 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 		reason := reorgReasons.String()
 		log.Warnf("Trusted Reorg detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
 		// Store trusted reorg register
-		tr := state.TrustedReorg {
+		tr := state.TrustedReorg{
 			BatchNumber: tBatch.BatchNumber,
-			Reason: reason,
+			Reason:      reason,
 		}
 		err := s.state.AddTrustedReorg(s.ctx, &tr, dbTx)
 		if err != nil {

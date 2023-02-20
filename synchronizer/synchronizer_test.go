@@ -250,9 +250,9 @@ func TestTrustedStateReorg(t *testing.T) {
 				}
 			},
 			getTrustedReorg: func(m *mocks, batchNumber, timestamp uint64) state.TrustedReorg {
-				return state.TrustedReorg {
+				return state.TrustedReorg{
 					BatchNumber: batchNumber,
-					Reason: "Different field BatchL2Data. Virtual: , Trusted: 01\n",
+					Reason:      "Different field BatchL2Data. Virtual: , Trusted: 01\n",
 				}
 			},
 		},
@@ -268,9 +268,9 @@ func TestTrustedStateReorg(t *testing.T) {
 				}
 			},
 			getTrustedReorg: func(m *mocks, batchNumber, timestamp uint64) state.TrustedReorg {
-				return state.TrustedReorg {
+				return state.TrustedReorg{
 					BatchNumber: batchNumber,
-					Reason: "Different field GlobalExitRoot. Virtual: 0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20, Trusted: 0x0000000000000000000000000000000000000000000000000000000999888777\n",
+					Reason:      "Different field GlobalExitRoot. Virtual: 0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20, Trusted: 0x0000000000000000000000000000000000000000000000000000000999888777\n",
 				}
 			},
 		},
@@ -286,9 +286,9 @@ func TestTrustedStateReorg(t *testing.T) {
 				}
 			},
 			getTrustedReorg: func(m *mocks, batchNumber, timestamp uint64) state.TrustedReorg {
-				return state.TrustedReorg {
+				return state.TrustedReorg{
 					BatchNumber: batchNumber,
-					Reason: "Different field Timestamp. Virtual: " + strconv.FormatUint(timestamp, 10) + ", Trusted: 0\n",
+					Reason:      "Different field Timestamp. Virtual: " + strconv.FormatUint(timestamp, 10) + ", Trusted: 0\n",
 				}
 			},
 		},
@@ -304,9 +304,9 @@ func TestTrustedStateReorg(t *testing.T) {
 				}
 			},
 			getTrustedReorg: func(m *mocks, batchNumber, timestamp uint64) state.TrustedReorg {
-				return state.TrustedReorg {
+				return state.TrustedReorg{
 					BatchNumber: batchNumber,
-					Reason: "Different field Coinbase. Virtual: 0x0000000000000000000000000000000000000222, Trusted: 0x0000000000000000000000000000000999888777\n",
+					Reason:      "Different field Coinbase. Virtual: 0x0000000000000000000000000000000000000222, Trusted: 0x0000000000000000000000000000000999888777\n",
 				}
 			},
 		},
