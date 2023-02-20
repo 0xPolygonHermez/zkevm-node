@@ -246,8 +246,8 @@ func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx typ
 	return nil
 }
 
-// DeleteTransactions deletes transactions from the pool
-func (p *Pool) DeleteTransactions(ctx context.Context, transactions []*types.Transaction) error {
+// DeleteReorgedTransactions deletes transactions from the pool
+func (p *Pool) DeleteReorgedTransactions(ctx context.Context, transactions []*types.Transaction) error {
 	hashes := []common.Hash{}
 
 	for _, tx := range transactions {
