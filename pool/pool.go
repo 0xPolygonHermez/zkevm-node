@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -77,35 +78,25 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
 	// Execute transaction to calculate its zkCounters
-	// TODO: Decide if we activate this
-	/*
-		zkCounters, stateRoot, err := p.PreExecuteTx(ctx, tx)
-		if err != nil {
-			poolTx.ZKCounters = zkCounters
-			poolTx.PreprocessedStateRoot = stateRoot
-		}
-	*/
+	zkCounters, err := p.PreExecuteTx(ctx, tx)
+	if err != nil {
+		poolTx.ZKCounters = zkCounters
+	}
+
+	if executor.IsExecutorOutOfCountersError(executor.ExecutorErrorCode(err)) {
+		return err
+	}
 
 	return p.storage.AddTx(ctx, poolTx)
 }
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, common.Hash, error) {
-	sender, err := state.GetSender(tx)
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error) {
+	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
-		return state.ZKCounters{}, common.Hash{}, err
+		return state.ZKCounters{}, err
 	}
-
-	stateRoot, err := p.storage.GetPreprocessedStateRoot(ctx, sender)
-	if err != nil {
-		return state.ZKCounters{}, common.Hash{}, err
-	}
-
-	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, stateRoot, nil)
-	if err != nil {
-		return state.ZKCounters{}, common.Hash{}, err
-	}
-	return processBatchResponse.UsedZkCounters, processBatchResponse.NewStateRoot, nil
+	return processBatchResponse.UsedZkCounters, nil
 }
 
 // GetPendingTxs from the pool
