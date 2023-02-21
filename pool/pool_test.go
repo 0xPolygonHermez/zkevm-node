@@ -124,7 +124,7 @@ func Test_AddTx(t *testing.T) {
 		t.Error(err)
 	}
 
-	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.transaction")
+	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status, used_steps FROM pool.transaction")
 	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
@@ -133,7 +133,8 @@ func Test_AddTx(t *testing.T) {
 	c := 0
 	for rows.Next() {
 		var hash, encoded, decoded, status string
-		err := rows.Scan(&hash, &encoded, &decoded, &status)
+		var usedSteps int
+		err := rows.Scan(&hash, &encoded, &decoded, &status, &usedSteps)
 		if err != nil {
 			t.Error(err)
 		}
@@ -143,6 +144,7 @@ func Test_AddTx(t *testing.T) {
 		assert.Equal(t, txRLPHash, encoded, "invalid encoded")
 		assert.JSONEq(t, string(b), decoded, "invalid decoded")
 		assert.Equal(t, string(pool.TxStatusPending), status, "invalid tx status")
+		assert.Greater(t, usedSteps, 0, "invalid used steps")
 		c++
 	}
 
@@ -974,14 +976,14 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 func newState(sqlDB *pgxpool.Pool) *state.State {
 	ctx := context.Background()
 	stateDb := state.NewPostgresStorage(sqlDB)
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.104.156")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorServerConfig)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
-	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000}, stateDb, executorClient, stateTree)
+	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), CurrentForkID: 1}, stateDb, executorClient, stateTree)
 	return st
 }
 

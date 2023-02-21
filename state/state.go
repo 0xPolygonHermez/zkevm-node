@@ -260,7 +260,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			Data:     transaction.Data(),
 		})
 
-		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID)
+		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, nil)
 		if err != nil {
 			log.Errorf("error encoding unsigned transaction ", err)
 			return false, false, gasUsed, err
@@ -1152,7 +1152,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 }
 
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
-func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, nonce uint64, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	sender, err := GetSender(*tx)
 	if err != nil {
 		return nil, err
@@ -1163,13 +1163,13 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 		return nil, err
 	}
 
-	return s.internalProcessUnsignedTransaction(ctx, tx, sender, &lastL2BlockNumber, false, dbTx)
+	return s.internalProcessUnsignedTransaction(ctx, tx, sender, &lastL2BlockNumber, false, &nonce, dbTx)
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
 	result := new(runtime.ExecutionResult)
-	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, nil, dbTx)
 	if err != nil {
 		result.Err = err
 	}
@@ -1187,7 +1187,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, forcedNonce *uint64, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
 	if err != nil {
 		return nil, err
@@ -1202,7 +1202,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		previousBatch = lastBatches[1]
 	}
 
-	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID)
+	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, forcedNonce)
 	if err != nil {
 		log.Errorf("error encoding unsigned transaction ", err)
 		return nil, err

@@ -79,7 +79,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 	// Execute transaction to calculate its zkCounters
 	zkCounters, err := p.PreExecuteTx(ctx, tx)
-	if err != nil {
+	if err == nil {
 		poolTx.ZKCounters = zkCounters
 	}
 
@@ -92,7 +92,17 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
 func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error) {
-	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
+	sender, err := state.GetSender(tx)
+	if err != nil {
+		return state.ZKCounters{}, err
+	}
+
+	nonce, err := p.storage.GetNonce(ctx, sender)
+	if err != nil {
+		return state.ZKCounters{}, err
+	}
+
+	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nonce, nil)
 	if err != nil {
 		return state.ZKCounters{}, err
 	}

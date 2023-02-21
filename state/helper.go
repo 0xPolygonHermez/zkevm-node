@@ -100,7 +100,7 @@ func EncodeTransaction(tx types.Transaction) ([]byte, error) {
 }
 
 // EncodeUnsignedTransaction RLP encodes the given unsigned transaction
-func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64) ([]byte, error) {
+func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce *uint64) ([]byte, error) {
 	v, _ := new(big.Int).SetString("0x1c", 0)
 	r, _ := new(big.Int).SetString("0xa54492cfacf71aef702421b7fbc70636537a7b2fbe5718c5ed970a001bb7756b", 0)
 	s, _ := new(big.Int).SetString("0x2e9fb27acc75955b898f0b12ec52aa34bf08f01db654374484b80bf12f0d841e", 0)
@@ -109,6 +109,11 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64) ([]byte, er
 
 	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), chainID //nolint:gomnd
 	log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID)
+
+	if forcedNonce != nil {
+		nonce = *forcedNonce
+		log.Debug("Forced nonce: ", nonce)
+	}
 
 	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
 		nonce,
