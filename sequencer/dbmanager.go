@@ -162,25 +162,41 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
 
-		// TODO: Update this check to have in not check for OldStateRoot only the last L2 Block as the StateRoot could
-		// be updated on new GER even without any txs/l2blocksgit sdt
-		//// Check if the Tx is still valid in the state to detect reorgs
-		//lastStateRoot, err := d.state.GetLastStateRoot(d.ctx, dbTx)
-		//if err != nil {
-		//	err = dbTx.Rollback(d.ctx)
-		//	if err != nil {
-		//		log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
-		//	}
-		//	d.txsStore.Wg.Done()
-		//	continue
-		//}
+		// Check if the Tx is still valid in the state to detect reorgs
+		lastStateRoot, err := d.state.GetLastStateRoot(d.ctx, dbTx)
+		if err != nil {
+			err = dbTx.Rollback(d.ctx)
+			if err != nil {
+				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
+			}
+			d.txsStore.Wg.Done()
+			continue
+		}
 
-		//if txToStore.previousL2BlockStateRoot != state.ZeroHash && lastStateRoot != txToStore.previousL2BlockStateRoot {
-		//	log.Warnf("L2 reorg detected. Expected OldStateRoot: %v actual OldStateRoot: %v", lastStateRoot, txToStore.previousL2BlockStateRoot)
-		//	d.l2ReorgCh <- L2ReorgEvent{}
-		//	d.txsStore.Wg.Done()
-		//	continue
-		//}
+		if txToStore.previousL2BlockStateRoot != state.ZeroHash && lastStateRoot != txToStore.previousL2BlockStateRoot {
+			// We may have closed the batch because of a new GER without transactions
+			// If there are no transactions in the batch when closing it, we can not base our check in l2 blocks
+			// so we will check against the latest closed batch
+
+			lastBatch, err := d.state.GetLastClosedBatch(d.ctx, dbTx)
+			if err != nil {
+				err = dbTx.Rollback(d.ctx)
+				if err != nil {
+					log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
+				}
+				d.txsStore.Wg.Done()
+				continue
+			}
+
+			lastStateRoot = lastBatch.StateRoot
+
+			if lastStateRoot != txToStore.previousL2BlockStateRoot {
+				log.Warnf("L2 reorg detected. Expected OldStateRoot: %v actual OldStateRoot: %v", lastStateRoot, txToStore.previousL2BlockStateRoot)
+				d.l2ReorgCh <- L2ReorgEvent{}
+				d.txsStore.Wg.Done()
+				continue
+			}
+		}
 
 		err = d.StoreProcessedTransaction(d.ctx, txToStore.batchNumber, txToStore.txResponse, txToStore.coinbase, txToStore.timestamp, dbTx)
 		if err != nil {
@@ -458,14 +474,6 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 	}
 
 	return nil
-}
-
-// MarkReorgedTxsAsPending marks all reorged tx as pending in the pool
-func (d *dbManager) MarkReorgedTxsAsPending(ctx context.Context) {
-	err := d.txPool.MarkReorgedTxsAsPending(ctx)
-	if err != nil {
-		log.Errorf("error marking reorged txs as pending: %v", err)
-	}
 }
 
 // ProcessForcedBatch process a forced batch

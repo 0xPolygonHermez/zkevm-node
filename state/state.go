@@ -260,7 +260,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			Data:     transaction.Data(),
 		})
 
-		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID)
+		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, nil)
 		if err != nil {
 			log.Errorf("error encoding unsigned transaction ", err)
 			return false, false, gasUsed, err
@@ -1151,14 +1151,46 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	return jsTracer.GetResult()
 }
 
+// PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
+func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, nonce uint64, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	sender, err := GetSender(*tx)
+	if err != nil {
+		return nil, err
+	}
+
+	lastL2BlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.internalProcessUnsignedTransaction(ctx, tx, sender, &lastL2BlockNumber, false, &nonce, dbTx)
+}
+
 // ProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
 	result := new(runtime.ExecutionResult)
-
-	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, nil, dbTx)
 	if err != nil {
 		result.Err = err
-		return result
+	}
+
+	if response.Responses[0] != nil {
+		r := response.Responses[0]
+		result.ReturnValue = r.ReturnValue
+		result.GasLeft = r.GasLeft
+		result.GasUsed = r.GasUsed
+		result.CreateAddress = r.CreateAddress
+		result.StateRoot = r.StateRoot.Bytes()
+	}
+
+	return result
+}
+
+// ProcessUnsignedTransaction processes the given unsigned transaction.
+func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, forcedNonce *uint64, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get latest batch from the database to get globalExitRoot and Timestamp
@@ -1170,11 +1202,10 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		previousBatch = lastBatches[1]
 	}
 
-	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID)
+	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, forcedNonce)
 	if err != nil {
 		log.Errorf("error encoding unsigned transaction ", err)
-		result.Err = err
-		return result
+		return nil, err
 	}
 
 	// Create Batch
@@ -1196,53 +1227,44 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		processBatchRequest.NoCounters = cTrue
 	}
 
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
 	// log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.From]: %v", processBatchRequest.From)
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.From]: %v", processBatchRequest.From)
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
 		log.Errorf("error processing unsigned transaction ", err)
-		result.Err = err
-		return result
+		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
 		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
-		result.Err = err
-		return result
+		return nil, err
 	}
 
 	response, err := s.convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
 	if err != nil {
-		result.Err = err
-		return result
+		return nil, err
 	}
 
-	r := response.Responses[0]
-	result.ReturnValue = r.ReturnValue
-	result.GasLeft = r.GasLeft
-	result.GasUsed = r.GasUsed
-	result.CreateAddress = r.CreateAddress
-	result.StateRoot = r.StateRoot.Bytes()
 	if processBatchResponse.Responses[0].Error != pb.RomError(executor.ROM_ERROR_NO_ERROR) {
 		err := executor.RomErr(processBatchResponse.Responses[0].Error)
 		if isEVMRevertError(err) {
-			result.Err = constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
+			return nil, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
 		} else {
-			result.Err = err
+			return nil, err
 		}
 	}
 
-	return result
+	return response, nil
 }
 
 // GetTree returns State inner tree

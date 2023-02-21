@@ -326,8 +326,8 @@ func (p *PostgresPoolStorage) UpdateTxsStatus(ctx context.Context, hashes []stri
 	return nil
 }
 
-// DeleteTxsByHashes deletes txs by their hashes
-func (p *PostgresPoolStorage) DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error {
+// DeleteTransactionsByHashes deletes txs by their hashes
+func (p *PostgresPoolStorage) DeleteTransactionsByHashes(ctx context.Context, hashes []common.Hash) error {
 	hh := make([]string, 0, len(hashes))
 	for _, h := range hashes {
 		hh = append(hh, h.Hex())
@@ -501,11 +501,14 @@ func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash)
 	if err := tx.UnmarshalBinary(b); err != nil {
 		return nil, err
 	}
-	return &pool.Transaction{
+
+	poolTx := &pool.Transaction{
 		ReceivedAt:  receivedAt,
 		Status:      pool.TxStatus(status),
 		Transaction: *tx,
-	}, nil
+	}
+
+	return poolTx, nil
 }
 
 func scanTx(rows pgx.Rows) (*pool.Transaction, error) {

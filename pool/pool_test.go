@@ -124,7 +124,7 @@ func Test_AddTx(t *testing.T) {
 		t.Error(err)
 	}
 
-	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.transaction")
+	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status, used_steps FROM pool.transaction")
 	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
@@ -133,7 +133,8 @@ func Test_AddTx(t *testing.T) {
 	c := 0
 	for rows.Next() {
 		var hash, encoded, decoded, status string
-		err := rows.Scan(&hash, &encoded, &decoded, &status)
+		var usedSteps int
+		err := rows.Scan(&hash, &encoded, &decoded, &status, &usedSteps)
 		if err != nil {
 			t.Error(err)
 		}
@@ -143,6 +144,7 @@ func Test_AddTx(t *testing.T) {
 		assert.Equal(t, txRLPHash, encoded, "invalid encoded")
 		assert.JSONEq(t, string(b), decoded, "invalid decoded")
 		assert.Equal(t, string(pool.TxStatusPending), status, "invalid tx status")
+		assert.Greater(t, usedSteps, 0, "invalid used steps")
 		c++
 	}
 
@@ -669,71 +671,6 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	assert.Equal(t, expectedGasPrice, gasPrice)
 }
 
-func TestMarkReorgedTxsAsPending(t *testing.T) {
-	initOrResetDB()
-	ctx := context.Background()
-	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	defer stateSqlDB.Close() //nolint:gosec,errcheck
-
-	st := newState(stateSqlDB)
-
-	genesisBlock := state.Block{
-		BlockNumber: 0,
-		BlockHash:   state.ZeroHash,
-		ParentHash:  state.ZeroHash,
-		ReceivedAt:  time.Now(),
-	}
-	dbTx, err := st.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
-	require.NoError(t, err)
-	require.NoError(t, dbTx.Commit(ctx))
-
-	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
-	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
-	require.NoError(t, err)
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
-	require.NoError(t, err)
-
-	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	signedTx1, err := auth.Signer(auth.From, tx1)
-	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx1); err != nil {
-		t.Error(err)
-	}
-
-	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	signedTx2, err := auth.Signer(auth.From, tx2)
-	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx2); err != nil {
-		t.Error(err)
-	}
-
-	err = p.UpdateTxsStatus(ctx, []string{signedTx1.Hash().String(), signedTx2.Hash().String()}, pool.TxStatusSelected)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = p.MarkReorgedTxsAsPending(ctx)
-	require.NoError(t, err)
-	txs, err := p.GetPendingTxs(ctx, false, 100)
-	require.NoError(t, err)
-	require.Equal(t, signedTx1.Hash().Hex(), txs[1].Hash().Hex())
-	require.Equal(t, signedTx2.Hash().Hex(), txs[0].Hash().Hex())
-}
-
 func TestGetPendingTxSince(t *testing.T) {
 	initOrResetDB()
 
@@ -834,7 +771,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	assert.Equal(t, 0, len(txHashes))
 }
 
-func Test_DeleteTxsByHashes(t *testing.T) {
+func Test_DeleteTransactionsByHashes(t *testing.T) {
 	ctx := context.Background()
 	initOrResetDB()
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
@@ -892,7 +829,7 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.DeleteTxsByHashes(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()})
+	err = p.DeleteTransactionsByHashes(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1039,14 +976,14 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 func newState(sqlDB *pgxpool.Pool) *state.State {
 	ctx := context.Background()
 	stateDb := state.NewPostgresStorage(sqlDB)
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.104.156")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorServerConfig)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
-	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000}, stateDb, executorClient, stateTree)
+	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), CurrentForkID: 1}, stateDb, executorClient, stateTree)
 	return st
 }
 

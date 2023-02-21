@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -76,7 +77,36 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
+	// Execute transaction to calculate its zkCounters
+	zkCounters, err := p.PreExecuteTx(ctx, tx)
+	if err == nil {
+		poolTx.ZKCounters = zkCounters
+	}
+
+	if executor.IsExecutorOutOfCountersError(executor.ExecutorErrorCode(err)) {
+		return err
+	}
+
 	return p.storage.AddTx(ctx, poolTx)
+}
+
+// PreExecuteTx executes a transaction to calculate its zkCounters
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error) {
+	sender, err := state.GetSender(tx)
+	if err != nil {
+		return state.ZKCounters{}, err
+	}
+
+	nonce, err := p.storage.GetNonce(ctx, sender)
+	if err != nil {
+		return state.ZKCounters{}, err
+	}
+
+	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nonce, nil)
+	if err != nil {
+		return state.ZKCounters{}, err
+	}
+	return processBatchResponse.UsedZkCounters, nil
 }
 
 // GetPendingTxs from the pool
@@ -246,35 +276,13 @@ func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx typ
 	return nil
 }
 
-// MarkReorgedTxsAsPending updated reorged txs status from selected to pending
-func (p *Pool) MarkReorgedTxsAsPending(ctx context.Context) error {
-	// TODO: Change status to "reorged"
+// DeleteReorgedTransactions deletes transactions from the pool
+func (p *Pool) DeleteReorgedTransactions(ctx context.Context, transactions []*types.Transaction) error {
+	hashes := []common.Hash{}
 
-	// get selected transactions from pool
-	selectedTxs, err := p.GetSelectedTxs(ctx, 0)
-	if err != nil {
-		return err
+	for _, tx := range transactions {
+		hashes = append(hashes, tx.Hash())
 	}
 
-	txsHashesToUpdate := []string{}
-	// look for non existent transactions on state
-	for _, selectedTx := range selectedTxs {
-		txHash := selectedTx.Hash()
-		_, err := p.state.GetTransactionByHash(ctx, txHash, nil)
-		if errors.Is(err, state.ErrNotFound) {
-			txsHashesToUpdate = append(txsHashesToUpdate, txHash.String())
-		} else if err != nil {
-			return err
-		}
-	}
-
-	// revert pool state from selected to pending on the pool
-	err = p.UpdateTxsStatus(ctx, txsHashesToUpdate, TxStatusPending)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return p.storage.DeleteTransactionsByHashes(ctx, hashes)
 }
-
-// TODO: Create a method for the synchronizer to update Tx Statuses to "pending" or "reorged"

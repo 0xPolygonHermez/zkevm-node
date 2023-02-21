@@ -433,11 +433,6 @@ func (_m *DbManagerMock) IsBatchClosed(ctx context.Context, batchNum uint64) (bo
 	return r0, r1
 }
 
-// MarkReorgedTxsAsPending provides a mock function with given fields: ctx
-func (_m *DbManagerMock) MarkReorgedTxsAsPending(ctx context.Context) {
-	_m.Called(ctx)
-}
-
 // OpenBatch provides a mock function with given fields: ctx, processingContext, dbTx
 func (_m *DbManagerMock) OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, processingContext, dbTx)

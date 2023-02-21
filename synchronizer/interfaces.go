@@ -49,10 +49,17 @@ type stateInterface interface {
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
 	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
+	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
+	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }
 
 type ethTxManager interface {
 	Reorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx) error
+}
+
+type poolInterface interface {
+	DeleteReorgedTransactions(ctx context.Context, txs []*types.Transaction) error
+	AddTx(ctx context.Context, tx types.Transaction) error
 }

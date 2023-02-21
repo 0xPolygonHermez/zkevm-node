@@ -33,8 +33,8 @@ func (_m *PoolMock) DeleteTransactionByHash(ctx context.Context, hash common.Has
 	return r0
 }
 
-// DeleteTxsByHashes provides a mock function with given fields: ctx, hashes
-func (_m *PoolMock) DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error {
+// DeleteTransactionsByHashes provides a mock function with given fields: ctx, hashes
+func (_m *PoolMock) DeleteTransactionsByHashes(ctx context.Context, hashes []common.Hash) error {
 	ret := _m.Called(ctx, hashes)
 
 	var r0 error
@@ -91,20 +91,6 @@ func (_m *PoolMock) GetTxZkCountersByHash(ctx context.Context, hash common.Hash)
 	}
 
 	return r0, r1
-}
-
-// MarkReorgedTxsAsPending provides a mock function with given fields: ctx
-func (_m *PoolMock) MarkReorgedTxsAsPending(ctx context.Context) error {
-	ret := _m.Called(ctx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }
 
 // MarkWIPTxsAsPending provides a mock function with given fields: ctx

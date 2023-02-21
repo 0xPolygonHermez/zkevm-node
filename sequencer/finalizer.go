@@ -400,6 +400,8 @@ func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *T
 	f.txsStore.Ch <- &txToStore{
 		batchNumber:              f.batch.batchNumber,
 		txResponse:               txResponse,
+		coinbase:                 f.batch.coinbase,
+		timestamp:                f.batch.timestamp,
 		previousL2BlockStateRoot: previousL2BlockStateRoot,
 	}
 

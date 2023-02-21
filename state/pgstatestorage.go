@@ -2189,3 +2189,34 @@ func (p *PostgresStorage) AddDebugInfo(ctx context.Context, info *DebugInfo, dbT
 	_, err := e.Exec(ctx, insertDebugInfoSQL, info.ErrorType, info.Timestamp, info.Payload)
 	return err
 }
+
+// AddTrustedReorg is used to store trusted reorgs
+func (p *PostgresStorage) AddTrustedReorg(ctx context.Context, reorg *TrustedReorg, dbTx pgx.Tx) error {
+	const insertTrustedReorgSQL = "INSERT INTO state.trusted_reorg (timestamp, batch_num, reason) VALUES (NOW(), $1, $2)"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, insertTrustedReorgSQL, reorg.BatchNumber, reorg.Reason)
+	return err
+}
+
+// GetReorgedTransactions returns the transactions that were reorged
+func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []*types.Transaction, err error) {
+	const getReorgedTransactionsSql = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num >= $1 ORDER BY l2_block_num ASC"
+	e := p.getExecQuerier(dbTx)
+	rows, err := e.Query(ctx, getReorgedTransactionsSql, batchNumber)
+	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	encodedTxs := make([]string, 0, len(rows.RawValues()))
+
+	for i := 0; i < len(encodedTxs); i++ {
+		tx, err := DecodeTx(encodedTxs[i])
+		if err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+	return
+}
