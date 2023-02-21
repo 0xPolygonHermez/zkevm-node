@@ -464,9 +464,6 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 	copy(newStateRoot[:], inputs.NewStateRoot)
 
 	proof := common.Hex2Bytes(inputs.FinalProof.Proof)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	const pendStateNum = 0 // TODO hardcoded for now until we implement the pending state feature
 
