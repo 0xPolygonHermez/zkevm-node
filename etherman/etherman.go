@@ -463,15 +463,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 	var newStateRoot [32]byte
 	copy(newStateRoot[:], inputs.NewStateRoot)
 
-	proofA, err := strSliceToBigIntArray(inputs.FinalProof.Proof.ProofA)
-	if err != nil {
-		return nil, nil, err
-	}
-	proofB, err := proofSlcToIntArray(inputs.FinalProof.Proof.ProofB)
-	if err != nil {
-		return nil, nil, err
-	}
-	proofC, err := strSliceToBigIntArray(inputs.FinalProof.Proof.ProofC)
+	proof := common.Hex2Bytes(inputs.FinalProof.Proof)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -485,9 +477,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 		newVerifiedBatch,
 		newLocalExitRoot,
 		newStateRoot,
-		proofA,
-		proofB,
-		proofC,
+		proof,
 	)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {

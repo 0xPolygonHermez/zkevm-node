@@ -1099,19 +1099,9 @@
 				"type": "bytes32"
 			},
 			{
-				"internalType": "uint256[2]",
-				"name": "proofA",
-				"type": "uint256[2]"
-			},
-			{
-				"internalType": "uint256[2][2]",
-				"name": "proofB",
-				"type": "uint256[2][2]"
-			},
-			{
-				"internalType": "uint256[2]",
-				"name": "proofC",
-				"type": "uint256[2]"
+				"internalType": "bytes",
+				"name": "proof",
+				"type": "bytes"
 			}
 		],
 		"name": "overridePendingState",
@@ -1225,19 +1215,9 @@
 				"type": "bytes32"
 			},
 			{
-				"internalType": "uint256[2]",
-				"name": "proofA",
-				"type": "uint256[2]"
-			},
-			{
-				"internalType": "uint256[2][2]",
-				"name": "proofB",
-				"type": "uint256[2][2]"
-			},
-			{
-				"internalType": "uint256[2]",
-				"name": "proofC",
-				"type": "uint256[2]"
+				"internalType": "bytes",
+				"name": "proof",
+				"type": "bytes"
 			}
 		],
 		"name": "proveNonDeterministicPendingState",
@@ -1574,19 +1554,9 @@
 				"type": "bytes32"
 			},
 			{
-				"internalType": "uint256[2]",
-				"name": "proofA",
-				"type": "uint256[2]"
-			},
-			{
-				"internalType": "uint256[2][2]",
-				"name": "proofB",
-				"type": "uint256[2][2]"
-			},
-			{
-				"internalType": "uint256[2]",
-				"name": "proofC",
-				"type": "uint256[2]"
+				"internalType": "bytes",
+				"name": "proof",
+				"type": "bytes"
 			}
 		],
 		"name": "verifyBatches",
@@ -1622,19 +1592,9 @@
 				"type": "bytes32"
 			},
 			{
-				"internalType": "uint256[2]",
-				"name": "proofA",
-				"type": "uint256[2]"
-			},
-			{
-				"internalType": "uint256[2][2]",
-				"name": "proofB",
-				"type": "uint256[2][2]"
-			},
-			{
-				"internalType": "uint256[2]",
-				"name": "proofC",
-				"type": "uint256[2]"
+				"internalType": "bytes",
+				"name": "proof",
+				"type": "bytes"
 			}
 		],
 		"name": "verifyBatchesTrustedAggregator",

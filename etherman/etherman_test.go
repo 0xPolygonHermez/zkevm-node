@@ -211,12 +211,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 	// Mine the tx in a block
 	ethBackend.Commit()
 
-	var (
-		proofA = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
-		proofC = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
-		proofB = [2][2]*big.Int{proofC, proofC}
-	)
-	_, err = etherman.PoE.VerifyBatchesTrustedAggregator(auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, proofA, proofB, proofC)
+	_, err = etherman.PoE.VerifyBatchesTrustedAggregator(auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, []byte{})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
