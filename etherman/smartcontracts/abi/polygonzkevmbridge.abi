@@ -237,11 +237,6 @@
 	{
 		"inputs": [
 			{
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			},
-			{
 				"internalType": "uint32",
 				"name": "destinationNetwork",
 				"type": "uint32"
@@ -255,6 +250,16 @@
 				"internalType": "uint256",
 				"name": "amount",
 				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "token",
+				"type": "address"
+			},
+			{
+				"internalType": "bool",
+				"name": "forceUpdateGlobalExitRoot",
+				"type": "bool"
 			},
 			{
 				"internalType": "bytes",
@@ -278,6 +283,11 @@
 				"internalType": "address",
 				"name": "destinationAddress",
 				"type": "address"
+			},
+			{
+				"internalType": "bool",
+				"name": "forceUpdateGlobalExitRoot",
+				"type": "bool"
 			},
 			{
 				"internalType": "bytes",
@@ -601,6 +611,19 @@
 	},
 	{
 		"inputs": [],
+		"name": "lastUpdatedDepositCount",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "networkID",
 		"outputs": [
 			{
@@ -681,6 +704,13 @@
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "updateGlobalExitRoot",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
