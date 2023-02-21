@@ -1,13 +1,11 @@
-package shared
+package params
 
 import (
 	"context"
-	"math/big"
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -29,6 +27,4 @@ var (
 	To = common.HexToAddress(ToAddress)
 	// PrivateKey is the private key of the sender
 	PrivateKey, _ = crypto.HexToECDSA(strings.TrimPrefix(SequencerPrivateKey, "0x"))
-	// Auth is the auth of the sender
-	Auth, _ = bind.NewKeyedTransactorWithChainID(PrivateKey, new(big.Int).SetUint64(ChainID))
 )

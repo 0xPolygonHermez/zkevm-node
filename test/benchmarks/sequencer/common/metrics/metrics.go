@@ -10,7 +10,7 @@ import (
 	metricsLib "github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	metricsState "github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/shared"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 )
 
@@ -35,7 +35,7 @@ func CalculateAndPrint(prometheusResp *http.Response, profilingResult string, el
 	log.Info("##########")
 	log.Info("# Result #")
 	log.Info("##########")
-	log.Infof("Total time took for the sequencer to select all txs from the pool: %v", elapsed)
+	log.Infof("Total time (including setup of environment and starting containers): %v", elapsed)
 
 	if prometheusResp != nil {
 		log.Info("######################")
@@ -45,7 +45,6 @@ func CalculateAndPrint(prometheusResp *http.Response, profilingResult string, el
 		actualExecutorTime := executorTime - executorTimeSub
 		PrintPrometheus(actualTotalTime, actualExecutorTime, workerTime)
 		log.Infof("[Transactions per second]: %v", float64(nTxs)/actualTotalTime)
-
 	}
 	if profilingResult != "" {
 		log.Info("#####################")
@@ -93,7 +92,7 @@ func GetValues(metricsResponse *http.Response) (float64, float64, float64, error
 // FetchPrometheus fetches the prometheus metrics
 func FetchPrometheus() (*http.Response, error) {
 	log.Infof("Fetching prometheus metrics ...")
-	return http.Get(fmt.Sprintf("http://localhost:%d%s", shared.PrometheusPort, metricsLib.Endpoint))
+	return http.Get(fmt.Sprintf("http://localhost:%d%s", params.PrometheusPort, metricsLib.Endpoint))
 }
 
 // FetchProfiling fetches the profiling metrics

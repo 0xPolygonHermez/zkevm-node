@@ -1105,6 +1105,17 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 	return block, nil
 }
 
+// GetLastL2BlockCreatedAt gets the timestamp of the last l2 block
+func (p *PostgresStorage) GetLastL2BlockCreatedAt(ctx context.Context, dbTx pgx.Tx) (*time.Time, error) {
+	var createdAt time.Time
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, "SELECT created_at FROM state.l2block b order by b.block_num desc LIMIT 1").Scan(&createdAt)
+	if err != nil {
+		return nil, err
+	}
+	return &createdAt, nil
+}
+
 // GetTransactionByHash gets a transaction accordingly to the provided transaction hash
 func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
 	var encoded string
