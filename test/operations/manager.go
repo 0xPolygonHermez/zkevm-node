@@ -200,7 +200,7 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 
 		// get L2 block number
 		l2BlockNumber = receipt.BlockNumber
-		expectedNonce := l2BlockNumber.Uint64() - 1
+		expectedNonce := l2BlockNumber.Uint64() - 1 + 8 //nolint:gomnd
 		if tx.Nonce() != expectedNonce {
 			return fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
 		}

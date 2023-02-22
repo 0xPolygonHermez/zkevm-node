@@ -63,7 +63,7 @@ func TestGEREvent(t *testing.T) {
 
 	amount := big.NewInt(1000000000000000)
 	auth.Value = amount
-	_, err = br.BridgeAsset(auth, common.Address{}, 1, auth.From, amount, []byte{})
+	_, err = br.BridgeAsset(auth, 1, auth.From, amount, common.Address{}, true, []byte{})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -127,7 +127,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 
 	// Make a bridge tx
 	auth.Value = big.NewInt(1000000000000000)
-	_, err = br.BridgeAsset(auth, common.Address{}, 1, auth.From, auth.Value, []byte{})
+	_, err = br.BridgeAsset(auth, 1, auth.From, auth.Value, common.Address{}, true, []byte{})
 	require.NoError(t, err)
 	ethBackend.Commit()
 	auth.Value = big.NewInt(0)
@@ -211,12 +211,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 	// Mine the tx in a block
 	ethBackend.Commit()
 
-	var (
-		proofA = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
-		proofC = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
-		proofB = [2][2]*big.Int{proofC, proofC}
-	)
-	_, err = etherman.PoE.VerifyBatchesTrustedAggregator(auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, proofA, proofB, proofC)
+	_, err = etherman.PoE.VerifyBatchesTrustedAggregator(auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, []byte{})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -300,7 +295,7 @@ func TestSendSequences(t *testing.T) {
 
 	// Make a bridge tx
 	auth.Value = big.NewInt(1000000000000000)
-	_, err = br.BridgeAsset(auth, common.Address{}, 1, auth.From, auth.Value, []byte{})
+	_, err = br.BridgeAsset(auth, 1, auth.From, auth.Value, common.Address{}, true, []byte{})
 	require.NoError(t, err)
 	ethBackend.Commit()
 	auth.Value = big.NewInt(0)

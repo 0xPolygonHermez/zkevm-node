@@ -881,15 +881,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 	proverID := "proverID"
 	finalProofID := "finalProofID"
 	finalProof := pb.FinalProof{
-		Proof: &pb.Proof{
-			ProofA: []string{"proofA"},
-			ProofB: []*pb.ProofB{
-				{
-					Proofs: []string{"proofs"},
-				},
-			},
-			ProofC: []string{"proofC"},
-		},
+		Proof: "",
 		Public: &pb.PublicInputsExtended{
 			NewStateRoot:     []byte("newStateRoot"),
 			NewLocalExitRoot: []byte("newLocalExitRoot"),
@@ -1040,9 +1032,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 				assert.NoError(err)
 			},
 			assertFinalMsg: func(msg *finalProofMsg) {
-				assert.Equal(finalProof.Proof.ProofA, msg.finalProof.Proof.ProofA)
-				assert.Equal(finalProof.Proof.ProofB, msg.finalProof.Proof.ProofB)
-				assert.Equal(finalProof.Proof.ProofC, msg.finalProof.Proof.ProofC)
+				assert.Equal(finalProof.Proof, msg.finalProof.Proof)
 				assert.Equal(finalProof.Public.NewStateRoot, msg.finalProof.Public.NewStateRoot)
 				assert.Equal(finalProof.Public.NewLocalExitRoot, msg.finalProof.Public.NewLocalExitRoot)
 			},
@@ -1112,9 +1102,7 @@ func TestTryBuildFinalProof(t *testing.T) {
 				assert.NoError(err)
 			},
 			assertFinalMsg: func(msg *finalProofMsg) {
-				assert.Equal(finalProof.Proof.ProofA, msg.finalProof.Proof.ProofA)
-				assert.Equal(finalProof.Proof.ProofB, msg.finalProof.Proof.ProofB)
-				assert.Equal(finalProof.Proof.ProofC, msg.finalProof.Proof.ProofC)
+				assert.Equal(finalProof.Proof, msg.finalProof.Proof)
 				assert.Equal(finalProof.Public.NewStateRoot, msg.finalProof.Public.NewStateRoot)
 				assert.Equal(finalProof.Public.NewLocalExitRoot, msg.finalProof.Public.NewLocalExitRoot)
 			},
