@@ -252,8 +252,8 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "getAndLockProofsToAggregate returns generic error",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Once()
-				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, nil, errBanana).Once()
 			},
@@ -265,8 +265,8 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "getAndLockProofsToAggregate returns ErrNotFound",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Once()
-				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, nil, state.ErrNotFound).Once()
 			},
@@ -278,8 +278,8 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "getAndLockProofsToAggregate error updating proofs",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Once()
-				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
 				dbTx.On("Rollback", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
@@ -301,8 +301,8 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "AggregatedProof prover error",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Once()
-				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
 				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
@@ -350,8 +350,8 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Once()
-				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
 				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
@@ -400,8 +400,8 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "unlockProofsToAggregate error after WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Once()
-				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return(proverID)
 				dbTx := &mocks.DbTxMock{}
 				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
@@ -442,8 +442,8 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "rollback after DeleteGeneratedProofs error in db transaction",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Once()
-				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
 				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
@@ -494,8 +494,8 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "rollback after AddGeneratedProof error in db transaction",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Once()
-				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
 				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
@@ -547,8 +547,8 @@ func TestTryAggregateProofs(t *testing.T) {
 		{
 			name: "not time to send final ok",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Twice()
-				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Name").Return(proverName).Times(3)
+				m.proverMock.On("ID").Return(proverID).Times(3)
 				m.proverMock.On("Addr").Return("addr")
 				dbTx := &mocks.DbTxMock{}
 				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
@@ -675,8 +675,8 @@ func TestTryGenerateBatchProof(t *testing.T) {
 		{
 			name: "getAndLockBatchToProve returns generic error",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Once()
-				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, errBanana).Once()
 			},
@@ -688,8 +688,8 @@ func TestTryGenerateBatchProof(t *testing.T) {
 		{
 			name: "getAndLockBatchToProve returns ErrNotFound",
 			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Once()
-				m.proverMock.On("ID").Return(proverID).Once()
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, state.ErrNotFound).Once()
 			},
