@@ -768,7 +768,6 @@ func (f *finalizer) isDeadlineEncountered() bool {
 		log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
 		f.setNextSendingToL1Deadline()
 		return true
-
 	}
 	return false
 }
