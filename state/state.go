@@ -470,13 +470,14 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*Proc
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		OldBatchNum:      request.BatchNumber - 1,
-		Coinbase:         request.Coinbase.String(),
-		BatchL2Data:      request.Transactions,
-		OldStateRoot:     request.OldStateRoot.Bytes(),
-		GlobalExitRoot:   request.GlobalExitRoot.Bytes(),
-		OldAccInputHash:  request.OldAccInputHash.Bytes(),
-		EthTimestamp:     request.Timestamp,
+		OldBatchNum:     request.BatchNumber - 1,
+		Coinbase:        request.Coinbase.String(),
+		BatchL2Data:     request.Transactions,
+		OldStateRoot:    request.OldStateRoot.Bytes(),
+		GlobalExitRoot:  request.GlobalExitRoot.Bytes(),
+		OldAccInputHash: request.OldAccInputHash.Bytes(),
+		EthTimestamp:    request.Timestamp,
+		// Changed for new sequencer strategy
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           s.cfg.CurrentForkID,
@@ -520,14 +521,15 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) (*pb
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		OldBatchNum:      batch.BatchNumber - 1,
-		Coinbase:         batch.Coinbase.String(),
-		BatchL2Data:      batch.BatchL2Data,
-		OldStateRoot:     previousBatch.StateRoot.Bytes(),
-		GlobalExitRoot:   batch.GlobalExitRoot.Bytes(),
-		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
-		EthTimestamp:     uint64(batch.Timestamp.Unix()),
-		UpdateMerkleTree: cFalse,
+		OldBatchNum:     batch.BatchNumber - 1,
+		Coinbase:        batch.Coinbase.String(),
+		BatchL2Data:     batch.BatchL2Data,
+		OldStateRoot:    previousBatch.StateRoot.Bytes(),
+		GlobalExitRoot:  batch.GlobalExitRoot.Bytes(),
+		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
+		EthTimestamp:    uint64(batch.Timestamp.Unix()),
+		// Changed for new sequencer strategy
+		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkId,
 	}
