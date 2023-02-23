@@ -172,13 +172,13 @@ func (_m *stateMock) CloseBatch(ctx context.Context, receipt state.ProcessingRec
 	return r0
 }
 
-// ExecuteBatch provides a mock function with given fields: ctx, batch, dbTx
-func (_m *stateMock) ExecuteBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
-	ret := _m.Called(ctx, batch, dbTx)
+// ExecuteBatch provides a mock function with given fields: ctx, batch, updateMerkleTree, dbTx
+func (_m *stateMock) ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, batch, updateMerkleTree, dbTx)
 
 	var r0 *pb.ProcessBatchResponse
-	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, pgx.Tx) *pb.ProcessBatchResponse); ok {
-		r0 = rf(ctx, batch, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) *pb.ProcessBatchResponse); ok {
+		r0 = rf(ctx, batch, updateMerkleTree, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*pb.ProcessBatchResponse)
@@ -186,8 +186,8 @@ func (_m *stateMock) ExecuteBatch(ctx context.Context, batch state.Batch, dbTx p
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, pgx.Tx) error); ok {
-		r1 = rf(ctx, batch, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, bool, pgx.Tx) error); ok {
+		r1 = rf(ctx, batch, updateMerkleTree, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

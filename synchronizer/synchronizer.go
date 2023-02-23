@@ -640,7 +640,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		}
 
 		// Reprocess batch to compare the stateRoot with tBatch.StateRoot and get accInputHash
-		p, err := s.state.ExecuteBatch(s.ctx, batch, dbTx)
+		p, err := s.state.ExecuteBatch(s.ctx, batch, false, dbTx)
 		if err != nil {
 			log.Errorf("error executing L1 batch: %+v, error: %v", batch, err)
 			rollbackErr := dbTx.Rollback(s.ctx)

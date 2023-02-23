@@ -464,21 +464,25 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 }
 
 // ProcessBatch processes a batch
-func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*ProcessBatchResponse, error) {
+func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, updateMerkleTree bool) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessBatch start")
 
+	updateMT := uint32(cFalse)
+	if updateMerkleTree {
+		updateMT = cTrue
+	}
+
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		OldBatchNum:     request.BatchNumber - 1,
-		Coinbase:        request.Coinbase.String(),
-		BatchL2Data:     request.Transactions,
-		OldStateRoot:    request.OldStateRoot.Bytes(),
-		GlobalExitRoot:  request.GlobalExitRoot.Bytes(),
-		OldAccInputHash: request.OldAccInputHash.Bytes(),
-		EthTimestamp:    request.Timestamp,
-		// Changed for new sequencer strategy
-		UpdateMerkleTree: cTrue,
+		OldBatchNum:      request.BatchNumber - 1,
+		Coinbase:         request.Coinbase.String(),
+		BatchL2Data:      request.Transactions,
+		OldStateRoot:     request.OldStateRoot.Bytes(),
+		GlobalExitRoot:   request.GlobalExitRoot.Bytes(),
+		OldAccInputHash:  request.OldAccInputHash.Bytes(),
+		EthTimestamp:     request.Timestamp,
+		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           s.cfg.CurrentForkID,
 	}
@@ -506,7 +510,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest) (*Proc
 
 // ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
 // It is also used by the sequencer in order to calculate used zkCounter of a WIPBatch
-func (s *State) ExecuteBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -519,6 +523,11 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) (*pb
 
 	forkId := s.GetForkIdByBatchNumber(batch.BatchNumber)
 
+	updateMT := uint32(cFalse)
+	if updateMerkleTree {
+		updateMT = cTrue
+	}
+
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:     batch.BatchNumber - 1,
@@ -529,7 +538,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) (*pb
 		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
 		EthTimestamp:    uint64(batch.Timestamp.Unix()),
 		// Changed for new sequencer strategy
-		UpdateMerkleTree: cTrue,
+		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkId,
 	}

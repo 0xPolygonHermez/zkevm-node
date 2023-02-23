@@ -349,7 +349,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
-	result, err := f.executor.ProcessBatch(ctx, f.processRequest)
+	result, err := f.executor.ProcessBatch(ctx, f.processRequest, false)
 	if err != nil {
 		log.Errorf("failed to process transaction, err: %s", err)
 		return err
@@ -657,7 +657,7 @@ func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 		Timestamp:      uint64(batch.Timestamp.Unix()),
 		Caller:         state.DiscardCallerLabel,
 	}
-	result, err := f.executor.ProcessBatch(ctx, processRequest)
+	result, err := f.executor.ProcessBatch(ctx, processRequest, true)
 	if err != nil {
 		log.Errorf("failed to process batch, err: %s", err)
 		return err
