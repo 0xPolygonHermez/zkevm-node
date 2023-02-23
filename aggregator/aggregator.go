@@ -866,6 +866,7 @@ func (a *Aggregator) isSynced(ctx context.Context, batchNum *uint64) bool {
 		log.Warnf("Failed to get last consolidated batch: %v", err)
 		return false
 	}
+
 	if lastVerifiedBatch == nil {
 		return false
 	}

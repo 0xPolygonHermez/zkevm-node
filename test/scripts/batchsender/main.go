@@ -111,12 +111,12 @@ func sendBatches(cliCtx *cli.Context) error {
 		return err
 	}
 
-	ethman, err := etherman.NewClient(cfg.Etherman)
+	ethMan, err := etherman.NewClient(cfg.Etherman)
 	if err != nil {
 		return err
 	}
 
-	err = ethman.AddOrReplaceAuth(*auth)
+	err = ethMan.AddOrReplaceAuth(*auth)
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func sendBatches(cliCtx *cli.Context) error {
 		nb = nBatches
 	}
 
-	nonce, err := ethman.CurrentNonce(ctx, auth.From)
+	nonce, err := ethMan.CurrentNonce(ctx, auth.From)
 	if err != nil {
 		err := fmt.Errorf("failed to get current nonce: %w", err)
 		log.Error(err.Error())
@@ -163,7 +163,7 @@ func sendBatches(cliCtx *cli.Context) error {
 	}
 
 	for i := 0; i < ns; i++ {
-		currentBlock, err := ethman.EthClient.BlockByNumber(ctx, nil)
+		currentBlock, err := ethMan.EthClient.BlockByNumber(ctx, nil)
 		if err != nil {
 			return err
 		}
@@ -174,42 +174,54 @@ func sendBatches(cliCtx *cli.Context) error {
 			// empty rollup
 			seqs = append(seqs, ethmanTypes.Sequence{
 				GlobalExitRoot: common.HexToHash("0x"),
-				Txs:            []ethTypes.Transaction{},
+				BatchL2Data:    []byte{},
 				Timestamp:      int64(currentBlock.Time() - 1), // fit in latest-sequence < > current-block rage
 			})
 		}
 
 		// send to L1
-		to, data, err := ethman.BuildSequenceBatchesTxData(auth.From, seqs)
+		to, data, err := ethMan.BuildSequenceBatchesTxData(auth.From, seqs)
 		if err != nil {
 			return err
 		}
-		gas, err := ethman.EstimateGas(ctx, auth.From, to, nil, data)
+		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+			To:   to,
+			Data: data,
+		})
+		signedTx, err := ethMan.SignTx(ctx, auth.From, tx)
+		if err != nil {
+			return err
+		}
+		err = ethMan.SendTx(ctx, signedTx)
+		if err != nil {
+			return err
+		}
+		gas, err := ethMan.EstimateGas(ctx, auth.From, to, nil, data)
 		if err != nil {
 			err := fmt.Errorf("failed to estimate gas: %w", err)
 			log.Error(err.Error())
 			return err
 		}
 		// get gas price
-		gasPrice, err := ethman.SuggestedGasPrice(ctx)
+		gasPrice, err := ethMan.SuggestedGasPrice(ctx)
 		if err != nil {
 			err := fmt.Errorf("failed to get suggested gas price: %w", err)
 			log.Error(err.Error())
 			return err
 		}
-		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		tx = ethTypes.NewTx(&ethTypes.LegacyTx{
 			Nonce:    nonce,
 			Gas:      gas + uint64(i),
 			GasPrice: gasPrice,
 			To:       to,
 			Data:     data,
 		})
-		signedTx, err := ethman.SignTx(ctx, auth.From, tx)
+		signedTx, err = ethMan.SignTx(ctx, auth.From, tx)
 		if err != nil {
 			log.Error(err.Error())
 			return err
 		}
-		err = ethman.SendTx(ctx, signedTx)
+		err = ethMan.SendTx(ctx, signedTx)
 		if err != nil {
 			log.Error(err.Error())
 			return err
@@ -218,8 +230,6 @@ func sendBatches(cliCtx *cli.Context) error {
 		log.Info("TxHash: ", signedTx.Hash())
 		sentTxs = append(sentTxs, signedTx)
 		sentTxsMap[signedTx.Hash()] = struct{}{}
-
-		nonce++
 
 		time.Sleep(duration * time.Millisecond)
 	}
@@ -239,7 +249,7 @@ func sendBatches(cliCtx *cli.Context) error {
 		done := make(chan struct{})
 
 		for _, tx := range sentTxs {
-			err := operations.WaitTxToBeMined(ctx, ethman.EthClient, tx, miningTimeout)
+			err := operations.WaitTxToBeMined(ctx, ethMan.EthClient, tx, miningTimeout)
 			if err != nil {
 				return err
 			}
@@ -256,7 +266,7 @@ func sendBatches(cliCtx *cli.Context) error {
 			txLoop:
 				for _, tx := range sentTxs {
 					// get rollup tx block number
-					receipt, err := ethman.EthClient.TransactionReceipt(ctx, tx.Hash())
+					receipt, err := ethMan.EthClient.TransactionReceipt(ctx, tx.Hash())
 					if err != nil {
 						return err
 					}
@@ -266,9 +276,9 @@ func sendBatches(cliCtx *cli.Context) error {
 					query := ethereum.FilterQuery{
 						FromBlock: fromBlock,
 						ToBlock:   toBlock,
-						Addresses: ethman.SCAddresses,
+						Addresses: ethMan.SCAddresses,
 					}
-					logs, err := ethman.EthClient.FilterLogs(ctx, query)
+					logs, err := ethMan.EthClient.FilterLogs(ctx, query)
 					if err != nil {
 						return err
 					}
@@ -276,7 +286,7 @@ func sendBatches(cliCtx *cli.Context) error {
 						switch vLog.Topics[0] {
 						case etherman.SequencedBatchesSigHash():
 							if vLog.TxHash == tx.Hash() { // ignore other txs happening on L1
-								sb, err := ethman.PoE.ParseSequenceBatches(vLog)
+								sb, err := ethMan.PoE.ParseSequenceBatches(vLog)
 								if err != nil {
 									return err
 								}
@@ -289,7 +299,7 @@ func sendBatches(cliCtx *cli.Context) error {
 								}
 							}
 						case etherman.TrustedVerifyBatchesSigHash():
-							vb, err := ethman.PoE.ParseTrustedVerifyBatches(vLog)
+							vb, err := ethMan.PoE.ParseVerifyBatchesTrustedAggregator(vLog)
 							if err != nil {
 								return err
 							}

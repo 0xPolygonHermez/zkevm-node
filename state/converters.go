@@ -17,6 +17,20 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// ConvertToCounters extracts ZKCounters from a ProcessBatchResponse
+func ConvertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
+	return ZKCounters{
+		CumulativeGasUsed:    resp.CumulativeGasUsed,
+		UsedKeccakHashes:     resp.CntKeccakHashes,
+		UsedPoseidonHashes:   resp.CntPoseidonHashes,
+		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
+		UsedMemAligns:        resp.CntMemAligns,
+		UsedArithmetics:      resp.CntArithmetics,
+		UsedBinaries:         resp.CntBinaries,
+		UsedSteps:            resp.CntSteps,
+	}
+}
+
 // TestConvertToProcessBatchResponse for test purposes
 func (s *State) TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
 	return s.convertToProcessBatchResponse(txs, response)
@@ -57,8 +71,8 @@ func isProcessed(err pb.RomError) bool {
 	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
 }
 
-func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) ([]*InfoReadWrite, error) {
-	results := make([]*InfoReadWrite, 0, len(addresses))
+func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) (map[common.Address]*InfoReadWrite, error) {
+	results := make(map[common.Address]*InfoReadWrite, len(addresses))
 
 	for addr, addrInfo := range addresses {
 		var nonce *uint64 = nil
@@ -85,8 +99,7 @@ func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) ([]*Inf
 			}
 		}
 
-		result := &InfoReadWrite{Address: address, Nonce: nonce, Balance: balance}
-		results = append(results, result)
+		results[address] = &InfoReadWrite{Address: address, Nonce: nonce, Balance: balance}
 	}
 
 	return results, nil
@@ -133,8 +146,8 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 
 		results = append(results, result)
 
-		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
-		log.Debugf("ProcessTransactionResponse[Nonce]: %v", txs[i].Nonce())
+		log.Debugf("ProcessTransactionResponse[TxHash]: %v", result.TxHash)
+		log.Debugf("ProcessTransactionResponse[Nonce]: %v", result.Tx.Nonce())
 		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
 		log.Debugf("ProcessTransactionResponse[Error]: %v", result.RomError)
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)

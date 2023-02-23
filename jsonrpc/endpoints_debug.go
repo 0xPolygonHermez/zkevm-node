@@ -28,6 +28,7 @@ type traceConfig struct {
 	Tracer           *string `json:"tracer"`
 }
 
+// StructLogRes represents the debug trace information for each opcode
 type StructLogRes struct {
 	Pc            uint64             `json:"pc"`
 	Op            string             `json:"op"`

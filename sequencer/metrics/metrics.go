@@ -8,16 +8,28 @@ import (
 )
 
 const (
-	prefix                         = "sequencer_"
-	sequencesSentToL1CountName     = prefix + "sequences_sent_to_L1_count"
-	gasPriceEstimatedAverageName   = prefix + "gas_price_estimated_average"
-	txProcessed                    = prefix + "transaction_processed"
-	sequencesOvesizedDataErrorName = prefix + "sequences_oversized_data_error"
-	ethToMaticPriceName            = prefix + "eth_to_matic_price"
-	sequenceRewardInMaticName      = prefix + "sequence_reward_in_matic"
-	processingTime                 = prefix + "processing_time"
-
-	txProcessedLabelName = "status"
+	// Prefix for the metrics of the sequencer package.
+	Prefix = "sequencer_"
+	// SequencesSentToL1CountName is the name of the metric that counts the sequences sent to L1.
+	SequencesSentToL1CountName = Prefix + "sequences_sent_to_L1_count"
+	// GasPriceEstimatedAverageName is the name of the metric that shows the average estimated gas price.
+	GasPriceEstimatedAverageName = Prefix + "gas_price_estimated_average"
+	// TxProcessedName is the name of the metric that counts the processed transactions.
+	TxProcessedName = Prefix + "transaction_processed"
+	// SequencesOversizedDataErrorName is the name of the metric that counts the sequences with oversized data error.
+	SequencesOversizedDataErrorName = Prefix + "sequences_oversized_data_error"
+	// EthToMaticPriceName is the name of the metric that shows the Ethereum to Matic price.
+	EthToMaticPriceName = Prefix + "eth_to_matic_price"
+	// SequenceRewardInMaticName is the name of the metric that shows the reward in Matic of a sequence.
+	SequenceRewardInMaticName = Prefix + "sequence_reward_in_matic"
+	// ProcessingTimeName is the name of the metric that shows the processing time.
+	ProcessingTimeName = Prefix + "processing_time"
+	// WorkerPrefix is the prefix for the metrics of the worker.
+	WorkerPrefix = Prefix + "worker_"
+	// WorkerProcessingTimeName is the name of the metric that shows the worker processing time.
+	WorkerProcessingTimeName = WorkerPrefix + "processing_time"
+	// TxProcessedLabelName is the name of the label for the processed transactions.
+	TxProcessedLabelName = "status"
 )
 
 // TxProcessedLabel represents the possible values for the
@@ -44,11 +56,11 @@ func Register() {
 
 	counters = []prometheus.CounterOpts{
 		{
-			Name: sequencesSentToL1CountName,
+			Name: SequencesSentToL1CountName,
 			Help: "[SEQUENCER] total count of sequences sent to L1",
 		},
 		{
-			Name: sequencesOvesizedDataErrorName,
+			Name: SequencesOversizedDataErrorName,
 			Help: "[SEQUENCER] total count of sequences with oversized data error",
 		},
 	}
@@ -56,32 +68,36 @@ func Register() {
 	counterVecs = []metrics.CounterVecOpts{
 		{
 			CounterOpts: prometheus.CounterOpts{
-				Name: txProcessed,
+				Name: TxProcessedName,
 				Help: "[SEQUENCER] number of transactions processed",
 			},
-			Labels: []string{txProcessedLabelName},
+			Labels: []string{TxProcessedLabelName},
 		},
 	}
 
 	gauges = []prometheus.GaugeOpts{
 		{
-			Name: gasPriceEstimatedAverageName,
+			Name: GasPriceEstimatedAverageName,
 			Help: "[SEQUENCER] average gas price estimated",
 		},
 		{
-			Name: ethToMaticPriceName,
+			Name: EthToMaticPriceName,
 			Help: "[SEQUENCER] eth to matic price",
 		},
 		{
-			Name: sequenceRewardInMaticName,
+			Name: SequenceRewardInMaticName,
 			Help: "[SEQUENCER] reward for a sequence in Matic",
 		},
 	}
 
 	histograms = []prometheus.HistogramOpts{
 		{
-			Name: processingTime,
+			Name: ProcessingTimeName,
 			Help: "[SEQUENCER] processing time",
+		},
+		{
+			Name: WorkerProcessingTimeName,
+			Help: "[SEQUENCER] worker processing time",
 		},
 	}
 
@@ -93,39 +109,45 @@ func Register() {
 
 // AverageGasPrice sets the gauge to the given average gas price.
 func AverageGasPrice(price float64) {
-	metrics.GaugeSet(gasPriceEstimatedAverageName, price)
+	metrics.GaugeSet(GasPriceEstimatedAverageName, price)
 }
 
 // SequencesSentToL1 increases the counter by the provided number of sequences
 // sent to L1.
 func SequencesSentToL1(numSequences float64) {
-	metrics.CounterAdd(sequencesSentToL1CountName, numSequences)
+	metrics.CounterAdd(SequencesSentToL1CountName, numSequences)
 }
 
 // TxProcessed increases the counter vector by the provided transactions count
 // and for the given label.
 func TxProcessed(status TxProcessedLabel, count float64) {
-	metrics.CounterVecAdd(txProcessed, string(status), count)
+	metrics.CounterVecAdd(TxProcessedName, string(status), count)
 }
 
 // SequencesOvesizedDataError increases the counter for sequences that
 // encounter a OversizedData error.
 func SequencesOvesizedDataError() {
-	metrics.CounterInc(sequencesOvesizedDataErrorName)
+	metrics.CounterInc(SequencesOversizedDataErrorName)
 }
 
 // EthToMaticPrice sets the gauge for the Ethereum to Matic price.
 func EthToMaticPrice(price float64) {
-	metrics.GaugeSet(ethToMaticPriceName, price)
+	metrics.GaugeSet(EthToMaticPriceName, price)
 }
 
 // SequenceRewardInMatic sets the gauge for the reward in Matic of a sequence.
 func SequenceRewardInMatic(reward float64) {
-	metrics.GaugeSet(sequenceRewardInMaticName, reward)
+	metrics.GaugeSet(SequenceRewardInMaticName, reward)
 }
 
-// ProcessingTime observes the last iteration processing time on the histogram.
+// ProcessingTime observes the last processing time on the histogram.
 func ProcessingTime(lastProcessTime time.Duration) {
 	execTimeInSeconds := float64(lastProcessTime) / float64(time.Second)
-	metrics.HistogramObserve(processingTime, execTimeInSeconds)
+	metrics.HistogramObserve(ProcessingTimeName, execTimeInSeconds)
+}
+
+// WorkerProcessingTime observes the last processing time on the histogram.
+func WorkerProcessingTime(lastProcessTime time.Duration) {
+	execTimeInSeconds := float64(lastProcessTime) / float64(time.Second)
+	metrics.HistogramObserve(WorkerProcessingTimeName, execTimeInSeconds)
 }

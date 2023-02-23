@@ -71,7 +71,7 @@ func (z *ZKEVMEndpoints) BatchNumberByBlockNumber(blockNumber argUint64) (interf
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
-		return batchNum, nil
+		return hex.EncodeUint64(batchNum), nil
 	})
 }
 

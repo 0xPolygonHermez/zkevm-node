@@ -50,6 +50,7 @@ var (
 	stateCfg   = state.Config{
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
+		CurrentForkID:        1,
 	}
 	executorClient                     executorclientpb.ExecutorServiceClient
 	mtDBServiceClient                  mtDBclientpb.StateDBServiceClient
@@ -145,7 +146,7 @@ func TestProcessCloseBatch(t *testing.T) {
 	// 	BatchNumber:    1,
 	// 	Coinbase:       common.HexToAddress("1"),
 	// 	Timestamp:      time.Now().UTC(),
-	// 	GlobalExitRoot: common.HexToHash("a"),
+	// 	globalExitRoot: common.HexToHash("a"),
 	// }
 	// Txs for batch #1
 	// rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
@@ -210,6 +211,11 @@ func TestOpenCloseBatch(t *testing.T) {
 			Tx:     tx2,
 		},
 	}
+
+	data, err := state.EncodeTransactions([]types.Transaction{tx1, tx2})
+	require.NoError(t, err)
+	receipt1.BatchL2Data = data
+
 	err = testState.StoreTransactions(ctx, 1, txsBatch1, dbTx)
 	require.NoError(t, err)
 	// Close batch #1
@@ -484,6 +490,7 @@ func TestExecuteTransaction(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
 	}
 
 	log.Debugf("%v", processBatchRequest)
@@ -848,7 +855,7 @@ func TestGenesis(t *testing.T) {
 }
 
 func TestExecutor(t *testing.T) {
-	var expectedNewRoot = "0x7dac9a0f9e7acd336c079f20e28e99da8d9e36afec969a424fb30edffb4ab238"
+	var expectedNewRoot = "0xa2b0ad9cc19e2a4aa9a6d7e14b15e5e951e319ed17b619878bec201b4d064c3e"
 
 	db := map[string]string{
 		"2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90": "00000000000000000000000000000000000000000000000000000000000000000d1f0da5a7b620c843fd1e18e59fd724d428d25da0cb1888e31f5542ac227c060000000000000000000000000000000000000000000000000000000000000000",
@@ -870,6 +877,7 @@ func TestExecutor(t *testing.T) {
 		UpdateMerkleTree: 0,
 		Db:               db,
 		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -924,6 +932,7 @@ func TestExecutorRevert(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 0,
 		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -987,6 +996,7 @@ func TestExecutorLogs(t *testing.T) {
 		UpdateMerkleTree: 0,
 		Db:               genesisDB,
 		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -1065,6 +1075,7 @@ func TestExecutorTransfer(t *testing.T) {
 		EthTimestamp:     uint64(0),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
 	}
 
 	// Read Sender Balance before execution
@@ -1090,6 +1101,20 @@ func TestExecutorTransfer(t *testing.T) {
 	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
 	require.NoError(t, err)
 	require.Equal(t, uint64(21002), balance.Uint64())
+
+	// Read Modified Addresses directly from response
+	readWriteAddresses := processBatchResponse.ReadWriteAddresses
+	log.Debug(receiverAddress.String())
+	data := readWriteAddresses[strings.ToLower(receiverAddress.String())]
+	require.Equal(t, "21002", data.Balance)
+
+	// Read Modified Addresses from converted response
+	converted, err := testState.TestConvertToProcessBatchResponse([]types.Transaction{*signedTx}, processBatchResponse)
+	require.NoError(t, err)
+	convertedData := converted.ReadWriteAddresses[receiverAddress]
+	require.Equal(t, uint64(21002), convertedData.Balance.Uint64())
+	require.Equal(t, receiverAddress, convertedData.Address)
+	require.Equal(t, (*uint64)(nil), convertedData.Nonce)
 }
 
 func TestExecutorTxHashAndRLP(t *testing.T) {
@@ -1197,6 +1222,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 			EthTimestamp:     uint64(0),
 			UpdateMerkleTree: 1,
 			ChainId:          stateCfg.ChainID,
+			ForkId:           stateCfg.CurrentForkID,
 		}
 
 		// Process batch
@@ -1305,6 +1331,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 				EthTimestamp:     uint64(0),
 				UpdateMerkleTree: 1,
 				ChainId:          stateCfg.ChainID,
+				ForkId:           stateCfg.CurrentForkID,
 			}
 
 			// Process batch
@@ -1524,7 +1551,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 // 		BatchNumber:    tv.Traces.NumBatch,
 // 		Coinbase:       common.HexToAddress(tv.Traces.SequencerAddr),
 // 		Timestamp:      time.Unix(int64(tv.Traces.Timestamp), 0),
-// 		GlobalExitRoot: common.HexToHash(tv.GlobalExitRoot),
+// 		globalExitRoot: common.HexToHash(tv.globalExitRoot),
 // 	}
 
 // 	if strings.HasPrefix(tv.BatchL2Data, "0x") { // nolint
@@ -1624,7 +1651,11 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		*signedTxFirstIncrement,
 		*signedTxFirstRetrieve,
 	}
-	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx, state.SequencerCallerLabel)
+
+	batchL2Data, err := state.EncodeTransactions(signedTxs)
+	require.NoError(t, err)
+
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, state.SequencerCallerLabel, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
 	assert.Nil(t, processBatchResponse.Responses[0].RomError)
@@ -1725,7 +1756,7 @@ func TestAddGetL2Block(t *testing.T) {
 
 	// Create block to be able to calculate its hash
 	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
-	block.ReceivedAt = time
+	l2Block.ReceivedAt = time
 
 	receipt.BlockHash = l2Block.Hash()
 
@@ -1740,6 +1771,8 @@ func TestAddGetL2Block(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, l2Block.Hash(), result.Hash())
+	assert.Equal(t, l2Block.ReceivedAt.Unix(), result.ReceivedAt.Unix())
+	assert.Equal(t, l2Block.Time(), result.Time())
 
 	require.NoError(t, dbTx.Commit(ctx))
 }
@@ -1819,7 +1852,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 			Coinbase:         common.Address{}.String(),
 			BatchL2Data:      batchL2Data,
 			OldStateRoot:     stateRoot,
-			GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			globalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 			EthTimestamp:     uint64(0),
 			UpdateMerkleTree: 1,
@@ -1892,11 +1925,12 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 				Coinbase:         common.Address{}.String(),
 				BatchL2Data:      batchL2Data,
 				OldStateRoot:     stateRoot,
-				GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				globalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 				OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 				EthTimestamp:     uint64(0),
 				UpdateMerkleTree: 1,
 				ChainId:          stateCfg.ChainID,
+				ForkId: 		 stateCfg.CurrentForkID,
 			}
 
 			// Process batch
@@ -1918,7 +1952,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 					Coinbase:         common.Address{}.String(),
 					BatchL2Data:      batchL2Data,
 					OldStateRoot:     processBatchResponse.NewStateRoot,
-					GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+					globalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 					OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 					EthTimestamp:     uint64(0),
 					UpdateMerkleTree: 1,
@@ -2033,6 +2067,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 0,
 		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2174,11 +2209,12 @@ func TestExecutorGasRefund(t *testing.T) {
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     stateRoot,
-		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		globalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
+		ForkId: 		 stateCfg.CurrentForkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2199,7 +2235,7 @@ func TestExecutorGasRefund(t *testing.T) {
 		BatchNumber:    processBatchRequest.BatchNum,
 		Coinbase:       common.Address{},
 		Timestamp:      time.Now(),
-		GlobalExitRoot: common.BytesToHash(processBatchRequest.GlobalExitRoot),
+		globalExitRoot: common.BytesToHash(processBatchRequest.globalExitRoot),
 	}
 
 	err = testState.OpenBatch(ctx, processingContext, dbTx)
@@ -2239,11 +2275,12 @@ func TestExecutorGasRefund(t *testing.T) {
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     processBatchResponse.NewStateRoot,
-		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		globalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
+		ForkId: stateCfg.CurrentForkID,
 	}
 
 	processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2378,6 +2415,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2461,6 +2499,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
 	}
 
 	processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2601,6 +2640,7 @@ func TestStoreDebugInfo(t *testing.T) {
 		UpdateMerkleTree: 0,
 		Db:               db,
 		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
 	}
 
 	_, err := executorClient.ProcessBatch(ctx, processBatchRequest)

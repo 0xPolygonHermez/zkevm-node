@@ -382,29 +382,6 @@ func (_m *stateMock) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Bl
 	return r0, r1
 }
 
-// GetLastL2BlockHeader provides a mock function with given fields: ctx, dbTx
-func (_m *stateMock) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
-	ret := _m.Called(ctx, dbTx)
-
-	var r0 *types.Header
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *types.Header); ok {
-		r0 = rf(ctx, dbTx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Header)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
-		r1 = rf(ctx, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetLastL2BlockNumber provides a mock function with given fields: ctx, dbTx
 func (_m *stateMock) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)

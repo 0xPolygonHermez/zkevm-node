@@ -33,9 +33,9 @@ FreeClaimGasLimit = 150000
 [Etherman]
 URL = "http://localhost:8545"
 L1ChainID = 1337
-PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+PoEAddr = "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+GlobalExitRootManagerAddr = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"
 MultiGasProvider = true
 	[Etherman.Etherscan]
 		ApiKey = ""
@@ -60,18 +60,13 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
-GenBlockNumber = 57
+GenBlockNumber = 66
 
 [Sequencer]
 MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "15s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "300s"
-WaitBlocksToUpdateGER = 10
-WaitBlocksToConsiderGerFinal = 10
-ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
-MinTimeToCloseBatch = "60s"
-MaxTimeForBatchToBeOpen = "15s"
+WaitPeriodSendSequence = "5s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
@@ -84,9 +79,29 @@ MaxMemAligns = 262144
 MaxArithmetics = 262144
 MaxBinaries = 262144
 MaxSteps = 8388608
+WeightBatchBytesSize = 1
+WeightCumulativeGasUsed = 1
+WeightKeccakHashes = 1
+WeightPoseidonHashes = 1
+WeightPoseidonPaddings = 1
+WeightMemAligns = 1
+WeightArithmetics = 1
+WeightBinaries = 1
+WeightSteps = 1
 MaxAllowedFailedCounter = 50
-	[Sequencer.ProfitabilityChecker]
-		SendBatchesEvenWhenNotProfitable = true
+	[Sequencer.Finalizer]
+		GERDeadlineTimeoutInSec = "5s"
+		ForcedBatchDeadlineTimeoutInSec = "60s"
+		SendingToL1DeadlineTimeoutInSec = "20s"
+		SleepDurationInMs = "100ms"
+		ResourcePercentageToCloseBatch = 10
+		GERFinalityNumberOfBlocks = 64
+		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
+		ClosingSignalsManagerWaitForCheckingGER = "10s"
+		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
+		ForcedBatchesFinalityNumberOfBlocks = 64
+		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 
 [PriceGetter]
 Type = "default"
@@ -109,11 +124,6 @@ DefaultGasPriceWei = 1000000000
 
 [Prover]
 ProverURI = "0.0.0.0:50051"
-
-[MTServer]
-Host = "0.0.0.0"
-Port = 50060
-StoreBackend = "PostgreSQL"
 
 [MTClient]
 URI = "127.0.0.1:50061"

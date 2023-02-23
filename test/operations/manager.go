@@ -27,14 +27,14 @@ import (
 )
 
 const (
-	poeAddress         = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+	poeAddress         = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"
 	maticTokenAddress  = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 	cmdFolder          = "test"
 )
 
-// Public constants
+// Public shared
 const (
 	DefaultSequencerAddress     = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	DefaultSequencerPrivateKey  = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -200,7 +200,7 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 
 		// get L2 block number
 		l2BlockNumber = receipt.BlockNumber
-		expectedNonce := l2BlockNumber.Uint64() - 1
+		expectedNonce := l2BlockNumber.Uint64() - 1 + 8 //nolint:gomnd
 		if tx.Nonce() != expectedNonce {
 			return fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
 		}

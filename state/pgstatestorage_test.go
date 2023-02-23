@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -249,6 +250,80 @@ func TestVerifiedBatch(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
+func TestAddAccumulatedInputHash(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, dbTx)
+	assert.NoError(t, err)
+
+	_, err = testState.PostgresStorage.Exec(ctx, `INSERT INTO state.batch
+	(batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data)
+	VALUES(1, '0x0000000000000000000000000000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000000000000000000000000000', '0xbf34f9a52a63229e90d1016011655bc12140bba5b771817b88cbf340d08dcbde', '2022-12-19 08:17:45.000', '0x0000000000000000000000000000000000000000', NULL);
+	`)
+	require.NoError(t, err)
+
+	accInputHash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
+	batchNum := uint64(1)
+	err = testState.AddAccumulatedInputHash(ctx, batchNum, accInputHash, dbTx)
+	require.NoError(t, err)
+
+	b, err := testState.GetBatchByNumber(ctx, batchNum, dbTx)
+	require.NoError(t, err)
+	assert.Equal(t, b.BatchNumber, batchNum)
+	assert.Equal(t, b.AccInputHash, accInputHash)
+	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func TestForcedBatch(t *testing.T) {
+	// Init database instance
+	initOrResetDB()
+
+	ctx := context.Background()
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, tx)
+	assert.NoError(t, err)
+	rtx := "29e885edaf8e4b51e1d2e05f9da28000000000000000000000000000000000000000000000000000000161d2fb4f6b1d53827d9b80a23cf2d7d9f1"
+	raw, err := hex.DecodeString(rtx)
+	assert.NoError(t, err)
+	forcedBatch := state.ForcedBatch{
+		BlockNumber:       1,
+		ForcedBatchNumber: 1,
+		Sequencer:         common.HexToAddress("0x2536C2745Ac4A584656A830f7bdCd329c94e8F30"),
+		RawTxsData:        raw,
+		ForcedAt:          time.Now(),
+		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+	}
+	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
+	require.NoError(t, err)
+	fb, err := testState.GetForcedBatch(ctx, 1, tx)
+	require.NoError(t, err)
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, forcedBatch.BlockNumber, fb.BlockNumber)
+	assert.Equal(t, forcedBatch.ForcedBatchNumber, fb.ForcedBatchNumber)
+	assert.Equal(t, forcedBatch.Sequencer, fb.Sequencer)
+	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
+	assert.Equal(t, rtx, common.Bytes2Hex(fb.RawTxsData))
+	assert.Equal(t, forcedBatch.ForcedAt.Unix(), fb.ForcedAt.Unix())
+	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
+}
 func TestCleanupLockedProofs(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
@@ -320,4 +395,45 @@ func TestCleanupLockedProofs(t *testing.T) {
 	assert.Len(proofs, 2)
 	assert.Contains(proofs, olderNotGenProof)
 	assert.Contains(proofs, newerProof)
+}
+
+func TestVirtualBatch(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, dbTx)
+	assert.NoError(t, err)
+	//require.NoError(t, tx.Commit(ctx))
+
+	lastBlock, err := testState.GetLastBlock(ctx, dbTx)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), lastBlock.BlockNumber)
+
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
+
+	require.NoError(t, err)
+	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	virtualBatch := state.VirtualBatch{
+		BlockNumber:   1,
+		BatchNumber:   1,
+		Coinbase:      addr,
+		SequencerAddr: addr,
+		TxHash:        common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
+	require.NoError(t, err)
+
+	actualVirtualBatch, err := testState.GetVirtualBatch(ctx, 1, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, virtualBatch, *actualVirtualBatch)
+	require.NoError(t, dbTx.Commit(ctx))
 }

@@ -3,6 +3,7 @@ package synchronizer
 import (
 	context "context"
 	"math/big"
+	"strconv"
 	"testing"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 type mocks struct {
 	Etherman     *ethermanMock
 	State        *stateMock
+	Pool         *poolMock
 	EthTxManager *ethTxManagerMock
 	DbTx         *dbTxMock
 }
@@ -29,6 +31,7 @@ func TestTrustedStateReorg(t *testing.T) {
 	type testCase struct {
 		Name            string
 		getTrustedBatch func(*mocks, context.Context, etherman.SequencedBatch) *state.Batch
+		getTrustedReorg func(m *mocks, batchNumber, timestamp uint64) state.TrustedReorg
 	}
 
 	setupMocks := func(m *mocks, tc *testCase) Synchronizer {
@@ -38,7 +41,7 @@ func TestTrustedStateReorg(t *testing.T) {
 			SyncChunkSize:  10,
 			GenBlockNumber: uint64(123456),
 		}
-		sync, err := NewSynchronizer(true, m.Etherman, m.State, m.EthTxManager, genesis, cfg)
+		sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
 		require.NoError(t, err)
 
 		// state preparation
@@ -73,6 +76,7 @@ func TestTrustedStateReorg(t *testing.T) {
 					Return(ethHeader, nil).
 					Once()
 
+				t := time.Now()
 				sequencedBatch := etherman.SequencedBatch{
 					BatchNumber: uint64(1),
 					Coinbase:    common.HexToAddress("0x222"),
@@ -80,7 +84,7 @@ func TestTrustedStateReorg(t *testing.T) {
 					PolygonZkEVMBatchData: polygonzkevm.PolygonZkEVMBatchData{
 						Transactions:       []byte{},
 						GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-						Timestamp:          uint64(time.Now().Unix()),
+						Timestamp:          uint64(t.Unix()),
 						MinForcedTimestamp: 0,
 					},
 				}
@@ -131,10 +135,19 @@ func TestTrustedStateReorg(t *testing.T) {
 					Return(trustedBatch, nil).
 					Once()
 
-				m.State. //ExecuteBatch(s.ctx, batch.BatchNumber, batch.BatchL2Data, dbTx
-						On("ExecuteBatch", ctx, sequencedBatch.BatchNumber, sequencedBatch.Transactions, m.DbTx).
-						Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
-						Once()
+				sbatch := state.Batch{
+					BatchNumber:    sequencedBatch.BatchNumber,
+					Coinbase:       common.HexToAddress("0x222"),
+					BatchL2Data:    []byte{},
+					Timestamp:      time.Unix(int64(t.Unix()), 0),
+					Transactions:   nil,
+					GlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+					ForcedBatchNum: nil,
+				}
+				m.State.
+					On("ExecuteBatch", ctx, sbatch, m.DbTx).
+					Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
+					Once()
 
 				seq := state.Sequence{
 					FromBatchNumber: 1,
@@ -142,6 +155,33 @@ func TestTrustedStateReorg(t *testing.T) {
 				}
 				m.State.
 					On("AddSequence", ctx, seq, m.DbTx).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("AddAccumulatedInputHash", ctx, sequencedBatch.BatchNumber, common.Hash{}, m.DbTx).
+					Return(nil).
+					Once()
+
+				tr := tc.getTrustedReorg(m, sbatch.BatchNumber, uint64(t.Unix()))
+				m.State.
+					On("AddTrustedReorg", ctx, &tr, m.DbTx).
+					Return(nil).
+					Once()
+
+				txs := []*types.Transaction{types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})}
+				m.State.
+					On("GetReorgedTransactions", ctx, tr.BatchNumber, m.DbTx).
+					Return(txs, nil).
+					Once()
+
+				m.Pool.
+					On("DeleteReorgedTransactions", ctx, txs).
+					Return(nil).
+					Once()
+
+				m.Pool.
+					On("AddTx", ctx, *txs[0]).
 					Return(nil).
 					Once()
 
@@ -202,10 +242,17 @@ func TestTrustedStateReorg(t *testing.T) {
 			Name: "Transactions are different",
 			getTrustedBatch: func(m *mocks, ctx context.Context, sequencedBatch etherman.SequencedBatch) *state.Batch {
 				return &state.Batch{
+					BatchNumber:    1,
 					BatchL2Data:    []byte{1},
 					GlobalExitRoot: sequencedBatch.GlobalExitRoot,
 					Timestamp:      time.Unix(int64(sequencedBatch.Timestamp), 0),
 					Coinbase:       sequencedBatch.Coinbase,
+				}
+			},
+			getTrustedReorg: func(m *mocks, batchNumber, timestamp uint64) state.TrustedReorg {
+				return state.TrustedReorg{
+					BatchNumber: batchNumber,
+					Reason:      "Different field BatchL2Data. Virtual: , Trusted: 01\n",
 				}
 			},
 		},
@@ -213,10 +260,17 @@ func TestTrustedStateReorg(t *testing.T) {
 			Name: "Global Exit Root is different",
 			getTrustedBatch: func(m *mocks, ctx context.Context, sequencedBatch etherman.SequencedBatch) *state.Batch {
 				return &state.Batch{
+					BatchNumber:    1,
 					BatchL2Data:    sequencedBatch.Transactions,
 					GlobalExitRoot: common.HexToHash("0x999888777"),
 					Timestamp:      time.Unix(int64(sequencedBatch.Timestamp), 0),
 					Coinbase:       sequencedBatch.Coinbase,
+				}
+			},
+			getTrustedReorg: func(m *mocks, batchNumber, timestamp uint64) state.TrustedReorg {
+				return state.TrustedReorg{
+					BatchNumber: batchNumber,
+					Reason:      "Different field GlobalExitRoot. Virtual: 0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20, Trusted: 0x0000000000000000000000000000000000000000000000000000000999888777\n",
 				}
 			},
 		},
@@ -224,10 +278,17 @@ func TestTrustedStateReorg(t *testing.T) {
 			Name: "Timestamp is different",
 			getTrustedBatch: func(m *mocks, ctx context.Context, sequencedBatch etherman.SequencedBatch) *state.Batch {
 				return &state.Batch{
+					BatchNumber:    1,
 					BatchL2Data:    sequencedBatch.Transactions,
 					GlobalExitRoot: sequencedBatch.GlobalExitRoot,
 					Timestamp:      time.Unix(int64(0), 0),
 					Coinbase:       sequencedBatch.Coinbase,
+				}
+			},
+			getTrustedReorg: func(m *mocks, batchNumber, timestamp uint64) state.TrustedReorg {
+				return state.TrustedReorg{
+					BatchNumber: batchNumber,
+					Reason:      "Different field Timestamp. Virtual: " + strconv.FormatUint(timestamp, 10) + ", Trusted: 0\n",
 				}
 			},
 		},
@@ -235,10 +296,17 @@ func TestTrustedStateReorg(t *testing.T) {
 			Name: "Coinbase is different",
 			getTrustedBatch: func(m *mocks, ctx context.Context, sequencedBatch etherman.SequencedBatch) *state.Batch {
 				return &state.Batch{
+					BatchNumber:    1,
 					BatchL2Data:    sequencedBatch.Transactions,
 					GlobalExitRoot: sequencedBatch.GlobalExitRoot,
 					Timestamp:      time.Unix(int64(sequencedBatch.Timestamp), 0),
 					Coinbase:       common.HexToAddress("0x999888777"),
+				}
+			},
+			getTrustedReorg: func(m *mocks, batchNumber, timestamp uint64) state.TrustedReorg {
+				return state.TrustedReorg{
+					BatchNumber: batchNumber,
+					Reason:      "Different field Coinbase. Virtual: 0x0000000000000000000000000000000000000222, Trusted: 0x0000000000000000000000000000000999888777\n",
 				}
 			},
 		},
@@ -247,6 +315,7 @@ func TestTrustedStateReorg(t *testing.T) {
 	m := mocks{
 		Etherman:     newEthermanMock(t),
 		State:        newStateMock(t),
+		Pool:         newPoolMock(t),
 		EthTxManager: newEthTxManagerMock(t),
 		DbTx:         newDbTxMock(t),
 	}
@@ -273,10 +342,11 @@ func TestForcedBatch(t *testing.T) {
 	m := mocks{
 		Etherman: newEthermanMock(t),
 		State:    newStateMock(t),
+		Pool:     newPoolMock(t),
 		DbTx:     newDbTxMock(t),
 	}
 
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.EthTxManager, genesis, cfg)
+	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -311,14 +381,16 @@ func TestForcedBatch(t *testing.T) {
 				Return(ethHeader, nil).
 				Once()
 
+			t := time.Now()
 			sequencedBatch := etherman.SequencedBatch{
-				BatchNumber: uint64(2),
-				Coinbase:    common.HexToAddress("0x222"),
-				TxHash:      common.HexToHash("0x333"),
+				BatchNumber:   uint64(2),
+				Coinbase:      common.HexToAddress("0x222"),
+				SequencerAddr: common.HexToAddress("0x00"),
+				TxHash:        common.HexToHash("0x333"),
 				PolygonZkEVMBatchData: polygonzkevm.PolygonZkEVMBatchData{
 					Transactions:       []byte{},
 					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-					Timestamp:          uint64(time.Now().Unix()),
+					Timestamp:          uint64(t.Unix()),
 					MinForcedTimestamp: 1000, //ForcedBatch
 				},
 			}
@@ -407,8 +479,18 @@ func TestForcedBatch(t *testing.T) {
 				Return(trustedBatch, nil).
 				Once()
 
+			var forced uint64 = 1
+			sbatch := state.Batch{
+				BatchNumber:    sequencedBatch.BatchNumber,
+				Coinbase:       common.HexToAddress("0x222"),
+				BatchL2Data:    []byte{},
+				Timestamp:      time.Unix(int64(t.Unix()), 0),
+				Transactions:   nil,
+				GlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+				ForcedBatchNum: &forced,
+			}
 			m.State. //ExecuteBatch(s.ctx, batch.BatchNumber, batch.BatchL2Data, dbTx
-					On("ExecuteBatch", ctx, sequencedBatch.BatchNumber, sequencedBatch.Transactions, m.DbTx).
+					On("ExecuteBatch", ctx, sbatch, m.DbTx).
 					Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
 					Once()
 
@@ -430,6 +512,11 @@ func TestForcedBatch(t *testing.T) {
 			}
 			m.State.
 				On("AddSequence", ctx, seq, m.DbTx).
+				Return(nil).
+				Once()
+
+			m.State.
+				On("AddAccumulatedInputHash", ctx, sequencedBatch.BatchNumber, common.Hash{}, m.DbTx).
 				Return(nil).
 				Once()
 
@@ -468,10 +555,11 @@ func TestSequenceForcedBatch(t *testing.T) {
 	m := mocks{
 		Etherman: newEthermanMock(t),
 		State:    newStateMock(t),
+		Pool:     newPoolMock(t),
 		DbTx:     newDbTxMock(t),
 	}
 
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.EthTxManager, genesis, cfg)
+	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -614,10 +702,11 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Once()
 
 			virtualBatch := &state.VirtualBatch{
-				BatchNumber: sequencedForceBatch.BatchNumber,
-				TxHash:      sequencedForceBatch.TxHash,
-				Coinbase:    sequencedForceBatch.Coinbase,
-				BlockNumber: ethermanBlock.BlockNumber,
+				BatchNumber:   sequencedForceBatch.BatchNumber,
+				TxHash:        sequencedForceBatch.TxHash,
+				Coinbase:      sequencedForceBatch.Coinbase,
+				SequencerAddr: sequencedForceBatch.Coinbase,
+				BlockNumber:   ethermanBlock.BlockNumber,
 			}
 
 			m.State.

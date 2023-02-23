@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package aggregator.v1;
 
-option go_package = "github.com/0xPolygonHermez/zkevm-node/proverclient/pb";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/aggregator/pb";
 
 message Version {
     string v0_0_1 = 1;
@@ -239,7 +239,7 @@ message GetProofResponse {
  * @param {public} - public circuit inputs
 */
 message FinalProof {
-    Proof proof = 1;
+    string proof = 1;
     PublicInputsExtended public = 2;
 }
 
@@ -265,26 +265,6 @@ message PublicInputs {
     uint64 eth_timestamp = 8;
     string sequencer_addr = 9;
     string aggregator_addr = 10;
-}
-
-/**
- * @dev ProofB
- * @param {proofs} - two elliptic curves points
- */
-message ProofB {
-    repeated string proofs = 1;
-}
-
-/**
- * @dev Proof
- * @param {proof_a} - elliptic curve point
- * @param {proof_b} - two elliptic curves points
- * @param {proof_c} - elliptic curve point
- */
-message Proof {
-    repeated string proof_a = 1;
-    repeated ProofB proof_b = 2;
-    repeated string proof_c = 3;
 }
 
 /**
