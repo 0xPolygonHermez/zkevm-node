@@ -297,10 +297,10 @@ func (p *Pool) DeleteReorgedTransactions(ctx context.Context, transactions []*ty
 }
 
 const (
-	txDataNonZeroGas uint64 = 16
+	txDataNonZeroGas      uint64 = 16
 	txGasContractCreation uint64 = 53000
-	txGas uint64 = 21000
-	txDataZeroGas uint64 = 4
+	txGas                 uint64 = 21000
+	txDataZeroGas         uint64 = 4
 )
 
 // IntrinsicGas computes the 'intrinsic gas' for a given transaction.
