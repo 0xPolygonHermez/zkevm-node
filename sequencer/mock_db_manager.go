@@ -63,6 +63,27 @@ func (_m *DbManagerMock) CloseBatch(ctx context.Context, params ClosingBatchPara
 	return r0
 }
 
+// CountReorgs provides a mock function with given fields: ctx, dbTx
+func (_m *DbManagerMock) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CreateFirstBatch provides a mock function with given fields: ctx, sequencerAddress
 func (_m *DbManagerMock) CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext {
 	ret := _m.Called(ctx, sequencerAddress)

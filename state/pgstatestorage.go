@@ -2199,6 +2199,19 @@ func (p *PostgresStorage) AddTrustedReorg(ctx context.Context, reorg *TrustedReo
 	return err
 }
 
+// CountReorgs returns the number of reorgs
+func (p *PostgresStorage) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	const countReorgsSQL = "SELECT COUNT(*) FROM state.trusted_reorg"
+
+	var count uint64
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, countReorgsSQL).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // GetReorgedTransactions returns the transactions that were reorged
 func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []*types.Transaction, err error) {
 	const getReorgedTransactionsSql = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num >= $1 ORDER BY l2_block_num ASC"
