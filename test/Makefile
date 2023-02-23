@@ -99,7 +99,6 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
@@ -110,7 +109,6 @@ test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
@@ -121,7 +119,6 @@ test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
@@ -132,7 +129,6 @@ test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
@@ -143,7 +139,6 @@ test-e2e-group-5: stop ## Runs group 5 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group5/...
