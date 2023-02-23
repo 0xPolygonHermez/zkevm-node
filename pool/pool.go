@@ -207,6 +207,15 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return ErrInsufficientFunds
 	}
 
+	// Ensure the transaction has more gas than the basic tx fee.
+	intrGas, err := IntrinsicGas(tx)
+	if err != nil {
+		return err
+	}
+	if tx.Gas() < intrGas {
+		return ErrIntrinsicGas
+	}
+
 	// try to get a transaction from the pool with the same nonce to check
 	// if the new one has a price bump
 	oldTxs, err := p.storage.GetTxsByFromAndNonce(ctx, from, tx.Nonce())
@@ -285,4 +294,46 @@ func (p *Pool) DeleteReorgedTransactions(ctx context.Context, transactions []*ty
 	}
 
 	return p.storage.DeleteTransactionsByHashes(ctx, hashes)
+}
+
+const (
+	txDataNonZeroGas uint64 = 16
+	txGasContractCreation uint64 = 53000
+	txGas uint64 = 21000
+	txDataZeroGas uint64 = 4
+)
+
+// IntrinsicGas computes the 'intrinsic gas' for a given transaction.
+func IntrinsicGas(tx types.Transaction) (uint64, error) {
+	// Set the starting gas for the raw transaction
+	var gas uint64
+	if tx.To() == nil {
+		gas = txGasContractCreation
+	} else {
+		gas = txGas
+	}
+	dataLen := uint64(len(tx.Data()))
+	// Bump the required gas by the amount of transactional data
+	if dataLen > 0 {
+		// Zero and non-zero bytes are priced differently
+		var nz uint64
+		for _, byt := range tx.Data() {
+			if byt != 0 {
+				nz++
+			}
+		}
+		// Make sure we don't exceed uint64 for all data combinations
+		nonZeroGas := txDataNonZeroGas
+		if (math.MaxUint64-gas)/nonZeroGas < nz {
+			return 0, ErrGasUintOverflow
+		}
+		gas += nz * nonZeroGas
+
+		z := dataLen - nz
+		if (math.MaxUint64-gas)/txDataZeroGas < z {
+			return 0, ErrGasUintOverflow
+		}
+		gas += z * txDataZeroGas
+	}
+	return gas, nil
 }
