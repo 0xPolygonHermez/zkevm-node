@@ -145,7 +145,7 @@ func TestTrustedStateReorg(t *testing.T) {
 					ForcedBatchNum: nil,
 				}
 				m.State.
-					On("ExecuteBatch", ctx, sbatch, m.DbTx).
+					On("ExecuteBatch", ctx, sbatch, false, m.DbTx).
 					Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
 					Once()
 
