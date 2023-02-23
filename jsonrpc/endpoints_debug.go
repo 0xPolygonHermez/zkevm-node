@@ -210,7 +210,9 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 		if !cfg.DisableStorage && len(structLog.Storage) > 0 {
 			storage := make(map[string]string, len(structLog.Storage))
 			for storageKey, storageValue := range structLog.Storage {
-				storage[storageKey.String()] = storageValue.String()
+				k := hex.EncodeToString(storageKey.Bytes())
+				v := hex.EncodeToString(storageValue.Bytes())
+				storage[k] = v
 			}
 			structLogRes.Storage = &storage
 		}
