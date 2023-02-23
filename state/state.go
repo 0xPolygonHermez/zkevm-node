@@ -928,6 +928,17 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 	endTime := time.Now()
 
+	// //save process batch response file
+	// b, err := json.Marshal(processBatchResponse)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// filePath := "./processBatchResponse.json"
+	// err = os.WriteFile(filePath, b, 0644)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 	for _, response := range processBatchResponse.Responses {
 		log.Debugf(string(response.TxHash))
 	}

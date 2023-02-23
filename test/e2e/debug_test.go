@@ -35,23 +35,23 @@ func TestDebugTraceTransaction(t *testing.T) {
 	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
 
 	var err error
-	// err = operations.Teardown()
-	// require.NoError(t, err)
+	err = operations.Teardown()
+	require.NoError(t, err)
 
 	defer func() {
-		// require.NoError(t, operations.Teardown())
-		// require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
 	}()
 
 	ctx := context.Background()
-	// opsCfg := operations.GetDefaultOperationsConfig()
-	// opsMan, err := operations.NewManager(ctx, opsCfg)
-	// require.NoError(t, err)
-	// err = opsMan.Setup()
-	// require.NoError(t, err)
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
 
-	// err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
-	// require.NoError(t, err)
+	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+	require.NoError(t, err)
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
 
@@ -85,10 +85,10 @@ func TestDebugTraceTransaction(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
 		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
@@ -123,7 +123,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 				}
 
 				debugOptions := map[string]interface{}{
-					"disableStorage":   true,
+					"disableStorage":   false,
 					"disableStack":     false,
 					"enableMemory":     true,
 					"enableReturnData": true,
@@ -135,6 +135,12 @@ func TestDebugTraceTransaction(t *testing.T) {
 				require.NotNil(t, response.Result)
 
 				results[network.Name] = response.Result
+
+				// // save result in a file
+				// sanitizedNetworkName := strings.ReplaceAll(network.Name, " ", "_")
+				// filePath := fmt.Sprintf("/home/tclemos/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
+				// err = os.WriteFile(filePath, response.Result, 0644)
+				// require.NoError(t, err)
 			}
 
 			referenceValueMap := map[string]interface{}{}
@@ -301,6 +307,8 @@ func TestDebugTraceBlock(t *testing.T) {
 				err = client.SendTransaction(ctx, signedTx)
 				require.NoError(t, err)
 
+				log.Debugf("tx sent: %v", signedTx.Hash().String())
+
 				err = operations.WaitTxToBeMined(ctx, client, signedTx, operations.DefaultTimeoutTxToBeMined)
 				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
 					require.NoError(t, err)
@@ -361,13 +369,16 @@ func TestDebugTraceBlock(t *testing.T) {
 						require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
 						require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
 
+						pc := referenceStructLogMap["pc"]
+						op := referenceStructLogMap["op"]
+
 						referenceStack, found := referenceStructLogMap["stack"].([]interface{})
 						if found {
 							resultStack := resultStructLogMap["stack"].([]interface{})
 
-							require.Equal(t, len(referenceStack), len(resultStack))
+							require.Equal(t, len(referenceStack), len(resultStack), fmt.Sprintf("stack size doesn't match for pc %v op %v", pc, op))
 							for stackIndex := range referenceStack {
-								require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex])
+								require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex], fmt.Sprintf("stack index %v doesn't match for pc %v op %v", stackIndex, pc, op))
 							}
 						}
 
@@ -375,9 +386,9 @@ func TestDebugTraceBlock(t *testing.T) {
 						if found {
 							resultMemory := resultStructLogMap["memory"].([]interface{})
 
-							require.Equal(t, len(referenceMemory), len(resultMemory))
+							require.Equal(t, len(referenceMemory), len(resultMemory), fmt.Sprintf("memory size doesn't match for pc %v op %v", pc, op))
 							for memoryIndex := range referenceMemory {
-								require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex])
+								require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex], fmt.Sprintf("memory index %v doesn't match for pc %v op %v", memoryIndex, pc, op))
 							}
 						}
 
@@ -385,11 +396,11 @@ func TestDebugTraceBlock(t *testing.T) {
 						if found {
 							resultStorage := resultStructLogMap["storage"].(map[string]interface{})
 
-							require.Equal(t, len(referenceStorage), len(resultStorage))
+							require.Equal(t, len(referenceStorage), len(resultStorage), fmt.Sprintf("storage size doesn't match for pc %v op %v", pc, op))
 							for storageKey, referenceStorageValue := range referenceStorage {
 								resultStorageValue, found := resultStorage[storageKey]
-								require.True(t, found)
-								require.Equal(t, referenceStorageValue, resultStorageValue)
+								require.True(t, found, "storage address not found")
+								require.Equal(t, referenceStorageValue, resultStorageValue, fmt.Sprintf("storage value doesn't match for address %v for pc %v op %v", storageKey, pc, op))
 							}
 						}
 					}

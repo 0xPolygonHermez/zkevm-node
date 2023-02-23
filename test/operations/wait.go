@@ -184,7 +184,9 @@ func NodeUpCondition(target string) (bool, error) {
 
 	r := struct {
 		Result bool
-	}{}
+	}{
+		Result: true,
+	}
 	err = json.Unmarshal(body, &r)
 	if err != nil {
 		return false, err
@@ -192,7 +194,12 @@ func NodeUpCondition(target string) (bool, error) {
 
 	done := !r.Result
 
-	return done, nil
+	if done {
+		return true, nil
+	}
+	return false, nil
+
+	//return done, nil
 }
 
 // ConditionFunc is a generic function
