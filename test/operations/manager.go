@@ -299,8 +299,13 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
+	err = m.StartNode()
+	if err != nil {
+		return err
+	}
+
 	// Run node container
-	return m.StartNode()
+	return nil
 }
 
 // Teardown stops all the components.

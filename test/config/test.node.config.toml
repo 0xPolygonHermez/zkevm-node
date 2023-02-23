@@ -120,12 +120,12 @@ Factor = 0.5
 DefaultGasPriceWei = 1000000000
 
 [MTClient]
-URI  = "zkevm-prover:50061"
-# URI = "51.210.116.237:50068"
+# URI  = "zkevm-prover:50061"
+URI = "51.210.116.237:50068"
 
 [Executor]
-URI = "zkevm-prover:50071"
-# URI = "51.210.116.237:50078"
+# URI = "zkevm-prover:50071"
+URI = "51.210.116.237:50078"
 
 [BroadcastServer]
 Host = "0.0.0.0"

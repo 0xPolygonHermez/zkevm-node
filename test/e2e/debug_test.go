@@ -35,8 +35,8 @@ func TestDebugTraceTransaction(t *testing.T) {
 	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
 
 	var err error
-	err = operations.Teardown()
-	require.NoError(t, err)
+	// err = operations.Teardown()
+	// require.NoError(t, err)
 
 	defer func() {
 		// require.NoError(t, operations.Teardown())
@@ -44,14 +44,14 @@ func TestDebugTraceTransaction(t *testing.T) {
 	}()
 
 	ctx := context.Background()
-	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsMan.Setup()
-	require.NoError(t, err)
+	// opsCfg := operations.GetDefaultOperationsConfig()
+	// opsMan, err := operations.NewManager(ctx, opsCfg)
+	// require.NoError(t, err)
+	// err = opsMan.Setup()
+	// require.NoError(t, err)
 
-	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
-	require.NoError(t, err)
+	// err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+	// require.NoError(t, err)
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
 
@@ -88,11 +88,11 @@ func TestDebugTraceTransaction(t *testing.T) {
 		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
 		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
 		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		// failed transactions
-		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
-		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
-		// {name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
 	}
 
 	for _, tc := range testCases {
