@@ -1,4 +1,4 @@
-package shared
+package params
 
 import (
 	"time"
@@ -11,4 +11,6 @@ const (
 	MaxCumulativeGasUsed = 80000000000
 	// PrometheusPort is the port where prometheus is running
 	PrometheusPort = 9092
+	// NumberOfTxs is the number of transactions to send
+	NumberOfTxs = 100
 )
