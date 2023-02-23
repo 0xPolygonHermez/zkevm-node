@@ -490,7 +490,7 @@ func TestForcedBatch(t *testing.T) {
 				ForcedBatchNum: &forced,
 			}
 			m.State. //ExecuteBatch(s.ctx, batch.BatchNumber, batch.BatchL2Data, dbTx
-					On("ExecuteBatch", ctx, sbatch, m.DbTx).
+					On("ExecuteBatch", ctx, sbatch, false, m.DbTx).
 					Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
 					Once()
 
