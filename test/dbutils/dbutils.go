@@ -59,7 +59,7 @@ func newConfigFromEnv(prefix, port string) db.Config {
 		Name:      testutils.GetEnv("PGDATABASE", fmt.Sprintf("%v_db", prefix)),
 		Host:      testutils.GetEnv("PGHOST", "localhost"),
 		Port:      testutils.GetEnv("PGPORT", port),
-		EnableLog: false,
+		EnableLog: true,
 		MaxConns:  maxDBPoolConns,
 	}
 }
