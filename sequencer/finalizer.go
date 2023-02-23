@@ -754,20 +754,21 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	// Forced batch deadline
 	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
 		log.Infof("Closing batch: %d, forced batch deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
 		return true
 	}
 	// Global Exit Root deadline
 	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
 		log.Infof("Closing batch: %d, Global Exit Root deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
 		return true
 	}
 	// Delayed batch deadline
-	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline && !f.batch.isEmpty() {
-		log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
-		return true
+	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline {
+		if f.batch.isEmpty() {
+			f.setNextSendingToL1Deadline()
+		} else {
+			log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
+			return true
+		}
 	}
 
 	return false
