@@ -1342,6 +1342,27 @@ func TestSyncing(t *testing.T) {
 
 	testCases := []testCase{
 		{
+			Name:           "failed to get last l2 block number",
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get last block number from state"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
+					Return(uint64(0), errors.New("failed to get last l2 block number from state")).
+					Once()
+			},
+		},
+		{
 			Name:           "failed to get syncing information",
 			ExpectedResult: nil,
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get syncing info from state"),
@@ -1354,6 +1375,11 @@ func TestSyncing(t *testing.T) {
 				m.State.
 					On("BeginStateTransaction", context.Background()).
 					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
+					Return(uint64(10), nil).
 					Once()
 
 				m.State.
@@ -1378,6 +1404,11 @@ func TestSyncing(t *testing.T) {
 					Once()
 
 				m.State.
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
+					Return(uint64(10), nil).
+					Once()
+
+				m.State.
 					On("GetSyncingInfo", context.Background(), m.DbTx).
 					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, LastBlockNumberSeen: 3, LastBlockNumberConsolidated: 3}, nil).
 					Once()
@@ -1396,6 +1427,11 @@ func TestSyncing(t *testing.T) {
 				m.State.
 					On("BeginStateTransaction", context.Background()).
 					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
+					Return(uint64(10), nil).
 					Once()
 
 				m.State.

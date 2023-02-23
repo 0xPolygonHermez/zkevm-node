@@ -668,7 +668,7 @@ func (e *EthEndpoints) Syncing() (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		_, err := e.state.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
-			return rpcErrorResponse(defaultErrorCode, "failed to get the last block number from state", err)
+			return rpcErrorResponse(defaultErrorCode, "failed to get last block number from state", err)
 		}
 
 		syncInfo, err := e.state.GetSyncingInfo(ctx, dbTx)
