@@ -29,6 +29,7 @@ type dbManager struct {
 	l2ReorgCh        chan L2ReorgEvent
 	ctx              context.Context
 	batchConstraints batchConstraints
+	numberOfReorgs   uint64
 }
 
 func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
@@ -45,7 +46,12 @@ type ClosingBatchParameters struct {
 }
 
 func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
-	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsStore: txsStore, l2ReorgCh: closingSignalCh.L2ReorgCh, batchConstraints: batchConstraints}
+	numberOfReorgs, err := state.CountReorgs(ctx, nil)
+	if err != nil {
+		log.Error("failed to get number of reorgs: %v", err)
+	}
+
+	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsStore: txsStore, l2ReorgCh: closingSignalCh.L2ReorgCh, batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs}
 }
 
 // Start stars the dbManager routines
@@ -162,41 +168,17 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
 
-		// // Check if the Tx is still valid in the state to detect reorgs
-		// lastStateRoot, err := d.state.GetLastStateRoot(d.ctx, dbTx)
-		// if err != nil {
-		// 	err = dbTx.Rollback(d.ctx)
-		// 	if err != nil {
-		// 		log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
-		// 	}
-		// 	d.txsStore.Wg.Done()
-		// 	continue
-		// }
+		numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
+		if err != nil {
+			log.Error("failed to get number of reorgs: %v", err)
+		}
 
-		// if txToStore.previousL2BlockStateRoot != state.ZeroHash && lastStateRoot != txToStore.previousL2BlockStateRoot {
-		// 	// We may have closed the batch because of a new GER without transactions
-		// 	// If there are no transactions in the batch when closing it, we can not base our check in l2 blocks
-		// 	// so we will check against the latest closed batch
-
-		// 	lastBatch, err := d.state.GetLastClosedBatch(d.ctx, dbTx)
-		// 	if err != nil {
-		// 		err = dbTx.Rollback(d.ctx)
-		// 		if err != nil {
-		// 			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
-		// 		}
-		// 		d.txsStore.Wg.Done()
-		// 		continue
-		// 	}
-
-		// 	lastStateRoot = lastBatch.StateRoot
-
-		// 	if lastStateRoot != txToStore.previousL2BlockStateRoot {
-		// 		log.Warnf("L2 reorg detected. Expected OldStateRoot: %v actual OldStateRoot: %v", lastStateRoot, txToStore.previousL2BlockStateRoot)
-		// 		d.l2ReorgCh <- L2ReorgEvent{}
-		// 		d.txsStore.Wg.Done()
-		// 		continue
-		// 	}
-		// }
+		if numberOfReorgs != d.numberOfReorgs {
+			log.Warnf("New L2 reorg detected")
+			d.l2ReorgCh <- L2ReorgEvent{}
+			d.txsStore.Wg.Done()
+			continue
+		}
 
 		err = d.StoreProcessedTransaction(d.ctx, txToStore.batchNumber, txToStore.txResponse, txToStore.coinbase, txToStore.timestamp, dbTx)
 		if err != nil {
@@ -586,4 +568,9 @@ func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newSta
 // GetLatestVirtualBatchTimestamp gets last virtual batch timestamp
 func (d *dbManager) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
 	return d.state.GetLatestVirtualBatchTimestamp(ctx, dbTx)
+}
+
+// CountReorgs returns the number of reorgs
+func (d *dbManager) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return d.state.CountReorgs(ctx, dbTx)
 }

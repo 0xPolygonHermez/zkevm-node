@@ -70,6 +70,7 @@ type stateInterface interface {
 	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
+	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 type workerInterface interface {
@@ -109,6 +110,7 @@ type dbManagerInterface interface {
 	GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
+	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 type dbManagerStateInterface interface {
@@ -136,6 +138,7 @@ type dbManagerStateInterface interface {
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
+	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 type ethTxManager interface {

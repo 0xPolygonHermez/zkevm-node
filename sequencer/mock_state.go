@@ -86,6 +86,27 @@ func (_m *StateMock) CloseBatch(ctx context.Context, receipt state.ProcessingRec
 	return r0
 }
 
+// CountReorgs provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ExecuteBatch provides a mock function with given fields: ctx, batch, dbTx
 func (_m *StateMock) ExecuteBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	ret := _m.Called(ctx, batch, dbTx)

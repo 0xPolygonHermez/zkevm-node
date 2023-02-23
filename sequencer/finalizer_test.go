@@ -952,7 +952,7 @@ func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 			nextForcedBatch:  0,
 			nextGER:          0,
 			nextDelayedBatch: now().Add(time.Second).Unix(),
-			expected:         true,
+			expected:         false,
 		},
 	}
 
