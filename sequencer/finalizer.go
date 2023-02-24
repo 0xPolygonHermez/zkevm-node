@@ -613,13 +613,15 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
-	// We need to process the batch to update the state root before closing the batch
-	if f.batch.initialStateRoot == f.batch.stateRoot {
-		err := f.processTransaction(ctx, nil)
-		if err != nil {
-			return err
+	/*
+		// We need to process the batch to update the state root before closing the batch
+		if f.batch.initialStateRoot == f.batch.stateRoot {
+			err := f.processTransaction(ctx, nil)
+			if err != nil {
+				return err
+			}
 		}
-	}
+	*/
 
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
