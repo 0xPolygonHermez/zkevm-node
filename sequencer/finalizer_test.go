@@ -74,8 +74,8 @@ var (
 	// tx1 = ethTypes.NewTransaction(0, common.HexToAddress("0"), big.NewInt(0), 0, big.NewInt(0), []byte("aaa"))
 	// tx2 = ethTypes.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
 
-	testErr = fmt.Errorf("some error")
-	// testErr2         = fmt.Errorf("some error2")
+	testErr          = fmt.Errorf("some error")
+	testErr2         = fmt.Errorf("some error2")
 	openBatchError   = fmt.Errorf("failed to open new batch, err: %w", testErr)
 	cumulativeGasErr = state.GetZKCounterError("CumulativeGasUsed")
 )
@@ -718,7 +718,6 @@ func TestFinalizer_openBatch(t *testing.T) {
 	}
 }
 
-/*
 // TestFinalizer_reprocessBatch is a test for reprocessBatch which tests all possible cases of reprocessBatch
 func TestFinalizer_reprocessBatch(t *testing.T) {
 	// arrange
@@ -822,7 +821,6 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 		})
 	}
 }
-*/
 
 func TestFinalizer_prepareProcessRequestFromState(t *testing.T) {
 	// arrange

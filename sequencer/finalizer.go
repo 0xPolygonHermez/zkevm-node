@@ -202,7 +202,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			f.sharedResourcesMux.Lock()
-			_ = f.processTransaction(ctx, tx)
+			_ = f.processTransaction(ctx, tx, false)
 			f.sharedResourcesMux.Unlock()
 		} else {
 			if f.isBatchAlmostFull() {
@@ -261,10 +261,10 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// Passing the batch without txs to the executor in order to update the State
 	if f.batch.countOfTxs == 0 {
 		// backup current sequence
-		err = f.processTransaction(ctx, nil)
+		err = f.processTransaction(ctx, nil, true)
 		for err != nil {
 			log.Errorf("failed to process tx, err: %w", err)
-			err = f.processTransaction(ctx, nil)
+			err = f.processTransaction(ctx, nil, true)
 		}
 	}
 
@@ -273,30 +273,31 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	}
 
 	// Reprocess full batch to persist the merkle tree
-	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber)
-	if err == nil {
-		log.Info("restarting the sequencer node because of a reprocessing error")
-		log.Fatal("failed to reprocess batch, err: %v", err)
-	}
+	/*
+			processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber)
+			if err == nil {
+				log.Info("restarting the sequencer node because of a reprocessing error")
+				log.Fatal("failed to reprocess batch, err: %v", err)
 
-	f.batch.stateRoot = processBatchResponse.NewStateRoot
+			}
+
+		f.batch.stateRoot = processBatchResponse.NewStateRoot
+	*/
+
+	// Reprocessing batch as sanity check
+	go func() {
+		err := f.reprocessBatch(ctx, f.batch.batchNumber)
+		if err != nil {
+			// TODO: design error handling for reprocessing
+			log.Errorf("failed to reprocess batch, err: %s", err)
+			return
+		}
+	}()
 
 	err = f.closeBatch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
-
-	/*
-		// Reprocessing batch as sanity check
-		go func() {
-			err := f.reprocessBatch(ctx, f.batch.batchNumber)
-			if err != nil {
-				// TODO: design error handling for reprocessing
-				log.Errorf("failed to reprocess batch, err: %s", err)
-				return
-			}
-		}()
-	*/
 
 	// Metadata for the next batch
 	stateRoot := f.batch.stateRoot
@@ -337,7 +338,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 }
 
 // processTransaction processes a single transaction.
-func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error {
+func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, updateMerkleTree bool) error {
 	var txHash string
 	if tx != nil {
 		txHash = tx.Hash.String()
@@ -361,7 +362,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
-	result, err := f.executor.ProcessBatch(ctx, f.processRequest, false)
+	result, err := f.executor.ProcessBatch(ctx, f.processRequest, updateMerkleTree)
 	if err != nil {
 		log.Errorf("failed to process transaction, err: %s", err)
 		return err
@@ -613,15 +614,13 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
-	/*
-		// We need to process the batch to update the state root before closing the batch
-		if f.batch.initialStateRoot == f.batch.stateRoot {
-			err := f.processTransaction(ctx, nil)
-			if err != nil {
-				return err
-			}
+	// We need to process the batch to update the state root before closing the batch
+	if f.batch.initialStateRoot == f.batch.stateRoot {
+		err := f.processTransaction(ctx, nil, true)
+		if err != nil {
+			return err
 		}
-	*/
+	}
 
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
@@ -652,7 +651,6 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 	return processingCtx, nil
 }
 
-/*
 // reprocessBatch reprocesses a batch used as sanity check
 func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 	_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
@@ -688,8 +686,8 @@ func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 
 	return nil
 }
-*/
 
+/*
 // reprocessBatch reprocesses a batch used as sanity check
 func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64) (*state.ProcessBatchResponse, error) {
 	_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
@@ -725,6 +723,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64) (*s
 
 	return result, nil
 }
+*/
 
 // prepareProcessRequestFromState prepares process request from state
 func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs bool) (state.ProcessRequest, error) {
