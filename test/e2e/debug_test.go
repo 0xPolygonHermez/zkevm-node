@@ -137,9 +137,21 @@ func TestDebugTraceTransaction(t *testing.T) {
 				results[network.Name] = response.Result
 
 				// // save result in a file
-				// sanitizedNetworkName := strings.ReplaceAll(network.Name, " ", "_")
+				// sanitizedNetworkName := strings.ReplaceAll(network.Name+"_"+tc.name, " ", "_")
 				// filePath := fmt.Sprintf("/home/tclemos/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
-				// err = os.WriteFile(filePath, response.Result, 0644)
+				// b, _ := signedTx.MarshalBinary()
+				// fileContent := struct {
+				// 	Tx    *types.Transaction
+				// 	RLP   string
+				// 	Trace json.RawMessage
+				// }{
+				// 	Tx:    signedTx,
+				// 	RLP:   hex.EncodeToHex(b),
+				// 	Trace: response.Result,
+				// }
+				// c, err := json.MarshalIndent(fileContent, "", "    ")
+				// require.NoError(t, err)
+				// err = os.WriteFile(filePath, c, 0644)
 				// require.NoError(t, err)
 			}
 
