@@ -21,7 +21,6 @@ import (
 	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -2715,7 +2714,7 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 	require.NoError(t, err)
 
 	// assert signed tx do deploy sc
-	assert.Equal(t, pb.RomError(1), processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executorclientpb.RomError(1), processBatchResponse.Responses[0].Error)
 	assert.Equal(t, scAddress, common.HexToAddress(processBatchResponse.Responses[0].CreateAddress))
 
 	log.Debug(processBatchResponse)
@@ -2776,9 +2775,9 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 	log.Debug(processBatchResponse)
 
 	// assert signed tx to increment counter
-	assert.Equal(t, pb.RomError(1), processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executorclientpb.RomError(1), processBatchResponse.Responses[0].Error)
 
 	// assert signed tx to increment counter
-	assert.Equal(t, pb.RomError(1), processBatchResponse.Responses[1].Error)
+	assert.Equal(t, executorclientpb.RomError(1), processBatchResponse.Responses[1].Error)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[1].ReturnValue))
 }
