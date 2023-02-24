@@ -279,7 +279,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	// Reprocess full batch to persist the merkle tree
 	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber)
-	if err == nil || !processBatchResponse.IsBatchProcessed {
+	if err != nil || !processBatchResponse.IsBatchProcessed {
 		log.Info("restarting the sequencer node because of a reprocessing error")
 		if err != nil {
 			log.Fatal("failed to reprocess batch, err: %v", err)
@@ -713,10 +713,6 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64) (*s
 
 	if !result.IsBatchProcessed {
 		return nil, fmt.Errorf("failed to process batch because OutOfCounters error")
-	}
-
-	if result.NewStateRoot != batch.StateRoot {
-		log.Errorf("reprocessed batch has different state root, expected: %s, got: %s", batch.StateRoot.Hex(), result.NewStateRoot.Hex())
 	}
 
 	return result, nil
