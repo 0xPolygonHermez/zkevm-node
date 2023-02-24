@@ -381,7 +381,7 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 
 	previousL2BlockStateRoot := f.batch.stateRoot
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
-	f.storeProcessedTx(previousL2BlockStateRoot, tx, result)
+	f.storeProcessedTx(ctx, previousL2BlockStateRoot, tx, result)
 	f.processRequest.OldStateRoot = result.NewStateRoot
 	f.batch.stateRoot = result.NewStateRoot
 	f.batch.localExitRoot = result.NewLocalExitRoot
@@ -389,7 +389,7 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 	return nil
 }
 
-func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *TxTracker, result *state.ProcessBatchResponse) {
+func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRoot common.Hash, tx *TxTracker, result *state.ProcessBatchResponse) {
 	if tx == nil || len(result.Responses) == 0 {
 		return
 	}
@@ -406,7 +406,13 @@ func (f *finalizer) storeProcessedTx(previousL2BlockStateRoot common.Hash, tx *T
 	}
 
 	start := time.Now()
-	f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
+	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
+	for _, txToDelete := range txsToDelete {
+		err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed)
+		if err != nil {
+			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
+		}
+	}
 	metrics.WorkerProcessingTime(time.Since(start))
 	f.batch.countOfTxs += 1
 }
@@ -423,9 +429,9 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 		f.worker.DeleteTx(tx.Hash, tx.From)
 		metrics.WorkerProcessingTime(time.Since(start))
 		go func() {
-			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid)
+			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed)
 			if err != nil {
-				log.Errorf("failed to update tx status, err: %s", err)
+				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
 			}
 		}()
 	} else if executor.IsIntrinsicError(errorCode) {
@@ -439,7 +445,13 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			balance = addressInfo.Balance
 		}
 		start := time.Now()
-		f.worker.MoveTxToNotReady(tx.Hash, tx.From, nonce, balance)
+		txsToDelete := f.worker.MoveTxToNotReady(tx.Hash, tx.From, nonce, balance)
+		for _, txToDelete := range txsToDelete {
+			err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed)
+			if err != nil {
+				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
+			}
+		}
 		metrics.WorkerProcessingTime(time.Since(start))
 	}
 }
