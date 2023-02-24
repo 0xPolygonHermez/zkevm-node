@@ -278,15 +278,17 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	}
 
 	// Reprocess full batch to persist the merkle tree
-	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber)
-	if err == nil || !processBatchResponse.IsBatchProcessed {
-		log.Info("restarting the sequencer node because of a reprocessing error")
-		if err != nil {
-			log.Fatal("failed to reprocess batch, err: %v", err)
-		} else {
-			log.Fatal("Out of counters during reprocessFullBath")
+	/*
+		processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber)
+		if err == nil || !processBatchResponse.IsBatchProcessed {
+			log.Info("restarting the sequencer node because of a reprocessing error")
+			if err != nil {
+				log.Fatal("failed to reprocess batch, err: %v", err)
+			} else {
+				log.Fatal("Out of counters during reprocessFullBath")
+			}
 		}
-	}
+	*/
 
 	/*
 		// Reprocessing batch as sanity check
@@ -690,6 +692,7 @@ func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 }
 */
 
+/*
 // reprocessBatch reprocesses a batch used as sanity check
 func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64) (*state.ProcessBatchResponse, error) {
 	_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
@@ -725,6 +728,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64) (*s
 
 	return result, nil
 }
+*/
 
 // prepareProcessRequestFromState prepares process request from state
 func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs bool) (state.ProcessRequest, error) {
