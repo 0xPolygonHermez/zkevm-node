@@ -803,7 +803,7 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 			f.processRequest = tc.expectedProcessRequest
 			dbManagerMock.On("GetLastNBatches", ctx, n).Return(tc.batches, tc.getLastNBatchesErr).Once()
 			if tc.getLastNBatchesErr == nil {
-				executorMock.Mock.On("ProcessBatch", ctx, f.processRequest).Return(tc.expectedProcessBatchResult, tc.processBatchErr).Once()
+				executorMock.Mock.On("ProcessBatch", ctx, f.processRequest, true).Return(tc.expectedProcessBatchResult, tc.processBatchErr).Once()
 				dbManagerMock.On("GetBatchByNumber", ctx, f.batch.batchNumber, nil).Return(tc.batches[0], nil).Once()
 			}
 

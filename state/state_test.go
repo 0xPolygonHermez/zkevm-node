@@ -21,6 +21,7 @@ import (
 	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -2657,4 +2658,127 @@ func TestStoreDebugInfo(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, state.DebugInfoErrorType_EXECUTOR_ERROR, debugInfo.ErrorType)
 	assert.Equal(t, string(payload), debugInfo.Payload)
+}
+
+func TestExecuteWithoutUpdatingMT(t *testing.T) {
+	// Init database instance
+	initOrResetDB()
+
+	var chainIDSequencer = new(big.Int).SetUint64(stateCfg.ChainID)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var gasLimit = uint64(4000000)
+	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	scByteCode, err := testutils.ReadBytecode("Counter/Counter.bin")
+	require.NoError(t, err)
+
+	// auth
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	// signed tx to deploy SC
+	unsignedTxDeploy := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      gasLimit,
+		GasPrice: new(big.Int),
+		Data:     common.Hex2Bytes(scByteCode),
+	})
+	signedTxDeploy, err := auth.Signer(auth.From, unsignedTxDeploy)
+	require.NoError(t, err)
+
+	signedTxs := []types.Transaction{
+		*signedTxDeploy,
+	}
+
+	batchL2Data, err := state.EncodeTransactions(signedTxs)
+	require.NoError(t, err)
+
+	// Create Batch
+	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+		OldBatchNum:      0,
+		Coinbase:         sequencerAddress.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		EthTimestamp:     uint64(time.Now().Unix()),
+		UpdateMerkleTree: 0,
+		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
+	}
+
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+
+	// assert signed tx do deploy sc
+	assert.Equal(t, pb.RomError(1), processBatchResponse.Responses[0].Error)
+	assert.Equal(t, scAddress, common.HexToAddress(processBatchResponse.Responses[0].CreateAddress))
+
+	log.Debug(processBatchResponse)
+
+	incrementFnSignature := crypto.Keccak256Hash([]byte("increment()")).Bytes()[:4]
+	retrieveFnSignature := crypto.Keccak256Hash([]byte("getCount()")).Bytes()[:4]
+
+	// signed tx to call SC
+	unsignedTxFirstIncrement := types.NewTx(&types.LegacyTx{
+		Nonce:    1,
+		To:       &scAddress,
+		Value:    new(big.Int),
+		Gas:      gasLimit,
+		GasPrice: new(big.Int),
+		Data:     incrementFnSignature,
+	})
+
+	signedTxFirstIncrement, err := auth.Signer(auth.From, unsignedTxFirstIncrement)
+	require.NoError(t, err)
+
+	unsignedTxFirstRetrieve := types.NewTx(&types.LegacyTx{
+		Nonce:    2,
+		To:       &scAddress,
+		Value:    new(big.Int),
+		Gas:      gasLimit,
+		GasPrice: new(big.Int),
+		Data:     retrieveFnSignature,
+	})
+
+	signedTxFirstRetrieve, err := auth.Signer(auth.From, unsignedTxFirstRetrieve)
+	require.NoError(t, err)
+
+	signedTxs2 := []types.Transaction{
+		*signedTxFirstIncrement,
+		*signedTxFirstRetrieve,
+	}
+
+	batchL2Data2, err := state.EncodeTransactions(signedTxs2)
+	require.NoError(t, err)
+
+	// Create Batch 2
+	processBatchRequest = &executorclientpb.ProcessBatchRequest{
+		OldBatchNum:      1,
+		Coinbase:         sequencerAddress.String(),
+		BatchL2Data:      batchL2Data2,
+		OldStateRoot:     processBatchResponse.NewStateRoot,
+		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		EthTimestamp:     uint64(time.Now().Unix()),
+		UpdateMerkleTree: 0,
+		ChainId:          stateCfg.ChainID,
+		ForkId:           stateCfg.CurrentForkID,
+	}
+
+	processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+
+	log.Debug(processBatchResponse)
+
+	// assert signed tx to increment counter
+	assert.Equal(t, pb.RomError(1), processBatchResponse.Responses[0].Error)
+
+	// assert signed tx to increment counter
+	assert.Equal(t, pb.RomError(1), processBatchResponse.Responses[1].Error)
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[1].ReturnValue))
 }
