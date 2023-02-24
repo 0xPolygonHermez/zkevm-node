@@ -272,11 +272,6 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		return nil, errors.New("state root and local exit root must have value to close batch")
 	}
 
-	err = f.closeBatch(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to close batch, err: %w", err)
-	}
-
 	// Reprocess full batch to persist the merkle tree
 	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber)
 	if err != nil || !processBatchResponse.IsBatchProcessed {
@@ -286,6 +281,13 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		} else {
 			log.Fatal("Out of counters during reprocessFullBath")
 		}
+	}
+
+	f.batch.stateRoot = processBatchResponse.NewStateRoot
+
+	err = f.closeBatch(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
 
 	/*
@@ -616,12 +618,14 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
 	// We need to process the batch to update the state root before closing the batch
-	if f.batch.initialStateRoot == f.batch.stateRoot {
-		err := f.processTransaction(ctx, nil)
-		if err != nil {
-			return err
+	/*
+		if f.batch.initialStateRoot == f.batch.stateRoot {
+			err := f.processTransaction(ctx, nil)
+			if err != nil {
+				return err
+			}
 		}
-	}
+	*/
 
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
