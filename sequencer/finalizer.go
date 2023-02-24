@@ -202,7 +202,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			f.sharedResourcesMux.Lock()
-			_ = f.processTransaction(ctx, tx, false)
+			_ = f.processTransaction(ctx, tx)
 			f.sharedResourcesMux.Unlock()
 		} else {
 			if f.isBatchAlmostFull() {
@@ -261,15 +261,20 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// Passing the batch without txs to the executor in order to update the State
 	if f.batch.countOfTxs == 0 {
 		// backup current sequence
-		err = f.processTransaction(ctx, nil, true)
+		err = f.processTransaction(ctx, nil)
 		for err != nil {
 			log.Errorf("failed to process tx, err: %w", err)
-			err = f.processTransaction(ctx, nil, true)
+			err = f.processTransaction(ctx, nil)
 		}
 	}
 
 	if f.batch.stateRoot.String() == "" || f.batch.localExitRoot.String() == "" {
 		return nil, errors.New("state root and local exit root must have value to close batch")
+	}
+
+	err = f.closeBatch(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
 
 	// Reprocess full batch to persist the merkle tree
@@ -294,10 +299,6 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 			}
 		}()
 	*/
-	err = f.closeBatch(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to close batch, err: %w", err)
-	}
 
 	// Metadata for the next batch
 	stateRoot := f.batch.stateRoot
@@ -338,7 +339,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 }
 
 // processTransaction processes a single transaction.
-func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, updateMerkleTree bool) error {
+func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error {
 	var txHash string
 	if tx != nil {
 		txHash = tx.Hash.String()
@@ -362,7 +363,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, updat
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
-	result, err := f.executor.ProcessBatch(ctx, f.processRequest, updateMerkleTree)
+	result, err := f.executor.ProcessBatch(ctx, f.processRequest, false)
 	if err != nil {
 		log.Errorf("failed to process transaction, err: %s", err)
 		return err
@@ -616,7 +617,7 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 func (f *finalizer) closeBatch(ctx context.Context) error {
 	// We need to process the batch to update the state root before closing the batch
 	if f.batch.initialStateRoot == f.batch.stateRoot {
-		err := f.processTransaction(ctx, nil, true)
+		err := f.processTransaction(ctx, nil)
 		if err != nil {
 			return err
 		}
