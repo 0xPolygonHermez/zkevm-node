@@ -70,9 +70,11 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 	// get gas
 	gas, err := c.etherman.EstimateGas(ctx, from, to, value, data)
 	if err != nil {
-		err := fmt.Errorf("failed to estimate gas: %w", err)
+		cad := common.Bytes2Hex(data)
+		err := fmt.Errorf("failed to estimate gas: %w, data: %v", err, cad)
 		log.Errorf(err.Error())
-		return err
+		gas = 1000000
+		// return err
 	}
 	// get gas price
 	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
