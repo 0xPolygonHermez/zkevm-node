@@ -9,7 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	pb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -51,9 +51,9 @@ type stateInterface interface {
 	GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
 	GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
 	GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error)
-	ProcessBatch(ctx context.Context, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
+	ProcessBatch(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
-	ExecuteBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
+	ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
@@ -129,7 +129,7 @@ type dbManagerStateInterface interface {
 	GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
-	ExecuteBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
+	ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
