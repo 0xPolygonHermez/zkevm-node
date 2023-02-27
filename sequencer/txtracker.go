@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"math"
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -85,10 +86,14 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraints, weights b
 		(float64(tx.BatchResources.bytes)/float64(constraints.MaxBatchBytesSize))*float64(weights.WeightBatchBytesSize)/totalWeight //Meto config
 
 	resourceCost = resourceCost * perThousand
-
-	ben := big.NewFloat(0).SetInt(tx.Benefit)
-	rc := big.NewFloat(0).SetFloat64(float64(resourceCost))
-	eff := big.NewFloat(0).Quo(ben, rc)
+	var eff *big.Float
+	if tx.IsClaim {
+		eff = big.NewFloat(math.MaxFloat64)
+	} else {
+		ben := big.NewFloat(0).SetInt(tx.Benefit)
+		rc := big.NewFloat(0).SetFloat64(resourceCost)
+		eff = big.NewFloat(0).Quo(ben, rc)
+	}
 
 	var accuracy big.Accuracy
 	tx.Efficiency, accuracy = eff.Float64()
