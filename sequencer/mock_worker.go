@@ -52,8 +52,9 @@ func (_m *WorkerMock) HandleL2Reorg(txHashes []common.Hash) {
 }
 
 // MoveTxToNotReady provides a mock function with given fields: txHash, from, actualNonce, actualBalance
-func (_m *WorkerMock) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) {
+func (_m *WorkerMock) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker {
 	_m.Called(txHash, from, actualNonce, actualBalance)
+	return nil
 }
 
 // NewTxTracker provides a mock function with given fields: tx, isClaim, counters
@@ -80,8 +81,9 @@ func (_m *WorkerMock) NewTxTracker(tx types.Transaction, isClaim bool, counters 
 }
 
 // UpdateAfterSingleSuccessfulTxExecution provides a mock function with given fields: from, touchedAddresses
-func (_m *WorkerMock) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite) {
+func (_m *WorkerMock) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite) []*TxTracker {
 	_m.Called(from, touchedAddresses)
+	return nil
 }
 
 // UpdateTx provides a mock function with given fields: txHash, from, ZKCounters
