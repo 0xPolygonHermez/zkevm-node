@@ -454,13 +454,13 @@ func (a *Aggregator) validateEligibleFinalProof(ctx context.Context, proof *stat
 	if proof.BatchNumber != batchNumberToVerify {
 		if proof.BatchNumber < batchNumberToVerify && proof.BatchNumberFinal >= batchNumberToVerify {
 			// We have a proof that contains some batches below the last batch verified, anyway can be eligible as final proof
-			log.Warnf("Proof %d-%d contains some batches lower than last batch verified %d. Check anyway if it is eligible", proof.BatchNumber, lastVerifiedBatchNum, batchNumberToVerify)
+			log.Warnf("Proof %d-%d contains some batches lower than last batch verified %d. Check anyway if it is eligible", proof.BatchNumber, proof.BatchNumberFinal, lastVerifiedBatchNum)
 		} else if proof.BatchNumberFinal < batchNumberToVerify {
 			// We have a proof that contains batches below that the last batch verified, we need to delete this proof
-			log.Warnf("Proof %d-%d lower than last batch verified %d. Delete it", proof.BatchNumber, lastVerifiedBatchNum, batchNumberToVerify)
+			log.Warnf("Proof %d-%d lower than next batch to verify %d. Deleting it", proof.BatchNumber, proof.BatchNumberFinal, batchNumberToVerify)
 			err := a.State.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
 			if err != nil {
-				return false, fmt.Errorf("Failed to delete discarded proof, err: %v", err)
+				return false, fmt.Errorf("Failed to delete discarded proof, err: %w", err)
 			}
 			return false, nil
 		} else {
@@ -518,11 +518,11 @@ func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.
 
 	if err != nil {
 		if err := dbTx.Rollback(ctx); err != nil {
-			err := fmt.Errorf("failed to rollback proof aggregation state %w", err)
+			err := fmt.Errorf("failed to rollback proof aggregation state: %w", err)
 			log.Error(err.Error())
 			return err
 		}
-		return fmt.Errorf("failed to release proof aggregation state %w", err)
+		return fmt.Errorf("failed to release proof aggregation state: %w", err)
 	}
 
 	err = dbTx.Commit(ctx)
@@ -659,17 +659,17 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	// newly generated recursive proof
 	dbTx, err := a.State.BeginStateTransaction(ctx)
 	if err != nil {
-		return false, fmt.Errorf("failed to begin transaction to update proof aggregation state %w", err)
+		return false, fmt.Errorf("failed to begin transaction to update proof aggregation state: %w", err)
 	}
 
 	err = a.State.DeleteGeneratedProofs(ctx, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx)
 	if err != nil {
 		if err := dbTx.Rollback(ctx); err != nil {
-			err := fmt.Errorf("failed to rollback proof aggregation state %w", err)
+			err := fmt.Errorf("failed to rollback proof aggregation state: %w", err)
 			log.Error(err.Error())
 			return false, err
 		}
-		return false, fmt.Errorf("failed to delete previously aggregated proofs %w", err)
+		return false, fmt.Errorf("failed to delete previously aggregated proofs: %w", err)
 	}
 
 	now := time.Now().Round(time.Microsecond)
@@ -678,24 +678,27 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	err = a.State.AddGeneratedProof(ctx, proof, dbTx)
 	if err != nil {
 		if err := dbTx.Rollback(ctx); err != nil {
-			err := fmt.Errorf("failed to rollback proof aggregation state %w", err)
+			err := fmt.Errorf("failed to rollback proof aggregation state: %w", err)
 			log.Error(err.Error())
 			return false, err
 		}
-		return false, fmt.Errorf("failed to store the recursive proof %w", err)
+		return false, fmt.Errorf("failed to store the recursive proof: %w", err)
 	}
 
 	err = dbTx.Commit(ctx)
 	if err != nil {
-		return false, fmt.Errorf("failed to store the recursive proof %w", err)
+		return false, fmt.Errorf("failed to store the recursive proof: %w", err)
 	}
+
+	// NOTE(pg): the defer func is useless from now on, use a different variable
+	// name for errors (or shadow err in inner scopes) to not trigger it.
 
 	// state is up to date, check if we can send the final proof using the
 	// one just crafted.
-	finalProofBuilt, err := a.tryBuildFinalProof(ctx, prover, proof)
-	if err != nil {
+	finalProofBuilt, finalProofErr := a.tryBuildFinalProof(ctx, prover, proof)
+	if finalProofErr != nil {
 		// just log the error and continue to handle the aggregated proof
-		log.Errorf("failed trying to check if recursive proof can be verified: %v", err)
+		log.Errorf("failed trying to check if recursive proof can be verified: %v", finalProofErr)
 	}
 
 	// NOTE(pg): prover is done, use a.ctx from now on
@@ -704,7 +707,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 		proof.GeneratingSince = nil
 
 		// final proof has not been generated, update the recursive proof
-		err = a.State.UpdateGeneratedProof(a.ctx, proof, nil)
+		err := a.State.UpdateGeneratedProof(a.ctx, proof, nil)
 		if err != nil {
 			log.Errorf("Failed to store batch proof result, err %v", err)
 			return false, err
@@ -846,10 +849,13 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 
 	proof.Proof = resGetProof
 
-	finalProofBuilt, err := a.tryBuildFinalProof(ctx, prover, proof)
-	if err != nil {
+	// NOTE(pg): the defer func is useless from now on, use a different variable
+	// name for errors (or shadow err in inner scopes) to not trigger it.
+
+	finalProofBuilt, finalProofErr := a.tryBuildFinalProof(ctx, prover, proof)
+	if finalProofErr != nil {
 		// just log the error and continue to handle the generated proof
-		log.Errorf("error trying to build final proof %v", err)
+		log.Errorf("error trying to build final proof %v", finalProofErr)
 	}
 
 	// NOTE(pg): prover is done, use a.ctx from now on
@@ -858,7 +864,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 		proof.GeneratingSince = nil
 
 		// final proof has not been generated, update the batch proof
-		err = a.State.UpdateGeneratedProof(a.ctx, proof, nil)
+		err := a.State.UpdateGeneratedProof(a.ctx, proof, nil)
 		if err != nil {
 			log.Errorf("Failed to store batch proof result, err %v", err)
 			return false, err

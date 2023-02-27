@@ -607,6 +607,76 @@ func TestTryAggregateProofs(t *testing.T) {
 				assert.NoError(err)
 			},
 		},
+		{
+			name: "time to send final, state error ok",
+			setup: func(m mox, a *Aggregator) {
+				a.cfg.VerifyProofInterval = configTypes.NewDuration(1)
+				m.proverMock.On("Name").Return(proverName).Times(3)
+				m.proverMock.On("ID").Return(proverID).Times(3)
+				m.proverMock.On("Addr").Return("addr")
+				dbTx := &mocks.DbTxMock{}
+				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
+				dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Twice()
+				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+					}).
+					Return(nil).
+					Once()
+				m.stateMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
+					Run(func(args mock.Arguments) {
+						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+					}).
+					Return(nil).
+					Once()
+				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, nil).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(nil).Once()
+				expectedInputProver := map[string]interface{}{
+					"recursive_proof_1": proof1.Proof,
+					"recursive_proof_2": proof2.Proof,
+				}
+				b, err := json.Marshal(expectedInputProver)
+				require.NoError(err)
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, dbTx).Run(
+					func(args mock.Arguments) {
+						proof := args[1].(*state.Proof)
+						assert.Equal(proof1.BatchNumber, proof.BatchNumber)
+						assert.Equal(proof2.BatchNumberFinal, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.Equal(string(b), proof.InputProver)
+						assert.Equal(recursiveProof, proof.Proof)
+						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
+					},
+				).Return(nil).Once()
+				isSyncedCall := m.stateMock.
+					On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).
+					Return(&state.VerifiedBatch{BatchNumber: uint64(42)}, nil).Once()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(42), nil).Once()
+				// make tryBuildFinalProof fail ASAP
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, errBanana).Once().NotBefore(isSyncedCall)
+				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
+					func(args mock.Arguments) {
+						proof := args[1].(*state.Proof)
+						assert.Equal(proof1.BatchNumber, proof.BatchNumber)
+						assert.Equal(proof2.BatchNumberFinal, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.Equal(string(b), proof.InputProver)
+						assert.Equal(recursiveProof, proof.Proof)
+						assert.Nil(proof.GeneratingSince)
+					},
+				).Return(nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.True(result)
+				assert.NoError(err)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -812,6 +882,56 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, nil).Once()
 				b, err := json.Marshal(expectedInputProver)
 				require.NoError(err)
+				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
+					func(args mock.Arguments) {
+						proof := args[1].(*state.Proof)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.Equal(string(b), proof.InputProver)
+						assert.Equal(recursiveProof, proof.Proof)
+						assert.Nil(proof.GeneratingSince)
+					},
+				).Return(nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.True(result)
+				assert.NoError(err)
+			},
+		},
+		{
+			name: "time to send final, state error ok",
+			setup: func(m mox, a *Aggregator) {
+				a.cfg.VerifyProofInterval = configTypes.NewDuration(0)
+				m.proverMock.On("Name").Return(proverName).Times(3)
+				m.proverMock.On("ID").Return(proverID).Times(3)
+				m.proverMock.On("Addr").Return("addr")
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+					func(args mock.Arguments) {
+						proof := args[1].(*state.Proof)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
+					},
+				).Return(nil).Once()
+				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
+				require.NoError(err)
+				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, nil).Once()
+				b, err := json.Marshal(expectedInputProver)
+				require.NoError(err)
+				isSyncedCall := m.stateMock.
+					On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).
+					Return(&state.VerifiedBatch{BatchNumber: uint64(42)}, nil).Once()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(42), nil).Once()
+				// make tryBuildFinalProof fail ASAP
+				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, errBanana).Once().NotBefore(isSyncedCall)
 				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof := args[1].(*state.Proof)
