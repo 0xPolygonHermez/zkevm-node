@@ -18,8 +18,6 @@ const (
 	TxStatusSelected TxStatus = "selected"
 	// TxStatusFailed represents a tx that has been failed after processing, but can be processed in the future
 	TxStatusFailed TxStatus = "failed"
-	// TxStatusWIP represents a tx that is in a sequencer worker memory
-	TxStatusWIP TxStatus = "wip"
 )
 
 // TxStatus represents the state of a tx
@@ -39,6 +37,7 @@ type Transaction struct {
 	FailedCounter         uint64
 	ReceivedAt            time.Time
 	PreprocessedStateRoot common.Hash
+	IsWIP                 bool
 }
 
 // IsClaimTx checks, if tx is a claim tx

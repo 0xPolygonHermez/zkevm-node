@@ -47,8 +47,8 @@ func (_m *PoolMock) DeleteTransactionsByHashes(ctx context.Context, hashes []com
 	return r0
 }
 
-// GetPendingTxs provides a mock function with given fields: ctx, isClaims, limit
-func (_m *PoolMock) GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error) {
+// GetNonWIPPendingTxs provides a mock function with given fields: ctx, isClaims, limit
+func (_m *PoolMock) GetNonWIPPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error) {
 	ret := _m.Called(ctx, isClaims, limit)
 
 	var r0 []pool.Transaction
@@ -107,13 +107,27 @@ func (_m *PoolMock) MarkWIPTxsAsPending(ctx context.Context) error {
 	return r0
 }
 
-// UpdateTxStatus provides a mock function with given fields: ctx, hash, newStatus
-func (_m *PoolMock) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error {
-	ret := _m.Called(ctx, hash, newStatus)
+// UpdateTxStatus provides a mock function with given fields: ctx, hash, newStatus, isWIP
+func (_m *PoolMock) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
+	ret := _m.Called(ctx, hash, newStatus, isWIP)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pool.TxStatus) error); ok {
-		r0 = rf(ctx, hash, newStatus)
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pool.TxStatus, bool) error); ok {
+		r0 = rf(ctx, hash, newStatus, isWIP)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateTxWIPStatus provides a mock function with given fields: ctx, hash, isWIP
+func (_m *PoolMock) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error {
+	ret := _m.Called(ctx, hash, isWIP)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, bool) error); ok {
+		r0 = rf(ctx, hash, isWIP)
 	} else {
 		r0 = ret.Error(0)
 	}

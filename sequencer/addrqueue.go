@@ -3,6 +3,7 @@ package sequencer
 import (
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -38,7 +39,7 @@ func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx *TxTracker) {
 			if a.currentBalance.Cmp(tx.Cost) >= 0 { //
 				a.readyTx = tx
 				return tx, oldReadyTx
-			} else { // If there is not enought balance we set the new tx as notReadyTxs
+			} else { // If there is not enough balance we set the new tx as notReadyTxs
 				a.readyTx = nil
 				a.notReadyTxs[tx.Nonce] = tx
 				return nil, oldReadyTx
@@ -61,12 +62,14 @@ func (a *addrQueue) deleteTx(txHash common.Hash) (deletedReadyTx *TxTracker) {
 	txHashStr := txHash.String()
 
 	if (a.readyTx != nil) && (a.readyTx.HashStr == txHashStr) {
+		log.Infof("Deleting readyTx %s from addrQueue %s", txHashStr, a.fromStr)
 		prevReadyTx := a.readyTx
 		a.readyTx = nil
 		return prevReadyTx
 	} else {
 		for _, txTracker := range a.notReadyTxs {
 			if txTracker.HashStr == txHashStr {
+				log.Infof("Deleting notReadyTx %s from addrQueue %s", txHashStr, a.fromStr)
 				delete(a.notReadyTxs, txTracker.Nonce)
 			}
 		}
@@ -80,6 +83,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 	txsToDelete := make([]*TxTracker, 0)
 
 	if balance != nil {
+		log.Infof("Updating balance for addrQueue %s from %s to %s", a.fromStr, a.currentBalance.String(), balance.String())
 		a.currentBalance = balance
 	}
 
@@ -94,6 +98,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 				}
 			}
 			for _, txTracker := range txsToDelete {
+				log.Infof("Deleting notReadyTx with nonce %d from addrQueue %s", txTracker.Nonce, a.fromStr)
 				delete(a.notReadyTxs, txTracker.Nonce)
 			}
 		}
@@ -115,6 +120,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 		if found {
 			if a.currentBalance.Cmp(nrTx.Cost) >= 0 {
 				a.readyTx = nrTx
+				log.Infof("Moving notReadyTx %s to readyTx for addrQueue %s", nrTx.HashStr, a.fromStr)
 				delete(a.notReadyTxs, a.currentNonce)
 			}
 		}
@@ -122,6 +128,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 
 	// We add the oldReadyTx to notReadyTxs (if it has a valid nonce) at this point to avoid check it again in the previous if statement
 	if oldReadyTx != nil && oldReadyTx.Nonce > a.currentNonce {
+		log.Infof("Marking readyTx %s as notReadyTx from addrQueue %s", oldReadyTx.HashStr, a.fromStr)
 		a.notReadyTxs[oldReadyTx.Nonce] = oldReadyTx
 	}
 
@@ -141,11 +148,13 @@ func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, counters state.ZKCoun
 		newReadyTx := *a.readyTx
 		newReadyTx.updateZKCounters(counters, constraints, weights)
 		a.readyTx = &newReadyTx
+		log.Debugf("Updating readyTx %s with new ZKCounters from addrQueue %s", txHashStr, a.fromStr)
 		return a.readyTx, prevReadyTx
 	} else { // TODO: This makes sense or we need only to check the readyTx
 		txHashStr := txHash.String()
 		for _, txTracker := range a.notReadyTxs {
 			if txTracker.HashStr == txHashStr {
+				log.Debugf("Updating notReadyTx %s with new ZKCounters from addrQueue %s", txHashStr, a.fromStr)
 				txTracker.updateZKCounters(counters, constraints, weights)
 				break
 			}
