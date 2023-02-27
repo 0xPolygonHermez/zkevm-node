@@ -193,8 +193,7 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "EthTxManager.ForcedGas",
 			expectedValue: 0,
-		}
-
+		},
 		{
 			path:          "PriceGetter.Type",
 			expectedValue: pricegetter.DefaultType,
