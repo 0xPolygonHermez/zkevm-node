@@ -464,7 +464,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 	var newStateRoot [32]byte
 	copy(newStateRoot[:], inputs.NewStateRoot)
 
-	log.Info("Proof before trim: %v", inputs.FinalProof.Proof)
+	log.Info("Proof before trim: ", inputs.FinalProof.Proof)
 	proof, err := encoding.DecodeBytes(&inputs.FinalProof.Proof)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode proof, err: %w", err)

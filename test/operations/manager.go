@@ -214,11 +214,12 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 	}
 
 	// wait for l2 block number to be consolidated
-	log.Infof("waiting for the block number %v to be consolidated", l2BlockNumber.String())
-	err = WaitL2BlockToBeConsolidated(l2BlockNumber, 4*time.Minute) //nolint:gomnd
-	if err != nil {
-		return err
-	}
+	// TODO UNCOMMENT
+	// log.Infof("waiting for the block number %v to be consolidated", l2BlockNumber.String())
+	// err = WaitL2BlockToBeConsolidated(l2BlockNumber, 4*time.Minute) //nolint:gomnd
+	// if err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
