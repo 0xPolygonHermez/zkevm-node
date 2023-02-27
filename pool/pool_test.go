@@ -288,7 +288,7 @@ func Test_GetPendingTxs(t *testing.T) {
 
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		if err := p.AddTx(ctx, *signedTx); err != nil {
@@ -352,7 +352,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		if err := p.AddTx(ctx, *signedTx); err != nil {
@@ -415,7 +415,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10+int64(i)), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10+int64(i)), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		if err := p.AddTx(ctx, *signedTx); err != nil {
@@ -473,7 +473,7 @@ func Test_GetTopFailedTxsByProfitabilityAndZkCounters(t *testing.T) {
 	txsHashes := make([]string, 0, txsCount)
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10+int64(i)), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10+int64(i)), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		if err := p.AddTx(ctx, *signedTx); err != nil {
@@ -538,14 +538,14 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
-	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
 	if err := p.AddTx(ctx, *signedTx1); err != nil {
 		t.Error(err)
 	}
 
-	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
 	if err := p.AddTx(ctx, *signedTx2); err != nil {
@@ -611,7 +611,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
-	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 	if err := p.AddTx(ctx, *signedTx); err != nil {
@@ -718,7 +718,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	timeBeforeTxs := time.Now()
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		txsAddedTime = append(txsAddedTime, time.Now())
@@ -815,14 +815,14 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
-	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
 	if err := p.AddTx(ctx, *signedTx1); err != nil {
 		t.Error(err)
 	}
 
-	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
 	if err := p.AddTx(ctx, *signedTx2); err != nil {
@@ -915,7 +915,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 			createIncompatibleTx: func() types.Transaction {
 				tx := types.NewTransaction(uint64(0),
 					common.HexToAddress("0x1"),
-					big.NewInt(1), uint64(1), bigIntOver256Bits, nil)
+					big.NewInt(1), uint64(1000000), bigIntOver256Bits, nil)
 				signedTx, err := auth.Signer(auth.From, tx)
 				require.NoError(t, err)
 				return *signedTx
@@ -927,7 +927,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 			createIncompatibleTx: func() types.Transaction {
 				tx := types.NewTransaction(uint64(0),
 					common.HexToAddress("0x1"),
-					bigIntOver256Bits, uint64(1), big.NewInt(1), nil)
+					bigIntOver256Bits, uint64(1000000), big.NewInt(1), nil)
 				signedTx, err := auth.Signer(auth.From, tx)
 				require.NoError(t, err)
 				return *signedTx
@@ -940,7 +940,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 				data := [30001]byte{}
 				tx := types.NewTransaction(uint64(0),
 					common.HexToAddress("0x1"),
-					big.NewInt(1), uint64(1), big.NewInt(1), data[:])
+					big.NewInt(1), uint64(1000000), big.NewInt(1), data[:])
 				signedTx, err := auth.Signer(auth.From, tx)
 				require.NoError(t, err)
 				return *signedTx
@@ -952,7 +952,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 			createIncompatibleTx: func() types.Transaction {
 				tx := types.NewTransaction(uint64(0),
 					common.HexToAddress("0x1"),
-					big.NewInt(1), uint64(1), big.NewInt(1), nil)
+					big.NewInt(1), uint64(1000000), big.NewInt(1), nil)
 				signedTx, err := authChainIdOver64Bits.Signer(authChainIdOver64Bits.From, tx)
 				require.NoError(t, err)
 				return *signedTx
@@ -993,5 +993,136 @@ func initOrResetDB() {
 	}
 	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
 		panic(err)
+	}
+}
+
+func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
+	initOrResetDB()
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	cfg := pool.Config{
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	// insert transaction
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    uint64(0),
+		To:       &common.Address{},
+		Value:    big.NewInt(10),
+		Gas:      uint64(20999),
+		GasPrice: big.NewInt(10),
+		Data:     []byte{},
+	})
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	err = p.AddTx(ctx, *signedTx)
+	require.Error(t, err)
+	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
+
+	tx = types.NewTx(&types.LegacyTx{
+		Nonce:    uint64(0),
+		To:       nil,
+		Value:    big.NewInt(10),
+		Gas:      uint64(21000),
+		GasPrice: big.NewInt(10),
+		Data:     []byte{},
+	})
+	signedTx, err = auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	err = p.AddTx(ctx, *signedTx)
+	require.Error(t, err)
+	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
+
+	tx = types.NewTx(&types.LegacyTx{
+		Nonce:    uint64(0),
+		To:       &common.Address{},
+		Value:    big.NewInt(10),
+		Gas:      uint64(21000),
+		GasPrice: big.NewInt(10),
+		Data:     []byte{},
+	})
+	signedTx, err = auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	err = p.AddTx(ctx, *signedTx)
+	require.NoError(t, err)
+
+	tx = types.NewTx(&types.LegacyTx{
+		Nonce:    uint64(1),
+		To:       &common.Address{},
+		Value:    big.NewInt(10),
+		Gas:      uint64(21000),
+		GasPrice: big.NewInt(10),
+		Data:     []byte("data inside tx"),
+	})
+	signedTx, err = auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	err = p.AddTx(ctx, *signedTx)
+	require.Error(t, err)
+	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
+
+	tx = types.NewTx(&types.LegacyTx{
+		Nonce:    uint64(1),
+		To:       &common.Address{},
+		Value:    big.NewInt(10),
+		Gas:      uint64(21223),
+		GasPrice: big.NewInt(10),
+		Data:     []byte("data inside tx"),
+	})
+	signedTx, err = auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	err = p.AddTx(ctx, *signedTx)
+	require.Error(t, err)
+	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
+
+	tx = types.NewTx(&types.LegacyTx{
+		Nonce:    uint64(1),
+		To:       &common.Address{},
+		Value:    big.NewInt(10),
+		Gas:      uint64(21224),
+		GasPrice: big.NewInt(10),
+		Data:     []byte("data inside tx"),
+	})
+	signedTx, err = auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	err = p.AddTx(ctx, *signedTx)
+	require.NoError(t, err)
+
+	txs, err := p.GetPendingTxs(ctx, false, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(txs))
+
+	for i := 0; i < 2; i++ {
+		assert.Equal(t, pool.TxStatusPending, txs[0].Status)
 	}
 }
