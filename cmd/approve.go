@@ -6,15 +6,16 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/urfave/cli/v2"
 )
 
 func approveTokens(ctx *cli.Context) error {
 	amountArg := ctx.String(config.FlagAmount)
-	amount, _ := new(big.Float).SetString(amountArg)
+	amount, _ := new(big.Int).SetString(amountArg, encoding.Base10)
 	if amount == nil {
-		fmt.Println("Please, introduce a valid amount. Use '.' instead of ',' if it is a decimal number")
+		fmt.Println("Please, introduce a valid amount in wei")
 		return nil
 	}
 
@@ -27,8 +28,8 @@ func approveTokens(ctx *cli.Context) error {
 	}
 
 	if !ctx.Bool(config.FlagYes) {
-		fmt.Print("*WARNING* Are you sure you want to approve ", amount,
-			" tokens to be spent by the smc <Name: PoE. Address: "+c.Etherman.PoEAddr.String()+">? [y/N]: ")
+		fmt.Print("*WARNING* Are you sure you want to approve ", amount.String(),
+			" tokens (in wei) for the smc <Name: PoE. Address: "+c.Etherman.PoEAddr.String()+">? [y/N]: ")
 		var input string
 		if _, err := fmt.Scanln(&input); err != nil {
 			return err
@@ -55,11 +56,7 @@ func approveTokens(ctx *cli.Context) error {
 		return err
 	}
 
-	const decimals = 1000000000000000000
-	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
-	amountB := new(big.Int)
-	amountInWei.Int(amountB)
-	tx, err := etherman.ApproveMatic(ctx.Context, auth.From, amountB, c.Etherman.PoEAddr)
+	tx, err := etherman.ApproveMatic(ctx.Context, auth.From, amount, c.Etherman.PoEAddr)
 	if err != nil {
 		return err
 	}
