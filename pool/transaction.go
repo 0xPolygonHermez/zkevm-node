@@ -48,7 +48,7 @@ func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address, freeClaimGasLimit 
 	}
 
 	txGas := tx.Gas()
-	if txGas > freeClaimGasLimit || txGas == 0 {
+	if txGas > freeClaimGasLimit {
 		return false
 	}
 

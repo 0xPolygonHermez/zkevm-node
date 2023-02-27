@@ -341,7 +341,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			wipBatch.countOfTxs = len(lastBatch.Transactions)
 			batchToExecute := *lastBatch
 			batchToExecute.BatchNumber = wipBatch.batchNumber
-			batchResponse, err := d.state.ExecuteBatch(ctx, batchToExecute, dbTx)
+			batchResponse, err := d.state.ExecuteBatch(ctx, batchToExecute, false, dbTx)
 			if err != nil {
 				return nil, err
 			}

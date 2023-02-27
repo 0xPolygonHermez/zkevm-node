@@ -271,20 +271,38 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	if f.batch.stateRoot.String() == "" || f.batch.localExitRoot.String() == "" {
 		return nil, errors.New("state root and local exit root must have value to close batch")
 	}
+
+	// Reprocess full batch to persist the merkle tree
+	go func() {
+		processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber)
+		if err != nil || !processBatchResponse.IsBatchProcessed {
+			log.Info("restarting the sequencer node because of a reprocessing error")
+			if err != nil {
+				log.Fatal("failed to reprocess batch, err: %v", err)
+			} else {
+				log.Fatal("Out of counters during reprocessFullBath")
+			}
+		}
+	}()
+
+	// f.batch.stateRoot = processBatchResponse.NewStateRoot
+
 	err = f.closeBatch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
 
-	// Reprocessing batch as sanity check
-	go func() {
-		err := f.reprocessBatch(ctx, f.batch.batchNumber)
-		if err != nil {
-			// TODO: design error handling for reprocessing
-			log.Errorf("failed to reprocess batch, err: %s", err)
-			return
-		}
-	}()
+	/*
+		// Reprocessing batch as sanity check
+		go func() {
+			err := f.reprocessBatch(ctx, f.batch.batchNumber)
+			if err != nil {
+				// TODO: design error handling for reprocessing
+				log.Errorf("failed to reprocess batch, err: %s", err)
+				return
+			}
+		}()
+	*/
 
 	// Metadata for the next batch
 	stateRoot := f.batch.stateRoot
@@ -349,7 +367,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
-	result, err := f.executor.ProcessBatch(ctx, f.processRequest)
+	result, err := f.executor.ProcessBatch(ctx, f.processRequest, false)
 	if err != nil {
 		log.Errorf("failed to process transaction, err: %s", err)
 		return err
@@ -602,12 +620,14 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
 	// We need to process the batch to update the state root before closing the batch
-	if f.batch.initialStateRoot == f.batch.stateRoot {
-		err := f.processTransaction(ctx, nil)
-		if err != nil {
-			return err
+	/*
+		if f.batch.initialStateRoot == f.batch.stateRoot {
+			err := f.processTransaction(ctx, nil)
+			if err != nil {
+				return err
+			}
 		}
-	}
+	*/
 
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
@@ -638,6 +658,7 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 	return processingCtx, nil
 }
 
+/*
 // reprocessBatch reprocesses a batch used as sanity check
 func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 	_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
@@ -657,7 +678,7 @@ func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 		Timestamp:      uint64(batch.Timestamp.Unix()),
 		Caller:         state.DiscardCallerLabel,
 	}
-	result, err := f.executor.ProcessBatch(ctx, processRequest)
+	result, err := f.executor.ProcessBatch(ctx, processRequest, true)
 	if err != nil {
 		log.Errorf("failed to process batch, err: %s", err)
 		return err
@@ -672,6 +693,35 @@ func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 	}
 
 	return nil
+}
+*/
+
+// reprocessBatch reprocesses a batch used as sanity check
+func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64) (*state.ProcessBatchResponse, error) {
+	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get batch by number, err: %w", err)
+	}
+	processRequest := state.ProcessRequest{
+		BatchNumber:    batch.BatchNumber,
+		GlobalExitRoot: batch.GlobalExitRoot,
+		OldStateRoot:   f.batch.initialStateRoot,
+		Transactions:   batch.BatchL2Data,
+		Coinbase:       batch.Coinbase,
+		Timestamp:      uint64(batch.Timestamp.Unix()),
+		Caller:         state.DiscardCallerLabel,
+	}
+	result, err := f.executor.ProcessBatch(ctx, processRequest, true)
+	if err != nil {
+		log.Errorf("failed to process batch, err: %s", err)
+		return nil, err
+	}
+
+	if !result.IsBatchProcessed {
+		return nil, fmt.Errorf("failed to process batch because OutOfCounters error")
+	}
+
+	return result, nil
 }
 
 // prepareProcessRequestFromState prepares process request from state
