@@ -464,12 +464,10 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 	var newStateRoot [32]byte
 	copy(newStateRoot[:], inputs.NewStateRoot)
 
-	log.Info("Proof before trim: %v", inputs.FinalProof.Proof)
 	proof, err := encoding.DecodeBytes(&inputs.FinalProof.Proof)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode proof, err: %w", err)
 	}
-	log.Info("Proof after trim: %v", common.Bytes2Hex(proof))
 
 	const pendStateNum = 0 // TODO hardcoded for now until we implement the pending state feature
 

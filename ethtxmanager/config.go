@@ -12,4 +12,7 @@ type Config struct {
 	// PrivateKeys defines all the key store files that are going
 	// to be read in order to provide the private keys to sign the L1 txs
 	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
+
+	// ForcedGas is the amount of gas to be forced in case of gas estimation error
+	ForcedGas uint64 `mapstructure:"ForcedGas"`
 }

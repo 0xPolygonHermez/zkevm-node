@@ -187,6 +187,15 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(2 * time.Minute),
 		},
 		{
+			path:          "EthTxManager.WaitTxToBeMined",
+			expectedValue: types.NewDuration(2 * time.Minute),
+		},
+		{
+			path:          "EthTxManager.ForcedGas",
+			expectedValue: 0,
+		}
+
+		{
 			path:          "PriceGetter.Type",
 			expectedValue: pricegetter.DefaultType,
 		},
