@@ -68,7 +68,6 @@ func (a *addrQueue) deleteTx(txHash common.Hash) (deletedReadyTx *TxTracker) {
 		for _, txTracker := range a.notReadyTxs {
 			if txTracker.HashStr == txHashStr {
 				delete(a.notReadyTxs, txTracker.Nonce)
-				break
 			}
 		}
 		return nil
@@ -76,8 +75,9 @@ func (a *addrQueue) deleteTx(txHash common.Hash) (deletedReadyTx *TxTracker) {
 }
 
 // updateCurrentNonceBalance updates the nonce and balance of the addrQueue and updates the ready and notReady txs
-func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (newReadyTx, prevReadyTx *TxTracker) {
+func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (newReadyTx, prevReadyTx *TxTracker, toDelete []*TxTracker) {
 	var oldReadyTx *TxTracker = nil
+	txsToDelete := make([]*TxTracker, 0)
 
 	if balance != nil {
 		a.currentBalance = balance
@@ -88,14 +88,13 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 			a.currentNonce = *nonce
 
 			//TODO: we need to update in the DB the deleted txs?
-			txToDelete := []uint64{}
 			for _, txTracker := range a.notReadyTxs {
 				if txTracker.Nonce < a.currentNonce {
-					txToDelete = append(txToDelete, txTracker.Nonce)
+					txsToDelete = append(txsToDelete, txTracker)
 				}
 			}
-			for _, delTxNonce := range txToDelete {
-				delete(a.notReadyTxs, delTxNonce)
+			for _, txTracker := range txsToDelete {
+				delete(a.notReadyTxs, txTracker.Nonce)
 			}
 		}
 	}
@@ -126,7 +125,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 		a.notReadyTxs[oldReadyTx.Nonce] = oldReadyTx
 	}
 
-	return a.readyTx, oldReadyTx
+	return a.readyTx, oldReadyTx, txsToDelete
 }
 
 // UpdateTxZKCounters updates the ZKCounters for the given tx (txHash)
