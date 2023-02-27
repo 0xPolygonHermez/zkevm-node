@@ -107,13 +107,13 @@ func (_m *StateMock) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, erro
 	return r0, r1
 }
 
-// ExecuteBatch provides a mock function with given fields: ctx, batch, dbTx
-func (_m *StateMock) ExecuteBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
-	ret := _m.Called(ctx, batch, dbTx)
+// ExecuteBatch provides a mock function with given fields: ctx, batch, updateMerkleTree, dbTx
+func (_m *StateMock) ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, batch, updateMerkleTree, dbTx)
 
 	var r0 *pb.ProcessBatchResponse
-	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, pgx.Tx) *pb.ProcessBatchResponse); ok {
-		r0 = rf(ctx, batch, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) *pb.ProcessBatchResponse); ok {
+		r0 = rf(ctx, batch, updateMerkleTree, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*pb.ProcessBatchResponse)
@@ -121,8 +121,8 @@ func (_m *StateMock) ExecuteBatch(ctx context.Context, batch state.Batch, dbTx p
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, pgx.Tx) error); ok {
-		r1 = rf(ctx, batch, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, bool, pgx.Tx) error); ok {
+		r1 = rf(ctx, batch, updateMerkleTree, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -620,13 +620,13 @@ func (_m *StateMock) OpenBatch(ctx context.Context, processingContext state.Proc
 	return r0
 }
 
-// ProcessBatch provides a mock function with given fields: ctx, request
-func (_m *StateMock) ProcessBatch(ctx context.Context, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
-	ret := _m.Called(ctx, request)
+// ProcessBatch provides a mock function with given fields: ctx, request, updateMerkleTree
+func (_m *StateMock) ProcessBatch(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, request, updateMerkleTree)
 
 	var r0 *state.ProcessBatchResponse
-	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest) *state.ProcessBatchResponse); ok {
-		r0 = rf(ctx, request)
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, bool) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, request, updateMerkleTree)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.ProcessBatchResponse)
@@ -634,8 +634,8 @@ func (_m *StateMock) ProcessBatch(ctx context.Context, request state.ProcessRequ
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest) error); ok {
-		r1 = rf(ctx, request)
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest, bool) error); ok {
+		r1 = rf(ctx, request, updateMerkleTree)
 	} else {
 		r1 = ret.Error(1)
 	}

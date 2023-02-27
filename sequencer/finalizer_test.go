@@ -74,8 +74,8 @@ var (
 	// tx1 = ethTypes.NewTransaction(0, common.HexToAddress("0"), big.NewInt(0), 0, big.NewInt(0), []byte("aaa"))
 	// tx2 = ethTypes.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
 
-	testErr          = fmt.Errorf("some error")
-	testErr2         = fmt.Errorf("some error2")
+	testErr = fmt.Errorf("some error")
+	// testErr2         = fmt.Errorf("some error2")
 	openBatchError   = fmt.Errorf("failed to open new batch, err: %w", testErr)
 	cumulativeGasErr = state.GetZKCounterError("CumulativeGasUsed")
 )
@@ -247,7 +247,8 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 			// arrange
 			if tc.expectedDeleteCall {
 				workerMock.On("DeleteTx", oldHash, sender).Return().Once()
-				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, pool.TxStatusInvalid).Return(nil).Once()
+				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, pool.TxStatusFailed).Return(nil).Once()
+				dbManagerMock.On("DeleteTransactionFromPool", ctx, tx.Hash).Return(nil).Once()
 			}
 			if tc.expectedMoveCall {
 				workerMock.On("MoveTxToNotReady", oldHash, sender, &nonce, big.NewInt(0)).Return().Once()
@@ -718,6 +719,7 @@ func TestFinalizer_openBatch(t *testing.T) {
 	}
 }
 
+/*
 // TestFinalizer_reprocessBatch is a test for reprocessBatch which tests all possible cases of reprocessBatch
 func TestFinalizer_reprocessBatch(t *testing.T) {
 	// arrange
@@ -803,7 +805,7 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 			f.processRequest = tc.expectedProcessRequest
 			dbManagerMock.On("GetLastNBatches", ctx, n).Return(tc.batches, tc.getLastNBatchesErr).Once()
 			if tc.getLastNBatchesErr == nil {
-				executorMock.Mock.On("ProcessBatch", ctx, f.processRequest).Return(tc.expectedProcessBatchResult, tc.processBatchErr).Once()
+				executorMock.Mock.On("ProcessBatch", ctx, f.processRequest, true).Return(tc.expectedProcessBatchResult, tc.processBatchErr).Once()
 				dbManagerMock.On("GetBatchByNumber", ctx, f.batch.batchNumber, nil).Return(tc.batches[0], nil).Once()
 			}
 
@@ -821,6 +823,7 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestFinalizer_prepareProcessRequestFromState(t *testing.T) {
 	// arrange

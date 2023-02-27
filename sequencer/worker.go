@@ -97,12 +97,12 @@ func (w *Worker) AddTx(ctx context.Context, tx *TxTracker) {
 	}
 }
 
-func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker) {
+func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker, []*TxTracker) {
 	addrQueue, found := w.pool[from.String()]
 
 	// TODO: What happens if addr no found. Could it be possible if addrQueue has not been yet created for this from addr (touchedAddresses)
 	if found {
-		newReadyTx, prevReadyTx := addrQueue.updateCurrentNonceBalance(fromNonce, fromBalance)
+		newReadyTx, prevReadyTx, txsToDelete := addrQueue.updateCurrentNonceBalance(fromNonce, fromBalance)
 
 		// Update the EfficiencyList (if needed)
 		if prevReadyTx != nil {
@@ -114,37 +114,39 @@ func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, from
 			w.efficiencyList.add(newReadyTx)
 		}
 
-		return newReadyTx, prevReadyTx
+		return newReadyTx, prevReadyTx, txsToDelete
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }
 
 // UpdateAfterSingleSuccessfulTxExecution updates the touched addresses after execute on Executor a successfully tx
-func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite) {
+func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite) []*TxTracker {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 	if len(touchedAddresses) == 0 {
 		log.Errorf("UpdateAfterSingleSuccessfulTxExecution touchedAddresses is nil or empty")
 	}
-
+	txsToDelete := make([]*TxTracker, 0)
 	touchedFrom, found := touchedAddresses[from]
 	if found {
 		fromNonce, fromBalance := touchedFrom.Nonce, touchedFrom.Balance
-		w.applyAddressUpdate(from, fromNonce, fromBalance)
+		_, _, txsToDelete = w.applyAddressUpdate(from, fromNonce, fromBalance)
 	} else {
 		log.Errorf("UpdateAfterSingleSuccessfulTxExecution from(%s) not found in touchedAddresses", from.String())
 	}
 
 	for addr, addressInfo := range touchedAddresses {
 		if addr != from {
-			w.applyAddressUpdate(addr, nil, addressInfo.Balance)
+			_, _, txsToDeleteTemp := w.applyAddressUpdate(addr, nil, addressInfo.Balance)
+			txsToDelete = append(txsToDelete, txsToDeleteTemp...)
 		}
 	}
+	return txsToDelete
 }
 
 // MoveTxToNotReady move a tx to not ready after it fails to execute
-func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) {
+func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
@@ -160,8 +162,9 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 			// TODO: how to manage this?
 		}
 	}
+	_, _, txsToDelete := w.applyAddressUpdate(from, actualNonce, actualBalance)
 
-	w.applyAddressUpdate(from, actualNonce, actualBalance)
+	return txsToDelete
 }
 
 // DeleteTx delete the tx after it fails to execute
