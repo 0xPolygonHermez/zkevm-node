@@ -22,9 +22,10 @@ type txPool interface {
 	DeleteTransactionsByHashes(ctx context.Context, hashes []common.Hash) error
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
-	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
-	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error
+	GetNonWIPPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
+	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
+	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -108,7 +109,7 @@ type dbManagerInterface interface {
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
-	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error
+	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }

@@ -20,10 +20,12 @@ type storage interface {
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
 	GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]Transaction, error)
 	GetTxsByStatus(ctx context.Context, state TxStatus, isClaims bool, limit uint64) ([]Transaction, error)
+	GetNonWIPTxsByStatus(ctx context.Context, status TxStatus, isClaims bool, limit uint64) ([]Transaction, error)
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	UpdateTxsStatus(ctx context.Context, hashes []string, newStatus TxStatus) error
-	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus) error
+	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus, isWIP bool) error
+	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
 	GetTxs(ctx context.Context, filterStatus TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*Transaction, error)
 	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
 	GetTxByHash(ctx context.Context, hash common.Hash) (*Transaction, error)

@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
@@ -73,6 +74,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 		Status:      TxStatusPending,
 		IsClaims:    false,
 		ReceivedAt:  time.Now(),
+		IsWIP:       false,
 	}
 
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
@@ -99,6 +101,7 @@ func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZK
 
 	nonce, err := p.storage.GetNonce(ctx, sender)
 	if err != nil {
+		log.Errorf("Error getting nonce for sender %s: %v", sender.Hex(), err)
 		return state.ZKCounters{}, err
 	}
 
@@ -116,6 +119,13 @@ func (p *Pool) GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) (
 	return p.storage.GetTxsByStatus(ctx, TxStatusPending, isClaims, limit)
 }
 
+// GetNonWIPPendingTxs from the pool
+// limit parameter is used to limit amount of pending txs from the db,
+// if limit = 0, then there is no limit
+func (p *Pool) GetNonWIPPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]Transaction, error) {
+	return p.storage.GetNonWIPTxsByStatus(ctx, TxStatusPending, isClaims, limit)
+}
+
 // GetSelectedTxs gets selected txs from the pool db
 func (p *Pool) GetSelectedTxs(ctx context.Context, limit uint64) ([]Transaction, error) {
 	return p.storage.GetTxsByStatus(ctx, TxStatusSelected, false, limit)
@@ -128,8 +138,8 @@ func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]
 
 // UpdateTxStatus updates a transaction state accordingly to the
 // provided state and hash
-func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus) error {
-	return p.storage.UpdateTxStatus(ctx, hash, newStatus)
+func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus, isWIP bool) error {
+	return p.storage.UpdateTxStatus(ctx, hash, newStatus, isWIP)
 }
 
 // SetGasPrice allows an external component to define the gas price
@@ -285,4 +295,10 @@ func (p *Pool) DeleteReorgedTransactions(ctx context.Context, transactions []*ty
 	}
 
 	return p.storage.DeleteTransactionsByHashes(ctx, hashes)
+}
+
+// UpdateTxWIPStatus updates a transaction wip status accordingly to the
+// provided WIP status and hash
+func (p *Pool) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error {
+	return p.storage.UpdateTxWIPStatus(ctx, hash, isWIP)
 }

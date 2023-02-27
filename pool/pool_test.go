@@ -618,7 +618,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.UpdateTxStatus(ctx, signedTx.Hash(), pool.TxStatusInvalid)
+	err = p.UpdateTxStatus(ctx, signedTx.Hash(), pool.TxStatusInvalid, false)
 	if err != nil {
 		t.Error(err)
 	}

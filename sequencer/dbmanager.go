@@ -107,7 +107,7 @@ func (d *dbManager) loadFromPool() {
 		// TODO: Move this to a config parameter
 		time.Sleep(wait * time.Second)
 
-		poolTransactions, err := d.txPool.GetPendingTxs(d.ctx, false, 0)
+		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, false, 0)
 		if err != nil && err != pgpoolstorage.ErrNotFound {
 			log.Errorf("load tx from pool: %v", err)
 		}
@@ -119,7 +119,7 @@ func (d *dbManager) loadFromPool() {
 			}
 		}
 
-		poolClaims, err := d.txPool.GetPendingTxs(d.ctx, true, 0)
+		poolClaims, err := d.txPool.GetNonWIPPendingTxs(d.ctx, true, 0)
 		if err != nil && err != pgpoolstorage.ErrNotFound {
 			log.Errorf("load claims from pool: %v", err)
 		}
@@ -139,7 +139,7 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
 		return err
 	}
 	d.worker.AddTx(d.ctx, txTracker)
-	return d.txPool.UpdateTxStatus(d.ctx, tx.Hash(), pool.TxStatusWIP)
+	return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
 }
 
 // BeginStateTransaction starts a db transaction in the state
@@ -223,7 +223,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		}
 
 		// Change Tx status to selected
-		err = d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected)
+		err = d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected, false)
 		if err != nil {
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
@@ -561,8 +561,8 @@ func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumbe
 	return d.state.GetTransactionsByBatchNumber(ctx, batchNumber, nil)
 }
 
-func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error {
-	return d.txPool.UpdateTxStatus(ctx, hash, newStatus)
+func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
+	return d.txPool.UpdateTxStatus(ctx, hash, newStatus, isWIP)
 }
 
 // GetLatestVirtualBatchTimestamp gets last virtual batch timestamp

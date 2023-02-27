@@ -441,7 +441,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 		f.worker.DeleteTx(tx.Hash, tx.From)
 		metrics.WorkerProcessingTime(time.Since(start))
 		go func() {
-			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid)
+			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false)
 			if err != nil {
 				log.Errorf("failed to update tx status, err: %s", err)
 			}
