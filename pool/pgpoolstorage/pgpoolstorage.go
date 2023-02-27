@@ -182,7 +182,7 @@ func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status p
 
 // GetPendingTxHashesSince returns the pending tx since the given time.
 func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
-	sql := "SELECT hash FROM pool.transaction WHERE status = $1 AND received_at >= $3"
+	sql := "SELECT hash FROM pool.transaction WHERE status = $1 AND received_at >= $2"
 	rows, err := p.db.Query(ctx, sql, pool.TxStatusPending, since)
 	if err != nil {
 		return nil, err
