@@ -43,6 +43,7 @@ MultiGasProvider = true
 [EthTxManager]
 FrequencyToMonitorTxs = "1s"
 WaitTxToBeMined = "2m"
+ForcedGas = 0
 
 [RPC]
 Host = "0.0.0.0"
