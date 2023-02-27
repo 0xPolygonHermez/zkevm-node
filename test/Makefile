@@ -346,7 +346,6 @@ run: ## Runs a full node
 	$(RUNL1NETWORK)
 	sleep 1
 	$(RUNZKPROVER)
-	$(RUNAPPROVE)
 	sleep 3
 	$(RUNSYNC)
 	sleep 2

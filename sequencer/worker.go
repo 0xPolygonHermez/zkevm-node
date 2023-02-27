@@ -57,15 +57,18 @@ func (w *Worker) AddTx(ctx context.Context, tx *TxTracker) {
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
 			// TODO: How to manage this
+			log.Errorf("AddTx GetLastStateRoot error: %v", err)
 			return
 		}
 		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if err != nil {
+			log.Errorf("AddTx GetNonceByStateRoot error: %v", err)
 			// TODO: How to manage this
 			return
 		}
 		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if err != nil {
+			log.Errorf("AddTx GetBalanceByStateRoot error: %v", err)
 			// TODO: How to manage this
 			return
 		}
@@ -76,16 +79,20 @@ func (w *Worker) AddTx(ctx context.Context, tx *TxTracker) {
 		w.workerMutex.Lock()
 
 		w.pool[tx.FromStr] = addr
+		log.Infof("AddTx new addrQueue created for addr(%s)", tx.FromStr)
 	}
 
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
+	log.Infof("AddTx new tx(%s) to addrQueue(%s)", tx.Hash.String(), tx.FromStr)
 	newReadyTx, prevReadyTx := addr.addTx(tx)
 
 	// Update the EfficiencyList (if needed)
 	if prevReadyTx != nil {
+		log.Infof("AddTx prevReadyTx(%s) deleted from EfficiencyList", prevReadyTx.Hash.String())
 		w.efficiencyList.delete(prevReadyTx)
 	}
 	if newReadyTx != nil {
+		log.Infof("AddTx newReadyTx(%s) added to EfficiencyList", newReadyTx.Hash.String())
 		w.efficiencyList.add(newReadyTx)
 	}
 }
@@ -99,9 +106,11 @@ func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, from
 
 		// Update the EfficiencyList (if needed)
 		if prevReadyTx != nil {
+			log.Infof("applyAddressUpdate prevReadyTx(%s) deleted from EfficiencyList", prevReadyTx.Hash.String())
 			w.efficiencyList.delete(prevReadyTx)
 		}
 		if newReadyTx != nil {
+			log.Infof("applyAddressUpdate newReadyTx(%s) added to EfficiencyList", newReadyTx.Hash.String())
 			w.efficiencyList.add(newReadyTx)
 		}
 
@@ -142,7 +151,6 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 	defer w.workerMutex.Unlock()
 
 	addrQueue, found := w.pool[from.String()]
-
 	if found {
 		// Sanity check. The txHash must be the readyTx
 		if addrQueue.readyTx == nil || txHash.String() != addrQueue.readyTx.HashStr {
@@ -168,6 +176,7 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address) {
 	if found {
 		deletedReadyTx := addrQueue.deleteTx(txHash)
 		if deletedReadyTx != nil {
+			log.Infof("DeleteTx tx(%s) deleted from EfficiencyList", deletedReadyTx.Hash.String())
 			w.efficiencyList.delete(deletedReadyTx)
 		}
 	} else {
@@ -187,9 +196,11 @@ func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters stat
 
 		// Resort the newReadyTx in efficiencyList
 		if prevReadyTx != nil {
+			log.Infof("UpdateTx prevReadyTx(%s) deleted from EfficiencyList", prevReadyTx.Hash.String())
 			w.efficiencyList.delete(prevReadyTx)
 		}
 		if newReadyTx != nil {
+			log.Infof("UpdateTx newReadyTx(%s) added to EfficiencyList", newReadyTx.Hash.String())
 			w.efficiencyList.add(newReadyTx)
 		}
 	} else {
@@ -236,6 +247,7 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 				if foundAt == -1 || foundAt > i {
 					foundAt = i
 					tx = txCandidate
+					log.Infof("GetBestFittingTx found tx(%s) at index(%d)", tx.Hash.String(), i)
 				}
 				foundMutex.Unlock()
 
