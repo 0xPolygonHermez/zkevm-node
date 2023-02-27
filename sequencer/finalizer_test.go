@@ -247,7 +247,8 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 			// arrange
 			if tc.expectedDeleteCall {
 				workerMock.On("DeleteTx", oldHash, sender).Return().Once()
-				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, pool.TxStatusInvalid, false).Return(nil).Once()
+				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, pool.TxStatusFailed, false).Return(nil).Once()
+				dbManagerMock.On("DeleteTransactionFromPool", ctx, tx.Hash).Return(nil).Once()
 			}
 			if tc.expectedMoveCall {
 				workerMock.On("MoveTxToNotReady", oldHash, sender, &nonce, big.NewInt(0)).Return().Once()
