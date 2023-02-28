@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
@@ -99,9 +98,13 @@ func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZK
 		return state.ZKCounters{}, err
 	}
 
-	nonce, err := p.storage.GetNonce(ctx, sender)
+	lastL2BlockNumber, err := p.state.GetLastL2BlockNumber(ctx, nil)
 	if err != nil {
-		log.Errorf("Error getting nonce for sender %s: %v", sender.Hex(), err)
+		return state.ZKCounters{}, err
+	}
+
+	nonce, err := p.state.GetNonce(ctx, sender, lastL2BlockNumber, nil)
+	if err != nil {
 		return state.ZKCounters{}, err
 	}
 
