@@ -1163,13 +1163,18 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 }
 
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
-func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, nonce uint64, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	sender, err := GetSender(*tx)
 	if err != nil {
 		return nil, err
 	}
 
 	lastL2BlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := s.GetNonce(ctx, sender, lastL2BlockNumber, nil)
 	if err != nil {
 		return nil, err
 	}

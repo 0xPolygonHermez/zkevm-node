@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
@@ -94,18 +93,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
 func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error) {
-	sender, err := state.GetSender(tx)
-	if err != nil {
-		return state.ZKCounters{}, err
-	}
-
-	nonce, err := p.storage.GetNonce(ctx, sender)
-	if err != nil {
-		log.Errorf("Error getting nonce for sender %s: %v", sender.Hex(), err)
-		return state.ZKCounters{}, err
-	}
-
-	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nonce, nil)
+	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
 		return state.ZKCounters{}, err
 	}
