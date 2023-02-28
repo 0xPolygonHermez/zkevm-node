@@ -108,7 +108,7 @@ func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZK
 		return state.ZKCounters{}, err
 	}
 
-	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nonce, nil)
+	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nonce, lastL2BlockNumber, nil)
 	if err != nil {
 		return state.ZKCounters{}, err
 	}
