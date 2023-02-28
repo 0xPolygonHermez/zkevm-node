@@ -15,6 +15,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Double"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Storage"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -812,5 +814,77 @@ func Test_WebSocketsSubscription(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotEmpty(t, block["hash"].(string))
 		}
+	}
+}
+
+func Test_RevertOnConstructorTransaction(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	Setup()
+	defer Teardown()
+
+	ctx := context.Background()
+
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+		auth.GasLimit = 1000000
+
+		_, scTx, _, err := Revert.DeployRevert(auth, client)
+		require.NoError(t, err)
+
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
+		errMsg := err.Error()
+		prefix := "transaction has failed, reason: execution reverted: Today is not juernes"
+		hasPrefix := strings.HasPrefix(errMsg, prefix)
+		require.True(t, hasPrefix)
+
+		receipt, err := client.TransactionReceipt(ctx, scTx.Hash())
+		require.NoError(t, err)
+
+		assert.Equal(t, receipt.Status, types.ReceiptStatusFailed)
+	}
+}
+
+func Test_RevertOnSCCallTransaction(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	Setup()
+	defer Teardown()
+
+	ctx := context.Background()
+
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+		auth.GasLimit = 1000000
+
+		_, scTx, sc, err := Revert2.DeployRevert2(auth, client)
+		require.NoError(t, err)
+
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		tx, err := sc.GenerateError(auth)
+		require.NoError(t, err)
+
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		errMsg := err.Error()
+		prefix := "transaction has failed, reason: execution reverted: Today is not juernes"
+		hasPrefix := strings.HasPrefix(errMsg, prefix)
+		require.True(t, hasPrefix)
+
+		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		require.NoError(t, err)
+
+		assert.Equal(t, receipt.Status, types.ReceiptStatusFailed)
 	}
 }
