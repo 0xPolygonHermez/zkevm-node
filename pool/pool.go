@@ -93,22 +93,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
 func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error) {
-	sender, err := state.GetSender(tx)
-	if err != nil {
-		return state.ZKCounters{}, err
-	}
-
-	lastL2BlockNumber, err := p.state.GetLastL2BlockNumber(ctx, nil)
-	if err != nil {
-		return state.ZKCounters{}, err
-	}
-
-	nonce, err := p.state.GetNonce(ctx, sender, lastL2BlockNumber, nil)
-	if err != nil {
-		return state.ZKCounters{}, err
-	}
-
-	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nonce, lastL2BlockNumber, nil)
+	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
 		return state.ZKCounters{}, err
 	}
