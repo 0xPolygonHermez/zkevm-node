@@ -119,7 +119,7 @@ Type = "default"
 DefaultGasPriceWei = 1000000000
 
 [MTClient]
-URI  = "127.0.0.1:50061"
+URI = "127.0.0.1:50061"
 
 [Executor]
 URI = "127.0.0.1:50071"
