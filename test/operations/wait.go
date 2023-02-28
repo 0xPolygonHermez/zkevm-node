@@ -194,12 +194,7 @@ func NodeUpCondition(target string) (bool, error) {
 
 	done := !r.Result
 
-	if done {
-		return true, nil
-	}
-	return false, nil
-
-	//return done, nil
+	return done, nil
 }
 
 // ConditionFunc is a generic function
