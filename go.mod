@@ -20,7 +20,7 @@ require (
 	github.com/rubenv/sql-migrate v1.3.1
 	github.com/spf13/afero v1.9.4
 	github.com/spf13/viper v1.15.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/umbracle/ethgo v0.1.3
 	github.com/urfave/cli/v2 v2.24.4
 	go.uber.org/zap v1.24.0
