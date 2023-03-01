@@ -1020,7 +1020,7 @@ func TestExecutorRevert(t *testing.T) {
 	unsignedTx := types.NewTransaction(2, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("4abbb40a"))
 
 	result := testState.ProcessUnsignedTransaction(ctx, unsignedTx, auth.From, &lastL2BlockNumber, true, nil)
-	assert.NotEqual(t, nil, result.Err)
+	assert.Contains(t, "reverted", result.Err.Error())
 }
 
 func TestExecutorLogs(t *testing.T) {
