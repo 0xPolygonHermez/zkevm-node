@@ -42,6 +42,41 @@ type proverJob interface {
 	Proof()
 }
 
+type nilJob struct {
+	tracking string
+}
+
+// Proof implements the proverJob interface.
+func (nilJob) Proof() {}
+
+type aggregationJob struct {
+	tracking string
+	proof1   *state.Proof
+	proof2   *state.Proof
+	proofCh  chan jobResult
+}
+
+// Proof implements the proverJob interface.
+func (aggregationJob) Proof() {}
+
+type generationJob struct {
+	tracking string
+	batch    *state.Batch
+	proof    *state.Proof
+	proofCh  chan jobResult
+}
+
+// Proof implements the proverJob interface.
+func (generationJob) Proof() {}
+
+type finalJob struct {
+	tracking string
+	proof    *state.Proof
+}
+
+// Proof implements the proverJob interface.
+func (finalJob) Proof() {}
+
 type jobResult struct {
 	proverName string
 	proverID   string
@@ -49,38 +84,6 @@ type jobResult struct {
 	job        proverJob
 	proof      *state.Proof
 	err        error
-}
-
-type job struct{}
-
-// Proof implements the proverJob interface.
-func (job) Proof() {}
-
-type nilJob struct {
-	job
-	tracking string
-}
-
-type aggregationJob struct {
-	job
-	tracking string
-	proof1   *state.Proof
-	proof2   *state.Proof
-	proofCh  chan jobResult
-}
-
-type generationJob struct {
-	job
-	tracking string
-	batch    *state.Batch
-	proof    *state.Proof
-	proofCh  chan jobResult
-}
-
-type finalJob struct {
-	job
-	tracking string
-	proof    *state.Proof
 }
 
 type finalJobResult struct {
@@ -471,6 +474,8 @@ func (a *Aggregator) aggregate() {
 				"proverAddr", prover.addr,
 				"tracking", prover.tracking,
 			)
+
+			// dedicated channel to receive the proof
 			proofCh := make(chan jobResult)
 
 			err := a.feedProver(prover, proofCh)
@@ -478,7 +483,7 @@ func (a *Aggregator) aggregate() {
 				log.Error(err)
 			}
 
-			// spawn goroutine to wait the proof on a dedicated channel
+			// wait for the proof
 			go func() {
 				for {
 					select {
@@ -662,12 +667,12 @@ func (a *Aggregator) handleProof(ctx context.Context, result jobResult) error {
 			if err := dbTx.Rollback(ctx); err != nil {
 				return fmt.Errorf("failed to rollback failing updating proof in progress, %w", err)
 			}
-			return fmt.Errorf("Failed to to store batch proof result, %w", err)
+			return fmt.Errorf("failed to to store batch proof result, %w", err)
 		}
 	}
 
 	if err := dbTx.Commit(ctx); err != nil {
-		return fmt.Errorf("Failed to commit proof job, %w", err)
+		return fmt.Errorf("failed to commit proof job, %w", err)
 	}
 
 	// send the eligible final proof
@@ -772,6 +777,8 @@ func (a *Aggregator) eligibleFinalProof(ctx context.Context, proof *state.Proof)
 			return nil, fmt.Errorf("%w: proof [%d-%d] does not contain complete sequences", ErrNotValidForFinal, proof.BatchNumber, proof.BatchNumberFinal)
 		}
 	}
+
+	log.Debugf("Proof ID [%s] for batches [%d-%d] is valid for final", *proof.ProofID, proof.BatchNumber, proof.BatchNumberFinal)
 
 	return proof, nil
 }
