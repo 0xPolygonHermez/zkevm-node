@@ -25,7 +25,7 @@ type RPCError struct {
 }
 
 func newRPCError(code int, err string, args ...interface{}) *RPCError {
-	return newRPCErrorWithData(code, err, nil, args)
+	return newRPCErrorWithData(code, err, nil, args...)
 }
 
 func newRPCErrorWithData(code int, err string, data *[]byte, args ...interface{}) *RPCError {

@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
@@ -94,7 +95,7 @@ func TestBlockNumber(t *testing.T) {
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -151,7 +152,7 @@ func TestCall(t *testing.T) {
 				})
 				m.State.On("GetNonce", context.Background(), testCase.from, blockNumber, m.DbTx).Return(nonce, nil).Once()
 				var nilBlockNumber *uint64
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, nilBlockNumber, true, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, nilBlockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
 			},
 		},
 		{
@@ -179,7 +180,7 @@ func TestCall(t *testing.T) {
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
 				var nilBlockNumber *uint64
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilBlockNumber, true, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilBlockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
 			},
 		},
 		{
@@ -208,7 +209,7 @@ func TestCall(t *testing.T) {
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
 				var nilBlockNumber *uint64
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilBlockNumber, true, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilBlockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
 			},
 		},
 		{
@@ -265,7 +266,7 @@ func TestCall(t *testing.T) {
 			value:          big.NewInt(2),
 			data:           []byte("data"),
 			expectedResult: nil,
-			expectedError:  newRPCError(defaultErrorCode, "failed to process unsigned transaction"),
+			expectedError:  newRPCError(revertedErrorCode, "failed to process unsigned transaction"),
 			setupMocks: func(c Config, m *mocks, testCase *testCase) {
 				blockNumber := uint64(1)
 				nonce := uint64(7)
@@ -284,7 +285,7 @@ func TestCall(t *testing.T) {
 				})
 				m.State.On("GetNonce", context.Background(), testCase.from, blockNumber, m.DbTx).Return(nonce, nil).Once()
 				var nilBlockNumber *uint64
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, nilBlockNumber, true, m.DbTx).Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}).Once()
+				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, nilBlockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}).Once()
 			},
 		},
 	}
@@ -299,7 +300,7 @@ func TestCall(t *testing.T) {
 			assert.Equal(t, testCase.expectedResult, result)
 			if err != nil || testCase.expectedError != nil {
 				if expectedErr, ok := testCase.expectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -604,7 +605,7 @@ func TestGetBalance(t *testing.T) {
 			balance, err := c.BalanceAt(context.Background(), tc.addr, tc.blockNumber)
 			assert.Equal(t, tc.expectedBalance, balance.Uint64())
 			if err != nil || tc.expectedError != nil {
-				rpcErr := err.(rpcError)
+				rpcErr := err.(rpc.Error)
 				assert.Equal(t, tc.expectedError.ErrorCode(), rpcErr.ErrorCode())
 				assert.Equal(t, tc.expectedError.Error(), rpcErr.Error())
 			}
@@ -715,7 +716,7 @@ func TestGetL2BlockByHash(t *testing.T) {
 
 			if err != nil || tc.ExpectedError != nil {
 				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -949,7 +950,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 
 			if err != nil || tc.ExpectedError != nil {
 				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -1162,7 +1163,7 @@ func TestGetCode(t *testing.T) {
 
 			if err != nil || tc.ExpectedError != nil {
 				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -1300,7 +1301,7 @@ func TestGetStorageAt(t *testing.T) {
 
 			if err != nil || tc.ExpectedError != nil {
 				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -1419,7 +1420,7 @@ func TestSyncing(t *testing.T) {
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -1598,7 +1599,7 @@ func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -2051,7 +2052,7 @@ func TestGetTransactionByHash(t *testing.T) {
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -2131,7 +2132,7 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -2667,7 +2668,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -2735,7 +2736,7 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -2900,7 +2901,7 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -2937,7 +2938,7 @@ func TestSendRawTransactionViaGethForNonSequencerNodeFailsToRelayTxToSequencerNo
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
@@ -3402,7 +3403,7 @@ func TestGetLogs(t *testing.T) {
 
 			if err != nil || tc.ExpectedError != nil {
 				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
-					rpcErr := err.(rpcError)
+					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
 				} else {
