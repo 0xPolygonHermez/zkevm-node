@@ -12,8 +12,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	pb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
@@ -386,8 +386,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) error {
 	if len(result.Responses) > 0 {
 		// Handle Transaction Error
-		if result.Responses[0].RomError != nil &&
-			!errors.Is(result.Responses[0].RomError, executor.RomErr(pb.RomError_ROM_ERROR_EXECUTION_REVERTED)) {
+		if result.Responses[0].RomError != nil && !errors.Is(result.Responses[0].RomError, runtime.ErrExecutionReverted) {
 			f.handleTransactionError(ctx, result, tx)
 			return result.Responses[0].RomError
 		}

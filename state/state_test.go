@@ -20,6 +20,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -66,7 +67,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.104.156")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -895,6 +896,31 @@ func TestExecutorRevert(t *testing.T) {
 	scRevertByteCode, err := testutils.ReadBytecode("Revert2/Revert2.bin")
 	require.NoError(t, err)
 
+	// Set Genesis
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: sequencerAddress.String(),
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "10000000",
+			},
+		},
+	}
+
+	initOrResetDB()
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+
 	// Deploy revert.sol
 	tx0 := types.NewTx(&types.LegacyTx{
 		Nonce:    0,
@@ -926,7 +952,7 @@ func TestExecutorRevert(t *testing.T) {
 		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
-		OldStateRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldStateRoot:     stateRoot,
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
@@ -937,7 +963,64 @@ func TestExecutorRevert(t *testing.T) {
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
+	assert.Equal(t, runtime.ErrExecutionReverted, executor.RomErr(processBatchResponse.Responses[1].Error))
+
+	// Unsigned
+	receipt := &types.Receipt{
+		Type:              uint8(signedTx0.Type()),
+		PostState:         processBatchResponse.Responses[0].StateRoot,
+		CumulativeGasUsed: processBatchResponse.Responses[0].GasUsed,
+		BlockNumber:       big.NewInt(0),
+		GasUsed:           processBatchResponse.Responses[0].GasUsed,
+		TxHash:            signedTx0.Hash(),
+		TransactionIndex:  0,
+		Status:            types.ReceiptStatusSuccessful,
+	}
+
+	receipt1 := &types.Receipt{
+		Type:              uint8(signedTx1.Type()),
+		PostState:         processBatchResponse.Responses[1].StateRoot,
+		CumulativeGasUsed: processBatchResponse.Responses[0].GasUsed + processBatchResponse.Responses[1].GasUsed,
+		BlockNumber:       big.NewInt(0),
+		GasUsed:           signedTx1.Gas(),
+		TxHash:            signedTx1.Hash(),
+		TransactionIndex:  1,
+		Status:            types.ReceiptStatusSuccessful,
+	}
+
+	header := &types.Header{
+		Number:     big.NewInt(1),
+		ParentHash: state.ZeroHash,
+		Coinbase:   state.ZeroAddress,
+		Root:       common.BytesToHash(processBatchResponse.NewStateRoot),
+		GasUsed:    receipt1.GasUsed,
+		GasLimit:   receipt1.GasUsed,
+		Time:       uint64(time.Now().Unix()),
+	}
+
+	receipts := []*types.Receipt{receipt, receipt1}
+
+	transactions := []*types.Transaction{signedTx0, signedTx1}
+
+	// Create block to be able to calculate its hash
+	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+	l2Block.ReceivedAt = time.Now()
+
+	receipt.BlockHash = l2Block.Hash()
+
+	err = testState.AddL2Block(ctx, 0, l2Block, receipts, dbTx)
+	require.NoError(t, err)
+	l2Block, err = testState.GetL2BlockByHash(ctx, l2Block.Hash(), dbTx)
+	require.NoError(t, err)
+
+	require.NoError(t, dbTx.Commit(ctx))
+
+	lastL2BlockNumber := l2Block.NumberU64()
+
+	unsignedTx := types.NewTransaction(2, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("4abbb40a"))
+
+	result := testState.ProcessUnsignedTransaction(ctx, unsignedTx, auth.From, &lastL2BlockNumber, true, nil)
+	assert.NotEqual(t, nil, result.Err)
 }
 
 func TestExecutorLogs(t *testing.T) {

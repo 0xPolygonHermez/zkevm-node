@@ -1189,7 +1189,6 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	if err != nil {
 		result.Err = err
 	}
-
 	if response.Responses[0] != nil {
 		r := response.Responses[0]
 		result.ReturnValue = r.ReturnValue
@@ -1197,6 +1196,10 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		result.GasUsed = r.GasUsed
 		result.CreateAddress = r.CreateAddress
 		result.StateRoot = r.StateRoot.Bytes()
+
+		if result.Err == nil {
+			result.Err = r.RomError
+		}
 	}
 
 	return result
@@ -1274,9 +1277,9 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	if processBatchResponse.Responses[0].Error != pb.RomError(executor.ROM_ERROR_NO_ERROR) {
 		err := executor.RomErr(processBatchResponse.Responses[0].Error)
 		if isEVMRevertError(err) {
-			return nil, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
+			return response, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
 		} else {
-			return nil, err
+			return response, err
 		}
 	}
 
