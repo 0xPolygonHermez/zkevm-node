@@ -331,6 +331,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 				case <-a.ctx.Done():
 					return a.ctx.Err()
 				case proofCh <- jr:
+					break jobsLoop
 				}
 			} // jobsLoop
 		} // select
@@ -529,8 +530,6 @@ func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) err
 
 	select {
 	case <-a.verifyProofTimeOut:
-		log.Debug("Time to send the final proof")
-
 		select {
 		// before looking for a proof into the state, we listen if the
 		// eligible proof has just been produced by a prover
@@ -540,6 +539,7 @@ func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) err
 			return sendJob(fj)
 
 		default:
+			log.Debug("Time to send the final proof")
 			log.Debug("Check if there is a previous batch eligible to be final")
 			proof, err := a.eligibleFinalProof(ctx, nil)
 			if errors.Is(err, state.ErrNotFound) {
@@ -631,12 +631,12 @@ func (a *Aggregator) handleProof(ctx context.Context, result jobResult) error {
 			log.Debug(err.Error())
 		} else if err != nil {
 			return fmt.Errorf("failed to validate job for final proof, %w", err)
+		} else {
+			// if the proof is eligible to be final, it needs to be reserved
+			// by setting the GeneratingSince timestamp
+			now := time.Now().UTC().Round(time.Microsecond)
+			validForFinal = &now
 		}
-
-		// if the proof is eligible to be final, it needs to be reserved
-		// by setting the GeneratingSince timestamp
-		now := time.Now().UTC().Round(time.Microsecond)
-		validForFinal = &now
 	default:
 	}
 

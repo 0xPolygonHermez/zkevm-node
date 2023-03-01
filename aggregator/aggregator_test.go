@@ -180,9 +180,8 @@ func TestAggregate(t *testing.T) {
 			},
 		},
 		{
-			name: "aggregate batches, final",
+			name: "aggregate batches, then final",
 			setup: func(m mox, a *Aggregator) {
-				// trigger final proof
 				a.verifyProofTimeOut = make(chan struct{})
 
 				// --- first prover calls ---
@@ -190,6 +189,7 @@ func TestAggregate(t *testing.T) {
 				dbTx := &mocks.DbTxMock{}
 				feedTxCall := m.stateMock.On("BeginStateTransaction", mock.Anything).Return(dbTx, nil).Once()
 				m.stateMock.On("BeginStateTransaction", mock.Anything).Run(func(args mock.Arguments) {
+					// trigger final proof
 					close(a.verifyProofTimeOut)
 				}).Return(dbTx, nil).Once().NotBefore(feedTxCall)
 				updateP1Call := m.stateMock.
@@ -236,6 +236,8 @@ func TestAggregate(t *testing.T) {
 						a.verifyProofTimeOut = nil
 
 						// proof handling is done, inform the assertions func
+						// this is necessary to coordinate the test execution,
+						// otherwise in some environments it may fail.
 						proofDone <- struct{}{}
 					}).
 					Return(nil).Once().
