@@ -391,11 +391,15 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 }
 
-func rpcErrorResponse(code int, errorMessage string, err error) (interface{}, rpcError) {
+func rpcErrorResponse(code int, message string, err error) (interface{}, rpcError) {
+	return rpcErrorResponseWithData(code, message, nil, err)
+}
+
+func rpcErrorResponseWithData(code int, message string, data *[]byte, err error) (interface{}, rpcError) {
 	if err != nil {
-		log.Errorf("%v:%v", errorMessage, err.Error())
+		log.Errorf("%v:%v", message, err.Error())
 	} else {
-		log.Error(errorMessage)
+		log.Error(message)
 	}
-	return nil, newRPCError(code, errorMessage)
+	return nil, newRPCErrorWithData(code, message, data)
 }

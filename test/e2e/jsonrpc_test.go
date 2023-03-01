@@ -20,11 +20,13 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Storage"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -847,6 +849,28 @@ func Test_RevertOnConstructorTransaction(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, receipt.Status, types.ReceiptStatusFailed)
+
+		msg := ethereum.CallMsg{
+			From: auth.From,
+			To:   scTx.To(),
+			Gas:  scTx.Gas(),
+
+			Value: scTx.Value(),
+			Data:  scTx.Data(),
+		}
+		result, err := client.CallContract(ctx, msg, receipt.BlockNumber)
+		require.NotNil(t, err)
+		require.Nil(t, result)
+		rpcErr := err.(rpc.Error)
+		assert.Equal(t, 3, rpcErr.ErrorCode())
+		assert.Equal(t, "execution reverted: Today is not juernes", rpcErr.Error())
+
+		dataErr := err.(rpc.DataError)
+		data := dataErr.ErrorData().(string)
+		decodedData := hex.DecodeBig(data)
+		unpackedData, err := abi.UnpackRevert(decodedData.Bytes())
+		require.NoError(t, err)
+		assert.Equal(t, "Today is not juernes", unpackedData)
 	}
 }
 
@@ -886,5 +910,27 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, receipt.Status, types.ReceiptStatusFailed)
+
+		msg := ethereum.CallMsg{
+			From: auth.From,
+			To:   tx.To(),
+			Gas:  tx.Gas(),
+
+			Value: tx.Value(),
+			Data:  tx.Data(),
+		}
+		result, err := client.CallContract(ctx, msg, receipt.BlockNumber)
+		require.NotNil(t, err)
+		require.Nil(t, result)
+		rpcErr := err.(rpc.Error)
+		assert.Equal(t, 3, rpcErr.ErrorCode())
+		assert.Equal(t, "execution reverted: Today is not juernes", rpcErr.Error())
+
+		dataErr := err.(rpc.DataError)
+		data := dataErr.ErrorData().(string)
+		decodedData := hex.DecodeBig(data)
+		unpackedData, err := abi.UnpackRevert(decodedData.Bytes())
+		require.NoError(t, err)
+		assert.Equal(t, "Today is not juernes", unpackedData)
 	}
 }
