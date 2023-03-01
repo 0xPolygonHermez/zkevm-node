@@ -160,6 +160,14 @@ func WaitBatchToBeVirtualized(batchNum uint64, timeout time.Duration, state *sta
 	})
 }
 
+// WaitBatchToBeConsolidated waits until a Batch has been consolidated/verified or the given timeout expires.
+func WaitBatchToBeConsolidated(batchNum uint64, timeout time.Duration, state *state.State) error {
+	ctx := context.Background()
+	return Poll(DefaultInterval, timeout, func() (bool, error) {
+		return state.IsBatchConsolidated(ctx, batchNum, nil)
+	})
+}
+
 // NodeUpCondition check if the container is up and running
 func NodeUpCondition(target string) (bool, error) {
 	var jsonStr = []byte(`{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}`)

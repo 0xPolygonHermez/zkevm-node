@@ -183,7 +183,10 @@ func sendForcedBatch(t *testing.T, opsman *operations.Manager) (*state.Batch, er
 		require.NoError(t, err)
 		require.NotNil(t, forcedBatch)
 
-		err = operations.WaitBatchToBeVirtualized(forcedBatch.BatchNumber, 2*time.Minute, st)
+		err = operations.WaitBatchToBeVirtualized(forcedBatch.BatchNumber, 4*time.Minute, st)
+		require.NoError(t, err)
+
+		err = operations.WaitBatchToBeConsolidated(forcedBatch.BatchNumber, 4*time.Minute, st)
 		require.NoError(t, err)
 
 		if rootInContractHash != initialGer.GlobalExitRoot {
