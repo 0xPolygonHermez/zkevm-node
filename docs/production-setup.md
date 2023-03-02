@@ -25,7 +25,7 @@ tl;dr:
 ZKEVM_NET=testnet
 ZKEVM_DIR=./path/to/install # CHANGE THIS
 ZKEVM_CONFIG_DIR=./path/to/config  # CHANGE THIS
-curl -L https://github.com/arnaubennassar/GHA-release-playground/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip
+curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip
 cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env
 
 # EDIT THIS env file:
