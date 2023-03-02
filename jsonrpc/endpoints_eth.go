@@ -78,9 +78,11 @@ func (e *EthEndpoints) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpc
 			blockNumberToProcessTx = &blockNumber
 		}
 
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, true, dbTx)
+		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, false, dbTx)
 		if result.Failed() {
-			return rpcErrorResponse(defaultErrorCode, result.Err.Error(), nil)
+			data := make([]byte, len(result.ReturnValue))
+			copy(data, result.ReturnValue)
+			return rpcErrorResponseWithData(revertedErrorCode, result.Err.Error(), &data, nil)
 		}
 
 		return argBytesPtr(result.ReturnValue), nil
