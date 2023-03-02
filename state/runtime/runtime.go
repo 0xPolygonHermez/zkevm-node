@@ -61,6 +61,8 @@ var (
 	ErrIntrinsicInvalidTxGasOverflow = errors.New("gas overflow")
 	// ErrUnsupportedForkId indicates that the fork id is not supported
 	ErrUnsupportedForkId = errors.New("unsupported fork id")
+	// ErrBalanceMismatch indicates that the balance mismatch in the ROM
+	ErrBalanceMismatch = errors.New("balance mismatch")
 )
 
 // ExecutionResult includes all output after executing given evm

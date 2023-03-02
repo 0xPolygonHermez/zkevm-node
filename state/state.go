@@ -1678,7 +1678,7 @@ func (s *State) LogExecutorError(responseError pb.ExecutorError, processBatchReq
 		log.Errorf("error marshaling payload: %v", err)
 	} else {
 		debugInfo := &DebugInfo{
-			ErrorType: DebugInfoErrorType_EXECUTOR_ERROR,
+			ErrorType: DebugInfoErrorType_EXECUTOR_ERROR + " " + responseError.String(),
 			Timestamp: timestamp,
 			Payload:   string(payload),
 		}
