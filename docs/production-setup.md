@@ -40,7 +40,7 @@ Explained step by step:
 1. Define network (currently only testnet is supported, mainnet comming very soon!): `ZKEVM_NET=testnet`
 2. Define installation path: `ZKEVM_DIR=./path/to/install`
 3. Define a config directory: `ZKEVM_CONFIG_DIR=./path/to/config`
-4. Download and extract the artifacts: `curl -L https://github.com/arnaubennassar/GHA-release-playground/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip`. Note you may need to install `unzip` for this command to work
+4. Download and extract the artifacts: `curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip`. Note you may need to install `unzip` for this command to work
 5. Copy the file with the env parameters: `cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env`
 6. Edit the env file, with your favourite editor. The example will use nano: `nano $ZKEVM_CONFIG_DIR/.env`. This file contains the configuration that anyone should modify. For advanced configuration modify:
    1. Copy the config files into the config directory `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/public/* $ZKEVM_CONFIG_DIR/`
