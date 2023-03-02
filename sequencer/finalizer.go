@@ -203,7 +203,11 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			f.sharedResourcesMux.Lock()
-			_ = f.processTransaction(ctx, tx)
+			err := f.processTransaction(ctx, tx)
+			if err != nil {
+				log.Errorf("failed to process transaction in finalizeBatches, Err: %s", err)
+			}
+
 			f.sharedResourcesMux.Unlock()
 		} else {
 			if f.isBatchAlmostFull() {
@@ -423,6 +427,10 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 		timestamp:                f.batch.timestamp,
 		previousL2BlockStateRoot: previousL2BlockStateRoot,
 	}
+
+	// Delete the transaction from the efficiency list
+	f.worker.DeleteTx(tx.Hash, tx.From)
+	log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
 
 	start := time.Now()
 	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
