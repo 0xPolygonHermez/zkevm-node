@@ -26,9 +26,9 @@ FreeClaimGasLimit = 1500000
 [Etherman]
 URL = "http://your.L1node.url"
 L1ChainID = 5
-PoEAddr = "0x5e2e663A39205348cE985Bccc9673Ca25AeE727E"
-MaticAddr = "0x957601b24ce513E64C7D77c9EB169501B7CC4D71"
-GlobalExitRootManagerAddr = "0x715fC3A1422de7Ae2EA483d1DA8415E8dD45bAd3"
+PoEAddr = "0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"
+MaticAddr = "0x1319D23c2F7034F52Eb07399702B040bA278Ca49"
+GlobalExitRootManagerAddr = "0x4d9427DCA0406358445bC0a8F88C26b704004f74"
 MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""
@@ -39,7 +39,7 @@ Port = 8545
 ReadTimeoutInSec = 60
 WriteTimeoutInSec = 60
 MaxRequestsPerIPAndSecond = 5000
-SequencerNodeURI = "https://public.zkevm-test.net:2083"
+SequencerNodeURI = "https://rpc.public.zkevm-test.net/"
 BroadcastURI = "public-grpc.zkevm-test.net:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 	[RPC.WebSockets]
@@ -49,11 +49,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 [Synchronizer]
 SyncInterval = "2s"
 SyncChunkSize = 100
-GenBlockNumber = 8168981
-
-[L2GasPriceSuggester]
-Type = "default"
-DefaultGasPriceWei = 1000000000
+GenBlockNumber = 8572998
 
 [MTClient]
 URI = "zkevm-prover:50061"
