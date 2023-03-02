@@ -654,7 +654,7 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 	if caller != DiscardCallerLabel {
 		metrics.ExecutorProcessingTime(string(caller), elapsed)
 	}
-	log.Infof("It took %v for the executor to process the request", elapsed)
+	log.Infof("Batch: %d took %v to be processed by the executor ", processBatchRequest.OldBatchNum+1, elapsed)
 
 	return res, err
 }

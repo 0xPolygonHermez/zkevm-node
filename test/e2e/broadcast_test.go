@@ -55,7 +55,8 @@ func TestBroadcast(t *testing.T) {
 
 	require.NoError(t, populateDB(ctx, st))
 
-	client, conn, cancel := broadcast.NewClient(ctx, serverAddress)
+	client, conn, cancel, err := broadcast.NewClient(ctx, serverAddress)
+	require.NoError(t, err)
 	defer func() {
 		cancel()
 		require.NoError(t, conn.Close())
