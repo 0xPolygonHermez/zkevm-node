@@ -10,10 +10,15 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+const (
+	mintAmount     = 1000000000000000000
+	transferAmount = 1
+)
+
 var (
-	mintAmount     = big.NewInt(1000000000000000)
-	transferAmount = big.NewInt(1)
-	countTxs       = 0
+	mintAmountBig     = big.NewInt(mintAmount)
+	transferAmountBig = big.NewInt(transferAmount)
+	countTxs          = 0
 )
 
 // TxSender sends ERC20 transfer to the sequencer
@@ -22,9 +27,9 @@ func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth 
 	auth.Nonce = new(big.Int).SetUint64(nonce)
 	var actualTransferAmount *big.Int
 	if nonce%2 == 0 {
-		actualTransferAmount = big.NewInt(0).Sub(transferAmount, auth.Nonce)
+		actualTransferAmount = big.NewInt(0).Sub(transferAmountBig, auth.Nonce)
 	} else {
-		actualTransferAmount = big.NewInt(0).Add(transferAmount, auth.Nonce)
+		actualTransferAmount = big.NewInt(0).Add(transferAmountBig, auth.Nonce)
 	}
 	_, err := erc20SC.Transfer(auth, params.To, actualTransferAmount)
 	countTxs += 1

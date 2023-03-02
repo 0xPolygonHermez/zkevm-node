@@ -88,7 +88,7 @@ func deployERC20Contract(b *testing.B, client *ethclient.Client, ctx context.Con
 	require.NoError(b, err)
 	log.Debugf("Sending TX to do a ERC20 mint")
 	auth.Nonce = big.NewInt(1) // for the mint tx
-	tx, err = erc20SC.Mint(auth, mintAmount)
+	tx, err = erc20SC.Mint(auth, mintAmountBig)
 	auth.Nonce = big.NewInt(2)
 	require.NoError(b, err)
 	err = operations.WaitTxToBeMined(ctx, client, tx, txTimeout)
