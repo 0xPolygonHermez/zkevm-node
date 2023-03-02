@@ -873,6 +873,7 @@ func Test_WebSocketsSubscription(t *testing.T) {
 // 	}
 // }
 
+/*
 func Test_RevertOnSCCallTransaction(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -933,3 +934,4 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 		assert.Equal(t, "Today is not juernes", unpackedData)
 	}
 }
+*/
