@@ -48,9 +48,9 @@ type Response struct {
 
 // ErrorObject is a jsonrpc error
 type ErrorObject struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Code    int       `json:"code"`
+	Message string    `json:"message"`
+	Data    *argBytes `json:"data,omitempty"`
 }
 
 // NewResponse returns Success/Error response object
@@ -62,7 +62,13 @@ func NewResponse(req Request, reply []byte, err rpcError) Response {
 
 	var errorObj *ErrorObject
 	if err != nil {
-		errorObj = &ErrorObject{err.ErrorCode(), err.Error(), nil}
+		errorObj = &ErrorObject{
+			Code:    err.ErrorCode(),
+			Message: err.Error(),
+		}
+		if err.ErrorData() != nil {
+			errorObj.Data = argBytesPtr(*err.ErrorData())
+		}
 	}
 
 	return Response{
