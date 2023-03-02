@@ -79,12 +79,11 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 	// Execute transaction to calculate its zkCounters
 	zkCounters, err := p.PreExecuteTx(ctx, tx)
-	if err == nil {
-		poolTx.ZKCounters = zkCounters
-	} else {
+	if err != nil {
 		return err
 	}
 
+	poolTx.ZKCounters = zkCounters
 	return p.storage.AddTx(ctx, poolTx)
 }
 
