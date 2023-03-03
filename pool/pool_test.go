@@ -20,6 +20,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -1128,6 +1129,69 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	assert.Equal(t, 2, len(txs))
 
 	for i := 0; i < 2; i++ {
+		assert.Equal(t, pool.TxStatusPending, txs[0].Status)
+	}
+}
+
+func Test_AddRevertedTx(t *testing.T) {
+	initOrResetDB()
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	cfg := pool.Config{
+		FreeClaimGasLimit: 150000,
+	}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	// insert transaction
+	revertScData, err := hex.DecodeHex(Revert.RevertBin)
+	require.NoError(t, err)
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    uint64(0),
+		Gas:      uint64(1000000),
+		GasPrice: big.NewInt(10),
+		Data:     revertScData,
+	})
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx)
+	require.NoError(t, err)
+
+	txs, err := p.GetPendingTxs(ctx, false, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(txs))
+
+	for i := 0; i < 1; i++ {
 		assert.Equal(t, pool.TxStatusPending, txs[0].Status)
 	}
 }
