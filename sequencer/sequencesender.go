@@ -22,6 +22,16 @@ import (
 const (
 	ethTxManagerOwner = "sequencer"
 	monitoredIDFormat = "sequence-from-%v-to-%v"
+	// txSlotSize is used to calculate how many data slots a single transaction
+	// takes up based on its size. The slots are used as DoS protection, ensuring
+	// that validating a new transaction remains a constant operation (in reality
+	// O(maxslots), where max slots are 4 currently).
+	txSlotSize = 32 * 1024
+	// txMaxSize is the maximum size a single transaction can have. This field has
+	// non-trivial consequences: larger transactions are significantly harder and
+	// more expensive to propagate; larger transactions also take more resources
+	// to validate whether they fit into the pool or not.
+	txMaxSize = 4 * txSlotSize // 128KB
 )
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
@@ -135,12 +145,13 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		// Check if can be send
 		sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
 		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
-		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
+		if err == nil && (new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 || tx.Size() > txMaxSize) {
 			metrics.SequencesOvesizedDataError()
 			log.Infof("oversized Data on TX oldHash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
 			err = txpool.ErrOversizedData
 		}
 		if err != nil {
+			log.Infof("Handling estimage gas send sequence error: %v", err)
 			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
 				// Handling the error gracefully, re-processing the sequence as a sanity check
