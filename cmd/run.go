@@ -283,7 +283,6 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, currentFo
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
 		ChainID:              l2ChainID,
-		CurrentForkID:        currentForkID,
 		ForkIDIntervals:      forkIDIntervals,
 	}
 

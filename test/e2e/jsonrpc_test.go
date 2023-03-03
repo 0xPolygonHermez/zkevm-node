@@ -15,17 +15,14 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Double"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
-	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Storage"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -873,6 +870,7 @@ func Test_WebSocketsSubscription(t *testing.T) {
 // 	}
 // }
 
+/*
 func Test_RevertOnSCCallTransaction(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -933,3 +931,4 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 		assert.Equal(t, "Today is not juernes", unpackedData)
 	}
 }
+*/

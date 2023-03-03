@@ -203,7 +203,11 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			f.sharedResourcesMux.Lock()
-			_ = f.processTransaction(ctx, tx)
+			err := f.processTransaction(ctx, tx)
+			if err != nil {
+				log.Errorf("failed to process transaction in finalizeBatches, Err: %s", err)
+			}
+
 			f.sharedResourcesMux.Unlock()
 		} else {
 			if f.isBatchAlmostFull() {
@@ -274,8 +278,8 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	}
 
 	// Reprocess full batch to persist the merkle tree
-	go func() {
-		processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber)
+	go func(expectedStateRoot common.Hash) {
+		processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, expectedStateRoot)
 		if err != nil || !processBatchResponse.IsBatchProcessed {
 			log.Info("restarting the sequencer node because of a reprocessing error")
 			if err != nil {
@@ -284,26 +288,12 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 				log.Fatal("Out of counters during reprocessFullBath")
 			}
 		}
-	}()
-
-	// f.batch.stateRoot = processBatchResponse.NewStateRoot
+	}(f.batch.stateRoot)
 
 	err = f.closeBatch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
-
-	/*
-		// Reprocessing batch as sanity check
-		go func() {
-			err := f.reprocessBatch(ctx, f.batch.batchNumber)
-			if err != nil {
-				// TODO: design error handling for reprocessing
-				log.Errorf("failed to reprocess batch, err: %s", err)
-				return
-			}
-		}()
-	*/
 
 	// Metadata for the next batch
 	stateRoot := f.batch.stateRoot
@@ -370,7 +360,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	}
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest, false)
 	if err != nil {
-		log.Errorf("failed to process transaction, err: %s", err)
+		log.Errorf("failed to process transaction, isClaim: %v, err: %s", tx.IsClaim, err)
 		return err
 	}
 
@@ -424,6 +414,10 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 		previousL2BlockStateRoot: previousL2BlockStateRoot,
 	}
 
+	// Delete the transaction from the efficiency list
+	f.worker.DeleteTx(tx.Hash, tx.From)
+	log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
+
 	start := time.Now()
 	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
 	for _, txToDelete := range txsToDelete {
@@ -453,8 +447,8 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
 			}
 		}()
-	} else if executor.IsIntrinsicError(errorCode) {
-		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY, to not ready, err: %s", tx.Hash, txResponse.RomError)
+	} else if (executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode)) && !tx.IsClaim {
+		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY, err: %s", tx.Hash, txResponse.RomError)
 		var (
 			nonce   *uint64
 			balance *big.Int
@@ -472,6 +466,16 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			}
 		}
 		metrics.WorkerProcessingTime(time.Since(start))
+	} else {
+		// Delete the transaction from the efficiency list
+		f.worker.DeleteTx(tx.Hash, tx.From)
+		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex(), "isClaim", tx.IsClaim)
+
+		// Update the status of the transaction to failed
+		err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false)
+		if err != nil {
+			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
+		}
 	}
 }
 
@@ -671,46 +675,8 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 	return processingCtx, nil
 }
 
-/*
 // reprocessBatch reprocesses a batch used as sanity check
-func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
-	_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get old state root, err: %w", err)
-	}
-	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
-	if err != nil {
-		return fmt.Errorf("failed to get batch by number, err: %w", err)
-	}
-	processRequest := state.ProcessRequest{
-		BatchNumber:    batch.BatchNumber,
-		GlobalExitRoot: batch.GlobalExitRoot,
-		OldStateRoot:   oldStateRoot,
-		Transactions:   batch.BatchL2Data,
-		Coinbase:       batch.Coinbase,
-		Timestamp:      uint64(batch.Timestamp.Unix()),
-		Caller:         state.DiscardCallerLabel,
-	}
-	result, err := f.executor.ProcessBatch(ctx, processRequest, true)
-	if err != nil {
-		log.Errorf("failed to process batch, err: %s", err)
-		return err
-	}
-
-	if !result.IsBatchProcessed {
-		return fmt.Errorf("failed to process batch because OutOfCounters error")
-	}
-
-	if result.NewStateRoot != batch.StateRoot {
-		log.Errorf("reprocessed batch has different state root, expected: %s, got: %s", batch.StateRoot.Hex(), result.NewStateRoot.Hex())
-	}
-
-	return nil
-}
-*/
-
-// reprocessBatch reprocesses a batch used as sanity check
-func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64) (*state.ProcessBatchResponse, error) {
+func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, expectedStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
 	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get batch by number, err: %w", err)
@@ -732,6 +698,10 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64) (*s
 
 	if !result.IsBatchProcessed {
 		return nil, fmt.Errorf("failed to process batch because OutOfCounters error")
+	}
+
+	if result.NewStateRoot != expectedStateRoot {
+		log.Errorf("reprocessed batch has different state root, expected: %s, got: %s", expectedStateRoot.Hex(), result.NewStateRoot.Hex())
 	}
 
 	return result, nil
