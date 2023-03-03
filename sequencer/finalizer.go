@@ -523,12 +523,6 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		if err != nil {
 			return fmt.Errorf("failed to get latest ger, err: %w", err)
 		}
-		/*
-			_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to get old state root, err: %w", err)
-			}
-		*/
 
 		oldStateRoot := lastBatch.StateRoot
 		f.batch, err = f.openWIPBatch(ctx, *lastBatchNum+1, ger.GlobalExitRoot, oldStateRoot)
