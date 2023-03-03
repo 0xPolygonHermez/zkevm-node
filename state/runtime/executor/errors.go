@@ -229,6 +229,16 @@ func IsIntrinsicError(error pb.RomError) bool {
 	return int32(error) >= ROM_ERROR_INTRINSIC_INVALID_SIGNATURE && int32(error) <= ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW
 }
 
+// IsInvalidNonceError indicates if the error is due to a invalid nonce
+func IsInvalidNonceError(error pb.RomError) bool {
+	return int32(error) == ROM_ERROR_INTRINSIC_INVALID_NONCE
+}
+
+// IsInvalidBalanceError indicates if the error is due to a invalid balance
+func IsInvalidBalanceError(error pb.RomError) bool {
+	return int32(error) == ROM_ERROR_INTRINSIC_INVALID_BALANCE
+}
+
 // ExecutorErr returns an instance of error related to the ExecutorError
 func ExecutorErr(errorCode pb.ExecutorError) error {
 	e := int32(errorCode)
