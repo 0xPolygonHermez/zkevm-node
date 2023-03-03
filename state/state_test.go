@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -51,6 +52,12 @@ var (
 	stateCfg   = state.Config{
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
+		ForkIDIntervals: []state.ForkIDInterval{{
+			FromBatchNumber: 0,
+			ToBatchNumber:   math.MaxUint64,
+			ForkId:          0,
+			Version:         "",
+		}},
 	}
 	forkID                             uint64 = 2
 	executorClient                     executorclientpb.ExecutorServiceClient
