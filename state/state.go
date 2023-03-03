@@ -266,6 +266,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, false, gasUsed, err
 		}
 
+		forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
 		// Create a batch to be sent to the executor
 		processBatchRequest := &pb.ProcessBatchRequest{
 			OldBatchNum:      lastBatch.BatchNumber,
@@ -278,7 +279,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			Coinbase:         lastBatch.Coinbase.String(),
 			UpdateMerkleTree: cFalse,
 			ChainId:          s.cfg.ChainID,
-			ForkId:           s.cfg.CurrentForkID,
+			ForkId:           forkID,
 		}
 
 		log.Debugf("EstimateGas[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
@@ -473,6 +474,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		updateMT = cTrue
 	}
 
+	forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, request.BatchNumber)
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      request.BatchNumber - 1,
@@ -484,7 +486,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		EthTimestamp:     request.Timestamp,
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
-		ForkId:           s.cfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, request.Caller)
 	if err != nil {
@@ -603,6 +605,7 @@ func (s *State) processBatch(
 	if lastBatch.BatchNumber != batchNumber {
 		return nil, ErrInvalidBatchNumber
 	}
+	forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber - 1,
@@ -614,7 +617,7 @@ func (s *State) processBatch(
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
-		ForkId:           s.cfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, caller)
@@ -1227,6 +1230,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
+	forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber,
@@ -1239,7 +1243,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		Coinbase:         lastBatch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
 		ChainId:          s.cfg.ChainID,
-		ForkId:           s.cfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	if noZKEVMCounters {

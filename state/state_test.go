@@ -51,8 +51,8 @@ var (
 	stateCfg   = state.Config{
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
-		CurrentForkID:        1,
 	}
+	forkID uint64 = 2
 	executorClient                     executorclientpb.ExecutorServiceClient
 	mtDBServiceClient                  mtDBclientpb.StateDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
@@ -491,7 +491,7 @@ func TestExecuteTransaction(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	log.Debugf("%v", processBatchRequest)
@@ -878,7 +878,7 @@ func TestExecutor(t *testing.T) {
 		UpdateMerkleTree: 0,
 		Db:               db,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -958,7 +958,7 @@ func TestExecutorRevert(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 0,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -1080,7 +1080,7 @@ func TestExecutorLogs(t *testing.T) {
 		UpdateMerkleTree: 0,
 		Db:               genesisDB,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -1159,7 +1159,7 @@ func TestExecutorTransfer(t *testing.T) {
 		EthTimestamp:     uint64(0),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	// Read Sender Balance before execution
@@ -1306,7 +1306,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 			EthTimestamp:     uint64(0),
 			UpdateMerkleTree: 1,
 			ChainId:          stateCfg.ChainID,
-			ForkId:           stateCfg.CurrentForkID,
+			ForkId:           forkID,
 		}
 
 		// Process batch
@@ -1415,7 +1415,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 				EthTimestamp:     uint64(0),
 				UpdateMerkleTree: 1,
 				ChainId:          stateCfg.ChainID,
-				ForkId:           stateCfg.CurrentForkID,
+				ForkId:           forkID,
 			}
 
 			// Process batch
@@ -2014,7 +2014,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 				EthTimestamp:     uint64(0),
 				UpdateMerkleTree: 1,
 				ChainId:          stateCfg.ChainID,
-				ForkId: 		 stateCfg.CurrentForkID,
+				ForkId: 		 forkID,
 			}
 
 			// Process batch
@@ -2151,7 +2151,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 0,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2298,7 +2298,7 @@ func TestExecutorGasRefund(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
-		ForkId: 		 stateCfg.CurrentForkID,
+		ForkId: 		 forkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2364,7 +2364,7 @@ func TestExecutorGasRefund(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
-		ForkId: stateCfg.CurrentForkID,
+		ForkId: forkID,
 	}
 
 	processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2499,7 +2499,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2583,7 +2583,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2724,7 +2724,7 @@ func TestStoreDebugInfo(t *testing.T) {
 		UpdateMerkleTree: 0,
 		Db:               db,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	_, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2791,7 +2791,7 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 0,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -2850,7 +2850,7 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 0,
 		ChainId:          stateCfg.ChainID,
-		ForkId:           stateCfg.CurrentForkID,
+		ForkId:           forkID,
 	}
 
 	processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)

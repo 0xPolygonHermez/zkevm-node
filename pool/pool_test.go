@@ -983,7 +983,7 @@ func newState(sqlDB *pgxpool.Pool) *state.State {
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorServerConfig)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
-	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), CurrentForkID: 1}, stateDb, executorClient, stateTree)
+	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64()}, stateDb, executorClient, stateTree)
 	return st
 }
 

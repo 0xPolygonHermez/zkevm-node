@@ -8,9 +8,6 @@ type Config struct {
 	// ChainID is the L2 ChainID provided by the Network Config
 	ChainID uint64
 
-	// Current ForkId is the current fork id used by the network
-	CurrentForkID uint64
-
 	// ForkIdIntervals is the list of fork id intervals
 	ForkIDIntervals []ForkIDInterval
 }
