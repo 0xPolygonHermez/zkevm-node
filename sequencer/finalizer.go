@@ -462,7 +462,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			}
 		}()
 	} else if (executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode)) && !tx.IsClaim {
-		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY, to not ready, err: %s", tx.Hash, txResponse.RomError)
+		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY, err: %s", tx.Hash, txResponse.RomError)
 		var (
 			nonce   *uint64
 			balance *big.Int
