@@ -15,5 +15,7 @@ func GetForkIDByBatchNumber(intervals []ForkIDInterval, batchNumber uint64) uint
 			return interval.ForkId
 		}
 	}
-	return 1
+
+	// If not found return the last fork id
+	return intervals[len(intervals)-1].ForkId
 }
