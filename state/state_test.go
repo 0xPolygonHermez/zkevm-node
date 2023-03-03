@@ -52,7 +52,7 @@ var (
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
 	}
-	forkID uint64 = 2
+	forkID                             uint64 = 2
 	executorClient                     executorclientpb.ExecutorServiceClient
 	mtDBServiceClient                  mtDBclientpb.StateDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
