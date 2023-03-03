@@ -374,7 +374,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	}
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest, false)
 	if err != nil {
-		log.Errorf("failed to process transaction, err: %s", err)
+		log.Errorf("failed to process transaction, isClaim: %v, err: %s", tx.IsClaim, err)
 		return err
 	}
 
@@ -461,8 +461,8 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
 			}
 		}()
-	} else if executor.IsIntrinsicError(errorCode) {
-		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY, to not ready, err: %s", tx.Hash, txResponse.RomError)
+	} else if (executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode)) && !tx.IsClaim {
+		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY, err: %s", tx.Hash, txResponse.RomError)
 		var (
 			nonce   *uint64
 			balance *big.Int
@@ -480,6 +480,16 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			}
 		}
 		metrics.WorkerProcessingTime(time.Since(start))
+	} else {
+		// Delete the transaction from the efficiency list
+		f.worker.DeleteTx(tx.Hash, tx.From)
+		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex(), "isClaim", tx.IsClaim)
+
+		// Update the status of the transaction to failed
+		err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false)
+		if err != nil {
+			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
+		}
 	}
 }
 
