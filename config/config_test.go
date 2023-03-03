@@ -14,7 +14,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,10 +104,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.MaxSteps",
 			expectedValue: uint32(8388608),
-		},
-		{
-			path:          "Sequencer.MaxSequenceSize",
-			expectedValue: sequencer.MaxSequenceSize{Int: new(big.Int).SetInt64(2000000)},
 		},
 		{
 			path:          "Sequencer.MaxAllowedFailedCounter",
