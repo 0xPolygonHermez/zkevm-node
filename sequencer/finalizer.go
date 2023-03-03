@@ -508,11 +508,17 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 	if lastBatchNum == nil {
 		lastBatch, err = f.dbManager.GetLastBatch(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to get last batch number, err: %w", err)
+			return fmt.Errorf("failed to get last batch, err: %w", err)
 		}
-		batchNum := lastBatch.BatchNumber
-		lastBatchNum = &batchNum
+	} else {
+		lastBatch, err = f.dbManager.GetBatchByNumber(ctx, *lastBatchNum, nil)
+		if err != nil {
+			return fmt.Errorf("failed to get last batch, err: %w", err)
+		}
 	}
+
+	batchNum := lastBatch.BatchNumber
+	lastBatchNum = &batchNum
 
 	isClosed, err := f.dbManager.IsBatchClosed(ctx, *lastBatchNum)
 	if err != nil {
