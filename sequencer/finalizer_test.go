@@ -238,7 +238,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 		},
 		{
 			name:             "IntrinsicError",
-			error:            pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_SIGNATURE),
+			error:            pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_NONCE),
 			expectedMoveCall: true,
 		},
 	}
