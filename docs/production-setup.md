@@ -10,13 +10,13 @@ Note that sequencing and proving functionalities are not covered in this documen
 ## Requirements
 
 - A machine to run the zkEVM node with the following requirements:
-  - Hardware: 16G RAM, 4 cores, 20G Disk (as the network is super young the current disks requirements are quite low, but they will increase overtime). Currently ARM based CPUs are not supported
+  - Hardware: 16G RAM, 4 cores, 20G Disk (as the network is super young the current disk requirements are quite low, but they will increase overtime). Currently ARM-based CPUs are not supported
   - Software: docker
 - A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Goerli for zkEVM testnet, Ethereum mainnet for zkEVM mainnet)
 
 ## Setup
 
-This is the most straight forward path to run a zkEVM node, and it's perfectly fine for most use cases, however if you are interested in providing service to many users it's recommended to do some tweaking over the default configutation. Furthermore, this is quite opinionated, feel free to run this software in a different way, for instance it's not needed to use Docker, you could use the Go binnaries directly.
+This is the most straightforward path to run a zkEVM node, and it's perfectly fine for most use cases, however if you are interested in providing service to many users it's recommended to do some tweaking over the default configuration. Furthermore, this is quite opinionated, feel free to run this software in a different way, for instance it's not needed to use Docker, you could use the Go binaries directly.
 
 tl;dr:
 
@@ -37,14 +37,14 @@ docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker
 
 Explained step by step:
 
-1. Define network (currently only testnet is supported, mainnet comming very soon!): `ZKEVM_NET=testnet`
+1. Define network (currently only testnet is supported, mainnet coming very soon!): `ZKEVM_NET=testnet`
 2. Define installation path: `ZKEVM_DIR=./path/to/install`
 3. Define a config directory: `ZKEVM_CONFIG_DIR=./path/to/config`
 4. Download and extract the artifacts: `curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip`. Note you may need to install `unzip` for this command to work
 5. Copy the file with the env parameters: `cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env`
 6. Edit the env file, with your favourite editor. The example will use nano: `nano $ZKEVM_CONFIG_DIR/.env`. This file contains the configuration that anyone should modify. For advanced configuration modify:
    1. Copy the config files into the config directory `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/public/* $ZKEVM_CONFIG_DIR/`
-   2. Make sure the modify the `ZKEVM_CONFIG_DIR` from `$ZKEVM_CONFIG_DIR/.env` with the correct path **TODO: modify compose to support this**
+   2. Make sure the modify the `ZKEVM_CONFIG_DIR` from `$ZKEVM_CONFIG_DIR/.env` with the correct path
    3. Edit the different configuration files
 7. Run the node: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml up -d`. You may need to run this command using `sudo` depending on your Docker setup.
 8. Make sure that all components are running: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml ps`. You should see the following containers:
@@ -58,7 +58,7 @@ If everything has gone as expected you should be able to run queries to the JSON
 
 `curl -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83}' http://localhost:8545`
 
-## Trouble shooting
+## Troubleshooting
 
 - It's possible that the machine you're using already uses some of the necessary ports. In this case you can change them directly at `$ZKEVM_DIR/testnet/docker-compose.yml`
 - If one or more containers are crashing please check the logs using `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml logs <cointainer_name>`
@@ -75,7 +75,7 @@ In order to update the software, you have to repeat the steps of the setup, but 
 
 ## Advanced setup
 
-> DISCLAIMER: right now this part of the documentation attempts to give ideas on how to improve the setup for better performance, but is far from being a detiled guide on how to achieve this. Please open issues requesting more details if you don't understand how to achieve something. We will keep improving this doc for sure!
+> DISCLAIMER: right now this part of the documentation attempts to give ideas on how to improve the setup for better performance, but is far from being a detailed guide on how to achieve this. Please open issues requesting more details if you don't understand how to achieve something. We will keep improving this doc for sure!
 
 There are some fundamental changes that can be done towards the basic setup, in order to get better performance and scale better:
 
@@ -83,7 +83,7 @@ There are some fundamental changes that can be done towards the basic setup, in 
 
 In the basic setup, there are Postgres being instanciated as Docker containers. For better performance is recommended to:
 
-- Run dedicated insances for Postgres. To achieve this you will need to:
+- Run dedicated instances for Postgres. To achieve this you will need to:
   - Remove the Postgres services (`zkevm-pool-db` and `zkevm-state-db`) from the `docker-compose.yml`
   - Instantiate Postgres elsewhere (note that you will have to create credentials and run some queries to make this work, following the config files and docker-compose should give a clear idea of what to do)
   - Update the `public.node.config.toml` to use the correct URI for both DBs
