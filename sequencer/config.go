@@ -1,11 +1,7 @@
 package sequencer
 
 import (
-	"fmt"
-	"math/big"
-
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
-	base "github.com/0xPolygonHermez/zkevm-node/encoding"
 )
 
 // Config represents the configuration of a sequencer

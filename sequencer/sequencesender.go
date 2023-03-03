@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
