@@ -83,12 +83,16 @@ There are some fundamental changes that can be done towards the basic setup, in 
 
 In the basic setup, there are Postgres being instanciated as Docker containers. For better performance is recommended to:
 
-- Run dedicated insances for Postgres
+- Run dedicated insances for Postgres. To achieve this you will need to:
+  - Remove the Postgres services (`zkevm-pool-db` and `zkevm-state-db`) from the `docker-compose.yml`
+  - Instantiate Postgres elsewhere (note that you will have to create credentials and run some queries to make this work, following the config files and docker-compose should give a clear idea of what to do)
+  - Update the `public.node.config.toml` to use the correct URI for both DBs
+  - Update `prover.public.config.json` to use the correct URI for the state DB
 - Use a setup of Postgres that allows to have separated endpoints for read / write replicas
 
 ### JSON RPC
 
-Unlike the synchronizer, that needs to have only one instance running (having more than one synchronizer running at the same time can be fatal), the JSON RPC can scale horizontally.
+Unlike the synchronizer, that needs to have only one instance running (having more than one synchronizer running at the same time connected to the same DB can be fatal), the JSON RPC can scale horizontally.
 
 There can be as many instances of it as needed, but in order to not introduce other bottlenecks, it's important to consider the following:
 
