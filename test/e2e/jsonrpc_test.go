@@ -933,7 +933,3 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 		assert.Equal(t, "Today is not juernes", unpackedData)
 	}
 }
-<<<<<<< HEAD
-=======
-*/
->>>>>>> develop
