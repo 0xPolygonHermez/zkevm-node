@@ -3,7 +3,6 @@ package config
 // DefaultValues is the default configuration
 const DefaultValues = `
 IsTrustedSequencer = false
-DefaultForkID = 1
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -64,7 +63,6 @@ SyncChunkSize = 100
 GenBlockNumber = 66
 
 [Sequencer]
-MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
 WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"

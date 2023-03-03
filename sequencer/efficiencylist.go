@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+
+	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
 // efficiencyList represents a list of tx sorted by efficiency
@@ -46,6 +48,7 @@ func (e *efficiencyList) delete(tx *TxTracker) bool {
 		})
 
 		if (e.sorted[i].HashStr != tx.HashStr) || i == sLen {
+			log.Errorf("Error deleting tx from efficiencyList: %s", tx.HashStr)
 			return false
 		}
 

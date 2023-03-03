@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -80,14 +79,11 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 	// Execute transaction to calculate its zkCounters
 	zkCounters, err := p.PreExecuteTx(ctx, tx)
-	if err == nil {
-		poolTx.ZKCounters = zkCounters
-	}
-
-	if executor.IsExecutorOutOfCountersError(executor.ExecutorErrorCode(err)) {
+	if err != nil {
 		return err
 	}
 
+	poolTx.ZKCounters = zkCounters
 	return p.storage.AddTx(ctx, poolTx)
 }
 
@@ -97,7 +93,7 @@ func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZK
 	if err != nil {
 		return state.ZKCounters{}, err
 	}
-	return processBatchResponse.UsedZkCounters, nil
+	return processBatchResponse.UsedZkCounters, processBatchResponse.ExecutorError
 }
 
 // GetPendingTxs from the pool

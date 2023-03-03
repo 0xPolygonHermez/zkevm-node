@@ -1,11 +1,7 @@
 package sequencer
 
 import (
-	"fmt"
-	"math/big"
-
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
-	base "github.com/0xPolygonHermez/zkevm-node/encoding"
 )
 
 // Config represents the configuration of a sequencer
@@ -56,9 +52,6 @@ type Config struct {
 
 	// MaxSteps is max steps batch can handle
 	MaxSteps uint32 `mapstructure:"MaxSteps"`
-
-	// Maximum size, in gas size, a sequence can reach
-	MaxSequenceSize MaxSequenceSize `mapstructure:"MaxSequenceSize"`
 
 	// Maximum allowed failed counter for the tx before it becomes invalid
 	MaxAllowedFailedCounter uint64 `mapstructure:"MaxAllowedFailedCounter"`
@@ -133,20 +126,4 @@ type FinalizerCfg struct {
 	// PrivateKeys defines all the key store files that are going
 	// to be read in order to provide the private keys to sign the L1 txs
 	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
-}
-
-// MaxSequenceSize is a wrapper type that parses token amount to big int
-type MaxSequenceSize struct {
-	*big.Int `validate:"required"`
-}
-
-// UnmarshalText unmarshal token amount from float string to big int
-func (m *MaxSequenceSize) UnmarshalText(data []byte) error {
-	amount, ok := new(big.Int).SetString(string(data), base.Base10)
-	if !ok {
-		return fmt.Errorf("failed to unmarshal string to float")
-	}
-	m.Int = amount
-
-	return nil
 }
