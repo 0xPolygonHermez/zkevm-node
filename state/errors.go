@@ -62,7 +62,7 @@ func constructErrorFromRevert(err error, returnValue []byte) error {
 		return err
 	}
 
-	return fmt.Errorf("%w: %s", err, revertErrMsg)
+	return fmt.Errorf("%v: %s", err, revertErrMsg)
 }
 
 // GetZKCounterError returns the error associated with the zkCounter

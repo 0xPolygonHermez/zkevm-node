@@ -63,14 +63,14 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 	// get next nonce
 	nonce, err := c.etherman.CurrentNonce(ctx, from)
 	if err != nil {
-		err := fmt.Errorf("failed to get current nonce: %w", err)
+		err := fmt.Errorf("failed to get current nonce: %v", err)
 		log.Errorf(err.Error())
 		return err
 	}
 	// get gas
 	gas, err := c.etherman.EstimateGas(ctx, from, to, value, data)
 	if err != nil {
-		err := fmt.Errorf("failed to estimate gas: %w, data: %v", err, common.Bytes2Hex(data))
+		err := fmt.Errorf("failed to estimate gas: %v, data: %v", err, common.Bytes2Hex(data))
 		log.Error(err.Error())
 		if c.cfg.ForcedGas > 0 {
 			gas = c.cfg.ForcedGas
@@ -81,7 +81,7 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 	// get gas price
 	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
 	if err != nil {
-		err := fmt.Errorf("failed to get suggested gas price: %w", err)
+		err := fmt.Errorf("failed to get suggested gas price: %v", err)
 		log.Errorf(err.Error())
 		return err
 	}
@@ -97,7 +97,7 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 	// add to storage
 	err = c.storage.Add(ctx, mTx, dbTx)
 	if err != nil {
-		err := fmt.Errorf("failed to add tx to get monitored: %w", err)
+		err := fmt.Errorf("failed to add tx to get monitored: %v", err)
 		log.Errorf(err.Error())
 		return err
 	}
@@ -496,7 +496,7 @@ func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error 
 	// get gas
 	gas, err := c.etherman.EstimateGas(ctx, mTx.from, mTx.to, mTx.value, mTx.data)
 	if err != nil {
-		err := fmt.Errorf("failed to estimate gas: %w", err)
+		err := fmt.Errorf("failed to estimate gas: %v", err)
 		mTxLog.Errorf(err.Error())
 		return err
 	}
@@ -510,7 +510,7 @@ func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error 
 	// get gas price
 	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
 	if err != nil {
-		err := fmt.Errorf("failed to get suggested gas price: %w", err)
+		err := fmt.Errorf("failed to get suggested gas price: %v", err)
 		mTxLog.Errorf(err.Error())
 		return err
 	}
@@ -534,7 +534,7 @@ func (c *Client) ReviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx) e
 	mTxLog.Debug("reviewing nonce")
 	nonce, err := c.etherman.CurrentNonce(ctx, mTx.from)
 	if err != nil {
-		err := fmt.Errorf("failed to estimate gas: %w", err)
+		err := fmt.Errorf("failed to estimate gas: %v", err)
 		mTxLog.Errorf(err.Error())
 		return err
 	}

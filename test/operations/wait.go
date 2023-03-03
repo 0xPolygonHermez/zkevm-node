@@ -84,7 +84,7 @@ func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Tr
 	if errors.Is(err, context.DeadlineExceeded) {
 		return err
 	} else if err != nil {
-		log.Errorf("error waiting tx %s to be mined: %w", tx.Hash(), err)
+		log.Errorf("error waiting tx %s to be mined: %v", tx.Hash(), err)
 		return err
 	}
 	if receipt.Status == types.ReceiptStatusFailed {

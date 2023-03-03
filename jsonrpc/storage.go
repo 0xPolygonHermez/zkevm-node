@@ -53,7 +53,7 @@ func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *web
 	lastPoll := time.Now().UTC()
 	id, err := s.generateFilterID()
 	if err != nil {
-		return "", fmt.Errorf("failed to generate filter ID: %w", err)
+		return "", fmt.Errorf("failed to generate filter ID: %v", err)
 	}
 	s.filters[id] = &Filter{
 		ID:         id,

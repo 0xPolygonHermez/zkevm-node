@@ -343,7 +343,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		// The transaction shouldn't fail, for whatever reason, at highEnd
 		return 0, fmt.Errorf(
-			"unable to apply transaction even for the highest gas limit %d: %w",
+			"unable to apply transaction even for the highest gas limit %d: %v",
 			highEnd,
 			err,
 		)
@@ -419,7 +419,7 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 		return err
 	}
 	if lastBatchNum+1 != processingContext.BatchNumber {
-		return fmt.Errorf("%w number %d, should be %d", ErrUnexpectedBatch, processingContext.BatchNumber, lastBatchNum+1)
+		return fmt.Errorf("%v number %d, should be %d", ErrUnexpectedBatch, processingContext.BatchNumber, lastBatchNum+1)
 	}
 	// Check if last batch is closed
 	isLastBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, lastBatchNum, dbTx)
@@ -741,7 +741,7 @@ func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, 
 		return err
 	}
 	if lastBatchNum != receipt.BatchNumber {
-		return fmt.Errorf("%w number %d, should be %d", ErrUnexpectedBatch, receipt.BatchNumber, lastBatchNum)
+		return fmt.Errorf("%v number %d, should be %d", ErrUnexpectedBatch, receipt.BatchNumber, lastBatchNum)
 	}
 	// Check if last batch is closed
 	isLastBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, lastBatchNum, dbTx)
@@ -780,7 +780,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 	// Decode transactions
 	decodedTransactions, _, err := DecodeTxs(encodedTxs)
 	if err != nil && !errors.Is(err, InvalidData) {
-		log.Debugf("error decoding transactions: %w", err)
+		log.Debugf("error decoding transactions: %v", err)
 		return err
 	}
 
@@ -1476,10 +1476,10 @@ func (s *State) WaitSequencingTxToBeSynced(parentCtx context.Context, tx *types.
 	for {
 		virtualized, err := s.IsSequencingTXSynced(ctx, tx.Hash(), nil)
 		if err != nil && err != ErrNotFound {
-			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
+			log.Errorf("error waiting sequencing tx %s to be synced: %v", tx.Hash().String(), err)
 			return err
 		} else if ctx.Err() != nil {
-			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
+			log.Errorf("error waiting sequencing tx %s to be synced: %v", tx.Hash().String(), err)
 			return ctx.Err()
 		} else if virtualized {
 			break

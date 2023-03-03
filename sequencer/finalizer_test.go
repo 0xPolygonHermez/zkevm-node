@@ -76,7 +76,7 @@ var (
 
 	testErr = fmt.Errorf("some error")
 	// testErr2         = fmt.Errorf("some error2")
-	openBatchError   = fmt.Errorf("failed to open new batch, err: %w", testErr)
+	openBatchError   = fmt.Errorf("failed to open new batch, err: %v", testErr)
 	cumulativeGasErr = state.GetZKCounterError("CumulativeGasUsed")
 )
 
@@ -155,7 +155,7 @@ func TestNewFinalizer(t *testing.T) {
 //			closeBatchParams: closeBatchParams,
 //			batches:          batches,
 //			closeBatchErr:    testErr,
-//			expectedErr:      fmt.Errorf("failed to close batch, err: %w", testErr),
+//			expectedErr:      fmt.Errorf("failed to close batch, err: %v", testErr),
 //		},
 //		{
 //			name:             "Open Batch Error",
@@ -163,7 +163,7 @@ func TestNewFinalizer(t *testing.T) {
 //			closeBatchParams: closeBatchParams,
 //			batches:          batches,
 //			openBatchErr:     testErr,
-//			expectedErr:      fmt.Errorf("failed to open new batch, err: %w", testErr),
+//			expectedErr:      fmt.Errorf("failed to open new batch, err: %v", testErr),
 //		},
 //	}
 //	for _, tc := range testCases {
@@ -354,7 +354,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 			isBatchClosed:      true,
 			ger:                oldHash,
 			getLastBatchNumErr: testErr,
-			expectedErr:        fmt.Errorf("failed to get last batch number, err: %w", testErr),
+			expectedErr:        fmt.Errorf("failed to get last batch number, err: %v", testErr),
 		},
 		{
 			name:             "Error-Failed to check if batch is closed",
@@ -363,7 +363,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 			isBatchClosed:    true,
 			ger:              oldHash,
 			isBatchClosedErr: testErr,
-			expectedErr:      fmt.Errorf("failed to check if batch is closed, err: %w", testErr),
+			expectedErr:      fmt.Errorf("failed to check if batch is closed, err: %v", testErr),
 		},
 		{
 			name:           "Error-Failed to get work-in-progress batch",
@@ -372,7 +372,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 			isBatchClosed:  false,
 			ger:            common.Hash{},
 			getWIPBatchErr: testErr,
-			expectedErr:    fmt.Errorf("failed to get work-in-progress batch, err: %w", testErr),
+			expectedErr:    fmt.Errorf("failed to get work-in-progress batch, err: %v", testErr),
 		},
 		{
 			name:          "Error-Failed to open new batch",
@@ -387,7 +387,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 				Timestamp:      testNow(),
 				GlobalExitRoot: oldHash,
 			},
-			expectedErr: fmt.Errorf("failed to open new batch, err: %w", testErr),
+			expectedErr: fmt.Errorf("failed to open new batch, err: %v", testErr),
 		},
 	}
 
@@ -554,24 +554,24 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 		{
 			name:        "BeginTransaction Error",
 			beginTxErr:  testErr,
-			expectedErr: fmt.Errorf("failed to begin state transaction to open batch, err: %w", testErr),
+			expectedErr: fmt.Errorf("failed to begin state transaction to open batch, err: %v", testErr),
 		},
 		{
 			name:         "OpenBatch Error",
 			openBatchErr: testErr,
-			expectedErr:  fmt.Errorf("failed to open new batch, err: %w", testErr),
+			expectedErr:  fmt.Errorf("failed to open new batch, err: %v", testErr),
 		},
 		{
 			name:        "Commit Error",
 			commitErr:   testErr,
-			expectedErr: fmt.Errorf("failed to commit database transaction for opening a batch, err: %w", testErr),
+			expectedErr: fmt.Errorf("failed to commit database transaction for opening a batch, err: %v", testErr),
 		},
 		{
 			name:         "Rollback Error",
 			openBatchErr: testErr,
 			rollbackErr:  testErr,
 			expectedErr: fmt.Errorf(
-				"failed to rollback dbTx: %s. Rollback err: %w",
+				"failed to rollback dbTx: %s. Rollback err: %v",
 				testErr.Error(), openBatchError,
 			),
 		},
@@ -636,7 +636,7 @@ func TestFinalizer_closeBatch(t *testing.T) {
 		{
 			name:        "Manager Error",
 			managerErr:  managerErr,
-			expectedErr: fmt.Errorf("failed to get transactions from transactions, err: %w", managerErr),
+			expectedErr: fmt.Errorf("failed to get transactions from transactions, err: %v", managerErr),
 		},
 	}
 
@@ -776,7 +776,7 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 			name:               "GetLastNBatches Error",
 			getLastNBatchesErr: testErr,
 			internalErr:        testErr,
-			expectedErr:        fmt.Errorf("failed to get old state root, err: failed to get last %d batches, err: %w", n, testErr),
+			expectedErr:        fmt.Errorf("failed to get old state root, err: failed to get last %d batches, err: %v", n, testErr),
 		},
 		{
 			name:                   "ProcessBatch Error",
@@ -886,7 +886,7 @@ func TestFinalizer_prepareProcessRequestFromState(t *testing.T) {
 			name:        "Error",
 			batches:     nil,
 			expectedReq: state.ProcessRequest{},
-			expectedErr: fmt.Errorf("failed to get last %d batches, err: %w", n, testErr),
+			expectedErr: fmt.Errorf("failed to get last %d batches, err: %v", n, testErr),
 		},
 	}
 

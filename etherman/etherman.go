@@ -348,7 +348,7 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	}
 	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
 	if err != nil {
-		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %v", vLog.BlockNumber, err)
 	}
 	var gExitRoot GlobalExitRoot
 	gExitRoot.MainnetExitRoot = common.BytesToHash(globalExitRoot.MainnetExitRoot[:])
@@ -407,7 +407,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequen
 func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence) (to *common.Address, data []byte, err error) {
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
-		return nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
+		return nil, nil, fmt.Errorf("failed to build sequence batches, err: %v", ErrPrivateKeyNotFound)
 	}
 	opts.NoSend = true
 	// force nonce, gas limit and gas price to avoid querying it from the chain
@@ -450,7 +450,7 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (to *common.Address, data []byte, err error) {
 	opts, err := etherMan.generateRandomAuth()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to build trusted verify batches, err: %w", err)
+		return nil, nil, fmt.Errorf("failed to build trusted verify batches, err: %v", err)
 	}
 	opts.NoSend = true
 	// force nonce, gas limit and gas price to avoid querying it from the chain
@@ -466,7 +466,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 
 	proof, err := encoding.DecodeBytes(&inputs.FinalProof.Proof)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode proof, err: %w", err)
+		return nil, nil, fmt.Errorf("failed to decode proof, err: %v", err)
 	}
 
 	const pendStateNum = 0 // TODO hardcoded for now until we implement the pending state feature
@@ -554,7 +554,7 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 	forcedBatch.Sequencer = fb.Sequencer
 	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
 	if err != nil {
-		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %v", vLog.BlockNumber, err)
 	}
 	t := time.Unix(int64(fullBlock.Time()), 0)
 	forcedBatch.ForcedAt = t
@@ -601,7 +601,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
 		fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
 		if err != nil {
-			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %v", vLog.BlockNumber, err)
 		}
 		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
 		block.SequencedBatches = append(block.SequencedBatches, sequences)
@@ -681,7 +681,7 @@ func (etherMan *Client) verifyBatchesTrustedAggregatorEvent(ctx context.Context,
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
 		fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
 		if err != nil {
-			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %v", vLog.BlockNumber, err)
 		}
 		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
 		block.VerifiedBatches = append(block.VerifiedBatches, trustedVerifyBatch)
@@ -720,7 +720,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 	}
 	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
 	if err != nil {
-		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %v", vLog.BlockNumber, err)
 	}
 	sequencedForceBatch, err := decodeSequencedForceBatches(tx.Data(), fsb.NumBatch, msg.From(), vLog.TxHash, fullBlock, msg.Nonce())
 	if err != nil {
@@ -885,7 +885,7 @@ func (etherMan *Client) ApproveMatic(ctx context.Context, account common.Address
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
 		}
-		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
+		return nil, fmt.Errorf("error approving balance to send the batch. Error: %v", err)
 	}
 
 	return tx, nil

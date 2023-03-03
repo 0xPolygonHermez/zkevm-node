@@ -400,7 +400,7 @@ func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*st
 func (d *dbManager) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
 	lastBlock, err := d.state.GetLastBlock(ctx, nil)
 	if err != nil {
-		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %w", err)
+		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %v", err)
 	}
 
 	blockNumber := lastBlock.BlockNumber
@@ -413,7 +413,7 @@ func (d *dbManager) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks 
 	if err != nil && errors.Is(err, state.ErrNotFound) {
 		return state.GlobalExitRoot{}, time.Time{}, nil
 	} else if err != nil {
-		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
+		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest global exit root, err: %v", err)
 	} else {
 		return ger, receivedAt, nil
 	}

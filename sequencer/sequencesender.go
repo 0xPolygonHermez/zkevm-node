@@ -99,7 +99,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, error) {
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
+		return nil, fmt.Errorf("failed to get last virtual batch num, err: %v", err)
 	}
 
 	currentBatchNumToSequence := lastVirtualBatchNum + 1

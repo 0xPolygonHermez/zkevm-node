@@ -118,7 +118,7 @@ func (a *Aggregator) Start(ctx context.Context) error {
 	// Delete ungenerated recursive proofs
 	err := a.State.DeleteUngeneratedProofs(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to initialize proofs cache %w", err)
+		return fmt.Errorf("failed to initialize proofs cache %v", err)
 	}
 
 	address := fmt.Sprintf("%s:%d", a.cfg.Host, a.cfg.Port)
@@ -316,7 +316,7 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 
 	finalProofID, err := prover.FinalProof(proof.Proof, a.cfg.SenderAddress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get final proof id: %w", err)
+		return nil, fmt.Errorf("failed to get final proof id: %v", err)
 	}
 	proof.ProofID = finalProofID
 
@@ -325,7 +325,7 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 
 	finalProof, err := prover.WaitFinalProof(ctx, *proof.ProofID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get final proof from prover: %w", err)
+		return nil, fmt.Errorf("failed to get final proof from prover: %v", err)
 	}
 
 	log.Info("Final proof generated")
@@ -378,7 +378,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 	var lastVerifiedBatchNum uint64
 	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
 	if err != nil && !errors.Is(err, state.ErrNotFound) {
-		return false, fmt.Errorf("failed to get last verified batch, %w", err)
+		return false, fmt.Errorf("failed to get last verified batch, %v", err)
 	}
 	if lastVerifiedBatch != nil {
 		lastVerifiedBatchNum = lastVerifiedBatch.BatchNumber
@@ -413,7 +413,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 		// eligible to be verified
 		eligible, err := a.validateEligibleFinalProof(ctx, proof, lastVerifiedBatchNum)
 		if err != nil {
-			return false, fmt.Errorf("failed to validate eligible final proof, %w", err)
+			return false, fmt.Errorf("failed to validate eligible final proof, %v", err)
 		}
 		if !eligible {
 			return false, nil
@@ -428,7 +428,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 	// at this point we have an eligible proof, build the final one using it
 	finalProof, err := a.buildFinalProof(ctx, prover, proof)
 	if err != nil {
-		return false, fmt.Errorf("failed to build final proof, %w", err)
+		return false, fmt.Errorf("failed to build final proof, %v", err)
 	}
 
 	msg := finalProofMsg{
@@ -460,7 +460,7 @@ func (a *Aggregator) validateEligibleFinalProof(ctx context.Context, proof *stat
 			log.Warnf("Proof %d-%d lower than next batch to verify %d. Deleting it", proof.BatchNumber, proof.BatchNumberFinal, batchNumberToVerify)
 			err := a.State.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
 			if err != nil {
-				return false, fmt.Errorf("Failed to delete discarded proof, err: %w", err)
+				return false, fmt.Errorf("Failed to delete discarded proof, err: %v", err)
 			}
 			return false, nil
 		} else {
@@ -471,7 +471,7 @@ func (a *Aggregator) validateEligibleFinalProof(ctx context.Context, proof *stat
 
 	bComplete, err := a.State.CheckProofContainsCompleteSequences(ctx, proof, nil)
 	if err != nil {
-		return false, fmt.Errorf("failed to check if proof contains complete sequences, %w", err)
+		return false, fmt.Errorf("failed to check if proof contains complete sequences, %v", err)
 	}
 	if !bComplete {
 		log.Infof("Recursive proof %d-%d not eligible to be verified: not containing complete sequences", proof.BatchNumber, proof.BatchNumberFinal)
@@ -518,16 +518,16 @@ func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.
 
 	if err != nil {
 		if err := dbTx.Rollback(ctx); err != nil {
-			err := fmt.Errorf("failed to rollback proof aggregation state: %w", err)
+			err := fmt.Errorf("failed to rollback proof aggregation state: %v", err)
 			log.Error(err.Error())
 			return err
 		}
-		return fmt.Errorf("failed to release proof aggregation state: %w", err)
+		return fmt.Errorf("failed to release proof aggregation state: %v", err)
 	}
 
 	err = dbTx.Commit(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to release proof aggregation state %w", err)
+		return fmt.Errorf("failed to release proof aggregation state %v", err)
 	}
 
 	return nil
@@ -565,16 +565,16 @@ func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover pro
 
 	if err != nil {
 		if err := dbTx.Rollback(ctx); err != nil {
-			err := fmt.Errorf("failed to rollback proof aggregation state %w", err)
+			err := fmt.Errorf("failed to rollback proof aggregation state %v", err)
 			log.Error(err.Error())
 			return nil, nil, err
 		}
-		return nil, nil, fmt.Errorf("failed to set proof aggregation state %w", err)
+		return nil, nil, fmt.Errorf("failed to set proof aggregation state %v", err)
 	}
 
 	err = dbTx.Commit(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to set proof aggregation state %w", err)
+		return nil, nil, fmt.Errorf("failed to set proof aggregation state %v", err)
 	}
 
 	return proof1, proof2, nil
@@ -625,7 +625,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	}
 	b, err := json.Marshal(inputProver)
 	if err != nil {
-		return false, fmt.Errorf("failed to serialize input prover, %w", err)
+		return false, fmt.Errorf("failed to serialize input prover, %v", err)
 	}
 
 	proof := &state.Proof{
@@ -638,7 +638,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 
 	aggrProofID, err = prover.AggregatedProof(proof1.Proof, proof2.Proof)
 	if err != nil {
-		return false, fmt.Errorf("failed to get aggregated proof id, %w", err)
+		return false, fmt.Errorf("failed to get aggregated proof id, %v", err)
 	}
 
 	proof.ProofID = aggrProofID
@@ -648,7 +648,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 
 	recursiveProof, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
 	if err != nil {
-		return false, fmt.Errorf("failed to get aggregated proof from prover, %w", err)
+		return false, fmt.Errorf("failed to get aggregated proof from prover, %v", err)
 	}
 
 	log.Info("Aggregated proof generated")
@@ -659,17 +659,17 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	// newly generated recursive proof
 	dbTx, err := a.State.BeginStateTransaction(ctx)
 	if err != nil {
-		return false, fmt.Errorf("failed to begin transaction to update proof aggregation state: %w", err)
+		return false, fmt.Errorf("failed to begin transaction to update proof aggregation state: %v", err)
 	}
 
 	err = a.State.DeleteGeneratedProofs(ctx, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx)
 	if err != nil {
 		if err := dbTx.Rollback(ctx); err != nil {
-			err := fmt.Errorf("failed to rollback proof aggregation state: %w", err)
+			err := fmt.Errorf("failed to rollback proof aggregation state: %v", err)
 			log.Error(err.Error())
 			return false, err
 		}
-		return false, fmt.Errorf("failed to delete previously aggregated proofs: %w", err)
+		return false, fmt.Errorf("failed to delete previously aggregated proofs: %v", err)
 	}
 
 	now := time.Now().Round(time.Microsecond)
@@ -678,16 +678,16 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	err = a.State.AddGeneratedProof(ctx, proof, dbTx)
 	if err != nil {
 		if err := dbTx.Rollback(ctx); err != nil {
-			err := fmt.Errorf("failed to rollback proof aggregation state: %w", err)
+			err := fmt.Errorf("failed to rollback proof aggregation state: %v", err)
 			log.Error(err.Error())
 			return false, err
 		}
-		return false, fmt.Errorf("failed to store the recursive proof: %w", err)
+		return false, fmt.Errorf("failed to store the recursive proof: %v", err)
 	}
 
 	err = dbTx.Commit(ctx)
 	if err != nil {
-		return false, fmt.Errorf("failed to store the recursive proof: %w", err)
+		return false, fmt.Errorf("failed to store the recursive proof: %v", err)
 	}
 
 	// NOTE(pg): the defer func is useless from now on, use a different variable
@@ -817,12 +817,12 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 	log.Infof("Sending zki + batch to the prover, batchNumber [%d]", batchToProve.BatchNumber)
 	inputProver, err := a.buildInputProver(ctx, batchToProve)
 	if err != nil {
-		return false, fmt.Errorf("failed to build input prover, %w", err)
+		return false, fmt.Errorf("failed to build input prover, %v", err)
 	}
 
 	b, err := json.Marshal(inputProver)
 	if err != nil {
-		return false, fmt.Errorf("failed to serialize input prover, %w", err)
+		return false, fmt.Errorf("failed to serialize input prover, %v", err)
 	}
 
 	proof.InputProver = string(b)
@@ -832,7 +832,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 
 	genProofID, err = prover.BatchProof(inputProver)
 	if err != nil {
-		return false, fmt.Errorf("failed to get batch proof id %w", err)
+		return false, fmt.Errorf("failed to get batch proof id %v", err)
 	}
 
 	proof.ProofID = genProofID
@@ -842,7 +842,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 
 	resGetProof, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
 	if err != nil {
-		return false, fmt.Errorf("failed to get proof from prover %w", err)
+		return false, fmt.Errorf("failed to get proof from prover %v", err)
 	}
 
 	log.Info("Batch proof generated")

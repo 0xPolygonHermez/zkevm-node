@@ -36,13 +36,13 @@ func main() {
 	log.Info("Starting DB and prover")
 	cmd := exec.Command("docker-compose", "up", "-d", "executor-tool-db")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		log.Errorf("Failed to star DB: %w. %v", err, out)
+		log.Errorf("Failed to star DB: %v. %v", err, out)
 		return
 	}
 	time.Sleep(time.Second * waitForDBSeconds)
 	cmd = exec.Command("docker-compose", "up", "-d", "executor-tool-prover")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		log.Errorf("Failed to star prover: %w. %v", err, out)
+		log.Errorf("Failed to star prover: %v. %v", err, out)
 		return
 	}
 	log.Info("DONE starting DB and prover")

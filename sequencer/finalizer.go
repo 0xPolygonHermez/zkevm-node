@@ -268,7 +268,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		// backup current sequence
 		err = f.processTransaction(ctx, nil)
 		for err != nil {
-			log.Errorf("failed to process tx, err: %w", err)
+			log.Errorf("failed to process tx, err: %v", err)
 			err = f.processTransaction(ctx, nil)
 		}
 	}
@@ -294,7 +294,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	err = f.closeBatch(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to close batch, err: %w", err)
+		return nil, fmt.Errorf("failed to close batch, err: %v", err)
 	}
 
 	/*
@@ -507,23 +507,23 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 	if lastBatchNum == nil {
 		batchNum, err := f.dbManager.GetLastBatchNumber(ctx)
 		for err != nil {
-			return fmt.Errorf("failed to get last batch number, err: %w", err)
+			return fmt.Errorf("failed to get last batch number, err: %v", err)
 		}
 		lastBatchNum = &batchNum
 	}
 
 	isClosed, err := f.dbManager.IsBatchClosed(ctx, *lastBatchNum)
 	if err != nil {
-		return fmt.Errorf("failed to check if batch is closed, err: %w", err)
+		return fmt.Errorf("failed to check if batch is closed, err: %v", err)
 	}
 	if isClosed {
 		ger, _, err := f.dbManager.GetLatestGer(ctx, f.cfg.GERFinalityNumberOfBlocks)
 		if err != nil {
-			return fmt.Errorf("failed to get latest ger, err: %w", err)
+			return fmt.Errorf("failed to get latest ger, err: %v", err)
 		}
 		_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to get old state root, err: %w", err)
+			return fmt.Errorf("failed to get old state root, err: %v", err)
 		}
 		f.batch, err = f.openWIPBatch(ctx, *lastBatchNum+1, ger.GlobalExitRoot, oldStateRoot)
 		if err != nil {
@@ -532,7 +532,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 	} else {
 		f.batch, err = f.dbManager.GetWIPBatch(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to get work-in-progress batch, err: %w", err)
+			return fmt.Errorf("failed to get work-in-progress batch, err: %v", err)
 		}
 	}
 
@@ -557,11 +557,11 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInS
 
 	dbTx, err := f.dbManager.BeginStateTransaction(ctx)
 	if err != nil {
-		return 0, common.Hash{}, fmt.Errorf("failed to begin state transaction, err: %w", err)
+		return 0, common.Hash{}, fmt.Errorf("failed to begin state transaction, err: %v", err)
 	}
 	lastTrustedForcedBatchNumber, err := f.dbManager.GetLastTrustedForcedBatchNumber(ctx, dbTx)
 	if err != nil {
-		return 0, common.Hash{}, fmt.Errorf("failed to get last trusted forced batch number, err: %w", err)
+		return 0, common.Hash{}, fmt.Errorf("failed to get last trusted forced batch number, err: %v", err)
 	}
 	nextForcedBatchNum := lastTrustedForcedBatchNumber + 1
 
@@ -613,7 +613,7 @@ func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot 
 func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stateRoot common.Hash) (*WipBatch, error) {
 	dbTx, err := f.dbManager.BeginStateTransaction(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin state transaction to open batch, err: %w", err)
+		return nil, fmt.Errorf("failed to begin state transaction to open batch, err: %v", err)
 	}
 
 	// open next batch
@@ -621,14 +621,14 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return nil, fmt.Errorf(
-				"failed to rollback dbTx: %s. Rollback err: %w",
+				"failed to rollback dbTx: %s. Rollback err: %v",
 				rollbackErr.Error(), err,
 			)
 		}
 		return nil, err
 	}
 	if err := dbTx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("failed to commit database transaction for opening a batch, err: %w", err)
+		return nil, fmt.Errorf("failed to commit database transaction for opening a batch, err: %v", err)
 	}
 
 	// Check if synchronizer is up-to-date
@@ -662,7 +662,7 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
-		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
+		return fmt.Errorf("failed to get transactions from transactions, err: %v", err)
 	}
 	receipt := ClosingBatchParameters{
 		BatchNumber:   f.batch.batchNumber,
@@ -683,7 +683,7 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 	}
 	err := f.dbManager.OpenBatch(ctx, processingCtx, dbTx)
 	if err != nil {
-		return state.ProcessingContext{}, fmt.Errorf("failed to open new batch, err: %w", err)
+		return state.ProcessingContext{}, fmt.Errorf("failed to open new batch, err: %v", err)
 	}
 
 	return processingCtx, nil
@@ -694,11 +694,11 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 	_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get old state root, err: %w", err)
+		return fmt.Errorf("failed to get old state root, err: %v", err)
 	}
 	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
-		return fmt.Errorf("failed to get batch by number, err: %w", err)
+		return fmt.Errorf("failed to get batch by number, err: %v", err)
 	}
 	processRequest := state.ProcessRequest{
 		BatchNumber:    batch.BatchNumber,
@@ -731,7 +731,7 @@ func (f *finalizer) reprocessBatch(ctx context.Context, batchNum uint64) error {
 func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64) (*state.ProcessBatchResponse, error) {
 	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get batch by number, err: %w", err)
+		return nil, fmt.Errorf("failed to get batch by number, err: %v", err)
 	}
 	processRequest := state.ProcessRequest{
 		BatchNumber:    batch.BatchNumber,
@@ -770,7 +770,7 @@ func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs
 		var lastClosedBatch *state.Batch
 		batches, err := f.dbManager.GetLastNBatches(ctx, two)
 		if err != nil {
-			return state.ProcessRequest{}, fmt.Errorf("failed to get last %d batches, err: %w", two, err)
+			return state.ProcessRequest{}, fmt.Errorf("failed to get last %d batches, err: %v", two, err)
 		}
 
 		if len(batches) == two {
@@ -809,7 +809,7 @@ func (f *finalizer) getLastBatchNumAndOldStateRoot(ctx context.Context) (uint64,
 	var oldStateRoot common.Hash
 	batches, err := f.dbManager.GetLastNBatches(ctx, two)
 	if err != nil {
-		return 0, common.Hash{}, fmt.Errorf("failed to get last %d batches, err: %w", two, err)
+		return 0, common.Hash{}, fmt.Errorf("failed to get last %d batches, err: %v", two, err)
 	}
 	lastBatch := batches[0]
 

@@ -68,7 +68,7 @@ func (e *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	// Unmarshal result
 	err = json.Unmarshal(body, &resBody)
 	if err != nil {
-		return big.NewInt(0), fmt.Errorf("Reading body failed: %w", err)
+		return big.NewInt(0), fmt.Errorf("Reading body failed: %v", err)
 	}
 	fgp, _ := big.NewInt(0).SetString(resBody.Result.FastGasPrice, encoding.Base10)
 	return new(big.Int).Mul(fgp, big.NewInt(encoding.Gwei)), nil

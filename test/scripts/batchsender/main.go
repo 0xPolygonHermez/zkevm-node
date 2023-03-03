@@ -157,7 +157,7 @@ func sendBatches(cliCtx *cli.Context) error {
 
 	nonce, err := ethMan.CurrentNonce(ctx, auth.From)
 	if err != nil {
-		err := fmt.Errorf("failed to get current nonce: %w", err)
+		err := fmt.Errorf("failed to get current nonce: %v", err)
 		log.Error(err.Error())
 		return err
 	}
@@ -198,14 +198,14 @@ func sendBatches(cliCtx *cli.Context) error {
 		}
 		gas, err := ethMan.EstimateGas(ctx, auth.From, to, nil, data)
 		if err != nil {
-			err := fmt.Errorf("failed to estimate gas: %w", err)
+			err := fmt.Errorf("failed to estimate gas: %v", err)
 			log.Error(err.Error())
 			return err
 		}
 		// get gas price
 		gasPrice, err := ethMan.SuggestedGasPrice(ctx)
 		if err != nil {
-			err := fmt.Errorf("failed to get suggested gas price: %w", err)
+			err := fmt.Errorf("failed to get suggested gas price: %v", err)
 			log.Error(err.Error())
 			return err
 		}
