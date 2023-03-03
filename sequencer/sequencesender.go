@@ -145,9 +145,9 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		// Check if can be send
 		sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
 		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
-		if err == nil && (new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 || tx.Size() > txMaxSize) {
+		if err == nil && tx.Size() > txMaxSize {
 			metrics.SequencesOvesizedDataError()
-			log.Infof("oversized Data on TX oldHash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
+			log.Infof("oversized Data on TX oldHash %s (txSize %d > 128KB)", tx.Hash(), tx.Size())
 			err = txpool.ErrOversizedData
 		}
 		if err != nil {

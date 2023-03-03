@@ -107,10 +107,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint32(8388608),
 		},
 		{
-			path:          "Sequencer.MaxSequenceSize",
-			expectedValue: sequencer.MaxSequenceSize{Int: new(big.Int).SetInt64(2000000)},
-		},
-		{
 			path:          "Sequencer.MaxAllowedFailedCounter",
 			expectedValue: uint64(50),
 		},
