@@ -1,5 +1,4 @@
 IsTrustedSequencer = true
-DefaultForkID = 1
 
 [Log]
 Environment = "development" # "production" or "development"
