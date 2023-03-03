@@ -483,7 +483,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 	} else {
 		// Delete the transaction from the efficiency list
 		f.worker.DeleteTx(tx.Hash, tx.From)
-		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex(), "sClaim", tx.IsClaim)
+		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex(), "isClaim", tx.IsClaim)
 
 		// Update the status of the transaction to failed
 		err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false)
