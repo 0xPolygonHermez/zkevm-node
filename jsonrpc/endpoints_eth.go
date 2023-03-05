@@ -347,7 +347,14 @@ func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter 
 
 	result := make([]rpcLog, 0, len(logs))
 	for _, l := range logs {
-		result = append(result, logToRPCLog(*l))
+		log := logToRPCLog(*l)
+		receipt, err := e.state.GetTransactionReceipt(ctx, log.TxHash, dbTx)
+		if err != nil {
+			return rpcErrorResponse(defaultErrorCode, "failed to get logs from state", err)
+		}
+		if receipt.Status == types.ReceiptStatusSuccessful {
+			result = append(result, log)
+		}
 	}
 
 	return result, nil
