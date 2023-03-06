@@ -485,18 +485,26 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 	defer f.sharedResourcesMux.Unlock()
 	f.txsStore.Wg.Wait()
 
+	var lastBatch *state.Batch
 	var err error
 	for !f.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
 		time.Sleep(time.Second)
 	}
 	if lastBatchNum == nil {
-		batchNum, err := f.dbManager.GetLastBatchNumber(ctx)
-		for err != nil {
-			return fmt.Errorf("failed to get last batch number, err: %w", err)
+		lastBatch, err = f.dbManager.GetLastBatch(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get last batch, err: %w", err)
 		}
-		lastBatchNum = &batchNum
+	} else {
+		lastBatch, err = f.dbManager.GetBatchByNumber(ctx, *lastBatchNum, nil)
+		if err != nil {
+			return fmt.Errorf("failed to get last batch, err: %w", err)
+		}
 	}
+
+	batchNum := lastBatch.BatchNumber
+	lastBatchNum = &batchNum
 
 	isClosed, err := f.dbManager.IsBatchClosed(ctx, *lastBatchNum)
 	if err != nil {
@@ -507,10 +515,8 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		if err != nil {
 			return fmt.Errorf("failed to get latest ger, err: %w", err)
 		}
-		_, oldStateRoot, err := f.getLastBatchNumAndOldStateRoot(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get old state root, err: %w", err)
-		}
+
+		oldStateRoot := lastBatch.StateRoot
 		f.batch, err = f.openWIPBatch(ctx, *lastBatchNum+1, ger.GlobalExitRoot, oldStateRoot)
 		if err != nil {
 			return err
@@ -531,6 +537,8 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		Transactions:   make([]byte, 0, 1),
 		Caller:         state.SequencerCallerLabel,
 	}
+
+	log.Info("synced with state", "lastBatchNum", *lastBatchNum, "stateRoot", f.batch.initialStateRoot.Hex())
 
 	return nil
 }
