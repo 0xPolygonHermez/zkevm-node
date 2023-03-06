@@ -24,35 +24,35 @@ type Config struct {
 	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
 
 	// MaxTxsPerBatch is the maximum amount of transactions in the batch
-	MaxTxsPerBatch uint64 `mapstructure:"MaxTxsPerBatch"`
+	MaxTxsPerBatch uint64 `mapstructure:"maxTxsPerBatch"`
 
 	// MaxBatchBytesSize is the maximum batch size in bytes
 	// (subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)
 	MaxBatchBytesSize uint64 `mapstructure:"MaxBatchBytesSize"`
 
 	// MaxCumulativeGasUsed is max gas amount used by batch
-	MaxCumulativeGasUsed uint64 `mapstructure:"MaxCumulativeGasUsed"`
+	MaxCumulativeGasUsed uint64 `mapstructure:"maxCumulativeGasUsed"`
 
 	// MaxKeccakHashes is max keccak hashes used by batch
-	MaxKeccakHashes uint32 `mapstructure:"MaxKeccakHashes"`
+	MaxKeccakHashes uint32 `mapstructure:"maxKeccakHashes"`
 
 	// MaxPoseidonHashes is max poseidon hashes batch can handle
-	MaxPoseidonHashes uint32 `mapstructure:"MaxPoseidonHashes"`
+	MaxPoseidonHashes uint32 `mapstructure:"maxPoseidonHashes"`
 
 	// MaxPoseidonPaddings is max poseidon paddings batch can handle
-	MaxPoseidonPaddings uint32 `mapstructure:"MaxPoseidonPaddings"`
+	MaxPoseidonPaddings uint32 `mapstructure:"maxPoseidonPaddings"`
 
 	// MaxMemAligns is max mem aligns batch can handle
-	MaxMemAligns uint32 `mapstructure:"MaxMemAligns"`
+	MaxMemAligns uint32 `mapstructure:"maxMemAligns"`
 
 	// MaxArithmetics is max arithmetics batch can handle
-	MaxArithmetics uint32 `mapstructure:"MaxArithmetics"`
+	MaxArithmetics uint32 `mapstructure:"maxArithmetics"`
 
 	// MaxBinaries is max binaries batch can handle
-	MaxBinaries uint32 `mapstructure:"MaxBinaries"`
+	MaxBinaries uint32 `mapstructure:"maxBinaries"`
 
 	// MaxSteps is max steps batch can handle
-	MaxSteps uint32 `mapstructure:"MaxSteps"`
+	MaxSteps uint32 `mapstructure:"maxSteps"`
 
 	// WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
 	WeightBatchBytesSize int `mapstructure:"WeightBatchBytesSize"`
@@ -98,6 +98,9 @@ type Config struct {
 
 	// DBManager's specific config properties
 	DBManager DBManagerCfg `mapstructure:"DBManager"`
+
+	// Worker's specific config properties
+	Worker WorkerCfg `mapstructure:"Worker"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -139,6 +142,12 @@ type FinalizerCfg struct {
 	// PrivateKeys defines all the key store files that are going
 	// to be read in order to provide the private keys to sign the L1 txs
 	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
+}
+
+// WorkerCfg contains the Worker's configuration properties
+type WorkerCfg struct {
+	// ResourceCostMultiplier is the multiplier for the resource cost
+	ResourceCostMultiplier float64 `mapstructure:"ResourceCostMultiplier"`
 }
 
 // DBManagerCfg contains the DBManager's configuration properties

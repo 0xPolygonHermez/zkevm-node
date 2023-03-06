@@ -100,8 +100,15 @@ MaxTxSizeForL1 = 131072
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+<<<<<<< HEAD
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
+=======
+	[Sequencer.Worker]
+		ResourceCostMultiplier = 1000
+	[Sequencer.DbManager]
+		SleepDurationInSec = "5s"
+>>>>>>> e5e4fe5e (wip)
 
 [Aggregator]
 Host = "0.0.0.0"

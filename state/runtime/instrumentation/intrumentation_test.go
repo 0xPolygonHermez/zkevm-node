@@ -26,7 +26,7 @@ var cfg = dbutils.NewConfigFromEnv()
 
 var stateCfg = state.Config{
 	DefaultChainID:       1000,
-	MaxCumulativeGasUsed: 800000,
+	maxCumulativeGasUsed: 800000,
 }
 
 func TestSCTxs(t *testing.T) {

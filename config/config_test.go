@@ -118,6 +118,42 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(131072),
 		},
 		{
+			path:          "Sequencer.WeightBatchBytesSize",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightCumulativeGasUsed",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightKeccakHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightPoseidonHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightPoseidonPaddings",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightMemAligns",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightArithmetics",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightBinaries",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightSteps",
+			expectedValue: 1,
+		},
+		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
@@ -160,6 +196,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
+		},
+		{
+			path:          "Sequencer.Worker.ResourceCostMultiplier",
+			expectedValue: float64(1000),
 		},
 		{
 			path:          "Etherman.URL",

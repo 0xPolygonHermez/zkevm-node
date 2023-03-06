@@ -86,7 +86,7 @@ func (c *closingSignalsManager) checkForcedBatches() {
 	for {
 		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingForcedBatches.Duration)
 
-		if c.lastForcedBatchNumSent == 0 { // TODO: reset c.lastForcedBatchNumSent = 0 on L2 Reorg
+		if c.lastForcedBatchNumSent == 0 {
 			lastTrustedForcedBatchNum, err := c.dbManager.GetLastTrustedForcedBatchNumber(c.ctx, nil)
 			if err != nil {
 				log.Errorf("error getting last trusted forced batch number: %v", err)

@@ -15,6 +15,7 @@ import (
 
 // Worker represents the worker component of the sequencer
 type Worker struct {
+	cfg                  WorkerCfg
 	pool                 map[string]*addrQueue
 	efficiencyList       *efficiencyList
 	workerMutex          sync.Mutex
@@ -24,8 +25,9 @@ type Worker struct {
 }
 
 // NewWorker creates an init a worker
-func NewWorker(state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
+func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
 	w := Worker{
+		cfg:                  cfg,
 		pool:                 make(map[string]*addrQueue),
 		efficiencyList:       newEfficiencyList(),
 		state:                state,
@@ -38,12 +40,11 @@ func NewWorker(state stateInterface, constraints batchConstraints, weights batch
 
 // NewTxTracker creates and inits a TxTracker
 func (w *Worker) NewTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, ip string) (*TxTracker, error) {
-	return newTxTracker(tx, isClaim, counters, w.batchConstraints, w.batchResourceWeights, ip)
+	return newTxTracker(tx, isClaim, counters, w.batchConstraints, w.batchResourceWeights, w.cfg.ResourceCostMultiplier, ip)
 }
 
 // AddTxTracker adds a new Tx to the Worker
-func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
-	// TODO: Review if additional mutex is needed to lock GetBestFittingTx
+func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropTx bool) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
@@ -55,20 +56,17 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
 
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
-			// TODO: How to manage this
 			log.Errorf("AddTx GetLastStateRoot error: %v", err)
 			return
 		}
 		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if err != nil {
 			log.Errorf("AddTx GetNonceByStateRoot error: %v", err)
-			// TODO: How to manage this
 			return
 		}
 		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if err != nil {
 			log.Errorf("AddTx GetBalanceByStateRoot error: %v", err)
-			// TODO: How to manage this
 			return
 		}
 
@@ -83,7 +81,12 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
 
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
 	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s)", tx.Hash.String(), tx.Nonce, tx.Cost.String(), tx.FromStr)
-	newReadyTx, prevReadyTx := addr.addTx(tx)
+	var newReadyTx, prevReadyTx *TxTracker
+	newReadyTx, prevReadyTx, dropTx = addr.addTx(tx)
+	if dropTx {
+		log.Infof("AddTx tx(%s) dropped from addrQueue(%s)", tx.Hash.String(), tx.FromStr)
+		return dropTx
+	}
 
 	// Update the EfficiencyList (if needed)
 	if prevReadyTx != nil {
@@ -94,12 +97,13 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
 		log.Infof("AddTx newReadyTx(%s) nonce(%d) cost(%s) added to EfficiencyList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.Cost.String())
 		w.efficiencyList.add(newReadyTx)
 	}
+
+	return false
 }
 
 func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker, []*TxTracker) {
 	addrQueue, found := w.pool[from.String()]
 
-	// TODO: What happens if addr no found. Could it be possible if addrQueue has not been yet created for this from addr (touchedAddresses)
 	if found {
 		newReadyTx, prevReadyTx, txsToDelete := addrQueue.updateCurrentNonceBalance(fromNonce, fromBalance)
 
@@ -159,7 +163,6 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 				readyHashStr = addrQueue.readyTx.HashStr
 			}
 			log.Errorf("MoveTxToNotReady txHash(%s) is not the readyTx(%s)", txHash.String(), readyHashStr)
-			// TODO: how to manage this?
 		}
 	}
 	_, _, txsToDelete := w.applyAddressUpdate(from, actualNonce, actualBalance)
@@ -201,7 +204,7 @@ func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters stat
 	addrQueue, found := w.pool[addr.String()]
 
 	if found {
-		newReadyTx, prevReadyTx := addrQueue.UpdateTxZKCounters(txHash, counters, w.batchConstraints, w.batchResourceWeights)
+		newReadyTx, prevReadyTx := addrQueue.UpdateTxZKCounters(txHash, counters)
 
 		// Resort the newReadyTx in efficiencyList
 		if prevReadyTx != nil {

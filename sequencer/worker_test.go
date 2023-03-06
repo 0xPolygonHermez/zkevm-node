@@ -11,6 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	workerCfg = WorkerCfg{
+		ResourceCostMultiplier: 1000,
+	}
+)
+
 type workerAddTxTestCase struct {
 	name   string
 	from   common.Address
@@ -30,10 +36,20 @@ type workerAddrQueueInfo struct {
 	balance *big.Int
 }
 
-func processWrokerAddTxTestCases(t *testing.T, worker *Worker, testCases []workerAddTxTestCase) {
+func processWorkerAddTxTestCases(t *testing.T, worker *Worker, testCases []workerAddTxTestCase) {
+	totalWeight := float64(worker.batchResourceWeights.WeightArithmetics +
+		worker.batchResourceWeights.WeightBatchBytesSize + worker.batchResourceWeights.WeightBinaries +
+		worker.batchResourceWeights.WeightCumulativeGasUsed + worker.batchResourceWeights.WeightKeccakHashes +
+		worker.batchResourceWeights.WeightMemAligns + worker.batchResourceWeights.WeightPoseidonHashes +
+		worker.batchResourceWeights.WeightPoseidonPaddings + worker.batchResourceWeights.WeightSteps)
+
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			tx := TxTracker{}
+
+			tx.weightMultipliers = calculateWeightMultipliers(worker.batchResourceWeights, totalWeight)
+			tx.constraints = convertBatchConstraintsToFloat64(worker.batchConstraints)
+			tx.resourceCostMultiplier = worker.cfg.ResourceCostMultiplier
 			tx.Hash = testCase.txHash
 			tx.HashStr = testCase.txHash.String()
 			tx.From = testCase.from
@@ -42,7 +58,7 @@ func processWrokerAddTxTestCases(t *testing.T, worker *Worker, testCases []worke
 			tx.Benefit = new(big.Int).SetInt64(testCase.benefit)
 			tx.Cost = testCase.cost
 			tx.BatchResources.bytes = testCase.usedBytes
-			tx.updateZKCounters(testCase.counters, worker.batchConstraints, worker.batchResourceWeights)
+			tx.updateZKCounters(testCase.counters)
 			t.Logf("%s=%s", testCase.name, fmt.Sprintf("%.2f", tx.Efficiency))
 
 			worker.AddTxTracker(ctx, &tx)
@@ -88,7 +104,7 @@ func TestWorkerAddTx(t *testing.T) {
 	rcMax.MaxBatchBytesSize = 10
 
 	stateMock := NewStateMock(t)
-	worker := NewWorker(stateMock, rcMax, rcWeigth)
+	worker := initWorker(stateMock, rcMax, rcWeigth)
 
 	ctx := context.Background()
 
@@ -145,7 +161,7 @@ func TestWorkerAddTx(t *testing.T) {
 		},
 	}
 
-	processWrokerAddTxTestCases(t, worker, addTxsTC)
+	processWorkerAddTxTestCases(t, worker, addTxsTC)
 
 	// Change counters fpr tx:0x03/ef:9.61
 	counters := state.ZKCounters{CumulativeGasUsed: 6, UsedKeccakHashes: 6, UsedPoseidonHashes: 6, UsedPoseidonPaddings: 6, UsedMemAligns: 6, UsedArithmetics: 6, UsedBinaries: 6, UsedSteps: 6}
@@ -163,7 +179,7 @@ func TestWorkerAddTx(t *testing.T) {
 		},
 	}
 
-	processWrokerAddTxTestCases(t, worker, addTxsTC)
+	processWorkerAddTxTestCases(t, worker, addTxsTC)
 }
 
 func TestWorkerGetBestTx(t *testing.T) {
@@ -199,7 +215,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 	}
 
 	stateMock := NewStateMock(t)
-	worker := NewWorker(stateMock, rcMax, rcWeigth)
+	worker := initWorker(stateMock, rcMax, rcWeigth)
 
 	ctx := context.Background()
 
@@ -256,7 +272,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 		},
 	}
 
-	processWrokerAddTxTestCases(t, worker, addTxsTC)
+	processWorkerAddTxTestCases(t, worker, addTxsTC)
 
 	expectedGetBestTx := []common.Hash{{4}, {3}, {1}}
 	ct := 0
@@ -285,4 +301,9 @@ func TestWorkerGetBestTx(t *testing.T) {
 			break
 		}
 	}
+}
+
+func initWorker(stateMock *StateMock, rcMax batchConstraints, rcWeigth batchResourceWeights) *Worker {
+	worker := NewWorker(workerCfg, stateMock, rcMax, rcWeigth)
+	return worker
 }

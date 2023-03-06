@@ -129,7 +129,7 @@ func TestNewFinalizer(t *testing.T) {
 //		initialStateRoot:   newHash,
 //		stateRoot:          newHash,
 //		timestamp:          uint64(now().Unix()),
-//		remainingResources: getMaxRemainingResources(f.batchConstraints),
+//		remainingResources: getMaxRemainingResources(f.constraints),
 //	}
 //	closeBatchParams := ClosingBatchParameters{
 //		BatchNumber:   f.batch.batchNumber,
@@ -763,7 +763,6 @@ func TestFinalizer_reprocessBatch(t *testing.T) {
 		},
 	}
 
-	// TODO: Add missing cases for this test
 	testCases := []struct {
 		name                       string
 		getLastNBatchesErr         error
