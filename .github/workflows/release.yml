@@ -1,12 +1,12 @@
-name: goreleaser
+name: release
 
 on:
   push:
     tags:
-      - 'v*.*.*'
+    - 'v[0-9]+.[0-9]+.[0-9]+*' # this action will only run on tags that follow semver
 
 jobs:
-  goreleaser:
+  releaser:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,13 +22,33 @@ jobs:
       - name: Get packr
         run: go get -u github.com/gobuffalo/packr/v2/packr2
 
-      - name: Prepare
-        run: git reset --hard
-
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v4
         with:
           version: latest
-          args: release --rm-dist
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN_RELEASE }}
+
+      - name: Get tag
+        uses: olegtarasov/get-tag@v2.1.2
+        id: tagName
+
+      - name: Put testnet artifacts into a single zip
+        run: |
+          mkdir -p testnet/config/environments/public
+          mkdir -p testnet/db/scripts
+          cp config/environments/public/* testnet/config/environments/public
+          cp docker-compose.yml testnet
+          cp db/scripts/init_prover_db.sql testnet/db/scripts
+          mv testnet/config/environments/public/example.env testnet
+          sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" testnet/docker-compose.yml
+          zip -r testnet.zip testnet
+
+      - name: Publish testnet zip into release
+        uses: AButler/upload-release-assets@v2.0
+        with:
+          files: 'testnet.zip'
+          repo-token: ${{ secrets.TOKEN_RELEASE }}
+          release-tag: ${{ steps.tagName.outputs.tag }}
+        

@@ -51,7 +51,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 [Synchronizer]
 SyncInterval = "5s"
 SyncChunkSize = 100
-GenBlockNumber = 66
+GenBlockNumber = 67
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
@@ -96,6 +96,7 @@ MaxAllowedFailedCounter = 50
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
+ForkId = 2
 RetryTime = "5s"
 VerifyProofInterval = "30s"
 TxProfitabilityCheckerType = "acceptall"

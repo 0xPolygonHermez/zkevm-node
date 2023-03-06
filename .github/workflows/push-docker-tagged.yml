@@ -1,7 +1,7 @@
 on:
   push:
-    branches:
-    - develop
+    tags:
+    - 'v[0-9]+.[0-9]+.[0-9]+*' # this action will only run on tags that follow semver
 
 jobs:
   build:
@@ -29,4 +29,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            hermeznetwork/zkevm-node:develop
+            hermeznetwork/zkevm-node:${{ github.ref_name }}
