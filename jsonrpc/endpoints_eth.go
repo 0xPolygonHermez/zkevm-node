@@ -68,7 +68,11 @@ func (e *EthEndpoints) Call(arg *txnArgs, blockNrOrHash *rpc.BlockNumberOrHash) 
 		number := &bnValue
 
 		// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
-		if arg.Gas == nil || *arg.Gas == argUint64(0) {
+		header, err := e.getBlockHeader(ctx, *number, dbTx)
+		if err != nil {
+			return rpcErrorResponse(defaultErrorCode, "failed to get block header", err)
+		}
+		if arg.Gas == nil || *arg.Gas == argUint64(0) || *arg.Gas > argUint64(header.GasLimit) {
 			header, err := e.getBlockHeader(ctx, *number, dbTx)
 			if err != nil {
 				return rpcErrorResponse(defaultErrorCode, "failed to get block header", err)
