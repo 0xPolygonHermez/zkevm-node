@@ -14,10 +14,9 @@ import (
 
 // Worker represents the worker component of the sequencer
 type Worker struct {
-	pool           map[string]*addrQueue
-	efficiencyList *efficiencyList
-	workerMutex    sync.Mutex
-	// dbManager            dbManagerInterface
+	pool                 map[string]*addrQueue
+	efficiencyList       *efficiencyList
+	workerMutex          sync.Mutex
 	state                stateInterface
 	batchConstraints     batchConstraints
 	batchResourceWeights batchResourceWeights
@@ -41,9 +40,8 @@ func (w *Worker) NewTxTracker(tx types.Transaction, isClaim bool, counters state
 	return newTxTracker(tx, isClaim, counters, w.batchConstraints, w.batchResourceWeights)
 }
 
-// AddTx adds a new Tx to the Worker
-// TODO: Rename to AddTxTracker?
-func (w *Worker) AddTx(ctx context.Context, tx *TxTracker) {
+// AddTxTracker adds a new Tx to the Worker
+func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
 	// TODO: Review if additional mutex is needed to lock GetBestFittingTx
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
@@ -258,6 +256,11 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 	wg.Wait()
 
 	return tx
+}
+
+// GetEfficiencyList returns the efficiency list
+func (w *Worker) GetEfficiencyList() *efficiencyList {
+	return w.efficiencyList
 }
 
 // HandleL2Reorg handles the L2 reorg signal

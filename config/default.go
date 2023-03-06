@@ -87,7 +87,7 @@ WeightMemAligns = 1
 WeightArithmetics = 1
 WeightBinaries = 1
 WeightSteps = 1
-MaxAllowedFailedCounter = 50
+MaxTimeForATxToBeInTheEfficiencyList = "5m"
 	[Sequencer.Finalizer]
 		GERDeadlineTimeoutInSec = "5s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"

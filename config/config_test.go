@@ -106,8 +106,8 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint32(8388608),
 		},
 		{
-			path:          "Sequencer.MaxAllowedFailedCounter",
-			expectedValue: uint64(50),
+			path:          "Sequencer.MaxTimeForATxToBeInTheEfficiencyList",
+			expectedValue: types.NewDuration(5 * time.Minute),
 		},
 		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",

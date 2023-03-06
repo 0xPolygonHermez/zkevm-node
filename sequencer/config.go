@@ -53,9 +53,6 @@ type Config struct {
 	// MaxSteps is max steps batch can handle
 	MaxSteps uint32 `mapstructure:"MaxSteps"`
 
-	// Maximum allowed failed counter for the tx before it becomes invalid
-	MaxAllowedFailedCounter uint64 `mapstructure:"MaxAllowedFailedCounter"`
-
 	// WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
 	WeightBatchBytesSize int `mapstructure:"WeightBatchBytesSize"`
 
@@ -82,6 +79,9 @@ type Config struct {
 
 	// WeightSteps is the cost weight for the Steps batch resource
 	WeightSteps int `mapstructure:"WeightSteps"`
+
+	// MaxTimeForATxToBeInTheEfficiencyList is the time a tx can be in the efficiency list
+	MaxTimeForATxToBeInTheEfficiencyList types.Duration `mapstructure:"MaxTimeForATxToBeInTheEfficiencyList"`
 
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`

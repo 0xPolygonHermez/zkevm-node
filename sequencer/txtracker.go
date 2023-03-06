@@ -3,6 +3,7 @@ package sequencer
 import (
 	"math"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -25,23 +26,24 @@ type TxTracker struct {
 	BatchResources batchResources // To check if it fits into a batch
 	Efficiency     float64
 	RawTx          []byte
+	ReceivedAt     time.Time // To check if it has been in the efficiency list for too long
 }
 
-// newTxTracker creates and inti a TxTracker
+// newTxTracker creates and inits a TxTracker
 func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, constraints batchConstraints, weights batchResourceWeights) (*TxTracker, error) {
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err
 	}
 
-	//TODO: Review the initialization is correct
 	txTracker := &TxTracker{
-		Hash:     tx.Hash(),
-		From:     addr,
-		Nonce:    tx.Nonce(),
-		Gas:      tx.Gas(),
-		GasPrice: tx.GasPrice(),
-		Cost:     tx.Cost(),
+		Hash:       tx.Hash(),
+		From:       addr,
+		Nonce:      tx.Nonce(),
+		Gas:        tx.Gas(),
+		GasPrice:   tx.GasPrice(),
+		Cost:       tx.Cost(),
+		ReceivedAt: time.Now(),
 	}
 
 	txTracker.IsClaim = isClaim
@@ -72,7 +74,6 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraints, weights b
 	totalWeight := float64(weights.WeightArithmetics + weights.WeightBatchBytesSize + weights.WeightBinaries + weights.WeightCumulativeGasUsed +
 		weights.WeightKeccakHashes + weights.WeightMemAligns + weights.WeightPoseidonHashes + weights.WeightPoseidonPaddings + weights.WeightSteps)
 
-	// TODO: Which efficiency assign to isClaim txs?
 	// TODO: Optmize tx.Efficiency calculation (precalculate constansts values)
 	// TODO: Evaluate avoid type conversion (performance impact?)
 	resourceCost := (float64(tx.BatchResources.zKCounters.CumulativeGasUsed)/float64(constraints.MaxCumulativeGasUsed))*float64(weights.WeightCumulativeGasUsed)/totalWeight +

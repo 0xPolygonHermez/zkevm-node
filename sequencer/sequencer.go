@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -169,6 +170,27 @@ func (s *Sequencer) Start(ctx context.Context) {
 			s.tryToSendSequence(ctx, tickerSendSequence)
 		}
 	}()
+
+	// Expire too old txs in efficiency list
+	go func() {
+		for {
+			time.Sleep(s.cfg.MaxTimeForATxToBeInTheEfficiencyList.Duration)
+			txTrackers := worker.GetEfficiencyList().GetSorted()
+
+			for _, txTracker := range txTrackers {
+				if txTracker.ReceivedAt.Add(s.cfg.MaxTimeForATxToBeInTheEfficiencyList.Duration).Before(time.Now()) {
+					if worker.GetEfficiencyList().delete(txTracker) {
+						err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false)
+						if err != nil {
+							log.Errorf("failed to update tx status, err: %v", err)
+						}
+						log.Info("tx expired from efficiency list", "tx", txTracker.Hash.Hex())
+					}
+				}
+			}
+		}
+	}()
+
 	// Wait until context is done
 	<-ctx.Done()
 }

@@ -20,8 +20,8 @@ type WorkerMock struct {
 	mock.Mock
 }
 
-// AddTx provides a mock function with given fields: ctx, txTracker
-func (_m *WorkerMock) AddTx(ctx context.Context, txTracker *TxTracker) {
+// AddTxTracker provides a mock function with given fields: ctx, txTracker
+func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) {
 	_m.Called(ctx, txTracker)
 }
 
@@ -53,8 +53,18 @@ func (_m *WorkerMock) HandleL2Reorg(txHashes []common.Hash) {
 
 // MoveTxToNotReady provides a mock function with given fields: txHash, from, actualNonce, actualBalance
 func (_m *WorkerMock) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker {
-	_m.Called(txHash, from, actualNonce, actualBalance)
-	return nil
+	ret := _m.Called(txHash, from, actualNonce, actualBalance)
+
+	var r0 []*TxTracker
+	if rf, ok := ret.Get(0).(func(common.Hash, common.Address, *uint64, *big.Int) []*TxTracker); ok {
+		r0 = rf(txHash, from, actualNonce, actualBalance)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*TxTracker)
+		}
+	}
+
+	return r0
 }
 
 // NewTxTracker provides a mock function with given fields: tx, isClaim, counters
@@ -82,8 +92,18 @@ func (_m *WorkerMock) NewTxTracker(tx types.Transaction, isClaim bool, counters 
 
 // UpdateAfterSingleSuccessfulTxExecution provides a mock function with given fields: from, touchedAddresses
 func (_m *WorkerMock) UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite) []*TxTracker {
-	_m.Called(from, touchedAddresses)
-	return nil
+	ret := _m.Called(from, touchedAddresses)
+
+	var r0 []*TxTracker
+	if rf, ok := ret.Get(0).(func(common.Address, map[common.Address]*state.InfoReadWrite) []*TxTracker); ok {
+		r0 = rf(from, touchedAddresses)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*TxTracker)
+		}
+	}
+
+	return r0
 }
 
 // UpdateTx provides a mock function with given fields: txHash, from, ZKCounters

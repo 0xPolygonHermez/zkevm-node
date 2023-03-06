@@ -138,7 +138,7 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
 	if err != nil {
 		return err
 	}
-	d.worker.AddTx(d.ctx, txTracker)
+	d.worker.AddTxTracker(d.ctx, txTracker)
 	return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
 }
 
