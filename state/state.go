@@ -1209,7 +1209,12 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 		return nil, err
 	}
 
-	return s.internalProcessUnsignedTransaction(ctx, tx, sender, &lastL2BlockNumber, false, &nonce, dbTx)
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, &lastL2BlockNumber, false, &nonce, dbTx)
+	if err != nil && !errors.Is(err, runtime.ErrExecutionReverted) {
+		return nil, err
+	}
+
+	return response, nil
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
