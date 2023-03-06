@@ -133,7 +133,7 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 		log.Infof("CntBinaries: %v", res.CntBinaries)
 		log.Infof("CntSteps: %v", res.CntSteps)
 		for i, txRes := range res.Responses {
-			log.Infof("======> TX #%d", i)
+			log.Infof("=====> TX #%d", i)
 			if "0x"+hex.EncodeToString(txRes.TxHash) != txs[i].Hash().Hex() {
 				log.Warnf("TxHash missmatch:\nexecutor: %s\ndecoded: %s", "0x"+hex.EncodeToString(txRes.TxHash), txs[i].Hash().Hex())
 			} else {
