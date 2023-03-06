@@ -298,7 +298,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		getWIPBatchErr        error
 		openBatchErr          error
 		isBatchClosedErr      error
-		getLastBatchNumErr    error
+		getLastBatchErr       error
 		expectedProcessingCtx state.ProcessingContext
 		expectedBatch         *WipBatch
 		expectedErr           error
@@ -330,6 +330,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 			name:          "Success-Open Batch",
 			lastBatchNum:  &one,
 			isBatchClosed: false,
+			batches:       batches,
 			ger:           common.Hash{},
 			expectedBatch: &WipBatch{
 				batchNumber:        one,
@@ -348,13 +349,13 @@ func TestFinalizer_syncWithState(t *testing.T) {
 			},
 		},
 		{
-			name:               "Error-Failed to get last batch number",
-			lastBatchNum:       nil,
-			batches:            batches,
-			isBatchClosed:      true,
-			ger:                oldHash,
-			getLastBatchNumErr: testErr,
-			expectedErr:        fmt.Errorf("failed to get last batch number, err: %w", testErr),
+			name:            "Error-Failed to get last batch",
+			lastBatchNum:    nil,
+			batches:         batches,
+			isBatchClosed:   true,
+			ger:             oldHash,
+			getLastBatchErr: testErr,
+			expectedErr:     fmt.Errorf("failed to get last batch, err: %w", testErr),
 		},
 		{
 			name:             "Error-Failed to check if batch is closed",
@@ -395,20 +396,21 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
 			if tc.lastBatchNum == nil {
-				dbManagerMock.Mock.On("GetLastBatchNumber", ctx).Return(one, tc.getLastBatchNumErr).Once()
+				dbManagerMock.Mock.On("GetLastBatch", ctx).Return(tc.batches[0], tc.getLastBatchErr).Once()
+			} else {
+				dbManagerMock.On("GetBatchByNumber", ctx, *tc.lastBatchNum, nil).Return(tc.batches[0], nilErr).Once()
 			}
 
-			if tc.getLastBatchNumErr == nil {
+			if tc.getLastBatchErr == nil {
 				dbManagerMock.Mock.On("IsBatchClosed", ctx, *tc.lastBatchNum).Return(tc.isBatchClosed, tc.isBatchClosedErr).Once()
 			}
 
 			if tc.isBatchClosed {
-				if tc.getLastBatchNumErr == nil && tc.isBatchClosedErr == nil {
-					dbManagerMock.On("GetLastNBatches", ctx, uint(2)).Return(tc.batches, nilErr).Once()
+				if tc.getLastBatchErr == nil && tc.isBatchClosedErr == nil {
 					dbManagerMock.On("OpenBatch", ctx, tc.expectedProcessingCtx, dbTxMock).Return(tc.openBatchErr).Once()
 				}
 
-				if tc.getLastBatchNumErr == nil && tc.isBatchClosedErr == nil {
+				if tc.getLastBatchErr == nil && tc.isBatchClosedErr == nil {
 					dbManagerMock.Mock.On("GetLatestGer", ctx, f.cfg.GERFinalityNumberOfBlocks).Return(state.GlobalExitRoot{GlobalExitRoot: tc.ger}, testNow(), nil).Once()
 					dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nil).Once()
 					if tc.openBatchErr == nil {
