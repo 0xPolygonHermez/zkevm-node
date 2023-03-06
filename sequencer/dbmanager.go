@@ -161,13 +161,6 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 	// TODO: Finish the retry mechanism and error handling
 	for {
-		txToStore := <-d.txsStore.Ch
-		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
-		dbTx, err := d.BeginStateTransaction(d.ctx)
-		if err != nil {
-			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
-		}
-
 		numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
 		if err != nil {
 			log.Error("failed to get number of reorgs: %v", err)
@@ -178,6 +171,13 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 			d.l2ReorgCh <- L2ReorgEvent{}
 			d.txsStore.Wg.Done()
 			continue
+		}
+
+		txToStore := <-d.txsStore.Ch
+		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
+		dbTx, err := d.BeginStateTransaction(d.ctx)
+		if err != nil {
+			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
 
 		err = d.StoreProcessedTransaction(d.ctx, txToStore.batchNumber, txToStore.txResponse, txToStore.coinbase, txToStore.timestamp, dbTx)
