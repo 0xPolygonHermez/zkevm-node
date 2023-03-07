@@ -21,6 +21,7 @@ func main() {
 		panic(err)
 	}
 
+	start := time.Now()
 	// Send Txs
 	err = transactions.SendAndWait(
 		ctx,
@@ -28,13 +29,13 @@ func main() {
 		l2Client,
 		pl.CountTransactionsByStatus,
 		params.NumberOfTxs,
+		nil,
 		ethtransfers.TxSender,
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	start := time.Now()
 	// Wait for Txs to be selected
 	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfTxs)
 	if err != nil {

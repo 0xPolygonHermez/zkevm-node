@@ -653,7 +653,7 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 	if caller != DiscardCallerLabel {
 		metrics.ExecutorProcessingTime(string(caller), elapsed)
 	}
-	log.Infof("It took %v for the executor to process the request", elapsed)
+	log.Infof("Batch: %d took %v to be processed by the executor ", processBatchRequest.OldBatchNum+1, elapsed)
 
 	return res, err
 }
@@ -1716,7 +1716,7 @@ func (s *State) LogExecutorError(responseError pb.ExecutorError, processBatchReq
 		log.Errorf("error marshaling payload: %v", err)
 	} else {
 		debugInfo := &DebugInfo{
-			ErrorType: DebugInfoErrorType_EXECUTOR_ERROR,
+			ErrorType: DebugInfoErrorType_EXECUTOR_ERROR + " " + responseError.String(),
 			Timestamp: timestamp,
 			Payload:   string(payload),
 		}

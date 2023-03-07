@@ -36,11 +36,11 @@ const (
 
 // Public shared
 const (
-	DefaultSequencerAddress     = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	DefaultSequencerPrivateKey  = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	DefaultSequencerBalance     = 400000
-	DefaultMaxCumulativeGasUsed = 800000
-
+	DefaultSequencerAddress             = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	DefaultSequencerPrivateKey          = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	DefaultSequencerBalance             = 400000
+	DefaultMaxCumulativeGasUsed         = 800000
+	DefaultL1ZkEVMSmartContract         = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
 	DefaultL1NetworkURL                 = "http://localhost:8545"
 	DefaultL1NetworkWebSocketURL        = "ws://localhost:8546"
 	DefaultL1ChainID             uint64 = 1337
@@ -169,58 +169,58 @@ func ApplyL1Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 
 // ApplyL2Txs sends the given L2 txs, waits for them to be consolidated and
 // checks the final state.
-func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
+func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) ([]*big.Int, error) {
 	var err error
 	if auth == nil {
 		auth, err = GetAuth(DefaultSequencerPrivateKey, DefaultL2ChainID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	if client == nil {
 		client, err = ethclient.Dial(DefaultL2NetworkURL)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	sentTxs, err := applyTxs(ctx, txs, auth, client)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	var l2BlockNumber *big.Int
+	l2BlockNumbers := make([]*big.Int, 0, len(sentTxs))
 	for _, tx := range sentTxs {
 		// check transaction nonce against transaction reported L2 block number
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// get L2 block number
-		l2BlockNumber = receipt.BlockNumber
-		expectedNonce := l2BlockNumber.Uint64() - 1 + 8 //nolint:gomnd
+		l2BlockNumbers = append(l2BlockNumbers, receipt.BlockNumber)
+		expectedNonce := receipt.BlockNumber.Uint64() - 1 + 8 //nolint:gomnd
 		if tx.Nonce() != expectedNonce {
-			return fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
+			return nil, fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
+		}
+
+		// wait for l2 block to be virtualized
+		log.Infof("waiting for the block number %v to be virtualized", receipt.BlockNumber.String())
+		err = WaitL2BlockToBeVirtualized(receipt.BlockNumber, 4*time.Minute) //nolint:gomnd
+		if err != nil {
+			return nil, err
+		}
+
+		// wait for l2 block number to be consolidated
+		log.Infof("waiting for the block number %v to be consolidated", receipt.BlockNumber.String())
+		err = WaitL2BlockToBeConsolidated(receipt.BlockNumber, 4*time.Minute) //nolint:gomnd
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	// wait for l2 block to be virtualized
-	log.Infof("waiting for the block number %v to be virtualized", l2BlockNumber.String())
-	err = WaitL2BlockToBeVirtualized(l2BlockNumber, 4*time.Minute) //nolint:gomnd
-	if err != nil {
-		return err
-	}
-
-	// wait for l2 block number to be consolidated
-	log.Infof("waiting for the block number %v to be consolidated", l2BlockNumber.String())
-	err = WaitL2BlockToBeConsolidated(l2BlockNumber, 4*time.Minute) //nolint:gomnd
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return l2BlockNumbers, nil
 }
 
 func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) ([]*types.Transaction, error) {

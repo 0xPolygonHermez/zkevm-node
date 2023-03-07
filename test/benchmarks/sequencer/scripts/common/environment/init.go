@@ -2,7 +2,6 @@ package environment
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -39,7 +38,6 @@ func Init() (context.Context, *pgpoolstorage.PostgresPoolStorage, *state.Postgre
 	}
 
 	l2Client, err := ethclient.Dial(l2NetworkRPCURL)
-	fmt.Println(l2Client.ChainID(ctx))
 	if err != nil {
 		panic(err)
 	}
@@ -58,8 +56,6 @@ func Init() (context.Context, *pgpoolstorage.PostgresPoolStorage, *state.Postgre
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("\nAuth(#): %#v", auth)
-	fmt.Printf("\nAuth(+): %+v", auth)
 	// Print Info before send
 	senderBalance, err := l2Client.BalanceAt(ctx, auth.From, nil)
 	if err != nil {

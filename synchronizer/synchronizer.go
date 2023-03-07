@@ -35,6 +35,7 @@ type ClientSynchronizer struct {
 	state              stateInterface
 	pool               poolInterface
 	ethTxManager       ethTxManager
+	broadcastURI       string
 	ctx                context.Context
 	cancelCtx          context.CancelFunc
 	genesis            state.Genesis
@@ -52,6 +53,19 @@ func NewSynchronizer(
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var broadcastURI string
+	if !isTrustedSequencer {
+		var err error
+		log.Debug("Getting broadcast URI")
+		broadcastURI, err = getBroadcastURI(ethMan)
+		if err != nil {
+			log.Errorf("error getting broadcast URI. Error: %v", err)
+			cancel()
+			return nil, err
+		}
+		log.Debug("broadcastURI ", broadcastURI)
+	}
+
 	return &ClientSynchronizer{
 		isTrustedSequencer: isTrustedSequencer,
 		state:              st,
@@ -60,6 +74,7 @@ func NewSynchronizer(
 		ctx:                ctx,
 		cancelCtx:          cancel,
 		ethTxManager:       ethTxManager,
+		broadcastURI:       broadcastURI,
 		genesis:            genesis,
 		cfg:                cfg,
 	}, nil
@@ -157,7 +172,6 @@ func (s *ClientSynchronizer) Sync() error {
 					log.Warn("error syncing trusted state. Error: ", err)
 					continue
 				}
-				log.Info("Trusted state fully synchronized")
 				waitDuration = s.cfg.SyncInterval.Duration
 			}
 		}
@@ -265,25 +279,25 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 		return nil
 	}
 
-	log.Debug("Getting broadcast URI")
-	broadcastURI, err := s.getBroadcastURI()
+	broadcastClient, _, cancel, err := broadcast.NewClient(s.ctx, s.broadcastURI)
 	if err != nil {
-		log.Errorf("error getting broadcast URI. Error: %v", err)
+		log.Warn("error connecting to the broadcast. Error: ", err)
+		cancel()
 		return err
 	}
-	log.Debug("broadcastURI ", broadcastURI)
-	broadcastClient, _, _ := broadcast.NewClient(s.ctx, broadcastURI)
 
 	log.Info("Getting trusted state info")
 	lastTrustedStateBatch, err := broadcastClient.GetLastBatch(s.ctx, &emptypb.Empty{})
 	if err != nil {
 		log.Warn("error syncing trusted state. Error: ", err)
+		cancel()
 		return err
 	}
 
 	log.Debug("lastTrustedStateBatch.BatchNumber ", lastTrustedStateBatch.BatchNumber)
 	log.Debug("latestSyncedBatch ", latestSyncedBatch)
 	if lastTrustedStateBatch.BatchNumber < latestSyncedBatch {
+		cancel()
 		return nil
 	}
 
@@ -292,17 +306,20 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 		batchToSync, err := broadcastClient.GetBatch(s.ctx, &pb.GetBatchRequest{BatchNumber: batchNumberToSync})
 		if err != nil {
 			log.Warnf("failed to get batch %v from trusted state via broadcast. Error: %v", batchNumberToSync, err)
+			cancel()
 			return err
 		}
 
 		dbTx, err := s.state.BeginStateTransaction(s.ctx)
 		if err != nil {
 			log.Errorf("error creating db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
+			cancel()
 			return err
 		}
 
 		if err := s.processTrustedBatch(batchToSync, dbTx); err != nil {
 			log.Errorf("error processing trusted batch %v: %v", batchNumberToSync, err)
+			cancel()
 			err := dbTx.Rollback(s.ctx)
 			if err != nil {
 				log.Errorf("error rolling back db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
@@ -313,19 +330,22 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 
 		if err := dbTx.Commit(s.ctx); err != nil {
 			log.Errorf("error committing db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
+			cancel()
 			return err
 		}
 
 		batchNumberToSync++
 	}
 
+	cancel()
+	log.Info("Trusted state fully synchronized")
 	return nil
 }
 
 // gets the broadcast URI from trusted sequencer JSON RPC server
-func (s *ClientSynchronizer) getBroadcastURI() (string, error) {
+func getBroadcastURI(etherMan ethermanInterface) (string, error) {
 	log.Debug("getting trusted sequencer URL from smc")
-	trustedSequencerURL, err := s.etherMan.GetTrustedSequencerURL()
+	trustedSequencerURL, err := etherMan.GetTrustedSequencerURL()
 	if err != nil {
 		return "", err
 	}
@@ -703,7 +723,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		status := s.checkTrustedState(batch, tBatch, newRoot, dbTx)
 		if status {
 			// Reorg Pool
-			err := s.reorgPool(tBatch.BatchNumber, dbTx)
+			err := s.reorgPool(dbTx)
 			if err != nil {
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
@@ -1098,13 +1118,20 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *pb.GetBatchRespon
 	return nil
 }
 
-func (s *ClientSynchronizer) reorgPool(batchNumber uint64, dbTx pgx.Tx) error {
+func (s *ClientSynchronizer) reorgPool(dbTx pgx.Tx) error {
+	latestBatchNum, err := s.etherMan.GetLatestBatchNumber()
+	if err != nil {
+		log.Error("error getting the latestBatchNumber virtualized in the smc. Error: ", err)
+		return err
+	}
+	batchNumber := latestBatchNum + 1
 	// Get transactions that have to be included in the pool again
 	txs, err := s.state.GetReorgedTransactions(s.ctx, batchNumber, dbTx)
 	if err != nil {
 		log.Errorf("error getting txs from trusted state. BatchNumber: %d, error: %v", batchNumber, err)
 		return err
 	}
+	log.Debug("Reorged transactions: ", txs)
 
 	// Remove txs from the pool
 	err = s.pool.DeleteReorgedTransactions(s.ctx, txs)
@@ -1112,14 +1139,16 @@ func (s *ClientSynchronizer) reorgPool(batchNumber uint64, dbTx pgx.Tx) error {
 		log.Errorf("error deleting txs from the pool. BatchNumber: %d, error: %v", batchNumber, err)
 		return err
 	}
+	log.Debug("Delete reorged transactions")
 
 	// Add txs to the pool
 	for _, tx := range txs {
-		err = s.pool.AddTx(s.ctx, *tx)
+		err = s.pool.ReorgTx(s.ctx, *tx)
 		if err != nil {
 			log.Errorf("error storing tx into the pool again. TxHash: %s. BatchNumber: %d, error: %v", tx.Hash().String(), batchNumber, err)
 			return err
 		}
+		log.Debug("Reorged transactions inserted in the pool: ", tx.Hash())
 	}
 	return nil
 }

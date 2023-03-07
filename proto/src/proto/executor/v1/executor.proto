@@ -290,4 +290,6 @@ enum ExecutorError {
     EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON = 7;
     // EXECUTOR_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
     EXECUTOR_ERROR_UNSUPPORTED_FORK_ID = 8;
+    // EXECUTOR_ERROR_BALANCE_MISMATCH indicates that there is a balance mismatch error in the ROM
+    EXECUTOR_ERROR_BALANCE_MISMATCH = 9;
 }

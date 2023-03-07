@@ -14,6 +14,8 @@ var (
 	PrivateKey = testutils.GetEnv("PRIVATE_KEY", operations.DefaultSequencerPrivateKey)
 	// L2ChainId is the chain id of the L2 network
 	L2ChainId = testutils.GetEnv("CHAIN_ID", strconv.FormatUint(operations.DefaultL2ChainID, IntBase))
+	//Erc20TokenAddress is the address of the ERC20 token
+	Erc20TokenAddress = testutils.GetEnv("ERC20_TOKEN_ADDRESS", "0x729fc461b26f69cf75a31182788eaf722b08c240")
 
 	l2NetworkRPCURL = testutils.GetEnv("L2_NETWORK_RPC_URL", operations.DefaultL2NetworkURL)
 

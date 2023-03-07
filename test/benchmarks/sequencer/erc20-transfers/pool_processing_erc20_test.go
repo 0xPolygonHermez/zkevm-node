@@ -27,6 +27,10 @@ const (
 	profilingEnabled = false
 )
 
+var (
+	erc20SC *ERC20.ERC20
+)
+
 func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 	start := time.Now()
 	opsman, client, pl, auth := setup.Environment(params.Ctx, b)
@@ -41,7 +45,7 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 	}
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
 	require.NoError(b, err)
-	err = transactions.SendAndWait(params.Ctx, auth, client, pl.CountTransactionsByStatus, params.NumberOfTxs, TxSender)
+	err = transactions.SendAndWait(params.Ctx, auth, client, pl.CountTransactionsByStatus, params.NumberOfTxs, erc20SC, TxSender)
 	require.NoError(b, err)
 
 	var (
@@ -84,7 +88,7 @@ func deployERC20Contract(b *testing.B, client *ethclient.Client, ctx context.Con
 	require.NoError(b, err)
 	log.Debugf("Sending TX to do a ERC20 mint")
 	auth.Nonce = big.NewInt(1) // for the mint tx
-	tx, err = erc20SC.Mint(auth, mintAmount)
+	tx, err = erc20SC.Mint(auth, mintAmountBig)
 	auth.Nonce = big.NewInt(2)
 	require.NoError(b, err)
 	err = operations.WaitTxToBeMined(ctx, client, tx, txTimeout)
