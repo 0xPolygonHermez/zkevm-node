@@ -2746,7 +2746,7 @@ func TestStoreDebugInfo(t *testing.T) {
 
 	err = testState.PostgresStorage.QueryRow(ctx, "SELECT * FROM state.debug").Scan(&debugInfo.ErrorType, &debugInfo.Timestamp, &debugInfo.Payload)
 	assert.NoError(t, err)
-	assert.Equal(t, state.DebugInfoErrorType_EXECUTOR_ERROR, debugInfo.ErrorType)
+	assert.Equal(t, state.DebugInfoErrorType_EXECUTOR_ERROR+" "+executorclientpb.ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK.String(), debugInfo.ErrorType)
 	assert.Equal(t, string(payload), debugInfo.Payload)
 }
 
