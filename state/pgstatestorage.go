@@ -2224,7 +2224,7 @@ func (p *PostgresStorage) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64,
 }
 
 // GetReorgedTransactions returns the transactions that were reorged
-func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []*types.Transaction, err error) {
+func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
 	const getReorgedTransactionsSql = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num >= $1 ORDER BY l2_block_num ASC"
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getReorgedTransactionsSql, batchNumber)
@@ -2233,14 +2233,23 @@ func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumbe
 	}
 	defer rows.Close()
 
-	encodedTxs := make([]string, 0, len(rows.RawValues()))
+	txs := make([]*types.Transaction, 0, len(rows.RawValues()))
 
-	for i := 0; i < len(encodedTxs); i++ {
-		tx, err := DecodeTx(encodedTxs[i])
+	for rows.Next() {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+		var encodedTx string
+		err := rows.Scan(&encodedTx)
+		if err != nil {
+			return nil, err
+		}
+
+		tx, err := DecodeTx(encodedTx)
 		if err != nil {
 			return nil, err
 		}
 		txs = append(txs, tx)
 	}
-	return
+	return txs, nil
 }

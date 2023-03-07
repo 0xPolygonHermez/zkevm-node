@@ -107,6 +107,18 @@ func (d *dbManager) loadFromPool() {
 		// TODO: Move this to a config parameter
 		time.Sleep(wait * time.Second)
 
+		numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
+		if err != nil {
+			log.Error("failed to get number of reorgs: %v", err)
+		}
+
+		if numberOfReorgs != d.numberOfReorgs {
+			log.Warnf("New L2 reorg detected")
+			d.l2ReorgCh <- L2ReorgEvent{}
+			d.txsStore.Wg.Done()
+			continue
+		}
+
 		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, false, 0)
 		if err != nil && err != pgpoolstorage.ErrNotFound {
 			log.Errorf("load tx from pool: %v", err)
@@ -161,18 +173,6 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 	// TODO: Finish the retry mechanism and error handling
 	for {
-		numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
-		if err != nil {
-			log.Error("failed to get number of reorgs: %v", err)
-		}
-
-		if numberOfReorgs != d.numberOfReorgs {
-			log.Warnf("New L2 reorg detected")
-			d.l2ReorgCh <- L2ReorgEvent{}
-			d.txsStore.Wg.Done()
-			continue
-		}
-
 		txToStore := <-d.txsStore.Ch
 		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
 		dbTx, err := d.BeginStateTransaction(d.ctx)
