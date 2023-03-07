@@ -259,34 +259,27 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 	return tx
 }
 
-// PruneEfficiencyList deletes old txs from the efficiency list
-func (w *Worker) PruneEfficiencyList(maxTime time.Duration) []*TxTracker {
-	var (
-		txs      []*TxTracker
-		txsMutex sync.RWMutex
-	)
+// ExpireTransactions deletes old txs
+func (w *Worker) ExpireTransactions(maxTime time.Duration) []*TxTracker {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
 
-	nGoRoutines := runtime.NumCPU()
-	wg := sync.WaitGroup{}
-	wg.Add(nGoRoutines)
+	var txs []*TxTracker
 
-	// Each go routine looks for a fitting tx
-	for i := 0; i < nGoRoutines; i++ {
-		go func(n int, maxTime time.Duration) {
-			defer wg.Done()
-			for i := n; i < w.efficiencyList.len(); i += nGoRoutines {
-				tx := w.efficiencyList.getByIndex(i)
-				if tx.ReceivedAt.Add(maxTime).Before(time.Now()) {
-					txsMutex.RLock()
-					txs = append(txs, tx)
-					txsMutex.RUnlock()
-					w.efficiencyList.delete(tx)
-					log.Debugf("PruneEfficiencyList tx(%s) deleted from EfficiencyList", tx.Hash.String())
-				}
-			}
-		}(i, maxTime)
+	log.Info("ExpireTransactions start. addrQueue len: ", len(w.pool))
+	for _, addrQueue := range w.pool {
+		subTxs, prevReadyTx := addrQueue.ExpireTransactions(maxTime)
+		txs = append(txs, subTxs...)
+
+		if prevReadyTx != nil {
+			w.efficiencyList.delete(prevReadyTx)
+		}
+
+		if addrQueue.IsEmpty() {
+			delete(w.pool, addrQueue.fromStr)
+		}
 	}
-	wg.Wait()
+	log.Info("ExpireTransactions end. addrQueue len: ", len(w.pool), "deleteCount: ", len(txs))
 
 	return txs
 }

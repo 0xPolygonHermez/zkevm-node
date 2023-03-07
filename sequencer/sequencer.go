@@ -171,11 +171,11 @@ func (s *Sequencer) Start(ctx context.Context) {
 		}
 	}()
 
-	// Expire too old txs in efficiency list
+	// Expire too old txs in the worker
 	go func() {
 		for {
-			time.Sleep(s.cfg.MaxTimeForATxToBeInTheEfficiencyList.Duration)
-			txTrackers := worker.PruneEfficiencyList(s.cfg.MaxTimeForATxToBeInTheEfficiencyList.Duration)
+			time.Sleep(s.cfg.TxLifetimeCheckTimeout.Duration)
+			txTrackers := worker.ExpireTransactions(s.cfg.MaxTxLifetime.Duration)
 
 			for _, txTracker := range txTrackers {
 				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false)

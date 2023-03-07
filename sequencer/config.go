@@ -80,8 +80,11 @@ type Config struct {
 	// WeightSteps is the cost weight for the Steps batch resource
 	WeightSteps int `mapstructure:"WeightSteps"`
 
-	// MaxTimeForATxToBeInTheEfficiencyList is the time a tx can be in the efficiency list
-	MaxTimeForATxToBeInTheEfficiencyList types.Duration `mapstructure:"MaxTimeForATxToBeInTheEfficiencyList"`
+	// TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
+	TxLifetimeCheckTimeout types.Duration `mapstructure:"TxLifetimeCheckTimeout"`
+
+	// MaxTxLifetime is the time a tx can be in the sequencer memory
+	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
 
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
