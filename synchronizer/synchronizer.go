@@ -53,14 +53,18 @@ func NewSynchronizer(
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	log.Debug("Getting broadcast URI")
-	broadcastURI, err := getBroadcastURI(ethMan)
-	if err != nil {
-		log.Errorf("error getting broadcast URI. Error: %v", err)
-		cancel()
-		return nil, err
+	var broadcastURI string
+	if !isTrustedSequencer {
+		var err error
+		log.Debug("Getting broadcast URI")
+		broadcastURI, err = getBroadcastURI(ethMan)
+		if err != nil {
+			log.Errorf("error getting broadcast URI. Error: %v", err)
+			cancel()
+			return nil, err
+		}
+		log.Debug("broadcastURI ", broadcastURI)
 	}
-	log.Debug("broadcastURI ", broadcastURI)
 
 	return &ClientSynchronizer{
 		isTrustedSequencer: isTrustedSequencer,
@@ -168,7 +172,6 @@ func (s *ClientSynchronizer) Sync() error {
 					log.Warn("error syncing trusted state. Error: ", err)
 					continue
 				}
-				log.Info("Trusted state fully synchronized")
 				waitDuration = s.cfg.SyncInterval.Duration
 			}
 		}
@@ -335,6 +338,7 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 	}
 
 	cancel()
+	log.Info("Trusted state fully synchronized")
 	return nil
 }
 
