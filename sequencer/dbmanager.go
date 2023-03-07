@@ -57,6 +57,13 @@ func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterf
 // Start stars the dbManager routines
 func (d *dbManager) Start() {
 	go d.loadFromPool()
+	go func() {
+		for {
+			// TODO: Move this to a config parameter
+			time.Sleep(wait * time.Second)
+			d.checkIfReorg()
+		}
+	}()
 	go d.storeProcessedTxAndDeleteFromPool()
 }
 
@@ -101,23 +108,25 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 	return processingCtx
 }
 
+// checkIfReorg checks if a reorg has happened
+func (d *dbManager) checkIfReorg() {
+	numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
+	if err != nil {
+		log.Error("failed to get number of reorgs: %v", err)
+	}
+
+	if numberOfReorgs != d.numberOfReorgs {
+		log.Warnf("New L2 reorg detected")
+		d.l2ReorgCh <- L2ReorgEvent{}
+		d.txsStore.Wg.Done()
+	}
+}
+
 // loadFromPool keeps loading transactions from the pool
 func (d *dbManager) loadFromPool() {
 	for {
 		// TODO: Move this to a config parameter
 		time.Sleep(wait * time.Second)
-
-		numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
-		if err != nil {
-			log.Error("failed to get number of reorgs: %v", err)
-		}
-
-		if numberOfReorgs != d.numberOfReorgs {
-			log.Warnf("New L2 reorg detected")
-			d.l2ReorgCh <- L2ReorgEvent{}
-			d.txsStore.Wg.Done()
-			continue
-		}
 
 		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, false, 0)
 		if err != nil && err != pgpoolstorage.ErrNotFound {
@@ -174,6 +183,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 	// TODO: Finish the retry mechanism and error handling
 	for {
 		txToStore := <-d.txsStore.Ch
+		d.checkIfReorg()
 		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
 		dbTx, err := d.BeginStateTransaction(d.ctx)
 		if err != nil {
