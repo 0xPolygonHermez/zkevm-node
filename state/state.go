@@ -780,7 +780,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 	// Decode transactions
 	decodedTransactions, _, err := DecodeTxs(encodedTxs)
 	if err != nil && !errors.Is(err, InvalidData) {
-		log.Debugf("error decoding transactions: %w", err)
+		log.Debugf("error decoding transactions: %v", err)
 		return err
 	}
 
@@ -1481,10 +1481,10 @@ func (s *State) WaitSequencingTxToBeSynced(parentCtx context.Context, tx *types.
 	for {
 		virtualized, err := s.IsSequencingTXSynced(ctx, tx.Hash(), nil)
 		if err != nil && err != ErrNotFound {
-			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
+			log.Errorf("error waiting sequencing tx %s to be synced: %v", tx.Hash().String(), err)
 			return err
 		} else if ctx.Err() != nil {
-			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
+			log.Errorf("error waiting sequencing tx %s to be synced: %v", tx.Hash().String(), err)
 			return ctx.Err()
 		} else if virtualized {
 			break
