@@ -154,7 +154,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
-			path:          "Sequencer.DbManager.PoolRetrievalInterval",
+			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
 		{
