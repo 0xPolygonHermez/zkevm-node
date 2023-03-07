@@ -106,8 +106,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint32(8388608),
 		},
 		{
+			path:          "Sequencer.TxLifetimeCheckTimeout",
+			expectedValue: types.NewDuration(10 * time.Minute),
+		},
+		{
 			path:          "Sequencer.MaxTxLifetime",
-			expectedValue: types.NewDuration(5 * time.Minute),
+			expectedValue: types.NewDuration(3 * time.Hour),
 		},
 		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
