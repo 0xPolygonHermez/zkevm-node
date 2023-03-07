@@ -671,6 +671,18 @@ func (p *PostgresStorage) IsBatchVirtualized(ctx context.Context, batchNumber ui
 	return exists, nil
 }
 
+// IsBatchConsolidated checks if batch is consolidated/verified.
+func (p *PostgresStorage) IsBatchConsolidated(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (bool, error) {
+	const query = `SELECT EXISTS (SELECT 1 FROM state.verified_batch WHERE batch_num = $1)`
+	e := p.getExecQuerier(dbTx)
+	var exists bool
+	err := e.QueryRow(ctx, query, batchNumber).Scan(&exists)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return exists, err
+	}
+	return exists, nil
+}
+
 // IsSequencingTXSynced checks if sequencing tx has been synced into the state
 func (p *PostgresStorage) IsSequencingTXSynced(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (bool, error) {
 	const query = `SELECT EXISTS (SELECT 1 FROM state.virtual_batch WHERE tx_hash = $1)`
@@ -2224,7 +2236,7 @@ func (p *PostgresStorage) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64,
 }
 
 // GetReorgedTransactions returns the transactions that were reorged
-func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []*types.Transaction, err error) {
+func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
 	const getReorgedTransactionsSql = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num >= $1 ORDER BY l2_block_num ASC"
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getReorgedTransactionsSql, batchNumber)
@@ -2233,14 +2245,66 @@ func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumbe
 	}
 	defer rows.Close()
 
-	encodedTxs := make([]string, 0, len(rows.RawValues()))
+	txs := make([]*types.Transaction, 0, len(rows.RawValues()))
 
-	for i := 0; i < len(encodedTxs); i++ {
-		tx, err := DecodeTx(encodedTxs[i])
+	for rows.Next() {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+		var encodedTx string
+		err := rows.Scan(&encodedTx)
+		if err != nil {
+			return nil, err
+		}
+
+		tx, err := DecodeTx(encodedTx)
 		if err != nil {
 			return nil, err
 		}
 		txs = append(txs, tx)
 	}
-	return
+	return txs, nil
+}
+
+// GetLatestGer is used to get the latest ger
+func (p *PostgresStorage) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (GlobalExitRoot, time.Time, error) {
+	lastBlock, err := p.GetLastBlock(ctx, nil)
+	if err != nil {
+		return GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %w", err)
+	}
+
+	blockNumber := lastBlock.BlockNumber
+
+	maxBlockNumber := uint64(0)
+	if gerFinalityNumberOfBlocks <= blockNumber {
+		maxBlockNumber = blockNumber - gerFinalityNumberOfBlocks
+	}
+	ger, receivedAt, err := p.GetLatestGlobalExitRoot(ctx, maxBlockNumber, nil)
+	if err != nil && errors.Is(err, ErrNotFound) {
+		return GlobalExitRoot{}, time.Time{}, nil
+	} else if err != nil {
+		return GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
+	} else {
+		return ger, receivedAt, nil
+	}
+}
+
+// GetBatchByForcedBatchNum returns the batch with the given forced batch number.
+func (p *PostgresStorage) GetBatchByForcedBatchNum(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	const getForcedBatchByNumberSQL = `
+		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num
+		  FROM state.batch
+		 WHERE forced_batch_num = $1`
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getForcedBatchByNumberSQL, forcedBatchNumber)
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &batch, nil
 }

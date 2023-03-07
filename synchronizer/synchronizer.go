@@ -703,7 +703,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		status := s.checkTrustedState(batch, tBatch, newRoot, dbTx)
 		if status {
 			// Reorg Pool
-			err := s.reorgPool(tBatch.BatchNumber, dbTx)
+			err := s.reorgPool(dbTx)
 			if err != nil {
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
@@ -1098,13 +1098,20 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *pb.GetBatchRespon
 	return nil
 }
 
-func (s *ClientSynchronizer) reorgPool(batchNumber uint64, dbTx pgx.Tx) error {
+func (s *ClientSynchronizer) reorgPool(dbTx pgx.Tx) error {
+	latestBatchNum, err := s.etherMan.GetLatestBatchNumber()
+	if err != nil {
+		log.Error("error getting the latestBatchNumber virtualized in the smc. Error: ", err)
+		return err
+	}
+	batchNumber := latestBatchNum + 1
 	// Get transactions that have to be included in the pool again
 	txs, err := s.state.GetReorgedTransactions(s.ctx, batchNumber, dbTx)
 	if err != nil {
 		log.Errorf("error getting txs from trusted state. BatchNumber: %d, error: %v", batchNumber, err)
 		return err
 	}
+	log.Debug("Reorged transactions: ", txs)
 
 	// Remove txs from the pool
 	err = s.pool.DeleteReorgedTransactions(s.ctx, txs)
@@ -1112,14 +1119,16 @@ func (s *ClientSynchronizer) reorgPool(batchNumber uint64, dbTx pgx.Tx) error {
 		log.Errorf("error deleting txs from the pool. BatchNumber: %d, error: %v", batchNumber, err)
 		return err
 	}
+	log.Debug("Delete reorged transactions")
 
 	// Add txs to the pool
 	for _, tx := range txs {
-		err = s.pool.AddTx(s.ctx, *tx)
+		err = s.pool.ReorgTx(s.ctx, *tx)
 		if err != nil {
 			log.Errorf("error storing tx into the pool again. TxHash: %s. BatchNumber: %d, error: %v", tx.Hash().String(), batchNumber, err)
 			return err
 		}
+		log.Debug("Reorged transactions inserted in the pool: ", tx.Hash())
 	}
 	return nil
 }

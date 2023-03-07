@@ -187,7 +187,7 @@ func sendTxs(cliCtx *cli.Context) error {
 			if network.networkLayer == networkLayer1 {
 				err = operations.ApplyL1Txs(ctx, txs, auth, client)
 			} else if network.networkLayer == networkLayer2 {
-				err = operations.ApplyL2Txs(ctx, txs, auth, client)
+				_, err = operations.ApplyL2Txs(ctx, txs, auth, client)
 			}
 			if err != nil {
 				return err

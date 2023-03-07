@@ -85,6 +85,8 @@ const (
 	EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON = 7
 	// EXECUTOR_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
 	EXECUTOR_ERROR_UNSUPPORTED_FORK_ID = 8
+	// EXECUTOR_ERROR_BALANCE_MISMATCH indicates that there is a balance mismatch error in the ROM
+	EXECUTOR_ERROR_BALANCE_MISMATCH = 9
 )
 
 // RomErr returns an instance of error related to the ExecutorError
@@ -261,6 +263,8 @@ func ExecutorErr(errorCode pb.ExecutorError) error {
 		return runtime.ErrOutOfCountersPoseidon
 	case EXECUTOR_ERROR_UNSUPPORTED_FORK_ID:
 		return runtime.ErrUnsupportedForkId
+	case EXECUTOR_ERROR_BALANCE_MISMATCH:
+		return runtime.ErrBalanceMismatch
 	}
 	return fmt.Errorf("unknown error")
 }
@@ -284,6 +288,8 @@ func ExecutorErrorCode(err error) pb.ExecutorError {
 		return pb.ExecutorError(EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON)
 	case runtime.ErrUnsupportedForkId:
 		return pb.ExecutorError(EXECUTOR_ERROR_UNSUPPORTED_FORK_ID)
+	case runtime.ErrBalanceMismatch:
+		return pb.ExecutorError(EXECUTOR_ERROR_BALANCE_MISMATCH)
 	}
 	return math.MaxInt32
 }

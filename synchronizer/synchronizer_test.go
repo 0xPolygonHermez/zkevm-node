@@ -169,6 +169,11 @@ func TestTrustedStateReorg(t *testing.T) {
 					Return(nil).
 					Once()
 
+				m.Etherman.
+					On("GetLatestBatchNumber").
+					Return(tr.BatchNumber-1, nil).
+					Once()
+
 				txs := []*types.Transaction{types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})}
 				m.State.
 					On("GetReorgedTransactions", ctx, tr.BatchNumber, m.DbTx).
@@ -181,7 +186,7 @@ func TestTrustedStateReorg(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("AddTx", ctx, *txs[0]).
+					On("ReorgTx", ctx, *txs[0]).
 					Return(nil).
 					Once()
 

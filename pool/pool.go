@@ -87,6 +87,28 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 	return p.storage.AddTx(ctx, poolTx)
 }
 
+// ReorgTx adds a reorged transaction to the pool with the pending state
+func (p *Pool) ReorgTx(ctx context.Context, tx types.Transaction) error {
+	poolTx := Transaction{
+		Transaction: tx,
+		Status:      TxStatusPending,
+		IsClaims:    false,
+		ReceivedAt:  time.Now(),
+		IsWIP:       false,
+	}
+
+	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
+
+	// Execute transaction to calculate its zkCounters
+	zkCounters, err := p.PreExecuteTx(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	poolTx.ZKCounters = zkCounters
+	return p.storage.AddTx(ctx, poolTx)
+}
+
 // PreExecuteTx executes a transaction to calculate its zkCounters
 func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error) {
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)

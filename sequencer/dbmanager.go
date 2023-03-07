@@ -2,8 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -107,6 +105,18 @@ func (d *dbManager) loadFromPool() {
 		// TODO: Move this to a config parameter
 		time.Sleep(wait * time.Second)
 
+		numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
+		if err != nil {
+			log.Error("failed to get number of reorgs: %v", err)
+		}
+
+		if numberOfReorgs != d.numberOfReorgs {
+			log.Warnf("New L2 reorg detected")
+			d.l2ReorgCh <- L2ReorgEvent{}
+			d.txsStore.Wg.Done()
+			continue
+		}
+
 		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, false, 0)
 		if err != nil && err != pgpoolstorage.ErrNotFound {
 			log.Errorf("load tx from pool: %v", err)
@@ -161,18 +171,6 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 	// TODO: Finish the retry mechanism and error handling
 	for {
-		numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
-		if err != nil {
-			log.Error("failed to get number of reorgs: %v", err)
-		}
-
-		if numberOfReorgs != d.numberOfReorgs {
-			log.Warnf("New L2 reorg detected")
-			d.l2ReorgCh <- L2ReorgEvent{}
-			d.txsStore.Wg.Done()
-			continue
-		}
-
 		txToStore := <-d.txsStore.Ch
 		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
 		dbTx, err := d.BeginStateTransaction(d.ctx)
@@ -398,25 +396,7 @@ func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*st
 
 // GetLatestGer gets the latest global exit root
 func (d *dbManager) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
-	lastBlock, err := d.state.GetLastBlock(ctx, nil)
-	if err != nil {
-		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %w", err)
-	}
-
-	blockNumber := lastBlock.BlockNumber
-
-	maxBlockNumber := uint64(0)
-	if gerFinalityNumberOfBlocks <= blockNumber {
-		maxBlockNumber = blockNumber - gerFinalityNumberOfBlocks
-	}
-	ger, receivedAt, err := d.state.GetLatestGlobalExitRoot(ctx, maxBlockNumber, nil)
-	if err != nil && errors.Is(err, state.ErrNotFound) {
-		return state.GlobalExitRoot{}, time.Time{}, nil
-	} else if err != nil {
-		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
-	} else {
-		return ger, receivedAt, nil
-	}
+	return d.state.GetLatestGer(ctx, gerFinalityNumberOfBlocks)
 }
 
 // CloseBatch closes a batch in the state

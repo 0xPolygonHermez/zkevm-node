@@ -16,6 +16,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -148,6 +149,22 @@ func WaitL2BlockToBeConsolidated(l2Block *big.Int, timeout time.Duration) error 
 func WaitL2BlockToBeVirtualized(l2Block *big.Int, timeout time.Duration) error {
 	return Poll(DefaultInterval, timeout, func() (bool, error) {
 		return l2BlockVirtualizationCondition(l2Block)
+	})
+}
+
+// WaitBatchToBeVirtualized waits until a Batch has been virtualized or the given timeout expires.
+func WaitBatchToBeVirtualized(batchNum uint64, timeout time.Duration, state *state.State) error {
+	ctx := context.Background()
+	return Poll(DefaultInterval, timeout, func() (bool, error) {
+		return state.IsBatchVirtualized(ctx, batchNum, nil)
+	})
+}
+
+// WaitBatchToBeConsolidated waits until a Batch has been consolidated/verified or the given timeout expires.
+func WaitBatchToBeConsolidated(batchNum uint64, timeout time.Duration, state *state.State) error {
+	ctx := context.Background()
+	return Poll(DefaultInterval, timeout, func() (bool, error) {
+		return state.IsBatchConsolidated(ctx, batchNum, nil)
 	})
 }
 
