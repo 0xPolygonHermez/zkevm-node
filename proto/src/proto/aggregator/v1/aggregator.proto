@@ -294,4 +294,3 @@ message PublicInputsExtended {
     bytes new_local_exit_root = 4;
     uint64 new_batch_num = 5;
 }
-
