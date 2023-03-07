@@ -26,7 +26,7 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
 	require.NoError(b, err)
 	setup.BootstrapSequencer(b, opsman)
-	err = transactions.SendAndWait(params.Ctx, auth, client, pl.CountTransactionsByStatus, params.NumberOfTxs, TxSender)
+	err = transactions.SendAndWait(params.Ctx, auth, client, pl.CountTransactionsByStatus, params.NumberOfTxs, nil, TxSender)
 	require.NoError(b, err)
 
 	var (

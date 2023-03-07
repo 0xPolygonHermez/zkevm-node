@@ -2,8 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -398,25 +396,7 @@ func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*st
 
 // GetLatestGer gets the latest global exit root
 func (d *dbManager) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
-	lastBlock, err := d.state.GetLastBlock(ctx, nil)
-	if err != nil {
-		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %w", err)
-	}
-
-	blockNumber := lastBlock.BlockNumber
-
-	maxBlockNumber := uint64(0)
-	if gerFinalityNumberOfBlocks <= blockNumber {
-		maxBlockNumber = blockNumber - gerFinalityNumberOfBlocks
-	}
-	ger, receivedAt, err := d.state.GetLatestGlobalExitRoot(ctx, maxBlockNumber, nil)
-	if err != nil && errors.Is(err, state.ErrNotFound) {
-		return state.GlobalExitRoot{}, time.Time{}, nil
-	} else if err != nil {
-		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
-	} else {
-		return ger, receivedAt, nil
-	}
+	return d.state.GetLatestGer(ctx, gerFinalityNumberOfBlocks)
 }
 
 // CloseBatch closes a batch in the state

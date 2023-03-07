@@ -9,6 +9,8 @@ import (
 	erc20transfers "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/erc20-transfers"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/common/environment"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/common/results"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func main() {
@@ -21,6 +23,11 @@ func main() {
 		panic(err)
 	}
 
+	start := time.Now()
+	erc20SC, err := ERC20.NewERC20(common.HexToAddress(environment.Erc20TokenAddress), l2Client)
+	if err != nil {
+		panic(err)
+	}
 	// Send Txs
 	err = transactions.SendAndWait(
 		ctx,
@@ -28,13 +35,13 @@ func main() {
 		l2Client,
 		pl.CountTransactionsByStatus,
 		params.NumberOfTxs,
+		erc20SC,
 		erc20transfers.TxSender,
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	start := time.Now()
 	// Wait for Txs to be selected
 	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfTxs)
 	if err != nil {

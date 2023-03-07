@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -21,7 +22,8 @@ func SendAndWait(
 	client *ethclient.Client,
 	countByStatusFunc func(ctx context.Context, status pool.TxStatus) (uint64, error),
 	nTxs int,
-	txSenderFunc func(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts) error,
+	erc20SC *ERC20.ERC20,
+	txSenderFunc func(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts, erc20SC *ERC20.ERC20) error,
 ) error {
 	auth.GasLimit = 2100000
 	log.Debugf("Sending %d txs ...", nTxs)
@@ -29,7 +31,7 @@ func SendAndWait(
 	maxNonce := uint64(nTxs) + startingNonce
 
 	for nonce := startingNonce; nonce < maxNonce; nonce++ {
-		err := txSenderFunc(client, auth.GasPrice, nonce, auth)
+		err := txSenderFunc(client, auth.GasPrice, nonce, auth, erc20SC)
 		if err != nil {
 			return err
 		}
