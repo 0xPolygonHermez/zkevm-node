@@ -176,14 +176,8 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 		// L2Reorg ch
 		case l2ReorgEvent := <-f.closingSignalCh.L2ReorgCh:
 			f.handlingL2Reorg = true
-			start := now()
-			go f.worker.HandleL2Reorg(l2ReorgEvent.TxHashes)
-			metrics.WorkerProcessingTime(time.Since(start))
-			err := f.syncWithState(ctx, nil)
-			if err != nil {
-				log.Errorf("failed to sync with state, Err: %s", err)
-			}
-			f.handlingL2Reorg = false
+			f.worker.HandleL2Reorg(l2ReorgEvent.TxHashes)
+			return
 		// Too much time without batches in L1 ch
 		case <-f.closingSignalCh.SendingToL1TimeoutCh:
 			f.nextSendingToL1TimeoutMux.Lock()
