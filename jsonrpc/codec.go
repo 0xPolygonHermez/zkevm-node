@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -164,6 +165,19 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 			return 0, newRPCError(invalidParamsErrorCode, "invalid block number: %v", bValue)
 		}
 		return uint64(bValue), nil
+	}
+}
+
+func (b *BlockNumber) StringOrHex() string {
+	switch *b {
+	case EarliestBlockNumber:
+		return Earliest
+	case PendingBlockNumber:
+		return Pending
+	case LatestBlockNumber:
+		return Latest
+	default:
+		return hex.EncodeUint64(uint64(*b))
 	}
 }
 

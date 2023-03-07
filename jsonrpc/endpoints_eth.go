@@ -465,7 +465,11 @@ func (e *EthEndpoints) GetTransactionCount(address common.Address, number *Block
 		var nonce uint64
 		var err error
 		if number != nil && *number == PendingBlockNumber {
-			pendingNonce, err = e.pool.GetNonce(ctx, address)
+			if e.cfg.SequencerNodeURI != "" {
+				return e.getTransactionCountFromSequencerNode(address, number)
+			} else {
+				pendingNonce, err = e.pool.GetNonce(ctx, address)
+			}
 			if err != nil {
 				return rpcErrorResponse(defaultErrorCode, "failed to count pending transactions", err)
 			}
@@ -489,6 +493,24 @@ func (e *EthEndpoints) GetTransactionCount(address common.Address, number *Block
 
 		return hex.EncodeUint64(nonce), nil
 	})
+}
+
+func (e *EthEndpoints) getTransactionCountFromSequencerNode(address common.Address, number *BlockNumber) (interface{}, rpcError) {
+	res, err := JSONRPCCall(e.cfg.SequencerNodeURI, "eth_getTransactionCount", address.String(), number.StringOrHex())
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, "failed to get nonce from sequencer node", err)
+	}
+
+	if res.Error != nil {
+		return rpcErrorResponse(res.Error.Code, res.Error.Message, nil)
+	}
+
+	var nonce argUint64
+	err = json.Unmarshal(res.Result, &nonce)
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, "failed to read nonce from sequencer node", err)
+	}
+	return nonce, nil
 }
 
 // GetBlockTransactionCountByHash returns the number of transactions in a
