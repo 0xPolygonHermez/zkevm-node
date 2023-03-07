@@ -245,7 +245,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 	f.txsStore.Wg.Wait()
 	var err error
 	f.batch, err = f.newWIPBatch(ctx)
-	if err != nil {
+	for err != nil {
 		log.Errorf("failed to create new work-in-progress batch, Err: %s", err)
 		f.batch, err = f.newWIPBatch(ctx)
 	}
@@ -261,9 +261,9 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	if f.batch.countOfTxs == 0 {
 		// backup current sequence
 		err = f.processTransaction(ctx, nil)
-		if err != nil {
+		for err != nil {
 			log.Errorf("failed to process tx, err: %w", err)
-			_ = f.processTransaction(ctx, nil)
+			err = f.processTransaction(ctx, nil)
 		}
 	}
 
@@ -271,9 +271,14 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		return nil, errors.New("state root and local exit root must have value to close batch")
 	}
 
+	err = f.closeBatch(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to close batch, err: %w", err)
+	}
+
 	// Reprocess full batch to persist the merkle tree
-	go func(expectedStateRoot common.Hash) {
-		processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, expectedStateRoot)
+	go func() {
+		processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
 		if err != nil || !processBatchResponse.IsBatchProcessed {
 			log.Info("restarting the sequencer node because of a reprocessing error")
 			if err != nil {
@@ -282,12 +287,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 				log.Fatal("Out of counters during reprocessFullBath")
 			}
 		}
-	}(f.batch.stateRoot)
-
-	err = f.closeBatch(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to close batch, err: %w", err)
-	}
+	}()
 
 	// Metadata for the next batch
 	stateRoot := f.batch.stateRoot
