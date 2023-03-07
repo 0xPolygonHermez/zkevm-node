@@ -94,6 +94,9 @@ services:
   zkevm-prover:
     container_name: zkevm-prover
     image: hermeznetwork/zkevm-prover:1d31dc6
+    depends_on:
+      zkevm-state-db:
+        condition: service_healthy
     ports:
       - 50061:50061 # MT
       - 50071:50071 # Executor
