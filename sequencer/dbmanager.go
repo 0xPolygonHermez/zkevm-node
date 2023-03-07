@@ -105,8 +105,7 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 // loadFromPool keeps loading transactions from the pool
 func (d *dbManager) loadFromPool() {
 	for {
-		// TODO: Move this to a config parameter
-		time.Sleep(wait * time.Second)
+		time.Sleep(d.cfg.PoolRetrievalInterval.Duration)
 
 		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, false, 0)
 		if err != nil && err != pgpoolstorage.ErrNotFound {
