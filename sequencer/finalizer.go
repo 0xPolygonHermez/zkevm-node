@@ -245,7 +245,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 	f.txsStore.Wg.Wait()
 	var err error
 	f.batch, err = f.newWIPBatch(ctx)
-	for err != nil {
+	if err != nil {
 		log.Errorf("failed to create new work-in-progress batch, Err: %s", err)
 		f.batch, err = f.newWIPBatch(ctx)
 	}
