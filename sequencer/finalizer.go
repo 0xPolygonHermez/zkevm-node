@@ -118,12 +118,10 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 		}
 	}
 
-	if processingReq != nil {
-		f.processRequest = *processingReq
+	if processingReq == nil {
+		log.Fatal("processingReq should not be nil")
 	} else {
-		f.processRequest, err = f.prepareProcessRequestFromState(ctx, false)
-		if err != nil {
-			log.Errorf("failed to prepare process request from state, Err: %s", err)
+		f.processRequest = *processingReq
 		}
 	}
 
@@ -529,10 +527,9 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 	log.Infof("Initial Batch.InitialStateRoot: %s", f.batch.initialStateRoot.String())
 	log.Infof("Initial Batch.localExitRoot: %s", f.batch.localExitRoot.String())
 
-
 	f.processRequest = state.ProcessRequest{
 		BatchNumber:    *lastBatchNum,
-		OldStateRoot:   f.batch.initialStateRoot,
+		OldStateRoot:   f.batch.stateRoot,
 		GlobalExitRoot: f.batch.globalExitRoot,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      f.batch.timestamp,
@@ -713,55 +710,6 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 	}
 
 	return result, nil
-}
-
-// prepareProcessRequestFromState prepares process request from state
-func (f *finalizer) prepareProcessRequestFromState(ctx context.Context, fetchTxs bool) (state.ProcessRequest, error) {
-	const two = 2
-
-	var (
-		txs          []byte
-		batchNum     uint64
-		oldStateRoot common.Hash
-		err          error
-	)
-
-	if fetchTxs {
-		var lastClosedBatch *state.Batch
-		batches, err := f.dbManager.GetLastNBatches(ctx, two)
-		if err != nil {
-			return state.ProcessRequest{}, fmt.Errorf("failed to get last %d batches, err: %w", two, err)
-		}
-
-		if len(batches) == two {
-			lastClosedBatch = batches[1]
-		} else {
-			lastClosedBatch = batches[0]
-		}
-
-		batchNum = lastClosedBatch.BatchNumber
-		oldStateRoot = f.getOldStateRootFromBatches(batches)
-		txs = lastClosedBatch.BatchL2Data
-		if err != nil {
-			return state.ProcessRequest{}, err
-		}
-	} else {
-		txs = make([]byte, 0, 1)
-		batchNum, oldStateRoot, err = f.getLastBatchNumAndOldStateRoot(ctx)
-		if err != nil {
-			return state.ProcessRequest{}, err
-		}
-	}
-
-	return state.ProcessRequest{
-		BatchNumber:    batchNum,
-		OldStateRoot:   oldStateRoot,
-		GlobalExitRoot: f.batch.globalExitRoot,
-		Coinbase:       f.sequencerAddress,
-		Timestamp:      f.batch.timestamp,
-		Transactions:   txs,
-		Caller:         state.SequencerCallerLabel,
-	}, nil
 }
 
 func (f *finalizer) getLastBatchNumAndOldStateRoot(ctx context.Context) (uint64, common.Hash, error) {
