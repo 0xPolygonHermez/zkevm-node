@@ -122,7 +122,6 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 		log.Fatal("processingReq should not be nil")
 	} else {
 		f.processRequest = *processingReq
-		}
 	}
 
 	// Closing signals receiver
@@ -706,7 +705,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 	}
 
 	if result.NewStateRoot != expectedStateRoot {
-		log.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", result.NewBatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
+		log.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", batch.BatchNumber+1, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
 	}
 
 	return result, nil
