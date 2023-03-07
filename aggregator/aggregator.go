@@ -460,7 +460,7 @@ func (a *Aggregator) validateEligibleFinalProof(ctx context.Context, proof *stat
 			log.Warnf("Proof %d-%d lower than next batch to verify %d. Deleting it", proof.BatchNumber, proof.BatchNumberFinal, batchNumberToVerify)
 			err := a.State.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
 			if err != nil {
-				return false, fmt.Errorf("Failed to delete discarded proof, err: %w", err)
+				return false, fmt.Errorf("failed to delete discarded proof, err: %w", err)
 			}
 			return false, nil
 		} else {

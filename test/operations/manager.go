@@ -504,7 +504,7 @@ func stopNode() error {
 func runCmd(c *exec.Cmd) error {
 	dir, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("failed to get current work directory: %w", err)
+		log.Fatalf("failed to get current work directory: %v", err)
 	}
 
 	if strings.Contains(dir, cmdFolder) {

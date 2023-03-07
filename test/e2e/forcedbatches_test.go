@@ -171,7 +171,7 @@ func sendForcedBatch(t *testing.T, opsman *operations.Manager) (*state.Batch, er
 		log.Info("Transactions: ", common.Bytes2Hex(fb.Transactions))
 		fullBlock, err := ethClient.BlockByHash(ctx, vLog.BlockHash)
 		if err != nil {
-			log.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+			log.Errorf("error getting hashParent. BlockNumber: %d. Error: %v", vLog.BlockNumber, err)
 			return nil, err
 		}
 		log.Info("MinForcedTimestamp: ", fullBlock.Time())

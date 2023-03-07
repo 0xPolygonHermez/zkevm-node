@@ -81,7 +81,7 @@ func (c *closingSignalsManager) checkForcedBatches() {
 		// Take into account L1 finality
 		lastBlock, err := c.dbManager.GetLastBlock(c.ctx, nil)
 		if err != nil {
-			log.Errorf("failed to get latest eth block number, err: %w", err)
+			log.Errorf("failed to get latest eth block number, err: %v", err)
 			continue
 		}
 
