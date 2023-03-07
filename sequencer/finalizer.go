@@ -510,6 +510,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 	if err != nil {
 		return fmt.Errorf("failed to check if batch is closed, err: %w", err)
 	}
+	log.Infof("Batch %d isClosed: %v", batchNum, isClosed)
 	if isClosed {
 		ger, _, err := f.dbManager.GetLatestGer(ctx, f.cfg.GERFinalityNumberOfBlocks)
 		if err != nil {
@@ -527,6 +528,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 			return fmt.Errorf("failed to get work-in-progress batch, err: %w", err)
 		}
 	}
+	log.Infof("Initial Batch: %+v", f.batch)
 
 	f.processRequest = state.ProcessRequest{
 		BatchNumber:    *lastBatchNum,
