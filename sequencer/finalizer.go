@@ -261,9 +261,9 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	if f.batch.countOfTxs == 0 {
 		// backup current sequence
 		err = f.processTransaction(ctx, nil)
-		for err != nil {
+		if err != nil {
 			log.Errorf("failed to process tx, err: %w", err)
-			err = f.processTransaction(ctx, nil)
+			_ = f.processTransaction(ctx, nil)
 		}
 	}
 
@@ -647,14 +647,12 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
 	// We need to process the batch to update the state root before closing the batch
-	/*
-		if f.batch.initialStateRoot == f.batch.stateRoot {
-			err := f.processTransaction(ctx, nil)
-			if err != nil {
-				return err
-			}
+	if f.batch.initialStateRoot == f.batch.stateRoot {
+		err := f.processTransaction(ctx, nil)
+		if err != nil {
+			return err
 		}
-	*/
+	}
 
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
@@ -711,7 +709,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 	}
 
 	if result.NewStateRoot != expectedStateRoot {
-		log.Errorf("reprocessed batch has different state root, expected: %s, got: %s", expectedStateRoot.Hex(), result.NewStateRoot.Hex())
+		log.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", result.NewBatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
 	}
 
 	return result, nil
