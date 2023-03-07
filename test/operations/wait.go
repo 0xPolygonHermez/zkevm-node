@@ -201,7 +201,9 @@ func NodeUpCondition(target string) (bool, error) {
 
 	r := struct {
 		Result bool
-	}{}
+	}{
+		Result: true,
+	}
 	err = json.Unmarshal(body, &r)
 	if err != nil {
 		return false, err

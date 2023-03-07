@@ -67,7 +67,7 @@ STOPEXPLORERL1 := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL1) && $(DOCKERCO
 STOPEXPLORERL1DB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL1DB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL1DB)
 STOPEXPLORERL2 := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL2) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL2)
 STOPEXPLORERL2DB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL2DB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL2DB)
-STOPEXPLORERRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERRPC)
+STOPEXPLORERJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERRPC)
 STOPZKPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVER)
 STOPZKPROVERMOCK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVERMOCK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVERMOCK)
 
@@ -99,7 +99,6 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
@@ -110,7 +109,6 @@ test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
@@ -121,7 +119,6 @@ test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
@@ -132,10 +129,19 @@ test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 	$(RUNPOOLDB)
 	sleep 5
 	$(RUNZKPROVER)
-	$(RUNETHTXMANAGER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
+
+.PHONY: test-e2e-group-5
+test-e2e-group-5: stop ## Runs group 5 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group5/...
 
 .PHONY: benchmark-sequencer-eth-transfers
 benchmark-sequencer-eth-transfers: stop
@@ -200,6 +206,7 @@ stop-node: ## Stops the node
 	$(STOPL2GASPRICER)
 	$(STOPAGGREGATOR)
 	$(STOPSYNC)
+	$(STOPETHTXMANAGER)
 
 .PHONY: run-network
 run-network: ## Runs the l1 network
@@ -236,6 +243,14 @@ run-l2-explorer: ## Runs L2 blockscan explorer
 	$(RUNEXPLORERJSONRPC)
 	$(RUNEXPLORERL2)
 
+.PHONY: run-l2-explorer-json-rpc
+run-l2-explorer-json-rpc: ## Runs L2 explorer json rpc
+	$(RUNEXPLORERJSONRPC)
+
+.PHONY: stop-l2-explorer-json-rpc
+stop-l2-explorer-json-rpc: ## Stops L2 explorer json rpc
+	$(STOPEXPLORERJSONRPC)
+
 .PHONY: run-explorer
 run-explorer: run-l1-explorer run-l2-explorer ## Runs both L1 and L2 explorers
 
@@ -243,7 +258,7 @@ run-explorer: run-l1-explorer run-l2-explorer ## Runs both L1 and L2 explorers
 stop-explorer: ## Stops the explorer
 	$(STOPEXPLORERL2)
 	$(STOPEXPLORERL1)
-	$(STOPEXPLORERRPC)
+	$(STOPEXPLORERJSONRPC)
 	$(STOPEXPLORERL2DB)
 	$(STOPEXPLORERL1DB)
 

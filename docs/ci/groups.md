@@ -10,7 +10,7 @@ We have 3 different github actions workflows:
 * `test-e2e`, which uses a matrix strategy to run the e2e tests, currently using
 3 groups.
 
-The e2e CI groups are defined in the `./ci/e2e-group{1,3}` directories. In each
+The e2e CI groups are defined in the `./ci/e2e-group{1,N}` directories. In each
 directory we have symlinks that point to the actual e2e test to be executed (these
 tests are defined under `./test/e2e`). The goal of these symlinks is keeping the
 same code organization we have now while being able to run the costly e2e tests

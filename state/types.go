@@ -153,6 +153,15 @@ type DebugInfo struct {
 	Payload   string
 }
 
+// TraceConfig sets the debug configuration for the executor
+type TraceConfig struct {
+	DisableStorage   bool
+	DisableStack     bool
+	EnableMemory     bool
+	EnableReturnData bool
+	Tracer           *string
+}
+
 // TrustedReorg represents a trusted reorg
 type TrustedReorg struct {
 	BatchNumber uint64
