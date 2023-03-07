@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -256,6 +257,38 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 	wg.Wait()
 
 	return tx
+}
+
+// PruneEfficiencyList deletes old txs from the efficiency list
+func (w *Worker) PruneEfficiencyList(maxTime time.Duration) []*TxTracker {
+	var (
+		txs      []*TxTracker
+		txsMutex sync.RWMutex
+	)
+
+	nGoRoutines := runtime.NumCPU()
+	wg := sync.WaitGroup{}
+	wg.Add(nGoRoutines)
+
+	// Each go routine looks for a fitting tx
+	for i := 0; i < nGoRoutines; i++ {
+		go func(n int, maxTime time.Duration) {
+			defer wg.Done()
+			for i := n; i < w.efficiencyList.len(); i += nGoRoutines {
+				tx := w.efficiencyList.getByIndex(i)
+				if tx.ReceivedAt.Add(maxTime).Before(time.Now()) {
+					txsMutex.RLock()
+					txs = append(txs, tx)
+					txsMutex.RUnlock()
+					w.efficiencyList.delete(tx)
+					log.Debugf("PruneEfficiencyList tx(%s) deleted from EfficiencyList", tx.Hash.String())
+				}
+			}
+		}(i, maxTime)
+	}
+	wg.Wait()
+
+	return txs
 }
 
 // GetEfficiencyList returns the efficiency list

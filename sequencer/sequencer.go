@@ -149,7 +149,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	worker := NewWorker(s.state, batchConstraints, batchResourceWeights)
-	dbManager := newDBManager(ctx, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
+	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
 	go dbManager.Start()
 
 	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints)
@@ -175,17 +175,12 @@ func (s *Sequencer) Start(ctx context.Context) {
 	go func() {
 		for {
 			time.Sleep(s.cfg.MaxTimeForATxToBeInTheEfficiencyList.Duration)
-			txTrackers := worker.GetEfficiencyList().GetSorted()
+			txTrackers := worker.PruneEfficiencyList(s.cfg.MaxTimeForATxToBeInTheEfficiencyList.Duration)
 
 			for _, txTracker := range txTrackers {
-				if txTracker.ReceivedAt.Add(s.cfg.MaxTimeForATxToBeInTheEfficiencyList.Duration).Before(time.Now()) {
-					if worker.GetEfficiencyList().delete(txTracker) {
-						err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false)
-						if err != nil {
-							log.Errorf("failed to update tx status, err: %v", err)
-						}
-						log.Info("tx expired from efficiency list", "tx", txTracker.Hash.Hex())
-					}
+				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false)
+				if err != nil {
+					log.Errorf("failed to update tx status, err: %v", err)
 				}
 			}
 		}

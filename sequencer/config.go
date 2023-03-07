@@ -85,6 +85,9 @@ type Config struct {
 
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
+
+	// DBManager's specific config properties
+	DBManager DBManagerCfg `mapstructure:"DBManager"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -126,4 +129,9 @@ type FinalizerCfg struct {
 	// PrivateKeys defines all the key store files that are going
 	// to be read in order to provide the private keys to sign the L1 txs
 	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
+}
+
+// DBManagerCfg contains the DBManager's configuration properties
+type DBManagerCfg struct {
+	PoolRetrievalInterval types.Duration `mapstructure:"PoolRetrievalInterval"`
 }

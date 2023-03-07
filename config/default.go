@@ -101,6 +101,8 @@ MaxTimeForATxToBeInTheEfficiencyList = "5m"
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+	[Sequencer.DBManager]
+		PoolRetrievalInterval = "500ms"
 
 [PriceGetter]
 Type = "default"

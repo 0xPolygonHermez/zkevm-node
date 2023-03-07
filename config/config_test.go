@@ -150,6 +150,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
+			path:          "Sequencer.DbManager.PoolRetrievalInterval",
+			expectedValue: types.NewDuration(500 * time.Millisecond),
+		},
+		{
 			path:          "Etherman.URL",
 			expectedValue: "http://localhost:8545",
 		},
