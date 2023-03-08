@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"time"
@@ -37,6 +38,11 @@ func (s *State) TestConvertToProcessBatchResponse(txs []types.Transaction, respo
 }
 
 func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	bytes, err := json.Marshal(response)
+	if err != nil {
+		log.Error("error marshalling executor response. Error: ", err)
+	}
+	log.Debugf("Executor full response: %+v", string(bytes))
 	responses, err := s.convertToProcessTransactionResponse(txs, response.Responses)
 	if err != nil {
 		return nil, err
