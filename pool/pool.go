@@ -103,7 +103,7 @@ func (p *Pool) ReorgTx(ctx context.Context, tx types.Transaction) error {
 	// Execute transaction to calculate its zkCounters
 	zkCounters, err := p.PreExecuteTx(ctx, tx)
 	if err != nil {
-		log.Warnf("ignoring tx: %+v", poolTx)
+		log.Warnf("ignoring error while preexecuting tx: %+v", poolTx)
 	}
 
 	poolTx.ZKCounters = zkCounters
