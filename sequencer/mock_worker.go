@@ -20,8 +20,8 @@ type WorkerMock struct {
 	mock.Mock
 }
 
-// AddTx provides a mock function with given fields: ctx, txTracker
-func (_m *WorkerMock) AddTx(ctx context.Context, txTracker *TxTracker) {
+// AddTxTracker provides a mock function with given fields: ctx, txTracker
+func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) {
 	_m.Called(ctx, txTracker)
 }
 

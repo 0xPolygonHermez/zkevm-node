@@ -45,7 +45,7 @@ func processWrokerAddTxTestCases(t *testing.T, worker *Worker, testCases []worke
 			tx.updateZKCounters(testCase.counters, worker.batchConstraints, worker.batchResourceWeights)
 			t.Logf("%s=%s", testCase.name, fmt.Sprintf("%.2f", tx.Efficiency))
 
-			worker.AddTx(ctx, &tx)
+			worker.AddTxTracker(ctx, &tx)
 
 			el := worker.efficiencyList
 			if el.len() != len(testCase.expectedEfficiencyList) {

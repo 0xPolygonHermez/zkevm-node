@@ -20,6 +20,7 @@ const (
 
 // Pool Loader and DB Updater
 type dbManager struct {
+	cfg              DBManagerCfg
 	txPool           txPool
 	state            dbManagerStateInterface
 	worker           workerInterface
@@ -43,13 +44,13 @@ type ClosingBatchParameters struct {
 	Txs           []types.Transaction
 }
 
-func newDBManager(ctx context.Context, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
+func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
 	numberOfReorgs, err := state.CountReorgs(ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)
 	}
 
-	return &dbManager{ctx: ctx, txPool: txPool, state: state, worker: worker, txsStore: txsStore, l2ReorgCh: closingSignalCh.L2ReorgCh, batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs}
+	return &dbManager{ctx: ctx, cfg: config, txPool: txPool, state: state, worker: worker, txsStore: txsStore, l2ReorgCh: closingSignalCh.L2ReorgCh, batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs}
 }
 
 // Start stars the dbManager routines
@@ -123,8 +124,7 @@ func (d *dbManager) checkIfReorg() {
 // loadFromPool keeps loading transactions from the pool
 func (d *dbManager) loadFromPool() {
 	for {
-		// TODO: Move this to a config parameter
-		time.Sleep(wait * time.Second)
+		time.Sleep(d.cfg.PoolRetrievalInterval.Duration)
 
 		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, false, 0)
 		if err != nil && err != pgpoolstorage.ErrNotFound {
@@ -157,7 +157,7 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
 	if err != nil {
 		return err
 	}
-	d.worker.AddTx(d.ctx, txTracker)
+	d.worker.AddTxTracker(d.ctx, txTracker)
 	return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
 }
 
