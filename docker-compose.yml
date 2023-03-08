@@ -93,7 +93,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:1d31dc6
+    image: hermeznetwork/zkevm-prover:45df44e
     depends_on:
       zkevm-state-db:
         condition: service_healthy

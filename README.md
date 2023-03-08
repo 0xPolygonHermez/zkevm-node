@@ -64,7 +64,8 @@ Required services and components:
 
 There must be only one synchronizer, and it's recommended that it has exclusive access to an executor instance, although it's not necessary. This role can perfectly be run in a single instance, however, the JSON RPC and executor services can benefit from running in multiple instances, if the performance decreases due to the number of requests received
 
-[`zkEVM RPC Custom endpoints documentation`](./docs/zkEVM-custom-endpoints.md)
+- [`zkEVM RPC endpoints`](./docs/json-rpc-endpoints.md)
+- [`zkEVM RPC Custom endpoints documentation`](./docs/zkEVM-custom-endpoints.md)
 
 ### Trusted sequencer
 

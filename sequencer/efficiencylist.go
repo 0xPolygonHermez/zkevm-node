@@ -115,3 +115,11 @@ func (e *efficiencyList) isGreaterThan(tx1 *TxTracker, tx2 *TxTracker) bool {
 		return false
 	}
 }
+
+// GetSorted returns the sorted list of tx
+func (e *efficiencyList) GetSorted() []*TxTracker {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+
+	return e.sorted
+}

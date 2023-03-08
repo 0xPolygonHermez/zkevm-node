@@ -61,7 +61,7 @@ func setupTest(t *testing.T) {
 		MaxSteps:             8388608,
 	}
 
-	testDbManager = newDBManager(ctx, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
+	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
 
 	// Set genesis batch
 	dbTx, err := testState.BeginStateTransaction(ctx)

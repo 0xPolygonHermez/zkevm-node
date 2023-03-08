@@ -106,8 +106,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint32(8388608),
 		},
 		{
-			path:          "Sequencer.MaxAllowedFailedCounter",
-			expectedValue: uint64(50),
+			path:          "Sequencer.TxLifetimeCheckTimeout",
+			expectedValue: types.NewDuration(10 * time.Minute),
+		},
+		{
+			path:          "Sequencer.MaxTxLifetime",
+			expectedValue: types.NewDuration(3 * time.Hour),
 		},
 		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
@@ -148,6 +152,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks",
 			expectedValue: uint64(64),
+		},
+		{
+			path:          "Sequencer.DBManager.PoolRetrievalInterval",
+			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
 		{
 			path:          "Etherman.URL",

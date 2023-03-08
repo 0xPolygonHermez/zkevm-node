@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -102,7 +103,7 @@ func (p *Pool) ReorgTx(ctx context.Context, tx types.Transaction) error {
 	// Execute transaction to calculate its zkCounters
 	zkCounters, err := p.PreExecuteTx(ctx, tx)
 	if err != nil {
-		return err
+		log.Warnf("ignoring error while preexecuting tx: %+v", poolTx)
 	}
 
 	poolTx.ZKCounters = zkCounters
