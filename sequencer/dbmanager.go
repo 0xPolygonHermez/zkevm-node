@@ -250,6 +250,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 			log.Errorf("StoreProcessedTxAndDeleteFromPool error committing : %v", err)
 		}
 
+		log.Info("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v", txToStore.txResponse.TxHash.String())
 		d.txsStore.Wg.Done()
 	}
 }
