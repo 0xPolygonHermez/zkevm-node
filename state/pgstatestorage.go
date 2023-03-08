@@ -1749,6 +1749,7 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		FROM state.log l
 	   INNER JOIN state.transaction t ON t.hash = l.tx_hash
 	   INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
+	   INNER JOIN state.receipt r ON r.status = 1
 	   WHERE b.block_hash = $1
 	   ORDER BY b.block_num ASC, l.log_index ASC`
 	const getLogsByFilterSQL = `
@@ -1756,6 +1757,7 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 	    FROM state.log l
 	   INNER JOIN state.transaction t ON t.hash = l.tx_hash
 	   INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
+	   INNER JOIN state.receipt r ON r.status = 1
 	   WHERE b.block_num BETWEEN $1 AND $2 AND (l.address = any($3) OR $3 IS NULL)
 	     AND (l.topic0 = any($4) OR $4 IS NULL)
 		 AND (l.topic1 = any($5) OR $5 IS NULL)
