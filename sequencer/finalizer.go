@@ -349,6 +349,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
+	log.Infof("processTransaction: single tx. OldBatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.processRequest.BatchNumber, f.processRequest.OldStateRoot, tx.Hash.String(), f.processRequest.GlobalExitRoot.String())
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest, false)
 	if err != nil {
 		log.Errorf("failed to process transaction, isClaim: %v, err: %s", tx.IsClaim, err)
@@ -381,10 +382,12 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 
 	previousL2BlockStateRoot := f.batch.stateRoot
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
+	log.Infof("handleSuccessfulTxProcessResp: storing processed tx: %s", tx.Hash.String())
 	f.storeProcessedTx(ctx, previousL2BlockStateRoot, tx, result)
 	f.processRequest.OldStateRoot = result.NewStateRoot
 	f.batch.stateRoot = result.NewStateRoot
 	f.batch.localExitRoot = result.NewLocalExitRoot
+	log.Infof("handleSuccessfulTxProcessResp: data loaded in memory. Batch: %d result.NewStateRoot: %s, result.NewLocalExitRoot: %s, previousL2BlockStateRoot: %s", f.batch.batchNumber, result.NewStateRoot.String(), result.NewLocalExitRoot.String(), previousL2BlockStateRoot.String())
 
 	return nil
 }
@@ -426,6 +429,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 	txResponse := result.Responses[0]
 	errorCode := executor.RomErrorCode(txResponse.RomError)
 	addressInfo := result.ReadWriteAddresses[tx.From]
+	log.Infof("handleTransactionError: error in tx: %s, errorCode: %d", tx.Hash.String(), errorCode)
 
 	if executor.IsROMOutOfCountersError(errorCode) {
 		log.Errorf("ROM out of counters error, marking tx with Hash: %s as INVALID, errorCode: %s", tx.Hash.String(), errorCode.String())
@@ -654,6 +658,9 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
 	}
+	for i, tx := range transactions {
+		log.Infof("closeBatch: BatchNum: %d, Tx position: %d, txHash: %s", f.batch.batchNumber, i, tx.Hash().String())
+	}
 	receipt := ClosingBatchParameters{
 		BatchNumber:   f.batch.batchNumber,
 		StateRoot:     f.batch.stateRoot,
@@ -694,6 +701,15 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 		Timestamp:      uint64(batch.Timestamp.Unix()),
 		Caller:         state.DiscardCallerLabel,
 	}
+	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, Ger: %s", batch.BatchNumber, f.batch.initialStateRoot.String(), batch.GlobalExitRoot.String())
+	txs, _, err := state.DecodeTxs(batch.BatchL2Data)
+	if err != nil {
+		log.Error("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: %d. Error: %v", batch.BatchNumber, err)
+	}
+	for i, tx := range txs {
+		log.Infof("reprocessFullBatch: Tx position %d. TxHash: %s", i, tx.Hash())
+	}
+
 	result, err := f.executor.ProcessBatch(ctx, processRequest, true)
 	if err != nil {
 		log.Errorf("failed to process batch, err: %s", err)
