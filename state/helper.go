@@ -45,7 +45,6 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 		}
 
 		txCodedRlp, err := rlp.EncodeToBytes(rlpFieldsToEncode)
-
 		if err != nil {
 			return nil, err
 		}

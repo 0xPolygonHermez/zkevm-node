@@ -117,7 +117,6 @@ func (d *dbManager) checkIfReorg() {
 	if numberOfReorgs != d.numberOfReorgs {
 		log.Warnf("New L2 reorg detected")
 		d.l2ReorgCh <- L2ReorgEvent{}
-		d.txsStore.Wg.Done()
 	}
 }
 
@@ -185,67 +184,43 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
 		dbTx, err := d.BeginStateTransaction(d.ctx)
 		if err != nil {
-			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
+			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
 
 		err = d.StoreProcessedTransaction(d.ctx, txToStore.batchNumber, txToStore.txResponse, txToStore.coinbase, txToStore.timestamp, dbTx)
 		if err != nil {
-			err = dbTx.Rollback(d.ctx)
-			if err != nil {
-				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
-			}
-			d.txsStore.Wg.Done()
-			continue
+			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
 
 		// Update batch l2 data
 		batch, err := d.state.GetBatchByNumber(d.ctx, txToStore.batchNumber, dbTx)
 		if err != nil {
-			err = dbTx.Rollback(d.ctx)
-			if err != nil {
-				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
-			}
-			d.txsStore.Wg.Done()
-			continue
+			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
 
 		txData, err := state.EncodeTransaction(txToStore.txResponse.Tx)
 		if err != nil {
-			err = dbTx.Rollback(d.ctx)
-			if err != nil {
-				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
-			}
-			d.txsStore.Wg.Done()
-			continue
+			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
 		batch.BatchL2Data = append(batch.BatchL2Data, txData...)
 
 		err = d.state.UpdateBatchL2Data(d.ctx, txToStore.batchNumber, batch.BatchL2Data, dbTx)
 		if err != nil {
-			err = dbTx.Rollback(d.ctx)
-			if err != nil {
-				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
-			}
-			d.txsStore.Wg.Done()
-			continue
+			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
+		}
+
+		err = dbTx.Commit(d.ctx)
+		if err != nil {
+			log.Fatalf("StoreProcessedTxAndDeleteFromPool error committing : %v", err)
 		}
 
 		// Change Tx status to selected
 		err = d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected, false)
 		if err != nil {
-			err = dbTx.Rollback(d.ctx)
-			if err != nil {
-				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
-			}
-			d.txsStore.Wg.Done()
-			continue
+			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
 
-		err = dbTx.Commit(d.ctx)
-		if err != nil {
-			log.Errorf("StoreProcessedTxAndDeleteFromPool error committing : %v", err)
-		}
-
+		log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", txToStore.txResponse.TxHash.String(), txToStore.batchNumber)
 		d.txsStore.Wg.Done()
 	}
 }

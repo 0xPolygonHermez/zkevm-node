@@ -1303,8 +1303,8 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 		}
 
 		var log types.Log
-		var blockHash, txHash, logAddress, logData, topic0 string
-		var topic1, topic2, topic3 *string
+		var blockHash, txHash, logAddress, logData string
+		var topic0, topic1, topic2, topic3 *string
 
 		err := rows.Scan(&log.BlockNumber, &blockHash, &txHash, &log.Index,
 			&logAddress, &logData, &topic0, &topic1, &topic2, &topic3)
@@ -1320,7 +1320,11 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 		if err != nil {
 			return nil, err
 		}
-		log.Topics = []common.Hash{common.HexToHash(topic0)}
+
+		if topic0 != nil {
+			log.Topics = []common.Hash{common.HexToHash(*topic0)}
+		}
+
 		if topic1 != nil {
 			log.Topics = append(log.Topics, common.HexToHash(*topic1))
 		}
