@@ -189,6 +189,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 
 		err = d.StoreProcessedTransaction(d.ctx, txToStore.batchNumber, txToStore.txResponse, txToStore.coinbase, txToStore.timestamp, dbTx)
 		if err != nil {
+			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
 				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
@@ -200,6 +201,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		// Update batch l2 data
 		batch, err := d.state.GetBatchByNumber(d.ctx, txToStore.batchNumber, dbTx)
 		if err != nil {
+			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
 				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
@@ -210,6 +212,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 
 		txData, err := state.EncodeTransaction(txToStore.txResponse.Tx)
 		if err != nil {
+			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
 				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
@@ -221,6 +224,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 
 		err = d.state.UpdateBatchL2Data(d.ctx, txToStore.batchNumber, batch.BatchL2Data, dbTx)
 		if err != nil {
+			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
 				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
@@ -232,6 +236,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		// Change Tx status to selected
 		err = d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected, false)
 		if err != nil {
+			log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)
 			err = dbTx.Rollback(d.ctx)
 			if err != nil {
 				log.Errorf("StoreProcessedTxAndDeleteFromPool: %v", err)

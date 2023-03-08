@@ -349,7 +349,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
-	log.Infof("processTransaction: single tx. OldBatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.processRequest.BatchNumber, f.processRequest.OldStateRoot, tx.Hash.String(), f.processRequest.GlobalExitRoot.String())
+	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, tx.Hash.String(), f.processRequest.GlobalExitRoot.String())
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest, false)
 	if err != nil {
 		log.Errorf("failed to process transaction, isClaim: %v, err: %s", tx.IsClaim, err)
@@ -387,7 +387,7 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 	f.processRequest.OldStateRoot = result.NewStateRoot
 	f.batch.stateRoot = result.NewStateRoot
 	f.batch.localExitRoot = result.NewLocalExitRoot
-	log.Infof("handleSuccessfulTxProcessResp: data loaded in memory. Batch: %d result.NewStateRoot: %s, result.NewLocalExitRoot: %s, previousL2BlockStateRoot: %s", f.batch.batchNumber, result.NewStateRoot.String(), result.NewLocalExitRoot.String(), previousL2BlockStateRoot.String())
+	log.Infof("handleSuccessfulTxProcessResp: data loaded in memory. batch.batchNumber: %d, batchNumber: %d, result.NewStateRoot: %s, result.NewLocalExitRoot: %s, previousL2BlockStateRoot: %s", f.batch.batchNumber, f.processRequest.BatchNumber, result.NewStateRoot.String(), result.NewLocalExitRoot.String(), previousL2BlockStateRoot.String())
 
 	return nil
 }
@@ -721,7 +721,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 	}
 
 	if result.NewStateRoot != expectedStateRoot {
-		log.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", batch.BatchNumber+1, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
+		log.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", batch.BatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
 	}
 
 	return result, nil
