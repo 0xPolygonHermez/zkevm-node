@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -55,6 +56,36 @@ func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx *TxTracker) {
 	}
 
 	return nil, nil
+}
+
+// ExpireTransactions removes the txs that have been in the queue for more than maxTime
+func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *TxTracker) {
+	var (
+		txs         []*TxTracker
+		prevReadyTx *TxTracker
+	)
+
+	for _, txTracker := range a.notReadyTxs {
+		if txTracker.ReceivedAt.Add(maxTime).Before(time.Now()) {
+			txs = append(txs, txTracker)
+			delete(a.notReadyTxs, txTracker.Nonce)
+			log.Debugf("Deleting notReadyTx %s from addrQueue %s", txTracker.HashStr, a.fromStr)
+		}
+	}
+
+	if a.readyTx != nil && a.readyTx.ReceivedAt.Add(maxTime).Before(time.Now()) {
+		prevReadyTx = a.readyTx
+		txs = append(txs, a.readyTx)
+		a.readyTx = nil
+		log.Debugf("Deleting notReadyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
+	}
+
+	return txs, prevReadyTx
+}
+
+// IsEmpty returns true if the addrQueue is empty
+func (a *addrQueue) IsEmpty() bool {
+	return a.readyTx == nil && len(a.notReadyTxs) == 0
 }
 
 // deleteTx deletes the tx from the addrQueue

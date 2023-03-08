@@ -259,7 +259,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		// backup current sequence
 		err = f.processTransaction(ctx, nil)
 		for err != nil {
-			log.Errorf("failed to process tx, err: %w", err)
+			log.Errorf("failed to process tx, err: %v", err)
 			err = f.processTransaction(ctx, nil)
 		}
 	}

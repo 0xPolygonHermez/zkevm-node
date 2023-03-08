@@ -2,7 +2,10 @@ package synchronizer
 
 import (
 	context "context"
+	"fmt"
 	"math/big"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
@@ -28,6 +31,11 @@ type mocks struct {
 }
 
 func TestTrustedStateReorg(t *testing.T) {
+	data := `{"jsonrpc":"2.0","id":1,"result":"zkevm-broadcast:61090"}`
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, data)
+	}))
+	defer svr.Close()
 	type testCase struct {
 		Name            string
 		getTrustedBatch func(*mocks, context.Context, etherman.SequencedBatch) *state.Batch
@@ -41,7 +49,13 @@ func TestTrustedStateReorg(t *testing.T) {
 			SyncChunkSize:  10,
 			GenBlockNumber: uint64(123456),
 		}
-		sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
+
+		m.Etherman.
+			On("GetTrustedSequencerURL").
+			Return(svr.URL, nil).
+			Once()
+
+		sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
 		require.NoError(t, err)
 
 		// state preparation
@@ -337,6 +351,11 @@ func TestTrustedStateReorg(t *testing.T) {
 }
 
 func TestForcedBatch(t *testing.T) {
+	data := `{"jsonrpc":"2.0","id":1,"result":"zkevm-broadcast:61090"}`
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, data)
+	}))
+	defer svr.Close()
 	genesis := state.Genesis{}
 	cfg := Config{
 		SyncInterval:   cfgTypes.Duration{Duration: 1 * time.Second},
@@ -351,7 +370,12 @@ func TestForcedBatch(t *testing.T) {
 		DbTx:     newDbTxMock(t),
 	}
 
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
+	m.Etherman.
+		On("GetTrustedSequencerURL").
+		Return(svr.URL, nil).
+		Once()
+
+	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation

@@ -299,8 +299,13 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
+	err = m.StartNode()
+	if err != nil {
+		return err
+	}
+
 	// Run node container
-	return m.StartNode()
+	return nil
 }
 
 // Teardown stops all the components.
@@ -499,7 +504,7 @@ func stopNode() error {
 func runCmd(c *exec.Cmd) error {
 	dir, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("failed to get current work directory: %w", err)
+		log.Fatalf("failed to get current work directory: %v", err)
 	}
 
 	if strings.Contains(dir, cmdFolder) {

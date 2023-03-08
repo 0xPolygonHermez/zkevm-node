@@ -15,14 +15,18 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Double"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Storage"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -815,62 +819,61 @@ func Test_WebSocketsSubscription(t *testing.T) {
 	}
 }
 
-// func Test_RevertOnConstructorTransaction(t *testing.T) {
-// 	if testing.Short() {
-// 		t.Skip()
-// 	}
-// 	Setup()
-// 	defer Teardown()
+func Test_RevertOnConstructorTransaction(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	Setup()
+	defer Teardown()
 
-// 	ctx := context.Background()
+	ctx := context.Background()
 
-// 	for _, network := range networks {
-// 		log.Infof("Network %s", network.Name)
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
 
-// 		client := operations.MustGetClient(network.URL)
-// 		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
-// 		auth.GasLimit = 1000000
+		auth.GasLimit = 1000000
 
-// 		_, scTx, _, err := Revert.DeployRevert(auth, client)
-// 		require.NoError(t, err)
+		_, scTx, _, err := Revert.DeployRevert(auth, client)
+		require.NoError(t, err)
 
-// 		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
-// 		errMsg := err.Error()
-// 		prefix := "transaction has failed, reason: execution reverted: Today is not juernes"
-// 		hasPrefix := strings.HasPrefix(errMsg, prefix)
-// 		require.True(t, hasPrefix)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
+		errMsg := err.Error()
+		prefix := "transaction has failed, reason: execution reverted: Today is not juernes"
+		hasPrefix := strings.HasPrefix(errMsg, prefix)
+		require.True(t, hasPrefix)
 
-// 		receipt, err := client.TransactionReceipt(ctx, scTx.Hash())
-// 		require.NoError(t, err)
+		receipt, err := client.TransactionReceipt(ctx, scTx.Hash())
+		require.NoError(t, err)
 
-// 		assert.Equal(t, receipt.Status, types.ReceiptStatusFailed)
+		assert.Equal(t, receipt.Status, types.ReceiptStatusFailed)
 
-// 		msg := ethereum.CallMsg{
-// 			From: auth.From,
-// 			To:   scTx.To(),
-// 			Gas:  scTx.Gas(),
+		msg := ethereum.CallMsg{
+			From: auth.From,
+			To:   scTx.To(),
+			Gas:  scTx.Gas(),
 
-// 			Value: scTx.Value(),
-// 			Data:  scTx.Data(),
-// 		}
-// 		result, err := client.CallContract(ctx, msg, receipt.BlockNumber)
-// 		require.NotNil(t, err)
-// 		require.Nil(t, result)
-// 		rpcErr := err.(rpc.Error)
-// 		assert.Equal(t, 3, rpcErr.ErrorCode())
-// 		assert.Equal(t, "execution reverted: Today is not juernes", rpcErr.Error())
+			Value: scTx.Value(),
+			Data:  scTx.Data(),
+		}
+		result, err := client.CallContract(ctx, msg, receipt.BlockNumber)
+		require.NotNil(t, err)
+		require.Nil(t, result)
+		rpcErr := err.(rpc.Error)
+		assert.Equal(t, 3, rpcErr.ErrorCode())
+		assert.Equal(t, "execution reverted: Today is not juernes", rpcErr.Error())
 
-// 		dataErr := err.(rpc.DataError)
-// 		data := dataErr.ErrorData().(string)
-// 		decodedData := hex.DecodeBig(data)
-// 		unpackedData, err := abi.UnpackRevert(decodedData.Bytes())
-// 		require.NoError(t, err)
-// 		assert.Equal(t, "Today is not juernes", unpackedData)
-// 	}
-// }
+		dataErr := err.(rpc.DataError)
+		data := dataErr.ErrorData().(string)
+		decodedData := hex.DecodeBig(data)
+		unpackedData, err := abi.UnpackRevert(decodedData.Bytes())
+		require.NoError(t, err)
+		assert.Equal(t, "Today is not juernes", unpackedData)
+	}
+}
 
-/*
 func Test_RevertOnSCCallTransaction(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -931,4 +934,3 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 		assert.Equal(t, "Today is not juernes", unpackedData)
 	}
 }
-*/

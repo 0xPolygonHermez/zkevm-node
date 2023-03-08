@@ -78,7 +78,8 @@ WeightMemAligns = 1
 WeightArithmetics = 1
 WeightBinaries = 1
 WeightSteps = 1
-MaxAllowedFailedCounter = 50
+TxLifetimeCheckTimeout = "10m"
+MaxTxLifetime = "3h"
 	[Sequencer.Finalizer]
 		GERDeadlineTimeoutInSec = "2s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"
@@ -92,6 +93,8 @@ MaxAllowedFailedCounter = 50
 		ForcedBatchesFinalityNumberOfBlocks = 0
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+	[Sequencer.DBManager]
+		PoolRetrievalInterval = "500ms"
 
 [Aggregator]
 Host = "0.0.0.0"
@@ -136,7 +139,3 @@ Enabled = true
 ProfilingHost = "0.0.0.0"
 ProfilingPort = 6060
 ProfilingEnabled = true
-
-
-
-

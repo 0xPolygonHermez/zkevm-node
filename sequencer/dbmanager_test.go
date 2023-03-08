@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -32,6 +33,7 @@ var (
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
 	}
+	dbManagerCfg      = DBManagerCfg{PoolRetrievalInterval: types.NewDuration(500 * time.Millisecond)}
 	executorClient    executorclientpb.ExecutorServiceClient
 	mtDBServiceClient mtDBclientpb.StateDBServiceClient
 	mtDBClientConn    *grpc.ClientConn
@@ -87,7 +89,7 @@ func setupDBManager() {
 		MaxSteps:             8388608,
 	}
 
-	testDbManager = newDBManager(ctx, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
+	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
 }
 
 func initOrResetDB() {

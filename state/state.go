@@ -454,7 +454,6 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 	if err != nil && !errors.Is(err, InvalidData) {
 		return nil, err
 	}
-
 	result, err := s.convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
@@ -654,7 +653,7 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 	if caller != DiscardCallerLabel {
 		metrics.ExecutorProcessingTime(string(caller), elapsed)
 	}
-	log.Infof("It took %v for the executor to process the request", elapsed)
+	log.Infof("Batch: %d took %v to be processed by the executor ", processBatchRequest.OldBatchNum+1, elapsed)
 
 	return res, err
 }
@@ -780,7 +779,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 	// Decode transactions
 	decodedTransactions, _, err := DecodeTxs(encodedTxs)
 	if err != nil && !errors.Is(err, InvalidData) {
-		log.Debugf("error decoding transactions: %w", err)
+		log.Debugf("error decoding transactions: %v", err)
 		return err
 	}
 
@@ -858,7 +857,7 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 }
 
 // DebugTransaction re-executes a tx to generate its trace
-func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
+func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, traceConfig TraceConfig, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
 
 	// Get the transaction
@@ -899,19 +898,36 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	forkId := s.GetForkIdByBatchNumber(batch.BatchNumber)
 
 	// Create Batch
-	processBatchRequest := &pb.ProcessBatchRequest{
-		OldBatchNum:                  batch.BatchNumber - 1,
-		BatchL2Data:                  batchL2Data,
-		OldStateRoot:                 pBatch.StateRoot.Bytes(),
-		GlobalExitRoot:               batch.GlobalExitRoot.Bytes(),
-		OldAccInputHash:              pBatch.AccInputHash.Bytes(),
-		EthTimestamp:                 uint64(batch.Timestamp.Unix()),
-		Coinbase:                     batch.Coinbase.String(),
-		UpdateMerkleTree:             cFalse,
+	traceConfigRequest := &pb.TraceConfig{
 		TxHashToGenerateCallTrace:    transactionHash.Bytes(),
 		TxHashToGenerateExecuteTrace: transactionHash.Bytes(),
-		ChainId:                      s.cfg.ChainID,
-		ForkId:                       forkId,
+	}
+
+	if traceConfig.DisableStorage {
+		traceConfigRequest.DisableStorage = cTrue
+	}
+	if traceConfig.DisableStack {
+		traceConfigRequest.DisableStack = cTrue
+	}
+	if traceConfig.EnableMemory {
+		traceConfigRequest.EnableMemory = cTrue
+	}
+	if traceConfig.EnableReturnData {
+		traceConfigRequest.EnableReturnData = cTrue
+	}
+
+	processBatchRequest := &pb.ProcessBatchRequest{
+		OldBatchNum:      batch.BatchNumber - 1,
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     pBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   batch.GlobalExitRoot.Bytes(),
+		OldAccInputHash:  pBatch.AccInputHash.Bytes(),
+		EthTimestamp:     uint64(batch.Timestamp.Unix()),
+		Coinbase:         batch.Coinbase.String(),
+		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
+		ForkId:           forkId,
+		TraceConfig:      traceConfigRequest,
 	}
 
 	// Send Batch to the Executor
@@ -925,6 +941,17 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 	endTime := time.Now()
+
+	// //save process batch response file
+	// b, err := json.Marshal(processBatchResponse)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// filePath := "./processBatchResponse.json"
+	// err = os.WriteFile(filePath, b, 0644)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	for _, response := range processBatchResponse.Responses {
 		log.Debugf(string(response.TxHash))
@@ -966,12 +993,12 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	result.StateRoot = response.StateRoot.Bytes()
 	result.StructLogs = response.ExecutionTrace
 
-	if tracer == "" {
+	if traceConfig.Tracer == nil || *traceConfig.Tracer == "" {
 		return result, nil
 	}
 
 	// Parse the executor-like trace using the FakeEVM
-	jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
+	jsTracer, err := js.NewJsTracer(*traceConfig.Tracer, new(tracers.Context))
 	if err != nil {
 		log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
 		return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
@@ -1256,7 +1283,6 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	}
 
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
-	// log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
@@ -1481,10 +1507,10 @@ func (s *State) WaitSequencingTxToBeSynced(parentCtx context.Context, tx *types.
 	for {
 		virtualized, err := s.IsSequencingTXSynced(ctx, tx.Hash(), nil)
 		if err != nil && err != ErrNotFound {
-			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
+			log.Errorf("error waiting sequencing tx %s to be synced: %v", tx.Hash().String(), err)
 			return err
 		} else if ctx.Err() != nil {
-			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
+			log.Errorf("error waiting sequencing tx %s to be synced: %v", tx.Hash().String(), err)
 			return ctx.Err()
 		} else if virtualized {
 			break

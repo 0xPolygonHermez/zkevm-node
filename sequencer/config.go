@@ -53,9 +53,6 @@ type Config struct {
 	// MaxSteps is max steps batch can handle
 	MaxSteps uint32 `mapstructure:"MaxSteps"`
 
-	// Maximum allowed failed counter for the tx before it becomes invalid
-	MaxAllowedFailedCounter uint64 `mapstructure:"MaxAllowedFailedCounter"`
-
 	// WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
 	WeightBatchBytesSize int `mapstructure:"WeightBatchBytesSize"`
 
@@ -83,8 +80,17 @@ type Config struct {
 	// WeightSteps is the cost weight for the Steps batch resource
 	WeightSteps int `mapstructure:"WeightSteps"`
 
+	// TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
+	TxLifetimeCheckTimeout types.Duration `mapstructure:"TxLifetimeCheckTimeout"`
+
+	// MaxTxLifetime is the time a tx can be in the sequencer memory
+	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
+
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
+
+	// DBManager's specific config properties
+	DBManager DBManagerCfg `mapstructure:"DBManager"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -126,4 +132,9 @@ type FinalizerCfg struct {
 	// PrivateKeys defines all the key store files that are going
 	// to be read in order to provide the private keys to sign the L1 txs
 	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
+}
+
+// DBManagerCfg contains the DBManager's configuration properties
+type DBManagerCfg struct {
+	PoolRetrievalInterval types.Duration `mapstructure:"PoolRetrievalInterval"`
 }

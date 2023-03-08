@@ -87,7 +87,8 @@ WeightMemAligns = 1
 WeightArithmetics = 1
 WeightBinaries = 1
 WeightSteps = 1
-MaxAllowedFailedCounter = 50
+TxLifetimeCheckTimeout = "10m"
+MaxTxLifetime = "3h"
 	[Sequencer.Finalizer]
 		GERDeadlineTimeoutInSec = "5s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"
@@ -101,6 +102,8 @@ MaxAllowedFailedCounter = 50
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+	[Sequencer.DBManager]
+		PoolRetrievalInterval = "500ms"
 
 [PriceGetter]
 Type = "default"
