@@ -55,9 +55,9 @@ type traceBlockTransactionResponse struct {
 
 // TraceTransaction creates a response for debug_traceTransaction request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtracetransaction
-func (d *DebugEndpoints) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{}, rpcError) {
+func (d *DebugEndpoints) TraceTransaction(hash argHash, cfg *traceConfig) (interface{}, rpcError) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		return d.buildTraceTransaction(ctx, hash, cfg, dbTx)
+		return d.buildTraceTransaction(ctx, hash.Hash(), cfg, dbTx)
 	})
 }
 
@@ -88,9 +88,9 @@ func (d *DebugEndpoints) TraceBlockByNumber(number BlockNumber, cfg *traceConfig
 
 // TraceBlockByHash creates a response for debug_traceBlockByHash request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbyhash
-func (d *DebugEndpoints) TraceBlockByHash(hash common.Hash, cfg *traceConfig) (interface{}, rpcError) {
+func (d *DebugEndpoints) TraceBlockByHash(hash argHash, cfg *traceConfig) (interface{}, rpcError) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		block, err := d.state.GetL2BlockByHash(ctx, hash, dbTx)
+		block, err := d.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, newRPCError(defaultErrorCode, "genesis is not traceable")
 		} else if err == state.ErrNotFound {
