@@ -40,14 +40,15 @@ Explained step by step:
 1. Define network (currently only testnet is supported, mainnet coming very soon!): `ZKEVM_NET=testnet`
 2. Define installation path: `ZKEVM_DIR=./path/to/install`
 3. Define a config directory: `ZKEVM_CONFIG_DIR=./path/to/config`
-4. Download and extract the artifacts: `curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip`. Note you may need to install `unzip` for this command to work
-5. Copy the file with the env parameters: `cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env`
-6. Edit the env file, with your favourite editor. The example will use nano: `nano $ZKEVM_CONFIG_DIR/.env`. This file contains the configuration that anyone should modify. For advanced configuration modify:
+4. It's recommended to source this env vars in your `~/.bashrc`, `~/.zshrc` or whatever you're using
+5. Download and extract the artifacts: `curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip`. Note you may need to install `unzip` for this command to work
+6. Copy the file with the env parameters: `cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env`
+7. Edit the env file, with your favourite editor. The example will use nano: `nano $ZKEVM_CONFIG_DIR/.env`. This file contains the configuration that anyone should modify. For advanced configuration:
    1. Copy the config files into the config directory `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/public/* $ZKEVM_CONFIG_DIR/`
-   2. Make sure the modify the `ZKEVM_CONFIG_DIR` from `$ZKEVM_CONFIG_DIR/.env` with the correct path
+   2. Make sure the modify the `ZKEVM_ADVANCED_CONFIG_DIR` from `$ZKEVM_CONFIG_DIR/.env` with the correct path
    3. Edit the different configuration files
-7. Run the node: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml up -d`. You may need to run this command using `sudo` depending on your Docker setup.
-8. Make sure that all components are running: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml ps`. You should see the following containers:
+8. Run the node: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml up -d`. You may need to run this command using `sudo` depending on your Docker setup.
+9. Make sure that all components are running: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml ps`. You should see the following containers:
    1. zkevm-rpc
    2. zkevm-sync
    3. zkevm-state-db
@@ -66,7 +67,7 @@ If everything has gone as expected you should be able to run queries to the JSON
 ## Stop
 
 ```bash
-sudo docker compose -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml down
+sudo docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml down
 ```
 
 ## Updating
