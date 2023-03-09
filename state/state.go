@@ -1245,11 +1245,12 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	var pForcedNonce *uint64
 
 	if forceNonce && l2BlockNumber != nil {
-		forcedNonce, err := s.GetNonce(ctx, senderAddress, *l2BlockNumber, nil)
+		forcedNonce, err := s.tree.GetNonce(ctx, senderAddress, l2BlockStateRoot.Bytes())
 		if err != nil {
 			return nil, err
 		}
-		pForcedNonce = &forcedNonce
+		tmpNonce := forcedNonce.Uint64()
+		pForcedNonce = &tmpNonce
 	}
 
 	// Get latest batch from the database to get globalExitRoot and Timestamp
