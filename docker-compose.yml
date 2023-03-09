@@ -65,7 +65,10 @@ services:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
       - POSTGRES_DB=state_db
-    command: [ "postgres", "-N", "500" ]
+    command:
+      - "postgres"
+      - "-N"
+      - "500"
 
   zkevm-pool-db:
     container_name: zkevm-pool-db
@@ -89,7 +92,10 @@ services:
       - POSTGRES_USER=pool_user
       - POSTGRES_PASSWORD=pool_password
       - POSTGRES_DB=pool_db
-    command: [ "postgres", "-N", "500" ]
+    command:
+      - "postgres"
+      - "-N"
+      - "500"
 
   zkevm-prover:
     container_name: zkevm-prover

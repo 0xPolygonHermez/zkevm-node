@@ -128,11 +128,32 @@ func (e *EthEndpoints) EstimateGas(arg *txnArgs, number *BlockNumber) (interface
 // GasPrice returns the average gas price based on the last x blocks
 func (e *EthEndpoints) GasPrice() (interface{}, rpcError) {
 	ctx := context.Background()
+	if e.cfg.SequencerNodeURI != "" {
+		return e.getPriceFromSequencerNode()
+	}
 	gasPrice, err := e.pool.GetGasPrice(ctx)
 	if err != nil {
 		return "0x0", nil
 	}
 	return hex.EncodeUint64(gasPrice), nil
+}
+
+func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, rpcError) {
+	res, err := JSONRPCCall(e.cfg.SequencerNodeURI, "eth_gasPrice")
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, "failed to get gas price from sequencer node", err)
+	}
+
+	if res.Error != nil {
+		return rpcErrorResponse(res.Error.Code, res.Error.Message, nil)
+	}
+
+	var gasPrice argUint64
+	err = json.Unmarshal(res.Result, &gasPrice)
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, "failed to read gas price from sequencer node", err)
+	}
+	return gasPrice, nil
 }
 
 // GetBalance returns the account's balance at the referenced block
@@ -446,6 +467,9 @@ func (e *EthEndpoints) GetTransactionByHash(hash common.Hash) (interface{}, rpcE
 		}
 
 		// if the tx does not exist in the state, look for it in the pool
+		if e.cfg.SequencerNodeURI != "" {
+			return e.getTransactionByHashFromSequencerNode(hash)
+		}
 		poolTx, err := e.pool.GetTxByHash(ctx, hash)
 		if errors.Is(err, pgpoolstorage.ErrNotFound) {
 			return nil, nil
@@ -458,6 +482,24 @@ func (e *EthEndpoints) GetTransactionByHash(hash common.Hash) (interface{}, rpcE
 	})
 }
 
+func (e *EthEndpoints) getTransactionByHashFromSequencerNode(hash common.Hash) (interface{}, rpcError) {
+	res, err := JSONRPCCall(e.cfg.SequencerNodeURI, "eth_getTransactionByHash", hash.String())
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, "failed to get tx from sequencer node", err)
+	}
+
+	if res.Error != nil {
+		return rpcErrorResponse(res.Error.Code, res.Error.Message, nil)
+	}
+
+	var tx *rpcTransaction
+	err = json.Unmarshal(res.Result, &tx)
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, "failed to read tx from sequencer node", err)
+	}
+	return tx, nil
+}
+
 // GetTransactionCount returns account nonce
 func (e *EthEndpoints) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
@@ -467,9 +509,8 @@ func (e *EthEndpoints) GetTransactionCount(address common.Address, number *Block
 		if number != nil && *number == PendingBlockNumber {
 			if e.cfg.SequencerNodeURI != "" {
 				return e.getTransactionCountFromSequencerNode(address, number)
-			} else {
-				pendingNonce, err = e.pool.GetNonce(ctx, address)
 			}
+			pendingNonce, err = e.pool.GetNonce(ctx, address)
 			if err != nil {
 				return rpcErrorResponse(defaultErrorCode, "failed to count pending transactions", err)
 			}
@@ -531,6 +572,9 @@ func (e *EthEndpoints) GetBlockTransactionCountByHash(hash common.Hash) (interfa
 func (e *EthEndpoints) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		if number != nil && *number == PendingBlockNumber {
+			if e.cfg.SequencerNodeURI != "" {
+				return e.getBlockTransactionCountByNumberFromSequencerNode(number)
+			}
 			c, err := e.pool.CountPendingTransactions(ctx)
 			if err != nil {
 				return rpcErrorResponse(defaultErrorCode, "failed to count pending transactions", err)
@@ -551,6 +595,24 @@ func (e *EthEndpoints) GetBlockTransactionCountByNumber(number *BlockNumber) (in
 
 		return argUint64(c), nil
 	})
+}
+
+func (e *EthEndpoints) getBlockTransactionCountByNumberFromSequencerNode(number *BlockNumber) (interface{}, rpcError) {
+	res, err := JSONRPCCall(e.cfg.SequencerNodeURI, "eth_getBlockTransactionCountByNumber", number.StringOrHex())
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, "failed to get tx count by block number from sequencer node", err)
+	}
+
+	if res.Error != nil {
+		return rpcErrorResponse(res.Error.Code, res.Error.Message, nil)
+	}
+
+	var count argUint64
+	err = json.Unmarshal(res.Result, &count)
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, "failed to read tx count by block number from sequencer node", err)
+	}
+	return count, nil
 }
 
 // GetTransactionReceipt returns a transaction receipt by his hash
