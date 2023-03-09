@@ -399,4 +399,20 @@ func TestGetForks(t *testing.T) {
 	assert.Equal(t, uint64(0), forks[0].FromBatchNumber)
 	assert.Equal(t, uint64(math.MaxUint64), forks[0].ToBatchNumber)
 	assert.Equal(t, "v1", forks[0].Version)
+	// Now read the event
+	finalBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+	finalBlockNumber := finalBlock.NumberU64()
+	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, 0, &finalBlockNumber)
+	require.NoError(t, err)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, 1, len(blocks))
+	assert.Equal(t, 1, len(blocks[0].ForkIDs))
+	assert.Equal(t, 0, order[blocks[0].BlockHash][0].Pos)
+	assert.Equal(t, ForkIDsOrder, order[blocks[0].BlockHash][0].Name)
+	assert.Equal(t, uint64(0), blocks[0].ForkIDs[0].BatchNumber)
+	assert.Equal(t, uint64(1), blocks[0].ForkIDs[0].ForkID)
+	assert.Equal(t, "v1", blocks[0].ForkIDs[0].Version)
+
+
 }

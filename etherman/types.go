@@ -17,6 +17,7 @@ type Block struct {
 	SequencedBatches      [][]SequencedBatch
 	VerifiedBatches       []VerifiedBatch
 	SequencedForceBatches [][]SequencedForceBatch
+	ForkIDs               []ForkID
 	ReceivedAt            time.Time
 }
 
@@ -65,4 +66,11 @@ type SequencedForceBatch struct {
 	Timestamp   time.Time
 	Nonce       uint64
 	polygonzkevm.PolygonZkEVMForcedBatchData
+}
+
+// ForkID is a sturct to track the ForkID event.
+type ForkID struct {
+	BatchNumber uint64
+	ForkID      uint64
+	Version     string
 }
