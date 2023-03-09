@@ -1143,7 +1143,7 @@ func (s *ClientSynchronizer) reorgPool(dbTx pgx.Tx) error {
 
 	// Add txs to the pool
 	for _, tx := range txs {
-		err = s.pool.ReorgTx(s.ctx, *tx)
+		err = s.pool.StoreTx(s.ctx, *tx)
 		if err != nil {
 			log.Errorf("error storing tx into the pool again. TxHash: %s. BatchNumber: %d, error: %v", tx.Hash().String(), batchNumber, err)
 			return err
