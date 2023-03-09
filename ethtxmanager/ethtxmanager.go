@@ -33,6 +33,12 @@ var (
 	// ErrExecutionReverted returned when trying to get the revert message
 	// but the call fails without revealing the revert reason
 	ErrExecutionReverted = errors.New("execution reverted")
+
+	// gasOffsets for aggregator and sequencer
+	gasOffsets = map[string]uint64{
+		"sequencer":  80000, //nolint:gomnd
+		"aggregator": 0,
+	}
 )
 
 // Client for eth tx manager
@@ -77,7 +83,12 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 		} else {
 			return err
 		}
+	} else {
+		offset := gasOffsets[owner]
+		gas += offset
+		log.Debugf("Applying gasOffset: %d. Final Gas: %d, Owner: %s", offset, gas, owner)
 	}
+
 	// get gas price
 	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
 	if err != nil {
