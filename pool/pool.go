@@ -82,12 +82,10 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction) error {
 
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
-	if !poolTx.IsClaims {
-		// Execute transaction to calculate its zkCounters
-		zkCounters, err := p.PreExecuteTx(ctx, tx)
-		if err != nil {
-			poolTx.ZKCounters = zkCounters
-		}
+	// Execute transaction to calculate its zkCounters
+	zkCounters, err := p.PreExecuteTx(ctx, tx)
+	if err != nil {
+		poolTx.ZKCounters = zkCounters
 	}
 
 	return p.storage.AddTx(ctx, poolTx)
