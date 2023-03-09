@@ -226,6 +226,11 @@ func IsExecutorOutOfCountersError(error pb.ExecutorError) bool {
 	return int32(error) >= EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK && int32(error) <= ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
 }
 
+// IsExecutorUnespecifiedError indicates an unespecified error in the executor
+func IsExecutorUnespecifiedError(error pb.ExecutorError) bool {
+	return int32(error) == EXECUTOR_ERROR_UNSPECIFIED
+}
+
 // IsIntrinsicError indicates if the error is due to a intrinsic check
 func IsIntrinsicError(error pb.RomError) bool {
 	return int32(error) >= ROM_ERROR_INTRINSIC_INVALID_SIGNATURE && int32(error) <= ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW
