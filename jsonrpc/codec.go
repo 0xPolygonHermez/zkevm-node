@@ -168,6 +168,11 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 	}
 }
 
+// StringOrHex returns the block number as a string or hex
+// n == -3 = pending
+// n == -2 = latest
+// n == -1 = earliest
+// n >=  0 = hex(n)
 func (b *BlockNumber) StringOrHex() string {
 	switch *b {
 	case EarliestBlockNumber:

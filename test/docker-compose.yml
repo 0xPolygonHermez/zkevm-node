@@ -89,8 +89,10 @@ services:
     ports:
       - 8125:8125
     environment:
+      - ZKEVM_NODE_ISTRUSTEDSEQUENCER=false
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
+      - ZKEVM_NODE_RPC_PORT=8125
       - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
