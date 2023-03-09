@@ -103,7 +103,7 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 func (d *dbManager) loadFromPool() {
 	for {
 		// TODO: Move this to a config parameter
-		time.Sleep(wait * time.Second)
+		time.Sleep(500 * time.Millisecond) //nolint:gomnd
 
 		numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
 		if err != nil {
