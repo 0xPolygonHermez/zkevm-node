@@ -5,6 +5,7 @@ networks:
 services:
   zkevm-rpc:
     container_name: zkevm-rpc
+    restart: unless-stopped
     depends_on:
       zkevm-pool-db:
         condition: service_healthy
@@ -28,6 +29,7 @@ services:
 
   zkevm-sync:
     container_name: zkevm-sync
+    restart: unless-stopped
     depends_on:
       zkevm-state-db:
         condition: service_healthy
@@ -44,6 +46,7 @@ services:
 
   zkevm-state-db:
     container_name: zkevm-state-db
+    restart: unless-stopped
     image: postgres
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready" ]
@@ -69,6 +72,7 @@ services:
 
   zkevm-pool-db:
     container_name: zkevm-pool-db
+    restart: unless-stopped
     image: postgres
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready" ]
@@ -93,6 +97,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
+    restart: unless-stopped
     image: hermeznetwork/zkevm-prover:45df44e
     depends_on:
       zkevm-state-db:
