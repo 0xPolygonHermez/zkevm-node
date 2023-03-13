@@ -2,7 +2,7 @@ package config
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -58,7 +58,7 @@ func loadGenesisFileConfig(ctx *cli.Context) (NetworkConfig, error) {
 			}
 		}()
 
-		b, err := ioutil.ReadAll(f)
+		b, err := io.ReadAll(f)
 		if err != nil {
 			return NetworkConfig{}, err
 		}
