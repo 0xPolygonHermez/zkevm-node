@@ -26,6 +26,201 @@ import (
 
 const fixedTxGasLimit uint64 = 100000
 
+func TestDebugTraceTransactionNotFoundTx(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	const l2NetworkURL = "http://localhost:8124"
+	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	}()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+	require.NoError(t, err)
+
+	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
+
+	networks := []struct {
+		Name         string
+		URL          string
+		WebSocketURL string
+		ChainID      uint64
+		PrivateKey   string
+	}{
+		{
+			Name:       l1NetworkName,
+			URL:        operations.DefaultL1NetworkURL,
+			ChainID:    operations.DefaultL1ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+		{
+			Name:       l2NetworkName,
+			URL:        l2NetworkURL,
+			ChainID:    operations.DefaultL2ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+	}
+
+	for _, network := range networks {
+		log.Debugf(network.Name)
+		tx := types.NewTx(&types.LegacyTx{
+			Nonce: 10,
+		})
+
+		response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceTransaction", tx.Hash().String())
+		require.NoError(t, err)
+		require.Nil(t, response.Result)
+		require.NotNil(t, response.Error)
+
+		require.Equal(t, -32000, response.Error.Code)
+		require.Equal(t, "genesis is not traceable", response.Error.Message)
+		require.Nil(t, response.Error.Data)
+	}
+}
+
+func TestDebugTraceBlockByNumberNotFoundTx(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	const l2NetworkURL = "http://localhost:8124"
+	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	}()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+	require.NoError(t, err)
+
+	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
+
+	networks := []struct {
+		Name         string
+		URL          string
+		WebSocketURL string
+		ChainID      uint64
+		PrivateKey   string
+	}{
+		{
+			Name:       l1NetworkName,
+			URL:        operations.DefaultL1NetworkURL,
+			ChainID:    operations.DefaultL1ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+		{
+			Name:       l2NetworkName,
+			URL:        l2NetworkURL,
+			ChainID:    operations.DefaultL2ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+	}
+
+	for _, network := range networks {
+		log.Debugf(network.Name)
+
+		response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(big.NewInt(999999999999)))
+		require.NoError(t, err)
+		require.Nil(t, response.Result)
+		require.NotNil(t, response.Error)
+
+		require.Equal(t, -32000, response.Error.Code)
+		require.Equal(t, "block #999999999999 not found", response.Error.Message)
+		require.Nil(t, response.Error.Data)
+	}
+}
+
+func TestDebugTraceBlockByHashNotFoundTx(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	const l2NetworkURL = "http://localhost:8124"
+	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	}()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+	require.NoError(t, err)
+
+	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
+
+	networks := []struct {
+		Name         string
+		URL          string
+		WebSocketURL string
+		ChainID      uint64
+		PrivateKey   string
+	}{
+		{
+			Name:       l1NetworkName,
+			URL:        operations.DefaultL1NetworkURL,
+			ChainID:    operations.DefaultL1ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+		{
+			Name:       l2NetworkName,
+			URL:        l2NetworkURL,
+			ChainID:    operations.DefaultL2ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+	}
+
+	for _, network := range networks {
+		log.Debugf(network.Name)
+
+		response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceBlockByHash", common.Hash{}.String())
+		require.NoError(t, err)
+		require.Nil(t, response.Result)
+		require.NotNil(t, response.Error)
+
+		require.Equal(t, -32000, response.Error.Code)
+		require.Equal(t, "block 0x0000000000000000000000000000000000000000000000000000000000000000 not found", response.Error.Message)
+		require.Nil(t, response.Error.Data)
+	}
+}
+
 func TestDebugTraceTransaction(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
