@@ -386,7 +386,9 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 
 	previousL2BlockStateRoot := f.batch.stateRoot
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
-	log.Infof("handleSuccessfulTxProcessResp: storing processed tx: %s", tx.Hash.String())
+	if tx != nil {
+		log.Infof("handleSuccessfulTxProcessResp: storing processed tx: %s", tx.Hash.String())
+	}
 	f.storeProcessedTx(ctx, previousL2BlockStateRoot, tx, result)
 	f.processRequest.OldStateRoot = result.NewStateRoot
 	f.batch.stateRoot = result.NewStateRoot
