@@ -8,6 +8,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node"
@@ -42,13 +43,19 @@ const (
 )
 
 func start(cliCtx *cli.Context) error {
-	zkevm.PrintVersion(os.Stdout)
-
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		return err
 	}
 	setupLog(c.Log)
+
+	if c.Log.Environment == log.EnvironmentDevelopment {
+		zkevm.PrintVersion(os.Stdout)
+		log.Info("Starting application")
+	} else if c.Log.Environment == log.EnvironmentProduction {
+		logVersion()
+	}
+
 	if c.Metrics.Enabled {
 		metrics.Init()
 	}
@@ -367,4 +374,15 @@ func startMetricsHttpServer(c metrics.Config) {
 		log.Errorf("closed http connection for metrics server: %v", err)
 		return
 	}
+}
+
+func logVersion() {
+	log.Infow("Starting application",
+		// node version is already logged by default
+		"gitRevision", zkevm.GitRev,
+		"gitBranch", zkevm.GitBranch,
+		"goVersion", runtime.Version(),
+		"built", zkevm.BuildDate,
+		"os/arch", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+	)
 }
