@@ -413,6 +413,4 @@ func TestGetForks(t *testing.T) {
 	assert.Equal(t, uint64(0), blocks[0].ForkIDs[0].BatchNumber)
 	assert.Equal(t, uint64(1), blocks[0].ForkIDs[0].ForkID)
 	assert.Equal(t, "v1", blocks[0].ForkIDs[0].Version)
-
-
 }

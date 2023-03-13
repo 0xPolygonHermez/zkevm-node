@@ -348,7 +348,7 @@ func (etherMan *Client) updateZkevmVersion(ctx context.Context, vLog types.Log, 
 		log.Error("error parsing UpdateZkEVMVersion event. Error: ", err)
 		return err
 	}
-	fork := ForkID {
+	fork := ForkID{
 		BatchNumber: zkevmVersion.NumBatch,
 		ForkID:      zkevmVersion.ForkID,
 		Version:     zkevmVersion.Version,

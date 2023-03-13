@@ -116,9 +116,9 @@ func (p *PostgresStorage) ResetForkID(ctx context.Context, batchNumber, forkID u
 	if err != nil {
 		return err
 	}
-	reorg := TrustedReorg {
+	reorg := TrustedReorg{
 		BatchNumber: batchNumber,
-		Reason: fmt.Sprintf("New ForkID: %d. Version: %s", forkID, version),
+		Reason:      fmt.Sprintf("New ForkID: %d. Version: %s", forkID, version),
 	}
 	err = p.AddTrustedReorg(ctx, &reorg, dbTx)
 	if err != nil {
