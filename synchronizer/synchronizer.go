@@ -419,6 +419,11 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 				if err != nil {
 					return err
 				}
+			case etherman.ForkIDsOrder:
+				err = s.processForkID(blocks[i].ForkIDs[element.Pos], blocks[i].BlockNumber, dbTx)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		err = dbTx.Commit(s.ctx)
@@ -590,6 +595,62 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 		return true
 	}
 	return false
+}
+
+func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
+	//If the forkID.batchnumber is a future batch
+	latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx, dbTx)
+	if err != nil {
+		log.Error("error getting last batch number. Error: ", err)
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+			return rollbackErr
+		}
+		return err
+	}
+	if latestBatchNumber < forkID.BatchNumber { //If the forkID will start in a future batch
+		return nil
+	}
+
+	// If forkID affects to a batch from the past. State must be reseted.
+	log.Debugf("ForkID: %d, Reverting synchronization to batch: %d", forkID.ForkID, forkID.BatchNumber)
+	count, err := s.state.GetForkIDTrustedReorg(s.ctx, forkID.ForkID, forkID.Version, dbTx)
+	if err != nil {
+		log.Error("error getting ForkIDTrustedReorg. Error: ", err)
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Errorf("error rolling back state get forkID trusted state. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+			return rollbackErr
+		}
+		return err
+	}
+	if count > 0 { // If the forkID reset was already done
+		return nil
+	}
+
+	err = s.state.ResetForkID(s.ctx, forkID.BatchNumber, forkID.ForkID, forkID.Version, dbTx)
+	if err != nil {
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+			return rollbackErr
+		}
+		log.Error("error resetting the state. Error: ", err)
+		return err
+	}
+	err = dbTx.Commit(s.ctx)
+	if err != nil {
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+			return rollbackErr
+		}
+		log.Error("error committing the resetted state. Error: ", err)
+		return err
+	}
+
+	return fmt.Errorf("new ForkID detected, reseting synchronizarion")
 }
 
 func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {

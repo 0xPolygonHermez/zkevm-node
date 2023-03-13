@@ -559,7 +559,8 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
-		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		log.Error("error executing batch: ", err)
+		if processBatchResponse != nil && processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
 			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 		}

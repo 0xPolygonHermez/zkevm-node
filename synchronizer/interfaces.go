@@ -51,6 +51,8 @@ type stateInterface interface {
 	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
 	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
 	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
+	ResetForkID(ctx context.Context, batchNumber, forkID uint64, version string, dbTx pgx.Tx) error
+	GetForkIDTrustedReorg(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }
