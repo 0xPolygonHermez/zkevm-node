@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -160,7 +159,7 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 		return txs, txsData, nil
 	}
 	for pos < int64(txDataLength) {
-		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
+		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, hex.BitSize64)
 		if err != nil {
 			log.Debug("error parsing header length: ", err)
 			return []types.Transaction{}, txsData, err
@@ -173,7 +172,7 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 				log.Debug("error parsing length: ", err)
 				return []types.Transaction{}, txsData, err
 			}
-			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1:pos+1+num-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
+			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1:pos+1+num-f7]), hex.Base, hex.BitSize64) // +1 is the header. For example 0xf7
 			if err != nil {
 				log.Debug("error parsing length: ", err)
 				return []types.Transaction{}, txsData, err

@@ -354,7 +354,13 @@ func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter 
 }
 
 // GetStorageAt gets the value stored for an specific address and position
-func (e *EthEndpoints) GetStorageAt(address argAddress, position argHash, number *BlockNumber) (interface{}, rpcError) {
+func (e *EthEndpoints) GetStorageAt(address argAddress, storageKeyStr string, number *BlockNumber) (interface{}, rpcError) {
+	storageKey := argHash{}
+	err := storageKey.UnmarshalText([]byte(storageKeyStr))
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, "unable to decode storage key: hex string invalid", nil)
+	}
+
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		var err error
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
@@ -362,7 +368,7 @@ func (e *EthEndpoints) GetStorageAt(address argAddress, position argHash, number
 			return nil, rpcErr
 		}
 
-		value, err := e.state.GetStorageAt(ctx, address.Address(), position.Hash().Big(), blockNumber, dbTx)
+		value, err := e.state.GetStorageAt(ctx, address.Address(), storageKey.Hash().Big(), blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return argBytesPtr(common.Hash{}.Bytes()), nil
 		} else if err != nil {

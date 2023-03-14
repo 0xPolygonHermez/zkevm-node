@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"net"
@@ -10,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/tools/zkevmprovermock/testvector"
@@ -333,7 +333,7 @@ func translateTransactionSteps(inputSteps []*testvector.TransactionStep) ([]*pb.
 			if strings.HasPrefix(inputStep.Op, "0x") { // nolint
 				inputStep.Op = inputStep.Op[2:]
 			}
-			opBI, ok := new(big.Int).SetString(inputStep.Op, encoding.Base16)
+			opBI, ok := new(big.Int).SetString(inputStep.Op, hex.Base)
 			if !ok {
 				return nil, fmt.Errorf("Could not convert base16 %q to big int", inputStep.Op)
 			}

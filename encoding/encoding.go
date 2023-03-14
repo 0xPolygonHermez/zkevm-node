@@ -13,10 +13,6 @@ import (
 const (
 	// Base10 decimal base
 	Base10 = 10
-	// Base16 hexadecimal base
-	Base16 = 16
-	// BitSize64 64 bits
-	BitSize64 = 64
 	// TenToThePowerOf18 represents 1000000000000000000
 	TenToThePowerOf18 = 1000000000000000000
 	// Gwei represents 1000000000 wei
@@ -37,7 +33,7 @@ func DecodeUint64orHex(val *string) (uint64, error) {
 		str = str[2:]
 		base = 16
 	}
-	return strconv.ParseUint(str, base, BitSize64)
+	return strconv.ParseUint(str, base, hex.BitSize64)
 }
 
 // DecodeUint256orHex decodes a string uint256 or hex string into a bit.Int
