@@ -224,7 +224,6 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			used_steps,
 			received_at,
 			nonce,
-			failed_counter,
 			is_wip,
 			ip
 		FROM
@@ -254,7 +253,6 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				used_steps,
 				received_at,
 				nonce,
-				failed_counter,
 				is_wip,
 				ip
 			FROM
@@ -264,7 +262,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				gas_price >= $2 AND 
 				is_claims = $3
 			ORDER BY 
-				failed_counter ASC
+				nonce ASC
 			LIMIT $4
 			) as tmp
 		ORDER BY nonce ASC
@@ -479,15 +477,6 @@ func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx context.Context, ha
 	}
 
 	return common.HexToAddress(fromAddr), nonce, nil
-}
-
-// IncrementFailedCounter increment for failed txs failed counter
-func (p *PostgresPoolStorage) IncrementFailedCounter(ctx context.Context, hashes []string) error {
-	sql := "UPDATE pool.transaction SET failed_counter = failed_counter + 1 WHERE hash = ANY ($1)"
-	if _, err := p.db.Exec(ctx, sql, hashes); err != nil {
-		return err
-	}
-	return nil
 }
 
 // GetNonce gets the nonce to the provided address accordingly to the txs in the pool

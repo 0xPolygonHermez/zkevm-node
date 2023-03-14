@@ -430,69 +430,6 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	assert.Equal(t, txs[0].Transaction.Nonce(), uint64(0))
 }
 
-func Test_GetTopFailedTxsByProfitabilityAndZkCounters(t *testing.T) {
-	ctx := context.Background()
-	initOrResetDB()
-
-	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	defer stateSqlDB.Close()
-
-	st := newState(stateSqlDB)
-
-	genesisBlock := state.Block{
-		BlockNumber: 0,
-		BlockHash:   state.ZeroHash,
-		ParentHash:  state.ZeroHash,
-		ReceivedAt:  time.Now(),
-	}
-	dbTx, err := st.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
-	require.NoError(t, err)
-	require.NoError(t, dbTx.Commit(ctx))
-
-	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
-	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-
-	const txsCount = 10
-
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
-	require.NoError(t, err)
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
-	require.NoError(t, err)
-
-	txsHashes := make([]string, 0, txsCount)
-	// insert pending transactions
-	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10+int64(i)), []byte{})
-		signedTx, err := auth.Signer(auth.From, tx)
-		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
-			t.Error(err)
-		}
-		txsHashes = append(txsHashes, signedTx.Hash().String())
-	}
-
-	err = p.UpdateTxsStatus(ctx, txsHashes, pool.TxStatusFailed)
-	require.NoError(t, err)
-	err = p.IncrementFailedCounter(ctx, txsHashes[0:txsCount/2])
-	require.NoError(t, err)
-	txs, err := p.GetTxs(ctx, pool.TxStatusFailed, false, 1, 10)
-	require.NoError(t, err)
-	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
-	assert.Equal(t, txsCount, len(txs))
-}
-
 func Test_UpdateTxsStatus(t *testing.T) {
 	ctx := context.Background()
 
