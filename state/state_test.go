@@ -2872,3 +2872,26 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 	assert.Equal(t, executorclientpb.RomError(1), processBatchResponse.Responses[1].Error)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[1].ReturnValue))
 }
+
+func TestStoreEvent(t *testing.T) {
+	var readEvent state.Event
+	var hashStr string
+
+	event := &state.Event{
+		EventType: state.EventType_Prexecution_OOC,
+		Timestamp: time.Now(),
+		IP:        "127.0.0.1",
+		TxHash:    common.Hash{},
+		Payload:   "This is a test 123",
+	}
+
+	err := testState.AddEvent(ctx, event, nil)
+	if err != nil {
+		log.Errorf("Error adding event: %v", err)
+	}
+
+	err = testState.PostgresStorage.QueryRow(ctx, "SELECT event_type, timestamp, ip, tx_hash, payload FROM state.event limit 1").Scan(&readEvent.EventType, &readEvent.Timestamp, &readEvent.IP, &hashStr, &readEvent.Payload)
+	assert.NoError(t, err)
+	readEvent.TxHash = common.HexToHash(hashStr)
+	assert.Equal(t, event.Payload, readEvent.Payload)
+}
