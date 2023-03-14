@@ -72,7 +72,7 @@ func (d *DebugEndpoints) TraceBlockByNumber(number BlockNumber, cfg *traceConfig
 
 		block, err := d.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
-			return nil, newRPCError(defaultErrorCode, "genesis is not traceable")
+			return nil, newRPCError(defaultErrorCode, fmt.Sprintf("block #%d not found", blockNumber))
 		} else if err == state.ErrNotFound {
 			return rpcErrorResponse(defaultErrorCode, "failed to get block by number", err)
 		}
@@ -92,7 +92,7 @@ func (d *DebugEndpoints) TraceBlockByHash(hash argHash, cfg *traceConfig) (inter
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		block, err := d.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
-			return nil, newRPCError(defaultErrorCode, "genesis is not traceable")
+			return nil, newRPCError(defaultErrorCode, fmt.Sprintf("block %s not found", hash.Hash().String()))
 		} else if err == state.ErrNotFound {
 			return rpcErrorResponse(defaultErrorCode, "failed to get block by hash", err)
 		}
@@ -135,7 +135,9 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 	}
 
 	result, err := d.state.DebugTransaction(ctx, hash, traceConfig, dbTx)
-	if err != nil {
+	if errors.Is(err, state.ErrNotFound) {
+		return rpcErrorResponse(defaultErrorCode, "genesis is not traceable", nil)
+	} else if err != nil {
 		const errorMessage = "failed to get trace"
 		log.Infof("%v: %v", errorMessage, err)
 		return nil, newRPCError(defaultErrorCode, errorMessage)
