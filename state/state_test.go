@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"math/big"
 	"os"
@@ -1232,7 +1232,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = jsonFile.Close() }()
 
-	bytes, err := ioutil.ReadAll(jsonFile)
+	bytes, err := io.ReadAll(jsonFile)
 	require.NoError(t, err)
 
 	err = json.Unmarshal(bytes, &testCases)
@@ -1242,7 +1242,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = jsonFile2.Close() }()
 
-	bytes2, err := ioutil.ReadAll(jsonFile2)
+	bytes2, err := io.ReadAll(jsonFile2)
 	require.NoError(t, err)
 
 	err = json.Unmarshal(bytes2, &testCases2)

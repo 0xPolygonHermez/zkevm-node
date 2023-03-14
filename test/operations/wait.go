@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 	"os"
@@ -193,7 +193,7 @@ func NodeUpCondition(target string) (bool, error) {
 		}()
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 
 	if err != nil {
 		return false, err

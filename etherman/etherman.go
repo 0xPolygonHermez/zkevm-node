@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"math/big"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -1028,7 +1028,7 @@ func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 	if path == "" && password == "" {
 		return nil, nil
 	}
-	keystoreEncrypted, err := ioutil.ReadFile(filepath.Clean(path))
+	keystoreEncrypted, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return nil, err
 	}

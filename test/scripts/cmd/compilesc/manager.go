@@ -3,7 +3,6 @@ package compilesc
 import (
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/user"
@@ -70,7 +69,7 @@ func NewManager(basePath string) (*Manager, error) {
 // Run executes the compilation of smart contracts and generation of golang
 // bindings.
 func (cm *Manager) Run() error {
-	yamlFile, err := ioutil.ReadFile(path.Join(cm.absoluteBasePath, "index.yaml"))
+	yamlFile, err := os.ReadFile(path.Join(cm.absoluteBasePath, "index.yaml"))
 	if err != nil {
 		return err
 	}

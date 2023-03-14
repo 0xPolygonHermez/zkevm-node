@@ -4,7 +4,7 @@ package instrumentation_test
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 
@@ -74,7 +74,7 @@ func TestSCTxs(t *testing.T) {
 	require.NoError(t, err)
 	defer tracerFile.Close()
 
-	byteCode, err := ioutil.ReadAll(tracerFile)
+	byteCode, err := io.ReadAll(tracerFile)
 	require.NoError(t, err)
 
 	err = json.Unmarshal(byteCode, &tracer)
@@ -88,7 +88,7 @@ func TestSCTxs(t *testing.T) {
 	// log.Debug(string(j))
 
 	file, _ := json.MarshalIndent(result.ExecutorTrace, "", " ")
-	err = ioutil.WriteFile("trace.json", file, 0644)
+	err = os.WriteFile("trace.json", file, 0644)
 	require.NoError(t, err)
 
 	log.Debug(string(result.ExecutorTraceResult))

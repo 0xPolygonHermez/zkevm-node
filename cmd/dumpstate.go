@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
@@ -158,5 +158,5 @@ func dumpState(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(outputFile, file, 0600) //nolint:gomnd
+	return os.WriteFile(outputFile, file, 0600) //nolint:gomnd
 }
