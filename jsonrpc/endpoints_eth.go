@@ -614,11 +614,11 @@ func (e *EthEndpoints) newPendingTransactionFilter(wsConn *websocket.Conn) (inte
 // SendRawTransaction has two different ways to handle new transactions:
 // - for Sequencer nodes it tries to add the tx to the pool
 // - for Non-Sequencer nodes it relays the Tx to the Sequencer node
-func (e *EthEndpoints) SendRawTransaction(input string) (interface{}, rpcError) {
+func (e *EthEndpoints) SendRawTransaction(input, ip string) (interface{}, rpcError) {
 	if e.cfg.SequencerNodeURI != "" {
 		return e.relayTxToSequencerNode(input)
 	} else {
-		return e.tryToAddTxToPool(input)
+		return e.tryToAddTxToPool(input, ip)
 	}
 }
 
@@ -637,14 +637,14 @@ func (e *EthEndpoints) relayTxToSequencerNode(input string) (interface{}, rpcErr
 	return txHash, nil
 }
 
-func (e *EthEndpoints) tryToAddTxToPool(input string) (interface{}, rpcError) {
+func (e *EthEndpoints) tryToAddTxToPool(input, ip string) (interface{}, rpcError) {
 	tx, err := hexToTx(input)
 	if err != nil {
 		return rpcErrorResponse(invalidParamsErrorCode, "invalid tx input", err)
 	}
 
 	log.Infof("adding TX to the pool: %v", tx.Hash().Hex())
-	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
+	if err := e.pool.AddTx(context.Background(), *tx, ip); err != nil {
 		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
 	}
 	log.Infof("TX added to the pool: %v", tx.Hash().Hex())

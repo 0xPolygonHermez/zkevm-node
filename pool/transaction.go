@@ -38,6 +38,7 @@ type Transaction struct {
 	ReceivedAt            time.Time
 	PreprocessedStateRoot common.Hash
 	IsWIP                 bool
+	IP                    string
 }
 
 // IsClaimTx checks, if tx is a claim tx

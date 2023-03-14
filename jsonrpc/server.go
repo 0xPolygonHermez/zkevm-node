@@ -243,11 +243,13 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	ip := req.Header.Get("X-Forwarded-For")
+
 	start := time.Now()
 	if single {
-		s.handleSingleRequest(w, data)
+		s.handleSingleRequest(w, data, ip)
 	} else {
-		s.handleBatchRequest(w, data)
+		s.handleBatchRequest(w, data, ip)
 	}
 	metrics.RequestDuration(start)
 }
@@ -262,9 +264,9 @@ func (s *Server) isSingleRequest(data []byte) (bool, rpcError) {
 	return x[0] == '{', nil
 }
 
-func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte) {
+func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte, ip string) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelSingle)
-	request, err := s.parseRequest(data)
+	request, err := s.parseRequest(data, ip)
 	if err != nil {
 		handleError(w, err)
 		return
@@ -285,9 +287,9 @@ func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte) {
 	}
 }
 
-func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
+func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte, ip string) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelBatch)
-	requests, err := s.parseRequests(data)
+	requests, err := s.parseRequests(data, ip)
 	if err != nil {
 		handleError(w, err)
 		return
@@ -308,21 +310,27 @@ func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
 	}
 }
 
-func (s *Server) parseRequest(data []byte) (Request, error) {
+func (s *Server) parseRequest(data []byte, ip string) (Request, error) {
 	var req Request
 
 	if err := json.Unmarshal(data, &req); err != nil {
 		return Request{}, newRPCError(invalidRequestErrorCode, "Invalid json request")
 	}
 
+	req.IP = ip
+
 	return req, nil
 }
 
-func (s *Server) parseRequests(data []byte) ([]Request, error) {
+func (s *Server) parseRequests(data []byte, ip string) ([]Request, error) {
 	var requests []Request
 
 	if err := json.Unmarshal(data, &requests); err != nil {
 		return nil, newRPCError(invalidRequestErrorCode, "Invalid json request")
+	}
+
+	for _, req := range requests {
+		req.IP = ip
 	}
 
 	return requests, nil

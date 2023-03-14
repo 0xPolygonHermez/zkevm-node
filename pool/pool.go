@@ -63,30 +63,46 @@ func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Addre
 }
 
 // AddTx adds a transaction to the pool with the pending state
-func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
+func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
 	if err := p.validateTx(ctx, tx); err != nil {
 		return err
 	}
 
-	return p.StoreTx(ctx, tx)
+	return p.StoreTx(ctx, tx, ip)
 }
 
 // StoreTx adds a transaction to the pool with the pending state
-func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction) error {
+func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string) error {
 	poolTx := Transaction{
 		Transaction: tx,
 		Status:      TxStatusPending,
 		IsClaims:    false,
 		ReceivedAt:  time.Now(),
 		IsWIP:       false,
+		IP:          ip,
 	}
 
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
 	// Execute transaction to calculate its zkCounters
-	zkCounters, err := p.PreExecuteTx(ctx, tx)
+	zkCounters, err, isOOC := p.PreExecuteTx(ctx, tx)
 	if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
+
+		if isOOC {
+			event := &state.Event{
+				EventType: state.EventType_Prexecution_OOC,
+				Timestamp: time.Now(),
+				IP:        ip,
+				TxHash:    tx.Hash(),
+			}
+
+			err := p.state.AddEvent(ctx, event, nil)
+			if err != nil {
+				log.Errorf("Error adding event: %v", err)
+			}
+		}
+
 	}
 	poolTx.ZKCounters = zkCounters
 
@@ -94,12 +110,12 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction) error {
 }
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error) {
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error, bool) {
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
-		return state.ZKCounters{}, err
+		return state.ZKCounters{}, err, false
 	}
-	return processBatchResponse.UsedZkCounters, processBatchResponse.ExecutorError
+	return processBatchResponse.UsedZkCounters, processBatchResponse.ExecutorError, !processBatchResponse.IsBatchProcessed
 }
 
 // GetPendingTxs from the pool

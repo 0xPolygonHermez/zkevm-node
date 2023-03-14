@@ -123,6 +123,11 @@ func (h *Handler) Handle(req handleRequest) Response {
 		inArgs[i+1] = val.Elem()
 	}
 
+	// And request IP as an input parameter for eth_sendRawTransaction
+	if req.Method == "eth_sendRawTransaction" {
+		inputs = append(inputs, req.IP)
+	}
+
 	if fd.numParams() > 0 {
 		if err := json.Unmarshal(req.Params, &inputs); err != nil {
 			return NewResponse(req.Request, nil, newRPCError(invalidParamsErrorCode, "Invalid Params"))
