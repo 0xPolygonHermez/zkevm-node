@@ -5,7 +5,7 @@ CREATE TABLE state.event
     timestamp   TIMESTAMP WITH TIME ZONE NOT NULL,
     ip          VARCHAR,
     tx_hash     VARCHAR,
-    payload     VARCHAR,
+    payload     VARCHAR
 );
 
 -- +migrate Down
