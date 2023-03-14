@@ -34,7 +34,6 @@ type Transaction struct {
 	Status   TxStatus
 	IsClaims bool
 	state.ZKCounters
-	FailedCounter         uint64
 	ReceivedAt            time.Time
 	PreprocessedStateRoot common.Hash
 	IsWIP                 bool

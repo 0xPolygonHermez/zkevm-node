@@ -276,8 +276,8 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
 		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
-		nonce, failedCounter uint64
-		isWIP                bool
+		nonce uint64
+		isWIP bool
 	)
 
 	args := []interface{}{filterStatus, minGasPrice, isClaims, limit}
@@ -304,7 +304,6 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			&usedSteps,
 			&receivedAt,
 			&nonce,
-			&failedCounter,
 			&isWIP,
 			&ip,
 		)
@@ -333,7 +332,6 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			UsedBinaries:         usedBinaries,
 			UsedSteps:            usedSteps,
 		}
-		tx.FailedCounter = failedCounter
 		tx.IsWIP = isWIP
 		tx.IP = ip
 
