@@ -102,7 +102,6 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string) err
 				log.Errorf("Error adding event: %v", err)
 			}
 		}
-
 	}
 	poolTx.ZKCounters = zkCounters
 
