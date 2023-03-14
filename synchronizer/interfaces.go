@@ -61,5 +61,5 @@ type ethTxManager interface {
 
 type poolInterface interface {
 	DeleteReorgedTransactions(ctx context.Context, txs []*types.Transaction) error
-	ReorgTx(ctx context.Context, tx types.Transaction) error
+	StoreTx(ctx context.Context, tx types.Transaction) error
 }

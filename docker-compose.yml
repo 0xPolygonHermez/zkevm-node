@@ -5,6 +5,7 @@ networks:
 services:
   zkevm-rpc:
     container_name: zkevm-rpc
+    restart: unless-stopped
     depends_on:
       zkevm-pool-db:
         condition: service_healthy
@@ -19,8 +20,8 @@ services:
     environment:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
-      - ./config/environments/public/public.node.config.toml:/app/config.toml
-      - ./config/environments/public/public.genesis.config.json:/app/genesis.json
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.node.config.toml:/app/config.toml
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.genesis.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -28,6 +29,7 @@ services:
 
   zkevm-sync:
     container_name: zkevm-sync
+    restart: unless-stopped
     depends_on:
       zkevm-state-db:
         condition: service_healthy
@@ -35,8 +37,8 @@ services:
     environment:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
-      - ./config/environments/public/public.node.config.toml:/app/config.toml
-      - ./config/environments/public/public.genesis.config.json:/app/genesis.json
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.node.config.toml:/app/config.toml
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.genesis.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -44,6 +46,7 @@ services:
 
   zkevm-state-db:
     container_name: zkevm-state-db
+    restart: unless-stopped
     image: postgres
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready" ]
@@ -72,6 +75,7 @@ services:
 
   zkevm-pool-db:
     container_name: zkevm-pool-db
+    restart: unless-stopped
     image: postgres
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready" ]
@@ -99,6 +103,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
+    restart: unless-stopped
     image: hermeznetwork/zkevm-prover:45df44e
     depends_on:
       zkevm-state-db:
@@ -107,6 +112,6 @@ services:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      - ./config/environments/public/public.prover.config.json:/usr/src/app/config.json
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.prover.config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json

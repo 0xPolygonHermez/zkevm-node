@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -48,7 +48,7 @@ func main() {
 	log.Info("DONE starting DB and prover")
 
 	// Load vector file names
-	files, err := ioutil.ReadDir(vectorDir)
+	files, err := os.ReadDir(vectorDir)
 	if err != nil {
 		log.Errorf("Error reading directory: %v", err)
 		return
@@ -173,7 +173,7 @@ func loadCase(vectorFileName string) ([]genesisItem, testCase, error) {
 	tc := testCase{}
 	gen := []genesisItem{}
 	// Load and parse test case
-	f, err := ioutil.ReadFile(vectorFileName)
+	f, err := os.ReadFile(vectorFileName)
 	if err != nil {
 		return gen, tc, err
 	}
@@ -182,7 +182,7 @@ func loadCase(vectorFileName string) ([]genesisItem, testCase, error) {
 		return gen, tc, err
 	}
 	// Load and parse genesis
-	f, err = ioutil.ReadFile(genesisDir + tc.GenesisFile)
+	f, err = os.ReadFile(genesisDir + tc.GenesisFile)
 	if err != nil {
 		return gen, tc, err
 	}

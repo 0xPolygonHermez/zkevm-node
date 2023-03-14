@@ -2,11 +2,11 @@ package jsonrpc
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
 
-	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -27,7 +27,7 @@ func (b argUint64) MarshalText() ([]byte, error) {
 // UnmarshalText unmarshals from text
 func (b *argUint64) UnmarshalText(input []byte) error {
 	str := strings.TrimPrefix(string(input), "0x")
-	num, err := strconv.ParseUint(str, hex.Base, encoding.BitSize64)
+	num, err := strconv.ParseUint(str, hex.Base, hex.BitSize64)
 	if err != nil {
 		return err
 	}
@@ -114,6 +114,54 @@ func encodeToHex(b []byte) []byte {
 		str = "0" + str
 	}
 	return []byte("0x" + str)
+}
+
+// argHash represents a common.Hash that accepts strings
+// shorter than 64 bytes, like 0x00
+type argHash common.Hash
+
+// UnmarshalText unmarshals from text
+func (arg *argHash) UnmarshalText(input []byte) error {
+	if !hex.IsValid(string(input)) {
+		return fmt.Errorf("invalid hash, it needs to be a hexadecimal value")
+	}
+
+	str := strings.TrimPrefix(string(input), "0x")
+	*arg = argHash(common.HexToHash(str))
+	return nil
+}
+
+// Hash returns an instance of common.Hash
+func (arg *argHash) Hash() common.Hash {
+	result := common.Hash{}
+	if arg != nil {
+		result = common.Hash(*arg)
+	}
+	return result
+}
+
+// argHash represents a common.Address that accepts strings
+// shorter than 32 bytes, like 0x00
+type argAddress common.Address
+
+// UnmarshalText unmarshals from text
+func (b *argAddress) UnmarshalText(input []byte) error {
+	if !hex.IsValid(string(input)) {
+		return fmt.Errorf("invalid address, it needs to be a hexadecimal value")
+	}
+
+	str := strings.TrimPrefix(string(input), "0x")
+	*b = argAddress(common.HexToAddress(str))
+	return nil
+}
+
+// Address returns an instance of common.Address
+func (arg *argAddress) Address() common.Address {
+	result := common.Address{}
+	if arg != nil {
+		result = common.Address(*arg)
+	}
+	return result
 }
 
 // txnArgs is the transaction argument for the rpc endpoints

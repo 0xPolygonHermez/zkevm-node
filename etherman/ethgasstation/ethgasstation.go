@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 
@@ -47,7 +47,7 @@ func (e *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 		return big.NewInt(0), err
 	}
 	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return big.NewInt(0), err
 	}

@@ -11,12 +11,12 @@ require (
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/google/uuid v1.3.0
 	github.com/hermeznetwork/tracerr v0.3.2
-	github.com/iden3/go-iden3-crypto v0.0.14-0.20220413123345-edc36bfa5247
+	github.com/iden3/go-iden3-crypto v0.0.14
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/prometheus/client_model v0.3.0
-	github.com/prometheus/common v0.41.0
+	github.com/prometheus/common v0.42.0
 	github.com/rubenv/sql-migrate v1.4.0
 	github.com/spf13/afero v1.9.5
 	github.com/spf13/viper v1.15.0
@@ -27,7 +27,7 @@ require (
 	golang.org/x/crypto v0.7.0
 	golang.org/x/sync v0.1.0
 	google.golang.org/grpc v1.53.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.29.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )

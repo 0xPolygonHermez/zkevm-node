@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -187,7 +186,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 	for _, tc := range tcs {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
-			file, err := ioutil.TempFile("", "genesisConfig")
+			file, err := os.CreateTemp("", "genesisConfig")
 			require.NoError(t, err)
 			defer func() {
 				require.NoError(t, os.Remove(file.Name()))

@@ -2,7 +2,7 @@ package vectors
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -18,7 +18,7 @@ func LoadStateTransitionTestCases(path string) ([]StateTransitionTestCase, error
 	}
 	defer func() { _ = jsonFile.Close() }()
 
-	bytes, err := ioutil.ReadAll(jsonFile)
+	bytes, err := io.ReadAll(jsonFile)
 	if err != nil {
 		return testCases, err
 	}

@@ -349,7 +349,11 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
-	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, tx.Hash.String(), f.processRequest.GlobalExitRoot.String())
+	hash := "nil"
+	if tx != nil {
+		hash = tx.HashStr
+	}
+	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hash, f.processRequest.GlobalExitRoot.String())
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest, false)
 	if err != nil {
 		log.Errorf("failed to process transaction, isClaim: %v, err: %s", tx.IsClaim, err)
@@ -382,7 +386,9 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 
 	previousL2BlockStateRoot := f.batch.stateRoot
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
-	log.Infof("handleSuccessfulTxProcessResp: storing processed tx: %s", tx.Hash.String())
+	if tx != nil {
+		log.Infof("handleSuccessfulTxProcessResp: storing processed tx: %s", tx.Hash.String())
+	}
 	f.storeProcessedTx(ctx, previousL2BlockStateRoot, tx, result)
 	f.processRequest.OldStateRoot = result.NewStateRoot
 	f.batch.stateRoot = result.NewStateRoot

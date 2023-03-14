@@ -279,25 +279,26 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 		return nil
 	}
 
-	broadcastClient, _, cancel, err := broadcast.NewClient(s.ctx, s.broadcastURI)
+	broadcastClient, conn, cancel, err := broadcast.NewClient(s.ctx, s.broadcastURI)
 	if err != nil {
 		log.Warn("error connecting to the broadcast. Error: ", err)
 		cancel()
 		return err
 	}
 
+	defer conn.Close()
+	defer cancel()
+
 	log.Info("Getting trusted state info")
 	lastTrustedStateBatch, err := broadcastClient.GetLastBatch(s.ctx, &emptypb.Empty{})
 	if err != nil {
 		log.Warn("error syncing trusted state. Error: ", err)
-		cancel()
 		return err
 	}
 
 	log.Debug("lastTrustedStateBatch.BatchNumber ", lastTrustedStateBatch.BatchNumber)
 	log.Debug("latestSyncedBatch ", latestSyncedBatch)
 	if lastTrustedStateBatch.BatchNumber < latestSyncedBatch {
-		cancel()
 		return nil
 	}
 
@@ -306,20 +307,17 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 		batchToSync, err := broadcastClient.GetBatch(s.ctx, &pb.GetBatchRequest{BatchNumber: batchNumberToSync})
 		if err != nil {
 			log.Warnf("failed to get batch %v from trusted state via broadcast. Error: %v", batchNumberToSync, err)
-			cancel()
 			return err
 		}
 
 		dbTx, err := s.state.BeginStateTransaction(s.ctx)
 		if err != nil {
 			log.Errorf("error creating db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
-			cancel()
 			return err
 		}
 
 		if err := s.processTrustedBatch(batchToSync, dbTx); err != nil {
 			log.Errorf("error processing trusted batch %v: %v", batchNumberToSync, err)
-			cancel()
 			err := dbTx.Rollback(s.ctx)
 			if err != nil {
 				log.Errorf("error rolling back db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
@@ -330,14 +328,12 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 
 		if err := dbTx.Commit(s.ctx); err != nil {
 			log.Errorf("error committing db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
-			cancel()
 			return err
 		}
 
 		batchNumberToSync++
 	}
 
-	cancel()
 	log.Info("Trusted state fully synchronized")
 	return nil
 }
@@ -1143,7 +1139,7 @@ func (s *ClientSynchronizer) reorgPool(dbTx pgx.Tx) error {
 
 	// Add txs to the pool
 	for _, tx := range txs {
-		err = s.pool.ReorgTx(s.ctx, *tx)
+		err = s.pool.StoreTx(s.ctx, *tx)
 		if err != nil {
 			log.Errorf("error storing tx into the pool again. TxHash: %s. BatchNumber: %d, error: %v", tx.Hash().String(), batchNumber, err)
 			return err

@@ -2,7 +2,7 @@ package vectors
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -17,7 +17,7 @@ func LoadTxEventsSendBatchTestCases(path string) ([]TxEventsSendBatchTestCase, e
 	}
 	defer func() { _ = jsonFile.Close() }()
 
-	bytes, err := ioutil.ReadAll(jsonFile)
+	bytes, err := io.ReadAll(jsonFile)
 	if err != nil {
 		return testCases, err
 	}
