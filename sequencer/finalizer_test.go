@@ -28,7 +28,7 @@ var (
 	dbTxMock      = new(DbTxMock)
 	bc            = batchConstraints{
 		MaxTxsPerBatch:       150,
-		MaxBatchBytesSize:    150000,
+		MaxBatchBytesSize:    112640,
 		MaxCumulativeGasUsed: 30000000,
 		MaxKeccakHashes:      468,
 		MaxPoseidonHashes:    279620,

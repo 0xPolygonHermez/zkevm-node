@@ -20,6 +20,7 @@ MaxConns = 200
 
 [Pool]
 FreeClaimGasLimit = 150000
+MaxTxBytesSize=102400
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
@@ -69,7 +70,7 @@ LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
-MaxBatchBytesSize = 150000
+MaxBatchBytesSize = 112640
 MaxCumulativeGasUsed = 30000000
 MaxKeccakHashes = 468
 MaxPoseidonHashes = 279620

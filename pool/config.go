@@ -6,5 +6,6 @@ import "github.com/0xPolygonHermez/zkevm-node/db"
 type Config struct {
 	// FreeClaimGasLimit is the max gas allowed use to do a free claim
 	FreeClaimGasLimit uint64    `mapstructure:"FreeClaimGasLimit"`
+	MaxTxBytesSize    uint64    `mapstructure:"MaxTxBytesSize"`
 	DB                db.Config `mapstructure:"DB"`
 }

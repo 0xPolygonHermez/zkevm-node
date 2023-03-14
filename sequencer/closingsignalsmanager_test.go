@@ -55,7 +55,7 @@ func setupTest(t *testing.T) {
 
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       150,
-		MaxBatchBytesSize:    150000,
+		MaxBatchBytesSize:    112640,
 		MaxCumulativeGasUsed: 30000000,
 		MaxKeccakHashes:      468,
 		MaxPoseidonHashes:    279620,
