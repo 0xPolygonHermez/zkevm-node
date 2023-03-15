@@ -9,7 +9,8 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
@@ -19,7 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	coreTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
@@ -78,11 +79,11 @@ func TestDebugTraceTransactionNotFoundTx(t *testing.T) {
 
 	for _, network := range networks {
 		log.Debugf(network.Name)
-		tx := types.NewTx(&types.LegacyTx{
+		tx := coreTypes.NewTx(&coreTypes.LegacyTx{
 			Nonce: 10,
 		})
 
-		response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceTransaction", tx.Hash().String())
+		response, err := client.JSONRPCCall(network.URL, "debug_traceTransaction", tx.Hash().String())
 		require.NoError(t, err)
 		require.Nil(t, response.Result)
 		require.NotNil(t, response.Error)
@@ -146,7 +147,7 @@ func TestDebugTraceBlockByNumberNotFoundTx(t *testing.T) {
 	for _, network := range networks {
 		log.Debugf(network.Name)
 
-		response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(big.NewInt(999999999999)))
+		response, err := client.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(big.NewInt(999999999999)))
 		require.NoError(t, err)
 		require.Nil(t, response.Result)
 		require.NotNil(t, response.Error)
@@ -210,7 +211,7 @@ func TestDebugTraceBlockByHashNotFoundTx(t *testing.T) {
 	for _, network := range networks {
 		log.Debugf(network.Name)
 
-		response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceBlockByHash", common.Hash{}.String())
+		response, err := client.JSONRPCCall(network.URL, "debug_traceBlockByHash", common.Hash{}.String())
 		require.NoError(t, err)
 		require.Nil(t, response.Result)
 		require.NotNil(t, response.Error)
@@ -276,7 +277,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 	type testCase struct {
 		name           string
 		prepare        func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
-		createSignedTx func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error)
+		createSignedTx func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*coreTypes.Transaction, error)
 	}
 	testCases := []testCase{
 		// successful transactions
@@ -295,24 +296,24 @@ func TestDebugTraceTransaction(t *testing.T) {
 			log.Debugf(tc.name)
 			for _, network := range networks {
 				log.Debugf(network.Name)
-				client := operations.MustGetClient(network.URL)
+				ethereumClient := operations.MustGetClient(network.URL)
 				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
 				var customData map[string]interface{}
 				if tc.prepare != nil {
-					customData, err = tc.prepare(t, ctx, auth, client)
+					customData, err = tc.prepare(t, ctx, auth, ethereumClient)
 					require.NoError(t, err)
 				}
 
-				signedTx, err := tc.createSignedTx(t, ctx, auth, client, customData)
+				signedTx, err := tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
 				require.NoError(t, err)
 
-				err = client.SendTransaction(ctx, signedTx)
+				err = ethereumClient.SendTransaction(ctx, signedTx)
 				require.NoError(t, err)
 
 				log.Debugf("tx sent: %v", signedTx.Hash().String())
 
-				err = operations.WaitTxToBeMined(ctx, client, signedTx, operations.DefaultTimeoutTxToBeMined)
+				err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
 				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
 					require.NoError(t, err)
 				}
@@ -324,7 +325,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 					"enableReturnData": true,
 				}
 
-				response, err := jsonrpc.JSONRPCCall(network.URL, "debug_traceTransaction", signedTx.Hash().String(), debugOptions)
+				response, err := client.JSONRPCCall(network.URL, "debug_traceTransaction", signedTx.Hash().String(), debugOptions)
 				require.NoError(t, err)
 				require.Nil(t, response.Error)
 				require.NotNil(t, response.Result)
@@ -336,7 +337,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 				// filePath := fmt.Sprintf("/home/tclemos/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
 				// b, _ := signedTx.MarshalBinary()
 				// fileContent := struct {
-				// 	Tx    *types.Transaction
+				// 	Tx    *coreTypes.Transaction
 				// 	RLP   string
 				// 	Trace json.RawMessage
 				// }{
@@ -472,7 +473,7 @@ func TestDebugTraceBlock(t *testing.T) {
 		name              string
 		blockNumberOrHash string
 		prepare           func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
-		createSignedTx    func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error)
+		createSignedTx    func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*coreTypes.Transaction, error)
 	}
 	testCases := []testCase{
 		// successful transactions
@@ -499,29 +500,29 @@ func TestDebugTraceBlock(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, network := range networks {
 				log.Debugf(network.Name)
-				client := operations.MustGetClient(network.URL)
+				ethereumClient := operations.MustGetClient(network.URL)
 				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
 				var customData map[string]interface{}
 				if tc.prepare != nil {
-					customData, err = tc.prepare(t, ctx, auth, client)
+					customData, err = tc.prepare(t, ctx, auth, ethereumClient)
 					require.NoError(t, err)
 				}
 
-				signedTx, err := tc.createSignedTx(t, ctx, auth, client, customData)
+				signedTx, err := tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
 				require.NoError(t, err)
 
-				err = client.SendTransaction(ctx, signedTx)
+				err = ethereumClient.SendTransaction(ctx, signedTx)
 				require.NoError(t, err)
 
 				log.Debugf("tx sent: %v", signedTx.Hash().String())
 
-				err = operations.WaitTxToBeMined(ctx, client, signedTx, operations.DefaultTimeoutTxToBeMined)
+				err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
 				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
 					require.NoError(t, err)
 				}
 
-				receipt, err := client.TransactionReceipt(ctx, signedTx.Hash())
+				receipt, err := ethereumClient.TransactionReceipt(ctx, signedTx.Hash())
 				require.NoError(t, err)
 
 				debugOptions := map[string]interface{}{
@@ -531,11 +532,11 @@ func TestDebugTraceBlock(t *testing.T) {
 					"enableReturnData": true,
 				}
 
-				var response jsonrpc.Response
+				var response types.Response
 				if tc.blockNumberOrHash == "number" {
-					response, err = jsonrpc.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(receipt.BlockNumber), debugOptions)
+					response, err = client.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(receipt.BlockNumber), debugOptions)
 				} else {
-					response, err = jsonrpc.JSONRPCCall(network.URL, "debug_traceBlockByHash", receipt.BlockHash.String(), debugOptions)
+					response, err = client.JSONRPCCall(network.URL, "debug_traceBlockByHash", receipt.BlockHash.String(), debugOptions)
 				}
 				require.NoError(t, err)
 				require.Nil(t, response.Error)
@@ -617,7 +618,7 @@ func TestDebugTraceBlock(t *testing.T) {
 	}
 }
 
-func createEthTransferSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+func createEthTransferSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*coreTypes.Transaction, error) {
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
 
@@ -632,7 +633,7 @@ func createEthTransferSignedTx(t *testing.T, ctx context.Context, auth *bind.Tra
 	})
 	require.NoError(t, err)
 
-	tx := types.NewTx(&types.LegacyTx{
+	tx := coreTypes.NewTx(&coreTypes.LegacyTx{
 		Nonce:    nonce,
 		To:       &to,
 		GasPrice: gasPrice,
@@ -642,7 +643,7 @@ func createEthTransferSignedTx(t *testing.T, ctx context.Context, auth *bind.Tra
 	return auth.Signer(auth.From, tx)
 }
 
-func createScDeploySignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+func createScDeploySignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*coreTypes.Transaction, error) {
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
 
@@ -659,7 +660,7 @@ func createScDeploySignedTx(t *testing.T, ctx context.Context, auth *bind.Transa
 	})
 	require.NoError(t, err)
 
-	tx := types.NewTx(&types.LegacyTx{
+	tx := coreTypes.NewTx(&coreTypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: gasPrice,
 		Gas:      gas,
@@ -681,7 +682,7 @@ func prepareScCall(t *testing.T, ctx context.Context, auth *bind.TransactOpts, c
 	}, nil
 }
 
-func createScCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+func createScCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*coreTypes.Transaction, error) {
 	scInterface := customData["sc"]
 	sc := scInterface.(*EmitLog.EmitLog)
 
@@ -712,7 +713,7 @@ func prepareERC20Transfer(t *testing.T, ctx context.Context, auth *bind.Transact
 	}, nil
 }
 
-func createERC20TransferSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+func createERC20TransferSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*coreTypes.Transaction, error) {
 	scInterface := customData["sc"]
 	sc := scInterface.(*ERC20.ERC20)
 
@@ -727,7 +728,7 @@ func createERC20TransferSignedTx(t *testing.T, ctx context.Context, auth *bind.T
 	return tx, nil
 }
 
-func createScDeployRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+func createScDeployRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*coreTypes.Transaction, error) {
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
 
@@ -738,7 +739,7 @@ func createScDeployRevertedSignedTx(t *testing.T, ctx context.Context, auth *bin
 	require.NoError(t, err)
 	data := common.Hex2Bytes(scByteCode)
 
-	tx := types.NewTx(&types.LegacyTx{
+	tx := coreTypes.NewTx(&coreTypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: gasPrice,
 		Gas:      fixedTxGasLimit,
@@ -760,7 +761,7 @@ func prepareScCallReverted(t *testing.T, ctx context.Context, auth *bind.Transac
 	}, nil
 }
 
-func createScCallRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+func createScCallRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*coreTypes.Transaction, error) {
 	scInterface := customData["sc"]
 	sc := scInterface.(*Revert2.Revert2)
 
@@ -789,7 +790,7 @@ func prepareERC20TransferReverted(t *testing.T, ctx context.Context, auth *bind.
 	}, nil
 }
 
-func createERC20TransferRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*types.Transaction, error) {
+func createERC20TransferRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*coreTypes.Transaction, error) {
 	scInterface := customData["sc"]
 	sc := scInterface.(*ERC20.ERC20)
 

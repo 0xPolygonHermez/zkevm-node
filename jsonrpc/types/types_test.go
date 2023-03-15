@@ -1,4 +1,4 @@
-package jsonrpc
+package types
 
 import (
 	"fmt"
@@ -50,7 +50,7 @@ func TestArgHashUnmarshalFromShortString(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			arg := argHash{}
+			arg := ArgHash{}
 			err := arg.UnmarshalText([]byte(testCase.input))
 			require.Equal(t, testCase.expectedError, err)
 			assert.Equal(t, testCase.expectedResult, arg.Hash().String())
@@ -100,7 +100,7 @@ func TestArgAddressUnmarshalFromShortString(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			arg := argAddress{}
+			arg := ArgAddress{}
 			err := arg.UnmarshalText([]byte(testCase.input))
 			require.Equal(t, testCase.expectedError, err)
 			assert.Equal(t, testCase.expectedResult, arg.Address().String())

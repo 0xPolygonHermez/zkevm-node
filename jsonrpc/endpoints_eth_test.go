@@ -11,6 +11,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -18,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	coreTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
@@ -37,7 +38,7 @@ func TestBlockNumber(t *testing.T) {
 		Name           string
 		ExpectedResult uint64
 		ExpectedError  interface{}
-		SetupMocks     func(m *mocks)
+		SetupMocks     func(m *mocksWrapper)
 	}
 
 	testCases := []testCase{
@@ -45,7 +46,7 @@ func TestBlockNumber(t *testing.T) {
 			Name:           "get block number successfully",
 			ExpectedError:  nil,
 			ExpectedResult: 10,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -64,9 +65,9 @@ func TestBlockNumber(t *testing.T) {
 		},
 		{
 			Name:           "failed to get block number",
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
 			ExpectedResult: 0,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -94,7 +95,7 @@ func TestBlockNumber(t *testing.T) {
 			assert.Equal(t, testCase.ExpectedResult, result)
 
 			if err != nil || testCase.ExpectedError != nil {
-				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := testCase.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -121,7 +122,7 @@ func TestCall(t *testing.T) {
 		blockNumber    *big.Int
 		expectedResult []byte
 		expectedError  interface{}
-		setupMocks     func(Config, *mocks, *testCase)
+		setupMocks     func(Config, *mocksWrapper, *testCase)
 	}
 
 	testCases := []*testCase{
@@ -135,13 +136,13 @@ func TestCall(t *testing.T) {
 			data:           []byte("data"),
 			expectedResult: []byte("hello world"),
 			expectedError:  nil,
-			setupMocks: func(c Config, m *mocks, testCase *testCase) {
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(1)
 				nonce := uint64(7)
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
-				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
+				txMatchBy := mock.MatchedBy(func(tx *coreTypes.Transaction) bool {
 					return tx != nil &&
 						tx.Gas() == testCase.gas &&
 						tx.To().Hex() == testCase.to.Hex() &&
@@ -163,14 +164,14 @@ func TestCall(t *testing.T) {
 			data:           []byte("data"),
 			expectedResult: []byte("hello world"),
 			expectedError:  nil,
-			setupMocks: func(c Config, m *mocks, testCase *testCase) {
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(1)
-				block := types.NewBlockWithHeader(&types.Header{Root: common.Hash{}, GasLimit: s.Config.MaxCumulativeGasUsed})
+				block := coreTypes.NewBlockWithHeader(&coreTypes.Header{Root: common.Hash{}, GasLimit: s.Config.MaxCumulativeGasUsed})
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
-				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
+				txMatchBy := mock.MatchedBy(func(tx *coreTypes.Transaction) bool {
 					hasTx := tx != nil
 					gasMatch := tx.Gas() == block.Header().GasLimit
 					toMatch := tx.To().Hex() == testCase.to.Hex()
@@ -192,14 +193,14 @@ func TestCall(t *testing.T) {
 			blockNumber:    big.NewInt(-1),
 			expectedResult: []byte("hello world"),
 			expectedError:  nil,
-			setupMocks: func(c Config, m *mocks, testCase *testCase) {
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(1)
-				block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(1), Root: common.Hash{}, GasLimit: s.Config.MaxCumulativeGasUsed})
+				block := coreTypes.NewBlockWithHeader(&coreTypes.Header{Number: big.NewInt(1), Root: common.Hash{}, GasLimit: s.Config.MaxCumulativeGasUsed})
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
-				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
+				txMatchBy := mock.MatchedBy(func(tx *coreTypes.Transaction) bool {
 					hasTx := tx != nil
 					gasMatch := tx.Gas() == block.Header().GasLimit
 					toMatch := tx.To().Hex() == testCase.to.Hex()
@@ -219,8 +220,8 @@ func TestCall(t *testing.T) {
 			value:          big.NewInt(2),
 			data:           []byte("data"),
 			expectedResult: nil,
-			expectedError:  newRPCError(defaultErrorCode, "failed to get block header"),
-			setupMocks: func(c Config, m *mocks, testCase *testCase) {
+			expectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get block header"),
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(nil, errors.New("failed to get last block")).Once()
@@ -234,8 +235,8 @@ func TestCall(t *testing.T) {
 			data:           []byte("data"),
 			blockNumber:    big.NewInt(-1),
 			expectedResult: nil,
-			expectedError:  newRPCError(defaultErrorCode, "failed to get block header"),
-			setupMocks: func(c Config, m *mocks, testCase *testCase) {
+			expectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get block header"),
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(nil, errors.New("failed to get last block")).Once()
@@ -250,8 +251,8 @@ func TestCall(t *testing.T) {
 			value:          big.NewInt(2),
 			data:           []byte("data"),
 			expectedResult: nil,
-			expectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
-			setupMocks: func(c Config, m *mocks, testCase *testCase) {
+			expectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(uint64(0), errors.New("failed to get last block number")).Once()
@@ -266,14 +267,14 @@ func TestCall(t *testing.T) {
 			value:          big.NewInt(2),
 			data:           []byte("data"),
 			expectedResult: nil,
-			expectedError:  newRPCError(revertedErrorCode, "failed to process unsigned transaction"),
-			setupMocks: func(c Config, m *mocks, testCase *testCase) {
+			expectedError:  types.NewRPCError(types.RevertedErrorCode, "failed to process unsigned transaction"),
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(1)
 				nonce := uint64(7)
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
-				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
+				txMatchBy := mock.MatchedBy(func(tx *coreTypes.Transaction) bool {
 					hasTx := tx != nil
 					gasMatch := tx.Gas() == testCase.gas
 					toMatch := tx.To().Hex() == testCase.to.Hex()
@@ -299,7 +300,7 @@ func TestCall(t *testing.T) {
 			result, err := c.CallContract(context.Background(), msg, testCase.blockNumber)
 			assert.Equal(t, testCase.expectedResult, result)
 			if err != nil || testCase.expectedError != nil {
-				if expectedErr, ok := testCase.expectedError.(*RPCError); ok {
+				if expectedErr, ok := testCase.expectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -333,7 +334,7 @@ func TestEstimateGas(t *testing.T) {
 		gasPrice   *big.Int
 		value      *big.Int
 		data       []byte
-		setupMocks func(Config, *mocks, *testCase)
+		setupMocks func(Config, *mocksWrapper, *testCase)
 
 		expectedResult uint64
 	}
@@ -348,10 +349,10 @@ func TestEstimateGas(t *testing.T) {
 			value:          big.NewInt(2),
 			data:           []byte("data"),
 			expectedResult: 100,
-			setupMocks: func(c Config, m *mocks, testCase *testCase) {
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(10)
 				nonce := uint64(7)
-				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
+				txMatchBy := mock.MatchedBy(func(tx *coreTypes.Transaction) bool {
 					if tx == nil {
 						return false
 					}
@@ -391,10 +392,10 @@ func TestEstimateGas(t *testing.T) {
 			value:          big.NewInt(2),
 			data:           []byte("data"),
 			expectedResult: 100,
-			setupMocks: func(c Config, m *mocks, testCase *testCase) {
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(9)
 				nonce := uint64(0)
-				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
+				txMatchBy := mock.MatchedBy(func(tx *coreTypes.Transaction) bool {
 					if tx == nil {
 						return false
 					}
@@ -477,8 +478,8 @@ func TestGetBalance(t *testing.T) {
 		balance         *big.Int
 		blockNumber     *big.Int
 		expectedBalance uint64
-		expectedError   *RPCError
-		setupMocks      func(m *mocks, t *testCase)
+		expectedError   *types.RPCError
+		setupMocks      func(m *mocksWrapper, t *testCase)
 	}
 
 	testCases := []testCase{
@@ -488,8 +489,8 @@ func TestGetBalance(t *testing.T) {
 			balance:         big.NewInt(1000),
 			blockNumber:     nil,
 			expectedBalance: 0,
-			expectedError:   newRPCError(defaultErrorCode, "failed to get the last block number from state"),
-			setupMocks: func(m *mocks, t *testCase) {
+			expectedError:   types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
+			setupMocks: func(m *mocksWrapper, t *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -513,7 +514,7 @@ func TestGetBalance(t *testing.T) {
 			blockNumber:     nil,
 			expectedBalance: 1000,
 			expectedError:   nil,
-			setupMocks: func(m *mocks, t *testCase) {
+			setupMocks: func(m *mocksWrapper, t *testCase) {
 				const lastBlockNumber = uint64(10)
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -543,7 +544,7 @@ func TestGetBalance(t *testing.T) {
 			blockNumber:     nil,
 			expectedBalance: 0,
 			expectedError:   nil,
-			setupMocks: func(m *mocks, t *testCase) {
+			setupMocks: func(m *mocksWrapper, t *testCase) {
 				const lastBlockNumber = uint64(10)
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -572,8 +573,8 @@ func TestGetBalance(t *testing.T) {
 			balance:         big.NewInt(1000),
 			blockNumber:     nil,
 			expectedBalance: 0,
-			expectedError:   newRPCError(defaultErrorCode, "failed to get balance from state"),
-			setupMocks: func(m *mocks, t *testCase) {
+			expectedError:   types.NewRPCError(types.DefaultErrorCode, "failed to get balance from state"),
+			setupMocks: func(m *mocksWrapper, t *testCase) {
 				const lastBlockNumber = uint64(10)
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -617,9 +618,9 @@ func TestGetL2BlockByHash(t *testing.T) {
 	type testCase struct {
 		Name           string
 		Hash           common.Hash
-		ExpectedResult *types.Block
+		ExpectedResult *coreTypes.Block
 		ExpectedError  interface{}
-		SetupMocks     func(*mocks, *testCase)
+		SetupMocks     func(*mocksWrapper, *testCase)
 	}
 
 	testCases := []testCase{
@@ -628,7 +629,7 @@ func TestGetL2BlockByHash(t *testing.T) {
 			Hash:           common.HexToHash("0x123"),
 			ExpectedResult: nil,
 			ExpectedError:  ethereum.NotFound,
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -648,8 +649,8 @@ func TestGetL2BlockByHash(t *testing.T) {
 			Name:           "Failed get block from state",
 			Hash:           common.HexToHash("0x234"),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get block by hash from state"),
-			SetupMocks: func(m *mocks, tc *testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get block by hash from state"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -669,16 +670,16 @@ func TestGetL2BlockByHash(t *testing.T) {
 		{
 			Name: "get block successfully",
 			Hash: common.HexToHash("0x345"),
-			ExpectedResult: types.NewBlock(
-				&types.Header{Number: big.NewInt(1), UncleHash: types.EmptyUncleHash, Root: types.EmptyRootHash},
-				[]*types.Transaction{types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
+			ExpectedResult: coreTypes.NewBlock(
+				&coreTypes.Header{Number: big.NewInt(1), UncleHash: coreTypes.EmptyUncleHash, Root: coreTypes.EmptyRootHash},
+				[]*coreTypes.Transaction{coreTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
 				nil,
-				[]*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))},
+				[]*coreTypes.Receipt{coreTypes.NewReceipt([]byte{}, false, uint64(0))},
 				&trie.StackTrie{},
 			),
 			ExpectedError: nil,
-			SetupMocks: func(m *mocks, tc *testCase) {
-				block := types.NewBlock(types.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), tc.ExpectedResult.Uncles(), []*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				block := coreTypes.NewBlock(coreTypes.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), tc.ExpectedResult.Uncles(), []*coreTypes.Receipt{coreTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -715,7 +716,7 @@ func TestGetL2BlockByHash(t *testing.T) {
 			}
 
 			if err != nil || tc.ExpectedError != nil {
-				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -731,9 +732,9 @@ func TestGetL2BlockByNumber(t *testing.T) {
 	type testCase struct {
 		Name           string
 		Number         *big.Int
-		ExpectedResult *types.Block
+		ExpectedResult *coreTypes.Block
 		ExpectedError  interface{}
-		SetupMocks     func(*mocks, *testCase)
+		SetupMocks     func(*mocksWrapper, *testCase)
 	}
 
 	testCases := []testCase{
@@ -742,7 +743,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			Number:         big.NewInt(123),
 			ExpectedResult: nil,
 			ExpectedError:  ethereum.NotFound,
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -761,17 +762,17 @@ func TestGetL2BlockByNumber(t *testing.T) {
 		{
 			Name:   "get specific block successfully",
 			Number: big.NewInt(345),
-			ExpectedResult: types.NewBlock(
-				&types.Header{Number: big.NewInt(1), UncleHash: types.EmptyUncleHash, Root: types.EmptyRootHash},
-				[]*types.Transaction{types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
+			ExpectedResult: coreTypes.NewBlock(
+				&coreTypes.Header{Number: big.NewInt(1), UncleHash: coreTypes.EmptyUncleHash, Root: coreTypes.EmptyRootHash},
+				[]*coreTypes.Transaction{coreTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
 				nil,
-				[]*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))},
+				[]*coreTypes.Receipt{coreTypes.NewReceipt([]byte{}, false, uint64(0))},
 				&trie.StackTrie{},
 			),
 			ExpectedError: nil,
-			SetupMocks: func(m *mocks, tc *testCase) {
-				block := types.NewBlock(types.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(),
-					tc.ExpectedResult.Uncles(), []*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				block := coreTypes.NewBlock(coreTypes.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(),
+					tc.ExpectedResult.Uncles(), []*coreTypes.Receipt{coreTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -792,15 +793,15 @@ func TestGetL2BlockByNumber(t *testing.T) {
 		{
 			Name:   "get latest block successfully",
 			Number: nil,
-			ExpectedResult: types.NewBlock(
-				&types.Header{Number: big.NewInt(2), UncleHash: types.EmptyUncleHash, Root: types.EmptyRootHash},
-				[]*types.Transaction{types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
+			ExpectedResult: coreTypes.NewBlock(
+				&coreTypes.Header{Number: big.NewInt(2), UncleHash: coreTypes.EmptyUncleHash, Root: coreTypes.EmptyRootHash},
+				[]*coreTypes.Transaction{coreTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
 				nil,
-				[]*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))},
+				[]*coreTypes.Receipt{coreTypes.NewReceipt([]byte{}, false, uint64(0))},
 				&trie.StackTrie{},
 			),
 			ExpectedError: nil,
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -826,8 +827,8 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			Name:           "get latest block fails to compute block number",
 			Number:         nil,
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
-			SetupMocks: func(m *mocks, tc *testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -848,8 +849,8 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			Name:           "get latest block fails to load block by number",
 			Number:         nil,
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "couldn't load block from state by number 1"),
-			SetupMocks: func(m *mocks, tc *testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "couldn't load block from state by number 1"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -874,16 +875,16 @@ func TestGetL2BlockByNumber(t *testing.T) {
 		{
 			Name:           "get pending block successfully",
 			Number:         big.NewInt(-1),
-			ExpectedResult: types.NewBlock(&types.Header{Number: big.NewInt(2)}, nil, nil, nil, &trie.StackTrie{}),
+			ExpectedResult: coreTypes.NewBlock(&coreTypes.Header{Number: big.NewInt(2)}, nil, nil, nil, &trie.StackTrie{}),
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc *testCase) {
-				lastBlockHeader := types.CopyHeader(tc.ExpectedResult.Header())
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				lastBlockHeader := coreTypes.CopyHeader(tc.ExpectedResult.Header())
 				lastBlockHeader.Number.Sub(lastBlockHeader.Number, big.NewInt(1))
-				lastBlock := types.NewBlock(lastBlockHeader, nil, nil, nil, &trie.StackTrie{})
+				lastBlock := coreTypes.NewBlock(lastBlockHeader, nil, nil, nil, &trie.StackTrie{})
 
-				expectedResultHeader := types.CopyHeader(tc.ExpectedResult.Header())
+				expectedResultHeader := coreTypes.CopyHeader(tc.ExpectedResult.Header())
 				expectedResultHeader.ParentHash = lastBlock.Hash()
-				tc.ExpectedResult = types.NewBlock(expectedResultHeader, nil, nil, nil, &trie.StackTrie{})
+				tc.ExpectedResult = coreTypes.NewBlock(expectedResultHeader, nil, nil, nil, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -905,8 +906,8 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			Name:           "get pending block fails",
 			Number:         big.NewInt(-1),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "couldn't load last block from state to compute the pending block"),
-			SetupMocks: func(m *mocks, tc *testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -949,7 +950,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			}
 
 			if err != nil || tc.ExpectedError != nil {
-				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -1014,7 +1015,7 @@ func TestGetUncleCountByBlockHash(t *testing.T) {
 	assert.Equal(t, "2.0", res.JSONRPC)
 	assert.Nil(t, res.Error)
 
-	var result argUint64
+	var result types.ArgUint64
 	err = json.Unmarshal(res.Result, &result)
 	require.NoError(t, err)
 
@@ -1034,7 +1035,7 @@ func TestGetUncleCountByBlockNumber(t *testing.T) {
 	assert.Equal(t, "2.0", res.JSONRPC)
 	assert.Nil(t, res.Error)
 
-	var result argUint64
+	var result types.ArgUint64
 	err = json.Unmarshal(res.Result, &result)
 	require.NoError(t, err)
 
@@ -1052,7 +1053,7 @@ func TestGetCode(t *testing.T) {
 		ExpectedResult []byte
 		ExpectedError  interface{}
 
-		SetupMocks func(m *mocks, tc *testCase)
+		SetupMocks func(m *mocksWrapper, tc *testCase)
 	}
 
 	testCases := []testCase{
@@ -1061,9 +1062,9 @@ func TestGetCode(t *testing.T) {
 			Addr:           common.HexToAddress("0x123"),
 			BlockNumber:    nil,
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
 
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1085,9 +1086,9 @@ func TestGetCode(t *testing.T) {
 			Addr:           common.HexToAddress("0x123"),
 			BlockNumber:    big.NewInt(1),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get code"),
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get code"),
 
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1111,7 +1112,7 @@ func TestGetCode(t *testing.T) {
 			ExpectedResult: []byte{},
 			ExpectedError:  nil,
 
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1135,7 +1136,7 @@ func TestGetCode(t *testing.T) {
 			ExpectedResult: []byte{1, 2, 3},
 			ExpectedError:  nil,
 
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1162,7 +1163,7 @@ func TestGetCode(t *testing.T) {
 			assert.Equal(t, tc.ExpectedResult, result)
 
 			if err != nil || tc.ExpectedError != nil {
-				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -1186,7 +1187,7 @@ func TestGetStorageAt(t *testing.T) {
 		ExpectedResult []byte
 		ExpectedError  interface{}
 
-		SetupMocks func(m *mocks, tc *testCase)
+		SetupMocks func(m *mocksWrapper, tc *testCase)
 	}
 
 	testCases := []testCase{
@@ -1196,9 +1197,9 @@ func TestGetStorageAt(t *testing.T) {
 			Key:            common.HexToHash("0x123"),
 			BlockNumber:    nil,
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
 
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1221,9 +1222,9 @@ func TestGetStorageAt(t *testing.T) {
 			Key:            common.HexToHash("0x123"),
 			BlockNumber:    big.NewInt(1),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get storage value from state"),
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get storage value from state"),
 
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1248,7 +1249,7 @@ func TestGetStorageAt(t *testing.T) {
 			ExpectedResult: common.Hash{}.Bytes(),
 			ExpectedError:  nil,
 
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1273,7 +1274,7 @@ func TestGetStorageAt(t *testing.T) {
 			ExpectedResult: common.BigToHash(big.NewInt(123)).Bytes(),
 			ExpectedError:  nil,
 
-			SetupMocks: func(m *mocks, tc *testCase) {
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1300,7 +1301,7 @@ func TestGetStorageAt(t *testing.T) {
 			assert.Equal(t, tc.ExpectedResult, result)
 
 			if err != nil || tc.ExpectedError != nil {
-				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -1337,16 +1338,16 @@ func TestSyncing(t *testing.T) {
 	type testCase struct {
 		Name           string
 		ExpectedResult *ethereum.SyncProgress
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks, tc testCase)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
 		{
 			Name:           "failed to get last l2 block number",
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get last block number from state"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get last block number from state"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1366,8 +1367,8 @@ func TestSyncing(t *testing.T) {
 		{
 			Name:           "failed to get syncing information",
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get syncing info from state"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get syncing info from state"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1393,7 +1394,7 @@ func TestSyncing(t *testing.T) {
 			Name:           "get syncing information successfully while syncing",
 			ExpectedResult: &ethereum.SyncProgress{StartingBlock: 1, CurrentBlock: 2, HighestBlock: 3},
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1419,7 +1420,7 @@ func TestSyncing(t *testing.T) {
 			Name:           "get syncing information successfully when synced",
 			ExpectedResult: nil,
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1455,7 +1456,7 @@ func TestSyncing(t *testing.T) {
 			}
 
 			if err != nil || testCase.ExpectedError != nil {
-				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := testCase.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -1476,9 +1477,9 @@ func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 		Hash  common.Hash
 		Index uint
 
-		ExpectedResult *types.Transaction
+		ExpectedResult *coreTypes.Transaction
 		ExpectedError  interface{}
-		SetupMocks     func(m *mocks, tc testCase)
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -1486,9 +1487,9 @@ func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 			Name:           "Get Tx Successfully",
 			Hash:           common.HexToHash("0x999"),
 			Index:          uint(1),
-			ExpectedResult: types.NewTransaction(1, common.HexToAddress("0x111"), big.NewInt(2), 3, big.NewInt(4), []byte{5, 6, 7, 8}),
+			ExpectedResult: coreTypes.NewTransaction(1, common.HexToAddress("0x111"), big.NewInt(2), 3, big.NewInt(4), []byte{5, 6, 7, 8}),
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				tx := tc.ExpectedResult
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1505,7 +1506,7 @@ func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 					Return(tx, nil).
 					Once()
 
-				receipt := types.NewReceipt([]byte{}, false, 0)
+				receipt := coreTypes.NewReceipt([]byte{}, false, 0)
 				receipt.BlockHash = common.Hash{}
 				receipt.BlockNumber = big.NewInt(1)
 				receipt.TransactionIndex = tc.Index
@@ -1522,7 +1523,7 @@ func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 			Index:          uint(1),
 			ExpectedResult: nil,
 			ExpectedError:  ethereum.NotFound,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1544,8 +1545,8 @@ func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 			Hash:           common.HexToHash("0x999"),
 			Index:          uint(1),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get transaction"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get transaction"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1568,8 +1569,8 @@ func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 			Index:          uint(1),
 			ExpectedResult: nil,
 			ExpectedError:  ethereum.NotFound,
-			SetupMocks: func(m *mocks, tc testCase) {
-				tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				tx := coreTypes.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1596,9 +1597,9 @@ func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 			Hash:           common.HexToHash("0x999"),
 			Index:          uint(1),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get transaction receipt"),
-			SetupMocks: func(m *mocks, tc testCase) {
-				tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get transaction receipt"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				tx := coreTypes.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1634,7 +1635,7 @@ func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 			}
 
 			if err != nil || testCase.ExpectedError != nil {
-				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := testCase.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -1655,9 +1656,9 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 		BlockNumber string
 		Index       uint
 
-		ExpectedResult *types.Transaction
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks, tc testCase)
+		ExpectedResult *coreTypes.Transaction
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -1665,9 +1666,9 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 			Name:           "Get Tx Successfully",
 			BlockNumber:    "0x1",
 			Index:          uint(0),
-			ExpectedResult: types.NewTransaction(1, common.HexToAddress("0x111"), big.NewInt(2), 3, big.NewInt(4), []byte{5, 6, 7, 8}),
+			ExpectedResult: coreTypes.NewTransaction(1, common.HexToAddress("0x111"), big.NewInt(2), 3, big.NewInt(4), []byte{5, 6, 7, 8}),
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				tx := tc.ExpectedResult
 				blockNumber, _ := encoding.DecodeUint64orHex(&tc.BlockNumber)
 				m.DbTx.
@@ -1685,7 +1686,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 					Return(tx, nil).
 					Once()
 
-				receipt := types.NewReceipt([]byte{}, false, 0)
+				receipt := coreTypes.NewReceipt([]byte{}, false, 0)
 				receipt.BlockHash = common.Hash{}
 				receipt.BlockNumber = big.NewInt(1)
 				receipt.TransactionIndex = tc.Index
@@ -1700,8 +1701,8 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 			BlockNumber:    "latest",
 			Index:          uint(0),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1724,7 +1725,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 			Index:          uint(0),
 			ExpectedResult: nil,
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				blockNumber, _ := encoding.DecodeUint64orHex(&tc.BlockNumber)
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1747,8 +1748,8 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 			BlockNumber:    "0x1",
 			Index:          uint(0),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get transaction"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get transaction"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				blockNumber, _ := encoding.DecodeUint64orHex(&tc.BlockNumber)
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -1772,8 +1773,8 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 			Index:          uint(0),
 			ExpectedResult: nil,
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
-				tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				tx := coreTypes.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
 
 				blockNumber, _ := encoding.DecodeUint64orHex(&tc.BlockNumber)
 				m.DbTx.
@@ -1802,9 +1803,9 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 			BlockNumber:    "0x1",
 			Index:          uint(0),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get transaction receipt"),
-			SetupMocks: func(m *mocks, tc testCase) {
-				tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get transaction receipt"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				tx := coreTypes.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
 
 				blockNumber, _ := encoding.DecodeUint64orHex(&tc.BlockNumber)
 				m.DbTx.
@@ -1846,7 +1847,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 				require.NoError(t, err)
 
 				if result != nil || testCase.ExpectedResult != nil {
-					var tx types.Transaction
+					var tx coreTypes.Transaction
 					err = json.Unmarshal(res.Result, &tx)
 					require.NoError(t, err)
 					assert.Equal(t, testCase.ExpectedResult.Hash(), tx.Hash())
@@ -1869,9 +1870,9 @@ func TestGetTransactionByHash(t *testing.T) {
 		Name            string
 		Hash            common.Hash
 		ExpectedPending bool
-		ExpectedResult  *types.Transaction
+		ExpectedResult  *coreTypes.Transaction
 		ExpectedError   interface{}
-		SetupMocks      func(m *mocks, tc testCase)
+		SetupMocks      func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -1879,9 +1880,9 @@ func TestGetTransactionByHash(t *testing.T) {
 			Name:            "Get TX Successfully from state",
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: false,
-			ExpectedResult:  types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
+			ExpectedResult:  coreTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
 			ExpectedError:   nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1897,7 +1898,7 @@ func TestGetTransactionByHash(t *testing.T) {
 					Return(tc.ExpectedResult, nil).
 					Once()
 
-				receipt := types.NewReceipt([]byte{}, false, 0)
+				receipt := coreTypes.NewReceipt([]byte{}, false, 0)
 				receipt.BlockHash = common.Hash{}
 				receipt.BlockNumber = big.NewInt(1)
 
@@ -1911,9 +1912,9 @@ func TestGetTransactionByHash(t *testing.T) {
 			Name:            "Get TX Successfully from pool",
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: true,
-			ExpectedResult:  types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
+			ExpectedResult:  coreTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
 			ExpectedError:   nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1941,7 +1942,7 @@ func TestGetTransactionByHash(t *testing.T) {
 			ExpectedPending: false,
 			ExpectedResult:  nil,
 			ExpectedError:   ethereum.NotFound,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -1968,8 +1969,8 @@ func TestGetTransactionByHash(t *testing.T) {
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: false,
 			ExpectedResult:  nil,
-			ExpectedError:   newRPCError(defaultErrorCode, "failed to load transaction by hash from state"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:   types.NewRPCError(types.DefaultErrorCode, "failed to load transaction by hash from state"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1991,8 +1992,8 @@ func TestGetTransactionByHash(t *testing.T) {
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: false,
 			ExpectedResult:  nil,
-			ExpectedError:   newRPCError(defaultErrorCode, "failed to load transaction by hash from pool"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:   types.NewRPCError(types.DefaultErrorCode, "failed to load transaction by hash from pool"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -2019,9 +2020,9 @@ func TestGetTransactionByHash(t *testing.T) {
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: false,
 			ExpectedResult:  nil,
-			ExpectedError:   newRPCError(defaultErrorCode, "transaction receipt not found"),
-			SetupMocks: func(m *mocks, tc testCase) {
-				tx := &types.Transaction{}
+			ExpectedError:   types.NewRPCError(types.DefaultErrorCode, "transaction receipt not found"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				tx := &coreTypes.Transaction{}
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -2048,9 +2049,9 @@ func TestGetTransactionByHash(t *testing.T) {
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: false,
 			ExpectedResult:  nil,
-			ExpectedError:   newRPCError(defaultErrorCode, "failed to load transaction receipt from state"),
-			SetupMocks: func(m *mocks, tc testCase) {
-				tx := &types.Transaction{}
+			ExpectedError:   types.NewRPCError(types.DefaultErrorCode, "failed to load transaction receipt from state"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				tx := &coreTypes.Transaction{}
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -2087,7 +2088,7 @@ func TestGetTransactionByHash(t *testing.T) {
 			}
 
 			if err != nil || testCase.ExpectedError != nil {
-				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := testCase.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -2108,7 +2109,7 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 		BlockHash      common.Hash
 		ExpectedResult uint
 		ExpectedError  interface{}
-		SetupMocks     func(m *mocks, tc testCase)
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -2117,7 +2118,7 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 			BlockHash:      common.HexToHash("0x123"),
 			ExpectedResult: uint(10),
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -2138,8 +2139,8 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 			Name:           "Failed to count txs by hash",
 			BlockHash:      common.HexToHash("0x123"),
 			ExpectedResult: 0,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to count transactions"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to count transactions"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -2167,7 +2168,7 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 			assert.Equal(t, testCase.ExpectedResult, result)
 
 			if err != nil || testCase.ExpectedError != nil {
-				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := testCase.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -2187,8 +2188,8 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 		Name           string
 		BlockNumber    string
 		ExpectedResult uint
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks, tc testCase)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -2197,7 +2198,7 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 			BlockNumber:    "latest",
 			ExpectedResult: uint(10),
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				blockNumber := uint64(10)
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -2225,7 +2226,7 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 			BlockNumber:    "pending",
 			ExpectedResult: uint(10),
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -2246,8 +2247,8 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 			Name:           "failed to get last block number",
 			BlockNumber:    "latest",
 			ExpectedResult: 0,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -2268,8 +2269,8 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 			Name:           "failed to count tx",
 			BlockNumber:    "latest",
 			ExpectedResult: 0,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to count transactions"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to count transactions"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				blockNumber := uint64(10)
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -2296,8 +2297,8 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 			Name:           "failed to count pending tx",
 			BlockNumber:    "pending",
 			ExpectedResult: 0,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to count pending transactions"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to count pending transactions"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -2327,7 +2328,7 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 			assert.Equal(t, "2.0", res.JSONRPC)
 
 			if res.Result != nil {
-				var result argUint64
+				var result types.ArgUint64
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
 				assert.Equal(t, testCase.ExpectedResult, uint(result))
@@ -2350,8 +2351,8 @@ func TestGetTransactionCount(t *testing.T) {
 		Address        string
 		BlockNumber    string
 		ExpectedResult uint
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks, tc testCase)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -2361,7 +2362,7 @@ func TestGetTransactionCount(t *testing.T) {
 			BlockNumber:    "latest",
 			ExpectedResult: uint(10),
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				blockNumber := uint64(10)
 				address := common.HexToAddress(tc.Address)
 				m.DbTx.
@@ -2391,7 +2392,7 @@ func TestGetTransactionCount(t *testing.T) {
 			BlockNumber:    "latest",
 			ExpectedResult: 0,
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				blockNumber := uint64(10)
 				address := common.HexToAddress(tc.Address)
 				m.DbTx.
@@ -2420,8 +2421,8 @@ func TestGetTransactionCount(t *testing.T) {
 			Address:        common.HexToAddress("0x123").Hex(),
 			BlockNumber:    "latest",
 			ExpectedResult: 0,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -2443,8 +2444,8 @@ func TestGetTransactionCount(t *testing.T) {
 			Address:        common.HexToAddress("0x123").Hex(),
 			BlockNumber:    "latest",
 			ExpectedResult: 0,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to count transactions"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to count transactions"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				blockNumber := uint64(10)
 				address := common.HexToAddress(tc.Address)
 				m.DbTx.
@@ -2481,7 +2482,7 @@ func TestGetTransactionCount(t *testing.T) {
 			assert.Equal(t, "2.0", res.JSONRPC)
 
 			if res.Result != nil {
-				var result argUint64
+				var result types.ArgUint64
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
 				assert.Equal(t, testCase.ExpectedResult, uint(result))
@@ -2502,18 +2503,18 @@ func TestGetTransactionReceipt(t *testing.T) {
 	type testCase struct {
 		Name           string
 		Hash           common.Hash
-		ExpectedResult *types.Receipt
+		ExpectedResult *coreTypes.Receipt
 		ExpectedError  interface{}
-		SetupMocks     func(m *mocks, tc testCase)
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
 		{
 			Name:           "Get TX receipt Successfully",
 			Hash:           common.HexToHash("0x123"),
-			ExpectedResult: types.NewReceipt([]byte{}, false, 0),
+			ExpectedResult: coreTypes.NewReceipt([]byte{}, false, 0),
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -2524,7 +2525,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
+				tx := coreTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
 				privateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
 				require.NoError(t, err)
 				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
@@ -2549,7 +2550,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 			Hash:           common.HexToHash("0x123"),
 			ExpectedResult: nil,
 			ExpectedError:  ethereum.NotFound,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -2570,8 +2571,8 @@ func TestGetTransactionReceipt(t *testing.T) {
 			Name:           "Get TX receipt but failed to get tx",
 			Hash:           common.HexToHash("0x123"),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get tx from state"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get tx from state"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -2593,7 +2594,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 			Hash:           common.HexToHash("0x123"),
 			ExpectedResult: nil,
 			ExpectedError:  ethereum.NotFound,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -2604,7 +2605,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
+				tx := coreTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
 				privateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
 				require.NoError(t, err)
 				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
@@ -2628,8 +2629,8 @@ func TestGetTransactionReceipt(t *testing.T) {
 			Name:           "TX receipt failed to load",
 			Hash:           common.HexToHash("0x123"),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get tx receipt from state"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get tx receipt from state"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -2640,7 +2641,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
+				tx := coreTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
 				privateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
 				require.NoError(t, err)
 				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
@@ -2664,8 +2665,8 @@ func TestGetTransactionReceipt(t *testing.T) {
 			Name:           "Get TX but failed to build response Successfully",
 			Hash:           common.HexToHash("0x123"),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to build the receipt response"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to build the receipt response"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -2676,7 +2677,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
+				tx := coreTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
 
 				m.State.
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
@@ -2685,7 +2686,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
-					Return(types.NewReceipt([]byte{}, false, 0), nil).
+					Return(coreTypes.NewReceipt([]byte{}, false, 0), nil).
 					Once()
 			},
 		},
@@ -2703,7 +2704,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 			}
 
 			if err != nil || testCase.ExpectedError != nil {
-				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := testCase.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -2721,18 +2722,18 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 
 	type testCase struct {
 		Name          string
-		Tx            *types.Transaction
+		Tx            *coreTypes.Transaction
 		ExpectedError interface{}
-		SetupMocks    func(t *testing.T, m *mocks, tc testCase)
+		SetupMocks    func(t *testing.T, m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
 		{
 			Name:          "Send TX successfully",
-			Tx:            types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
+			Tx:            coreTypes.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
 			ExpectedError: nil,
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
-				txMatchByHash := mock.MatchedBy(func(tx types.Transaction) bool {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				txMatchByHash := mock.MatchedBy(func(tx coreTypes.Transaction) bool {
 					h1 := tx.Hash().Hex()
 					h2 := tc.Tx.Hash().Hex()
 					return h1 == h2
@@ -2746,10 +2747,10 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 		},
 		{
 			Name:          "Send TX failed to add to the pool",
-			Tx:            types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
-			ExpectedError: newRPCError(defaultErrorCode, "failed to add TX to the pool"),
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
-				txMatchByHash := mock.MatchedBy(func(tx types.Transaction) bool {
+			Tx:            coreTypes.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
+			ExpectedError: types.NewRPCError(types.DefaultErrorCode, "failed to add TX to the pool"),
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				txMatchByHash := mock.MatchedBy(func(tx coreTypes.Transaction) bool {
 					h1 := tx.Hash().Hex()
 					h2 := tc.Tx.Hash().Hex()
 					return h1 == h2
@@ -2771,7 +2772,7 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 			err := c.SendTransaction(context.Background(), tc.Tx)
 
 			if err != nil || testCase.ExpectedError != nil {
-				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := testCase.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -2791,16 +2792,16 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 		Name           string
 		Input          string
 		ExpectedResult *common.Hash
-		ExpectedError  rpcError
+		ExpectedError  types.Error
 		Prepare        func(t *testing.T, tc *testCase)
-		SetupMocks     func(t *testing.T, m *mocks, tc testCase)
+		SetupMocks     func(t *testing.T, m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
 		{
 			Name: "Send TX successfully",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tx := types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
+				tx := coreTypes.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
 
 				txBinary, err := tx.MarshalBinary()
 				require.NoError(t, err)
@@ -2812,9 +2813,9 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 				tc.ExpectedResult = hashPtr(tx.Hash())
 				tc.ExpectedError = nil
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				m.Pool.
-					On("AddTx", context.Background(), mock.IsType(types.Transaction{})).
+					On("AddTx", context.Background(), mock.IsType(coreTypes.Transaction{})).
 					Return(nil).
 					Once()
 			},
@@ -2822,7 +2823,7 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 		{
 			Name: "Send TX failed to add to the pool",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tx := types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
+				tx := coreTypes.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
 
 				txBinary, err := tx.MarshalBinary()
 				require.NoError(t, err)
@@ -2832,11 +2833,11 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 
 				tc.Input = rawTx
 				tc.ExpectedResult = nil
-				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to add TX to the pool")
+				tc.ExpectedError = types.NewRPCError(types.DefaultErrorCode, "failed to add TX to the pool")
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				m.Pool.
-					On("AddTx", context.Background(), mock.IsType(types.Transaction{})).
+					On("AddTx", context.Background(), mock.IsType(coreTypes.Transaction{})).
 					Return(errors.New("failed to add TX to the pool")).
 					Once()
 			},
@@ -2846,9 +2847,9 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 			Prepare: func(t *testing.T, tc *testCase) {
 				tc.Input = "0x1234"
 				tc.ExpectedResult = nil
-				tc.ExpectedError = newRPCError(invalidParamsErrorCode, "invalid tx input")
+				tc.ExpectedError = types.NewRPCError(types.InvalidParamsErrorCode, "invalid tx input")
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {},
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {},
 		},
 	}
 
@@ -2886,18 +2887,18 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 
 	type testCase struct {
 		Name          string
-		Tx            *types.Transaction
+		Tx            *coreTypes.Transaction
 		ExpectedError interface{}
-		SetupMocks    func(t *testing.T, m *mocks, tc testCase)
+		SetupMocks    func(t *testing.T, m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
 		{
 			Name:          "Send TX successfully",
-			Tx:            types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
+			Tx:            coreTypes.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
 			ExpectedError: nil,
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
-				txMatchByHash := mock.MatchedBy(func(tx types.Transaction) bool {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				txMatchByHash := mock.MatchedBy(func(tx coreTypes.Transaction) bool {
 					h1 := tx.Hash().Hex()
 					h2 := tc.Tx.Hash().Hex()
 					return h1 == h2
@@ -2911,10 +2912,10 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 		},
 		{
 			Name:          "Send TX failed to add to the pool",
-			Tx:            types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
-			ExpectedError: newRPCError(defaultErrorCode, "failed to add TX to the pool"),
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
-				txMatchByHash := mock.MatchedBy(func(tx types.Transaction) bool {
+			Tx:            coreTypes.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
+			ExpectedError: types.NewRPCError(types.DefaultErrorCode, "failed to add TX to the pool"),
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				txMatchByHash := mock.MatchedBy(func(tx coreTypes.Transaction) bool {
 					h1 := tx.Hash().Hex()
 					h2 := tc.Tx.Hash().Hex()
 					return h1 == h2
@@ -2936,7 +2937,7 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 			err := nonSequencerClient.SendTransaction(context.Background(), tc.Tx)
 
 			if err != nil || testCase.ExpectedError != nil {
-				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := testCase.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -2954,15 +2955,15 @@ func TestSendRawTransactionViaGethForNonSequencerNodeFailsToRelayTxToSequencerNo
 
 	type testCase struct {
 		Name          string
-		Tx            *types.Transaction
+		Tx            *coreTypes.Transaction
 		ExpectedError interface{}
 	}
 
 	testCases := []testCase{
 		{
 			Name:          "Send TX failed to relay tx to the sequencer node",
-			Tx:            types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
-			ExpectedError: newRPCError(defaultErrorCode, "failed to relay tx to the sequencer node"),
+			Tx:            coreTypes.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
+			ExpectedError: types.NewRPCError(types.DefaultErrorCode, "failed to relay tx to the sequencer node"),
 		},
 	}
 
@@ -2973,7 +2974,7 @@ func TestSendRawTransactionViaGethForNonSequencerNodeFailsToRelayTxToSequencerNo
 			err := nonSequencerClient.SendTransaction(context.Background(), tc.Tx)
 
 			if err != nil || testCase.ExpectedError != nil {
-				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := testCase.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -3009,10 +3010,10 @@ func TestNewFilter(t *testing.T) {
 
 	type testCase struct {
 		Name           string
-		Request        LogFilterRequest
+		Request        types.LogFilterRequest
 		ExpectedResult string
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks, tc testCase)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	hash := common.HexToHash("0x42")
@@ -3020,12 +3021,12 @@ func TestNewFilter(t *testing.T) {
 	testCases := []testCase{
 		{
 			Name: "New filter created successfully",
-			Request: LogFilterRequest{
+			Request: types.LogFilterRequest{
 				ToBlock: &blockNumber,
 			},
 			ExpectedResult: "1",
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
@@ -3034,12 +3035,12 @@ func TestNewFilter(t *testing.T) {
 		},
 		{
 			Name: "failed to create new filter",
-			Request: LogFilterRequest{
+			Request: types.LogFilterRequest{
 				BlockHash: &hash,
 			},
 			ExpectedResult: "",
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to create new log filter"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new log filter"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
 					Return("", errors.New("failed to add new filter")).
@@ -3048,13 +3049,13 @@ func TestNewFilter(t *testing.T) {
 		},
 		{
 			Name: "failed to create new filter because BlockHash and ToBlock are present",
-			Request: LogFilterRequest{
+			Request: types.LogFilterRequest{
 				BlockHash: &hash,
 				ToBlock:   &blockNumber,
 			},
 			ExpectedResult: "",
-			ExpectedError:  newRPCError(invalidParamsErrorCode, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
 					Once().
@@ -3097,8 +3098,8 @@ func TestNewBlockFilter(t *testing.T) {
 	type testCase struct {
 		Name           string
 		ExpectedResult string
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks, tc testCase)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -3106,7 +3107,7 @@ func TestNewBlockFilter(t *testing.T) {
 			Name:           "New block filter created successfully",
 			ExpectedResult: "1",
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("NewBlockFilter", mock.IsType(&websocket.Conn{})).
 					Return("1", nil).
@@ -3116,8 +3117,8 @@ func TestNewBlockFilter(t *testing.T) {
 		{
 			Name:           "failed to create new block filter",
 			ExpectedResult: "",
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to create new block filter"),
-			SetupMocks: func(m *mocks, tc testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new block filter"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("NewBlockFilter", mock.IsType(&websocket.Conn{})).
 					Return("", errors.New("failed to add new block filter")).
@@ -3159,8 +3160,8 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 	type testCase struct {
 		Name           string
 		ExpectedResult string
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks, tc testCase)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -3178,7 +3179,7 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// {
 		// 	Name:           "failed to create new pending transaction filter",
 		// 	ExpectedResult: "",
-		// 	ExpectedError:  newRPCError(defaultErrorCode, "failed to create new pending transaction filter"),
+		// 	ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new pending transaction filter"),
 		// 	SetupMocks: func(m *mocks, tc testCase) {
 		// 		m.Storage.
 		// 			On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
@@ -3189,8 +3190,8 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		{
 			Name:           "can't create pending tx filter",
 			ExpectedResult: "",
-			ExpectedError:  newRPCError(defaultErrorCode, "not supported yet"),
-			SetupMocks:     func(m *mocks, tc testCase) {},
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "not supported yet"),
+			SetupMocks:     func(m *mocksWrapper, tc testCase) {},
 		},
 	}
 
@@ -3228,8 +3229,8 @@ func TestUninstallFilter(t *testing.T) {
 		Name           string
 		FilterID       string
 		ExpectedResult bool
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks, tc testCase)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -3238,7 +3239,7 @@ func TestUninstallFilter(t *testing.T) {
 			FilterID:       "1",
 			ExpectedResult: true,
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("UninstallFilter", tc.FilterID).
 					Return(nil).
@@ -3250,7 +3251,7 @@ func TestUninstallFilter(t *testing.T) {
 			FilterID:       "1",
 			ExpectedResult: false,
 			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("UninstallFilter", tc.FilterID).
 					Return(ErrNotFound).
@@ -3292,10 +3293,10 @@ func TestGetLogs(t *testing.T) {
 	type testCase struct {
 		Name           string
 		Filter         ethereum.FilterQuery
-		ExpectedResult []types.Log
+		ExpectedResult []coreTypes.Log
 		ExpectedError  interface{}
 		Prepare        func(t *testing.T, tc *testCase)
-		SetupMocks     func(m *mocks, tc testCase)
+		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -3307,16 +3308,16 @@ func TestGetLogs(t *testing.T) {
 					Addresses: []common.Address{common.HexToAddress("0x111")},
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
-				tc.ExpectedResult = []types.Log{{
+				tc.ExpectedResult = []coreTypes.Log{{
 					Address: common.Address{}, Topics: []common.Hash{}, Data: []byte{},
 					BlockNumber: uint64(1), TxHash: common.Hash{}, TxIndex: uint(1),
 					BlockHash: common.Hash{}, Index: uint(1), Removed: false,
 				}}
 				tc.ExpectedError = nil
 			},
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				var since *time.Time
-				logs := make([]*types.Log, 0, len(tc.ExpectedResult))
+				logs := make([]*coreTypes.Log, 0, len(tc.ExpectedResult))
 				for _, log := range tc.ExpectedResult {
 					l := log
 					logs = append(logs, &l)
@@ -3347,9 +3348,9 @@ func TestGetLogs(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 				tc.ExpectedResult = nil
-				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to get logs from state")
+				tc.ExpectedError = types.NewRPCError(types.DefaultErrorCode, "failed to get logs from state")
 			},
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				var since *time.Time
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -3376,9 +3377,9 @@ func TestGetLogs(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 				tc.ExpectedResult = nil
-				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to get the last block number from state")
+				tc.ExpectedError = types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state")
 			},
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -3404,9 +3405,9 @@ func TestGetLogs(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 				tc.ExpectedResult = nil
-				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to get the last block number from state")
+				tc.ExpectedError = types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state")
 			},
-			SetupMocks: func(m *mocks, tc testCase) {
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -3438,7 +3439,7 @@ func TestGetLogs(t *testing.T) {
 			}
 
 			if err != nil || tc.ExpectedError != nil {
-				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
 					rpcErr := err.(rpc.Error)
 					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
 					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
@@ -3457,10 +3458,10 @@ func TestGetFilterLogs(t *testing.T) {
 	type testCase struct {
 		Name           string
 		FilterID       string
-		ExpectedResult []types.Log
-		ExpectedError  rpcError
+		ExpectedResult []coreTypes.Log
+		ExpectedError  types.Error
 		Prepare        func(t *testing.T, tc *testCase)
-		SetupMocks     func(t *testing.T, m *mocks, tc testCase)
+		SetupMocks     func(t *testing.T, m *mocksWrapper, tc testCase)
 	}
 
 	testCases := []testCase{
@@ -3468,23 +3469,23 @@ func TestGetFilterLogs(t *testing.T) {
 			Name: "Get filter logs successfully",
 			Prepare: func(t *testing.T, tc *testCase) {
 				tc.FilterID = "1"
-				tc.ExpectedResult = []types.Log{{
+				tc.ExpectedResult = []coreTypes.Log{{
 					Address: common.Address{}, Topics: []common.Hash{}, Data: []byte{},
 					BlockNumber: uint64(1), TxHash: common.Hash{}, TxIndex: uint(1),
 					BlockHash: common.Hash{}, Index: uint(1), Removed: false,
 				}}
 				tc.ExpectedError = nil
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				var since *time.Time
-				logs := make([]*types.Log, 0, len(tc.ExpectedResult))
+				logs := make([]*coreTypes.Log, 0, len(tc.ExpectedResult))
 				for _, log := range tc.ExpectedResult {
 					l := log
 					logs = append(logs, &l)
 				}
 
-				bn1 := BlockNumber(1)
-				bn2 := BlockNumber(2)
+				bn1 := types.BlockNumber(1)
+				bn2 := types.BlockNumber(2)
 				logFilter := LogFilter{
 					FromBlock: &bn1,
 					ToBlock:   &bn2,
@@ -3527,7 +3528,7 @@ func TestGetFilterLogs(t *testing.T) {
 				tc.ExpectedResult = nil
 				tc.ExpectedError = nil
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("GetFilter", tc.FilterID).
 					Return(nil, ErrNotFound).
@@ -3539,9 +3540,9 @@ func TestGetFilterLogs(t *testing.T) {
 			Prepare: func(t *testing.T, tc *testCase) {
 				tc.FilterID = "1"
 				tc.ExpectedResult = nil
-				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to get filter from storage")
+				tc.ExpectedError = types.NewRPCError(types.DefaultErrorCode, "failed to get filter from storage")
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("GetFilter", tc.FilterID).
 					Return(nil, errors.New("failed to get filter")).
@@ -3555,7 +3556,7 @@ func TestGetFilterLogs(t *testing.T) {
 				tc.ExpectedResult = nil
 				tc.ExpectedError = nil
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				filter := &Filter{
 					ID:         tc.FilterID,
 					Type:       FilterTypeBlock,
@@ -3588,7 +3589,7 @@ func TestGetFilterLogs(t *testing.T) {
 				require.NoError(t, err)
 
 				if result != nil || tc.ExpectedResult != nil {
-					var logs []types.Log
+					var logs []coreTypes.Log
 					err = json.Unmarshal(res.Result, &logs)
 					require.NoError(t, err)
 					assert.ElementsMatch(t, tc.ExpectedResult, logs)
@@ -3611,9 +3612,9 @@ func TestGetFilterChanges(t *testing.T) {
 		Name            string
 		FilterID        string
 		ExpectedResults []interface{}
-		ExpectedErrors  []rpcError
+		ExpectedErrors  []types.Error
 		Prepare         func(t *testing.T, tc *testCase)
-		SetupMocks      func(t *testing.T, m *mocks, tc testCase)
+		SetupMocks      func(t *testing.T, m *mocksWrapper, tc testCase)
 	}
 
 	var nilTx pgx.Tx
@@ -3639,7 +3640,7 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.ExpectedResults = append(tc.ExpectedResults, []common.Hash{})
 				tc.ExpectedErrors = append(tc.ExpectedErrors, nil)
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				filter := &Filter{
 					ID:         tc.FilterID,
 					Type:       FilterTypeBlock,
@@ -3720,7 +3721,7 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.ExpectedResults = append(tc.ExpectedResults, []common.Hash{})
 				tc.ExpectedErrors = append(tc.ExpectedErrors, nil)
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				filter := &Filter{
 					ID:         tc.FilterID,
 					Type:       FilterTypePendingTx,
@@ -3785,7 +3786,7 @@ func TestGetFilterChanges(t *testing.T) {
 			Prepare: func(t *testing.T, tc *testCase) {
 				tc.FilterID = "1"
 				// first call
-				tc.ExpectedResults = append(tc.ExpectedResults, []types.Log{{
+				tc.ExpectedResults = append(tc.ExpectedResults, []coreTypes.Log{{
 					Address: common.Address{}, Topics: []common.Hash{}, Data: []byte{},
 					BlockNumber: uint64(1), TxHash: common.Hash{}, TxIndex: uint(1),
 					BlockHash: common.Hash{}, Index: uint(1), Removed: false,
@@ -3793,7 +3794,7 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.ExpectedErrors = append(tc.ExpectedErrors, nil)
 
 				// second call
-				tc.ExpectedResults = append(tc.ExpectedResults, []types.Log{{
+				tc.ExpectedResults = append(tc.ExpectedResults, []coreTypes.Log{{
 					Address: common.Address{}, Topics: []common.Hash{}, Data: []byte{},
 					BlockNumber: uint64(1), TxHash: common.Hash{}, TxIndex: uint(1),
 					BlockHash: common.Hash{}, Index: uint(1), Removed: false,
@@ -3808,9 +3809,9 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, nil)
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
-				bn1 := BlockNumber(1)
-				bn2 := BlockNumber(2)
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				bn1 := types.BlockNumber(1)
+				bn2 := types.BlockNumber(2)
 				logFilter := LogFilter{
 					FromBlock: &bn1, ToBlock: &bn2,
 					Addresses: []common.Address{common.HexToAddress("0x111")},
@@ -3829,8 +3830,8 @@ func TestGetFilterChanges(t *testing.T) {
 					Return(filter, nil).
 					Once()
 
-				expectedLogs := tc.ExpectedResults[0].([]types.Log)
-				logs := make([]*types.Log, 0, len(expectedLogs))
+				expectedLogs := tc.ExpectedResults[0].([]coreTypes.Log)
+				logs := make([]*coreTypes.Log, 0, len(expectedLogs))
 				for _, log := range expectedLogs {
 					l := log
 					logs = append(logs, &l)
@@ -3851,8 +3852,8 @@ func TestGetFilterChanges(t *testing.T) {
 							Return(filter, nil).
 							Once()
 
-						expectedLogs = tc.ExpectedResults[1].([]types.Log)
-						logs = make([]*types.Log, 0, len(expectedLogs))
+						expectedLogs = tc.ExpectedResults[1].([]coreTypes.Log)
+						logs = make([]*coreTypes.Log, 0, len(expectedLogs))
 						for _, log := range expectedLogs {
 							l := log
 							logs = append(logs, &l)
@@ -3875,7 +3876,7 @@ func TestGetFilterChanges(t *testing.T) {
 
 								m.State.
 									On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, mock.IsType(nilTx)).
-									Return([]*types.Log{}, nil).
+									Return([]*coreTypes.Log{}, nil).
 									Once()
 
 								m.Storage.
@@ -3896,9 +3897,9 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.FilterID = "1"
 				// first call
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
-				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "filter not found"))
+				tc.ExpectedErrors = append(tc.ExpectedErrors, types.NewRPCError(types.DefaultErrorCode, "filter not found"))
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("GetFilter", tc.FilterID).
 					Return(nil, ErrNotFound).
@@ -3911,9 +3912,9 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.FilterID = "1"
 				// first call
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
-				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to get filter from storage"))
+				tc.ExpectedErrors = append(tc.ExpectedErrors, types.NewRPCError(types.DefaultErrorCode, "failed to get filter from storage"))
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				m.Storage.
 					On("GetFilter", tc.FilterID).
 					Return(nil, errors.New("failed to get filter")).
@@ -3925,9 +3926,9 @@ func TestGetFilterChanges(t *testing.T) {
 			Prepare: func(t *testing.T, tc *testCase) {
 				tc.FilterID = "2"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
-				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to get block hashes"))
+				tc.ExpectedErrors = append(tc.ExpectedErrors, types.NewRPCError(types.DefaultErrorCode, "failed to get block hashes"))
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				filter := &Filter{
 					ID:         tc.FilterID,
 					Type:       FilterTypeBlock,
@@ -3951,9 +3952,9 @@ func TestGetFilterChanges(t *testing.T) {
 			Prepare: func(t *testing.T, tc *testCase) {
 				tc.FilterID = "2"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
-				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to update last time the filter changes were requested"))
+				tc.ExpectedErrors = append(tc.ExpectedErrors, types.NewRPCError(types.DefaultErrorCode, "failed to update last time the filter changes were requested"))
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				filter := &Filter{
 					ID:         tc.FilterID,
 					Type:       FilterTypeBlock,
@@ -3982,9 +3983,9 @@ func TestGetFilterChanges(t *testing.T) {
 			Prepare: func(t *testing.T, tc *testCase) {
 				tc.FilterID = "3"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
-				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to get pending transaction hashes"))
+				tc.ExpectedErrors = append(tc.ExpectedErrors, types.NewRPCError(types.DefaultErrorCode, "failed to get pending transaction hashes"))
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				filter := &Filter{
 					ID:         tc.FilterID,
 					Type:       FilterTypePendingTx,
@@ -4008,9 +4009,9 @@ func TestGetFilterChanges(t *testing.T) {
 			Prepare: func(t *testing.T, tc *testCase) {
 				tc.FilterID = "3"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
-				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to update last time the filter changes were requested"))
+				tc.ExpectedErrors = append(tc.ExpectedErrors, types.NewRPCError(types.DefaultErrorCode, "failed to update last time the filter changes were requested"))
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				filter := &Filter{
 					ID:         tc.FilterID,
 					Type:       FilterTypePendingTx,
@@ -4039,11 +4040,11 @@ func TestGetFilterChanges(t *testing.T) {
 			Prepare: func(t *testing.T, tc *testCase) {
 				tc.FilterID = "1"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
-				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to get logs from state"))
+				tc.ExpectedErrors = append(tc.ExpectedErrors, types.NewRPCError(types.DefaultErrorCode, "failed to get logs from state"))
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
-				bn1 := BlockNumber(1)
-				bn2 := BlockNumber(2)
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				bn1 := types.BlockNumber(1)
+				bn2 := types.BlockNumber(2)
 				logFilter := LogFilter{
 
 					FromBlock: &bn1, ToBlock: &bn2,
@@ -4074,11 +4075,11 @@ func TestGetFilterChanges(t *testing.T) {
 			Prepare: func(t *testing.T, tc *testCase) {
 				tc.FilterID = "1"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
-				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to update last time the filter changes were requested"))
+				tc.ExpectedErrors = append(tc.ExpectedErrors, types.NewRPCError(types.DefaultErrorCode, "failed to update last time the filter changes were requested"))
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
-				bn1 := BlockNumber(1)
-				bn2 := BlockNumber(2)
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				bn1 := types.BlockNumber(1)
+				bn2 := types.BlockNumber(2)
 				logFilter := LogFilter{
 					FromBlock: &bn1, ToBlock: &bn2,
 					Addresses: []common.Address{common.HexToAddress("0x111")},
@@ -4099,7 +4100,7 @@ func TestGetFilterChanges(t *testing.T) {
 
 				m.State.
 					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, mock.IsType(nilTx)).
-					Return([]*types.Log{}, nil).
+					Return([]*coreTypes.Log{}, nil).
 					Once()
 
 				m.Storage.
@@ -4115,7 +4116,7 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, nil)
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				filter := &Filter{
 					Type: "unknown type",
 				}
@@ -4148,7 +4149,7 @@ func TestGetFilterChanges(t *testing.T) {
 					require.NoError(t, err)
 
 					if result != nil || tc.ExpectedResults[i] != nil {
-						if logs, ok := tc.ExpectedResults[i].([]types.Log); ok {
+						if logs, ok := tc.ExpectedResults[i].([]coreTypes.Log); ok {
 							err = json.Unmarshal(res.Result, &logs)
 							require.NoError(t, err)
 							assert.ElementsMatch(t, tc.ExpectedResults[i], logs)

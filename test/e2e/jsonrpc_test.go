@@ -10,7 +10,8 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Double"
@@ -24,7 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
+	coreTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
@@ -106,7 +107,7 @@ func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, er
 	return sc, nil
 }
 
-func createTX(client *ethclient.Client, auth *bind.TransactOpts, to common.Address, amount *big.Int) (*types.Transaction, error) {
+func createTX(client *ethclient.Client, auth *bind.TransactOpts, to common.Address, amount *big.Int) (*coreTypes.Transaction, error) {
 	nonce, err := client.NonceAt(context.Background(), auth.From, nil)
 	if err != nil {
 		return nil, err
@@ -125,7 +126,7 @@ func createTX(client *ethclient.Client, auth *bind.TransactOpts, to common.Addre
 	if gasLimit != uint64(21000) {
 		return nil, fmt.Errorf("gasLimit %d != 21000", gasLimit)
 	}
-	tx := types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)
+	tx := coreTypes.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, tx)
 	if err != nil {
 		return nil, err
@@ -148,7 +149,7 @@ func Test_Filters(t *testing.T) {
 	for _, network := range networks {
 		// test newBlockFilter creation
 		log.Infof("Network %s", network.Name)
-		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
+		response, err := client.JSONRPCCall(network.URL, "eth_newBlockFilter")
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
@@ -159,7 +160,7 @@ func Test_Filters(t *testing.T) {
 		require.NotEmpty(t, filterId)
 
 		// test newFilter creation with block range and block hash
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
+		response, err = client.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
 			"BlockHash": common.HexToHash("0x1"),
 			"FromBlock": "0x1",
 			"ToBlock":   "0x2",
@@ -170,7 +171,7 @@ func Test_Filters(t *testing.T) {
 		require.Equal(t, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other", response.Error.Message)
 
 		// test newFilter creation with block hash
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
+		response, err = client.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
 			"BlockHash": common.HexToHash("0x1"),
 			"Addresses": []common.Address{
 				common.HexToAddress("0x2"),
@@ -189,7 +190,7 @@ func Test_Filters(t *testing.T) {
 		require.NotEmpty(t, filterId)
 
 		// test newFilter creation with block range
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
+		response, err = client.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
 			"FromBlock": "0x1",
 			"ToBlock":   "0x2",
 			"Addresses": []common.Address{
@@ -209,7 +210,7 @@ func Test_Filters(t *testing.T) {
 		require.NotEmpty(t, filterId)
 
 		// test uninstallFilter when filter is installed
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_uninstallFilter", filterId)
+		response, err = client.JSONRPCCall(network.URL, "eth_uninstallFilter", filterId)
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
@@ -220,7 +221,7 @@ func Test_Filters(t *testing.T) {
 		require.True(t, uninstalled)
 
 		// test uninstallFilter when filter doesn't exist or was already uninstalled
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_uninstallFilter", filterId)
+		response, err = client.JSONRPCCall(network.URL, "eth_uninstallFilter", filterId)
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
@@ -230,14 +231,14 @@ func Test_Filters(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, uninstalled)
 
-		client := operations.MustGetClient(network.URL)
+		ethereumClient := operations.MustGetClient(network.URL)
 		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
 		// test getFilterChanges for a blockFilter ID
-		blockBeforeFilter, err := client.BlockByNumber(ctx, nil)
+		blockBeforeFilter, err := ethereumClient.BlockByNumber(ctx, nil)
 		require.NoError(t, err)
 
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
+		response, err = client.JSONRPCCall(network.URL, "eth_newBlockFilter")
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
@@ -248,15 +249,15 @@ func Test_Filters(t *testing.T) {
 		require.NotEmpty(t, blockFilterId)
 
 		// force a block to be generated sending a eth transfer tx
-		tx, err := createTX(client, auth, toAddress, big.NewInt(1000))
+		tx, err := createTX(ethereumClient, auth, toAddress, big.NewInt(1000))
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
-		require.NoError(t, err)
-
-		blockAfterFilter, err := client.BlockByNumber(ctx, nil)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", blockFilterId)
+		blockAfterFilter, err := ethereumClient.BlockByNumber(ctx, nil)
+		require.NoError(t, err)
+
+		response, err = client.JSONRPCCall(network.URL, "eth_getFilterChanges", blockFilterId)
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
@@ -270,12 +271,12 @@ func Test_Filters(t *testing.T) {
 
 		// test getFilterChanges for a logFilter ID
 		// create a SC to emit some logs
-		scAddr, scTx, sc, err := EmitLog.DeployEmitLog(auth, client)
+		scAddr, scTx, sc, err := EmitLog.DeployEmitLog(auth, ethereumClient)
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, scTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
+		response, err = client.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
 			"Addresses": []common.Address{scAddr},
 		})
 		require.NoError(t, err)
@@ -290,18 +291,18 @@ func Test_Filters(t *testing.T) {
 		// emit logs
 		tx, err = sc.EmitLogs(auth)
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		logs, err := client.FilterLogs(ctx, ethereum.FilterQuery{Addresses: []common.Address{scAddr}})
+		logs, err := ethereumClient.FilterLogs(ctx, ethereum.FilterQuery{Addresses: []common.Address{scAddr}})
 		require.NoError(t, err)
 
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", logFilterId)
+		response, err = client.JSONRPCCall(network.URL, "eth_getFilterChanges", logFilterId)
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
 
-		var logFilterChanges []types.Log
+		var logFilterChanges []coreTypes.Log
 		err = json.Unmarshal(response.Result, &logFilterChanges)
 		require.NoError(t, err)
 
@@ -312,18 +313,18 @@ func Test_Filters(t *testing.T) {
 		// emit more logs
 		tx, err = sc.EmitLogs(auth)
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		tx, err = sc.EmitLogs(auth)
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		logs, err = client.FilterLogs(ctx, ethereum.FilterQuery{Addresses: []common.Address{scAddr}})
+		logs, err = ethereumClient.FilterLogs(ctx, ethereum.FilterQuery{Addresses: []common.Address{scAddr}})
 		require.NoError(t, err)
 
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", logFilterId)
+		response, err = client.JSONRPCCall(network.URL, "eth_getFilterChanges", logFilterId)
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
@@ -404,52 +405,52 @@ func Test_Block(t *testing.T) {
 
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
-		client, err := ethclient.Dial(network.URL)
+		ethereumClient, err := ethclient.Dial(network.URL)
 		require.NoError(t, err)
 		auth, err := operations.GetAuth(network.PrivateKey, network.ChainID)
 		require.NoError(t, err)
 
-		tx, err := createTX(client, auth, toAddress, big.NewInt(1000))
+		tx, err := createTX(ethereumClient, auth, toAddress, big.NewInt(1000))
 		require.NoError(t, err)
 		// no block number yet... will wait
-		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		receipt, err := ethereumClient.TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)
 		require.Equal(t, receipt.TxHash, tx.Hash())
 		require.Equal(t, receipt.Type, tx.Type())
 		require.Equal(t, uint(0), receipt.TransactionIndex)
 
-		blockNumber, err := client.BlockNumber(ctx)
+		blockNumber, err := ethereumClient.BlockNumber(ctx)
 		require.NoError(t, err)
 		log.Infof("\nBlock num %d", blockNumber)
 		require.GreaterOrEqual(t, blockNumber, receipt.BlockNumber.Uint64())
 
-		block, err := client.BlockByNumber(ctx, receipt.BlockNumber)
+		block, err := ethereumClient.BlockByNumber(ctx, receipt.BlockNumber)
 		require.NoError(t, err)
 		require.NotNil(t, block)
 		require.Equal(t, receipt.BlockNumber.Uint64(), block.Number().Uint64())
 		require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
 
-		block, err = client.BlockByHash(ctx, receipt.BlockHash)
+		block, err = ethereumClient.BlockByHash(ctx, receipt.BlockHash)
 		require.NoError(t, err)
 		require.NotNil(t, block)
 		require.Equal(t, receipt.BlockNumber.Uint64(), block.Number().Uint64())
 		require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
 
 		nonExistentBlockNumber := big.NewInt(0).SetUint64(blockNumber + uint64(1))
-		block, err = client.BlockByNumber(ctx, nonExistentBlockNumber)
+		block, err = ethereumClient.BlockByNumber(ctx, nonExistentBlockNumber)
 		require.Error(t, err)
 		require.Nil(t, block)
 
 		nonExistentBlockHash := common.HexToHash("0xFFFFFF")
-		block, err = client.BlockByHash(ctx, nonExistentBlockHash)
+		block, err = ethereumClient.BlockByHash(ctx, nonExistentBlockHash)
 		require.Error(t, err)
 		require.Nil(t, block)
 		// its pending
 
-		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_getBlockTransactionCountByNumber", hexutil.EncodeBig(receipt.BlockNumber))
+		response, err := client.JSONRPCCall(network.URL, "eth_getBlockTransactionCountByNumber", hexutil.EncodeBig(receipt.BlockNumber))
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
@@ -460,16 +461,16 @@ func Test_Block(t *testing.T) {
 		require.Equal(t, "0x1", txCount)
 
 		// check if block number is correct
-		count, err := client.TransactionCount(ctx, receipt.BlockHash)
+		count, err := ethereumClient.TransactionCount(ctx, receipt.BlockHash)
 		require.NoError(t, err)
 		require.Equal(t, uint(1), count)
 
 		tx = nil
-		tx, err = client.TransactionInBlock(ctx, receipt.BlockHash, receipt.TransactionIndex)
+		tx, err = ethereumClient.TransactionInBlock(ctx, receipt.BlockHash, receipt.TransactionIndex)
 		require.NoError(t, err)
 		require.Equal(t, receipt.TxHash, tx.Hash())
 
-		raw, err := jsonrpc.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", hexutil.EncodeBig(receipt.BlockNumber), "0x0")
+		raw, err := client.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", hexutil.EncodeBig(receipt.BlockNumber), "0x0")
 		require.NoError(t, err)
 		require.Nil(t, raw.Error)
 		require.NotNil(t, raw.Result)
@@ -478,7 +479,7 @@ func Test_Block(t *testing.T) {
 		err = json.Unmarshal(raw.Result, &newTx)
 		require.NoError(t, err)
 
-		raw, err = jsonrpc.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", "0x123", "0x8659")
+		raw, err = client.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", "0x123", "0x8659")
 		require.NoError(t, err)
 		require.Nil(t, raw.Error)
 		require.NotNil(t, raw.Result)
@@ -535,7 +536,7 @@ func Test_Transactions(t *testing.T) {
 
 		// Test Case: TX with invalid nonce
 
-		tx = types.NewTransaction(nonce-1, // Nonce will be lower than the current getNonceAt()
+		tx = coreTypes.NewTransaction(nonce-1, // Nonce will be lower than the current getNonceAt()
 			toAddress, big.NewInt(100), gasLimit, gasPrice, nil)
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
@@ -548,7 +549,7 @@ func Test_Transactions(t *testing.T) {
 
 		// Test Case: TX with no signature (which would fail the EIP-155)
 
-		invalidTx := types.NewTx(&types.LegacyTx{
+		invalidTx := coreTypes.NewTx(&coreTypes.LegacyTx{
 			Nonce:    nonce,
 			Value:    big.NewInt(10000),
 			Gas:      gasLimit,
@@ -569,7 +570,7 @@ func Test_Transactions(t *testing.T) {
 
 		log.Infof("Balance: %d", balance)
 
-		tx = types.NewTransaction(nonce, toAddress, big.NewInt(0).Add(balance, big.NewInt(10)), gasLimit, gasPrice, nil)
+		tx = coreTypes.NewTransaction(nonce, toAddress, big.NewInt(0).Add(balance, big.NewInt(10)), gasLimit, gasPrice, nil)
 		signedTx, err = auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 
@@ -602,20 +603,20 @@ func Test_Misc(t *testing.T) {
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 
-		client, err := ethclient.Dial(network.URL)
+		ethereumClient, err := ethclient.Dial(network.URL)
 		require.NoError(t, err)
 
 		// ChainId()
-		chainId, err := client.ChainID(ctx)
+		chainId, err := ethereumClient.ChainID(ctx)
 		require.NoError(t, err)
 		require.Equal(t, network.ChainID, chainId.Uint64())
 
 		// Syncing()
-		progress, err := client.SyncProgress(ctx)
+		progress, err := ethereumClient.SyncProgress(ctx)
 		require.NoError(t, err)
 		if progress != nil {
 			log.Info("Its syncing")
-			blockNumber, err := client.BlockNumber(ctx)
+			blockNumber, err := ethereumClient.BlockNumber(ctx)
 			require.NoError(t, err)
 			// if it's actually syncing
 			require.Equal(t, uint64(0x0), progress.StartingBlock)
@@ -629,33 +630,33 @@ func Test_Misc(t *testing.T) {
 		sc_retrieve := common.HexToHash("0x2a")
 		auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, network.ChainID)
 		require.NoError(t, err)
-		contractAddress, tx, storageSC, err := Storage.DeployStorage(auth, client)
+		contractAddress, tx, storageSC, err := Storage.DeployStorage(auth, ethereumClient)
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 		tx, err = storageSC.Store(auth, big.NewInt(sc_payload))
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		storage, err := client.StorageAt(ctx, contractAddress, common.HexToHash("0x0"), nil)
+		storage, err := ethereumClient.StorageAt(ctx, contractAddress, common.HexToHash("0x0"), nil)
 		require.NoError(t, err)
 		// in bytes but has to be hash 0x0...42
 		require.Equal(t, sc_retrieve, common.BytesToHash(storage))
 
 		// eth_getCode
 
-		scBytecode, err := client.CodeAt(ctx, contractAddress, nil)
+		scBytecode, err := ethereumClient.CodeAt(ctx, contractAddress, nil)
 		require.NoError(t, err)
 		require.Contains(t, Storage.StorageMetaData.Bin, common.Bytes2Hex(scBytecode))
 
-		emptyBytecode, err := client.CodeAt(ctx, common.HexToAddress("0xdeadbeef"), nil)
+		emptyBytecode, err := ethereumClient.CodeAt(ctx, common.HexToAddress("0xdeadbeef"), nil)
 		require.NoError(t, err)
 		require.Empty(t, emptyBytecode)
 
 		// check for request having more params than required:
 
-		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_chainId", common.HexToHash("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"), "latest")
+		response, err := client.JSONRPCCall(network.URL, "eth_chainId", common.HexToHash("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"), "latest")
 		require.NoError(t, err)
 		require.NotNil(t, response.Error)
 		require.Nil(t, response.Result)
@@ -701,7 +702,7 @@ func Test_WebSocketsRequest(t *testing.T) {
 		jParam, err := json.Marshal(params)
 		require.NoError(t, err)
 
-		req := jsonrpc.Request{JSONRPC: "2.0", ID: float64(1), Method: "eth_getBalance", Params: jParam}
+		req := types.Request{JSONRPC: "2.0", ID: float64(1), Method: "eth_getBalance", Params: jParam}
 		jReq, _ := json.Marshal(req)
 
 		err = wsConn.WriteMessage(websocket.TextMessage, jReq)
@@ -709,7 +710,7 @@ func Test_WebSocketsRequest(t *testing.T) {
 
 		receivedMessage := <-receivedMessages
 
-		resp := jsonrpc.Response{}
+		resp := types.Response{}
 		err = json.Unmarshal(receivedMessage, &resp)
 		require.NoError(t, err)
 
@@ -757,7 +758,7 @@ func Test_WebSocketsSubscription(t *testing.T) {
 		jParam, err := json.Marshal(params)
 		require.NoError(t, err)
 
-		req := jsonrpc.Request{JSONRPC: "2.0", ID: float64(1), Method: "eth_subscribe", Params: jParam}
+		req := types.Request{JSONRPC: "2.0", ID: float64(1), Method: "eth_subscribe", Params: jParam}
 		jReq, _ := json.Marshal(req)
 
 		err = wsConn.WriteMessage(websocket.TextMessage, jReq)
@@ -765,7 +766,7 @@ func Test_WebSocketsSubscription(t *testing.T) {
 
 		subscriptionMessage := <-receivedMessages
 
-		resp := jsonrpc.Response{}
+		resp := types.Response{}
 		err = json.Unmarshal(subscriptionMessage, &resp)
 		require.NoError(t, err)
 
@@ -802,7 +803,7 @@ func Test_WebSocketsSubscription(t *testing.T) {
 
 		for i := 0; i <= numberOfBlocks; i++ {
 			receivedMessage := <-receivedMessages
-			resp := jsonrpc.SubscriptionResponse{}
+			resp := types.SubscriptionResponse{}
 
 			err = json.Unmarshal(receivedMessage, &resp)
 			require.NoError(t, err)
@@ -848,7 +849,7 @@ func Test_RevertOnConstructorTransaction(t *testing.T) {
 		receipt, err := client.TransactionReceipt(ctx, scTx.Hash())
 		require.NoError(t, err)
 
-		assert.Equal(t, receipt.Status, types.ReceiptStatusFailed)
+		assert.Equal(t, receipt.Status, coreTypes.ReceiptStatusFailed)
 
 		msg := ethereum.CallMsg{
 			From: auth.From,
@@ -909,7 +910,7 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)
 
-		assert.Equal(t, receipt.Status, types.ReceiptStatusFailed)
+		assert.Equal(t, receipt.Status, coreTypes.ReceiptStatusFailed)
 
 		msg := ethereum.CallMsg{
 			From: auth.From,

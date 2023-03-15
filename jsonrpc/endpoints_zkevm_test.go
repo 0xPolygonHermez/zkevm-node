@@ -10,10 +10,11 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	coreTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,15 +27,15 @@ func TestConsolidatedBlockNumber(t *testing.T) {
 	type testCase struct {
 		Name           string
 		ExpectedResult *uint64
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper)
 	}
 
 	testCases := []testCase{
 		{
 			Name:           "Get consolidated block number successfully",
 			ExpectedResult: ptrUint64(10),
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -54,8 +55,8 @@ func TestConsolidatedBlockNumber(t *testing.T) {
 		{
 			Name:           "failed to get consolidated block number",
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get last consolidated block number from state"),
-			SetupMocks: func(m *mocks) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get last consolidated block number from state"),
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -83,7 +84,7 @@ func TestConsolidatedBlockNumber(t *testing.T) {
 			require.NoError(t, err)
 
 			if res.Result != nil {
-				var result argUint64
+				var result types.ArgUint64
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
 				assert.Equal(t, *tc.ExpectedResult, uint64(result))
@@ -104,15 +105,15 @@ func TestIsBlockConsolidated(t *testing.T) {
 	type testCase struct {
 		Name           string
 		ExpectedResult bool
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper)
 	}
 
 	testCases := []testCase{
 		{
 			Name:           "Query status of block number successfully",
 			ExpectedResult: true,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -132,8 +133,8 @@ func TestIsBlockConsolidated(t *testing.T) {
 		{
 			Name:           "Failed to query the consolidation status",
 			ExpectedResult: false,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to check if the block is consolidated"),
-			SetupMocks: func(m *mocks) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to check if the block is consolidated"),
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -182,15 +183,15 @@ func TestIsBlockVirtualized(t *testing.T) {
 	type testCase struct {
 		Name           string
 		ExpectedResult bool
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper)
 	}
 
 	testCases := []testCase{
 		{
 			Name:           "Query status of block number successfully",
 			ExpectedResult: true,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -210,8 +211,8 @@ func TestIsBlockVirtualized(t *testing.T) {
 		{
 			Name:           "Failed to query the virtualization status",
 			ExpectedResult: false,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to check if the block is virtualized"),
-			SetupMocks: func(m *mocks) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to check if the block is virtualized"),
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -262,15 +263,15 @@ func TestBatchNumberByBlockNumber(t *testing.T) {
 	type testCase struct {
 		Name           string
 		ExpectedResult uint64
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper)
 	}
 
 	testCases := []testCase{
 		{
 			Name:           "Query status of batch number of l2 block by its number successfully",
 			ExpectedResult: batchNumber,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -290,8 +291,8 @@ func TestBatchNumberByBlockNumber(t *testing.T) {
 		{
 			Name:           "Failed to query the consolidation status",
 			ExpectedResult: uint64(0),
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get batch number from block number"),
-			SetupMocks: func(m *mocks) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get batch number from block number"),
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -319,7 +320,7 @@ func TestBatchNumberByBlockNumber(t *testing.T) {
 			require.NoError(t, err)
 
 			if res.Result != nil {
-				var result argUint64
+				var result types.ArgUint64
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
 				assert.Equal(t, tc.ExpectedResult, uint64(result))
@@ -340,8 +341,8 @@ func TestBatchNumber(t *testing.T) {
 	type testCase struct {
 		Name           string
 		ExpectedResult uint64
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper)
 	}
 
 	testCases := []testCase{
@@ -349,7 +350,7 @@ func TestBatchNumber(t *testing.T) {
 			Name:           "get batch number successfully",
 			ExpectedError:  nil,
 			ExpectedResult: 10,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -368,9 +369,9 @@ func TestBatchNumber(t *testing.T) {
 		},
 		{
 			Name:           "failed to get batch number",
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last batch number from state"),
 			ExpectedResult: 0,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -398,7 +399,7 @@ func TestBatchNumber(t *testing.T) {
 			require.NoError(t, err)
 
 			if res.Result != nil {
-				var result argUint64
+				var result types.ArgUint64
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
 				assert.Equal(t, tc.ExpectedResult, uint64(result))
@@ -419,8 +420,8 @@ func TestVirtualBatchNumber(t *testing.T) {
 	type testCase struct {
 		Name           string
 		ExpectedResult uint64
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper)
 	}
 
 	testCases := []testCase{
@@ -428,7 +429,7 @@ func TestVirtualBatchNumber(t *testing.T) {
 			Name:           "get virtual batch number successfully",
 			ExpectedError:  nil,
 			ExpectedResult: 10,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -447,9 +448,9 @@ func TestVirtualBatchNumber(t *testing.T) {
 		},
 		{
 			Name:           "failed to get virtual batch number",
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last virtual batch number from state"),
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last virtual batch number from state"),
 			ExpectedResult: 0,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -477,7 +478,7 @@ func TestVirtualBatchNumber(t *testing.T) {
 			require.NoError(t, err)
 
 			if res.Result != nil {
-				var result argUint64
+				var result types.ArgUint64
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
 				assert.Equal(t, tc.ExpectedResult, uint64(result))
@@ -498,8 +499,8 @@ func TestVerifiedBatchNumber(t *testing.T) {
 	type testCase struct {
 		Name           string
 		ExpectedResult uint64
-		ExpectedError  rpcError
-		SetupMocks     func(m *mocks)
+		ExpectedError  types.Error
+		SetupMocks     func(m *mocksWrapper)
 	}
 
 	testCases := []testCase{
@@ -507,7 +508,7 @@ func TestVerifiedBatchNumber(t *testing.T) {
 			Name:           "get verified batch number successfully",
 			ExpectedError:  nil,
 			ExpectedResult: 10,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -526,9 +527,9 @@ func TestVerifiedBatchNumber(t *testing.T) {
 		},
 		{
 			Name:           "failed to get verified batch number",
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last verified batch number from state"),
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last verified batch number from state"),
 			ExpectedResult: 0,
-			SetupMocks: func(m *mocks) {
+			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -556,7 +557,7 @@ func TestVerifiedBatchNumber(t *testing.T) {
 			require.NoError(t, err)
 
 			if res.Result != nil {
-				var result argUint64
+				var result types.ArgUint64
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
 				assert.Equal(t, tc.ExpectedResult, uint64(result))
@@ -575,9 +576,9 @@ func TestGetBatchByNumber(t *testing.T) {
 		Name           string
 		Number         string
 		WithTxDetail   bool
-		ExpectedResult *rpcBatch
-		ExpectedError  rpcError
-		SetupMocks     func(*mockedServer, *mocks, *testCase)
+		ExpectedResult *types.Batch
+		ExpectedError  types.Error
+		SetupMocks     func(*mockedServer, *mocksWrapper, *testCase)
 	}
 
 	testCases := []testCase{
@@ -586,7 +587,7 @@ func TestGetBatchByNumber(t *testing.T) {
 			Number:         "0x123",
 			ExpectedResult: nil,
 			ExpectedError:  nil,
-			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -606,7 +607,7 @@ func TestGetBatchByNumber(t *testing.T) {
 			Name:         "get specific batch successfully with tx detail",
 			Number:       "0x345",
 			WithTxDetail: true,
-			ExpectedResult: &rpcBatch{
+			ExpectedResult: &types.Batch{
 				Number:              1,
 				Coinbase:            common.HexToAddress("0x1"),
 				StateRoot:           common.HexToHash("0x2"),
@@ -617,7 +618,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				VerifyBatchTxHash:   ptrHash(common.HexToHash("0x20")),
 			},
 			ExpectedError: nil,
-			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -660,19 +661,19 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
-				txs := []*types.Transaction{
-					signTx(types.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-					signTx(types.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+				txs := []*coreTypes.Transaction{
+					signTx(coreTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+					signTx(coreTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
 				}
 
-				batchTxs := make([]types.Transaction, 0, len(txs))
+				batchTxs := make([]coreTypes.Transaction, 0, len(txs))
 
-				tc.ExpectedResult.Transactions = []rpcTransactionOrHash{}
+				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				for i, tx := range txs {
 					blockNumber := big.NewInt(int64(i))
 					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
-					receipt := types.NewReceipt([]byte{}, false, uint64(0))
+					receipt := coreTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
 					receipt.TransactionIndex = uint(i)
 					receipt.BlockNumber = blockNumber
@@ -686,23 +687,23 @@ func TestGetBatchByNumber(t *testing.T) {
 					V, R, S := tx.RawSignatureValues()
 
 					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
-						rpcTransaction{
-							Nonce:       argUint64(tx.Nonce()),
-							GasPrice:    argBig(*tx.GasPrice()),
-							Gas:         argUint64(tx.Gas()),
+						types.Transaction{
+							Nonce:       types.ArgUint64(tx.Nonce()),
+							GasPrice:    types.ArgBig(*tx.GasPrice()),
+							Gas:         types.ArgUint64(tx.Gas()),
 							To:          tx.To(),
-							Value:       argBig(*tx.Value()),
+							Value:       types.ArgBig(*tx.Value()),
 							Input:       tx.Data(),
 							Hash:        tx.Hash(),
 							From:        from,
 							BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
 							BlockHash:   ptrHash(receipt.BlockHash),
 							TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
-							ChainID:     argBig(*tx.ChainId()),
-							Type:        argUint64(tx.Type()),
-							V:           argBig(*V),
-							R:           argBig(*R),
-							S:           argBig(*S),
+							ChainID:     types.ArgBig(*tx.ChainId()),
+							Type:        types.ArgUint64(tx.Type()),
+							V:           types.ArgBig(*V),
+							R:           types.ArgBig(*R),
+							S:           types.ArgBig(*S),
 						},
 					)
 
@@ -718,7 +719,7 @@ func TestGetBatchByNumber(t *testing.T) {
 			Name:         "get specific batch successfully without tx detail",
 			Number:       "0x345",
 			WithTxDetail: false,
-			ExpectedResult: &rpcBatch{
+			ExpectedResult: &types.Batch{
 				Number:              1,
 				Coinbase:            common.HexToAddress("0x1"),
 				StateRoot:           common.HexToHash("0x2"),
@@ -729,7 +730,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				VerifyBatchTxHash:   ptrHash(common.HexToHash("0x20")),
 			},
 			ExpectedError: nil,
-			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -772,19 +773,19 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
-				txs := []*types.Transaction{
-					signTx(types.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-					signTx(types.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+				txs := []*coreTypes.Transaction{
+					signTx(coreTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+					signTx(coreTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
 				}
 
-				batchTxs := make([]types.Transaction, 0, len(txs))
+				batchTxs := make([]coreTypes.Transaction, 0, len(txs))
 
-				tc.ExpectedResult.Transactions = []rpcTransactionOrHash{}
+				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				for i, tx := range txs {
 					blockNumber := big.NewInt(int64(i))
 					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
-					receipt := types.NewReceipt([]byte{}, false, uint64(0))
+					receipt := coreTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
 					receipt.TransactionIndex = uint(i)
 					receipt.BlockNumber = blockNumber
@@ -798,23 +799,23 @@ func TestGetBatchByNumber(t *testing.T) {
 					V, R, S := tx.RawSignatureValues()
 
 					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
-						rpcTransaction{
-							Nonce:       argUint64(tx.Nonce()),
-							GasPrice:    argBig(*tx.GasPrice()),
-							Gas:         argUint64(tx.Gas()),
+						types.Transaction{
+							Nonce:       types.ArgUint64(tx.Nonce()),
+							GasPrice:    types.ArgBig(*tx.GasPrice()),
+							Gas:         types.ArgUint64(tx.Gas()),
 							To:          tx.To(),
-							Value:       argBig(*tx.Value()),
+							Value:       types.ArgBig(*tx.Value()),
 							Input:       tx.Data(),
 							Hash:        tx.Hash(),
 							From:        from,
 							BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
 							BlockHash:   ptrHash(receipt.BlockHash),
 							TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
-							ChainID:     argBig(*tx.ChainId()),
-							Type:        argUint64(tx.Type()),
-							V:           argBig(*V),
-							R:           argBig(*R),
-							S:           argBig(*S),
+							ChainID:     types.ArgBig(*tx.ChainId()),
+							Type:        types.ArgUint64(tx.Type()),
+							V:           types.ArgBig(*V),
+							R:           types.ArgBig(*R),
+							S:           types.ArgBig(*S),
 						},
 					)
 
@@ -830,7 +831,7 @@ func TestGetBatchByNumber(t *testing.T) {
 			Name:         "get latest batch successfully",
 			Number:       "latest",
 			WithTxDetail: true,
-			ExpectedResult: &rpcBatch{
+			ExpectedResult: &types.Batch{
 				Number:              1,
 				Coinbase:            common.HexToAddress("0x1"),
 				StateRoot:           common.HexToHash("0x2"),
@@ -841,7 +842,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				VerifyBatchTxHash:   ptrHash(common.HexToHash("0x20")),
 			},
 			ExpectedError: nil,
-			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -889,19 +890,19 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
-				txs := []*types.Transaction{
-					signTx(types.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-					signTx(types.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+				txs := []*coreTypes.Transaction{
+					signTx(coreTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+					signTx(coreTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
 				}
 
-				batchTxs := make([]types.Transaction, 0, len(txs))
+				batchTxs := make([]coreTypes.Transaction, 0, len(txs))
 
-				tc.ExpectedResult.Transactions = []rpcTransactionOrHash{}
+				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				for i, tx := range txs {
 					blockNumber := big.NewInt(int64(i))
 					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
-					receipt := types.NewReceipt([]byte{}, false, uint64(0))
+					receipt := coreTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
 					receipt.TransactionIndex = uint(i)
 					receipt.BlockNumber = blockNumber
@@ -915,23 +916,23 @@ func TestGetBatchByNumber(t *testing.T) {
 					V, R, S := tx.RawSignatureValues()
 
 					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
-						rpcTransaction{
-							Nonce:       argUint64(tx.Nonce()),
-							GasPrice:    argBig(*tx.GasPrice()),
-							Gas:         argUint64(tx.Gas()),
+						types.Transaction{
+							Nonce:       types.ArgUint64(tx.Nonce()),
+							GasPrice:    types.ArgBig(*tx.GasPrice()),
+							Gas:         types.ArgUint64(tx.Gas()),
 							To:          tx.To(),
-							Value:       argBig(*tx.Value()),
+							Value:       types.ArgBig(*tx.Value()),
 							Input:       tx.Data(),
 							Hash:        tx.Hash(),
 							From:        from,
 							BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
 							BlockHash:   ptrHash(receipt.BlockHash),
 							TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
-							ChainID:     argBig(*tx.ChainId()),
-							Type:        argUint64(tx.Type()),
-							V:           argBig(*V),
-							R:           argBig(*R),
-							S:           argBig(*S),
+							ChainID:     types.ArgBig(*tx.ChainId()),
+							Type:        types.ArgUint64(tx.Type()),
+							V:           types.ArgBig(*V),
+							R:           types.ArgBig(*R),
+							S:           types.ArgBig(*S),
 						},
 					)
 
@@ -947,8 +948,8 @@ func TestGetBatchByNumber(t *testing.T) {
 			Name:           "get latest batch fails to compute batch number",
 			Number:         "latest",
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
-			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last batch number from state"),
+			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -969,8 +970,8 @@ func TestGetBatchByNumber(t *testing.T) {
 			Name:           "get latest batch fails to load batch by number",
 			Number:         "latest",
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "couldn't load batch from state by number 1"),
-			SetupMocks: func(s *mockedServer, m *mocks, tc *testCase) {
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "couldn't load batch from state by number 1"),
+			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).
@@ -1028,9 +1029,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					for i, tx := range tc.ExpectedResult.Transactions {
 						switch batchTxOrHash := batchTxs[i].(type) {
 						case string:
-							assert.Equal(t, tx.getHash().String(), batchTxOrHash)
+							assert.Equal(t, tx.GetHash().String(), batchTxOrHash)
 						case map[string]interface{}:
-							tx := tx.(rpcTransaction)
+							tx := tx.(types.Transaction)
 							assert.Equal(t, tx.Nonce.Hex(), batchTxOrHash["nonce"].(string))
 							assert.Equal(t, tx.GasPrice.Hex(), batchTxOrHash["gasPrice"].(string))
 							assert.Equal(t, tx.Gas.Hex(), batchTxOrHash["gas"].(string))
@@ -1064,13 +1065,13 @@ func ptrUint64(n uint64) *uint64 {
 	return &n
 }
 
-func ptrArgUint64FromUint(n uint) *argUint64 {
-	tmp := argUint64(n)
+func ptrArgUint64FromUint(n uint) *types.ArgUint64 {
+	tmp := types.ArgUint64(n)
 	return &tmp
 }
 
-func ptrArgUint64FromUint64(n uint64) *argUint64 {
-	tmp := argUint64(n)
+func ptrArgUint64FromUint64(n uint64) *types.ArgUint64 {
+	tmp := types.ArgUint64(n)
 	return &tmp
 }
 
@@ -1078,7 +1079,7 @@ func ptrHash(h common.Hash) *common.Hash {
 	return &h
 }
 
-func signTx(tx *types.Transaction, chainID uint64) *types.Transaction {
+func signTx(tx *coreTypes.Transaction, chainID uint64) *coreTypes.Transaction {
 	privateKey, _ := crypto.GenerateKey()
 	auth, _ := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(chainID))
 	signedTx, _ := auth.Signer(auth.From, tx)

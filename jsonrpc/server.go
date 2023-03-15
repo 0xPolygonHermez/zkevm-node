@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/didip/tollbooth/v6"
 	"github.com/gorilla/websocket"
@@ -46,8 +47,8 @@ type Server struct {
 // NewServer returns the JsonRPC server
 func NewServer(
 	cfg Config,
-	p jsonRPCTxPool,
-	s stateInterface,
+	p types.PoolInterface,
+	s types.StateInterface,
 	storage storageInterface,
 	apis map[string]bool,
 ) *Server {
@@ -252,11 +253,11 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	metrics.RequestDuration(start)
 }
 
-func (s *Server) isSingleRequest(data []byte) (bool, rpcError) {
+func (s *Server) isSingleRequest(data []byte) (bool, types.Error) {
 	x := bytes.TrimLeft(data, " \t\r\n")
 
 	if len(x) == 0 {
-		return false, newRPCError(invalidRequestErrorCode, "Invalid json request")
+		return false, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
 	}
 
 	return x[0] == '{', nil
@@ -293,7 +294,7 @@ func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
 		return
 	}
 
-	responses := make([]Response, 0, len(requests))
+	responses := make([]types.Response, 0, len(requests))
 
 	for _, request := range requests {
 		req := handleRequest{Request: request}
@@ -308,21 +309,21 @@ func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
 	}
 }
 
-func (s *Server) parseRequest(data []byte) (Request, error) {
-	var req Request
+func (s *Server) parseRequest(data []byte) (types.Request, error) {
+	var req types.Request
 
 	if err := json.Unmarshal(data, &req); err != nil {
-		return Request{}, newRPCError(invalidRequestErrorCode, "Invalid json request")
+		return types.Request{}, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
 	}
 
 	return req, nil
 }
 
-func (s *Server) parseRequests(data []byte) ([]Request, error) {
-	var requests []Request
+func (s *Server) parseRequests(data []byte) ([]types.Request, error) {
+	var requests []types.Request
 
 	if err := json.Unmarshal(data, &requests); err != nil {
-		return nil, newRPCError(invalidRequestErrorCode, "Invalid json request")
+		return nil, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
 	}
 
 	return requests, nil
@@ -391,15 +392,15 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 }
 
-func rpcErrorResponse(code int, message string, err error) (interface{}, rpcError) {
+func rpcErrorResponse(code int, message string, err error) (interface{}, types.Error) {
 	return rpcErrorResponseWithData(code, message, nil, err)
 }
 
-func rpcErrorResponseWithData(code int, message string, data *[]byte, err error) (interface{}, rpcError) {
+func rpcErrorResponseWithData(code int, message string, data *[]byte, err error) (interface{}, types.Error) {
 	if err != nil {
 		log.Errorf("%v:%v", message, err.Error())
 	} else {
 		log.Error(message)
 	}
-	return nil, newRPCErrorWithData(code, message, data)
+	return nil, types.NewRPCErrorWithData(code, message, data)
 }

@@ -11,7 +11,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
@@ -348,7 +348,7 @@ func getBroadcastURI(etherMan ethermanInterface) (string, error) {
 	log.Debug("trustedSequencerURL ", trustedSequencerURL)
 
 	log.Debug("getting broadcast URI from Trusted Sequencer JSON RPC Server")
-	res, err := jsonrpc.JSONRPCCall(trustedSequencerURL, "zkevm_getBroadcastURI")
+	res, err := client.JSONRPCCall(trustedSequencerURL, "zkevm_getBroadcastURI")
 	if err != nil {
 		return "", err
 	}

@@ -1,4 +1,4 @@
-package jsonrpc
+package types
 
 import (
 	"context"
@@ -51,11 +51,11 @@ type Response struct {
 type ErrorObject struct {
 	Code    int       `json:"code"`
 	Message string    `json:"message"`
-	Data    *argBytes `json:"data,omitempty"`
+	Data    *ArgBytes `json:"data,omitempty"`
 }
 
 // NewResponse returns Success/Error response object
-func NewResponse(req Request, reply []byte, err rpcError) Response {
+func NewResponse(req Request, reply []byte, err Error) Response {
 	var result json.RawMessage
 	if reply != nil {
 		result = reply
@@ -68,7 +68,7 @@ func NewResponse(req Request, reply []byte, err rpcError) Response {
 			Message: err.Error(),
 		}
 		if err.ErrorData() != nil {
-			errorObj.Data = argBytesPtr(*err.ErrorData())
+			errorObj.Data = ArgBytesPtr(*err.ErrorData())
 		}
 	}
 
@@ -134,7 +134,7 @@ type BlockNumber int64
 
 // UnmarshalJSON automatically decodes the user input for the block number, when a JSON RPC method is called
 func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
-	num, err := stringToBlockNumber(string(buffer))
+	num, err := StringToBlockNumber(string(buffer))
 	if err != nil {
 		return err
 	}
@@ -142,7 +142,8 @@ func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
 	return nil
 }
 
-func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterface, dbTx pgx.Tx) (uint64, rpcError) {
+// GetNumericBlockNumber returns a numeric block number based on the BlockNumber instance
+func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterface, dbTx pgx.Tx) (uint64, Error) {
 	bValue := LatestBlockNumber
 	if b != nil {
 		bValue = *b
@@ -152,7 +153,7 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 	case LatestBlockNumber, PendingBlockNumber:
 		lastBlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
-			return 0, newRPCError(defaultErrorCode, "failed to get the last block number from state")
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the last block number from state")
 		}
 
 		return lastBlockNumber, nil
@@ -162,7 +163,7 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 
 	default:
 		if bValue < 0 {
-			return 0, newRPCError(invalidParamsErrorCode, "invalid block number: %v", bValue)
+			return 0, NewRPCError(InvalidParamsErrorCode, "invalid block number: %v", bValue)
 		}
 		return uint64(bValue), nil
 	}
@@ -186,7 +187,8 @@ func (b *BlockNumber) StringOrHex() string {
 	}
 }
 
-func stringToBlockNumber(str string) (BlockNumber, error) {
+// StringToBlockNumber converts a string like "latest" or "0x1" to a BlockNumber instance
+func StringToBlockNumber(str string) (BlockNumber, error) {
 	str = strings.Trim(str, "\"")
 	switch str {
 	case Earliest:
@@ -231,7 +233,8 @@ func (b *BatchNumber) UnmarshalJSON(buffer []byte) error {
 	return nil
 }
 
-func (b *BatchNumber) getNumericBatchNumber(ctx context.Context, s stateInterface, dbTx pgx.Tx) (uint64, rpcError) {
+// GetNumericBatchNumber returns a numeric batch number based on the BatchNumber instance
+func (b *BatchNumber) GetNumericBatchNumber(ctx context.Context, s StateInterface, dbTx pgx.Tx) (uint64, Error) {
 	bValue := LatestBatchNumber
 	if b != nil {
 		bValue = *b
@@ -241,7 +244,7 @@ func (b *BatchNumber) getNumericBatchNumber(ctx context.Context, s stateInterfac
 	case LatestBatchNumber:
 		lastBatchNumber, err := s.GetLastBatchNumber(ctx, dbTx)
 		if err != nil {
-			return 0, newRPCError(defaultErrorCode, "failed to get the last batch number from state")
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the last batch number from state")
 		}
 
 		return lastBatchNumber, nil
@@ -251,7 +254,7 @@ func (b *BatchNumber) getNumericBatchNumber(ctx context.Context, s stateInterfac
 
 	default:
 		if bValue < 0 {
-			return 0, newRPCError(invalidParamsErrorCode, "invalid batch number: %v", bValue)
+			return 0, NewRPCError(InvalidParamsErrorCode, "invalid batch number: %v", bValue)
 		}
 		return uint64(bValue), nil
 	}
