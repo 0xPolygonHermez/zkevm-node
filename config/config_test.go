@@ -198,6 +198,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
 		{
+			path:          "Sequencer.DBManager.L2ReorgRetrievalInterval",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
 			path:          "Sequencer.Worker.ResourceCostMultiplier",
 			expectedValue: float64(1000),
 		},

@@ -34,7 +34,10 @@ var (
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
 	}
-	dbManagerCfg      = DBManagerCfg{PoolRetrievalInterval: types.NewDuration(500 * time.Millisecond)}
+	dbManagerCfg = DBManagerCfg{
+		PoolRetrievalInterval:    types.NewDuration(500 * time.Millisecond),
+		L2ReorgRetrievalInterval: types.NewDuration(1 * time.Second),
+	}
 	executorClient    executorclientpb.ExecutorServiceClient
 	mtDBServiceClient mtDBclientpb.StateDBServiceClient
 	mtDBClientConn    *grpc.ClientConn

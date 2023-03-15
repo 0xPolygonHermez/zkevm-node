@@ -20,7 +20,7 @@ type Worker struct {
 	efficiencyList       *efficiencyList
 	workerMutex          sync.Mutex
 	state                stateInterface
-	batchConstraints     batchConstraints
+	batchConstraints     batchConstraintsFloat64
 	batchResourceWeights batchResourceWeights
 }
 
@@ -31,7 +31,7 @@ func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints
 		pool:                 make(map[string]*addrQueue),
 		efficiencyList:       newEfficiencyList(),
 		state:                state,
-		batchConstraints:     constraints,
+		batchConstraints:     convertBatchConstraintsToFloat64(constraints),
 		batchResourceWeights: weights,
 	}
 
@@ -57,17 +57,17 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropTx bool) 
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
 			log.Errorf("AddTx GetLastStateRoot error: %v", err)
-			return
+			return false
 		}
 		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if err != nil {
 			log.Errorf("AddTx GetNonceByStateRoot error: %v", err)
-			return
+			return false
 		}
 		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if err != nil {
 			log.Errorf("AddTx GetBalanceByStateRoot error: %v", err)
-			return
+			return false
 		}
 
 		addr = newAddrQueue(tx.From, nonce.Uint64(), balance)
@@ -305,4 +305,20 @@ func (w *Worker) GetEfficiencyList() *efficiencyList {
 // HandleL2Reorg handles the L2 reorg signal
 func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
 	log.Fatal("L2 Reorg detected. Restarting to sync with the new L2 state...")
+}
+
+// convertBatchConstraintsToFloat64 converts the batch constraints to float64
+func convertBatchConstraintsToFloat64(constraints batchConstraints) batchConstraintsFloat64 {
+	return batchConstraintsFloat64{
+		maxTxsPerBatch:       float64(constraints.MaxTxsPerBatch),
+		maxBatchBytesSize:    float64(constraints.MaxBatchBytesSize),
+		maxCumulativeGasUsed: float64(constraints.MaxCumulativeGasUsed),
+		maxKeccakHashes:      float64(constraints.MaxKeccakHashes),
+		maxPoseidonHashes:    float64(constraints.MaxPoseidonHashes),
+		maxPoseidonPaddings:  float64(constraints.MaxPoseidonPaddings),
+		maxMemAligns:         float64(constraints.MaxMemAligns),
+		maxArithmetics:       float64(constraints.MaxArithmetics),
+		maxBinaries:          float64(constraints.MaxBinaries),
+		maxSteps:             float64(constraints.MaxSteps),
+	}
 }

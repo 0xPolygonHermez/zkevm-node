@@ -54,7 +54,7 @@ func (d *dbManager) Start() {
 	go d.loadFromPool()
 	go func() {
 		for {
-			time.Sleep(d.cfg.PoolRetrievalInterval.Duration)
+			time.Sleep(d.cfg.L2ReorgRetrievalInterval.Duration)
 			d.checkIfReorg()
 		}
 	}()

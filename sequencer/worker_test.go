@@ -48,7 +48,7 @@ func processWorkerAddTxTestCases(t *testing.T, worker *Worker, testCases []worke
 			tx := TxTracker{}
 
 			tx.weightMultipliers = calculateWeightMultipliers(worker.batchResourceWeights, totalWeight)
-			tx.constraints = convertBatchConstraintsToFloat64(worker.batchConstraints)
+			tx.constraints = worker.batchConstraints
 			tx.resourceCostMultiplier = worker.cfg.ResourceCostMultiplier
 			tx.Hash = testCase.txHash
 			tx.HashStr = testCase.txHash.String()
