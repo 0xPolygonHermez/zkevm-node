@@ -775,24 +775,24 @@ func (s *State) ProcessAndStoreClosedBatch(
 	encodedTxs []byte,
 	dbTx pgx.Tx,
 	caller CallerLabel,
-) error {
+) (*pb.ProcessBatchResponse, error) {
 	// Decode transactions
 	decodedTransactions, _, err := DecodeTxs(encodedTxs)
 	if err != nil && !errors.Is(err, InvalidData) {
 		log.Debugf("error decoding transactions: %v", err)
-		return err
+		return nil, err
 	}
 
 	// Open the batch and process the txs
 	if dbTx == nil {
-		return ErrDBTxNil
+		return nil, ErrDBTxNil
 	}
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
-		return err
+		return nil, err
 	}
 	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, caller, dbTx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Sanity check
@@ -823,19 +823,19 @@ func (s *State) ProcessAndStoreClosedBatch(
 
 	processedBatch, err := s.convertToProcessBatchResponse(decodedTransactions, processed)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if len(processedBatch.Responses) > 0 {
 		// Store processed txs into the batch
 		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// Close batch
-	return s.closeBatch(ctx, ProcessingReceipt{
+	return processed, s.closeBatch(ctx, ProcessingReceipt{
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
