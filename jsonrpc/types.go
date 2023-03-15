@@ -166,7 +166,7 @@ func (arg *argAddress) Address() common.Address {
 
 // txnArgs is the transaction argument for the rpc endpoints
 type txnArgs struct {
-	From     common.Address
+	From     *common.Address
 	To       *common.Address
 	Gas      *argUint64
 	GasPrice *argUint64
@@ -191,7 +191,10 @@ func (args *txnArgs) ToUnsignedTransaction(ctx context.Context, st stateInterfac
 		data = *args.Data
 	}
 
-	sender := args.From
+	sender := state.ZeroAddress
+	if args.From != nil {
+		sender = *args.From
+	}
 	nonce := uint64(0)
 	gasPrice := big.NewInt(0)
 

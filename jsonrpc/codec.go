@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -183,6 +184,21 @@ func stringToBlockNumber(str string) (BlockNumber, error) {
 		return 0, err
 	}
 	return BlockNumber(n), nil
+}
+
+func fromEthBlockNumber(ethBlockNumber rpc.BlockNumber) BlockNumber {
+	switch ethBlockNumber {
+	case rpc.PendingBlockNumber:
+		return PendingBlockNumber
+	case rpc.LatestBlockNumber:
+		return LatestBlockNumber
+	case rpc.FinalizedBlockNumber:
+		return LatestBlockNumber
+	case rpc.EarliestBlockNumber:
+		return EarliestBlockNumber
+	default:
+		return BlockNumber(ethBlockNumber)
+	}
 }
 
 // Index of a item

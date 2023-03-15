@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 )
@@ -50,10 +51,28 @@ func (e *EthEndpoints) BlockNumber() (interface{}, rpcError) {
 // executed contract and potential error.
 // Note, this function doesn't make any changes in the state/blockchain and is
 // useful to execute view/pure methods and retrieve values.
-func (e *EthEndpoints) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
+func (e *EthEndpoints) Call(arg *txnArgs, blockNrOrHash *rpc.BlockNumberOrHash) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		ethBlockNumber, hasNum := blockNrOrHash.Number()
+		bnValue := fromEthBlockNumber(ethBlockNumber)
+		if !hasNum {
+			if blockHash, hasHash := blockNrOrHash.Hash(); hasHash {
+				if block, err := e.state.GetL2BlockByHash(ctx, blockHash, dbTx); err != nil {
+					return rpcErrorResponse(defaultErrorCode, "Unknown block hash", err)
+				} else {
+					bnValue = BlockNumber(block.Header().Number.Int64())
+				}
+			}
+			bnValue = LatestBlockNumber
+		}
+		number := &bnValue
+
 		// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
-		if arg.Gas == nil || *arg.Gas == argUint64(0) {
+		header, err := e.getBlockHeader(ctx, *number, dbTx)
+		if err != nil {
+			return rpcErrorResponse(defaultErrorCode, "failed to get block header", err)
+		}
+		if arg.Gas == nil || *arg.Gas == argUint64(0) || *arg.Gas > argUint64(header.GasLimit) {
 			header, err := e.getBlockHeader(ctx, *number, dbTx)
 			if err != nil {
 				return rpcErrorResponse(defaultErrorCode, "failed to get block header", err)
