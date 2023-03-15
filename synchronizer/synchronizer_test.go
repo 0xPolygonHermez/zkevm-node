@@ -218,7 +218,7 @@ func TestTrustedStateReorg(t *testing.T) {
 
 				m.State.
 					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
-					Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()},nil).
+					Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
 					Once()
 
 				virtualBatch := &state.VirtualBatch{
@@ -727,7 +727,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 			m.State.
 				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
-				Return(&pb.ProcessBatchResponse{},nil).
+				Return(&pb.ProcessBatchResponse{}, nil).
 				Once()
 
 			virtualBatch := &state.VirtualBatch{
