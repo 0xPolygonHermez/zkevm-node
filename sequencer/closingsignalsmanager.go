@@ -47,7 +47,7 @@ func (c *closingSignalsManager) checkSendToL1Timeout() {
 func (c *closingSignalsManager) checkGERUpdate() {
 	lastBatch, err := c.dbManager.GetLastBatch(c.ctx)
 	for err != nil {
-		log.Errorf("Error geting last batch: %v", err)
+		log.Errorf("error getting last batch: %v", err)
 		time.Sleep(time.Second)
 		lastBatch, err = c.dbManager.GetLastBatch(c.ctx)
 	}
