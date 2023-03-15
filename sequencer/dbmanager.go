@@ -185,7 +185,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		// Flush the state db
 		err := d.state.FlushMerkleTree(d.ctx)
 		if err != nil {
-			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
+			log.Fatalf("StoreProcessedTxAndDeleteFromPool. Error flushing state db: %v", err)
 		}
 
 		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
