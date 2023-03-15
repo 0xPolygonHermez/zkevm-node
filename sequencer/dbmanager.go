@@ -181,6 +181,9 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 	for {
 		txToStore := <-d.txsStore.Ch
 		d.checkIfReorg()
+
+		// TODO: Flush the State DB
+
 		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
 		dbTx, err := d.BeginStateTransaction(d.ctx)
 		if err != nil {

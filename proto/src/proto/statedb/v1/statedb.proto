@@ -16,8 +16,8 @@ message Version {
  * Define all methods implementes by the gRPC
  * Get: get the value for a specific key
  * Set: set the value for a specific key
- * SetProgram: set the byte data for a specific hash
- * GetProgram: get the byte data for a specific hash
+ * SetProgram: set the byte data for a specific key
+ * GetProgram: get the byte data for a specific key
  * Flush: wait for all the pendings writes to the DB are done
  */
 service StateDBService {
@@ -25,7 +25,9 @@ service StateDBService {
     rpc Get(GetRequest) returns (GetResponse) {}
     rpc SetProgram(SetProgramRequest) returns (SetProgramResponse) {}
     rpc GetProgram(GetProgramRequest) returns (GetProgramResponse) {}
-    rpc Flush (google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    rpc LoadDB(LoadDBRequest) returns (google.protobuf.Empty) {}
+    rpc LoadProgramDB(LoadProgramDBRequest) returns (google.protobuf.Empty) {}
+    rpc Flush (google.protobuf.Empty) returns (FlushResponse) {}
 }
 
 ///////////////////
@@ -37,8 +39,9 @@ service StateDBService {
  * @param {old_root} - merkle-tree root
  * @param {key} - key to set
  * @param {value} - scalar value to set (HEX string format)
- * @param {persistent} - indicates if it should be stored in the database (true) or only in the memory cache (false)
+ * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
  * @param {details} - indicates if it should return all response parameters (true) or just the new root (false)
+ * @param {get_db_read_log} - indicates if it should return the DB reads generated during the execution of the request
  */
 message SetRequest {
     Fea old_root = 1;
@@ -46,6 +49,7 @@ message SetRequest {
     string value = 3;
     bool persistent = 4;
     bool details = 5;
+    bool get_db_read_log = 6;
 }
 
 /**
@@ -53,18 +57,20 @@ message SetRequest {
  * @param {root} - merkle-tree root
  * @param {key} - key to look for
  * @param {details} - indicates if it should return all response parameters (true) or just the new root (false)
+ * @param {get_db_read_log} - indicates if it should return the DB reads generated during the execution of the request
  */
 message GetRequest {
     Fea root = 1;
     Fea key = 2;
     bool details = 3;
+    bool get_db_read_log = 4;
 }
 
 /**
  * @dev SetProgramRequest
- * @param {key} - hash to set
+ * @param {key} - key to set
  * @param {data} - Program data to store
- * @param {persistent} - indicates if it should be stored in the database (true) or only in the memory cache (false)
+ * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
  */
 message SetProgramRequest {
     Fea key = 1;
@@ -74,10 +80,30 @@ message SetProgramRequest {
 
 /**
  * @dev GetProgramRequest
- * @param {key} - hash to get program data
+ * @param {key} - key to get program data
  */
 message GetProgramRequest {
     Fea key = 1;
+}
+
+/**
+ * @dev LoadDBRequest
+ * @param {input_db} - list of db records (MT) to load in the database
+ * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
+ */
+message LoadDBRequest {
+    map<string, FeList> input_db = 1;
+    bool persistent = 2;
+}
+
+/**
+ * @dev LoadProgramDBRequest
+ * @param {input_program_db} - list of db records (program) to load in the database
+ * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
+ */
+message LoadProgramDBRequest {
+    map<string, bytes> input_program_db = 1;
+    bool persistent = 2;
 }
 
 /////////////////////
@@ -96,6 +122,8 @@ message GetProgramRequest {
  * @param {old_value} - old value (HEX string format)
  * @param {new_value} - new value (HEX string format)
  * @param {mode}
+ * @param {proof_hash_counter}
+ * @param {db_read_log} - list of db records read during the execution of the request
  * @param {result} - result code
  */
 message SetResponse {
@@ -109,7 +137,9 @@ message SetResponse {
     string old_value = 8;
     string new_value = 9;
     string mode = 10;
-    ResultCode result = 11;
+    uint64 proof_hash_counter = 11;
+    map<string, FeList> db_read_log = 12;
+    ResultCode result = 13;
 }
 
 /**
@@ -121,6 +151,8 @@ message SetResponse {
  * @param {ins_value} - value found (HEX string format)
  * @param {is_old0} - is new insert or delete
  * @param {value} - value retrieved (HEX string format)
+ * @param {proof_hash_counter}
+ * @param {db_read_log} - list of db records read during the execution of the request
  * @param {result} - result code
  */
 message GetResponse {
@@ -131,7 +163,9 @@ message GetResponse {
     string ins_value = 5;
     bool is_old0 = 6;
     string value = 7;
-    ResultCode result = 8;
+    uint64 proof_hash_counter = 8;
+    map<string, FeList> db_read_log = 9;
+    ResultCode result = 10;
 }
 
 /**
@@ -153,6 +187,14 @@ message GetProgramResponse {
 }
 
 /**
+ * @dev FlushResponse
+ * @param {result} - result code
+ */
+message FlushResponse {
+    ResultCode result = 1;
+}
+
+/**
  * @dev Array of 4 FE
  * @param {fe0} - Field Element value for pos 0
  * @param {fe1} - Field Element value for pos 1
@@ -167,8 +209,16 @@ message Fea {
 }
 
 /**
+ * @dev FE (Field Element) List
+ * @param {fe} - list of Fe
+*/
+message FeList {
+    repeated uint64 fe = 1;
+}
+
+/**
  * @dev Siblings List
- * @param {sibling} - sibling
+ * @param {sibling} - list of siblings
 */
 message SiblingList {
     repeated uint64 sibling = 1;
@@ -182,9 +232,10 @@ message ResultCode {
     enum Code {
         CODE_UNSPECIFIED = 0;
         CODE_SUCCESS = 1;
-        CODE_KEY_NOT_FOUND = 2;
-        CODE_DB_ERROR = 3;
+        CODE_DB_KEY_NOT_FOUND = 2; // Requested key was not found in database
+        CODE_DB_ERROR = 3; // Error connecting to database, or processing request
         CODE_INTERNAL_ERROR = 4;
+        CODE_SMT_INVALID_DATA_SIZE = 14; // Invalid size for the data of MT node
     }
     Code code = 1;
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/ethereum/go-ethereum/common"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // StateTree provides methods to access and modify state in merkletree
@@ -310,5 +311,10 @@ func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte
 		Data:       data,
 		Persistent: persistent,
 	})
+	return err
+}
+
+func (tree *StateTree) flush() error {
+	_, err := tree.grpcClient.Flush(context.Background(), &emptypb.Empty{})
 	return err
 }
