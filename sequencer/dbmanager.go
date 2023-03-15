@@ -182,7 +182,11 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		txToStore := <-d.txsStore.Ch
 		d.checkIfReorg()
 
-		// TODO: Flush the State DB
+		// Flush the state db
+		err := d.state.FlushMerkleTree(d.ctx)
+		if err != nil {
+			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
+		}
 
 		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
 		dbTx, err := d.BeginStateTransaction(d.ctx)
@@ -541,4 +545,9 @@ func (d *dbManager) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx
 // CountReorgs returns the number of reorgs
 func (d *dbManager) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	return d.state.CountReorgs(ctx, dbTx)
+}
+
+// FlushMerkleTree persists updates in the Merkle tree
+func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
+	return d.state.FlushMerkleTree(ctx)
 }

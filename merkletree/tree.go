@@ -314,7 +314,8 @@ func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte
 	return err
 }
 
-func (tree *StateTree) flush() error {
-	_, err := tree.grpcClient.Flush(context.Background(), &emptypb.Empty{})
+// Flush flushes all changes to the persistent storage.
+func (tree *StateTree) Flush(ctx context.Context) error {
+	_, err := tree.grpcClient.Flush(ctx, &emptypb.Empty{})
 	return err
 }

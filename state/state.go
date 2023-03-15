@@ -1737,3 +1737,8 @@ func (s *State) LogExecutorError(responseError pb.ExecutorError, processBatchReq
 func (s *State) GetForkIdByBatchNumber(batchNumber uint64) uint64 {
 	return GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, batchNumber)
 }
+
+// FlushMerkleTree persists updates in the Merkle tree
+func (s *State) FlushMerkleTree(ctx context.Context) error {
+	return s.tree.Flush(ctx)
+}
