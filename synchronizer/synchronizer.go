@@ -610,6 +610,19 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		return err
 	}
 	if latestBatchNumber < forkID.BatchNumber { //If the forkID will start in a future batch
+		// Read Fork ID FROM POE SC
+		forkIDIntervals, err := s.etherMan.GetForks(s.ctx)
+		if err != nil || len(forkIDIntervals) == 0 {
+			log.Error("error getting all forkIDs: ", err)
+			rollbackErr := dbTx.Rollback(s.ctx)
+			if rollbackErr != nil {
+				log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+				return rollbackErr
+			}
+			return err
+		}
+		// Update forkID intervals in the state
+		s.state.UpdateForkIDIntervals(forkIDIntervals)
 		return nil
 	}
 
