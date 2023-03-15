@@ -48,8 +48,8 @@ func (c *closingSignalsManager) checkGERUpdate() {
 	lastBatch, err := c.dbManager.GetLastBatch(c.ctx)
 	for err != nil {
 		log.Errorf("Error geting last batch: %v", err)
-		lastBatch, err = c.dbManager.GetLastBatch(c.ctx)
 		time.Sleep(time.Second)
+		lastBatch, err = c.dbManager.GetLastBatch(c.ctx)
 	}
 	lastGERSent := lastBatch.GlobalExitRoot
 	for {
