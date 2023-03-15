@@ -1237,7 +1237,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
-	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, &l2BlockNumber, two, dbTx)
+	lastBatches, _, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, &l2BlockNumber, two, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -1247,8 +1247,6 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		log.Errorf("error getting l2 block", err)
 		return nil, err
 	}
-	log.Debug(l2Block.Root().Hex())
-	log.Debug(l2BlockStateRoot.Hex())
 
 	nonce, err := s.tree.GetNonce(ctx, senderAddress, l2Block.Root().Bytes())
 	if err != nil {
