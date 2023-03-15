@@ -17,8 +17,6 @@ services:
     ports:
       - 8545:8545
       - 9091:9091 # needed if metrics enabled
-    environment:
-      - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
       - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.node.config.toml:/app/config.toml
       - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.genesis.config.json:/app/genesis.json
@@ -34,8 +32,6 @@ services:
       zkevm-state-db:
         condition: service_healthy
     image: zkevm-node
-    environment:
-      - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
       - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.node.config.toml:/app/config.toml
       - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.genesis.config.json:/app/genesis.json
@@ -63,7 +59,6 @@ services:
       - 5432:5432
     volumes:
       - ./db/scripts/init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
-      - ${ZKEVM_NODE_STATEDB_DATA_DIR}:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
@@ -87,8 +82,6 @@ services:
           memory: 1G
     ports:
       - 5433:5432
-    volumes:
-      - ${ZKEVM_NODE_POOLDB_DATA_DIR}:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=pool_user
       - POSTGRES_PASSWORD=pool_password
