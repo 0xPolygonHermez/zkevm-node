@@ -215,6 +215,24 @@ func TestIndexUnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestBlockNumberStringOrHex(t *testing.T) {
+	testCases := []struct {
+		bn             *BlockNumber
+		expectedResult string
+	}{
+		{bn: bnPtr(BlockNumber(-3)), expectedResult: "pending"},
+		{bn: bnPtr(BlockNumber(-2)), expectedResult: "latest"},
+		{bn: bnPtr(BlockNumber(-1)), expectedResult: "earliest"},
+		{bn: bnPtr(BlockNumber(0)), expectedResult: "0x0"},
+		{bn: bnPtr(BlockNumber(100)), expectedResult: "0x64"},
+	}
+
+	for _, testCase := range testCases {
+		result := testCase.bn.StringOrHex()
+		assert.Equal(t, testCase.expectedResult, result)
+	}
+}
+
 func bnPtr(bn BlockNumber) *BlockNumber {
 	return &bn
 }
