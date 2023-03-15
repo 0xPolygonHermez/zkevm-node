@@ -97,7 +97,7 @@ func start(cliCtx *cli.Context) error {
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
-	st := newState(ctx, c, l2ChainID, currentForkID, forkIDIntervals, stateSqlDB)
+	st := newState(ctx, c, l2ChainID, forkIDIntervals, stateSqlDB)
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
 	if err != nil {
@@ -274,7 +274,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, currentForkID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool) *state.State {
+func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)

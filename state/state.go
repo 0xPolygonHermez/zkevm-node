@@ -107,6 +107,12 @@ func (s *State) PrepareWebSocket() {
 	go s.handleEvents()
 }
 
+// UpdateForkIDIntervals updates the forkID intervals
+func (s *State) UpdateForkIDIntervals(intervals []ForkIDInterval) {
+	log.Infof("Updating forkIDs. Setting %d forkIDs", len(intervals))
+	s.cfg.ForkIDIntervals = intervals
+}
+
 // BeginStateTransaction starts a state transaction
 func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	tx, err := s.Begin(ctx)

@@ -549,6 +549,11 @@ func (_m *stateMock) StoreTransactions(ctx context.Context, batchNum uint64, pro
 	return r0
 }
 
+// UpdateForkIDIntervals provides a mock function with given fields: intervals
+func (_m *stateMock) UpdateForkIDIntervals(intervals []state.ForkIDInterval) {
+	_m.Called(intervals)
+}
+
 type mockConstructorTestingTnewStateMock interface {
 	mock.TestingT
 	Cleanup(func())

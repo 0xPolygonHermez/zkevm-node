@@ -629,26 +629,42 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		return nil
 	}
 
+	// Read Fork ID FROM POE SC
+	forkIDIntervals, err := s.etherMan.GetForks(s.ctx)
+	if err != nil || len(forkIDIntervals) == 0 {
+		log.Error("error getting all forkIDs: ", err)
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+			return rollbackErr
+		}
+		return err
+	}
+
+	//Reset DB
 	err = s.state.ResetForkID(s.ctx, forkID.BatchNumber, forkID.ForkID, forkID.Version, dbTx)
 	if err != nil {
+		log.Error("error resetting the state. Error: ", err)
 		rollbackErr := dbTx.Rollback(s.ctx)
 		if rollbackErr != nil {
 			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
 			return rollbackErr
 		}
-		log.Error("error resetting the state. Error: ", err)
 		return err
 	}
 	err = dbTx.Commit(s.ctx)
 	if err != nil {
+		log.Error("error committing the resetted state. Error: ", err)
 		rollbackErr := dbTx.Rollback(s.ctx)
 		if rollbackErr != nil {
 			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
 			return rollbackErr
 		}
-		log.Error("error committing the resetted state. Error: ", err)
 		return err
 	}
+
+	// Update forkID intervals in the state
+	s.state.UpdateForkIDIntervals(forkIDIntervals)
 
 	return fmt.Errorf("new ForkID detected, reseting synchronizarion")
 }
@@ -727,9 +743,10 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			log.Errorf("error executing L1 batch: %+v, error: %v", batch, err)
 			rollbackErr := dbTx.Rollback(s.ctx)
 			if rollbackErr != nil {
-				log.Fatalf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", batch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+				log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", batch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+				return rollbackErr
 			}
-			log.Fatalf("error executing L1 batch: %+v, error: %v", batch, err)
+			return err
 		}
 		newRoot := common.BytesToHash(p.NewStateRoot)
 		accumulatedInputHash := common.BytesToHash(p.NewAccInputHash)
