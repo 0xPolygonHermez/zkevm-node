@@ -2735,7 +2735,7 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 				})
 
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", context.Background(), txMatchByHash, "").
 					Return(nil).
 					Once()
 			},
@@ -2752,7 +2752,7 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 				})
 
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", context.Background(), txMatchByHash, "").
 					Return(errors.New("failed to add TX to the pool")).
 					Once()
 			},
@@ -2810,7 +2810,7 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				m.Pool.
-					On("AddTx", context.Background(), mock.IsType(types.Transaction{})).
+					On("AddTx", context.Background(), mock.IsType(types.Transaction{}), "").
 					Return(nil).
 					Once()
 			},
@@ -2832,7 +2832,7 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				m.Pool.
-					On("AddTx", context.Background(), mock.IsType(types.Transaction{})).
+					On("AddTx", context.Background(), mock.IsType(types.Transaction{}), "").
 					Return(errors.New("failed to add TX to the pool")).
 					Once()
 			},
@@ -2900,7 +2900,7 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 				})
 
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", context.Background(), txMatchByHash, "").
 					Return(nil).
 					Once()
 			},
@@ -2917,7 +2917,7 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 				})
 
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", context.Background(), txMatchByHash, "").
 					Return(errors.New("failed to add TX to the pool")).
 					Once()
 			},

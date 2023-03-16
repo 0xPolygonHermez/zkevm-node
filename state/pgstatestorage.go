@@ -2245,6 +2245,15 @@ func (p *PostgresStorage) AddDebugInfo(ctx context.Context, info *DebugInfo, dbT
 	return err
 }
 
+// AddEvent is used to store and event in the database
+func (p *PostgresStorage) AddEvent(ctx context.Context, event *Event, dbTx pgx.Tx) error {
+	const insertEventSQL = "INSERT INTO state.event (event_type, timestamp, ip, tx_hash, payload) VALUES ($1, $2, $3, $4, $5)"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, insertEventSQL, event.EventType, event.Timestamp, event.IP, event.TxHash.String(), event.Payload)
+	return err
+}
+
 // AddTrustedReorg is used to store trusted reorgs
 func (p *PostgresStorage) AddTrustedReorg(ctx context.Context, reorg *TrustedReorg, dbTx pgx.Tx) error {
 	const insertTrustedReorgSQL = "INSERT INTO state.trusted_reorg (timestamp, batch_num, reason) VALUES (NOW(), $1, $2)"
