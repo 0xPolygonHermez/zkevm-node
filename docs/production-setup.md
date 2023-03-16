@@ -11,7 +11,7 @@ Note that sequencing and proving functionalities are not covered in this documen
 
 - A machine to run the zkEVM node with the following requirements:
   - Hardware: 16G RAM, 4 cores, 20G Disk (as the network is super young the current disk requirements are quite low, but they will increase overtime). Currently ARM-based CPUs are not supported
-  - Software: docker
+  - Software: Ubuntu 22.04, Docker
 - A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Goerli for zkEVM testnet, Ethereum mainnet for zkEVM mainnet)
 
 ## Setup
