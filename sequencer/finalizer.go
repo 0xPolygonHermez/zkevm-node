@@ -435,7 +435,6 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			}
 		}()
 	} else if (executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode)) && !tx.IsClaim {
-		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY, err: %s", tx.Hash, txResponse.RomError)
 		var (
 			nonce   *uint64
 			balance *big.Int
@@ -445,6 +444,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			balance = addressInfo.Balance
 		}
 		start := time.Now()
+		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY nonce(%d) balance(%s) cost(%s), err: %s", tx.Hash, nonce, balance.String(), tx.Cost.String(), txResponse.RomError)
 		txsToDelete := f.worker.MoveTxToNotReady(tx.Hash, tx.From, nonce, balance)
 		for _, txToDelete := range txsToDelete {
 			err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false)

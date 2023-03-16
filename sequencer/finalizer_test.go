@@ -224,7 +224,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
 	nonce := uint64(0)
-	tx := &TxTracker{Hash: oldHash, From: sender}
+	tx := &TxTracker{Hash: oldHash, From: sender, Cost: big.NewInt(0)}
 	testCases := []struct {
 		name               string
 		error              pb.RomError
