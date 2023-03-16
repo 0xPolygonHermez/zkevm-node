@@ -200,7 +200,7 @@ func TestTrustedStateReorg(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("StoreTx", ctx, *txs[0], "reorg").
+					On("StoreTx", ctx, *txs[0], "").
 					Return(nil).
 					Once()
 

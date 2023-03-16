@@ -98,7 +98,7 @@ func (h *Handler) Handle(req handleRequest) Response {
 
 	inArgsOffset := 0
 	inArgs := make([]reflect.Value, fd.inNum)
-	inArgs[1] = service.sv
+	inArgs[0] = service.sv
 
 	requestHasWebSocketConn := req.wsConn != nil
 	funcHasMoreThanOneInputParams := len(fd.reqt) > 1
