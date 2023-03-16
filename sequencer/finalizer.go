@@ -254,16 +254,6 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	defer f.sharedResourcesMux.Unlock()
 
 	var err error
-	// Passing the batch without txs to the executor in order to update the State
-	if f.batch.countOfTxs == 0 {
-		// backup current sequence
-		err = f.processTransaction(ctx, nil)
-		for err != nil {
-			log.Errorf("failed to process tx, err: %v", err)
-			err = f.processTransaction(ctx, nil)
-		}
-	}
-
 	if f.batch.stateRoot.String() == "" || f.batch.localExitRoot.String() == "" {
 		return nil, errors.New("state root and local exit root must have value to close batch")
 	}
@@ -360,22 +350,29 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 		return err
 	}
 
-	err = f.handleSuccessfulTxProcessResp(ctx, tx, result)
-	if err != nil {
-		return err
+	oldStateRoot := f.batch.stateRoot
+	if len(result.Responses) > 0 && tx != nil {
+		err = f.handleTxProcessResp(ctx, tx, result, oldStateRoot)
+		if err != nil {
+			return err
+		}
 	}
+
+	// Update in-memory batch and processRequest
+	f.processRequest.OldStateRoot = result.NewStateRoot
+	f.batch.stateRoot = result.NewStateRoot
+	f.batch.localExitRoot = result.NewLocalExitRoot
+	log.Infof("processTransaction: data loaded in memory. batch.batchNumber: %d, batchNumber: %d, result.NewStateRoot: %s, result.NewLocalExitRoot: %s, oldStateRoot: %s", f.batch.batchNumber, f.processRequest.BatchNumber, result.NewStateRoot.String(), result.NewLocalExitRoot.String(), oldStateRoot.String())
 
 	return nil
 }
 
-// handleSuccessfulTxProcessResp handles the response of a successful transaction processing.
-func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) error {
-	if len(result.Responses) > 0 {
-		// Handle Transaction Error
-		if result.Responses[0].RomError != nil && !errors.Is(result.Responses[0].RomError, runtime.ErrExecutionReverted) {
-			f.handleTransactionError(ctx, result, tx)
-			return result.Responses[0].RomError
-		}
+// handleTxProcessResp handles the response of a successful transaction processing.
+func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) error {
+	// Handle Transaction Error
+	if result.Responses[0].RomError != nil && !errors.Is(result.Responses[0].RomError, runtime.ErrExecutionReverted) {
+		f.handleTransactionError(ctx, result, tx)
+		return result.Responses[0].RomError
 	}
 
 	// Check remaining resources
@@ -384,25 +381,14 @@ func (f *finalizer) handleSuccessfulTxProcessResp(ctx context.Context, tx *TxTra
 		return err
 	}
 
-	previousL2BlockStateRoot := f.batch.stateRoot
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
-	if tx != nil {
-		log.Infof("handleSuccessfulTxProcessResp: storing processed tx: %s", tx.Hash.String())
-	}
-	f.storeProcessedTx(ctx, previousL2BlockStateRoot, tx, result)
-	f.processRequest.OldStateRoot = result.NewStateRoot
-	f.batch.stateRoot = result.NewStateRoot
-	f.batch.localExitRoot = result.NewLocalExitRoot
-	log.Infof("handleSuccessfulTxProcessResp: data loaded in memory. batch.batchNumber: %d, batchNumber: %d, result.NewStateRoot: %s, result.NewLocalExitRoot: %s, previousL2BlockStateRoot: %s", f.batch.batchNumber, f.processRequest.BatchNumber, result.NewStateRoot.String(), result.NewLocalExitRoot.String(), previousL2BlockStateRoot.String())
+	f.storeProcessedTx(ctx, oldStateRoot, tx, result)
 
 	return nil
 }
 
 func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRoot common.Hash, tx *TxTracker, result *state.ProcessBatchResponse) {
-	if tx == nil || len(result.Responses) == 0 {
-		return
-	}
-
+	log.Infof("storeProcessedTx: storing processed tx: %s", tx.Hash.String())
 	f.txsStore.Wg.Wait()
 	txResponse := result.Responses[0]
 	f.txsStore.Wg.Add(1)
@@ -654,6 +640,7 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 func (f *finalizer) closeBatch(ctx context.Context) error {
 	// We need to process the batch to update the state root before closing the batch
 	if f.batch.initialStateRoot == f.batch.stateRoot {
+		log.Info("reprocessing batch because the state root has not changed...")
 		err := f.processTransaction(ctx, nil)
 		if err != nil {
 			return err
@@ -784,10 +771,6 @@ func (f *finalizer) isDeadlineEncountered() bool {
 
 // checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
 func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker) error {
-	if len(result.Responses) == 0 {
-		return nil
-	}
-
 	usedResources := batchResources{
 		zKCounters: result.UsedZkCounters,
 		bytes:      uint64(len(tx.RawTx)),
