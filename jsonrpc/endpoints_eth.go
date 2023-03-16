@@ -73,12 +73,7 @@ func (e *EthEndpoints) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpc
 			return rpcErrorResponse(defaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		var blockNumberToProcessTx *uint64
-		if number != nil && *number != LatestBlockNumber && *number != PendingBlockNumber {
-			blockNumberToProcessTx = &blockNumber
-		}
-
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, false, dbTx)
+		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumber, false, dbTx)
 		if result.Failed() {
 			data := make([]byte, len(result.ReturnValue))
 			copy(data, result.ReturnValue)

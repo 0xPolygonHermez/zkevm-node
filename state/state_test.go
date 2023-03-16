@@ -24,12 +24,15 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -1026,7 +1029,7 @@ func TestExecutorRevert(t *testing.T) {
 
 	unsignedTx := types.NewTransaction(2, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("4abbb40a"))
 
-	result := testState.ProcessUnsignedTransaction(ctx, unsignedTx, auth.From, &lastL2BlockNumber, false, nil)
+	result := testState.ProcessUnsignedTransaction(ctx, unsignedTx, auth.From, lastL2BlockNumber, false, nil)
 	require.NotNil(t, result.Err)
 	assert.Equal(t, fmt.Errorf("execution reverted: Today is not juernes").Error(), result.Err.Error())
 }
@@ -1784,7 +1787,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	})
 	l2BlockNumber := uint64(3)
 
-	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), &l2BlockNumber, true, nil)
+	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), l2BlockNumber, true, nil)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
@@ -2871,4 +2874,123 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 	// assert signed tx to increment counter
 	assert.Equal(t, executorclientpb.RomError(1), processBatchResponse.Responses[1].Error)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[1].ReturnValue))
+}
+
+func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
+	// Init database instance
+	initOrResetDB()
+
+	// auth
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(operations.DefaultSequencerPrivateKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, new(big.Int).SetUint64(stateCfg.ChainID))
+	require.NoError(t, err)
+
+	auth.Nonce = big.NewInt(0)
+	auth.Value = nil
+	auth.GasPrice = big.NewInt(0)
+	auth.GasLimit = uint64(4000000)
+	auth.NoSend = true
+
+	_, scTx, sc, err := Counter.DeployCounter(auth, &ethclient.Client{})
+	require.NoError(t, err)
+
+	auth.Nonce = big.NewInt(1)
+	tx1, err := sc.Increment(auth)
+	require.NoError(t, err)
+
+	auth.Nonce = big.NewInt(2)
+	tx2, err := sc.Increment(auth)
+	require.NoError(t, err)
+
+	auth.Nonce = big.NewInt(3)
+	tx3, err := sc.Increment(auth)
+	require.NoError(t, err)
+
+	dbTx, err := testState.BeginStateTransaction(context.Background())
+	require.NoError(t, err)
+	// Set genesis
+	genesis := state.Genesis{Actions: []*state.GenesisAction{
+		{
+			Address: operations.DefaultSequencerAddress,
+			Type:    int(merkletree.LeafTypeBalance),
+			Value:   "100000000000000000000000",
+		},
+	}}
+	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, dbTx)
+	require.NoError(t, err)
+	batchCtx := state.ProcessingContext{
+		BatchNumber: 1,
+		Coinbase:    common.HexToAddress(operations.DefaultSequencerAddress),
+		Timestamp:   time.Now(),
+	}
+	err = testState.OpenBatch(context.Background(), batchCtx, dbTx)
+	require.NoError(t, err)
+	signedTxs := []types.Transaction{
+		*scTx,
+		*tx1,
+		*tx2,
+		*tx3,
+	}
+
+	batchL2Data, err := state.EncodeTransactions(signedTxs)
+	require.NoError(t, err)
+
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, state.SequencerCallerLabel, dbTx)
+	require.NoError(t, err)
+	// assert signed tx do deploy sc
+	assert.Nil(t, processBatchResponse.Responses[0].RomError)
+	assert.NotEqual(t, state.ZeroAddress, processBatchResponse.Responses[0].CreateAddress.Hex())
+	assert.Equal(t, tx1.To().Hex(), processBatchResponse.Responses[0].CreateAddress.Hex())
+
+	// assert signed tx to increment counter
+	assert.Nil(t, processBatchResponse.Responses[1].RomError)
+	assert.Nil(t, processBatchResponse.Responses[2].RomError)
+	assert.Nil(t, processBatchResponse.Responses[3].RomError)
+
+	// Add txs to DB
+	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, dbTx)
+	require.NoError(t, err)
+	// Close batch
+	err = testState.CloseBatch(
+		context.Background(),
+		state.ProcessingReceipt{
+			BatchNumber:   1,
+			StateRoot:     processBatchResponse.NewStateRoot,
+			LocalExitRoot: processBatchResponse.NewLocalExitRoot,
+		}, dbTx,
+	)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(context.Background()))
+
+	getCountFnSignature := crypto.Keccak256Hash([]byte("getCount()")).Bytes()[:4]
+	getCountUnsignedTx := types.NewTx(&types.LegacyTx{
+		To:   &processBatchResponse.Responses[0].CreateAddress,
+		Gas:  uint64(100000),
+		Data: getCountFnSignature,
+	})
+
+	l2BlockNumber := uint64(1)
+	result := testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	// assert unsigned tx
+	assert.Nil(t, result.Err)
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(result.ReturnValue))
+
+	l2BlockNumber = uint64(2)
+	result = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	// assert unsigned tx
+	assert.Nil(t, result.Err)
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
+
+	l2BlockNumber = uint64(3)
+	result = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	// assert unsigned tx
+	assert.Nil(t, result.Err)
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000002", hex.EncodeToString(result.ReturnValue))
+
+	l2BlockNumber = uint64(4)
+	result = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	// assert unsigned tx
+	assert.Nil(t, result.Err)
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000003", hex.EncodeToString(result.ReturnValue))
 }

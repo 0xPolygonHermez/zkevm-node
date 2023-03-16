@@ -1211,7 +1211,7 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 		return nil, err
 	}
 
-	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, &lastL2BlockNumber, false, true, dbTx)
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, lastL2BlockNumber, false, dbTx)
 	if err != nil && !errors.Is(err, runtime.ErrExecutionReverted) {
 		return nil, err
 	}
@@ -1220,9 +1220,9 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
 	result := new(runtime.ExecutionResult)
-	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, false, dbTx)
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 	if err != nil {
 		result.Err = err
 	}
@@ -1243,22 +1243,23 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, forceNonce bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
-	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	lastBatches, _, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, &l2BlockNumber, two, dbTx)
 	if err != nil {
 		return nil, err
 	}
 
-	var pForcedNonce *uint64
-
-	if forceNonce && l2BlockNumber != nil {
-		forcedNonce, err := s.tree.GetNonce(ctx, senderAddress, l2BlockStateRoot.Bytes())
-		if err != nil {
-			return nil, err
-		}
-		tmpNonce := forcedNonce.Uint64()
-		pForcedNonce = &tmpNonce
+	l2Block, err := s.GetL2BlockByNumber(ctx, l2BlockNumber, dbTx)
+	if err != nil {
+		log.Errorf("error getting l2 block", err)
+		return nil, err
 	}
+
+	nonce, err := s.tree.GetNonce(ctx, senderAddress, l2Block.Root().Bytes())
+	if err != nil {
+		return nil, err
+	}
+	forcedNonce := nonce.Uint64()
 
 	// Get latest batch from the database to get globalExitRoot and Timestamp
 	lastBatch := lastBatches[0]
@@ -1269,7 +1270,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		previousBatch = lastBatches[1]
 	}
 
-	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, pForcedNonce)
+	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &forcedNonce)
 	if err != nil {
 		log.Errorf("error encoding unsigned transaction ", err)
 		return nil, err
@@ -1281,7 +1282,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		OldBatchNum:      lastBatch.BatchNumber,
 		BatchL2Data:      batchL2Data,
 		From:             senderAddress.String(),
-		OldStateRoot:     l2BlockStateRoot.Bytes(),
+		OldStateRoot:     l2Block.Root().Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
