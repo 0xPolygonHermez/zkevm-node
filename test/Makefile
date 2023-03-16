@@ -201,6 +201,7 @@ run-node: ## Runs the node
 	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
+	$(RUNBROADCAST)
 
 .PHONY: stop-node
 stop-node: ## Stops the node
@@ -210,6 +211,11 @@ stop-node: ## Stops the node
 	$(STOPAGGREGATOR)
 	$(STOPSYNC)
 	$(STOPETHTXMANAGER)
+	$(STOPBROADCAST)
+
+.PHONY: stop-sequencer
+stop-sequencer: ## Stops the node
+	$(STOPSEQUENCER)
 
 .PHONY: run-network
 run-network: ## Runs the l1 network
@@ -347,9 +353,8 @@ run-permissionless: run-node ## Runs the trusted and permissionless node
 	$(RUNPERMISSIONLESSNODE)
 
 .PHONY: stop-permissionless
-stop-permissionless: ## Stops the permissionless node
+stop-permissionless: stop-node## Stops the permissionless node
 	$(STOPPERMISSIONLESSNODE)
-	$(STOPBROADCAST)
 	$(STOPPERMISSIONLESSZKPROVER)
 	$(STOPPERMISSIONLESSDB)
 

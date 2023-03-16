@@ -69,7 +69,7 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// send transactions
-			_, err = operations.ApplyL2Txs(ctx, txs, nil, nil)
+			_, err = operations.ApplyL2Txs(ctx, txs, nil, nil, operations.VerifiedConfirmationLevel)
 			require.NoError(t, err)
 
 			st := opsman.State()
