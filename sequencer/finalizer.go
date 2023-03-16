@@ -344,7 +344,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 		hash = tx.HashStr
 	}
 	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hash, f.processRequest.GlobalExitRoot.String())
-	result, err := f.executor.ProcessBatch(ctx, f.processRequest, false)
+	result, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
 	if err != nil {
 		log.Errorf("failed to process transaction, isClaim: %v, err: %s", tx.IsClaim, err)
 		return err
@@ -703,7 +703,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 		log.Infof("reprocessFullBatch: Tx position %d. TxHash: %s", i, tx.Hash())
 	}
 
-	result, err := f.executor.ProcessBatch(ctx, processRequest, true)
+	result, err := f.executor.ProcessBatch(ctx, processRequest, false)
 	if err != nil {
 		log.Errorf("failed to process batch, err: %s", err)
 		return nil, err

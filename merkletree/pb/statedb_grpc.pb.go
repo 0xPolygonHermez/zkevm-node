@@ -27,7 +27,9 @@ type StateDBServiceClient interface {
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 	SetProgram(ctx context.Context, in *SetProgramRequest, opts ...grpc.CallOption) (*SetProgramResponse, error)
 	GetProgram(ctx context.Context, in *GetProgramRequest, opts ...grpc.CallOption) (*GetProgramResponse, error)
-	Flush(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	LoadDB(ctx context.Context, in *LoadDBRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	LoadProgramDB(ctx context.Context, in *LoadProgramDBRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	Flush(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*FlushResponse, error)
 }
 
 type stateDBServiceClient struct {
@@ -74,8 +76,26 @@ func (c *stateDBServiceClient) GetProgram(ctx context.Context, in *GetProgramReq
 	return out, nil
 }
 
-func (c *stateDBServiceClient) Flush(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *stateDBServiceClient) LoadDB(ctx context.Context, in *LoadDBRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, "/statedb.v1.StateDBService/LoadDB", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *stateDBServiceClient) LoadProgramDB(ctx context.Context, in *LoadProgramDBRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, "/statedb.v1.StateDBService/LoadProgramDB", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *stateDBServiceClient) Flush(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*FlushResponse, error) {
+	out := new(FlushResponse)
 	err := c.cc.Invoke(ctx, "/statedb.v1.StateDBService/Flush", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -91,7 +111,9 @@ type StateDBServiceServer interface {
 	Get(context.Context, *GetRequest) (*GetResponse, error)
 	SetProgram(context.Context, *SetProgramRequest) (*SetProgramResponse, error)
 	GetProgram(context.Context, *GetProgramRequest) (*GetProgramResponse, error)
-	Flush(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
+	LoadDB(context.Context, *LoadDBRequest) (*emptypb.Empty, error)
+	LoadProgramDB(context.Context, *LoadProgramDBRequest) (*emptypb.Empty, error)
+	Flush(context.Context, *emptypb.Empty) (*FlushResponse, error)
 	mustEmbedUnimplementedStateDBServiceServer()
 }
 
@@ -111,7 +133,13 @@ func (UnimplementedStateDBServiceServer) SetProgram(context.Context, *SetProgram
 func (UnimplementedStateDBServiceServer) GetProgram(context.Context, *GetProgramRequest) (*GetProgramResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProgram not implemented")
 }
-func (UnimplementedStateDBServiceServer) Flush(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+func (UnimplementedStateDBServiceServer) LoadDB(context.Context, *LoadDBRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LoadDB not implemented")
+}
+func (UnimplementedStateDBServiceServer) LoadProgramDB(context.Context, *LoadProgramDBRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LoadProgramDB not implemented")
+}
+func (UnimplementedStateDBServiceServer) Flush(context.Context, *emptypb.Empty) (*FlushResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Flush not implemented")
 }
 func (UnimplementedStateDBServiceServer) mustEmbedUnimplementedStateDBServiceServer() {}
@@ -199,6 +227,42 @@ func _StateDBService_GetProgram_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StateDBService_LoadDB_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoadDBRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StateDBServiceServer).LoadDB(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/statedb.v1.StateDBService/LoadDB",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StateDBServiceServer).LoadDB(ctx, req.(*LoadDBRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StateDBService_LoadProgramDB_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoadProgramDBRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StateDBServiceServer).LoadProgramDB(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/statedb.v1.StateDBService/LoadProgramDB",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StateDBServiceServer).LoadProgramDB(ctx, req.(*LoadProgramDBRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _StateDBService_Flush_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
@@ -239,6 +303,14 @@ var StateDBService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProgram",
 			Handler:    _StateDBService_GetProgram_Handler,
+		},
+		{
+			MethodName: "LoadDB",
+			Handler:    _StateDBService_LoadDB_Handler,
+		},
+		{
+			MethodName: "LoadProgramDB",
+			Handler:    _StateDBService_LoadProgramDB_Handler,
 		},
 		{
 			MethodName: "Flush",
