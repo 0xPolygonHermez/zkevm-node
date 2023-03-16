@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
@@ -17,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
@@ -47,6 +50,8 @@ var (
 		Usage:    "output verbose logs",
 		Required: false,
 	}
+
+	amount = big.NewInt(math.MaxInt64)
 )
 
 func main() {
@@ -155,14 +160,17 @@ func sendBatches(cliCtx *cli.Context) error {
 		nb = nBatches
 	}
 
-	nonce, err := ethMan.CurrentNonce(ctx, auth.From)
+	client, err := ethclient.Dial(operations.DefaultL1NetworkURL)
 	if err != nil {
-		err := fmt.Errorf("failed to get current nonce: %w", err)
-		log.Error(err.Error())
 		return err
 	}
 
 	for i := 0; i < ns; i++ {
+		_, err = ethMan.ApproveMatic(ctx, auth.From, amount, cfg.Etherman.PoEAddr)
+		if err != nil {
+			return err
+		}
+
 		currentBlock, err := ethMan.EthClient.BlockByNumber(ctx, nil)
 		if err != nil {
 			return err
@@ -184,39 +192,73 @@ func sendBatches(cliCtx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
-			To:   to,
-			Data: data,
-		})
-		signedTx, err := ethMan.SignTx(ctx, auth.From, tx)
-		if err != nil {
-			return err
-		}
-		err = ethMan.SendTx(ctx, signedTx)
-		if err != nil {
-			return err
-		}
+		// tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		// 	To:   to,
+		// 	Data: data,
+		// })
+		// signedTx, err := ethMan.SignTx(ctx, auth.From, tx)
+		// if err != nil {
+		// 	return err
+		// }
+		// err = ethMan.SendTx(ctx, signedTx)
+		// if err != nil {
+		// 	return err
+		// }
+
 		gas, err := ethMan.EstimateGas(ctx, auth.From, to, nil, data)
 		if err != nil {
-			err := fmt.Errorf("failed to estimate gas: %w", err)
-			log.Error(err.Error())
-			return err
+			if strings.Contains(err.Error(), etherman.ErrInsufficientAllowance.Error()) {
+				_, err := ethMan.ApproveMatic(ctx, auth.From, amount, cfg.Etherman.PoEAddr)
+				if err != nil {
+					err := fmt.Errorf("failed to approve tokens, %w", err)
+					log.Error(err.Error())
+					return err
+				}
+			} else {
+				err := fmt.Errorf("failed to estimate gas, %w", err)
+				log.Error(err.Error())
+				return err
+			}
 		}
-		// get gas price
+
 		gasPrice, err := ethMan.SuggestedGasPrice(ctx)
 		if err != nil {
-			err := fmt.Errorf("failed to get suggested gas price: %w", err)
+			err := fmt.Errorf("failed to get suggested gas price, %w", err)
 			log.Error(err.Error())
 			return err
 		}
-		tx = ethTypes.NewTx(&ethTypes.LegacyTx{
-			Nonce:    nonce,
-			Gas:      gas + uint64(i),
+
+		// gas, err := client.EstimateGas(ctx, ethereum.CallMsg{From: auth.From, To: to, Value: nil})
+		// if err != nil {
+		// 	err := fmt.Errorf("failed to estimate gas: %w", err)
+		// 	log.Error(err.Error())
+		// 	return err
+		// }
+
+		// gasPrice, err := client.SuggestGasPrice(ctx)
+		// if err != nil {
+		// 	err := fmt.Errorf("failed to get suggested gas price: %w", err)
+		// 	log.Error(err.Error())
+		// 	return err
+		// }
+
+		nonce, err := client.PendingNonceAt(ctx, auth.From)
+		if err != nil {
+			err := fmt.Errorf("failed to get current nonce: %w", err)
+			log.Error(err.Error())
+			return err
+		}
+
+		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+			Nonce: nonce,
+			// Gas:   gas + uint64(i),
+			Gas: gas,
+			// GasPrice: gasPrice.Mul(gasPrice, new(big.Int).SetInt64(2)),
 			GasPrice: gasPrice,
 			To:       to,
 			Data:     data,
 		})
-		signedTx, err = ethMan.SignTx(ctx, auth.From, tx)
+		signedTx, err := ethMan.SignTx(ctx, auth.From, tx)
 		if err != nil {
 			log.Error(err.Error())
 			return err
