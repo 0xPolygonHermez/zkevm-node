@@ -107,6 +107,12 @@ func (s *State) PrepareWebSocket() {
 	go s.handleEvents()
 }
 
+// UpdateForkIDIntervals updates the forkID intervals
+func (s *State) UpdateForkIDIntervals(intervals []ForkIDInterval) {
+	log.Infof("Updating forkIDs. Setting %d forkIDs", len(intervals))
+	s.cfg.ForkIDIntervals = intervals
+}
+
 // BeginStateTransaction starts a state transaction
 func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	tx, err := s.Begin(ctx)
@@ -559,10 +565,11 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
-		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
-			err = executor.ExecutorErr(processBatchResponse.Error)
-			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
-		}
+		log.Error("error executing batch: ", err)
+		return nil, err
+	} else if processBatchResponse != nil && processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		err = executor.ExecutorErr(processBatchResponse.Error)
+		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 	}
 
 	return processBatchResponse, err
