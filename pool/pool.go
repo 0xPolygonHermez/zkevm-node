@@ -68,17 +68,17 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 		return err
 	}
 
-	return p.StoreTx(ctx, tx, ip)
+	return p.StoreTx(ctx, tx, ip, false)
 }
 
 // StoreTx adds a transaction to the pool with the pending state
-func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string) error {
+func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
 	poolTx := Transaction{
 		Transaction: tx,
 		Status:      TxStatusPending,
 		IsClaims:    false,
 		ReceivedAt:  time.Now(),
-		IsWIP:       false,
+		IsWIP:       isWIP,
 		IP:          ip,
 	}
 
