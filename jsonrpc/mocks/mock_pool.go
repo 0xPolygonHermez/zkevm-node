@@ -21,13 +21,13 @@ type PoolMock struct {
 	mock.Mock
 }
 
-// AddTx provides a mock function with given fields: ctx, tx
-func (_m *PoolMock) AddTx(ctx context.Context, tx types.Transaction) error {
-	ret := _m.Called(ctx, tx)
+// AddTx provides a mock function with given fields: ctx, tx, ip
+func (_m *PoolMock) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
+	ret := _m.Called(ctx, tx, ip)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, types.Transaction) error); ok {
-		r0 = rf(ctx, tx)
+	if rf, ok := ret.Get(0).(func(context.Context, types.Transaction, string) error); ok {
+		r0 = rf(ctx, tx, ip)
 	} else {
 		r0 = ret.Error(0)
 	}

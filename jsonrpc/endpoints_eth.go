@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
@@ -76,12 +77,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, number *types.BlockNumber) (inter
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		var blockNumberToProcessTx *uint64
-		if number != nil && *number != types.LatestBlockNumber && *number != types.PendingBlockNumber {
-			blockNumberToProcessTx = &blockNumber
-		}
-
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, false, dbTx)
+		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumber, false, dbTx)
 		if result.Failed() {
 			data := make([]byte, len(result.ReturnValue))
 			copy(data, result.ReturnValue)
@@ -708,11 +704,12 @@ func (e *EthEndpoints) newPendingTransactionFilter(wsConn *websocket.Conn) (inte
 // SendRawTransaction has two different ways to handle new transactions:
 // - for Sequencer nodes it tries to add the tx to the pool
 // - for Non-Sequencer nodes it relays the Tx to the Sequencer node
-func (e *EthEndpoints) SendRawTransaction(input string) (interface{}, types.Error) {
+func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input string) (interface{}, types.Error) {
 	if e.cfg.SequencerNodeURI != "" {
 		return e.relayTxToSequencerNode(input)
 	} else {
-		return e.tryToAddTxToPool(input)
+		ip := httpRequest.Header.Get("X-Forwarded-For")
+		return e.tryToAddTxToPool(input, ip)
 	}
 }
 
@@ -731,14 +728,14 @@ func (e *EthEndpoints) relayTxToSequencerNode(input string) (interface{}, types.
 	return txHash, nil
 }
 
-func (e *EthEndpoints) tryToAddTxToPool(input string) (interface{}, types.Error) {
+func (e *EthEndpoints) tryToAddTxToPool(input, ip string) (interface{}, types.Error) {
 	tx, err := hexToTx(input)
 	if err != nil {
 		return rpcErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err)
 	}
 
 	log.Infof("adding TX to the pool: %v", tx.Hash().Hex())
-	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
+	if err := e.pool.AddTx(context.Background(), *tx, ip); err != nil {
 		return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 	}
 	log.Infof("TX added to the pool: %v", tx.Hash().Hex())

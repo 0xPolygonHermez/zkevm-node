@@ -167,3 +167,19 @@ type TrustedReorg struct {
 	BatchNumber uint64
 	Reason      string
 }
+
+const (
+	// EventType_Prexecution_OOC indicates a preexecution out of couters error
+	EventType_Prexecution_OOC = "PREEXECUTION OOC"
+	// EventType_ZKCounters_Diff indicates big different in preexecution and execution regarding ZKCounters
+	EventType_ZKCounters_Diff = "ZK COUNTERS DIFF"
+)
+
+// Event represents a event that may be investigated
+type Event struct {
+	EventType string
+	Timestamp time.Time
+	IP        string
+	TxHash    common.Hash
+	Payload   string
+}

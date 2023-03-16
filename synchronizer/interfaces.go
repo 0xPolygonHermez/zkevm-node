@@ -20,6 +20,7 @@ type ethermanInterface interface {
 	GetLatestBatchNumber() (uint64, error)
 	GetTrustedSequencerURL() (string, error)
 	VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error)
+	GetForks(ctx context.Context) ([]state.ForkIDInterval, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.
@@ -51,6 +52,9 @@ type stateInterface interface {
 	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
 	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
 	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
+	ResetForkID(ctx context.Context, batchNumber, forkID uint64, version string, dbTx pgx.Tx) error
+	GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error)
+	UpdateForkIDIntervals(intervals []state.ForkIDInterval)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }
@@ -61,5 +65,5 @@ type ethTxManager interface {
 
 type poolInterface interface {
 	DeleteReorgedTransactions(ctx context.Context, txs []*types.Transaction) error
-	StoreTx(ctx context.Context, tx types.Transaction) error
+	StoreTx(ctx context.Context, tx types.Transaction, ip string) error
 }

@@ -152,8 +152,7 @@ func TestCall(t *testing.T) {
 						tx.Nonce() == nonce
 				})
 				m.State.On("GetNonce", context.Background(), testCase.from, blockNumber, m.DbTx).Return(nonce, nil).Once()
-				var nilBlockNumber *uint64
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, nilBlockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
 			},
 		},
 		{
@@ -180,8 +179,7 @@ func TestCall(t *testing.T) {
 					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
-				var nilBlockNumber *uint64
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilBlockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
 			},
 		},
 		{
@@ -209,8 +207,7 @@ func TestCall(t *testing.T) {
 					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
-				var nilBlockNumber *uint64
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilBlockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
 			},
 		},
 		{
@@ -285,8 +282,7 @@ func TestCall(t *testing.T) {
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch && nonceMatch
 				})
 				m.State.On("GetNonce", context.Background(), testCase.from, blockNumber, m.DbTx).Return(nonce, nil).Once()
-				var nilBlockNumber *uint64
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, nilBlockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}).Once()
+				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}).Once()
 			},
 		},
 	}
@@ -2740,7 +2736,7 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 				})
 
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", context.Background(), txMatchByHash, "").
 					Return(nil).
 					Once()
 			},
@@ -2757,7 +2753,7 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 				})
 
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", context.Background(), txMatchByHash, "").
 					Return(errors.New("failed to add TX to the pool")).
 					Once()
 			},
@@ -2815,7 +2811,7 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 			},
 			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				m.Pool.
-					On("AddTx", context.Background(), mock.IsType(coreTypes.Transaction{})).
+					On("AddTx", context.Background(), mock.IsType(coreTypes.Transaction{}), "").
 					Return(nil).
 					Once()
 			},
@@ -2837,7 +2833,7 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 			},
 			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
 				m.Pool.
-					On("AddTx", context.Background(), mock.IsType(coreTypes.Transaction{})).
+					On("AddTx", context.Background(), mock.IsType(coreTypes.Transaction{}), "").
 					Return(errors.New("failed to add TX to the pool")).
 					Once()
 			},
@@ -2905,7 +2901,7 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 				})
 
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", context.Background(), txMatchByHash, "").
 					Return(nil).
 					Once()
 			},
@@ -2922,7 +2918,7 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 				})
 
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", context.Background(), txMatchByHash, "").
 					Return(errors.New("failed to add TX to the pool")).
 					Once()
 			},

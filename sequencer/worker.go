@@ -78,20 +78,20 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
 		w.workerMutex.Lock()
 
 		w.pool[tx.FromStr] = addr
-		log.Infof("AddTx new addrQueue created for addr(%s)", tx.FromStr)
+		log.Infof("AddTx new addrQueue created for addr(%s) nonce(%d) balance(%s)", tx.FromStr, nonce.Uint64(), balance.String())
 	}
 
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
-	log.Infof("AddTx new tx(%s) to addrQueue(%s)", tx.Hash.String(), tx.FromStr)
+	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s)", tx.Hash.String(), tx.Nonce, tx.FromStr, tx.Cost.String())
 	newReadyTx, prevReadyTx := addr.addTx(tx)
 
 	// Update the EfficiencyList (if needed)
 	if prevReadyTx != nil {
-		log.Infof("AddTx prevReadyTx(%s) deleted from EfficiencyList", prevReadyTx.Hash.String())
+		log.Infof("AddTx prevReadyTx(%s) nonce(%d) cost(%s) deleted from EfficiencyList", prevReadyTx.Hash.String(), prevReadyTx.Nonce, prevReadyTx.Cost.String())
 		w.efficiencyList.delete(prevReadyTx)
 	}
 	if newReadyTx != nil {
-		log.Infof("AddTx newReadyTx(%s) added to EfficiencyList", newReadyTx.Hash.String())
+		log.Infof("AddTx newReadyTx(%s) nonce(%d) cost(%s) added to EfficiencyList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.Cost.String())
 		w.efficiencyList.add(newReadyTx)
 	}
 }
@@ -105,11 +105,11 @@ func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, from
 
 		// Update the EfficiencyList (if needed)
 		if prevReadyTx != nil {
-			log.Infof("applyAddressUpdate prevReadyTx(%s) deleted from EfficiencyList", prevReadyTx.Hash.String())
+			log.Infof("applyAddressUpdate prevReadyTx(%s) nonce(%d) cost(%s) deleted from EfficiencyList", prevReadyTx.Hash.String(), prevReadyTx.Nonce, prevReadyTx.Cost.String())
 			w.efficiencyList.delete(prevReadyTx)
 		}
 		if newReadyTx != nil {
-			log.Infof("applyAddressUpdate newReadyTx(%s) added to EfficiencyList", newReadyTx.Hash.String())
+			log.Infof("applyAddressUpdate newReadyTx(%s) nonce(%d) cost(%s) added to EfficiencyList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.Cost.String())
 			w.efficiencyList.add(newReadyTx)
 		}
 
@@ -148,6 +148,7 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
+	log.Infof("MoveTxToNotReady tx(%s) from(%s) actualNonce(%d) actualBalance(%s)", txHash.String(), from.String(), actualNonce, actualBalance.String())
 
 	addrQueue, found := w.pool[from.String()]
 	if found {
@@ -157,7 +158,7 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 			if addrQueue.readyTx != nil {
 				readyHashStr = addrQueue.readyTx.HashStr
 			}
-			log.Errorf("MoveTxToNotReady txHash(s) is not the readyTx(%s)", txHash.String(), readyHashStr)
+			log.Errorf("MoveTxToNotReady txHash(%s) is not the readyTx(%s)", txHash.String(), readyHashStr)
 			// TODO: how to manage this?
 		}
 	}
@@ -187,6 +188,15 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address) {
 func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters state.ZKCounters) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
+	log.Infof("UpdateTx tx(%s) addr(%s)", txHash.String(), addr.String())
+	log.Debugf("UpdateTx counters.CumulativeGasUsed: %s", counters.CumulativeGasUsed)
+	log.Debugf("UpdateTx counters.UsedKeccakHashes: %s", counters.UsedKeccakHashes)
+	log.Debugf("UpdateTx counters.UsedPoseidonHashes: %s", counters.UsedPoseidonHashes)
+	log.Debugf("UpdateTx counters.UsedPoseidonPaddings: %s", counters.UsedPoseidonPaddings)
+	log.Debugf("UpdateTx counters.UsedMemAligns: %s", counters.UsedMemAligns)
+	log.Debugf("UpdateTx counters.UsedArithmetics: %s", counters.UsedArithmetics)
+	log.Debugf("UpdateTx counters.UsedBinaries: %s", counters.UsedBinaries)
+	log.Debugf("UpdateTx counters.UsedSteps: %s", counters.UsedSteps)
 
 	addrQueue, found := w.pool[addr.String()]
 
@@ -195,11 +205,11 @@ func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters stat
 
 		// Resort the newReadyTx in efficiencyList
 		if prevReadyTx != nil {
-			log.Infof("UpdateTx prevReadyTx(%s) deleted from EfficiencyList", prevReadyTx.Hash.String())
+			log.Infof("UpdateTx prevReadyTx(%s) nonce(%d) cost(%s) deleted from EfficiencyList", prevReadyTx.Hash.String(), prevReadyTx.Nonce, prevReadyTx.Cost.String())
 			w.efficiencyList.delete(prevReadyTx)
 		}
 		if newReadyTx != nil {
-			log.Infof("UpdateTx newReadyTx(%s) added to EfficiencyList", newReadyTx.Hash.String())
+			log.Infof("UpdateTx newReadyTx(%s) nonce(%d) cost(%s) added to EfficiencyList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.Cost.String())
 			w.efficiencyList.add(newReadyTx)
 		}
 	} else {
@@ -279,7 +289,7 @@ func (w *Worker) ExpireTransactions(maxTime time.Duration) []*TxTracker {
 			delete(w.pool, addrQueue.fromStr)
 		}
 	}
-	log.Info("ExpireTransactions end. addrQueue len: ", len(w.pool), "deleteCount: ", len(txs))
+	log.Info("ExpireTransactions end. addrQueue len: ", len(w.pool), " deleteCount: ", len(txs))
 
 	return txs
 }

@@ -105,15 +105,43 @@ func (p *PostgresStorage) Reset(ctx context.Context, blockNumber uint64, dbTx pg
 	return nil
 }
 
-// ResetTrustedState removes the batches with number greater than the given one
-// from the database.
-func (p *PostgresStorage) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
-	const resetTrustedStateSQL = "DELETE FROM state.batch WHERE batch_num > $1"
+// ResetForkID resets the state to reprocess the newer batches with the correct forkID
+func (p *PostgresStorage) ResetForkID(ctx context.Context, batchNumber, forkID uint64, version string, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
-	if _, err := e.Exec(ctx, resetTrustedStateSQL, batchNum); err != nil {
+	const resetVirtualStateSQL = "delete from state.block where block_num >=(select min(block_num) from state.virtual_batch where batch_num >= $1)"
+	if _, err := e.Exec(ctx, resetVirtualStateSQL, batchNumber); err != nil {
 		return err
 	}
-	// TODO Find a way to put txs in the pool again
+	err := p.ResetTrustedState(ctx, batchNumber-1, dbTx)
+	if err != nil {
+		return err
+	}
+	reorg := TrustedReorg{
+		BatchNumber: batchNumber,
+		Reason:      fmt.Sprintf("New ForkID: %d. Version: %s", forkID, version),
+	}
+	err = p.AddTrustedReorg(ctx, &reorg, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// Delete proofs for higher batches
+	const deleteProofsSQL = "delete from state.proof where batch_num >= $1 or (batch_num <= $1 and batch_num_final  >= $1)"
+	if _, err := e.Exec(ctx, deleteProofsSQL, batchNumber); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ResetTrustedState removes the batches with number greater than the given one
+// from the database.
+func (p *PostgresStorage) ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	const resetTrustedStateSQL = "DELETE FROM state.batch WHERE batch_num > $1"
+	e := p.getExecQuerier(dbTx)
+	if _, err := e.Exec(ctx, resetTrustedStateSQL, batchNumber); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -2217,6 +2245,15 @@ func (p *PostgresStorage) AddDebugInfo(ctx context.Context, info *DebugInfo, dbT
 	return err
 }
 
+// AddEvent is used to store and event in the database
+func (p *PostgresStorage) AddEvent(ctx context.Context, event *Event, dbTx pgx.Tx) error {
+	const insertEventSQL = "INSERT INTO state.event (event_type, timestamp, ip, tx_hash, payload) VALUES ($1, $2, $3, $4, $5)"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, insertEventSQL, event.EventType, event.Timestamp, event.IP, event.TxHash.String(), event.Payload)
+	return err
+}
+
 // AddTrustedReorg is used to store trusted reorgs
 func (p *PostgresStorage) AddTrustedReorg(ctx context.Context, reorg *TrustedReorg, dbTx pgx.Tx) error {
 	const insertTrustedReorgSQL = "INSERT INTO state.trusted_reorg (timestamp, batch_num, reason) VALUES (NOW(), $1, $2)"
@@ -2233,6 +2270,19 @@ func (p *PostgresStorage) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64,
 	var count uint64
 	q := p.getExecQuerier(dbTx)
 	err := q.QueryRow(ctx, countReorgsSQL).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetForkIDTrustedReorgCount returns the forkID
+func (p *PostgresStorage) GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error) {
+	const forkIDTrustedReorgSQL = "SELECT COUNT(*) FROM state.trusted_reorg WHERE reason=$1"
+
+	var count uint64
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, forkIDTrustedReorgSQL, fmt.Sprintf("New ForkID: %d. Version: %s", forkID, version)).Scan(&count)
 	if err != nil {
 		return 0, err
 	}

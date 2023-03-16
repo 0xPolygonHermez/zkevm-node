@@ -120,7 +120,7 @@ func Test_AddTx(t *testing.T) {
 	tx := new(types.Transaction)
 	tx.UnmarshalBinary(b) //nolint:gosec,errcheck
 
-	err = p.AddTx(ctx, *tx)
+	err = p.AddTx(ctx, *tx, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -215,7 +215,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 
 	tx := txs[0]
 
-	err = p.AddTx(ctx, tx)
+	err = p.AddTx(ctx, tx, "")
 	require.NoError(t, err)
 
 	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.transaction")
@@ -292,7 +292,7 @@ func Test_GetPendingTxs(t *testing.T) {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
 			t.Error(err)
 		}
 	}
@@ -356,7 +356,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
 			t.Error(err)
 		}
 	}
@@ -419,7 +419,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10+int64(i)), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
 			t.Error(err)
 		}
 	}
@@ -428,69 +428,6 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	require.NoError(t, err)
 	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
 	assert.Equal(t, txs[0].Transaction.Nonce(), uint64(0))
-}
-
-func Test_GetTopFailedTxsByProfitabilityAndZkCounters(t *testing.T) {
-	ctx := context.Background()
-	initOrResetDB()
-
-	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	defer stateSqlDB.Close()
-
-	st := newState(stateSqlDB)
-
-	genesisBlock := state.Block{
-		BlockNumber: 0,
-		BlockHash:   state.ZeroHash,
-		ParentHash:  state.ZeroHash,
-		ReceivedAt:  time.Now(),
-	}
-	dbTx, err := st.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
-	require.NoError(t, err)
-	require.NoError(t, dbTx.Commit(ctx))
-
-	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
-	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-
-	const txsCount = 10
-
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
-	require.NoError(t, err)
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
-	require.NoError(t, err)
-
-	txsHashes := make([]string, 0, txsCount)
-	// insert pending transactions
-	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10+int64(i)), []byte{})
-		signedTx, err := auth.Signer(auth.From, tx)
-		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx); err != nil {
-			t.Error(err)
-		}
-		txsHashes = append(txsHashes, signedTx.Hash().String())
-	}
-
-	err = p.UpdateTxsStatus(ctx, txsHashes, pool.TxStatusFailed)
-	require.NoError(t, err)
-	err = p.IncrementFailedCounter(ctx, txsHashes[0:txsCount/2])
-	require.NoError(t, err)
-	txs, err := p.GetTxs(ctx, pool.TxStatusFailed, false, 1, 10)
-	require.NoError(t, err)
-	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
-	assert.Equal(t, txsCount, len(txs))
 }
 
 func Test_UpdateTxsStatus(t *testing.T) {
@@ -542,14 +479,14 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx1); err != nil {
+	if err := p.AddTx(ctx, *signedTx1, ""); err != nil {
 		t.Error(err)
 	}
 
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx2); err != nil {
+	if err := p.AddTx(ctx, *signedTx2, ""); err != nil {
 		t.Error(err)
 	}
 
@@ -615,7 +552,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx); err != nil {
+	if err := p.AddTx(ctx, *signedTx, ""); err != nil {
 		t.Error(err)
 	}
 
@@ -723,7 +660,7 @@ func TestGetPendingTxSince(t *testing.T) {
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		txsAddedTime = append(txsAddedTime, time.Now())
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
 			t.Error(err)
 		}
 		txsAddedHashes = append(txsAddedHashes, signedTx.Hash())
@@ -819,14 +756,14 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx1); err != nil {
+	if err := p.AddTx(ctx, *signedTx1, ""); err != nil {
 		t.Error(err)
 	}
 
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx2); err != nil {
+	if err := p.AddTx(ctx, *signedTx2, ""); err != nil {
 		t.Error(err)
 	}
 
@@ -968,7 +905,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			incompatibleTx := testCase.createIncompatibleTx()
 			p := pool.NewPool(cfg, s, st, common.Address{}, incompatibleTx.ChainId().Uint64())
-			err = p.AddTx(ctx, incompatibleTx)
+			err = p.AddTx(ctx, incompatibleTx, "")
 			assert.Equal(t, testCase.expectedError, err)
 		})
 	}
@@ -1052,7 +989,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx)
+	err = p.AddTx(ctx, *signedTx, "")
 	require.Error(t, err)
 	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
 
@@ -1066,7 +1003,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx)
+	err = p.AddTx(ctx, *signedTx, "")
 	require.Error(t, err)
 	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
 
@@ -1080,7 +1017,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx)
+	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
 
 	tx = types.NewTx(&types.LegacyTx{
@@ -1093,7 +1030,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx)
+	err = p.AddTx(ctx, *signedTx, "")
 	require.Error(t, err)
 	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
 
@@ -1107,7 +1044,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx)
+	err = p.AddTx(ctx, *signedTx, "")
 	require.Error(t, err)
 	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
 
@@ -1121,7 +1058,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx)
+	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
 
 	txs, err := p.GetPendingTxs(ctx, false, 0)
@@ -1184,7 +1121,7 @@ func Test_AddRevertedTx(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	err = p.AddTx(ctx, *signedTx)
+	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
 
 	txs, err := p.GetPendingTxs(ctx, false, 0)

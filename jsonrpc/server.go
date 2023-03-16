@@ -246,9 +246,9 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 
 	start := time.Now()
 	if single {
-		s.handleSingleRequest(w, data)
+		s.handleSingleRequest(req, w, data)
 	} else {
-		s.handleBatchRequest(w, data)
+		s.handleBatchRequest(req, w, data)
 	}
 	metrics.RequestDuration(start)
 }
@@ -263,14 +263,14 @@ func (s *Server) isSingleRequest(data []byte) (bool, types.Error) {
 	return x[0] == '{', nil
 }
 
-func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte) {
+func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelSingle)
 	request, err := s.parseRequest(data)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-	req := handleRequest{Request: request}
+	req := handleRequest{Request: request, HttpRequest: httpRequest}
 	response := s.handler.Handle(req)
 
 	respBytes, err := json.Marshal(response)
@@ -286,7 +286,7 @@ func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte) {
 	}
 }
 
-func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
+func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelBatch)
 	requests, err := s.parseRequests(data)
 	if err != nil {
@@ -297,7 +297,7 @@ func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
 	responses := make([]types.Response, 0, len(requests))
 
 	for _, request := range requests {
-		req := handleRequest{Request: request}
+		req := handleRequest{Request: request, HttpRequest: httpRequest}
 		response := s.handler.Handle(req)
 		responses = append(responses, response)
 	}
