@@ -587,15 +587,3 @@ func ToBatchNumArg(number *big.Int) string {
 	}
 	return hex.EncodeBig(number)
 }
-
-// HexToAddressPtr create an address from a hex and returns its pointer
-func HexToAddressPtr(hex string) *common.Address {
-	a := common.HexToAddress(hex)
-	return &a
-}
-
-// HexToHashPtr create a hash from a hex and returns its pointer
-func HexToHashPtr(hex string) *common.Hash {
-	h := common.HexToHash(hex)
-	return &h
-}

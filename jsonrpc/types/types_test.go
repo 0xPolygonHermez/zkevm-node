@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -130,8 +131,8 @@ func TestBatchUnmarshal(t *testing.T) {
 				LocalExitRoot:       common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
 				AccInputHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
 				Timestamp:           ArgUint64(1678980245),
-				SendSequencesTxHash: HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000004"),
-				VerifyBatchTxHash:   HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000005"),
+				SendSequencesTxHash: state.HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000004"),
+				VerifyBatchTxHash:   state.HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000005"),
 			},
 		},
 		{
@@ -145,15 +146,15 @@ func TestBatchUnmarshal(t *testing.T) {
 				LocalExitRoot:       common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
 				AccInputHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
 				Timestamp:           ArgUint64(hex.DecodeUint64("0x64133495")),
-				SendSequencesTxHash: HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000004"),
-				VerifyBatchTxHash:   HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000005"),
+				SendSequencesTxHash: state.HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000004"),
+				VerifyBatchTxHash:   state.HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000005"),
 				Transactions: []TransactionOrHash{
 					{
 						Tx: &Transaction{
 							Nonce:       ArgUint64(hex.DecodeUint64("0x8")),
 							GasPrice:    ArgBig(*hex.DecodeBig("0x3b9aca00")),
 							Gas:         ArgUint64(hex.DecodeUint64("0x5208")),
-							To:          HexToAddressPtr("0xb48ca794d49eec406a5dd2c547717e37b5952a83"),
+							To:          state.HexToAddressPtr("0xb48ca794d49eec406a5dd2c547717e37b5952a83"),
 							Value:       ArgBig(*hex.DecodeBig("0xde0b6b3a7640000")),
 							Input:       ArgBytes{},
 							V:           ArgBig(*hex.DecodeBig("0x7f5")),
@@ -161,7 +162,7 @@ func TestBatchUnmarshal(t *testing.T) {
 							S:           ArgBig(*hex.DecodeBig("0x1b9f1d7cabbb69d309f9e6ffe10b3e205ad86af1058f4dbacdd06a8db03a5669")),
 							Hash:        common.HexToHash("0xd0433908a0b56ec6d90758abfe5ae11185e13bedb3d70e8ab7c0d7e3f0e395b5"),
 							From:        common.HexToAddress("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"),
-							BlockHash:   HexToHashPtr("0x7e8efeb2b5bb9aaef68a9b2f5b6c0a14900745380a68f72f9c15f978546109cc"),
+							BlockHash:   state.HexToHashPtr("0x7e8efeb2b5bb9aaef68a9b2f5b6c0a14900745380a68f72f9c15f978546109cc"),
 							BlockNumber: ArgUint64Ptr(ArgUint64(hex.DecodeUint64("0x1"))),
 							TxIndex:     ArgUint64Ptr(ArgUint64(hex.DecodeUint64("0x0"))),
 							ChainID:     ArgBig(*hex.DecodeBig("0x3e9")),
@@ -182,11 +183,11 @@ func TestBatchUnmarshal(t *testing.T) {
 				LocalExitRoot:       common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
 				AccInputHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
 				Timestamp:           ArgUint64(1678980245),
-				SendSequencesTxHash: HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000004"),
-				VerifyBatchTxHash:   HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000005"),
+				SendSequencesTxHash: state.HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000004"),
+				VerifyBatchTxHash:   state.HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000005"),
 				Transactions: []TransactionOrHash{
-					{Hash: HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000001")},
-					{Hash: HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000002")},
+					{Hash: state.HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000001")},
+					{Hash: state.HexToHashPtr("0x0000000000000000000000000000000000000000000000000000000000000002")},
 				},
 			},
 		},

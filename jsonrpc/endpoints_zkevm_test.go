@@ -797,29 +797,9 @@ func TestGetBatchByNumber(t *testing.T) {
 						Return(receipt, nil).
 						Once()
 
-					from, _ := state.GetSender(*tx)
-					V, R, S := tx.RawSignatureValues()
-
 					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
 						types.TransactionOrHash{
-							Tx: &types.Transaction{
-								Nonce:       types.ArgUint64(tx.Nonce()),
-								GasPrice:    types.ArgBig(*tx.GasPrice()),
-								Gas:         types.ArgUint64(tx.Gas()),
-								To:          tx.To(),
-								Value:       types.ArgBig(*tx.Value()),
-								Input:       tx.Data(),
-								Hash:        tx.Hash(),
-								From:        from,
-								BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
-								BlockHash:   ptrHash(receipt.BlockHash),
-								TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
-								ChainID:     types.ArgBig(*tx.ChainId()),
-								Type:        types.ArgUint64(tx.Type()),
-								V:           types.ArgBig(*V),
-								R:           types.ArgBig(*R),
-								S:           types.ArgBig(*S),
-							},
+							Hash: state.HashPtr(tx.Hash()),
 						},
 					)
 

@@ -129,7 +129,7 @@ func TestCall(t *testing.T) {
 		{
 			name:           "Transaction with all information",
 			from:           common.HexToAddress("0x1"),
-			to:             addressPtr(common.HexToAddress("0x2")),
+			to:             state.AddressPtr(common.HexToAddress("0x2")),
 			gas:            uint64(24000),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
@@ -157,7 +157,7 @@ func TestCall(t *testing.T) {
 		},
 		{
 			name:           "Transaction without from and gas from latest block",
-			to:             addressPtr(common.HexToAddress("0x2")),
+			to:             state.AddressPtr(common.HexToAddress("0x2")),
 			gasPrice:       big.NewInt(0),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
@@ -184,7 +184,7 @@ func TestCall(t *testing.T) {
 		},
 		{
 			name:           "Transaction without from and gas from pending block",
-			to:             addressPtr(common.HexToAddress("0x2")),
+			to:             state.AddressPtr(common.HexToAddress("0x2")),
 			gasPrice:       big.NewInt(0),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
@@ -212,7 +212,7 @@ func TestCall(t *testing.T) {
 		},
 		{
 			name:           "Transaction without from and gas and failed to get latest block header",
-			to:             addressPtr(common.HexToAddress("0x2")),
+			to:             state.AddressPtr(common.HexToAddress("0x2")),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
@@ -226,7 +226,7 @@ func TestCall(t *testing.T) {
 		},
 		{
 			name:           "Transaction without from and gas and failed to get pending block header",
-			to:             addressPtr(common.HexToAddress("0x2")),
+			to:             state.AddressPtr(common.HexToAddress("0x2")),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
@@ -242,7 +242,7 @@ func TestCall(t *testing.T) {
 		{
 			name:           "Transaction with gas but failed to get last block number",
 			from:           common.HexToAddress("0x1"),
-			to:             addressPtr(common.HexToAddress("0x2")),
+			to:             state.AddressPtr(common.HexToAddress("0x2")),
 			gas:            uint64(24000),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
@@ -258,7 +258,7 @@ func TestCall(t *testing.T) {
 		{
 			name:           "Transaction with all information but failed to process unsigned transaction",
 			from:           common.HexToAddress("0x1"),
-			to:             addressPtr(common.HexToAddress("0x2")),
+			to:             state.AddressPtr(common.HexToAddress("0x2")),
 			gas:            uint64(24000),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
@@ -339,7 +339,7 @@ func TestEstimateGas(t *testing.T) {
 		{
 			name:           "Transaction with all information",
 			from:           common.HexToAddress("0x1"),
-			to:             addressPtr(common.HexToAddress("0x2")),
+			to:             state.AddressPtr(common.HexToAddress("0x2")),
 			gas:            uint64(24000),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
@@ -383,7 +383,7 @@ func TestEstimateGas(t *testing.T) {
 		},
 		{
 			name:           "Transaction without from and gas",
-			to:             addressPtr(common.HexToAddress("0x2")),
+			to:             state.AddressPtr(common.HexToAddress("0x2")),
 			gasPrice:       big.NewInt(0),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
@@ -2806,7 +2806,7 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 				require.NoError(t, err)
 
 				tc.Input = rawTx
-				tc.ExpectedResult = hashPtr(tx.Hash())
+				tc.ExpectedResult = state.HashPtr(tx.Hash())
 				tc.ExpectedError = nil
 			},
 			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
@@ -4165,12 +4165,4 @@ func TestGetFilterChanges(t *testing.T) {
 			}
 		})
 	}
-}
-
-func addressPtr(i common.Address) *common.Address {
-	return &i
-}
-
-func hashPtr(h common.Hash) *common.Hash {
-	return &h
 }
