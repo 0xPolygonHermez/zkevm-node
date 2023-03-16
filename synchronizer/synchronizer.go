@@ -628,7 +628,7 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 
 	// If forkID affects to a batch from the past. State must be reseted.
 	log.Debugf("ForkID: %d, Reverting synchronization to batch: %d", forkID.ForkID, forkID.BatchNumber)
-	count, err := s.state.GetForkIDTrustedReorg(s.ctx, forkID.ForkID, forkID.Version, dbTx)
+	count, err := s.state.GetForkIDTrustedReorgCount(s.ctx, forkID.ForkID, forkID.Version, dbTx)
 	if err != nil {
 		log.Error("error getting ForkIDTrustedReorg. Error: ", err)
 		rollbackErr := dbTx.Rollback(s.ctx)

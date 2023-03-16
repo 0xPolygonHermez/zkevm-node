@@ -53,7 +53,7 @@ type stateInterface interface {
 	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
 	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
 	ResetForkID(ctx context.Context, batchNumber, forkID uint64, version string, dbTx pgx.Tx) error
-	GetForkIDTrustedReorg(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error)
+	GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error)
 	UpdateForkIDIntervals(intervals []state.ForkIDInterval)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)

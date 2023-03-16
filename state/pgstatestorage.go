@@ -2267,8 +2267,8 @@ func (p *PostgresStorage) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64,
 	return count, nil
 }
 
-// GetForkIDTrustedReorg returns the forkID
-func (p *PostgresStorage) GetForkIDTrustedReorg(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error) {
+// GetForkIDTrustedReorgCount returns the forkID
+func (p *PostgresStorage) GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error) {
 	const forkIDTrustedReorgSQL = "SELECT COUNT(*) FROM state.trusted_reorg WHERE reason=$1"
 
 	var count uint64

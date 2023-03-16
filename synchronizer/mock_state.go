@@ -218,8 +218,8 @@ func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	return r0, r1
 }
 
-// GetForkIDTrustedReorg provides a mock function with given fields: ctx, forkID, version, dbTx
-func (_m *stateMock) GetForkIDTrustedReorg(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error) {
+// GetForkIDTrustedReorgCount provides a mock function with given fields: ctx, forkID, version, dbTx
+func (_m *stateMock) GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, forkID, version, dbTx)
 
 	var r0 uint64
