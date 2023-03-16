@@ -687,23 +687,25 @@ func TestGetBatchByNumber(t *testing.T) {
 					V, R, S := tx.RawSignatureValues()
 
 					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
-						types.Transaction{
-							Nonce:       types.ArgUint64(tx.Nonce()),
-							GasPrice:    types.ArgBig(*tx.GasPrice()),
-							Gas:         types.ArgUint64(tx.Gas()),
-							To:          tx.To(),
-							Value:       types.ArgBig(*tx.Value()),
-							Input:       tx.Data(),
-							Hash:        tx.Hash(),
-							From:        from,
-							BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
-							BlockHash:   ptrHash(receipt.BlockHash),
-							TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
-							ChainID:     types.ArgBig(*tx.ChainId()),
-							Type:        types.ArgUint64(tx.Type()),
-							V:           types.ArgBig(*V),
-							R:           types.ArgBig(*R),
-							S:           types.ArgBig(*S),
+						types.TransactionOrHash{
+							Tx: &types.Transaction{
+								Nonce:       types.ArgUint64(tx.Nonce()),
+								GasPrice:    types.ArgBig(*tx.GasPrice()),
+								Gas:         types.ArgUint64(tx.Gas()),
+								To:          tx.To(),
+								Value:       types.ArgBig(*tx.Value()),
+								Input:       tx.Data(),
+								Hash:        tx.Hash(),
+								From:        from,
+								BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
+								BlockHash:   ptrHash(receipt.BlockHash),
+								TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
+								ChainID:     types.ArgBig(*tx.ChainId()),
+								Type:        types.ArgUint64(tx.Type()),
+								V:           types.ArgBig(*V),
+								R:           types.ArgBig(*R),
+								S:           types.ArgBig(*S),
+							},
 						},
 					)
 
@@ -799,23 +801,25 @@ func TestGetBatchByNumber(t *testing.T) {
 					V, R, S := tx.RawSignatureValues()
 
 					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
-						types.Transaction{
-							Nonce:       types.ArgUint64(tx.Nonce()),
-							GasPrice:    types.ArgBig(*tx.GasPrice()),
-							Gas:         types.ArgUint64(tx.Gas()),
-							To:          tx.To(),
-							Value:       types.ArgBig(*tx.Value()),
-							Input:       tx.Data(),
-							Hash:        tx.Hash(),
-							From:        from,
-							BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
-							BlockHash:   ptrHash(receipt.BlockHash),
-							TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
-							ChainID:     types.ArgBig(*tx.ChainId()),
-							Type:        types.ArgUint64(tx.Type()),
-							V:           types.ArgBig(*V),
-							R:           types.ArgBig(*R),
-							S:           types.ArgBig(*S),
+						types.TransactionOrHash{
+							Tx: &types.Transaction{
+								Nonce:       types.ArgUint64(tx.Nonce()),
+								GasPrice:    types.ArgBig(*tx.GasPrice()),
+								Gas:         types.ArgUint64(tx.Gas()),
+								To:          tx.To(),
+								Value:       types.ArgBig(*tx.Value()),
+								Input:       tx.Data(),
+								Hash:        tx.Hash(),
+								From:        from,
+								BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
+								BlockHash:   ptrHash(receipt.BlockHash),
+								TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
+								ChainID:     types.ArgBig(*tx.ChainId()),
+								Type:        types.ArgUint64(tx.Type()),
+								V:           types.ArgBig(*V),
+								R:           types.ArgBig(*R),
+								S:           types.ArgBig(*S),
+							},
 						},
 					)
 
@@ -916,23 +920,25 @@ func TestGetBatchByNumber(t *testing.T) {
 					V, R, S := tx.RawSignatureValues()
 
 					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
-						types.Transaction{
-							Nonce:       types.ArgUint64(tx.Nonce()),
-							GasPrice:    types.ArgBig(*tx.GasPrice()),
-							Gas:         types.ArgUint64(tx.Gas()),
-							To:          tx.To(),
-							Value:       types.ArgBig(*tx.Value()),
-							Input:       tx.Data(),
-							Hash:        tx.Hash(),
-							From:        from,
-							BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
-							BlockHash:   ptrHash(receipt.BlockHash),
-							TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
-							ChainID:     types.ArgBig(*tx.ChainId()),
-							Type:        types.ArgUint64(tx.Type()),
-							V:           types.ArgBig(*V),
-							R:           types.ArgBig(*R),
-							S:           types.ArgBig(*S),
+						types.TransactionOrHash{
+							Tx: &types.Transaction{
+								Nonce:       types.ArgUint64(tx.Nonce()),
+								GasPrice:    types.ArgBig(*tx.GasPrice()),
+								Gas:         types.ArgUint64(tx.Gas()),
+								To:          tx.To(),
+								Value:       types.ArgBig(*tx.Value()),
+								Input:       tx.Data(),
+								Hash:        tx.Hash(),
+								From:        from,
+								BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
+								BlockHash:   ptrHash(receipt.BlockHash),
+								TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
+								ChainID:     types.ArgBig(*tx.ChainId()),
+								Type:        types.ArgUint64(tx.Type()),
+								V:           types.ArgBig(*V),
+								R:           types.ArgBig(*R),
+								S:           types.ArgBig(*S),
+							},
 						},
 					)
 
@@ -1021,17 +1027,18 @@ func TestGetBatchByNumber(t *testing.T) {
 					assert.Equal(t, tc.ExpectedResult.Coinbase.String(), batch["coinbase"].(string))
 					assert.Equal(t, tc.ExpectedResult.StateRoot.String(), batch["stateRoot"].(string))
 					assert.Equal(t, tc.ExpectedResult.GlobalExitRoot.String(), batch["globalExitRoot"].(string))
+					assert.Equal(t, tc.ExpectedResult.LocalExitRoot.String(), batch["localExitRoot"].(string))
 					assert.Equal(t, tc.ExpectedResult.AccInputHash.String(), batch["accInputHash"].(string))
 					assert.Equal(t, tc.ExpectedResult.Timestamp.Hex(), batch["timestamp"].(string))
 					assert.Equal(t, tc.ExpectedResult.SendSequencesTxHash.String(), batch["sendSequencesTxHash"].(string))
 					assert.Equal(t, tc.ExpectedResult.VerifyBatchTxHash.String(), batch["verifyBatchTxHash"].(string))
 					batchTxs := batch["transactions"].([]interface{})
-					for i, tx := range tc.ExpectedResult.Transactions {
+					for i, txOrHash := range tc.ExpectedResult.Transactions {
 						switch batchTxOrHash := batchTxs[i].(type) {
 						case string:
-							assert.Equal(t, tx.GetHash().String(), batchTxOrHash)
+							assert.Equal(t, txOrHash.Hash.String(), batchTxOrHash)
 						case map[string]interface{}:
-							tx := tx.(types.Transaction)
+							tx := txOrHash.Tx
 							assert.Equal(t, tx.Nonce.Hex(), batchTxOrHash["nonce"].(string))
 							assert.Equal(t, tx.GasPrice.Hex(), batchTxOrHash["gasPrice"].(string))
 							assert.Equal(t, tx.Gas.Hex(), batchTxOrHash["gas"].(string))

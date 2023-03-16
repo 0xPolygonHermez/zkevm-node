@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -40,6 +41,11 @@ func (b *ArgUint64) UnmarshalText(input []byte) error {
 func (b ArgUint64) Hex() string {
 	bb, _ := b.MarshalText()
 	return string(bb)
+}
+
+// ArgUint64Ptr returns the pointer of the provided ArgUint64
+func ArgUint64Ptr(a ArgUint64) *ArgUint64 {
+	return &a
 }
 
 // ArgBytes helps to marshal byte array values provided in the RPC requests
@@ -297,12 +303,13 @@ func NewBlock(b *types.Block, fullTx bool) *Block {
 			tx := NewTransaction(*txn, b.Number(), &blockHash, &txIndex)
 			res.Transactions = append(
 				res.Transactions,
-				tx,
+				TransactionOrHash{Tx: tx},
 			)
 		} else {
+			h := txn.Hash()
 			res.Transactions = append(
 				res.Transactions,
-				transactionHash(txn.Hash()),
+				TransactionOrHash{Hash: &h},
 			)
 		}
 	}
@@ -320,6 +327,7 @@ type Batch struct {
 	Coinbase            common.Address      `json:"coinbase"`
 	StateRoot           common.Hash         `json:"stateRoot"`
 	GlobalExitRoot      common.Hash         `json:"globalExitRoot"`
+	LocalExitRoot       common.Hash         `json:"localExitRoot"`
 	AccInputHash        common.Hash         `json:"accInputHash"`
 	Timestamp           ArgUint64           `json:"timestamp"`
 	SendSequencesTxHash *common.Hash        `json:"sendSequencesTxHash"`
@@ -336,6 +344,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 		Timestamp:      ArgUint64(batch.Timestamp.Unix()),
 		StateRoot:      batch.StateRoot,
 		Coinbase:       batch.Coinbase,
+		LocalExitRoot:  batch.LocalExitRoot,
 	}
 
 	if virtualBatch != nil {
@@ -356,9 +365,10 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 			receipt := receiptsMap[tx.Hash()]
 			txIndex := uint64(receipt.TransactionIndex)
 			rpcTx := NewTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex)
-			res.Transactions = append(res.Transactions, rpcTx)
+			res.Transactions = append(res.Transactions, TransactionOrHash{Tx: rpcTx})
 		} else {
-			res.Transactions = append(res.Transactions, transactionHash(tx.Hash()))
+			h := tx.Hash()
+			res.Transactions = append(res.Transactions, TransactionOrHash{Hash: &h})
 		}
 	}
 
@@ -366,8 +376,39 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 }
 
 // TransactionOrHash for union type of transaction and types.Hash
-type TransactionOrHash interface {
-	GetHash() common.Hash
+type TransactionOrHash struct {
+	Hash *common.Hash
+	Tx   *Transaction
+}
+
+// MarshalJSON marshals into json
+func (b TransactionOrHash) MarshalJSON() ([]byte, error) {
+	if b.Hash != nil {
+		return json.Marshal(b.Hash)
+	}
+	return json.Marshal(b.Tx)
+}
+
+// UnmarshalJSON unmarshals from json
+func (b *TransactionOrHash) UnmarshalJSON(input []byte) error {
+	v := string(input)
+	if strings.HasPrefix(v, "0x") || strings.HasPrefix(v, "\"0x") {
+		var h common.Hash
+		err := json.Unmarshal(input, &h)
+		if err != nil {
+			return err
+		}
+		*b = TransactionOrHash{Hash: &h}
+		return nil
+	}
+
+	var t Transaction
+	err := json.Unmarshal(input, &t)
+	if err != nil {
+		return err
+	}
+	*b = TransactionOrHash{Tx: &t}
+	return nil
 }
 
 // Transaction structure
@@ -390,17 +431,19 @@ type Transaction struct {
 	Type        ArgUint64       `json:"type"`
 }
 
-// GetHash gets the transaction hash
-func (t Transaction) GetHash() common.Hash { return t.Hash }
-
-// Redefine to implement getHash() of transactionOrHash
-type transactionHash common.Hash
-
-// GetHash gets the hash
-func (h transactionHash) GetHash() common.Hash { return common.Hash(h) }
-
-func (h transactionHash) MarshalText() ([]byte, error) {
-	return []byte(common.Hash(h).String()), nil
+// CoreTx returns a geth core type Transaction
+func (t Transaction) CoreTx() *types.Transaction {
+	return types.NewTx(&types.LegacyTx{
+		Nonce:    uint64(t.Nonce),
+		GasPrice: (*big.Int)(&t.GasPrice),
+		Gas:      uint64(t.Gas),
+		To:       t.To,
+		Value:    (*big.Int)(&t.Value),
+		Data:     t.Input,
+		V:        (*big.Int)(&t.V),
+		R:        (*big.Int)(&t.R),
+		S:        (*big.Int)(&t.S),
+	})
 }
 
 // NewTransaction creates a transaction instance
@@ -531,4 +574,28 @@ func NewLog(l types.Log) Log {
 		LogIndex:    ArgUint64(l.Index),
 		Removed:     l.Removed,
 	}
+}
+
+// ToBatchNumArg converts a big.Int into a batch number rpc parameter
+func ToBatchNumArg(number *big.Int) string {
+	if number == nil {
+		return Latest
+	}
+	pending := big.NewInt(-1)
+	if number.Cmp(pending) == 0 {
+		return Pending
+	}
+	return hex.EncodeBig(number)
+}
+
+// HexToAddressPtr create an address from a hex and returns its pointer
+func HexToAddressPtr(hex string) *common.Address {
+	a := common.HexToAddress(hex)
+	return &a
+}
+
+// HexToHashPtr create a hash from a hex and returns its pointer
+func HexToHashPtr(hex string) *common.Hash {
+	h := common.HexToHash(hex)
+	return &h
 }

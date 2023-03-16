@@ -28,6 +28,7 @@ type mocks struct {
 	Pool         *poolMock
 	EthTxManager *ethTxManagerMock
 	DbTx         *dbTxMock
+	ZKEVMClient  *zkEVMClientMock
 }
 
 func TestTrustedStateReorg(t *testing.T) {
@@ -55,7 +56,7 @@ func TestTrustedStateReorg(t *testing.T) {
 			Return(svr.URL, nil).
 			Once()
 
-		sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
+		sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
 		require.NoError(t, err)
 
 		// state preparation
@@ -337,6 +338,7 @@ func TestTrustedStateReorg(t *testing.T) {
 		Pool:         newPoolMock(t),
 		EthTxManager: newEthTxManagerMock(t),
 		DbTx:         newDbTxMock(t),
+		ZKEVMClient:  newZkEVMClientMock(t),
 	}
 
 	// start synchronizing
@@ -364,10 +366,11 @@ func TestForcedBatch(t *testing.T) {
 	}
 
 	m := mocks{
-		Etherman: newEthermanMock(t),
-		State:    newStateMock(t),
-		Pool:     newPoolMock(t),
-		DbTx:     newDbTxMock(t),
+		Etherman:    newEthermanMock(t),
+		State:       newStateMock(t),
+		Pool:        newPoolMock(t),
+		DbTx:        newDbTxMock(t),
+		ZKEVMClient: newZkEVMClientMock(t),
 	}
 
 	m.Etherman.
@@ -375,7 +378,7 @@ func TestForcedBatch(t *testing.T) {
 		Return(svr.URL, nil).
 		Once()
 
-	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
+	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -582,13 +585,14 @@ func TestSequenceForcedBatch(t *testing.T) {
 	}
 
 	m := mocks{
-		Etherman: newEthermanMock(t),
-		State:    newStateMock(t),
-		Pool:     newPoolMock(t),
-		DbTx:     newDbTxMock(t),
+		Etherman:    newEthermanMock(t),
+		State:       newStateMock(t),
+		Pool:        newPoolMock(t),
+		DbTx:        newDbTxMock(t),
+		ZKEVMClient: newZkEVMClientMock(t),
 	}
 
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
+	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation

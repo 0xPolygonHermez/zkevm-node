@@ -10,6 +10,18 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 )
 
+// Client defines typed wrappers for the zkEVM RPC API.
+type Client struct {
+	url string
+}
+
+// NewClient creates an instance of client
+func NewClient(url string) *Client {
+	return &Client{
+		url: url,
+	}
+}
+
 // JSONRPCCall executes a 2.0 JSON RPC HTTP Post Request to the provided URL with
 // the provided method and parameters, which is compatible with the Ethereum
 // JSON RPC Server.

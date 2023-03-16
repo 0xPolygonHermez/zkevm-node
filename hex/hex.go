@@ -53,6 +53,12 @@ func MustDecodeHex(str string) []byte {
 	return buf
 }
 
+// DecodeUint64 type-checks and converts a hex string to a uint64
+func DecodeUint64(str string) uint64 {
+	i := DecodeBig(str)
+	return i.Uint64()
+}
+
 // EncodeUint64 encodes a number as a hex string with 0x prefix.
 func EncodeUint64(i uint64) string {
 	enc := make([]byte, 2, 10) //nolint:gomnd

@@ -5,18 +5,19 @@ import (
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	coreTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
 // ethermanInterface contains the methods required to interact with ethereum.
 type ethermanInterface interface {
-	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*coreTypes.Header, error)
 	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error)
-	EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
+	EthBlockByNumber(ctx context.Context, blockNumber uint64) (*coreTypes.Block, error)
 	GetLatestBatchNumber() (uint64, error)
 	GetTrustedSequencerURL() (string, error)
 	VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error)
@@ -51,7 +52,7 @@ type stateInterface interface {
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
 	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
 	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
-	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
+	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*coreTypes.Transaction, error)
 	ResetForkID(ctx context.Context, batchNumber, forkID uint64, version string, dbTx pgx.Tx) error
 	GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error)
 	UpdateForkIDIntervals(intervals []state.ForkIDInterval)
@@ -64,6 +65,11 @@ type ethTxManager interface {
 }
 
 type poolInterface interface {
-	DeleteReorgedTransactions(ctx context.Context, txs []*types.Transaction) error
-	StoreTx(ctx context.Context, tx types.Transaction, ip string) error
+	DeleteReorgedTransactions(ctx context.Context, txs []*coreTypes.Transaction) error
+	StoreTx(ctx context.Context, tx coreTypes.Transaction, ip string) error
+}
+
+type zkEVMClientInterface interface {
+	BatchNumber(ctx context.Context) (uint64, error)
+	BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error)
 }

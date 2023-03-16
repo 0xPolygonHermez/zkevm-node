@@ -7,11 +7,13 @@ import (
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
 // BatchNumber returns the latest batch number
-func BatchNumber(ctx context.Context, url string) (uint64, error) {
-	response, err := JSONRPCCall(url, "zkevm_batchNumber")
+func (c *Client) BatchNumber(ctx context.Context) (uint64, error) {
+	response, err := JSONRPCCall(c.url, "zkevm_batchNumber")
 	if err != nil {
 		return 0, err
 	}
@@ -26,13 +28,30 @@ func BatchNumber(ctx context.Context, url string) (uint64, error) {
 		return 0, err
 	}
 
-	decodedBatchNumber, err := hex.DecodeHex(result)
-	if err != nil {
-		return 0, err
-	}
-
-	bigBatchNumber := big.NewInt(0).SetBytes(decodedBatchNumber)
+	bigBatchNumber := hex.DecodeBig(result)
 	batchNumber := bigBatchNumber.Uint64()
 
 	return batchNumber, nil
+}
+
+// BatchByNumber returns a batch from the current canonical chain. If number is nil, the
+// latest known batch is returned.
+func (c *Client) BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error) {
+	response, err := JSONRPCCall(c.url, "zkevm_getBatchByNumber", types.ToBatchNumArg(number), true)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Error != nil {
+		return nil, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+	}
+
+	var result *types.Batch
+	log.Debugf(string(response.Result))
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
