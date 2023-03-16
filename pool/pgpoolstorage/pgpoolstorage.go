@@ -58,10 +58,6 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 	gasPrice := tx.GasPrice().Uint64()
 	nonce := tx.Nonce()
 
-	if tx.IP == "" {
-		tx.IP = "unknown"
-	}
-
 	sql := `
 		INSERT INTO pool.transaction 
 		(
