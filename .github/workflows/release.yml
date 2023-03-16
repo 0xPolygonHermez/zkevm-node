@@ -20,7 +20,7 @@ jobs:
           go-version: 1.18
 
       - name: Get packr
-        run: go get -u github.com/gobuffalo/packr/v2/packr2
+        run: go install github.com/gobuffalo/packr/v2/packr2
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
