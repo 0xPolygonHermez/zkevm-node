@@ -36,7 +36,6 @@ type Request struct {
 	ID      interface{}     `json:"id"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params,omitempty"`
-	IP      string          `json:"ip"`
 }
 
 // Response is a jsonrpc  success response

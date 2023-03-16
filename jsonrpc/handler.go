@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync"
@@ -34,7 +35,8 @@ func (f *funcData) numParams() int {
 
 type handleRequest struct {
 	Request
-	wsConn *websocket.Conn
+	wsConn      *websocket.Conn
+	HttpRequest *http.Request
 }
 
 // Handler manage services to handle jsonrpc requests
@@ -96,16 +98,23 @@ func (h *Handler) Handle(req handleRequest) Response {
 
 	inArgsOffset := 0
 	inArgs := make([]reflect.Value, fd.inNum)
-	inArgs[0] = service.sv
+	inArgs[1] = service.sv
 
 	requestHasWebSocketConn := req.wsConn != nil
 	funcHasMoreThanOneInputParams := len(fd.reqt) > 1
 	firstFuncParamIsWebSocketConn := false
+	firstFuncParamIsHttpRequest := false
 	if funcHasMoreThanOneInputParams {
 		firstFuncParamIsWebSocketConn = fd.reqt[1].AssignableTo(reflect.TypeOf(&websocket.Conn{}))
+		firstFuncParamIsHttpRequest = fd.reqt[1].AssignableTo(reflect.TypeOf(&http.Request{}))
 	}
 	if requestHasWebSocketConn && firstFuncParamIsWebSocketConn {
 		inArgs[1] = reflect.ValueOf(req.wsConn)
+		inArgsOffset++
+	} else if firstFuncParamIsHttpRequest {
+		// If in the future one endponit needs to have both a websocket connection and an http request
+		// we will need to modify this code to properly handle it
+		inArgs[1] = reflect.ValueOf(req.HttpRequest)
 		inArgsOffset++
 	}
 
@@ -121,11 +130,6 @@ func (h *Handler) Handle(req handleRequest) Response {
 		val := reflect.New(fd.reqt[i+1])
 		inputs[i-inArgsOffset] = val.Interface()
 		inArgs[i+1] = val.Elem()
-	}
-
-	// And request IP as an input parameter for eth_sendRawTransaction
-	if req.Method == "eth_sendRawTransaction" {
-		inputs = append(inputs, req.IP)
 	}
 
 	if fd.numParams() > 0 {

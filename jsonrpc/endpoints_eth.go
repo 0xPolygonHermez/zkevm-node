@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -614,10 +615,11 @@ func (e *EthEndpoints) newPendingTransactionFilter(wsConn *websocket.Conn) (inte
 // SendRawTransaction has two different ways to handle new transactions:
 // - for Sequencer nodes it tries to add the tx to the pool
 // - for Non-Sequencer nodes it relays the Tx to the Sequencer node
-func (e *EthEndpoints) SendRawTransaction(input, ip string) (interface{}, rpcError) {
+func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input string) (interface{}, rpcError) {
 	if e.cfg.SequencerNodeURI != "" {
 		return e.relayTxToSequencerNode(input)
 	} else {
+		ip := httpRequest.Header.Get("X-Forwarded-For")
 		return e.tryToAddTxToPool(input, ip)
 	}
 }

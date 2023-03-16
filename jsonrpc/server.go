@@ -243,13 +243,11 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	ip := req.Header.Get("X-Forwarded-For")
-
 	start := time.Now()
 	if single {
-		s.handleSingleRequest(w, data, ip)
+		s.handleSingleRequest(req, w, data)
 	} else {
-		s.handleBatchRequest(w, data, ip)
+		s.handleBatchRequest(req, w, data)
 	}
 	metrics.RequestDuration(start)
 }
@@ -264,14 +262,14 @@ func (s *Server) isSingleRequest(data []byte) (bool, rpcError) {
 	return x[0] == '{', nil
 }
 
-func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte, ip string) {
+func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelSingle)
-	request, err := s.parseRequest(data, ip)
+	request, err := s.parseRequest(data)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-	req := handleRequest{Request: request}
+	req := handleRequest{Request: request, HttpRequest: httpRequest}
 	response := s.handler.Handle(req)
 
 	respBytes, err := json.Marshal(response)
@@ -287,9 +285,9 @@ func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte, ip stri
 	}
 }
 
-func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte, ip string) {
+func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelBatch)
-	requests, err := s.parseRequests(data, ip)
+	requests, err := s.parseRequests(data)
 	if err != nil {
 		handleError(w, err)
 		return
@@ -298,7 +296,7 @@ func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte, ip strin
 	responses := make([]Response, 0, len(requests))
 
 	for _, request := range requests {
-		req := handleRequest{Request: request}
+		req := handleRequest{Request: request, HttpRequest: httpRequest}
 		response := s.handler.Handle(req)
 		responses = append(responses, response)
 	}
@@ -310,27 +308,21 @@ func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte, ip strin
 	}
 }
 
-func (s *Server) parseRequest(data []byte, ip string) (Request, error) {
+func (s *Server) parseRequest(data []byte) (Request, error) {
 	var req Request
 
 	if err := json.Unmarshal(data, &req); err != nil {
 		return Request{}, newRPCError(invalidRequestErrorCode, "Invalid json request")
 	}
 
-	req.IP = ip
-
 	return req, nil
 }
 
-func (s *Server) parseRequests(data []byte, ip string) ([]Request, error) {
+func (s *Server) parseRequests(data []byte) ([]Request, error) {
 	var requests []Request
 
 	if err := json.Unmarshal(data, &requests); err != nil {
 		return nil, newRPCError(invalidRequestErrorCode, "Invalid json request")
-	}
-
-	for _, req := range requests {
-		req.IP = ip
 	}
 
 	return requests, nil
