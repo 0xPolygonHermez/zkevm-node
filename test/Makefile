@@ -340,10 +340,8 @@ stop-grafana: ## Stops the grafana service
 	$(STOPGRAFANA)
 
 .PHONY: run-permissionless
-run-permissionless: ## Runs the permissionless node
+run-permissionless: run-node ## Runs the trusted and permissionless node
 	$(RUNPERMISSIONLESSDB)
-	$(RUNL1NETWORK)
-	$(RUNBROADCAST)
 	sleep 1
 	$(RUNPERMISSIONLESSZKPROVER)
 	$(RUNPERMISSIONLESSNODE)

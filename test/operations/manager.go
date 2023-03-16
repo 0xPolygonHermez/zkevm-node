@@ -46,6 +46,7 @@ const (
 	DefaultL1ChainID             uint64 = 1337
 
 	DefaultL2NetworkURL                 = "http://localhost:8123"
+	PermissionlessL2NetworkURL          = "http://localhost:8125"
 	DefaultL2NetworkWebSocketURL        = "ws://localhost:8133"
 	DefaultL2ChainID             uint64 = 1001
 
@@ -308,6 +309,40 @@ func (m *Manager) Setup() error {
 	return nil
 }
 
+// SetupWithPermissionless creates all the required components for both trusted and permissionless nodes
+// and initializes them according to the manager config.
+func (m *Manager) SetupWithPermissionless() error {
+	// Run network container
+	err := m.StartNetwork()
+	if err != nil {
+		return err
+	}
+
+	// Approve matic
+	err = ApproveMatic()
+	if err != nil {
+		return err
+	}
+
+	err = m.SetUpSequencer()
+	if err != nil {
+		return err
+	}
+
+	err = m.StartTrustedAndPermissionlessNode()
+	if err != nil {
+		return err
+	}
+
+	// Run node container
+	return nil
+}
+
+// StopEthTxSender stops the eth tx sender service
+func (m *Manager) StopEthTxSender() error {
+	return StopComponent("eth-tx-manager")
+}
+
 // Teardown stops all the components.
 func Teardown() error {
 	err := stopNode()
@@ -490,6 +525,11 @@ func stopNetwork() error {
 // StartNode starts the node container
 func (m *Manager) StartNode() error {
 	return StartComponent("node", nodeUpCondition)
+}
+
+// StartTrustedAndPermissionlessNode starts the node container
+func (m *Manager) StartTrustedAndPermissionlessNode() error {
+	return StartComponent("permissionless", nodeUpCondition)
 }
 
 // ApproveMatic runs the approving matic command
