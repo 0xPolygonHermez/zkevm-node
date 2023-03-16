@@ -2,9 +2,9 @@
 FROM golang:1.18 AS build
 
 # INSTALL DEPENDENCIES
-RUN go install github.com/gobuffalo/packr/v2/packr2
 COPY go.mod go.sum /src/
 RUN cd /src && go mod download
+RUN go install github.com/gobuffalo/packr/v2/packr2
 
 # BUILD BINARY
 COPY . /src
