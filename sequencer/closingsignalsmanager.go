@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type closingSignalsManager struct {
@@ -46,8 +45,13 @@ func (c *closingSignalsManager) checkSendToL1Timeout() {
 }
 
 func (c *closingSignalsManager) checkGERUpdate() {
-	var lastGERSent common.Hash
-
+	lastBatch, err := c.dbManager.GetLastBatch(c.ctx)
+	for err != nil {
+		log.Errorf("error getting last batch: %v", err)
+		time.Sleep(time.Second)
+		lastBatch, err = c.dbManager.GetLastBatch(c.ctx)
+	}
+	lastGERSent := lastBatch.GlobalExitRoot
 	for {
 		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingGER.Duration)
 
