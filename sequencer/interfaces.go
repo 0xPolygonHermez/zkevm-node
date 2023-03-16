@@ -73,6 +73,7 @@ type stateInterface interface {
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error)
+	FlushMerkleTree(ctx context.Context) error
 }
 
 type workerInterface interface {
@@ -113,6 +114,7 @@ type dbManagerInterface interface {
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	FlushMerkleTree(ctx context.Context) error
 }
 
 type dbManagerStateInterface interface {
@@ -142,6 +144,7 @@ type dbManagerStateInterface interface {
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error)
+	FlushMerkleTree(ctx context.Context) error
 }
 
 type ethTxManager interface {

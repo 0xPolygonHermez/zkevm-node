@@ -68,7 +68,10 @@ services:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
       - POSTGRES_DB=state_db
-    command: [ "postgres", "-N", "500" ]
+    command:
+      - "postgres"
+      - "-N"
+      - "500"
 
   zkevm-pool-db:
     container_name: zkevm-pool-db
@@ -93,12 +96,15 @@ services:
       - POSTGRES_USER=pool_user
       - POSTGRES_PASSWORD=pool_password
       - POSTGRES_DB=pool_db
-    command: [ "postgres", "-N", "500" ]
+    command:
+      - "postgres"
+      - "-N"
+      - "500"
 
   zkevm-prover:
     container_name: zkevm-prover
     restart: unless-stopped
-    image: hermeznetwork/zkevm-prover:45df44e
+    image: hermeznetwork/zkevm-prover:40338c3
     depends_on:
       zkevm-state-db:
         condition: service_healthy

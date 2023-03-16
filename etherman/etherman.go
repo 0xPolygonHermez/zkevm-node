@@ -86,6 +86,8 @@ const (
 	TrustedVerifyBatchOrder EventOrder = "TrustedVerifyBatch"
 	// SequenceForceBatchesOrder identifies a SequenceForceBatches event
 	SequenceForceBatchesOrder EventOrder = "SequenceForceBatches"
+	// ForkIDsOrder identifies an updateZkevmVersion event
+	ForkIDsOrder EventOrder = "forkIDs"
 )
 
 type ethereumClient interface {
@@ -333,10 +335,44 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		log.Debug("EmergencyStateDeactivated event detected")
 		return nil
 	case updateZkEVMVersionSignatureHash:
-		log.Debug("UpdateZkEVMVersion event detected")
-		return nil
+		return etherMan.updateZkevmVersion(ctx, vLog, blocks, blocksOrder)
 	}
 	log.Warn("Event not registered: ", vLog)
+	return nil
+}
+
+func (etherMan *Client) updateZkevmVersion(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+	log.Debug("UpdateZkEVMVersion event detected")
+	zkevmVersion, err := etherMan.PoE.ParseUpdateZkEVMVersion(vLog)
+	if err != nil {
+		log.Error("error parsing UpdateZkEVMVersion event. Error: ", err)
+		return err
+	}
+	fork := ForkID{
+		BatchNumber: zkevmVersion.NumBatch,
+		ForkID:      zkevmVersion.ForkID,
+		Version:     zkevmVersion.Version,
+	}
+	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
+		fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+		}
+		t := time.Unix(int64(fullBlock.Time()), 0)
+		block := prepareBlock(vLog, t, fullBlock)
+		block.ForkIDs = append(block.ForkIDs, fork)
+		*blocks = append(*blocks, block)
+	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
+		(*blocks)[len(*blocks)-1].ForkIDs = append((*blocks)[len(*blocks)-1].ForkIDs, fork)
+	} else {
+		log.Error("Error processing updateZkevmVersion event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
+		return fmt.Errorf("error processing updateZkevmVersion event")
+	}
+	or := Order{
+		Name: ForkIDsOrder,
+		Pos:  len((*blocks)[len(*blocks)-1].ForkIDs) - 1,
+	}
+	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
 	return nil
 }
 
@@ -346,10 +382,6 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	if err != nil {
 		return err
 	}
-	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-	if err != nil {
-		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-	}
 	var gExitRoot GlobalExitRoot
 	gExitRoot.MainnetExitRoot = common.BytesToHash(globalExitRoot.MainnetExitRoot[:])
 	gExitRoot.RollupExitRoot = common.BytesToHash(globalExitRoot.RollupExitRoot[:])
@@ -357,6 +389,10 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	gExitRoot.GlobalExitRoot = hash(globalExitRoot.MainnetExitRoot, globalExitRoot.RollupExitRoot)
 
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
+		fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+		}
 		t := time.Unix(int64(fullBlock.Time()), 0)
 		block := prepareBlock(vLog, t, fullBlock)
 		block.GlobalExitRoots = append(block.GlobalExitRoots, gExitRoot)
