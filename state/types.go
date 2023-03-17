@@ -183,3 +183,25 @@ type Event struct {
 	TxHash    common.Hash
 	Payload   string
 }
+
+// HexToAddressPtr create an address from a hex and returns its pointer
+func HexToAddressPtr(hex string) *common.Address {
+	a := common.HexToAddress(hex)
+	return &a
+}
+
+// HexToHashPtr create a hash from a hex and returns its pointer
+func HexToHashPtr(hex string) *common.Hash {
+	h := common.HexToHash(hex)
+	return &h
+}
+
+// AddressPtr returns a pointer to the provided address
+func AddressPtr(i common.Address) *common.Address {
+	return &i
+}
+
+// HashPtr returns a pointer to the provided hash
+func HashPtr(h common.Hash) *common.Hash {
+	return &h
+}
