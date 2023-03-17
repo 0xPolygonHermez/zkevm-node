@@ -25,7 +25,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 		t.Skip()
 	}
 	ctx := context.Background()
-	// defer func() { require.NoError(t, operations.TeardownPermissionless()) }()
+	defer func() { require.NoError(t, operations.TeardownPermissionless()) }()
 	err := operations.Teardown()
 	require.NoError(t, err)
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -53,13 +53,13 @@ func TestPermissionlessJRPC(t *testing.T) {
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)
 	require.NoError(t, err)
-	senderNonce, err := client.PendingNonceAt(ctx, auth.From)
+	nonceToBeUsedForNextTx, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
 
 	log.Infof("Receiver Addr: %v", toAddress.String())
 	log.Infof("Sender Addr: %v", auth.From.String())
 	log.Infof("Sender Balance: %v", senderBalance.String())
-	log.Infof("Sender Nonce: %v", senderNonce)
+	log.Infof("Sender Nonce: %v", nonceToBeUsedForNextTx)
 
 	gasLimit, err := client.EstimateGas(ctx, ethereum.CallMsg{From: auth.From, To: &toAddress, Value: amount})
 	require.NoError(t, err)
@@ -67,15 +67,13 @@ func TestPermissionlessJRPC(t *testing.T) {
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 
-	nonce, err := client.PendingNonceAt(ctx, auth.From)
-	require.NoError(t, err)
-
 	txsStep1 := make([]*types.Transaction, 0, nTxsStep1)
 	for i := 0; i < nTxsStep1; i++ {
-		nonce += 1
-		tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
+		tx := types.NewTransaction(nonceToBeUsedForNextTx, toAddress, amount, gasLimit, gasPrice, nil)
 		txsStep1 = append(txsStep1, tx)
+		nonceToBeUsedForNextTx += 1
 	}
+	log.Infof("sending %d txs and waiting until added in the permissionless RPC trusted state")
 	l2BlockNumbersStep1, err := operations.ApplyL2Txs(ctx, txsStep1, auth, client, operations.TrustedConfirmationLevel)
 	require.NoError(t, err)
 
@@ -86,15 +84,16 @@ func TestPermissionlessJRPC(t *testing.T) {
 	require.NoError(t, opsman.StopSequencer())
 	txsStep2 := make([]*types.Transaction, 0, nTxsStep2)
 	for i := 0; i < nTxsStep2; i++ {
-		nonce += 1
-		tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
+		tx := types.NewTransaction(nonceToBeUsedForNextTx, toAddress, amount, gasLimit, gasPrice, nil)
 		txsStep2 = append(txsStep2, tx)
+		nonceToBeUsedForNextTx += 1
 	}
+	log.Infof("sending %d txs and waiting until added into the trusted sequencer pool")
 	_, err = operations.ApplyL2Txs(ctx, txsStep2, auth, client, operations.PoolConfirmationLevel)
 	require.NoError(t, err)
 	actualNonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
-	require.Equal(t, nonce+1, actualNonce)
+	require.Equal(t, nonceToBeUsedForNextTx, actualNonce)
 	// Step 3
 	// - actions: start Sequencer and EthTxSender
 	// - assert: all transactions get virtualized WITHOUT L2 reorgs
@@ -113,7 +112,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 	sqlDB, err := db.NewSQLDB(db.Config{
 		User:      testutils.GetEnv("PERMISSIONLESSPGUSER", "test_user"),
 		Password:  testutils.GetEnv("PERMISSIONLESSPGPASSWORD", "test_password"),
-		Name:      testutils.GetEnv("PERMISSIONLESSPGDATABASE", "test_db"),
+		Name:      testutils.GetEnv("PERMISSIONLESSPGDATABASE", "state_db"),
 		Host:      testutils.GetEnv("PERMISSIONLESSPGHOST", "localhost"),
 		Port:      testutils.GetEnv("PERMISSIONLESSPGPORT", "5434"),
 		EnableLog: true,

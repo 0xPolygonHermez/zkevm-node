@@ -213,10 +213,6 @@ stop-node: ## Stops the node
 	$(STOPETHTXMANAGER)
 	$(STOPBROADCAST)
 
-.PHONY: stop-sequencer
-stop-sequencer: ## Stops the node
-	$(STOPSEQUENCER)
-
 .PHONY: run-network
 run-network: ## Runs the l1 network
 	$(RUNL1NETWORK)

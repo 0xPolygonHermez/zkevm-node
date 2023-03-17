@@ -170,7 +170,7 @@ func ApplyL1Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 
 type ConfirmationLevel int
 
-const PoolConfirmationLevel ConfirmationLevel = 1
+const PoolConfirmationLevel ConfirmationLevel = 0
 const TrustedConfirmationLevel ConfirmationLevel = 1
 const VirtualConfirmationLevel ConfirmationLevel = 2
 const VerifiedConfirmationLevel ConfirmationLevel = 3
@@ -369,12 +369,12 @@ func (m *Manager) StopEthTxSender() error {
 
 // SartSequencer stops the sequencer
 func (m *Manager) StartSequencer() error {
-	return StartComponent("sequecer")
+	return StartComponent("seq")
 }
 
 // StopSequencer stops the sequencer
 func (m *Manager) StopSequencer() error {
-	return StopComponent("sequencer")
+	return StopComponent("seq")
 }
 
 // Teardown stops all the components.
