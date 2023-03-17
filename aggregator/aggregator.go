@@ -230,7 +230,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 	if ok {
 		proverAddr = p.Addr
 	}
-	prover, err := prover.New(stream, proverAddr, a.cfg.ProofStatePollingInterval)
+	prover, err := prover.New(stream, proverAddr, a.cfg.ProofStatePollingInterval, a.cfg.ForkId)
 	if err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 		"proverId", proverID,
 		"proverAddr", proverAddr.String(),
 	)
-	log.Debug("Establishing stream connection with prover")
+	log.Info("Establishing stream connection with prover")
 
 	jobChan := make(chan proverJob)
 

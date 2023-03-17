@@ -14,13 +14,14 @@ import (
 )
 
 var (
-	ErrBadProverResponse    = errors.New("Prover returned wrong type for response")  //nolint:revive
-	ErrProverInternalError  = errors.New("Prover returned INTERNAL_ERROR response")  //nolint:revive
-	ErrProverCompletedError = errors.New("Prover returned COMPLETED_ERROR response") //nolint:revive
-	ErrBadRequest           = errors.New("Prover returned ERROR for a bad request")  //nolint:revive
-	ErrUnspecified          = errors.New("Prover returned an UNSPECIFIED response")  //nolint:revive
-	ErrUnknown              = errors.New("Prover returned an unknown response")      //nolint:revive
-	ErrProofCanceled        = errors.New("Proof has been canceled")                  //nolint:revive
+	ErrBadProverResponse    = errors.New("prover returned wrong type for response")  //nolint:revive
+	ErrProverInternalError  = errors.New("prover returned INTERNAL_ERROR response")  //nolint:revive
+	ErrProverCompletedError = errors.New("prover returned COMPLETED_ERROR response") //nolint:revive
+	ErrBadRequest           = errors.New("prover returned ERROR for a bad request")  //nolint:revive
+	ErrUnspecified          = errors.New("prover returned an UNSPECIFIED response")  //nolint:revive
+	ErrUnknown              = errors.New("prover returned an unknown response")      //nolint:revive
+	ErrProofCanceled        = errors.New("proof has been canceled")                  //nolint:revive
+	ErrUnsupportedForkID    = errors.New("prover does not support required fork ID") //nolint:revive
 )
 
 // Prover abstraction of the grpc prover client.
@@ -33,7 +34,12 @@ type Prover struct {
 }
 
 // New returns a new Prover instance.
-func New(stream pb.AggregatorService_ChannelServer, addr net.Addr, proofStatePollingInterval types.Duration) (*Prover, error) {
+func New(
+	stream pb.AggregatorService_ChannelServer,
+	addr net.Addr,
+	proofStatePollingInterval types.Duration,
+	forkID uint64,
+) (*Prover, error) {
 	p := &Prover{
 		stream:                    stream,
 		address:                   addr,
@@ -42,6 +48,10 @@ func New(stream pb.AggregatorService_ChannelServer, addr net.Addr, proofStatePol
 	status, err := p.Status()
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve prover id, %w", err)
+	}
+	if status.ForkId != forkID {
+		log.Debugf("Prover %s supports fork ID %d", p.ID(), status.ForkId)
+		return nil, ErrUnsupportedForkID
 	}
 	p.name = status.ProverName
 	p.id = status.ProverId
@@ -86,19 +96,6 @@ func (p *Prover) IsIdle() (bool, error) {
 		return false, err
 	}
 	return status.Status == pb.GetStatusResponse_STATUS_IDLE, nil
-}
-
-// SupportsForkID returns true if the prover supports the given fork id.
-func (p *Prover) SupportsForkID(forkID uint64) bool {
-	status, err := p.Status()
-	if err != nil {
-		log.Warnf("Error asking status for prover ID %s: %v", p.ID(), err)
-		return false
-	}
-
-	log.Debugf("Prover %s supports fork ID %d", p.ID(), status.ForkId)
-
-	return status.ForkId == forkID
 }
 
 // BatchProof instructs the prover to generate a batch proof for the provided
