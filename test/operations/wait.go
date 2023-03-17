@@ -153,7 +153,7 @@ func WaitL2BlockToBeVirtualized(l2Block *big.Int, timeout time.Duration) error {
 	})
 }
 
-// WaitL2BlockToBeVirtualized waits until a L2 Block has been virtualized or the given timeout expires.
+// WaitL2BlockToBeVirtualizedCustomRPC waits until a L2 Block has been virtualized or the given timeout expires.
 func WaitL2BlockToBeVirtualizedCustomRPC(l2Block *big.Int, timeout time.Duration, l2NetworkURL string) error {
 	return Poll(DefaultInterval, timeout, func() (bool, error) {
 		return l2BlockVirtualizationCondition(l2Block, l2NetworkURL)

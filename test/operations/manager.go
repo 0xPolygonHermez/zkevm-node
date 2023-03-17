@@ -168,11 +168,19 @@ func ApplyL1Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 	return err
 }
 
+// ConfirmationLevel type used to describe the confirmation level of a transaction
 type ConfirmationLevel int
 
+// PoolConfirmationLevel indicates that transaction is added into the pool
 const PoolConfirmationLevel ConfirmationLevel = 0
+
+// TrustedConfirmationLevel indicates that transaction is  added into the trusted state
 const TrustedConfirmationLevel ConfirmationLevel = 1
+
+// VirtualConfirmationLevel indicates that transaction is  added into the virtual state
 const VirtualConfirmationLevel ConfirmationLevel = 2
+
+// VerifiedConfirmationLevel indicates that transaction is  added into the verified state
 const VerifiedConfirmationLevel ConfirmationLevel = 3
 
 // ApplyL2Txs sends the given L2 txs, waits for them to be consolidated and
@@ -367,7 +375,7 @@ func (m *Manager) StopEthTxSender() error {
 	return StopComponent("eth-tx-manager")
 }
 
-// SartSequencer stops the sequencer
+// StartSequencer starts the sequencer
 func (m *Manager) StartSequencer() error {
 	return StartComponent("seq")
 }
