@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
@@ -193,13 +194,14 @@ func (a *Aggregator) Start(ctx context.Context) error {
 		log.Infof("Server listening on port %d", a.cfg.Port)
 		if err := a.srv.Serve(lis); err != nil {
 			a.exit()
-			log.Fatalf("failed to serve: %v", err)
+			log.Fatalf("Failed to serve: %v", err)
 		}
 	}()
 
 	a.verifyProofTimeOut = make(chan struct{})
 	a.resetTimer()
 
+	go a.cleanupLockedProofs()
 	go a.handleFinalProof()
 	go a.aggregate()
 
@@ -265,7 +267,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 			return ctx.Err()
 		default:
 			//send the readiness message to the aggregator
-			log.Debugf("prover ready to receive jobs, tracking [%s]", tracking)
+			log.Debugf("Prover ready to receive jobs, tracking [%s]", tracking)
 			proverMsg := proverClient{
 				name:     proverName,
 				id:       proverID,
@@ -277,7 +279,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 			a.proversCh <- proverMsg
 
 			// wait for the response in the job channel
-			log.Debugf("waiting for job, tracking [%s]", tracking)
+			log.Debugf("Waiting for job, tracking [%s]", tracking)
 		jobsLoop:
 			for proverJob := range jobChan {
 				var proof *state.Proof
@@ -287,7 +289,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 				switch job := proverJob.(type) {
 				case *nilJob:
 					log := log.WithFields("tracking", job.tracking)
-					log.Debug("nothing to prove")
+					log.Debug("Nothing to prove")
 
 					// nothing to do, wait a bit and retry
 					time.Sleep(a.cfg.ProofStatePollingInterval.Duration)
@@ -417,7 +419,7 @@ func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Cont
 	proof.GeneratingSince = nil
 	err := a.State.UpdateGeneratedProof(ctx, proof, nil)
 	if err != nil {
-		log.Errorf("failed updating proof state (false), err: %v", err)
+		log.Errorf("Failed updating proof state (false), err: %v", err)
 	}
 	// a.endProofVerification()
 }
@@ -432,13 +434,13 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResu
 	proofBatchNumberStr := idSlice[2]
 	proofBatchNumber, err := strconv.ParseUint(proofBatchNumberStr, encoding.Base10, 0)
 	if err != nil {
-		resLog.Errorf("failed to read final proof batch number from monitored tx: %v", err)
+		resLog.Errorf("Failed to read final proof batch number from monitored tx: %v", err)
 	}
 
 	proofBatchNumberFinalStr := idSlice[4]
 	proofBatchNumberFinal, err := strconv.ParseUint(proofBatchNumberFinalStr, encoding.Base10, 0)
 	if err != nil {
-		resLog.Errorf("failed to read final proof batch number final from monitored tx: %v", err)
+		resLog.Errorf("Failed to read final proof batch number final from monitored tx: %v", err)
 	}
 
 	log := log.WithFields("txId", result.ID, "batches", fmt.Sprintf("%d-%d", proofBatchNumber, proofBatchNumberFinal))
@@ -455,7 +457,7 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResu
 	// proofs up to the last synced batch
 	err = a.State.CleanupGeneratedProofs(a.ctx, proofBatchNumberFinal, nil)
 	if err != nil {
-		log.Errorf("failed to store proof aggregation result: %v", err)
+		log.Errorf("Failed to store proof aggregation result: %v", err)
 	}
 }
 
@@ -534,7 +536,7 @@ func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) err
 		// before looking for a proof into the state, we listen if the
 		// eligible proof has just been produced by a prover
 		case fj := <-a.finalJobCh:
-			log.Debugf("received proof valid for final, tracking [%s] ", fj.tracking)
+			log.Debugf("Received proof valid for final, tracking [%s] ", fj.tracking)
 			a.reserveFinal()
 			return sendJob(fj)
 
@@ -1123,4 +1125,31 @@ func (hc *healthChecker) Watch(req *grpchealth.HealthCheckRequest, server grpche
 	return server.Send(&grpchealth.HealthCheckResponse{
 		Status: grpchealth.HealthCheckResponse_SERVING,
 	})
+}
+
+func (a *Aggregator) cleanupLockedProofs() {
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-time.After(a.cfg.CleanupLockedProofsInterval.Duration):
+			n, err := a.State.CleanupLockedProofs(a.ctx, a.cfg.GeneratingProofCleanupThreshold, nil)
+			if err != nil {
+				log.Errorf("Failed to cleanup locked proofs: %v", err)
+			}
+			if n == 1 {
+				log.Warn("Found a stale proof and removed form cache")
+			} else if n > 1 {
+				log.Warnf("Found %d stale proofs and removed from cache", n)
+			}
+		}
+	}
+}
+
+// FirstToUpper returns the string passed as argument with the first letter in
+// uppercase.
+func FirstToUpper(s string) string {
+	runes := []rune(s)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }
