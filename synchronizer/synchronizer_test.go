@@ -2,10 +2,7 @@ package synchronizer
 
 import (
 	context "context"
-	"fmt"
 	"math/big"
-	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
@@ -16,7 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -28,14 +25,10 @@ type mocks struct {
 	Pool         *poolMock
 	EthTxManager *ethTxManagerMock
 	DbTx         *dbTxMock
+	ZKEVMClient  *zkEVMClientMock
 }
 
 func TestTrustedStateReorg(t *testing.T) {
-	data := `{"jsonrpc":"2.0","id":1,"result":"zkevm-broadcast:61090"}`
-	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, data)
-	}))
-	defer svr.Close()
 	type testCase struct {
 		Name            string
 		getTrustedBatch func(*mocks, context.Context, etherman.SequencedBatch) *state.Batch
@@ -50,12 +43,7 @@ func TestTrustedStateReorg(t *testing.T) {
 			GenBlockNumber: uint64(123456),
 		}
 
-		m.Etherman.
-			On("GetTrustedSequencerURL").
-			Return(svr.URL, nil).
-			Once()
-
-		sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
+		sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
 		require.NoError(t, err)
 
 		// state preparation
@@ -65,8 +53,8 @@ func TestTrustedStateReorg(t *testing.T) {
 			Run(func(args mock.Arguments) {
 				ctx := args[0].(context.Context)
 				parentHash := common.HexToHash("0x111")
-				ethHeader := &types.Header{Number: big.NewInt(1), ParentHash: parentHash}
-				ethBlock := types.NewBlockWithHeader(ethHeader)
+				ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
+				ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
 				lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 
 				m.State.
@@ -123,6 +111,11 @@ func TestTrustedStateReorg(t *testing.T) {
 				m.Etherman.
 					On("GetRollupInfoByBlockRange", ctx, fromBlock, &toBlock).
 					Return(blocks, order, nil).
+					Once()
+
+				m.ZKEVMClient.
+					On("BatchNumber", ctx).
+					Return(uint64(1), nil).
 					Once()
 
 				m.State.
@@ -188,7 +181,7 @@ func TestTrustedStateReorg(t *testing.T) {
 					Return(tr.BatchNumber-1, nil).
 					Once()
 
-				txs := []*types.Transaction{types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})}
+				txs := []*ethTypes.Transaction{ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})}
 				m.State.
 					On("GetReorgedTransactions", ctx, tr.BatchNumber, m.DbTx).
 					Return(txs, nil).
@@ -200,7 +193,7 @@ func TestTrustedStateReorg(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("StoreTx", ctx, *txs[0], "").
+					On("StoreTx", ctx, *txs[0], "", true).
 					Return(nil).
 					Once()
 
@@ -337,6 +330,7 @@ func TestTrustedStateReorg(t *testing.T) {
 		Pool:         newPoolMock(t),
 		EthTxManager: newEthTxManagerMock(t),
 		DbTx:         newDbTxMock(t),
+		ZKEVMClient:  newZkEVMClientMock(t),
 	}
 
 	// start synchronizing
@@ -351,11 +345,6 @@ func TestTrustedStateReorg(t *testing.T) {
 }
 
 func TestForcedBatch(t *testing.T) {
-	data := `{"jsonrpc":"2.0","id":1,"result":"zkevm-broadcast:61090"}`
-	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, data)
-	}))
-	defer svr.Close()
 	genesis := state.Genesis{}
 	cfg := Config{
 		SyncInterval:   cfgTypes.Duration{Duration: 1 * time.Second},
@@ -364,18 +353,14 @@ func TestForcedBatch(t *testing.T) {
 	}
 
 	m := mocks{
-		Etherman: newEthermanMock(t),
-		State:    newStateMock(t),
-		Pool:     newPoolMock(t),
-		DbTx:     newDbTxMock(t),
+		Etherman:    newEthermanMock(t),
+		State:       newStateMock(t),
+		Pool:        newPoolMock(t),
+		DbTx:        newDbTxMock(t),
+		ZKEVMClient: newZkEVMClientMock(t),
 	}
 
-	m.Etherman.
-		On("GetTrustedSequencerURL").
-		Return(svr.URL, nil).
-		Once()
-
-	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
+	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -385,8 +370,8 @@ func TestForcedBatch(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			ctx := args[0].(context.Context)
 			parentHash := common.HexToHash("0x111")
-			ethHeader := &types.Header{Number: big.NewInt(1), ParentHash: parentHash}
-			ethBlock := types.NewBlockWithHeader(ethHeader)
+			ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
+			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
 			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 
 			m.State.
@@ -458,6 +443,11 @@ func TestForcedBatch(t *testing.T) {
 			m.Etherman.
 				On("GetRollupInfoByBlockRange", ctx, fromBlock, &toBlock).
 				Return(blocks, order, nil).
+				Once()
+
+			m.ZKEVMClient.
+				On("BatchNumber", ctx).
+				Return(uint64(1), nil).
 				Once()
 
 			m.State.
@@ -582,13 +572,14 @@ func TestSequenceForcedBatch(t *testing.T) {
 	}
 
 	m := mocks{
-		Etherman: newEthermanMock(t),
-		State:    newStateMock(t),
-		Pool:     newPoolMock(t),
-		DbTx:     newDbTxMock(t),
+		Etherman:    newEthermanMock(t),
+		State:       newStateMock(t),
+		Pool:        newPoolMock(t),
+		DbTx:        newDbTxMock(t),
+		ZKEVMClient: newZkEVMClientMock(t),
 	}
 
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, genesis, cfg)
+	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -598,8 +589,8 @@ func TestSequenceForcedBatch(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			ctx := args[0].(context.Context)
 			parentHash := common.HexToHash("0x111")
-			ethHeader := &types.Header{Number: big.NewInt(1), ParentHash: parentHash}
-			ethBlock := types.NewBlockWithHeader(ethHeader)
+			ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
+			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
 			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 
 			m.State.

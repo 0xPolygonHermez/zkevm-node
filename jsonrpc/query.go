@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/gorilla/websocket"
 )
 
@@ -32,20 +32,11 @@ type Filter struct {
 // FilterType express the type of the filter, block, logs, pending transactions
 type FilterType string
 
-// LogFilterRequest represents a log filter request.
-type LogFilterRequest struct {
-	BlockHash *common.Hash  `json:"blockHash,omitempty"`
-	FromBlock *string       `json:"fromBlock,omitempty"`
-	ToBlock   *string       `json:"toBlock,omitempty"`
-	Address   interface{}   `json:"address,omitempty"`
-	Topics    []interface{} `json:"topics,omitempty"`
-}
-
 // LogFilter is a filter for logs
 type LogFilter struct {
 	BlockHash *common.Hash
-	FromBlock *BlockNumber
-	ToBlock   *BlockNumber
+	FromBlock *types.BlockNumber
+	ToBlock   *types.BlockNumber
 	Addresses []common.Address
 	Topics    [][]common.Hash
 	Since     *time.Time
@@ -92,11 +83,11 @@ func (f *LogFilter) addAddress(raw string) error {
 
 // MarshalJSON allows to customize the JSON representation.
 func (f *LogFilter) MarshalJSON() ([]byte, error) {
-	var obj LogFilterRequest
+	var obj types.LogFilterRequest
 
 	obj.BlockHash = f.BlockHash
 
-	if f.FromBlock != nil && (*f.FromBlock == LatestBlockNumber) {
+	if f.FromBlock != nil && (*f.FromBlock == types.LatestBlockNumber) {
 		fromblock := ""
 		obj.FromBlock = &fromblock
 	} else if f.FromBlock != nil {
@@ -104,7 +95,7 @@ func (f *LogFilter) MarshalJSON() ([]byte, error) {
 		obj.FromBlock = &fromblock
 	}
 
-	if f.ToBlock != nil && (*f.ToBlock == LatestBlockNumber) {
+	if f.ToBlock != nil && (*f.ToBlock == types.LatestBlockNumber) {
 		toblock := ""
 		obj.ToBlock = &toblock
 	} else if f.ToBlock != nil {
@@ -136,7 +127,7 @@ func (f *LogFilter) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes a json object
 func (f *LogFilter) UnmarshalJSON(data []byte) error {
-	var obj LogFilterRequest
+	var obj types.LogFilterRequest
 
 	err := json.Unmarshal(data, &obj)
 
@@ -145,12 +136,12 @@ func (f *LogFilter) UnmarshalJSON(data []byte) error {
 	}
 
 	f.BlockHash = obj.BlockHash
-	lbb := LatestBlockNumber
+	lbb := types.LatestBlockNumber
 
 	if obj.FromBlock != nil && *obj.FromBlock == "" {
 		f.FromBlock = &lbb
 	} else if obj.FromBlock != nil {
-		bn, err := stringToBlockNumber(*obj.FromBlock)
+		bn, err := types.StringToBlockNumber(*obj.FromBlock)
 		if err != nil {
 			return err
 		}
@@ -160,7 +151,7 @@ func (f *LogFilter) UnmarshalJSON(data []byte) error {
 	if obj.ToBlock != nil && *obj.ToBlock == "" {
 		f.ToBlock = &lbb
 	} else if obj.ToBlock != nil {
-		bn, err := stringToBlockNumber(*obj.ToBlock)
+		bn, err := types.StringToBlockNumber(*obj.ToBlock)
 		if err != nil {
 			return err
 		}
