@@ -1,1 +1,1 @@
-test/e2e/permissionlessrpc_test.go
+../../test/e2e/permissionlessrpc_test.go
