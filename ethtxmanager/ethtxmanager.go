@@ -584,7 +584,10 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 	for {
 		results, err := c.ResultsByStatus(ctx, owner, statusesFilter, dbTx)
 		if err != nil {
+			// if something goes wrong here, we log, wait a bit and keep it in the infinite loop to not unlock the caller.
 			log.Errorf("failed to get results by statuses from eth tx manager to monitored txs err: ", err)
+			time.Sleep(time.Second)
+			continue
 		}
 
 		if len(results) == 0 {
@@ -600,6 +603,9 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 				err := c.setStatusDone(ctx, owner, result.ID, dbTx)
 				if err != nil {
 					resultLog.Errorf("failed to set monitored tx as done, err: %v", err)
+					// if something goes wrong at this point, we skip this result and move to the next.
+					// this result is going to be handled again in the next cycle by the outer loop.
+					continue
 				} else {
 					resultLog.Info("monitored tx confirmed")
 				}
