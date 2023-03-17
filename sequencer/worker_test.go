@@ -186,16 +186,16 @@ func TestWorkerGetBestTx(t *testing.T) {
 	var nilErr error
 
 	// Init ZKEVM resourceCostWeight values
-	rcWeigth := batchResourceWeights{}
-	rcWeigth.WeightCumulativeGasUsed = 1
-	rcWeigth.WeightArithmetics = 1
-	rcWeigth.WeightBinaries = 1
-	rcWeigth.WeightKeccakHashes = 1
-	rcWeigth.WeightMemAligns = 1
-	rcWeigth.WeightPoseidonHashes = 1
-	rcWeigth.WeightPoseidonPaddings = 1
-	rcWeigth.WeightSteps = 1
-	rcWeigth.WeightBatchBytesSize = 2
+	rcWeight := batchResourceWeights{}
+	rcWeight.WeightCumulativeGasUsed = 1
+	rcWeight.WeightArithmetics = 1
+	rcWeight.WeightBinaries = 1
+	rcWeight.WeightKeccakHashes = 1
+	rcWeight.WeightMemAligns = 1
+	rcWeight.WeightPoseidonHashes = 1
+	rcWeight.WeightPoseidonPaddings = 1
+	rcWeight.WeightSteps = 1
+	rcWeight.WeightBatchBytesSize = 2
 
 	// Init ZKEVM resourceCostMax values
 	rcMax := batchConstraints{}
@@ -215,7 +215,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 	}
 
 	stateMock := NewStateMock(t)
-	worker := initWorker(stateMock, rcMax, rcWeigth)
+	worker := initWorker(stateMock, rcMax, rcWeight)
 
 	ctx := context.Background()
 
