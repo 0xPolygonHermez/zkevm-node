@@ -1230,7 +1230,9 @@ func (s *ClientSynchronizer) reorgPool(dbTx pgx.Tx) error {
 
 	// Add txs to the pool
 	for _, tx := range txs {
-		err = s.pool.StoreTx(s.ctx, *tx, "")
+		// Insert tx in WIP status to avoid the sequencer to grab them before it gets restarted
+		// When the sequencer restarts, it will update the status to pending non-wip
+		err = s.pool.StoreTx(s.ctx, *tx, "", true)
 		if err != nil {
 			log.Errorf("error storing tx into the pool again. TxHash: %s. BatchNumber: %d, error: %v", tx.Hash().String(), batchNumber, err)
 			return err
