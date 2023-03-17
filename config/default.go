@@ -90,6 +90,7 @@ WeightBinaries = 1
 WeightSteps = 1
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
+MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
 		GERDeadlineTimeoutInSec = "5s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"

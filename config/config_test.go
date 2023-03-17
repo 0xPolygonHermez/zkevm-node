@@ -114,6 +114,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(3 * time.Hour),
 		},
 		{
+			path:          "Sequencer.MaxTxSizeForL1",
+			expectedValue: uint64(131072),
+		},
+		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},

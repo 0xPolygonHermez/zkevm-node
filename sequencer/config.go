@@ -86,6 +86,12 @@ type Config struct {
 	// MaxTxLifetime is the time a tx can be in the sequencer memory
 	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
 
+	// MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
+	// non-trivial consequences: larger transactions than 128KB are significantly harder and
+	// more expensive to propagate; larger transactions also take more resources
+	// to validate whether they fit into the pool or not.
+	MaxTxSizeForL1 uint64 `mapstructure:"MaxTxSizeForL1"`
+
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
 
