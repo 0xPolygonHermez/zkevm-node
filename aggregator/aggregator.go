@@ -2,7 +2,6 @@ package aggregator
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -39,69 +38,13 @@ const (
 // ErrNotValidForFinal is returned for proof not valid to be used as final.
 var ErrNotValidForFinal error = errors.New("proof not valid to be sent as final")
 
-type proverJob interface {
-	Proof()
-}
-
-type nilJob struct {
-	tracking string
-}
-
-// Proof implements the proverJob interface.
-func (nilJob) Proof() {}
-
-type aggregationJob struct {
-	tracking string
-	proof1   *state.Proof
-	proof2   *state.Proof
-	proofCh  chan jobResult
-}
-
-// Proof implements the proverJob interface.
-func (aggregationJob) Proof() {}
-
-type generationJob struct {
-	tracking string
-	batch    *state.Batch
-	proof    *state.Proof
-	proofCh  chan jobResult
-}
-
-// Proof implements the proverJob interface.
-func (generationJob) Proof() {}
-
-type finalJob struct {
-	tracking string
-	proof    *state.Proof
-}
-
-// Proof implements the proverJob interface.
-func (finalJob) Proof() {}
-
-type jobResult struct {
-	proverName string
-	proverID   string
-	tracking   string
-	job        proverJob
-	proof      *state.Proof
-	err        error
-}
-
-type finalJobResult struct {
-	proverName string
-	proverID   string
-	job        *finalJob
-	proof      *pb.FinalProof
-	err        error
-}
-
 type proverClient struct {
 	name     string
 	id       string
 	addr     string
 	tracking string
 	ctx      context.Context
-	jobChan  chan proverJob
+	jobChan  chan prover.ProverJob
 }
 
 // Aggregator represents an aggregator.
@@ -116,8 +59,8 @@ type Aggregator struct {
 	ProfitabilityChecker aggregatorTxProfitabilityChecker
 
 	proversCh          chan proverClient
-	finalJobCh         chan *finalJob
-	finalProofCh       chan finalJobResult
+	finalJobCh         chan *prover.FinalJob
+	finalProofCh       chan *prover.FinalJobResult
 	verifyProofTimeOut chan struct{}
 	verifyProofTimer   *time.Timer
 	srv                *grpc.Server
@@ -147,8 +90,8 @@ func New(
 		ProfitabilityChecker: profitabilityChecker,
 		cfg:                  cfg,
 		proversCh:            make(chan proverClient),
-		finalJobCh:           make(chan *finalJob),
-		finalProofCh:         make(chan finalJobResult),
+		finalJobCh:           make(chan *prover.FinalJob),
+		finalProofCh:         make(chan *prover.FinalJobResult),
 	}
 
 	return a, nil
@@ -226,17 +169,17 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 
 	ctx := stream.Context()
 	var proverAddr net.Addr
-	p, ok := peer.FromContext(ctx)
+	peer, ok := peer.FromContext(ctx)
 	if ok {
-		proverAddr = p.Addr
+		proverAddr = peer.Addr
 	}
-	prover, err := prover.New(stream, proverAddr, a.cfg.ProofStatePollingInterval, a.cfg.ForkId)
+	p, err := prover.New(stream, proverAddr, a.cfg.ProofStatePollingInterval, a.cfg.ForkId)
 	if err != nil {
 		return err
 	}
 
-	proverName := prover.Name()
-	proverID := prover.ID()
+	proverName := p.Name()
+	proverID := p.ID()
 
 	log := log.WithFields(
 		"prover", proverName,
@@ -245,11 +188,11 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 	)
 	log.Info("Establishing stream connection with prover")
 
-	jobChan := make(chan proverJob)
+	jobChan := make(chan prover.ProverJob)
 
 	// poll the prover to check when it's idle
 	for {
-		isIdle, err := prover.IsIdle()
+		isIdle, err := p.IsIdle()
 		if err != nil {
 			return fmt.Errorf("failed to check prover status, %w", err)
 		}
@@ -271,7 +214,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 			proverMsg := proverClient{
 				name:     proverName,
 				id:       proverID,
-				addr:     prover.Addr(),
+				addr:     p.Addr(),
 				tracking: tracking,
 				ctx:      ctx,
 				jobChan:  jobChan,
@@ -282,27 +225,21 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 			log.Debugf("Waiting for job, tracking [%s]", tracking)
 		jobsLoop:
 			for proverJob := range jobChan {
-				var proof *state.Proof
-				var proofCh chan jobResult
-				var err error
+				var proofCh chan *prover.JobResult
+				var jr *prover.JobResult
 
 				switch job := proverJob.(type) {
-				case *nilJob:
-					log := log.WithFields("tracking", job.tracking)
+				case *prover.NilJob:
+					log := log.WithFields("tracking", job.Tracking)
 					log.Debug("Nothing to prove")
 
 					// nothing to do, wait a bit and retry
 					time.Sleep(a.cfg.ProofStatePollingInterval.Duration)
 					break jobsLoop
 
-				case *finalJob:
-					proof, err := a.handleFinalJob(ctx, prover, job)
-					finalJobRes := finalJobResult{
-						proverID: proverID,
-						job:      job,
-						proof:    proof,
-						err:      err,
-					}
+				case *prover.FinalJob:
+					job.SenderAddress = a.cfg.SenderAddress
+					finalJobRes := p.HandleFinalJob(ctx, job)
 
 					select {
 					case <-a.ctx.Done():
@@ -311,22 +248,13 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 						break jobsLoop
 					}
 
-				case *aggregationJob:
-					proofCh = job.proofCh
-					proof, err = a.handleAggregationJob(ctx, prover, job)
+				case *prover.AggregationJob:
+					proofCh = job.ProofCh
+					jr = p.HandleAggregationJob(ctx, job)
 
-				case *generationJob:
-					proofCh = job.proofCh
-					proof, err = a.handleGenerationJob(ctx, prover, job)
-				}
-
-				jr := jobResult{
-					proverName: proverName,
-					proverID:   proverID,
-					tracking:   tracking,
-					job:        proverJob,
-					proof:      proof,
-					err:        err,
+				case *prover.GenerationJob:
+					proofCh = job.ProofCh
+					jr = p.HandleGenerationJob(ctx, job)
 				}
 
 				select {
@@ -344,17 +272,22 @@ func (a *Aggregator) handleFinalProof() {
 	ctx := a.ctx
 
 	for result := range a.finalProofCh {
+		if result.Err != nil {
+			// error is already logged in the prover HandleFinalJob method
+			continue
+		}
+
 		a.reserveFinal()
 
-		inputProof := result.job.proof
-		finalProof := result.proof
+		inputProof := result.Job.Proof
+		finalProof := result.Proof
 
 		log := log.WithFields(
-			"prover", result.proverName,
-			"proverId", result.proverID,
+			"prover", result.ProverName,
+			"proverId", result.ProverID,
 			"proofId", *inputProof.ProofID,
 			"batches", fmt.Sprintf("%d-%d", inputProof.BatchNumber, inputProof.BatchNumberFinal),
-			"tracking", result.job.tracking,
+			"tracking", result.Job.Tracking,
 		)
 
 		// mock prover sanity check
@@ -475,17 +408,17 @@ func (a *Aggregator) aggregate() {
 			return
 
 		// here we receive idle provers
-		case prover := <-a.proversCh:
+		case p := <-a.proversCh:
 			log := log.WithFields(
-				"proverId", prover.id,
-				"proverAddr", prover.addr,
-				"tracking", prover.tracking,
+				"proverId", p.id,
+				"proverAddr", p.addr,
+				"tracking", p.tracking,
 			)
 
 			// dedicated channel to receive the proof
-			proofCh := make(chan jobResult)
+			proofCh := make(chan *prover.JobResult)
 
-			err := a.feedProver(prover, proofCh)
+			err := a.feedProver(p, proofCh)
 			if err != nil {
 				log.Error(FirstToUpper(err.Error()))
 			}
@@ -496,14 +429,15 @@ func (a *Aggregator) aggregate() {
 					select {
 					case <-a.ctx.Done():
 						return
-					case <-prover.ctx.Done():
+					case <-p.ctx.Done():
 						return
 					case result := <-proofCh:
 						log := log.WithFields(
-							"batches", fmt.Sprintf("%d-%d", result.proof.BatchNumber, result.proof.BatchNumberFinal),
+							"batches", fmt.Sprintf("%d-%d", result.Proof.BatchNumber, result.Proof.BatchNumberFinal),
 						)
 
 						if err := a.handleProof(a.ctx, result); err != nil {
+							// TODO: log with Errorw to add more details
 							log.Error(FirstToUpper(err.Error()))
 						}
 						return
@@ -517,21 +451,21 @@ func (a *Aggregator) aggregate() {
 // feedProver prepares the next job to be scheduled to a Prover. If it's time
 // to send the final proof, it checks if the eligible proof is in memory or if
 // not it retrieves it from the state.
-func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) error {
+func (a *Aggregator) feedProver(p proverClient, proofCh chan *prover.JobResult) error {
 	log := log.WithFields(
-		"prover", prover.name,
-		"proverId", prover.id,
-		"proverAddr", prover.addr,
+		"prover", p.name,
+		"proverId", p.id,
+		"proverAddr", p.addr,
 	)
-	ctx := prover.ctx
+	ctx := p.ctx
 
-	sendJob := func(pJob proverJob) error {
+	sendJob := func(pJob prover.ProverJob) error {
 		select {
 		case <-a.ctx.Done():
 			return a.ctx.Err()
 		case <-ctx.Done():
 			return ctx.Err()
-		case prover.jobChan <- pJob:
+		case p.jobChan <- pJob:
 		}
 		return nil
 	}
@@ -542,7 +476,7 @@ func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) err
 		// before looking for a proof into the state, we listen if the
 		// eligible proof has just been produced by a prover
 		case fj := <-a.finalJobCh:
-			log.Debugf("Received proof valid for final, tracking [%s] ", fj.tracking)
+			log.Debugf("Received proof valid for final, tracking [%s] ", fj.Tracking)
 			return sendJob(fj)
 
 		default:
@@ -556,9 +490,9 @@ func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) err
 			} else if err != nil {
 				return err
 			} else {
-				fj := &finalJob{
-					tracking: prover.tracking,
-					proof:    proof,
+				fj := &prover.FinalJob{
+					Tracking: p.tracking,
+					Proof:    proof,
 				}
 				return sendJob(fj)
 			}
@@ -566,28 +500,34 @@ func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) err
 	default:
 	}
 
-	log = log.WithFields("tracking", prover.tracking)
+	log = log.WithFields("tracking", p.tracking)
 
 	proof1, proof2, err := a.getAndLockProofsToAggregate(ctx)
 	if errors.Is(err, state.ErrNotFound) {
 		log.Debug("No proofs to aggregate, trying to generate from batch")
 
-		batch, proof, err := a.getAndLockBatchToProve(ctx, prover.id)
+		batch, proof, err := a.getAndLockBatchToProve(ctx, p.id)
 		if errors.Is(err, state.ErrNotFound) {
 			log.Debug("No batches to generate proof from")
 			// nothing to generate, swallow the error and send a nil job
-			return sendJob(&nilJob{tracking: prover.tracking})
+			return sendJob(&prover.NilJob{Tracking: p.tracking})
 		}
 		if err != nil {
 			return fmt.Errorf("failed to get batch to prove, %w", err)
 		}
 
 		log.Debugf("Sending job for proof generation from batch [%d]", batch.BatchNumber)
-		pJob := &generationJob{
-			tracking: prover.tracking,
-			batch:    batch,
-			proof:    proof,
-			proofCh:  proofCh,
+		inputProver, err := a.buildInputProver(ctx, batch)
+		if err != nil {
+			return fmt.Errorf("failed to build input prover, %w", err)
+		}
+
+		pJob := &prover.GenerationJob{
+			Tracking:    p.tracking,
+			Batch:       batch,
+			InputProver: inputProver,
+			Proof:       proof,
+			ProofCh:     proofCh,
 		}
 		return sendJob(pJob)
 	}
@@ -596,11 +536,11 @@ func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) err
 	}
 
 	log.Debugf("Sending job for aggregating proofs of batches [%d-%d]", proof1.BatchNumber, proof2.BatchNumberFinal)
-	pJob := &aggregationJob{
-		tracking: prover.tracking,
-		proof1:   proof1,
-		proof2:   proof2,
-		proofCh:  proofCh,
+	pJob := &prover.AggregationJob{
+		Tracking: p.tracking,
+		Proof1:   proof1,
+		Proof2:   proof2,
+		ProofCh:  proofCh,
 	}
 	return sendJob(pJob)
 }
@@ -608,15 +548,15 @@ func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) err
 // handleProof takes care of storing the generated proof into the state. If
 // it's time to send the final proof and the proof in hand is the eligible one,
 // then it sends it over a channel to be verified.
-func (a *Aggregator) handleProof(ctx context.Context, result jobResult) error {
+func (a *Aggregator) handleProof(ctx context.Context, result *prover.JobResult) error {
 	log := log.WithFields(
-		"prover", result.proverName,
-		"proverId", result.proverID,
-		"proofId", *result.proof.ProofID,
-		"tracking", result.tracking,
+		"prover", result.ProverName,
+		"proverId", result.ProverID,
+		"proofId", *result.Proof.ProofID,
+		"tracking", result.Tracking,
 	)
 
-	if result.err != nil {
+	if result.Err != nil {
 		return a.rollbackFailedJob(ctx, result)
 	}
 
@@ -625,13 +565,13 @@ func (a *Aggregator) handleProof(ctx context.Context, result jobResult) error {
 		return fmt.Errorf("failed to begin transaction to store proof aggregation result, %w", err)
 	}
 
-	var validForFinal *time.Time
+	var generatingSince *time.Time
 
 	select {
 	case <-a.verifyProofTimeOut:
 		log.Debug("Time to send the final proof, checking if the current proof can be sent as final")
 
-		_, err := a.eligibleFinalProof(a.ctx, result.proof)
+		_, err := a.eligibleFinalProof(a.ctx, result.Proof)
 		if errors.Is(err, ErrNotValidForFinal) {
 			// proof is not valid for final, carry on storing it
 			log.Debug(FirstToUpper(err.Error()))
@@ -641,14 +581,14 @@ func (a *Aggregator) handleProof(ctx context.Context, result jobResult) error {
 			// if the proof is eligible to be final, it needs to be reserved
 			// by setting the GeneratingSince timestamp
 			now := time.Now().UTC().Round(time.Microsecond)
-			validForFinal = &now
+			generatingSince = &now
 		}
 	default:
 	}
 
-	switch job := result.job.(type) {
-	case *aggregationJob:
-		err = a.State.DeleteGeneratedProofs(ctx, job.proof1.BatchNumber, job.proof2.BatchNumberFinal, dbTx)
+	switch job := result.Job.(type) {
+	case *prover.AggregationJob:
+		err = a.State.DeleteGeneratedProofs(ctx, job.Proof1.BatchNumber, job.Proof2.BatchNumberFinal, dbTx)
 		if err != nil {
 			if err := dbTx.Rollback(ctx); err != nil {
 				return fmt.Errorf("failed to rollback failing to delete aggregation input proofs, %w", err)
@@ -656,8 +596,8 @@ func (a *Aggregator) handleProof(ctx context.Context, result jobResult) error {
 			return fmt.Errorf("failed to delete aggregation input proofs, %w", err)
 		}
 
-		result.proof.GeneratingSince = validForFinal
-		err := a.State.AddGeneratedProof(ctx, result.proof, dbTx)
+		result.Proof.GeneratingSince = generatingSince
+		err := a.State.AddGeneratedProof(ctx, result.Proof, dbTx)
 		if err != nil {
 			if err := dbTx.Rollback(ctx); err != nil {
 				return fmt.Errorf("failed to rollback failing to store proof aggregation result, %w", err)
@@ -665,10 +605,10 @@ func (a *Aggregator) handleProof(ctx context.Context, result jobResult) error {
 			return fmt.Errorf("failed to store proof aggregation result, %w", err)
 		}
 
-	case *generationJob:
+	case *prover.GenerationJob:
 		// Store the proof, if it's a proof valid for final, keep it reserved
-		result.proof.GeneratingSince = validForFinal
-		err := a.State.UpdateGeneratedProof(ctx, result.proof, dbTx)
+		result.Proof.GeneratingSince = generatingSince
+		err := a.State.UpdateGeneratedProof(ctx, result.Proof, dbTx)
 		if err != nil {
 			if err := dbTx.Rollback(ctx); err != nil {
 				return fmt.Errorf("failed to rollback failing updating proof in progress, %w", err)
@@ -682,10 +622,10 @@ func (a *Aggregator) handleProof(ctx context.Context, result jobResult) error {
 	}
 
 	// send the eligible final proof
-	if validForFinal != nil {
-		fj := &finalJob{
-			tracking: result.tracking,
-			proof:    result.proof,
+	if generatingSince != nil {
+		fj := &prover.FinalJob{
+			Tracking: result.Tracking,
+			Proof:    result.Proof,
 		}
 
 		select {
@@ -697,15 +637,15 @@ func (a *Aggregator) handleProof(ctx context.Context, result jobResult) error {
 	return nil
 }
 
-func (a *Aggregator) rollbackFailedJob(ctx context.Context, result jobResult) error {
+func (a *Aggregator) rollbackFailedJob(ctx context.Context, result *prover.JobResult) error {
 	dbTx, err := a.State.BeginStateTransaction(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction to rollback failed job, %w", err)
 	}
 
-	switch job := result.job.(type) {
-	case *aggregationJob:
-		err := a.unlockProofsToAggregate(ctx, job.proof1, job.proof2, dbTx)
+	switch job := result.Job.(type) {
+	case *prover.AggregationJob:
+		err := a.unlockProofsToAggregate(ctx, job.Proof1, job.Proof2, dbTx)
 		if err != nil {
 			if err := dbTx.Rollback(ctx); err != nil {
 				return fmt.Errorf("failed to rollback failing unlockProofsToAggregate, %w", err)
@@ -716,12 +656,10 @@ func (a *Aggregator) rollbackFailedJob(ctx context.Context, result jobResult) er
 			return fmt.Errorf("failed to commit unlocking aggregated proofs, %w", err)
 		}
 
-		return fmt.Errorf("failed to aggregate proofs, %w", result.err)
+		return fmt.Errorf("failed to aggregate proofs, %w", result.Err)
 
-	case *generationJob:
-		log.Errorf("Failed to generate proof: %v", result.err)
-
-		err := a.State.DeleteGeneratedProofs(ctx, job.proof.BatchNumber, job.proof.BatchNumberFinal, dbTx)
+	case *prover.GenerationJob:
+		err := a.State.DeleteGeneratedProofs(ctx, job.Proof.BatchNumber, job.Proof.BatchNumberFinal, dbTx)
 		if err != nil {
 			if err := dbTx.Rollback(ctx); err != nil {
 				return fmt.Errorf("failed to rollback failing deleting proof in progress, %w", err)
@@ -732,7 +670,7 @@ func (a *Aggregator) rollbackFailedJob(ctx context.Context, result jobResult) er
 			return fmt.Errorf("failed to commit rollback on proof generation job, %w", err)
 		}
 
-		return fmt.Errorf("failed to generate proof, %w", result.err)
+		return fmt.Errorf("failed to generate proof, %w", result.Err)
 	}
 	return nil
 }
@@ -785,136 +723,6 @@ func (a *Aggregator) eligibleFinalProof(ctx context.Context, proof *state.Proof)
 	}
 
 	log.Debugf("Proof ID [%s] for batches [%d-%d] is valid for final", *proof.ProofID, proof.BatchNumber, proof.BatchNumberFinal)
-
-	return proof, nil
-}
-
-func (a *Aggregator) handleAggregationJob(ctx context.Context, prover proverInterface, job *aggregationJob) (*state.Proof, error) {
-	proverName := prover.Name()
-	proverID := prover.ID()
-
-	log := log.WithFields(
-		"prover", proverName,
-		"proverId", proverID,
-		"proverAddr", prover.Addr(),
-		"tracking", job.tracking,
-	)
-
-	log.Infof("Aggregating proofs [%d-%d] and [%d-%d]",
-		job.proof1.BatchNumber, job.proof1.BatchNumberFinal, job.proof2.BatchNumber, job.proof2.BatchNumberFinal)
-
-	log = log.WithFields("batches", fmt.Sprintf("%d-%d", job.proof1.BatchNumber, job.proof2.BatchNumberFinal))
-
-	now := time.Now().UTC().Round(time.Microsecond)
-	proof := &state.Proof{
-		BatchNumber:      job.proof1.BatchNumber,
-		BatchNumberFinal: job.proof2.BatchNumberFinal,
-		Prover:           &proverID,
-		InputProver:      job.proof1.InputProver,
-		GeneratingSince:  &now,
-	}
-
-	proofID, err := prover.AggregatedProof(job.proof1.Proof, job.proof2.Proof)
-	if err != nil {
-		err = fmt.Errorf("failed to instruct prover to generate aggregated proof, %w", err)
-		log.Error(FirstToUpper(err.Error()))
-		return nil, err
-	}
-	proof.ProofID = proofID
-
-	log.Infof("Proof ID for aggregated proof [%d-%d]: %v", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
-	log = log.WithFields("proofId", *proofID)
-
-	aggrProof, err := prover.WaitRecursiveProof(ctx, *proofID)
-	if err != nil {
-		err = fmt.Errorf("failed to retrieve aggregated proof from prover, %w", err)
-		log.Error(FirstToUpper(err.Error()))
-		return nil, err
-	}
-	proof.Proof = aggrProof
-
-	return proof, nil
-}
-
-func (a *Aggregator) handleGenerationJob(ctx context.Context, prover proverInterface, job *generationJob) (*state.Proof, error) {
-	proverName := prover.Name()
-	proverID := prover.ID()
-
-	log := log.WithFields(
-		"proverName", proverName,
-		"proverId", proverID,
-		"proverAddr", prover.Addr(),
-		"batch", job.batch.BatchNumber,
-		"tracking", job.tracking,
-	)
-
-	log.Info("Generating proof")
-
-	proof := job.proof
-	proof.Prover = &proverID
-
-	log.Info("Sending zki + batch to the prover")
-
-	inputProver, err := a.buildInputProver(ctx, job.batch)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build input prover, %w", err)
-	}
-
-	b, err := json.Marshal(inputProver)
-	if err != nil {
-		return nil, fmt.Errorf("failed serialize input prover, %w", err)
-	}
-	proof.InputProver = string(b)
-
-	log.Infof("Sending a batch to the prover, OLDSTATEROOT: %#x, OLDBATCHNUM: %d",
-		inputProver.PublicInputs.OldStateRoot, inputProver.PublicInputs.OldBatchNum)
-
-	genProofID, err := prover.BatchProof(inputProver)
-	if err != nil {
-		return nil, fmt.Errorf("failed instruct prover to prove a batch, %w", err)
-	}
-	proof.ProofID = genProofID
-
-	log.Infof("Proof ID [%s]", *job.proof.ProofID)
-	log = log.WithFields("proofId", *genProofID)
-
-	genProof, err := prover.WaitRecursiveProof(ctx, *job.proof.ProofID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get proof from prover, %w", err)
-	}
-	proof.Proof = genProof
-
-	log.Info("Proof generated")
-
-	return proof, nil
-}
-
-func (a *Aggregator) handleFinalJob(ctx context.Context, prover proverInterface, job *finalJob) (*pb.FinalProof, error) {
-	proverName := prover.Name()
-	proverID := prover.ID()
-	log := log.WithFields(
-		"prover", proverName,
-		"proverId", proverID,
-		"proverAddr", prover.Addr(),
-		"recursiveProofId", *job.proof.ProofID,
-		"batches", fmt.Sprintf("%d-%d", job.proof.BatchNumber, job.proof.BatchNumberFinal),
-		"tracking", job.tracking,
-	)
-
-	log.Info("Generating final proof")
-
-	finalProofID, err := prover.FinalProof(job.proof.Proof, a.cfg.SenderAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to instruct prover to prepare final proof, %w", err)
-	}
-	log.Infof("Final proof ID [%s]", *finalProofID)
-	log = log.WithFields("finalProofId", *finalProofID)
-
-	proof, err := prover.WaitFinalProof(ctx, *finalProofID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get final proof, %w", err)
-	}
-	log.Infof("Final proof generated")
 
 	return proof, nil
 }

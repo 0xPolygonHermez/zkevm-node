@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -13,18 +12,6 @@ import (
 )
 
 // Consumer interfaces required by the package.
-
-type proverInterface interface {
-	Name() string
-	ID() string
-	Addr() string
-	IsIdle() (bool, error)
-	BatchProof(input *pb.InputProver) (*string, error)
-	AggregatedProof(inputProof1, inputProof2 string) (*string, error)
-	FinalProof(inputProof string, aggregatorAddr string) (*string, error)
-	WaitRecursiveProof(ctx context.Context, proofID string) (string, error)
-	WaitFinalProof(ctx context.Context, proofID string) (*pb.FinalProof, error)
-}
 
 // ethTxManager contains the methods required to send txs to
 // ethereum.

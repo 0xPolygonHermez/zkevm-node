@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/mocks"
+	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
@@ -66,7 +67,7 @@ func TestAggregate(t *testing.T) {
 			asserts: func(a *Aggregator) {
 				defer a.exit()
 				// send an idle prover
-				jobCh := make(chan proverJob)
+				jobCh := make(chan prover.ProverJob)
 				proverCtx := context.Background()
 				a.proversCh <- proverClient{
 					name:     "name",
@@ -78,8 +79,8 @@ func TestAggregate(t *testing.T) {
 				}
 
 				job := <-jobCh
-				if assert.IsType(&nilJob{}, job) {
-					assert.Equal("tracking", job.(*nilJob).tracking)
+				if assert.IsType(&prover.NilJob{}, job) {
+					assert.Equal("tracking", job.(*prover.NilJob).Tracking)
 				}
 			},
 		},
@@ -140,7 +141,7 @@ func TestAggregate(t *testing.T) {
 			},
 			asserts: func(a *Aggregator) {
 				// send an idle prover
-				jobCh := make(chan proverJob)
+				jobCh := make(chan prover.ProverJob)
 				proverCtx := context.Background()
 				pCli := proverClient{
 					name:     "name",
@@ -154,22 +155,22 @@ func TestAggregate(t *testing.T) {
 
 				// receive the job from a.feedProver
 				job := <-jobCh
-				if assert.IsType(&aggregationJob{}, job) {
-					aggrJob := job.(*aggregationJob)
-					assert.Equal("tracking", aggrJob.tracking)
-					assert.Equal(proof1, *aggrJob.proof1)
-					assert.Equal(proof2, *aggrJob.proof2)
+				if assert.IsType(&prover.AggregationJob{}, job) {
+					aggrJob := job.(*prover.AggregationJob)
+					assert.Equal("tracking", aggrJob.Tracking)
+					assert.Equal(proof1, *aggrJob.Proof1)
+					assert.Equal(proof2, *aggrJob.Proof2)
 
 					// send a proof
-					res := jobResult{
-						proverName: proverName,
-						proverID:   proverID,
-						tracking:   aggrJob.tracking,
-						job:        aggrJob,
-						proof:      &recursiveProof,
-						err:        nil,
+					res := prover.JobResult{
+						ProverName: proverName,
+						ProverID:   proverID,
+						Tracking:   aggrJob.Tracking,
+						Job:        aggrJob,
+						Proof:      &recursiveProof,
+						Err:        nil,
 					}
-					aggrJob.proofCh <- res
+					aggrJob.ProofCh <- &res
 
 					// wait for the proof to be handled
 					<-proofDone
@@ -252,7 +253,7 @@ func TestAggregate(t *testing.T) {
 			},
 			asserts: func(a *Aggregator) {
 				// send an idle prover
-				jobCh := make(chan proverJob)
+				jobCh := make(chan prover.ProverJob)
 				proverCtx := context.Background()
 				pCli := proverClient{
 					name:     "name",
@@ -266,35 +267,35 @@ func TestAggregate(t *testing.T) {
 
 				// receive the job from a.feedProver
 				job := <-jobCh
-				if assert.IsType(&aggregationJob{}, job) {
-					aggrJob := job.(*aggregationJob)
-					assert.Equal("tracking", aggrJob.tracking)
-					assert.Equal(proof1, *aggrJob.proof1)
-					assert.Equal(proof2, *aggrJob.proof2)
+				if assert.IsType(&prover.AggregationJob{}, job) {
+					aggrJob := job.(*prover.AggregationJob)
+					assert.Equal("tracking", aggrJob.Tracking)
+					assert.Equal(proof1, *aggrJob.Proof1)
+					assert.Equal(proof2, *aggrJob.Proof2)
 
 					// send a proof
-					res := jobResult{
-						proverName: proverName,
-						proverID:   proverID,
-						tracking:   aggrJob.tracking,
-						job:        aggrJob,
-						proof:      &recursiveProof,
-						err:        nil,
+					res := prover.JobResult{
+						ProverName: proverName,
+						ProverID:   proverID,
+						Tracking:   aggrJob.Tracking,
+						Job:        aggrJob,
+						Proof:      &recursiveProof,
+						Err:        nil,
 					}
-					aggrJob.proofCh <- res
+					aggrJob.ProofCh <- &res
 
 					// wait for the proof to be handled
 					<-proofDone
 
 					// wait the final job
 					finJob := <-a.finalJobCh
-					assert.Equal("tracking", finJob.tracking)
-					assert.Equal(batchNum, finJob.proof.BatchNumber)
-					assert.Equal(batchNumFinal, finJob.proof.BatchNumberFinal)
-					assert.Equal(proverName, *finJob.proof.Prover)
-					assert.Equal(proverID, *finJob.proof.ProverID)
-					assert.Equal(proofID, *finJob.proof.ProofID)
-					assert.InDelta(time.Now().Unix(), finJob.proof.GeneratingSince.Unix(), float64(time.Second))
+					assert.Equal("tracking", finJob.Tracking)
+					assert.Equal(batchNum, finJob.Proof.BatchNumber)
+					assert.Equal(batchNumFinal, finJob.Proof.BatchNumberFinal)
+					assert.Equal(proverName, *finJob.Proof.Prover)
+					assert.Equal(proverID, *finJob.Proof.ProverID)
+					assert.Equal(proofID, *finJob.Proof.ProofID)
+					assert.InDelta(time.Now().Unix(), finJob.Proof.GeneratingSince.Unix(), float64(time.Second))
 
 					// send another idle prover
 					a.proversCh <- pCli

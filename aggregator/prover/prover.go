@@ -2,15 +2,18 @@ package prover
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"time"
+	"unicode"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
 var (
@@ -23,6 +26,64 @@ var (
 	ErrProofCanceled        = errors.New("proof has been canceled")                  //nolint:revive
 	ErrUnsupportedForkID    = errors.New("prover does not support required fork ID") //nolint:revive
 )
+
+type ProverJob interface {
+	Job()
+}
+
+type JobResult struct {
+	ProverName string
+	ProverID   string
+	Tracking   string
+	Job        ProverJob
+	Proof      *state.Proof
+	Err        error
+}
+
+type FinalJobResult struct {
+	ProverName string
+	ProverID   string
+	Job        *FinalJob
+	Proof      *pb.FinalProof
+	Err        error
+}
+
+type NilJob struct {
+	Tracking string
+}
+
+// Job implements the proverJob interface.
+func (*NilJob) Job() {}
+
+type FinalJob struct {
+	Tracking      string
+	SenderAddress string
+	Proof         *state.Proof
+}
+
+// Job implements the proverJob interface.
+func (*FinalJob) Job() {}
+
+type AggregationJob struct {
+	Tracking string
+	Proof1   *state.Proof
+	Proof2   *state.Proof
+	ProofCh  chan *JobResult
+}
+
+// Job implements the proverJob interface.
+func (*AggregationJob) Job() {}
+
+type GenerationJob struct {
+	Tracking    string
+	Batch       *state.Batch
+	InputProver *pb.InputProver
+	Proof       *state.Proof
+	ProofCh     chan *JobResult
+}
+
+// Job implements the proverJob interface.
+func (*GenerationJob) Job() {}
 
 // Prover abstraction of the grpc prover client.
 type Prover struct {
@@ -96,6 +157,176 @@ func (p *Prover) IsIdle() (bool, error) {
 		return false, err
 	}
 	return status.Status == pb.GetStatusResponse_STATUS_IDLE, nil
+}
+
+// HandleAggregationJob takes care of producing a recursive proof aggregating 2
+// proofs received in the job.  It returns the result of the job execution
+// containing the proof in case of success. In case of error the JobResult Err
+// field will be non-nil.
+func (p *Prover) HandleAggregationJob(ctx context.Context, job *AggregationJob) *JobResult {
+	proverName := p.Name()
+	proverID := p.ID()
+
+	log := log.WithFields(
+		"prover", proverName,
+		"proverId", proverID,
+		"proverAddr", p.Addr(),
+		"tracking", job.Tracking,
+	)
+
+	log.Infof("Aggregating proofs [%d-%d] and [%d-%d]",
+		job.Proof1.BatchNumber, job.Proof1.BatchNumberFinal, job.Proof2.BatchNumber, job.Proof2.BatchNumberFinal)
+
+	log = log.WithFields("batches", fmt.Sprintf("%d-%d", job.Proof1.BatchNumber, job.Proof2.BatchNumberFinal))
+
+	jr := JobResult{
+		ProverName: proverName,
+		ProverID:   proverID,
+		Tracking:   job.Tracking,
+		Job:        job,
+	}
+
+	now := time.Now().UTC().Round(time.Microsecond)
+	proof := &state.Proof{
+		BatchNumber:      job.Proof1.BatchNumber,
+		BatchNumberFinal: job.Proof2.BatchNumberFinal,
+		Prover:           &proverID,
+		InputProver:      job.Proof1.InputProver,
+		GeneratingSince:  &now,
+	}
+
+	proofID, err := p.AggregatedProof(job.Proof1.Proof, job.Proof2.Proof)
+	if err != nil {
+		err = fmt.Errorf("failed to instruct prover to generate aggregated proof, %w", err)
+		log.Error(FirstToUpper(err.Error()))
+		jr.Err = err
+		return &jr
+	}
+	proof.ProofID = proofID
+
+	log.Infof("Proof ID for aggregated proof [%d-%d]: %v", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
+	log = log.WithFields("proofId", *proofID)
+
+	aggrProof, err := p.WaitRecursiveProof(ctx, *proofID)
+	if err != nil {
+		err = fmt.Errorf("failed to retrieve aggregated proof from prover, %w", err)
+		log.Error(FirstToUpper(err.Error()))
+		jr.Err = err
+		return &jr
+	}
+	proof.Proof = aggrProof
+	jr.Proof = proof
+
+	return &jr
+}
+
+// HandleGenerationJob takes care of producing a proof generating it from a
+// batch received in the job.  It returns the result of the job execution
+// containing the proof in case of success. In case of error the JobResult Err
+// field will be non-nil.
+func (p *Prover) HandleGenerationJob(ctx context.Context, job *GenerationJob) *JobResult {
+	proverName := p.Name()
+	proverID := p.ID()
+
+	log := log.WithFields(
+		"proverName", proverName,
+		"proverId", proverID,
+		"proverAddr", p.Addr(),
+		"batch", job.Batch.BatchNumber,
+		"tracking", job.Tracking,
+	)
+
+	log.Info("Generating proof")
+
+	jr := JobResult{
+		ProverName: proverName,
+		ProverID:   proverID,
+		Tracking:   job.Tracking,
+		Job:        job,
+	}
+
+	proof := job.Proof
+	proof.Prover = &proverID
+
+	log.Info("Sending zki + batch to the prover")
+
+	b, err := json.Marshal(job.InputProver)
+	if err != nil {
+		err = fmt.Errorf("failed serialize input prover, %w", err)
+	}
+	proof.InputProver = string(b)
+
+	log.Infof("Sending a batch to the prover, OLDSTATEROOT: %#x, OLDBATCHNUM: %d",
+		job.InputProver.PublicInputs.OldStateRoot, job.InputProver.PublicInputs.OldBatchNum)
+
+	genProofID, err := p.BatchProof(job.InputProver)
+	if err != nil {
+		err = fmt.Errorf("failed instruct prover to prove a batch, %w", err)
+		log.Error(FirstToUpper(err.Error()))
+		jr.Err = err
+		return &jr
+	}
+	proof.ProofID = genProofID
+
+	log.Infof("Proof ID [%s]", *job.Proof.ProofID)
+	log = log.WithFields("proofId", *genProofID)
+
+	genProof, err := p.WaitRecursiveProof(ctx, *job.Proof.ProofID)
+	if err != nil {
+		err = fmt.Errorf("failed to get proof from prover, %w", err)
+		log.Error(FirstToUpper(err.Error()))
+		jr.Err = err
+		return &jr
+	}
+	proof.Proof = genProof
+	jr.Proof = proof
+
+	log.Info("Proof generated")
+
+	return &jr
+}
+
+func (p *Prover) HandleFinalJob(ctx context.Context, job *FinalJob) *FinalJobResult {
+	proverName := p.Name()
+	proverID := p.ID()
+	log := log.WithFields(
+		"prover", proverName,
+		"proverId", proverID,
+		"proverAddr", p.Addr(),
+		"recursiveProofId", *job.Proof.ProofID,
+		"batches", fmt.Sprintf("%d-%d", job.Proof.BatchNumber, job.Proof.BatchNumberFinal),
+		"tracking", job.Tracking,
+	)
+
+	log.Info("Generating final proof")
+
+	finalJobRes := FinalJobResult{
+		ProverID: proverID,
+		Job:      job,
+	}
+
+	finalProofID, err := p.FinalProof(job.Proof.Proof, job.SenderAddress)
+	if err != nil {
+		err = fmt.Errorf("failed to instruct prover to prepare final proof, %w", err)
+		log.Error(FirstToUpper(err.Error()))
+		finalJobRes.Err = err
+		return &finalJobRes
+	}
+	log.Infof("Final proof ID [%s]", *finalProofID)
+	log = log.WithFields("finalProofId", *finalProofID)
+
+	proof, err := p.WaitFinalProof(ctx, *finalProofID)
+	if err != nil {
+		err = fmt.Errorf("failed to get final proof, %w", err)
+		log.Error(FirstToUpper(err.Error()))
+		finalJobRes.Err = err
+		return &finalJobRes
+	}
+	finalJobRes.Proof = proof
+
+	log.Infof("Final proof generated")
+
+	return &finalJobRes
 }
 
 // BatchProof instructs the prover to generate a batch proof for the provided
@@ -331,4 +562,12 @@ func (p *Prover) call(req *pb.AggregatorMessage) (*pb.ProverMessage, error) {
 		return nil, err
 	}
 	return res, nil
+}
+
+// FirstToUpper returns the string passed as argument with the first letter in
+// uppercase.
+func FirstToUpper(s string) string {
+	runes := []rune(s)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }
