@@ -9,7 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	coreTypes "github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -133,7 +133,7 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v", batchNumber), err)
 		}
 
-		receipts := make([]coreTypes.Receipt, 0, len(txs))
+		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
 			if err != nil {

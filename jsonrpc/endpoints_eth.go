@@ -15,7 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	coreTypes "github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 )
@@ -199,12 +199,12 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (
 			if err != nil {
 				return rpcErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err)
 			}
-			header := coreTypes.CopyHeader(lastBlock.Header())
+			header := ethTypes.CopyHeader(lastBlock.Header())
 			header.ParentHash = lastBlock.Hash()
 			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
-			header.TxHash = coreTypes.EmptyRootHash
-			header.UncleHash = coreTypes.EmptyUncleHash
-			block := coreTypes.NewBlockWithHeader(header)
+			header.TxHash = ethTypes.EmptyRootHash
+			header.UncleHash = ethTypes.EmptyUncleHash
+			block := ethTypes.NewBlockWithHeader(header)
 			rpcBlock := types.NewBlock(block, fullTx)
 
 			return rpcBlock, nil
@@ -814,8 +814,8 @@ func (e *EthEndpoints) ProtocolVersion() (interface{}, types.Error) {
 	return "0x0", nil
 }
 
-func hexToTx(str string) (*coreTypes.Transaction, error) {
-	tx := new(coreTypes.Transaction)
+func hexToTx(str string) (*ethTypes.Transaction, error) {
+	tx := new(ethTypes.Transaction)
 
 	b, err := hex.DecodeHex(str)
 	if err != nil {
@@ -829,7 +829,7 @@ func hexToTx(str string) (*coreTypes.Transaction, error) {
 	return tx, nil
 }
 
-func (e *EthEndpoints) getBlockHeader(ctx context.Context, number types.BlockNumber, dbTx pgx.Tx) (*coreTypes.Header, error) {
+func (e *EthEndpoints) getBlockHeader(ctx context.Context, number types.BlockNumber, dbTx pgx.Tx) (*ethTypes.Header, error) {
 	switch number {
 	case types.LatestBlockNumber:
 		block, err := e.state.GetLastL2Block(ctx, dbTx)
@@ -853,7 +853,7 @@ func (e *EthEndpoints) getBlockHeader(ctx context.Context, number types.BlockNum
 		parentHash := lastBlock.Hash()
 		number := lastBlock.Number().Uint64() + 1
 
-		header := &coreTypes.Header{
+		header := &ethTypes.Header{
 			ParentHash: parentHash,
 			Number:     big.NewInt(0).SetUint64(number),
 			Difficulty: big.NewInt(0),

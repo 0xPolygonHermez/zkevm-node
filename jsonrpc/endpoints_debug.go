@@ -11,7 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
-	coreTypes "github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -107,7 +107,7 @@ func (d *DebugEndpoints) TraceBlockByHash(hash types.ArgHash, cfg *traceConfig) 
 	})
 }
 
-func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*coreTypes.Transaction, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
+func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*ethTypes.Transaction, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
 	traces := []traceBlockTransactionResponse{}
 	for _, tx := range txs {
 		traceTransaction, err := d.buildTraceTransaction(ctx, tx.Hash(), cfg, dbTx)

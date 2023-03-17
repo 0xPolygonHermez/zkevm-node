@@ -14,7 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	coreTypes "github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -661,19 +661,19 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
-				txs := []*coreTypes.Transaction{
-					signTx(coreTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-					signTx(coreTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+				txs := []*ethTypes.Transaction{
+					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
 				}
 
-				batchTxs := make([]coreTypes.Transaction, 0, len(txs))
+				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
 
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				for i, tx := range txs {
 					blockNumber := big.NewInt(int64(i))
 					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
-					receipt := coreTypes.NewReceipt([]byte{}, false, uint64(0))
+					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
 					receipt.TransactionIndex = uint(i)
 					receipt.BlockNumber = blockNumber
@@ -775,19 +775,19 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
-				txs := []*coreTypes.Transaction{
-					signTx(coreTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-					signTx(coreTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+				txs := []*ethTypes.Transaction{
+					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
 				}
 
-				batchTxs := make([]coreTypes.Transaction, 0, len(txs))
+				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
 
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				for i, tx := range txs {
 					blockNumber := big.NewInt(int64(i))
 					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
-					receipt := coreTypes.NewReceipt([]byte{}, false, uint64(0))
+					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
 					receipt.TransactionIndex = uint(i)
 					receipt.BlockNumber = blockNumber
@@ -874,19 +874,19 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
-				txs := []*coreTypes.Transaction{
-					signTx(coreTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-					signTx(coreTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+				txs := []*ethTypes.Transaction{
+					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
+					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
 				}
 
-				batchTxs := make([]coreTypes.Transaction, 0, len(txs))
+				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
 
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				for i, tx := range txs {
 					blockNumber := big.NewInt(int64(i))
 					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
-					receipt := coreTypes.NewReceipt([]byte{}, false, uint64(0))
+					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
 					receipt.TransactionIndex = uint(i)
 					receipt.BlockNumber = blockNumber
@@ -1066,7 +1066,7 @@ func ptrHash(h common.Hash) *common.Hash {
 	return &h
 }
 
-func signTx(tx *coreTypes.Transaction, chainID uint64) *coreTypes.Transaction {
+func signTx(tx *ethTypes.Transaction, chainID uint64) *ethTypes.Transaction {
 	privateKey, _ := crypto.GenerateKey()
 	auth, _ := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(chainID))
 	signedTx, _ := auth.Signer(auth.From, tx)

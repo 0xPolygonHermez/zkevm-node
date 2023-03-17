@@ -25,7 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	coreTypes "github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
@@ -107,7 +107,7 @@ func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, er
 	return sc, nil
 }
 
-func createTX(client *ethclient.Client, auth *bind.TransactOpts, to common.Address, amount *big.Int) (*coreTypes.Transaction, error) {
+func createTX(client *ethclient.Client, auth *bind.TransactOpts, to common.Address, amount *big.Int) (*ethTypes.Transaction, error) {
 	nonce, err := client.NonceAt(context.Background(), auth.From, nil)
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func createTX(client *ethclient.Client, auth *bind.TransactOpts, to common.Addre
 	if gasLimit != uint64(21000) {
 		return nil, fmt.Errorf("gasLimit %d != 21000", gasLimit)
 	}
-	tx := coreTypes.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)
+	tx := ethTypes.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, tx)
 	if err != nil {
 		return nil, err
@@ -302,7 +302,7 @@ func Test_Filters(t *testing.T) {
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
 
-		var logFilterChanges []coreTypes.Log
+		var logFilterChanges []ethTypes.Log
 		err = json.Unmarshal(response.Result, &logFilterChanges)
 		require.NoError(t, err)
 
@@ -536,7 +536,7 @@ func Test_Transactions(t *testing.T) {
 
 		// Test Case: TX with invalid nonce
 
-		tx = coreTypes.NewTransaction(nonce-1, // Nonce will be lower than the current getNonceAt()
+		tx = ethTypes.NewTransaction(nonce-1, // Nonce will be lower than the current getNonceAt()
 			toAddress, big.NewInt(100), gasLimit, gasPrice, nil)
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
@@ -549,7 +549,7 @@ func Test_Transactions(t *testing.T) {
 
 		// Test Case: TX with no signature (which would fail the EIP-155)
 
-		invalidTx := coreTypes.NewTx(&coreTypes.LegacyTx{
+		invalidTx := ethTypes.NewTx(&ethTypes.LegacyTx{
 			Nonce:    nonce,
 			Value:    big.NewInt(10000),
 			Gas:      gasLimit,
@@ -570,7 +570,7 @@ func Test_Transactions(t *testing.T) {
 
 		log.Infof("Balance: %d", balance)
 
-		tx = coreTypes.NewTransaction(nonce, toAddress, big.NewInt(0).Add(balance, big.NewInt(10)), gasLimit, gasPrice, nil)
+		tx = ethTypes.NewTransaction(nonce, toAddress, big.NewInt(0).Add(balance, big.NewInt(10)), gasLimit, gasPrice, nil)
 		signedTx, err = auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 
@@ -849,7 +849,7 @@ func Test_RevertOnConstructorTransaction(t *testing.T) {
 		receipt, err := client.TransactionReceipt(ctx, scTx.Hash())
 		require.NoError(t, err)
 
-		assert.Equal(t, receipt.Status, coreTypes.ReceiptStatusFailed)
+		assert.Equal(t, receipt.Status, ethTypes.ReceiptStatusFailed)
 
 		msg := ethereum.CallMsg{
 			From: auth.From,
@@ -910,7 +910,7 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)
 
-		assert.Equal(t, receipt.Status, coreTypes.ReceiptStatusFailed)
+		assert.Equal(t, receipt.Status, ethTypes.ReceiptStatusFailed)
 
 		msg := ethereum.CallMsg{
 			From: auth.From,

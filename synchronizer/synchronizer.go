@@ -14,7 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	coreTypes "github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -1060,7 +1060,7 @@ func (s *ClientSynchronizer) processTrustedVerifyBatches(lastVerifiedBatch ether
 
 func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx pgx.Tx) error {
 	log.Debugf("processing trusted batch: %v", trustedBatch.Number)
-	txs := []coreTypes.Transaction{}
+	txs := []ethTypes.Transaction{}
 	for _, transaction := range trustedBatch.Transactions {
 		tx := transaction.Tx.CoreTx()
 		txs = append(txs, *tx)

@@ -13,7 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
-	coreTypes "github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -53,8 +53,8 @@ func TestTrustedStateReorg(t *testing.T) {
 			Run(func(args mock.Arguments) {
 				ctx := args[0].(context.Context)
 				parentHash := common.HexToHash("0x111")
-				ethHeader := &coreTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
-				ethBlock := coreTypes.NewBlockWithHeader(ethHeader)
+				ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
+				ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
 				lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 
 				m.State.
@@ -181,7 +181,7 @@ func TestTrustedStateReorg(t *testing.T) {
 					Return(tr.BatchNumber-1, nil).
 					Once()
 
-				txs := []*coreTypes.Transaction{coreTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})}
+				txs := []*ethTypes.Transaction{ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})}
 				m.State.
 					On("GetReorgedTransactions", ctx, tr.BatchNumber, m.DbTx).
 					Return(txs, nil).
@@ -370,8 +370,8 @@ func TestForcedBatch(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			ctx := args[0].(context.Context)
 			parentHash := common.HexToHash("0x111")
-			ethHeader := &coreTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
-			ethBlock := coreTypes.NewBlockWithHeader(ethHeader)
+			ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
+			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
 			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 
 			m.State.
@@ -589,8 +589,8 @@ func TestSequenceForcedBatch(t *testing.T) {
 		Run(func(args mock.Arguments) {
 			ctx := args[0].(context.Context)
 			parentHash := common.HexToHash("0x111")
-			ethHeader := &coreTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
-			ethBlock := coreTypes.NewBlockWithHeader(ethHeader)
+			ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
+			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
 			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 
 			m.State.
