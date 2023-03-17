@@ -1,5 +1,5 @@
 -- +migrate Up
-UPDATE TABLE pool.transaction 
+UPDATE pool.transaction 
 SET ip = '' WHERE ip IS NULL;
 
 -- +migrate Down
