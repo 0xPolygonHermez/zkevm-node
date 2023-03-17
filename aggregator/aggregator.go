@@ -344,6 +344,8 @@ func (a *Aggregator) handleFinalProof() {
 	ctx := a.ctx
 
 	for result := range a.finalProofCh {
+		a.reserveFinal()
+
 		inputProof := result.job.proof
 		finalProof := result.proof
 
@@ -362,7 +364,7 @@ func (a *Aggregator) handleFinalProof() {
 			finalBatch, err := a.State.GetBatchByNumber(a.ctx, inputProof.BatchNumberFinal, nil)
 			if err != nil {
 				err := fmt.Errorf("failed to retrieve batch with number [%d], %w", inputProof.BatchNumberFinal, err)
-				log.Error(err)
+				log.Error(FirstToUpper(err.Error()))
 				a.enableFinal()
 				continue
 			}
@@ -375,6 +377,7 @@ func (a *Aggregator) handleFinalProof() {
 		finalBatch, err := a.State.GetBatchByNumber(ctx, inputProof.BatchNumberFinal, nil)
 		if err != nil {
 			log.Errorf("Failed to retrieve batch with number [%d]: %v", inputProof.BatchNumberFinal, err)
+			a.enableFinal()
 			continue
 		}
 
@@ -392,6 +395,7 @@ func (a *Aggregator) handleFinalProof() {
 		if err != nil {
 			log.Errorf("Error estimating batch verification to add to eth tx manager: %v", err)
 			a.handleFailureToAddVerifyBatchToBeMonitored(ctx, inputProof)
+			a.enableFinal()
 			continue
 		}
 
@@ -402,6 +406,7 @@ func (a *Aggregator) handleFinalProof() {
 			log := log.WithFields("tx", monitoredTxID)
 			log.Errorf("Error to add batch verification tx to eth tx manager: %v", err)
 			a.handleFailureToAddVerifyBatchToBeMonitored(ctx, inputProof)
+			a.enableFinal()
 			continue
 		}
 
@@ -419,9 +424,8 @@ func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Cont
 	proof.GeneratingSince = nil
 	err := a.State.UpdateGeneratedProof(ctx, proof, nil)
 	if err != nil {
-		log.Errorf("Failed updating proof state (false), err: %v", err)
+		log.Errorf("Failed updating proof state (false): %v", err)
 	}
-	// a.endProofVerification()
 }
 
 func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResult) {
@@ -483,7 +487,7 @@ func (a *Aggregator) aggregate() {
 
 			err := a.feedProver(prover, proofCh)
 			if err != nil {
-				log.Error(err)
+				log.Error(FirstToUpper(err.Error()))
 			}
 
 			// wait for the proof
@@ -495,10 +499,12 @@ func (a *Aggregator) aggregate() {
 					case <-prover.ctx.Done():
 						return
 					case result := <-proofCh:
-						log := log.WithFields("batches", fmt.Sprintf("%d-%d", result.proof.BatchNumber, result.proof.BatchNumberFinal))
+						log := log.WithFields(
+							"batches", fmt.Sprintf("%d-%d", result.proof.BatchNumber, result.proof.BatchNumberFinal),
+						)
 
 						if err := a.handleProof(a.ctx, result); err != nil {
-							log.Error(err)
+							log.Error(FirstToUpper(err.Error()))
 						}
 						return
 					}
@@ -537,7 +543,6 @@ func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) err
 		// eligible proof has just been produced by a prover
 		case fj := <-a.finalJobCh:
 			log.Debugf("Received proof valid for final, tracking [%s] ", fj.tracking)
-			a.reserveFinal()
 			return sendJob(fj)
 
 		default:
@@ -551,7 +556,6 @@ func (a *Aggregator) feedProver(prover proverClient, proofCh chan jobResult) err
 			} else if err != nil {
 				return err
 			} else {
-				a.reserveFinal()
 				fj := &finalJob{
 					tracking: prover.tracking,
 					proof:    proof,
@@ -630,7 +634,7 @@ func (a *Aggregator) handleProof(ctx context.Context, result jobResult) error {
 		_, err := a.eligibleFinalProof(a.ctx, result.proof)
 		if errors.Is(err, ErrNotValidForFinal) {
 			// proof is not valid for final, carry on storing it
-			log.Debug(err.Error())
+			log.Debug(FirstToUpper(err.Error()))
 		} else if err != nil {
 			return fmt.Errorf("failed to validate job for final proof, %w", err)
 		} else {
@@ -812,7 +816,9 @@ func (a *Aggregator) handleAggregationJob(ctx context.Context, prover proverInte
 
 	proofID, err := prover.AggregatedProof(job.proof1.Proof, job.proof2.Proof)
 	if err != nil {
-		return nil, fmt.Errorf("failed to instruct prover to generate aggregated proof, %w", err)
+		err = fmt.Errorf("failed to instruct prover to generate aggregated proof, %w", err)
+		log.Error(FirstToUpper(err.Error()))
+		return nil, err
 	}
 	proof.ProofID = proofID
 
@@ -821,7 +827,9 @@ func (a *Aggregator) handleAggregationJob(ctx context.Context, prover proverInte
 
 	aggrProof, err := prover.WaitRecursiveProof(ctx, *proofID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve aggregated proof from prover, %w", err)
+		err = fmt.Errorf("failed to retrieve aggregated proof from prover, %w", err)
+		log.Error(FirstToUpper(err.Error()))
+		return nil, err
 	}
 	proof.Proof = aggrProof
 
