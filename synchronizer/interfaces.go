@@ -36,7 +36,6 @@ type stateInterface interface {
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	AddVirtualBatch(ctx context.Context, virtualBatch *state.VirtualBatch, dbTx pgx.Tx) error
-	// GetNextForcedBatches returns the next forcedBatches in FIFO order
 	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]state.ForcedBatch, error)
 	AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx pgx.Tx) error
 	ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller state.CallerLabel) error
@@ -66,7 +65,7 @@ type ethTxManager interface {
 
 type poolInterface interface {
 	DeleteReorgedTransactions(ctx context.Context, txs []*coreTypes.Transaction) error
-	StoreTx(ctx context.Context, tx coreTypes.Transaction, ip string) error
+	StoreTx(ctx context.Context, tx coreTypes.Transaction, ip string, isWIP bool) error
 }
 
 type zkEVMClientInterface interface {
