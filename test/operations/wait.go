@@ -127,7 +127,13 @@ func RevertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blo
 		return "", err
 	}
 
-	return abi.UnpackRevert(hex)
+	unpackedMsg, err := abi.UnpackRevert(hex)
+	if err != nil {
+		log.Warnf("failed to get the revert message for tx %v: %v", tx.Hash(), err)
+		return "", errors.New("execution reverted")
+	}
+
+	return unpackedMsg, nil
 }
 
 // WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
