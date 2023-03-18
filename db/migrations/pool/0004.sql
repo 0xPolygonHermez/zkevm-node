@@ -1,11 +1,5 @@
 -- +migrate Up
-ALTER TABLE pool.transaction
-ALTER COLUMN ip SET NOT NULL;
-ALTER TABLE pool.transaction
-ALTER COLUMN ip SET DEFAULT '';
+-- Nothing to do here fix in 0005.sql
 
 -- +migrate Down
-ALTER TABLE pool.transaction
-ALTER COLUMN ip DROP NOT NULL;
-ALTER TABLE pool.transaction
-ALTER COLUMN ip DROP DEFAULT;
+-- Nothing to do here fix in 0005.sql
