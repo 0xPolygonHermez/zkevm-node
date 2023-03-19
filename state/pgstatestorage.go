@@ -2321,18 +2321,7 @@ func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumbe
 }
 
 // GetLatestGer is used to get the latest ger
-func (p *PostgresStorage) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (GlobalExitRoot, time.Time, error) {
-	lastBlock, err := p.GetLastBlock(ctx, nil)
-	if err != nil {
-		return GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %w", err)
-	}
-
-	blockNumber := lastBlock.BlockNumber
-
-	maxBlockNumber := uint64(0)
-	if gerFinalityNumberOfBlocks <= blockNumber {
-		maxBlockNumber = blockNumber - gerFinalityNumberOfBlocks
-	}
+func (p *PostgresStorage) GetLatestGer(ctx context.Context, maxBlockNumber uint64) (GlobalExitRoot, time.Time, error) {
 	ger, receivedAt, err := p.GetLatestGlobalExitRoot(ctx, maxBlockNumber, nil)
 	if err != nil && errors.Is(err, ErrNotFound) {
 		return GlobalExitRoot{}, time.Time{}, nil

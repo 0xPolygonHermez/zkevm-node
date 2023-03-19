@@ -13,10 +13,11 @@ type closingSignalsManager struct {
 	closingSignalCh        ClosingSignalCh
 	cfg                    FinalizerCfg
 	lastForcedBatchNumSent uint64
+	etherman               etherman
 }
 
-func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface, closingSignalCh ClosingSignalCh, cfg FinalizerCfg) *closingSignalsManager {
-	return &closingSignalsManager{ctx: ctx, dbManager: dbManager, closingSignalCh: closingSignalCh, cfg: cfg}
+func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface, closingSignalCh ClosingSignalCh, cfg FinalizerCfg, etherman etherman) *closingSignalsManager {
+	return &closingSignalsManager{ctx: ctx, dbManager: dbManager, closingSignalCh: closingSignalCh, cfg: cfg, etherman: etherman}
 }
 
 func (c *closingSignalsManager) Start() {
@@ -56,7 +57,18 @@ func (c *closingSignalsManager) checkGERUpdate() {
 	for {
 		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingGER.Duration)
 
-		ger, _, err := c.dbManager.GetLatestGer(c.ctx, c.cfg.GERFinalityNumberOfBlocks)
+		lastL1BlockNumber, err := c.etherman.GetLatestBlockNumber(c.ctx)
+		if err != nil {
+			log.Errorf("error checking GER update: %v", err)
+			continue
+		}
+
+		maxBlockNumber := uint64(0)
+		if c.cfg.GERFinalityNumberOfBlocks <= lastL1BlockNumber {
+			maxBlockNumber = lastL1BlockNumber - c.cfg.GERFinalityNumberOfBlocks
+		}
+
+		ger, _, err := c.dbManager.GetLatestGer(c.ctx, maxBlockNumber)
 		if err != nil {
 			log.Errorf("error checking GER update: %v", err)
 			continue
