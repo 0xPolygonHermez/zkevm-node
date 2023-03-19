@@ -82,7 +82,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
 	}
 
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
-	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s)", tx.Hash.String(), tx.Nonce, tx.FromStr, tx.Cost.String())
+	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s)", tx.Hash.String(), tx.Nonce, tx.Cost.String(), tx.FromStr)
 	newReadyTx, prevReadyTx := addr.addTx(tx)
 
 	// Update the EfficiencyList (if needed)
