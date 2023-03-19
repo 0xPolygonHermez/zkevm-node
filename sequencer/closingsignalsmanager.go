@@ -35,6 +35,7 @@ func (c *closingSignalsManager) checkSendToL1Timeout() {
 			limit := time.Now().Unix() - int64(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration.Seconds())
 
 			if timestamp.Unix() < limit {
+				log.Debugf("sending to L1 timeout signal (timestamp: %v, limit: %v)", timestamp.Unix(), limit)
 				c.closingSignalCh.SendingToL1TimeoutCh <- true
 				time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration)
 			} else {
@@ -62,6 +63,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 		}
 
 		if ger.GlobalExitRoot != lastGERSent {
+			log.Debugf("sending GER update signal (GER: %v)", ger.GlobalExitRoot)
 			c.closingSignalCh.GERCh <- ger.GlobalExitRoot
 			lastGERSent = ger.GlobalExitRoot
 		}
@@ -105,6 +107,7 @@ func (c *closingSignalsManager) checkForcedBatches() {
 		}
 
 		for _, forcedBatch := range forcedBatches {
+			log.Debugf("sending forced batch signal (forced batch number: %v)", forcedBatch.ForcedBatchNumber)
 			c.closingSignalCh.ForcedBatchCh <- *forcedBatch
 			c.lastForcedBatchNumSent = forcedBatch.ForcedBatchNumber
 		}

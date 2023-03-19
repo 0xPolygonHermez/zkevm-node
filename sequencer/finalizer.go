@@ -156,6 +156,7 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			return
 		// ForcedBatch ch
 		case fb := <-f.closingSignalCh.ForcedBatchCh:
+			log.Debugf("finalizer received forced batch at block number: %v", fb.BlockNumber)
 			f.nextForcedBatchesMux.Lock()
 			f.nextForcedBatches = f.SortForcedBatches(append(f.nextForcedBatches, fb))
 			if f.nextForcedBatchDeadline == 0 {
@@ -164,6 +165,7 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			f.nextForcedBatchesMux.Unlock()
 		// GlobalExitRoot ch
 		case ger := <-f.closingSignalCh.GERCh:
+			log.Debugf("finalizer received global exit root: %s", ger.String())
 			f.nextGERMux.Lock()
 			f.nextGER = ger
 			if f.nextGERDeadline == 0 {
@@ -172,11 +174,13 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			f.nextGERMux.Unlock()
 		// L2Reorg ch
 		case l2ReorgEvent := <-f.closingSignalCh.L2ReorgCh:
+			log.Debug("finalizer received L2 reorg event")
 			f.handlingL2Reorg = true
 			f.worker.HandleL2Reorg(l2ReorgEvent.TxHashes)
 			return
 		// Too much time without batches in L1 ch
 		case <-f.closingSignalCh.SendingToL1TimeoutCh:
+			log.Debug("finalizer received timeout for sending to L1")
 			f.nextSendingToL1TimeoutMux.Lock()
 			if f.nextSendingToL1Deadline == 0 {
 				f.setNextSendingToL1Deadline()
