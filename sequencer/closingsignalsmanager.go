@@ -59,7 +59,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 
 		lastL1BlockNumber, err := c.etherman.GetLatestBlockNumber(c.ctx)
 		if err != nil {
-			log.Errorf("error checking GER update: %v", err)
+			log.Errorf("error getting latest L1 block number: %v", err)
 			continue
 		}
 
