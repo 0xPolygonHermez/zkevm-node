@@ -959,8 +959,6 @@ func TestGetL2BlockByNumber(t *testing.T) {
 }
 
 func TestGetUncleByBlockHashAndIndex(t *testing.T) {
-	// TODO: skipping not implemented func
-	t.Skip()
 	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
@@ -979,8 +977,6 @@ func TestGetUncleByBlockHashAndIndex(t *testing.T) {
 }
 
 func TestGetUncleByBlockNumberAndIndex(t *testing.T) {
-	// TODO: skipping not implemented func
-	t.Skip()
 	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
@@ -999,8 +995,6 @@ func TestGetUncleByBlockNumberAndIndex(t *testing.T) {
 }
 
 func TestGetUncleCountByBlockHash(t *testing.T) {
-	// TODO: skipping not implemented func
-	t.Skip()
 	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
@@ -1019,8 +1013,6 @@ func TestGetUncleCountByBlockHash(t *testing.T) {
 }
 
 func TestGetUncleCountByBlockNumber(t *testing.T) {
-	// TODO: skipping not implemented func
-	t.Skip()
 	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
