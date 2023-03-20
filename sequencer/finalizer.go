@@ -203,26 +203,23 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
 			err := f.processTransaction(ctx, tx)
 			if err != nil {
-				log.Errorf("failed to process transaction in finalizeBatches, Err: %s", err)
+				log.Errorf("failed to process transaction in finalizeBatches, Err: %v", err)
 			}
 
 			f.sharedResourcesMux.Unlock()
 		} else {
-			if f.isBatchAlmostFull() {
-				// Wait for all transactions to be stored in the DB
-				log.Infof("Closing batch: %d, because it's almost full.", f.batch.batchNumber)
-				// The perfect moment to finalize the batch
-				f.finalizeBatch(ctx)
-			} else {
-				// wait for new txs
-				log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDurationInMs.Duration)
-				if f.cfg.SleepDurationInMs.Duration > 0 {
-					time.Sleep(f.cfg.SleepDurationInMs.Duration)
-				}
+			// wait for new txs
+			log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDurationInMs.Duration)
+			if f.cfg.SleepDurationInMs.Duration > 0 {
+				time.Sleep(f.cfg.SleepDurationInMs.Duration)
 			}
 		}
 
-		if f.isDeadlineEncountered() || f.isBatchFull() {
+		if f.isDeadlineEncountered() {
+			log.Infof("Closing batch: %d, because deadline was encountered.", f.batch.batchNumber)
+			f.finalizeBatch(ctx)
+		} else if f.isBatchFull() || f.isBatchAlmostFull() {
+			log.Infof("Closing batch: %d, because it's almost full.", f.batch.batchNumber)
 			f.finalizeBatch(ctx)
 		}
 
