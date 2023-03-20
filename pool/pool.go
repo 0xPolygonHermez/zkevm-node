@@ -85,7 +85,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
 	// Execute transaction to calculate its zkCounters
-	zkCounters, err, isOOC, isOOG := p.PreExecuteTx(ctx, tx)
+	zkCounters, isOOC, isOOG, err := p.PreExecuteTx(ctx, tx)
 	if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
 
@@ -123,12 +123,15 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 }
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error, bool) {
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, bool, bool, error) {
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
 		return state.ZKCounters{}, err, false
 	}
-	return processBatchResponse.UsedZkCounters, processBatchResponse.ExecutorError, !processBatchResponse.IsBatchProcessed
+
+	isOOG := false
+
+	return processBatchResponse.UsedZkCounters, !processBatchResponse.IsBatchProcessed, isOOG, processBatchResponse.ExecutorError
 }
 
 // GetPendingTxs from the pool
