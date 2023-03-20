@@ -287,7 +287,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// Reprocess full batch to persist as sanity check
 	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
 	if err != nil || !processBatchResponse.IsBatchProcessed {
-		log.Info("restarting the sequencer node because of a reprocessing error")
+		log.Info("halting the finalizer because of a reprocessing error")
 		if err != nil {
 			f.halt(ctx, fmt.Errorf("failed to reprocess batch, err: %v", err))
 		} else {
