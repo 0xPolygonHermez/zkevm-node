@@ -551,3 +551,8 @@ func (d *dbManager) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error
 func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
 	return d.state.FlushMerkleTree(ctx)
 }
+
+// AddDebugInfo is used to store debug info useful during runtime
+func (d *dbManager) AddDebugInfo(ctx context.Context, info *state.DebugInfo, dbTx pgx.Tx) error {
+	return d.state.AddDebugInfo(ctx, info, dbTx)
+}

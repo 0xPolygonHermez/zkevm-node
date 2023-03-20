@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -717,6 +718,22 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 	}
 
 	if !result.IsBatchProcessed {
+		timestamp := time.Now()
+		log.Errorf("failed to process batch %v because OutOfCounters", batch.BatchNumber)
+		payload, err := json.Marshal(processRequest)
+		if err != nil {
+			log.Errorf("error marshaling payload: %v", err)
+		} else {
+			debugInfo := &state.DebugInfo{
+				ErrorType: state.DebugInfoErrorType_OOC_ERROR_ON_REPROCESS_FULL_BATCH,
+				Timestamp: timestamp,
+				Payload:   string(payload),
+			}
+			err = f.dbManager.AddDebugInfo(ctx, debugInfo, nil)
+			if err != nil {
+				log.Errorf("error storing payload: %v", err)
+			}
+		}
 		return nil, fmt.Errorf("failed to process batch because OutOfCounters error")
 	}
 
