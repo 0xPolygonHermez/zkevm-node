@@ -194,10 +194,12 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 func (f *finalizer) finalizeBatches(ctx context.Context) {
 	for {
 		start := now()
+		log.Debug("finalizer init loop")
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			f.sharedResourcesMux.Lock()
+			log.Debugf("processing tx: %s", tx.Hash.Hex())
 			err := f.processTransaction(ctx, tx)
 			if err != nil {
 				log.Errorf("failed to process transaction in finalizeBatches, Err: %s", err)
@@ -212,6 +214,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 				f.finalizeBatch(ctx)
 			} else {
 				// wait for new txs
+				log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDurationInMs.Duration)
 				if f.cfg.SleepDurationInMs.Duration > 0 {
 					time.Sleep(f.cfg.SleepDurationInMs.Duration)
 				}
@@ -536,7 +539,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		Caller:         state.SequencerCallerLabel,
 	}
 
-	log.Info("synced with state", "lastBatchNum", *lastBatchNum, "stateRoot", f.batch.initialStateRoot.Hex())
+	log.Infof("synced with state, lastBatchNum: %d. State root: %s", *lastBatchNum, f.batch.initialStateRoot.Hex())
 
 	return nil
 }
