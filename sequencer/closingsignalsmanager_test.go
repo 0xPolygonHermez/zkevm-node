@@ -1,6 +1,5 @@
 package sequencer
 
-/*
 import (
 	"context"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,6 +25,10 @@ var (
 	testRawData = common.Hex2Bytes("0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b")
 )
 
+type mocks struct {
+	Etherman *EthermanMock
+}
+
 func setupTest(t *testing.T) {
 	initOrResetDB()
 
@@ -35,7 +39,7 @@ func setupTest(t *testing.T) {
 		panic(err)
 	}
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.104.156")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	var mtDBCancel context.CancelFunc
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
@@ -84,13 +88,24 @@ func prepareForcedBatches(t *testing.T) {
 }
 
 func TestClosingSignalsManager(t *testing.T) {
+	m := mocks{
+		Etherman: NewEthermanMock(t),
+	}
+
+	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
+	lastL1BlockNumber := uint64(1)
+
+	m.Etherman.
+		On("GetLatestBlockNumber", ctxMatchBy).
+		Return(lastL1BlockNumber, nil)
+
 	setupTest(t)
 	channels := ClosingSignalCh{
 		ForcedBatchCh: make(chan state.ForcedBatch),
 	}
 
 	prepareForcedBatches(t)
-	closingSignalsManager := newClosingSignalsManager(ctx, testDbManager, channels, cfg, nil)
+	closingSignalsManager := newClosingSignalsManager(ctx, testDbManager, channels, cfg, m.Etherman)
 	closingSignalsManager.Start()
 
 	newCtx, cancelFunc := context.WithTimeout(ctx, time.Second*3)
@@ -120,4 +135,3 @@ func TestClosingSignalsManager(t *testing.T) {
 	require.Equal(t, testAddr, fb.Sequencer)
 	require.Equal(t, testRawData, fb.RawTxsData)
 }
-*/
