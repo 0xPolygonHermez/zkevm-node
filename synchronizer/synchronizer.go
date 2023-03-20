@@ -755,6 +755,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		// Call the check trusted state method to compare trusted and virtual state
 		status := s.checkTrustedState(batch, tBatch, newRoot, dbTx)
 		if status {
+			log.Fatal("TRUSTED REORG DETECTED! Batch: ", batch.BatchNumber)
 			// Reorg Pool
 			err := s.reorgPool(dbTx)
 			if err != nil {
