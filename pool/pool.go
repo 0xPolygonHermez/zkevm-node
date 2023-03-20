@@ -85,13 +85,27 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
 	// Execute transaction to calculate its zkCounters
-	zkCounters, err, isOOC := p.PreExecuteTx(ctx, tx)
+	zkCounters, err, isOOC, isOOG := p.PreExecuteTx(ctx, tx)
 	if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
 
 		if isOOC {
 			event := &state.Event{
 				EventType: state.EventType_Prexecution_OOC,
+				Timestamp: time.Now(),
+				IP:        ip,
+				TxHash:    tx.Hash(),
+			}
+
+			err := p.state.AddEvent(ctx, event, nil)
+			if err != nil {
+				log.Errorf("Error adding event: %v", err)
+			}
+			// Do not add tx to the pool
+			return fmt.Errorf("out of counters")
+		} else if isOOG {
+			event := &state.Event{
+				EventType: state.EventType_Prexecution_OOG,
 				Timestamp: time.Now(),
 				IP:        ip,
 				TxHash:    tx.Hash(),

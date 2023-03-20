@@ -171,6 +171,8 @@ type TrustedReorg struct {
 const (
 	// EventType_Prexecution_OOC indicates a preexecution out of couters error
 	EventType_Prexecution_OOC = "PREEXECUTION OOC"
+	// EventType_Prexecution_OOG indicates a preexecution out of gas error
+	EventType_Prexecution_OOG = "PREEXECUTION OOG"
 	// EventType_ZKCounters_Diff indicates big different in preexecution and execution regarding ZKCounters
 	EventType_ZKCounters_Diff = "ZK COUNTERS DIFF"
 )
