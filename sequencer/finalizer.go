@@ -284,7 +284,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		return nil, errors.New("state root and local exit root must have value to close batch")
 	}
 
-	// Reprocess full batch to persist as sanity check
+	// Reprocess full batch as sanity check
 	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
 	if err != nil || !processBatchResponse.IsBatchProcessed {
 		log.Info("halting the finalizer because of a reprocessing error")
@@ -708,7 +708,7 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, expectedStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
 	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get batch by number, err: %w", err)
+		return nil, fmt.Errorf("failed to get batch by number, err: %v", err)
 	}
 	processRequest := state.ProcessRequest{
 		BatchNumber:    batch.BatchNumber,
@@ -722,7 +722,8 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, Ger: %s", batch.BatchNumber, f.batch.initialStateRoot.String(), batch.GlobalExitRoot.String())
 	txs, _, err := state.DecodeTxs(batch.BatchL2Data)
 	if err != nil {
-		log.Error("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: %d. Error: %v", batch.BatchNumber, err)
+		log.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: %d. Error: %v", batch.BatchNumber, err)
+		return nil, fmt.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: %d. Error: %v", batch.BatchNumber, err)
 	}
 	for i, tx := range txs {
 		log.Infof("reprocessFullBatch: Tx position %d. TxHash: %s", i, tx.Hash())
@@ -756,6 +757,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 
 	if result.NewStateRoot != expectedStateRoot {
 		log.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", batch.BatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
+		return nil, fmt.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", batch.BatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
 	}
 
 	return result, nil
