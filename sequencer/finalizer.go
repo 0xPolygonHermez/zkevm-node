@@ -174,10 +174,10 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			}
 			f.nextGERMux.Unlock()
 		// L2Reorg ch
-		case l2ReorgEvent := <-f.closingSignalCh.L2ReorgCh:
+		case <-f.closingSignalCh.L2ReorgCh:
 			log.Debug("finalizer received L2 reorg event")
 			f.handlingL2Reorg = true
-			f.worker.HandleL2Reorg(l2ReorgEvent.TxHashes)
+			f.halt(ctx, fmt.Errorf("L2 reorg event received"))
 			return
 		// Too much time without batches in L1 ch
 		case <-f.closingSignalCh.SendingToL1TimeoutCh:
@@ -256,6 +256,24 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 	}
 }
 
+func (f *finalizer) halt(ctx context.Context, err error) {
+	debugInfo := &state.DebugInfo{
+		ErrorType: state.DebugInfoErrorType_FINALIZER_HALT,
+		Timestamp: time.Now(),
+		Payload:   err.Error(),
+	}
+	debugInfoErr := f.dbManager.AddDebugInfo(ctx, debugInfo, nil)
+	if debugInfoErr != nil {
+		log.Errorf("error storing finalizer halt debug info: %v", debugInfoErr)
+	}
+
+	for {
+		log.Errorf("fatal error: %s", err)
+		log.Error("halting the finalizer")
+		time.Sleep(5 * time.Second) //nolint:gomnd
+	}
+}
+
 // newWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	f.sharedResourcesMux.Lock()
@@ -266,23 +284,22 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		return nil, errors.New("state root and local exit root must have value to close batch")
 	}
 
+	// Reprocess full batch to persist as sanity check
+	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
+	if err != nil || !processBatchResponse.IsBatchProcessed {
+		log.Info("restarting the sequencer node because of a reprocessing error")
+		if err != nil {
+			f.halt(ctx, fmt.Errorf("failed to reprocess batch, err: %v", err))
+		} else {
+			f.halt(ctx, fmt.Errorf("out of counters during reprocessFullBath"))
+		}
+	}
+
+	// Close the current batch
 	err = f.closeBatch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
-
-	// Reprocess full batch to persist the merkle tree
-	go func() {
-		processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
-		if err != nil || !processBatchResponse.IsBatchProcessed {
-			log.Info("restarting the sequencer node because of a reprocessing error")
-			if err != nil {
-				log.Fatalf("failed to reprocess batch, err: %v", err)
-			} else {
-				log.Fatal("Out of counters during reprocessFullBath")
-			}
-		}
-	}()
 
 	// Metadata for the next batch
 	stateRoot := f.batch.stateRoot
