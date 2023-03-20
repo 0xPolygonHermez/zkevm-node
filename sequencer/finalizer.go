@@ -273,7 +273,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		if err != nil || !processBatchResponse.IsBatchProcessed {
 			log.Info("restarting the sequencer node because of a reprocessing error")
 			if err != nil {
-				log.Fatal("failed to reprocess batch, err: %v", err)
+				log.Fatalf("failed to reprocess batch, err: %v", err)
 			} else {
 				log.Fatal("Out of counters during reprocessFullBath")
 			}
