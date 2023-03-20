@@ -146,6 +146,8 @@ const (
 	DebugInfoErrorType_OOC_ERROR_ON_REPROCESS_FULL_BATCH = "OOC ON REPROCESS FULL BATCH"
 	// DebugInfoErrorType_EXECUTOR_RLP_ERROR indicates a error happened decoding the RLP returned by the executor
 	DebugInfoErrorType_EXECUTOR_RLP_ERROR = "EXECUTOR RLP ERROR"
+	// DebugInfoErrorType_FINALIZER_HALT indicates a fatal error happened in the finalizer when trying to close a batch
+	DebugInfoErrorType_FINALIZER_HALT = "FINALIZER HALT"
 )
 
 // DebugInfo allows handling runtime debug info
