@@ -65,7 +65,8 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 
 // EncodeTransaction RLP encodes the given transaction
 func EncodeTransaction(tx types.Transaction) ([]byte, error) {
-	v, r, s := tx.RawSignatureValues()
+
+	/*v, r, s := tx.RawSignatureValues()
 	sign := 1 - (v.Uint64() & 1)
 
 	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
@@ -94,7 +95,10 @@ func EncodeTransaction(tx types.Transaction) ([]byte, error) {
 		return nil, err
 	}
 
-	return txData, nil
+	return txData, nil*/
+
+	transactions := []types.Transaction{tx}
+	return EncodeTransactions(transactions)
 }
 
 // EncodeUnsignedTransaction RLP encodes the given unsigned transaction
