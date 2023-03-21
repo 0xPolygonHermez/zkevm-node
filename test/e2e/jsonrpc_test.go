@@ -513,25 +513,47 @@ func Test_Transactions(t *testing.T) {
 	defer Teardown()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
-		client, err := ethclient.Dial(network.URL)
+		ethClient, err := ethclient.Dial(network.URL)
 		require.NoError(t, err)
 		auth, err := operations.GetAuth(network.PrivateKey, network.ChainID)
 		require.NoError(t, err)
 
 		// Test Case: Successful transfer
-		tx, err := createTX(client, auth, toAddress, big.NewInt(100000))
+		tx, err := createTX(ethClient, auth, toAddress, big.NewInt(100000))
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
+
+		// Test Case: get transaction by block number and index
+		receipt, err := ethClient.TransactionReceipt(ctx, tx.Hash())
+		require.NoError(t, err)
+		require.NotNil(t, receipt)
+		res, err := client.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", hex.EncodeBig(receipt.BlockNumber), hex.EncodeUint64(uint64(receipt.TransactionIndex)))
+		require.NoError(t, err)
+		require.Nil(t, res.Error)
+		require.NotNil(t, res.Result)
+		var txByBlockNumberAndIndex *types.Transaction
+		err = json.Unmarshal(res.Result, &txByBlockNumberAndIndex)
+		require.NoError(t, err)
+
+		require.Equal(t, tx.Hash().String(), txByBlockNumberAndIndex.Hash.String())
+
+		// Test Case: get transaction by block hash and index
+		receipt, err = ethClient.TransactionReceipt(ctx, tx.Hash())
+		require.NoError(t, err)
+		require.NotNil(t, receipt)
+		txByBlockHashAndIndex, err := ethClient.TransactionInBlock(ctx, receipt.BlockHash, receipt.TransactionIndex)
+		require.NoError(t, err)
+		require.Equal(t, tx.Hash().String(), txByBlockHashAndIndex.Hash().String())
 
 		// Setup for test cases
-		nonce, err := client.NonceAt(context.Background(), auth.From, nil)
+		nonce, err := ethClient.NonceAt(context.Background(), auth.From, nil)
 		require.NoError(t, err)
 
-		gasLimit, err := client.EstimateGas(context.Background(), ethereum.CallMsg{From: auth.From, To: &toAddress, Value: big.NewInt(10000)})
+		gasLimit, err := ethClient.EstimateGas(context.Background(), ethereum.CallMsg{From: auth.From, To: &toAddress, Value: big.NewInt(10000)})
 		require.NoError(t, err)
 
-		gasPrice, err := client.SuggestGasPrice(context.Background())
+		gasPrice, err := ethClient.SuggestGasPrice(context.Background())
 		require.NoError(t, err)
 
 		// Test Case: TX with invalid nonce
@@ -542,7 +564,7 @@ func Test_Transactions(t *testing.T) {
 		require.NoError(t, err)
 
 		log.Infof("Sending Tx %v Nonce (invalid) %v", signedTx.Hash(), signedTx.Nonce())
-		err = client.SendTransaction(context.Background(), signedTx)
+		err = ethClient.SendTransaction(context.Background(), signedTx)
 		require.ErrorContains(t, err, "nonce too low")
 
 		// End Test Case
@@ -556,16 +578,16 @@ func Test_Transactions(t *testing.T) {
 			GasPrice: gasPrice,
 			Data:     nil,
 		})
-		err = client.SendTransaction(context.Background(), invalidTx)
+		err = ethClient.SendTransaction(context.Background(), invalidTx)
 		require.Error(t, err)
 		// End Test Case
 
 		// Test Case: TX with amount being higher than balance
 
-		balance, err := client.BalanceAt(context.Background(), auth.From, nil)
+		balance, err := ethClient.BalanceAt(context.Background(), auth.From, nil)
 		require.NoError(t, err)
 
-		nonce, err = client.NonceAt(context.Background(), auth.From, nil)
+		nonce, err = ethClient.NonceAt(context.Background(), auth.From, nil)
 		require.NoError(t, err)
 
 		log.Infof("Balance: %d", balance)
@@ -575,14 +597,14 @@ func Test_Transactions(t *testing.T) {
 		require.NoError(t, err)
 
 		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
-		err = client.SendTransaction(context.Background(), signedTx)
+		err = ethClient.SendTransaction(context.Background(), signedTx)
 		require.ErrorContains(t, err, pool.ErrInsufficientFunds.Error())
 
 		// no contract code at given address test
 
 		// deploy contract with not enough gas for storage, just execution
 		address := common.HexToAddress("0xDEADBEEF596a836C9063a7EE35dA94DDA3b57B62")
-		instance, err := Double.NewDouble(address, client)
+		instance, err := Double.NewDouble(address, ethClient)
 		require.NoError(t, err)
 
 		callOpts := &bind.CallOpts{Pending: false}

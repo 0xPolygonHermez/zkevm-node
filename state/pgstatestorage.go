@@ -41,7 +41,6 @@ const (
 	getL2BlockByNumberSQL                    = "SELECT header, uncles, received_at FROM state.l2block b WHERE b.block_num = $1"
 	getL2BlockHeaderByNumberSQL              = "SELECT header FROM state.l2block b WHERE b.block_num = $1"
 	getTransactionByHashSQL                  = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
-	getTransactionByL2BlockHashAndIndexSQL   = "SELECT t.encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.batch_num WHERE b.block_hash = $1 AND 0 = $2"
 	getTransactionByL2BlockNumberAndIndexSQL = "SELECT t.encoded FROM state.transaction t WHERE t.l2_block_num = $1 AND 0 = $2"
 	getL2BlockTransactionCountByHashSQL      = "SELECT COUNT(*) FROM state.transaction t INNER JOIN state.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
 	getL2BlockTransactionCountByNumberSQL    = "SELECT COUNT(*) FROM state.transaction t WHERE t.l2_block_num = $1"
@@ -1245,7 +1244,16 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 func (p *PostgresStorage) GetTransactionByL2BlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
 	var encoded string
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getTransactionByL2BlockHashAndIndexSQL, blockHash.String(), index).Scan(&encoded)
+	const query = `
+        SELECT t.encoded
+          FROM state.transaction t
+         INNER JOIN state.l2block b
+            ON t.l2_block_num = b.block_num
+         INNER JOIN state.receipt r
+            ON r.tx_hash = t.hash
+         WHERE b.block_hash = $1
+           AND r.tx_index = $2`
+	err := q.QueryRow(ctx, query, blockHash.String(), index).Scan(&encoded)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
