@@ -146,6 +146,16 @@ test-e2e-group-5: stop ## Runs group 5 e2e tests checking race conditions
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group5/...
 
+.PHONY: test-e2e-group-6
+test-e2e-group-6: stop ## Runs group 6 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group6/...
+
 .PHONY: benchmark-sequencer-eth-transfers
 benchmark-sequencer-eth-transfers: stop
 	$(RUNL1NETWORK)
@@ -201,6 +211,7 @@ run-node: ## Runs the node
 	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
+	$(RUNBROADCAST)
 
 .PHONY: stop-node
 stop-node: ## Stops the node
@@ -210,6 +221,7 @@ stop-node: ## Stops the node
 	$(STOPAGGREGATOR)
 	$(STOPSYNC)
 	$(STOPETHTXMANAGER)
+	$(STOPBROADCAST)
 
 .PHONY: run-network
 run-network: ## Runs the l1 network
@@ -340,18 +352,15 @@ stop-grafana: ## Stops the grafana service
 	$(STOPGRAFANA)
 
 .PHONY: run-permissionless
-run-permissionless: ## Runs the permissionless node
+run-permissionless: run-node ## Runs the trusted and permissionless node
 	$(RUNPERMISSIONLESSDB)
-	$(RUNL1NETWORK)
-	$(RUNBROADCAST)
 	sleep 1
 	$(RUNPERMISSIONLESSZKPROVER)
 	$(RUNPERMISSIONLESSNODE)
 
 .PHONY: stop-permissionless
-stop-permissionless: ## Stops the permissionless node
+stop-permissionless: stop-node## Stops the permissionless node
 	$(STOPPERMISSIONLESSNODE)
-	$(STOPBROADCAST)
 	$(STOPPERMISSIONLESSZKPROVER)
 	$(STOPPERMISSIONLESSDB)
 
