@@ -27,7 +27,7 @@ var (
 	// ErrInvalidSender is returned if the transaction contains an invalid signature.
 	ErrInvalidSender = errors.New("invalid sender")
 
-	// ErrInvalidSender is returned if the transaction is sent by a blocked account.
+	// ErrBlockedSender is returned if the transaction is sent by a blocked account.
 	ErrBlockedSender = errors.New("blocked sender")
 
 	// ErrNonceTooLow is returned if the nonce of a transaction is lower than the

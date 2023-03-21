@@ -623,7 +623,7 @@ func (p *PostgresPoolStorage) UpdateTxWIPStatus(ctx context.Context, hash common
 	return nil
 }
 
-// GetAddressBlocked get all addresses blocked
+// GetAllAddressesBlocked get all addresses blocked
 func (p *PostgresPoolStorage) GetAllAddressesBlocked(ctx context.Context) ([]common.Address, error) {
 	sql := `SELECT addr FROM pool.blocked`
 
