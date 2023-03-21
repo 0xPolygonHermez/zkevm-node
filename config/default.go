@@ -20,6 +20,7 @@ MaxConns = 200
 
 [Pool]
 FreeClaimGasLimit = 150000
+IntervalToRefreshBlockedAddresses = "5m"
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"

@@ -30,10 +30,6 @@ const (
 
 	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
 	bridgeClaimMethodSignature = "0x2cffd02e"
-
-	// intervalToUpdateBlockedAddressesInMinutes is time it takes to sync the
-	// blocked address list from db to memory
-	intervalToUpdateBlockedAddressesInMinutes = 5
 )
 
 var (
@@ -69,23 +65,45 @@ func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Addre
 	}
 
 	p.refreshBlockedAddresses()
-	go func(p *Pool) {
-		time.Sleep(intervalToUpdateBlockedAddressesInMinutes * time.Minute)
-		p.refreshBlockedAddresses()
-	}(p)
+	go func(cfg *Config, p *Pool) {
+		for {
+			time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
+			p.refreshBlockedAddresses()
+		}
+	}(&cfg, p)
 	return p
 }
 
 // refreshBlockedAddresses refreshes the list of blocked addresses for the provided instance of pool
 func (p *Pool) refreshBlockedAddresses() {
-	bas, err := p.storage.GetAllAddressesBlocked(context.Background())
+	blockedAddresses, err := p.storage.GetAllAddressesBlocked(context.Background())
 	if err != nil {
 		log.Error("failed to load blocked addresses")
 		return
 	}
 
-	for _, ba := range bas {
-		p.blockedAddresses.Store(ba, 1)
+	for _, blockedAddress := range blockedAddresses {
+		p.blockedAddresses.Store(blockedAddress.String(), 1)
+	}
+
+	unblockedAddresses := []string{}
+	p.blockedAddresses.Range(func(key, value any) bool {
+		addrHex := key.(string)
+		addr := common.HexToAddress(addrHex)
+		blocked, err := p.storage.IsAddressBlocked(context.Background(), addr)
+		if err != nil {
+			log.Error("failed to check if %v is blocked", addrHex)
+			return true
+		}
+
+		if !blocked {
+			unblockedAddresses = append(unblockedAddresses, addrHex)
+		}
+		return true
+	})
+
+	for _, unblockedAddress := range unblockedAddresses {
+		p.blockedAddresses.Delete(unblockedAddress)
 	}
 }
 
@@ -225,7 +243,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	}
 
 	// check if sender is blocked
-	_, blocked := p.blockedAddresses.Load(from)
+	_, blocked := p.blockedAddresses.Load(from.String())
 	if blocked {
 		return ErrBlockedSender
 	}

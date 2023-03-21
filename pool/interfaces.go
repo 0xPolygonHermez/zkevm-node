@@ -33,6 +33,7 @@ type storage interface {
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
 	GetAllAddressesBlocked(ctx context.Context) ([]common.Address, error)
+	IsAddressBlocked(ctx context.Context, address common.Address) (bool, error)
 }
 
 type stateInterface interface {
