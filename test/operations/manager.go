@@ -340,11 +340,6 @@ func (m *Manager) SetupWithPermissionless() error {
 		return err
 	}
 
-	err = m.SetUpSequencer()
-	if err != nil {
-		return err
-	}
-
 	err = m.StartTrustedAndPermissionlessNode()
 	if err != nil {
 		return err
