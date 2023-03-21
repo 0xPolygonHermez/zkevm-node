@@ -156,6 +156,16 @@ test-e2e-group-6: stop ## Runs group 6 e2e tests checking race conditions
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group6/...
 
+.PHONY: test-e2e-group-7
+test-e2e-group-7: stop ## Runs group 7 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group7/...
+
 .PHONY: benchmark-sequencer-eth-transfers
 benchmark-sequencer-eth-transfers: stop
 	$(RUNL1NETWORK)
