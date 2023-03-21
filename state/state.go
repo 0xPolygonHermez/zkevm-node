@@ -1226,7 +1226,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	if err != nil {
 		result.Err = err
 	}
-	if response.Responses[0] != nil {
+	if response != nil && response.Responses[0] != nil {
 		r := response.Responses[0]
 		result.ReturnValue = r.ReturnValue
 		result.GasLeft = r.GasLeft
