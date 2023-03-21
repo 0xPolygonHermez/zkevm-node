@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -29,6 +30,10 @@ const (
 
 	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
 	bridgeClaimMethodSignature = "0x2cffd02e"
+
+	// intervalToUpdateBlockedAddressesInMinutes is time it takes to sync the
+	// blocked address list from db to memory
+	intervalToUpdateBlockedAddressesInMinutes = 5
 )
 
 var (
@@ -45,20 +50,42 @@ var (
 // that uses a postgres database to store the data
 type Pool struct {
 	storage
-	state        stateInterface
-	l2BridgeAddr common.Address
-	chainID      uint64
-	cfg          Config
+	state            stateInterface
+	l2BridgeAddr     common.Address
+	chainID          uint64
+	cfg              Config
+	blockedAddresses sync.Map
 }
 
 // NewPool creates and initializes an instance of Pool
 func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
-	return &Pool{
-		cfg:          cfg,
-		storage:      s,
-		state:        st,
-		l2BridgeAddr: l2BridgeAddr,
-		chainID:      chainID,
+	p := &Pool{
+		cfg:              cfg,
+		storage:          s,
+		state:            st,
+		l2BridgeAddr:     l2BridgeAddr,
+		chainID:          chainID,
+		blockedAddresses: sync.Map{},
+	}
+
+	refreshBlockedAddresses(p)
+	go func() {
+		time.Sleep(intervalToUpdateBlockedAddressesInMinutes * time.Minute)
+		refreshBlockedAddresses(p)
+	}()
+	return p
+}
+
+// refreshBlockedAddresses refreshes the list of blocked addresses for the provided instance of pool
+func refreshBlockedAddresses(p *Pool) {
+	bas, err := p.storage.GetAllAddressesBlocked(context.Background())
+	if err != nil {
+		log.Error("failed to load blocked addresses")
+		return
+	}
+
+	for _, ba := range bas {
+		p.blockedAddresses.Store(ba, 1)
 	}
 }
 
@@ -198,10 +225,8 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	}
 
 	// check if sender is blocked
-	blocked, err := p.storage.IsAddressBlocked(ctx, from)
-	if err != nil {
-		return err
-	} else if blocked {
+	_, blocked := p.blockedAddresses.Load(from)
+	if blocked {
 		return ErrBlockedSender
 	}
 

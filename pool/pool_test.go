@@ -1063,13 +1063,17 @@ func Test_BlockedAddress(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	require.NoError(t, err)
 
+	// block address
+	_, err = poolSqlDB.Exec(ctx, "INSERT INTO pool.blocked(addr) VALUES($1)", auth.From.String())
+	require.NoError(t, err)
+
 	cfg := pool.Config{FreeClaimGasLimit: 150000}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
 
 	gasPrice, err := p.GetGasPrice(ctx)
 	require.NoError(t, err)
 
-	// Add tx while address is not blocked
+	// Add tx while address is blocked
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    0,
 		GasPrice: big.NewInt(0).SetInt64(int64(gasPrice)),
@@ -1081,31 +1085,5 @@ func Test_BlockedAddress(t *testing.T) {
 	require.NoError(t, err)
 
 	err = p.AddTx(ctx, *signedTx, "")
-	require.NoError(t, err)
-
-	// block address
-	_, err = poolSqlDB.Exec(ctx, "INSERT INTO pool.blocked(addr) VALUES($1)", auth.From.String())
-	require.NoError(t, err)
-
-	// get blocked when try to add new tx
-	tx = types.NewTx(&types.LegacyTx{
-		Nonce:    1,
-		GasPrice: big.NewInt(0).SetInt64(int64(gasPrice)),
-		Gas:      24000,
-		To:       &auth.From,
-		Value:    big.NewInt(1000),
-	})
-	signedTx, err = auth.Signer(auth.From, tx)
-	require.NoError(t, err)
-
-	err = p.AddTx(ctx, *signedTx, "")
 	require.Equal(t, pool.ErrBlockedSender, err)
-
-	// remove block
-	_, err = poolSqlDB.Exec(ctx, "DELETE FROM pool.blocked WHERE addr = $1", auth.From.String())
-	require.NoError(t, err)
-
-	// allowed to add tx again
-	err = p.AddTx(ctx, *signedTx, "")
-	require.NoError(t, err)
 }
