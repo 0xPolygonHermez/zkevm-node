@@ -178,19 +178,27 @@ func (arg *ArgAddress) Address() common.Address {
 
 // TxArgs is the transaction argument for the rpc endpoints
 type TxArgs struct {
-	From     common.Address
+	From     *common.Address
 	To       *common.Address
 	Gas      *ArgUint64
-	GasPrice *ArgUint64
+	GasPrice *ArgBytes
 	Value    *ArgBytes
 	Data     *ArgBytes
+	Input    *ArgBytes
+	Nonce    *ArgUint64
 }
 
 // ToTransaction transforms txnArgs into a Transaction
 func (args *TxArgs) ToTransaction(ctx context.Context, st StateInterface, blockNumber, maxCumulativeGasUsed uint64, defaultSenderAddress common.Address, dbTx pgx.Tx) (common.Address, *types.Transaction, error) {
-	gas := maxCumulativeGasUsed
-	if args.Gas != nil && uint64(*args.Gas) > uint64(0) {
-		gas = uint64(*args.Gas)
+	sender := defaultSenderAddress
+	nonce := uint64(0)
+	if args.From != nil {
+		sender = *args.From
+		n, err := st.GetNonce(ctx, sender, blockNumber, dbTx)
+		if err != nil {
+			return common.Address{}, nil, err
+		}
+		nonce = n
 	}
 
 	value := big.NewInt(0)
@@ -198,29 +206,23 @@ func (args *TxArgs) ToTransaction(ctx context.Context, st StateInterface, blockN
 		value.SetBytes(*args.Value)
 	}
 
-	data := []byte{}
+	gasPrice := big.NewInt(0)
+	if args.GasPrice != nil {
+		gasPrice.SetBytes(*args.GasPrice)
+	}
+
+	var data []byte
 	if args.Data != nil {
 		data = *args.Data
+	} else if args.Input != nil {
+		data = *args.Input
+	} else if args.To == nil {
+		return common.Address{}, nil, fmt.Errorf("contract creation without data provided")
 	}
 
-	sender := args.From
-	nonce := uint64(0)
-	gasPrice := big.NewInt(0)
-
-	if sender == state.ZeroAddress {
-		sender = defaultSenderAddress
-	}
-
-	if sender != defaultSenderAddress {
-		if args.GasPrice != nil {
-			gasPrice.SetUint64(uint64(*args.GasPrice))
-		}
-
-		n, err := st.GetNonce(ctx, sender, blockNumber, dbTx)
-		if err != nil {
-			return common.Address{}, nil, err
-		}
-		nonce = uint64(n)
+	gas := maxCumulativeGasUsed
+	if args.Gas != nil && uint64(*args.Gas) > 0 && uint64(*args.Gas) < maxCumulativeGasUsed {
+		gas = uint64(*args.Gas)
 	}
 
 	tx := types.NewTx(&types.LegacyTx{
