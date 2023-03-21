@@ -30,8 +30,8 @@ func TestJSONRPC(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	Setup()
-	defer Teardown()
+	setup()
+	defer teardown()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		sc, err := deployContracts(network.URL, operations.DefaultSequencerPrivateKey, network.ChainID)
@@ -69,8 +69,8 @@ func Test_Filters(t *testing.T) {
 		t.Skip()
 	}
 	ctx := context.Background()
-	Setup()
-	defer Teardown()
+	setup()
+	defer teardown()
 	for _, network := range networks {
 		// test newBlockFilter creation
 		log.Infof("Network %s", network.Name)
@@ -266,8 +266,8 @@ func Test_Gas(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	Setup()
-	defer Teardown()
+	setup()
+	defer teardown()
 	var Address1 = toAddress
 	var Values = []*big.Int{
 		big.NewInt(1000),
@@ -306,8 +306,8 @@ func Test_Block(t *testing.T) {
 		t.Skip()
 	}
 	ctx := context.Background()
-	Setup()
-	defer Teardown()
+	setup()
+	defer teardown()
 	type rpcTx struct {
 		BlockHash        string `json:"blockHash"`
 		BlockNumber      string `json:"blockNumber"`
@@ -434,8 +434,8 @@ func Test_Transactions(t *testing.T) {
 		t.Skip()
 	}
 	ctx := context.Background()
-	Setup()
-	defer Teardown()
+	setup()
+	defer teardown()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		ethClient, err := ethclient.Dial(network.URL)

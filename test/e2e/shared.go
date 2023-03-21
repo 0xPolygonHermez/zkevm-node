@@ -48,7 +48,7 @@ var networks = []struct {
 	},
 }
 
-func Setup() {
+func setup() {
 	var err error
 	ctx := context.Background()
 	err = operations.Teardown()
@@ -67,7 +67,7 @@ func Setup() {
 	}
 }
 
-func Teardown() {
+func teardown() {
 	err := operations.Teardown()
 	if err != nil {
 		panic(err)
@@ -90,7 +90,7 @@ func createTX(client *ethclient.Client, auth *bind.TransactOpts, to common.Addre
 	}
 
 	log.Infof("\nTX details:\n\tNonce:    %d\n\tGasLimit: %d\n\tGasPrice: %d", nonce, gasLimit, gasPrice)
-	if gasLimit != uint64(21000) {
+	if gasLimit != uint64(21000) { //nolint:gomnd
 		return nil, fmt.Errorf("gasLimit %d != 21000", gasLimit)
 	}
 	tx := ethTypes.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)

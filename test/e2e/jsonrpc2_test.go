@@ -31,8 +31,8 @@ func Test_Misc(t *testing.T) {
 		t.Skip()
 	}
 	ctx := context.Background()
-	Setup()
-	defer Teardown()
+	setup()
+	defer teardown()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 
@@ -103,8 +103,8 @@ func Test_WebSocketsRequest(t *testing.T) {
 		t.Skip()
 	}
 	ctx := context.Background()
-	Setup()
-	defer Teardown()
+	setup()
+	defer teardown()
 
 	acc := common.HexToAddress(operations.DefaultSequencerAddress)
 
@@ -168,8 +168,8 @@ func Test_WebSocketsSubscription(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	Setup()
-	defer Teardown()
+	setup()
+	defer teardown()
 
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
@@ -257,8 +257,8 @@ func Test_RevertOnConstructorTransaction(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	Setup()
-	defer Teardown()
+	setup()
+	defer teardown()
 
 	ctx := context.Background()
 
@@ -312,8 +312,8 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	Setup()
-	defer Teardown()
+	setup()
+	defer teardown()
 
 	ctx := context.Background()
 
