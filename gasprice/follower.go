@@ -7,6 +7,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
+var truncateValue = big.NewInt(1000000) //nolint:gomnd
+
 // FollowerGasPrice struct.
 type FollowerGasPrice struct {
 	cfg  Config
@@ -48,8 +50,11 @@ func (f *FollowerGasPrice) UpdateGasPriceAvg() {
 		log.Warn("setting minGasPrice for L2")
 		result = minGasPrice
 	}
-	log.Debug("Storing L2 gas price: ", result)
-	err := f.pool.SetGasPrice(ctx, result.Uint64())
+	log.Debug("Full L2 gas price value: ", result)
+	truncAux := big.NewInt(0).Quo(result, truncateValue)
+	trunc := big.NewInt(0).Mul(truncAux, truncateValue)
+	log.Debug("Storing truncated L2 gas price: ", trunc)
+	err := f.pool.SetGasPrice(ctx, trunc.Uint64())
 	if err != nil {
 		log.Errorf("failed to update gas price in poolDB, err: %v", err)
 	}
