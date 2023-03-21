@@ -197,6 +197,14 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return ErrInvalidSender
 	}
 
+	// check if sender is blocked
+	blocked, err := p.storage.IsAddressBlocked(ctx, from)
+	if err != nil {
+		return err
+	} else if blocked {
+		return ErrBlockedSender
+	}
+
 	lastL2BlockNumber, err := p.state.GetLastL2BlockNumber(ctx, nil)
 	if err != nil {
 		return err

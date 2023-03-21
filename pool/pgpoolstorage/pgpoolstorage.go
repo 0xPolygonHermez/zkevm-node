@@ -622,3 +622,19 @@ func (p *PostgresPoolStorage) UpdateTxWIPStatus(ctx context.Context, hash common
 	}
 	return nil
 }
+
+// IsAddressBlocked check if an address is added to the blocked table
+func (p *PostgresPoolStorage) IsAddressBlocked(ctx context.Context, address common.Address) (bool, error) {
+	sql := `SELECT addr FROM pool.blocked WHERE addr = $1`
+	var addr string
+	err := p.db.QueryRow(ctx, sql, address.String()).Scan(&addr)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+
+	return true, nil
+}

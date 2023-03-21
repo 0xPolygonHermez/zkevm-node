@@ -63,18 +63,15 @@ func TestMain(m *testing.M) {
 }
 
 func Test_AddTx(t *testing.T) {
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
+
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -102,9 +99,7 @@ func Test_AddTx(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	const chainID = 2576980377
 	cfg := pool.Config{
@@ -114,31 +109,24 @@ func Test_AddTx(t *testing.T) {
 
 	txRLPHash := "0xf86e8212658082520894fd8b27a263e19f0e9592180e61f0f8c9dfeb1ff6880de0b6b3a764000080850133333355a01eac4c2defc7ed767ae36bbd02613c581b8fb87d0e4f579c9ee3a7cfdb16faa7a043ce30f43d952b9d034cf8f04fecb631192a5dbc7ee2a47f1f49c0d022a8849d"
 	b, err := hex.DecodeHex(txRLPHash)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
+
 	tx := new(types.Transaction)
 	tx.UnmarshalBinary(b) //nolint:gosec,errcheck
 
 	err = p.AddTx(ctx, *tx, "")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status, used_steps FROM pool.transaction")
+	require.NoError(t, err)
 	defer rows.Close() // nolint:staticcheck
-	if err != nil {
-		t.Error(err)
-	}
 
 	c := 0
 	for rows.Next() {
 		var hash, encoded, decoded, status string
 		var usedSteps int
 		err := rows.Scan(&hash, &encoded, &decoded, &status, &usedSteps)
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoError(t, err)
 		b, _ := tx.MarshalJSON()
 
 		assert.Equal(t, "0xa3cff5abdf47d4feb8204a45c0a8c58fc9b9bb9b29c6588c1d206b746815e9cc", hash, "invalid hash")
@@ -153,18 +141,14 @@ func Test_AddTx(t *testing.T) {
 }
 
 func Test_AddPreEIP155Tx(t *testing.T) {
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -197,9 +181,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	const chainID = 2576980377
 	cfg := pool.Config{
@@ -219,8 +201,8 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	require.NoError(t, err)
 
 	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.transaction")
-	defer rows.Close() // nolint:staticcheck
 	require.NoError(t, err)
+	defer rows.Close() // nolint:staticcheck
 
 	c := 0
 	for rows.Next() {
@@ -245,12 +227,10 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 }
 
 func Test_GetPendingTxs(t *testing.T) {
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -269,9 +249,7 @@ func Test_GetPendingTxs(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
@@ -292,15 +270,12 @@ func Test_GetPendingTxs(t *testing.T) {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
-			t.Error(err)
-		}
+		err = p.AddTx(ctx, *signedTx, "")
+		require.NoError(t, err)
 	}
 
 	txs, err := p.GetPendingTxs(ctx, false, limit)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, limit, len(txs))
 
@@ -310,12 +285,10 @@ func Test_GetPendingTxs(t *testing.T) {
 }
 
 func Test_GetPendingTxsZeroPassed(t *testing.T) {
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -334,9 +307,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
@@ -356,15 +327,12 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
-			t.Error(err)
-		}
+		err = p.AddTx(ctx, *signedTx, "")
+		require.NoError(t, err)
 	}
 
 	txs, err := p.GetPendingTxs(ctx, false, limit)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, txsCount, len(txs))
 
@@ -375,12 +343,10 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 
 func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	ctx := context.Background()
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close()
 
 	st := newState(stateSqlDB)
@@ -398,9 +364,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
@@ -419,9 +383,8 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10+int64(i)), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
-			t.Error(err)
-		}
+		err = p.AddTx(ctx, *signedTx, "")
+		require.NoError(t, err)
 	}
 
 	txs, err := p.GetTxs(ctx, pool.TxStatusPending, false, 1, 10)
@@ -433,18 +396,14 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 func Test_UpdateTxsStatus(t *testing.T) {
 	ctx := context.Background()
 
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -462,9 +421,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
@@ -479,45 +436,35 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx1, ""); err != nil {
-		t.Error(err)
-	}
+	err = p.AddTx(ctx, *signedTx1, "")
+	require.NoError(t, err)
 
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx2, ""); err != nil {
-		t.Error(err)
-	}
+	err = p.AddTx(ctx, *signedTx2, "")
+	require.NoError(t, err)
 
 	err = p.UpdateTxsStatus(ctx, []string{signedTx1.Hash().String(), signedTx2.Hash().String()}, pool.TxStatusInvalid)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	var count int
 	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.transaction WHERE status = $1", pool.TxStatusInvalid).Scan(&count)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 }
 
 func Test_UpdateTxStatus(t *testing.T) {
 	ctx := context.Background()
 
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -535,9 +482,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
@@ -552,70 +497,54 @@ func Test_UpdateTxStatus(t *testing.T) {
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx, ""); err != nil {
-		t.Error(err)
-	}
+	err = p.AddTx(ctx, *signedTx, "")
+	require.NoError(t, err)
 
 	err = p.UpdateTxStatus(ctx, signedTx.Hash(), pool.TxStatusInvalid, false)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	rows, err := poolSqlDB.Query(ctx, "SELECT status FROM pool.transaction WHERE hash = $1", signedTx.Hash().Hex())
+	require.NoError(t, err)
 	defer rows.Close() // nolint:staticcheck
-	if err != nil {
-		t.Error(err)
-	}
 
 	var state string
 	rows.Next()
-	if err := rows.Scan(&state); err != nil {
-		t.Error(err)
-	}
+	err = rows.Scan(&state)
+	require.NoError(t, err)
 
 	assert.Equal(t, pool.TxStatusInvalid, pool.TxStatus(state))
 }
 
 func Test_SetAndGetGasPrice(t *testing.T) {
-	initOrResetDB()
+	initOrResetDB(t)
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, nil, common.Address{}, chainID.Uint64())
 
 	nBig, err := rand.Int(rand.Reader, big.NewInt(0).SetUint64(math.MaxUint64))
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	expectedGasPrice := nBig.Uint64()
 
 	ctx := context.Background()
 
 	err = p.SetGasPrice(ctx, expectedGasPrice)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	gasPrice, err := p.GetGasPrice(ctx)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, expectedGasPrice, gasPrice)
 }
 
 func TestGetPendingTxSince(t *testing.T) {
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -634,9 +563,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
@@ -660,26 +587,21 @@ func TestGetPendingTxSince(t *testing.T) {
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		txsAddedTime = append(txsAddedTime, time.Now())
-		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
-			t.Error(err)
-		}
+		err = p.AddTx(ctx, *signedTx, "")
+		require.NoError(t, err)
 		txsAddedHashes = append(txsAddedHashes, signedTx.Hash())
 		time.Sleep(1 * time.Second)
 	}
 
 	txHashes, err := p.GetPendingTxHashesSince(ctx, timeBeforeTxs)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, txsCount, len(txHashes))
 	for i, txHash := range txHashes {
 		assert.Equal(t, txHash.Hex(), txsAddedHashes[i].Hex())
 	}
 
 	txHashes, err = p.GetPendingTxHashesSince(ctx, txsAddedTime[5])
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, 5, len(txHashes))
 	assert.Equal(t, txHashes[0].Hex(), txsAddedHashes[5].Hex())
 	assert.Equal(t, txHashes[1].Hex(), txsAddedHashes[6].Hex())
@@ -688,40 +610,30 @@ func TestGetPendingTxSince(t *testing.T) {
 	assert.Equal(t, txHashes[4].Hex(), txsAddedHashes[9].Hex())
 
 	txHashes, err = p.GetPendingTxHashesSince(ctx, txsAddedTime[8])
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, 2, len(txHashes))
 	assert.Equal(t, txHashes[0].Hex(), txsAddedHashes[8].Hex())
 	assert.Equal(t, txHashes[1].Hex(), txsAddedHashes[9].Hex())
 
 	txHashes, err = p.GetPendingTxHashesSince(ctx, txsAddedTime[9])
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, 1, len(txHashes))
 	assert.Equal(t, txHashes[0].Hex(), txsAddedHashes[9].Hex())
 
 	txHashes, err = p.GetPendingTxHashesSince(ctx, txsAddedTime[9].Add(1*time.Second))
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, 0, len(txHashes))
 }
 
 func Test_DeleteTransactionsByHashes(t *testing.T) {
 	ctx := context.Background()
-	initOrResetDB()
+	initOrResetDB(t)
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -739,9 +651,7 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
@@ -756,43 +666,33 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx1, ""); err != nil {
-		t.Error(err)
-	}
+	err = p.AddTx(ctx, *signedTx1, "")
+	require.NoError(t, err)
 
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx2, ""); err != nil {
-		t.Error(err)
-	}
+	err = p.AddTx(ctx, *signedTx2, "")
+	require.NoError(t, err)
 
 	err = p.DeleteTransactionsByHashes(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	var count int
 	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.transaction").Scan(&count)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
 
 func Test_TryAddIncompatibleTxs(t *testing.T) {
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -823,9 +723,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	type testCase struct {
 		name                 string
@@ -930,22 +828,19 @@ func newState(sqlDB *pgxpool.Pool) *state.State {
 	return st
 }
 
-func initOrResetDB() {
-	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
-		panic(err)
-	}
-	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
-		panic(err)
-	}
+func initOrResetDB(t *testing.T) {
+	err := dbutils.InitOrResetState(stateDBCfg)
+	require.NoError(t, err)
+
+	err = dbutils.InitOrResetPool(poolDBCfg)
+	require.NoError(t, err)
 }
 
 func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -964,9 +859,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
@@ -1071,12 +964,10 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 }
 
 func Test_AddRevertedTx(t *testing.T) {
-	initOrResetDB()
+	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -1095,9 +986,7 @@ func Test_AddRevertedTx(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	cfg := pool.Config{
 		FreeClaimGasLimit: 150000,
 	}
@@ -1131,4 +1020,92 @@ func Test_AddRevertedTx(t *testing.T) {
 	for i := 0; i < 1; i++ {
 		assert.Equal(t, pool.TxStatusPending, txs[0].Status)
 	}
+}
+
+func Test_BlockedAddress(t *testing.T) {
+	initOrResetDB(t)
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	require.NoError(t, err)
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	require.NoError(t, err)
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
+
+	const chainID = 2576980377
+	auth := operations.MustGetAuth(operations.DefaultSequencerPrivateKey, chainID)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: auth.From.String(),
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
+		},
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	require.NoError(t, err)
+
+	cfg := pool.Config{FreeClaimGasLimit: 150000}
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
+
+	gasPrice, err := p.GetGasPrice(ctx)
+	require.NoError(t, err)
+
+	// Add tx while address is not blocked
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrice)),
+		Gas:      24000,
+		To:       &auth.From,
+		Value:    big.NewInt(1000),
+	})
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, "")
+	require.NoError(t, err)
+
+	// block address
+	_, err = poolSqlDB.Exec(ctx, "INSERT INTO pool.blocked(addr) VALUES($1)", auth.From.String())
+	require.NoError(t, err)
+
+	// get blocked when try to add new tx
+	tx = types.NewTx(&types.LegacyTx{
+		Nonce:    1,
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrice)),
+		Gas:      24000,
+		To:       &auth.From,
+		Value:    big.NewInt(1000),
+	})
+	signedTx, err = auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, "")
+	require.Equal(t, pool.ErrBlockedSender, err)
+
+	// remove block
+	_, err = poolSqlDB.Exec(ctx, "DELETE FROM pool.blocked WHERE addr = $1", auth.From.String())
+	require.NoError(t, err)
+
+	// allowed to add tx again
+	err = p.AddTx(ctx, *signedTx, "")
+	require.NoError(t, err)
 }
