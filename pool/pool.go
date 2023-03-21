@@ -68,16 +68,16 @@ func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Addre
 		blockedAddresses: sync.Map{},
 	}
 
-	refreshBlockedAddresses(p)
-	go func() {
+	p.refreshBlockedAddresses()
+	go func(p *Pool) {
 		time.Sleep(intervalToUpdateBlockedAddressesInMinutes * time.Minute)
-		refreshBlockedAddresses(p)
-	}()
+		p.refreshBlockedAddresses()
+	}(p)
 	return p
 }
 
 // refreshBlockedAddresses refreshes the list of blocked addresses for the provided instance of pool
-func refreshBlockedAddresses(p *Pool) {
+func (p *Pool) refreshBlockedAddresses() {
 	bas, err := p.storage.GetAllAddressesBlocked(context.Background())
 	if err != nil {
 		log.Error("failed to load blocked addresses")
