@@ -557,7 +557,6 @@ func Test_Transactions(t *testing.T) {
 		require.NoError(t, err)
 
 		// Test Case: TX with invalid nonce
-
 		tx = ethTypes.NewTransaction(nonce-1, // Nonce will be lower than the current getNonceAt()
 			toAddress, big.NewInt(100), gasLimit, gasPrice, nil)
 		signedTx, err := auth.Signer(auth.From, tx)
@@ -566,11 +565,9 @@ func Test_Transactions(t *testing.T) {
 		log.Infof("Sending Tx %v Nonce (invalid) %v", signedTx.Hash(), signedTx.Nonce())
 		err = ethClient.SendTransaction(context.Background(), signedTx)
 		require.ErrorContains(t, err, "nonce too low")
-
 		// End Test Case
 
 		// Test Case: TX with no signature (which would fail the EIP-155)
-
 		invalidTx := ethTypes.NewTx(&ethTypes.LegacyTx{
 			Nonce:    nonce,
 			Value:    big.NewInt(10000),
@@ -583,7 +580,6 @@ func Test_Transactions(t *testing.T) {
 		// End Test Case
 
 		// Test Case: TX with amount being higher than balance
-
 		balance, err := ethClient.BalanceAt(context.Background(), auth.From, nil)
 		require.NoError(t, err)
 
@@ -601,7 +597,6 @@ func Test_Transactions(t *testing.T) {
 		require.ErrorContains(t, err, pool.ErrInsufficientFunds.Error())
 
 		// no contract code at given address test
-
 		// deploy contract with not enough gas for storage, just execution
 		address := common.HexToAddress("0xDEADBEEF596a836C9063a7EE35dA94DDA3b57B62")
 		instance, err := Double.NewDouble(address, ethClient)
