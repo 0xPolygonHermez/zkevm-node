@@ -27,6 +27,7 @@ type Config struct {
 	MaxTxsPerBatch uint64 `mapstructure:"MaxTxsPerBatch"`
 
 	// MaxBatchBytesSize is the maximum batch size in bytes
+	// (subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)
 	MaxBatchBytesSize uint64 `mapstructure:"MaxBatchBytesSize"`
 
 	// MaxCumulativeGasUsed is max gas amount used by batch

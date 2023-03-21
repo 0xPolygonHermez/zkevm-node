@@ -63,7 +63,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: uint64(112640),
+			expectedValue: uint64(129848),
 		},
 		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
@@ -251,7 +251,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Pool.MaxTxBytesSize",
-			expectedValue: uint64(102400),
+			expectedValue: uint64(30132),
+		},
+		{
+			path:          "Pool.MaxTxDataBytesSize",
+			expectedValue: 30000,
 		},
 		{
 			path:          "Pool.DB.User",

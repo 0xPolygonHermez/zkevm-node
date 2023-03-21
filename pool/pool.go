@@ -268,8 +268,6 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx types.Transaction) error {
 	maxUint64BigInt := big.NewInt(0).SetUint64(math.MaxUint64)
 
-	const maxDataSize = 30000
-
 	// GasLimit, Nonce and To fields are limited by their types, no need to check
 	// Gas Price and Value are checked against the balance, and the max balance allowed
 	// by the merkletree service is uint256, in this case, if the transaction has a
@@ -277,8 +275,8 @@ func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx typ
 	// reject the transaction
 
 	dataSize := len(tx.Data())
-	if dataSize > maxDataSize {
-		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, maxDataSize)
+	if dataSize > p.cfg.MaxTxDataBytesSize {
+		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, p.cfg.MaxTxDataBytesSize)
 	}
 
 	if tx.ChainId().Cmp(maxUint64BigInt) == 1 {
