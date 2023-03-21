@@ -243,7 +243,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	// when being selected
 	for _, oldTx := range oldTxs {
 		// discard invalid txs
-		if oldTx.Status == TxStatusInvalid {
+		if oldTx.Status == TxStatusInvalid || oldTx.Status == TxStatusFailed {
 			continue
 		}
 
