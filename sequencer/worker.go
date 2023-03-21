@@ -82,7 +82,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
 	}
 
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
-	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s)", tx.Hash.String(), tx.Nonce, tx.FromStr, tx.Cost.String())
+	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s)", tx.Hash.String(), tx.Nonce, tx.Cost.String(), tx.FromStr)
 	newReadyTx, prevReadyTx := addr.addTx(tx)
 
 	// Update the EfficiencyList (if needed)
@@ -189,14 +189,14 @@ func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters stat
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 	log.Infof("UpdateTx tx(%s) addr(%s)", txHash.String(), addr.String())
-	log.Debugf("UpdateTx counters.CumulativeGasUsed: %s", counters.CumulativeGasUsed)
-	log.Debugf("UpdateTx counters.UsedKeccakHashes: %s", counters.UsedKeccakHashes)
-	log.Debugf("UpdateTx counters.UsedPoseidonHashes: %s", counters.UsedPoseidonHashes)
-	log.Debugf("UpdateTx counters.UsedPoseidonPaddings: %s", counters.UsedPoseidonPaddings)
-	log.Debugf("UpdateTx counters.UsedMemAligns: %s", counters.UsedMemAligns)
-	log.Debugf("UpdateTx counters.UsedArithmetics: %s", counters.UsedArithmetics)
-	log.Debugf("UpdateTx counters.UsedBinaries: %s", counters.UsedBinaries)
-	log.Debugf("UpdateTx counters.UsedSteps: %s", counters.UsedSteps)
+	log.Debugf("UpdateTx counters.CumulativeGasUsed: %d", counters.CumulativeGasUsed)
+	log.Debugf("UpdateTx counters.UsedKeccakHashes: %d", counters.UsedKeccakHashes)
+	log.Debugf("UpdateTx counters.UsedPoseidonHashes: %d", counters.UsedPoseidonHashes)
+	log.Debugf("UpdateTx counters.UsedPoseidonPaddings: %d", counters.UsedPoseidonPaddings)
+	log.Debugf("UpdateTx counters.UsedMemAligns: %d", counters.UsedMemAligns)
+	log.Debugf("UpdateTx counters.UsedArithmetics: %d", counters.UsedArithmetics)
+	log.Debugf("UpdateTx counters.UsedBinaries: %d", counters.UsedBinaries)
+	log.Debugf("UpdateTx counters.UsedSteps: %d", counters.UsedSteps)
 
 	addrQueue, found := w.pool[addr.String()]
 

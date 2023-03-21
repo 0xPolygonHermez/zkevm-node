@@ -58,6 +58,22 @@
 - eth_submitWork _* not supported_
 - eth_submitHashrate _* not supported_
 
+## DEBUG
+
+### Supported
+
+- debug_traceTransaction
+- debug_traceBlockByNumber
+- debug_traceBlockByHash
+
+### Differences
+
+TBD
+
+### Not supported
+
+TBD
+
 ## NET
 
 ### Supported

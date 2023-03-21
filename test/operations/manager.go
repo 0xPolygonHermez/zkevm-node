@@ -40,6 +40,7 @@ const (
 	DefaultL1ChainID             uint64 = 1337
 
 	DefaultL2NetworkURL                 = "http://localhost:8123"
+	PermissionlessL2NetworkURL          = "http://localhost:8125"
 	DefaultL2NetworkWebSocketURL        = "ws://localhost:8133"
 	DefaultL2ChainID             uint64 = 1001
 
@@ -157,13 +158,28 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 // ApplyL1Txs sends the given L1 txs, waits for them to be consolidated and
 // checks the final state.
 func ApplyL1Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
-	_, err := applyTxs(ctx, txs, auth, client)
+	_, err := applyTxs(ctx, txs, auth, client, true)
 	return err
 }
 
+// ConfirmationLevel type used to describe the confirmation level of a transaction
+type ConfirmationLevel int
+
+// PoolConfirmationLevel indicates that transaction is added into the pool
+const PoolConfirmationLevel ConfirmationLevel = 0
+
+// TrustedConfirmationLevel indicates that transaction is  added into the trusted state
+const TrustedConfirmationLevel ConfirmationLevel = 1
+
+// VirtualConfirmationLevel indicates that transaction is  added into the virtual state
+const VirtualConfirmationLevel ConfirmationLevel = 2
+
+// VerifiedConfirmationLevel indicates that transaction is  added into the verified state
+const VerifiedConfirmationLevel ConfirmationLevel = 3
+
 // ApplyL2Txs sends the given L2 txs, waits for them to be consolidated and
 // checks the final state.
-func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) ([]*big.Int, error) {
+func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client, confirmationLevel ConfirmationLevel) ([]*big.Int, error) {
 	var err error
 	if auth == nil {
 		auth, err = GetAuth(DefaultSequencerPrivateKey, DefaultL2ChainID)
@@ -178,10 +194,13 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 			return nil, err
 		}
 	}
-
-	sentTxs, err := applyTxs(ctx, txs, auth, client)
+	waitToBeMined := confirmationLevel != PoolConfirmationLevel
+	sentTxs, err := applyTxs(ctx, txs, auth, client, waitToBeMined)
 	if err != nil {
 		return nil, err
+	}
+	if confirmationLevel == PoolConfirmationLevel {
+		return nil, nil
 	}
 
 	l2BlockNumbers := make([]*big.Int, 0, len(sentTxs))
@@ -198,12 +217,18 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 		if tx.Nonce() != expectedNonce {
 			return nil, fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
 		}
+		if confirmationLevel == TrustedConfirmationLevel {
+			continue
+		}
 
 		// wait for l2 block to be virtualized
 		log.Infof("waiting for the block number %v to be virtualized", receipt.BlockNumber.String())
 		err = WaitL2BlockToBeVirtualized(receipt.BlockNumber, 4*time.Minute) //nolint:gomnd
 		if err != nil {
 			return nil, err
+		}
+		if confirmationLevel == VirtualConfirmationLevel {
+			continue
 		}
 
 		// wait for l2 block number to be consolidated
@@ -217,7 +242,7 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 	return l2BlockNumbers, nil
 }
 
-func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) ([]*types.Transaction, error) {
+func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client, waitToBeMined bool) ([]*types.Transaction, error) {
 	var sentTxs []*types.Transaction
 
 	for i := 0; i < len(txs); i++ {
@@ -232,6 +257,9 @@ func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.Transact
 		}
 
 		sentTxs = append(sentTxs, signedTx)
+	}
+	if !waitToBeMined {
+		return nil, nil
 	}
 
 	// wait for TX to be mined
@@ -297,9 +325,73 @@ func (m *Manager) Setup() error {
 	return nil
 }
 
+// SetupWithPermissionless creates all the required components for both trusted and permissionless nodes
+// and initializes them according to the manager config.
+func (m *Manager) SetupWithPermissionless() error {
+	// Run network container
+	err := m.StartNetwork()
+	if err != nil {
+		return err
+	}
+
+	// Approve matic
+	err = ApproveMatic()
+	if err != nil {
+		return err
+	}
+
+	err = m.SetUpSequencer()
+	if err != nil {
+		return err
+	}
+
+	err = m.StartTrustedAndPermissionlessNode()
+	if err != nil {
+		return err
+	}
+
+	// Run node container
+	return nil
+}
+
+// StartEthTxSender stops the eth tx sender service
+func (m *Manager) StartEthTxSender() error {
+	return StartComponent("eth-tx-manager")
+}
+
+// StopEthTxSender stops the eth tx sender service
+func (m *Manager) StopEthTxSender() error {
+	return StopComponent("eth-tx-manager")
+}
+
+// StartSequencer starts the sequencer
+func (m *Manager) StartSequencer() error {
+	return StartComponent("seq")
+}
+
+// StopSequencer stops the sequencer
+func (m *Manager) StopSequencer() error {
+	return StopComponent("seq")
+}
+
 // Teardown stops all the components.
 func Teardown() error {
 	err := stopNode()
+	if err != nil {
+		return err
+	}
+
+	err = stopNetwork()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// TeardownPermissionless stops all the components.
+func TeardownPermissionless() error {
+	err := stopPermissionlessNode()
 	if err != nil {
 		return err
 	}
@@ -365,6 +457,11 @@ func (m *Manager) StartNode() error {
 	return StartComponent("node", nodeUpCondition)
 }
 
+// StartTrustedAndPermissionlessNode starts the node container
+func (m *Manager) StartTrustedAndPermissionlessNode() error {
+	return StartComponent("permissionless", nodeUpCondition)
+}
+
 // ApproveMatic runs the approving matic command
 func ApproveMatic() error {
 	return StartComponent("approve-matic")
@@ -372,6 +469,10 @@ func ApproveMatic() error {
 
 func stopNode() error {
 	return StopComponent("node")
+}
+
+func stopPermissionlessNode() error {
+	return StopComponent("permissionless")
 }
 
 func runCmd(c *exec.Cmd) error {

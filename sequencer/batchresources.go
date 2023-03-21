@@ -20,9 +20,9 @@ func (r *batchResources) sub(other batchResources) error {
 	r.bytes -= other.bytes
 	err := r.zKCounters.Sub(other.zKCounters)
 	if err != nil {
+		r.bytes = bytesBackup
 		return NewBatchRemainingResourcesUnderflowError(err, err.Error())
 	}
-	r.bytes = bytesBackup
 
 	return err
 }

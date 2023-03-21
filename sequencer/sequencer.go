@@ -156,7 +156,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 
-	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg)
+	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg, s.etherman)
 	go closingSignalsManager.Start()
 
 	go s.trackOldTxs(ctx)
