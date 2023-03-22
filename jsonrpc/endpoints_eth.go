@@ -55,27 +55,26 @@ func (e *EthEndpoints) BlockNumber() (interface{}, types.Error) {
 // useful to execute view/pure methods and retrieve values.
 func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		if arg == nil {
+			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil)
+		} else if blockArg == nil {
+			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 1", nil)
+		}
+
 		var blockNumber uint64
 		var err error
-		if blockArg == nil {
-			blockNumber, err = e.state.GetLastL2BlockNumber(ctx, dbTx)
+		if blockArg.IsHash() {
+			block, err := e.state.GetL2BlockByHash(ctx, blockArg.Hash().Hash(), dbTx)
 			if err != nil {
-				return rpcErrorResponse(types.DefaultErrorCode, "failed to get last block from state", err)
+				errMsg := fmt.Sprintf("failed to get block by hash %v", blockArg.Hash().Hash())
+				return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
 			}
+			blockNumber = block.Number().Uint64()
 		} else {
-			if blockArg.IsHash() {
-				block, err := e.state.GetL2BlockByHash(ctx, blockArg.Hash().Hash(), dbTx)
-				if err != nil {
-					errMsg := fmt.Sprintf("failed to get block by hash %v", blockArg.Hash().Hash())
-					return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
-				}
-				blockNumber = block.Number().Uint64()
-			} else {
-				var rpcErr types.Error
-				blockNumber, rpcErr = blockArg.Number().GetNumericBlockNumber(ctx, e.state, dbTx)
-				if rpcErr != nil {
-					return nil, rpcErr
-				}
+			var rpcErr types.Error
+			blockNumber, rpcErr = blockArg.Number().GetNumericBlockNumber(ctx, e.state, dbTx)
+			if rpcErr != nil {
+				return nil, rpcErr
 			}
 		}
 
@@ -120,6 +119,10 @@ func (e *EthEndpoints) ChainId() (interface{}, types.Error) { //nolint:revive
 // node performance.
 func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		if arg == nil {
+			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil)
+		}
+
 		var blockNumber uint64
 		var err error
 		if blockArg == nil {

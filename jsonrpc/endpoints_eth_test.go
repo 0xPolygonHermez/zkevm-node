@@ -131,6 +131,7 @@ func TestCall(t *testing.T) {
 					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
 					Data:     types.ArgBytesPtr([]byte("data")),
 				},
+				"latest",
 			},
 			expectedResult: []byte("hello world"),
 			expectedError:  nil,
@@ -250,6 +251,7 @@ func TestCall(t *testing.T) {
 					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
 					Data:     types.ArgBytesPtr([]byte("data")),
 				},
+				"latest",
 			},
 			expectedResult: []byte("hello world"),
 			expectedError:  nil,
@@ -319,6 +321,7 @@ func TestCall(t *testing.T) {
 					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
 					Data:     types.ArgBytesPtr([]byte("data")),
 				},
+				"latest",
 			},
 			expectedResult: nil,
 			expectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get block header"),
@@ -328,26 +331,6 @@ func TestCall(t *testing.T) {
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
 				m.State.On("GetL2BlockHeaderByNumber", context.Background(), blockNumber, m.DbTx).Return(nil, errors.New("failed to get block header")).Once()
-			},
-		},
-		{
-			name: "Transaction with gas but failed to get last block number",
-			params: []interface{}{
-				types.TxArgs{
-					From:     state.HexToAddressPtr("0x1"),
-					To:       state.HexToAddressPtr("0x2"),
-					Gas:      types.ArgUint64Ptr(24000),
-					GasPrice: types.ArgBytesPtr(big.NewInt(1).Bytes()),
-					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
-					Data:     types.ArgBytesPtr([]byte("data")),
-				},
-			},
-			expectedResult: nil,
-			expectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get last block from state"),
-			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
-				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
-				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(uint64(0), errors.New("failed to get last block number")).Once()
 			},
 		},
 		{
@@ -361,6 +344,7 @@ func TestCall(t *testing.T) {
 					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
 					Data:     types.ArgBytesPtr([]byte("data")),
 				},
+				"latest",
 			},
 			expectedResult: nil,
 			expectedError:  types.NewRPCError(types.RevertedErrorCode, "failed to process unsigned transaction"),

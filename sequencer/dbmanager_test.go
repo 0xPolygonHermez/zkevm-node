@@ -78,7 +78,7 @@ func setupDBManager() {
 
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       150,
-		MaxBatchBytesSize:    150000,
+		MaxBatchBytesSize:    129848,
 		MaxCumulativeGasUsed: 30000000,
 		MaxKeccakHashes:      468,
 		MaxPoseidonHashes:    279620,

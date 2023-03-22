@@ -49,6 +49,11 @@ var (
 			},
 		},
 	}
+	cfg = pool.Config{
+		FreeClaimGasLimit:  150000,
+		MaxTxBytesSize:     30132,
+		MaxTxDataBytesSize: 30000,
+	}
 	chainID = big.NewInt(1337)
 )
 
@@ -107,9 +112,6 @@ func Test_AddTx(t *testing.T) {
 	}
 
 	const chainID = 2576980377
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
-	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
 
 	txRLPHash := "0xf86e8212658082520894fd8b27a263e19f0e9592180e61f0f8c9dfeb1ff6880de0b6b3a764000080850133333355a01eac4c2defc7ed767ae36bbd02613c581b8fb87d0e4f579c9ee3a7cfdb16faa7a043ce30f43d952b9d034cf8f04fecb631192a5dbc7ee2a47f1f49c0d022a8849d"
@@ -150,6 +152,67 @@ func Test_AddTx(t *testing.T) {
 	}
 
 	assert.Equal(t, 1, c, "invalid number of txs in the pool")
+}
+
+func Test_AddTx_OversizedData(t *testing.T) {
+	initOrResetDB()
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0xb48cA794d49EeC406A5dD2c547717e37b5952a83",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
+		},
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	const chainID = 2576980377
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
+
+	b := make([]byte, cfg.MaxTxBytesSize+1)
+	from := common.HexToAddress(operations.DefaultSequencerAddress)
+	tx := types.NewTransaction(0, from, big.NewInt(0), 0, big.NewInt(0), b)
+
+	// GetAuth configures and returns an auth object.
+	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, chainID)
+	require.NoError(t, err)
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, "")
+	require.EqualError(t, err, pool.ErrOversizedData.Error())
 }
 
 func Test_AddPreEIP155Tx(t *testing.T) {
@@ -202,9 +265,6 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	}
 
 	const chainID = 2576980377
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
-	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
 
 	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81b"
@@ -273,9 +333,6 @@ func Test_GetPendingTxs(t *testing.T) {
 		t.Error(err)
 	}
 
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
-	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
@@ -336,9 +393,6 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
@@ -401,9 +455,6 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
-	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
@@ -464,9 +515,6 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
@@ -538,9 +586,6 @@ func Test_UpdateTxStatus(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
-	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
@@ -582,9 +627,6 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, nil, common.Address{}, chainID.Uint64())
 
@@ -636,9 +678,6 @@ func TestGetPendingTxSince(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
@@ -741,9 +780,6 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
@@ -898,9 +934,6 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 			expectedError: fmt.Errorf("chain id higher than allowed, max allowed is %v", uint64(math.MaxUint64)),
 		},
 	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
-	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			incompatibleTx := testCase.createIncompatibleTx()
@@ -966,9 +999,6 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
@@ -1097,9 +1127,6 @@ func Test_AddRevertedTx(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
-	}
-	cfg := pool.Config{
-		FreeClaimGasLimit: 150000,
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
 
