@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -37,6 +38,12 @@ type Pool struct {
 	l2BridgeAddr common.Address
 	chainID      uint64
 	cfg          Config
+}
+
+type preexecutionResponse struct {
+	usedZkCounters state.ZKCounters
+	isOOC          bool
+	isOOG          bool
 }
 
 // NewPool creates and initializes an instance of Pool
@@ -73,11 +80,11 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
 	// Execute transaction to calculate its zkCounters
-	zkCounters, isOOC, isOOG, err := p.PreExecuteTx(ctx, tx)
+	preexecutionResponse, err := p.PreExecuteTx(ctx, tx)
 	if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
 
-		if isOOC {
+		if preexecutionResponse.isOOC {
 			event := &state.Event{
 				EventType: state.EventType_Prexecution_OOC,
 				Timestamp: time.Now(),
@@ -91,7 +98,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			}
 			// Do not add tx to the pool
 			return fmt.Errorf("out of counters")
-		} else if isOOG {
+		} else if preexecutionResponse.isOOG {
 			event := &state.Event{
 				EventType: state.EventType_Prexecution_OOG,
 				Timestamp: time.Now(),
@@ -105,21 +112,32 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			}
 		}
 	}
-	poolTx.ZKCounters = zkCounters
+	poolTx.ZKCounters = preexecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, poolTx)
 }
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, bool, bool, error) {
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preexecutionResponse, error) {
+	response := preexecutionResponse{usedZkCounters: state.ZKCounters{}, isOOC: false, isOOG: false}
+
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
-		return state.ZKCounters{}, err, false
+		return response, err
 	}
 
-	isOOG := false
+	response.usedZkCounters = processBatchResponse.UsedZkCounters
 
-	return processBatchResponse.UsedZkCounters, !processBatchResponse.IsBatchProcessed, isOOG, processBatchResponse.ExecutorError
+	if processBatchResponse.IsBatchProcessed {
+		if processBatchResponse.Responses != nil && processBatchResponse.Responses[0] != nil &&
+			executor.IsROMOutOfGasError(executor.RomErrorCode(processBatchResponse.Responses[0].RomError)) {
+			response.isOOC = true
+		}
+	} else {
+		response.isOOG = !processBatchResponse.IsBatchProcessed
+	}
+
+	return response, nil
 }
 
 // GetPendingTxs from the pool
