@@ -945,7 +945,7 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
 			f.batch.remainingResources = tc.remaining
-			workerMock.On("AddEvent", ctx, mock.Anything, nil).Return(nil)
+			dbManagerMock.On("AddEvent", ctx, mock.Anything, nil).Return(nil)
 			if tc.expectedWorkerUpdate {
 				workerMock.On("UpdateTx", txResponse.TxHash, tc.expectedTxTracker.From, result.UsedZkCounters).Return().Once()
 			}
