@@ -787,25 +787,25 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 
 // GetUncleByBlockHashAndIndex returns information about a uncle of a
 // block by hash and uncle index position
-func (e *EthEndpoints) GetUncleByBlockHashAndIndex() (interface{}, types.Error) {
+func (e *EthEndpoints) GetUncleByBlockHashAndIndex(hash types.ArgHash, index types.Index) (interface{}, types.Error) {
 	return nil, nil
 }
 
 // GetUncleByBlockNumberAndIndex returns information about a uncle of a
 // block by number and uncle index position
-func (e *EthEndpoints) GetUncleByBlockNumberAndIndex() (interface{}, types.Error) {
+func (e *EthEndpoints) GetUncleByBlockNumberAndIndex(number types.BlockNumber, index types.Index) (interface{}, types.Error) {
 	return nil, nil
 }
 
 // GetUncleCountByBlockHash returns the number of uncles in a block
 // matching the given block hash
-func (e *EthEndpoints) GetUncleCountByBlockHash() (interface{}, types.Error) {
+func (e *EthEndpoints) GetUncleCountByBlockHash(hash types.ArgAddress) (interface{}, types.Error) {
 	return "0x0", nil
 }
 
 // GetUncleCountByBlockNumber returns the number of uncles in a block
 // matching the given block number
-func (e *EthEndpoints) GetUncleCountByBlockNumber() (interface{}, types.Error) {
+func (e *EthEndpoints) GetUncleCountByBlockNumber(number types.BlockNumber) (interface{}, types.Error) {
 	return "0x0", nil
 }
 

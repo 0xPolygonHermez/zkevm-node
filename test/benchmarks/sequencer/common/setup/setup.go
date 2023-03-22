@@ -116,7 +116,4 @@ func BootstrapSequencer(b *testing.B, opsman *operations.Manager) {
 	err := operations.StartComponent("seq")
 	require.NoError(b, err)
 	log.Debug("Sequencer Started!")
-	log.Debug("Setup sequencer ....")
-	require.NoError(b, opsman.SetUpSequencer())
-	log.Debug("Sequencer Setup ready!")
 }

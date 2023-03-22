@@ -153,8 +153,16 @@ func WaitL2BlockToBeConsolidated(l2Block *big.Int, timeout time.Duration) error 
 
 // WaitL2BlockToBeVirtualized waits until a L2 Block has been virtualized or the given timeout expires.
 func WaitL2BlockToBeVirtualized(l2Block *big.Int, timeout time.Duration) error {
+	l2NetworkURL := "http://localhost:8123"
 	return Poll(DefaultInterval, timeout, func() (bool, error) {
-		return l2BlockVirtualizationCondition(l2Block)
+		return l2BlockVirtualizationCondition(l2Block, l2NetworkURL)
+	})
+}
+
+// WaitL2BlockToBeVirtualizedCustomRPC waits until a L2 Block has been virtualized or the given timeout expires.
+func WaitL2BlockToBeVirtualizedCustomRPC(l2Block *big.Int, timeout time.Duration, l2NetworkURL string) error {
+	return Poll(DefaultInterval, timeout, func() (bool, error) {
+		return l2BlockVirtualizationCondition(l2Block, l2NetworkURL)
 	})
 }
 
@@ -277,8 +285,7 @@ func l2BlockConsolidationCondition(l2Block *big.Int) (bool, error) {
 }
 
 // l2BlockVirtualizationCondition
-func l2BlockVirtualizationCondition(l2Block *big.Int) (bool, error) {
-	l2NetworkURL := "http://localhost:8123"
+func l2BlockVirtualizationCondition(l2Block *big.Int, l2NetworkURL string) (bool, error) {
 	response, err := client.JSONRPCCall(l2NetworkURL, "zkevm_isBlockVirtualized", hex.EncodeBig(l2Block))
 	if err != nil {
 		return false, err

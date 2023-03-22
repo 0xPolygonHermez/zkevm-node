@@ -132,7 +132,7 @@ func sendTxs(cliCtx *cli.Context) error {
 			for net := range networks {
 				netKeys = append(netKeys, net)
 			}
-			return fmt.Errorf("Please specify one or more of these networks: %v", netKeys)
+			return fmt.Errorf("please specify one or more of these networks: %v", netKeys)
 		}
 		log.Infof("connecting to %v: %v", network.Name, network.URL)
 		client, err := ethclient.Dial(network.URL)
@@ -187,7 +187,7 @@ func sendTxs(cliCtx *cli.Context) error {
 			if network.networkLayer == networkLayer1 {
 				err = operations.ApplyL1Txs(ctx, txs, auth, client)
 			} else if network.networkLayer == networkLayer2 {
-				_, err = operations.ApplyL2Txs(ctx, txs, auth, client)
+				_, err = operations.ApplyL2Txs(ctx, txs, auth, client, operations.VerifiedConfirmationLevel)
 			}
 			if err != nil {
 				return err

@@ -13,10 +13,11 @@ type closingSignalsManager struct {
 	closingSignalCh        ClosingSignalCh
 	cfg                    FinalizerCfg
 	lastForcedBatchNumSent uint64
+	etherman               etherman
 }
 
-func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface, closingSignalCh ClosingSignalCh, cfg FinalizerCfg) *closingSignalsManager {
-	return &closingSignalsManager{ctx: ctx, dbManager: dbManager, closingSignalCh: closingSignalCh, cfg: cfg}
+func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface, closingSignalCh ClosingSignalCh, cfg FinalizerCfg, etherman etherman) *closingSignalsManager {
+	return &closingSignalsManager{ctx: ctx, dbManager: dbManager, closingSignalCh: closingSignalCh, cfg: cfg, etherman: etherman}
 }
 
 func (c *closingSignalsManager) Start() {
@@ -35,6 +36,7 @@ func (c *closingSignalsManager) checkSendToL1Timeout() {
 			limit := time.Now().Unix() - int64(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration.Seconds())
 
 			if timestamp.Unix() < limit {
+				log.Debugf("sending to L1 timeout signal (timestamp: %v, limit: %v)", timestamp.Unix(), limit)
 				c.closingSignalCh.SendingToL1TimeoutCh <- true
 				time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration)
 			} else {
@@ -55,13 +57,25 @@ func (c *closingSignalsManager) checkGERUpdate() {
 	for {
 		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingGER.Duration)
 
-		ger, _, err := c.dbManager.GetLatestGer(c.ctx, c.cfg.GERFinalityNumberOfBlocks)
+		lastL1BlockNumber, err := c.etherman.GetLatestBlockNumber(c.ctx)
+		if err != nil {
+			log.Errorf("error getting latest L1 block number: %v", err)
+			continue
+		}
+
+		maxBlockNumber := uint64(0)
+		if c.cfg.GERFinalityNumberOfBlocks <= lastL1BlockNumber {
+			maxBlockNumber = lastL1BlockNumber - c.cfg.GERFinalityNumberOfBlocks
+		}
+
+		ger, _, err := c.dbManager.GetLatestGer(c.ctx, maxBlockNumber)
 		if err != nil {
 			log.Errorf("error checking GER update: %v", err)
 			continue
 		}
 
 		if ger.GlobalExitRoot != lastGERSent {
+			log.Debugf("sending GER update signal (GER: %v)", ger.GlobalExitRoot)
 			c.closingSignalCh.GERCh <- ger.GlobalExitRoot
 			lastGERSent = ger.GlobalExitRoot
 		}
@@ -105,6 +119,7 @@ func (c *closingSignalsManager) checkForcedBatches() {
 		}
 
 		for _, forcedBatch := range forcedBatches {
+			log.Debugf("sending forced batch signal (forced batch number: %v)", forcedBatch.ForcedBatchNumber)
 			c.closingSignalCh.ForcedBatchCh <- *forcedBatch
 			c.lastForcedBatchNumSent = forcedBatch.ForcedBatchNumber
 		}
