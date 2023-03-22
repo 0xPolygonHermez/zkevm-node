@@ -258,6 +258,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 30000,
 		},
 		{
+			path:          "Pool.MinGasPrice",
+			expectedValue: uint64(1000000000),
+		},
+		{
+			path:          "Pool.MinSuggestedGasPriceInterval",
+			expectedValue: types.NewDuration(5 * time.Minute),
+		},
+		{
 			path:          "Pool.DB.User",
 			expectedValue: "pool_user",
 		},
