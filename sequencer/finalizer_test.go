@@ -896,6 +896,7 @@ func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 func TestFinalizer_checkRemainingResources(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
+	ctx := context.Background()
 	txResponse := &state.ProcessTransactionResponse{TxHash: oldHash}
 	result := &state.ProcessBatchResponse{
 		UsedZkCounters: state.ZKCounters{CumulativeGasUsed: 1000},
@@ -946,10 +947,11 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			f.batch.remainingResources = tc.remaining
 			if tc.expectedWorkerUpdate {
 				workerMock.On("UpdateTx", txResponse.TxHash, tc.expectedTxTracker.From, result.UsedZkCounters).Return().Once()
+				workerMock.On("AddEvent", ctx, mock.Anything, nil).Return(nil)
 			}
 
 			// act
-			err := f.checkRemainingResources(context.Background(), result, tc.expectedTxTracker)
+			err := f.checkRemainingResources(ctx, result, tc.expectedTxTracker)
 
 			// assert
 			if tc.expectedErr != nil {
