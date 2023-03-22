@@ -174,7 +174,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return ErrOversizedData
 	}
 	if tx.GasPrice().Cmp(p.minGasPrice) == -1 {
-		return ErrIntrinsicGasPrice
+		return ErrGasPrice
 	} else {
 		fromTimestamp := time.Now().UTC().Add(-p.cfg.MinSuggestedGasPriceInterval.Duration)
 		gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
@@ -183,7 +183,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		} else if err != nil {
 			return err
 		} else if tx.GasPrice().Cmp(big.NewInt(0).SetUint64(gasPrice)) == -1 {
-			return ErrIntrinsicGasPrice
+			return ErrGasPrice
 		}
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded

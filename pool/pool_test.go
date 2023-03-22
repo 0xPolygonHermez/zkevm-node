@@ -1207,7 +1207,7 @@ func Test_AddTxWithIntrinsicGasPriceTooLow(t *testing.T) {
 	require.NoError(t, err)
 
 	err = p.AddTx(ctx, *signedTx, "")
-	require.ErrorIs(t, err, pool.ErrIntrinsicGasPrice)
+	require.ErrorIs(t, err, pool.ErrGasPrice)
 }
 
 func Test_AddRevertedTx(t *testing.T) {
