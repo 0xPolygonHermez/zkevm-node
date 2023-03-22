@@ -53,7 +53,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 [Synchronizer]
 SyncInterval = "5s"
 SyncChunkSize = 100
-GenBlockNumber = 67
+GenBlockNumber = 79
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
