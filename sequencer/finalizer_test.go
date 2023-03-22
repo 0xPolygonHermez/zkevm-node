@@ -949,7 +949,7 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			}
 
 			// act
-			err := f.checkRemainingResources(result, tc.expectedTxTracker)
+			err := f.checkRemainingResources(context.Background(), result, tc.expectedTxTracker)
 
 			// assert
 			if tc.expectedErr != nil {

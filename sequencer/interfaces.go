@@ -76,6 +76,7 @@ type stateInterface interface {
 	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
 	FlushMerkleTree(ctx context.Context) error
 	AddDebugInfo(ctx context.Context, info *state.DebugInfo, dbTx pgx.Tx) error
+	AddEvent(ctx context.Context, event *state.Event, dbTx pgx.Tx) error
 }
 
 type workerInterface interface {
@@ -86,7 +87,7 @@ type workerInterface interface {
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker
 	DeleteTx(txHash common.Hash, from common.Address)
 	HandleL2Reorg(txHashes []common.Hash)
-	NewTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters) (*TxTracker, error)
+	NewTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, ip string) (*TxTracker, error)
 }
 
 // The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.
@@ -118,6 +119,7 @@ type dbManagerInterface interface {
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	FlushMerkleTree(ctx context.Context) error
 	AddDebugInfo(ctx context.Context, info *state.DebugInfo, dbTx pgx.Tx) error
+	AddEvent(ctx context.Context, event *state.Event, dbTx pgx.Tx) error
 }
 
 type dbManagerStateInterface interface {
@@ -149,6 +151,7 @@ type dbManagerStateInterface interface {
 	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
 	FlushMerkleTree(ctx context.Context) error
 	AddDebugInfo(ctx context.Context, info *state.DebugInfo, dbTx pgx.Tx) error
+	AddEvent(ctx context.Context, event *state.Event, dbTx pgx.Tx) error
 }
 
 type ethTxManager interface {

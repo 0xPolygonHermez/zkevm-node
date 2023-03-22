@@ -152,7 +152,7 @@ func (d *dbManager) loadFromPool() {
 }
 
 func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
-	txTracker, err := d.worker.NewTxTracker(tx.Transaction, isClaim, tx.ZKCounters)
+	txTracker, err := d.worker.NewTxTracker(tx.Transaction, isClaim, tx.ZKCounters, tx.IP)
 	if err != nil {
 		return err
 	}
@@ -555,4 +555,9 @@ func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
 // AddDebugInfo is used to store debug info useful during runtime
 func (d *dbManager) AddDebugInfo(ctx context.Context, info *state.DebugInfo, dbTx pgx.Tx) error {
 	return d.state.AddDebugInfo(ctx, info, dbTx)
+}
+
+// AddEvent is used to store and event in the database
+func (d *dbManager) AddEvent(ctx context.Context, event *state.Event, dbTx pgx.Tx) error {
+	return d.state.AddEvent(ctx, event, dbTx)
 }
