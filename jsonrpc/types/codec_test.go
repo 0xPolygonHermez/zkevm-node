@@ -1,4 +1,4 @@
-package jsonrpc
+package types
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,14 +41,14 @@ func TestBlockNumberMarshalJSON(t *testing.T) {
 }
 
 func TestGetNumericBlockNumber(t *testing.T) {
-	s := newStateMock(t)
+	s := mocks.NewStateMock(t)
 
 	type testCase struct {
 		name                string
 		bn                  *BlockNumber
 		expectedBlockNumber uint64
-		expectedError       rpcError
-		setupMocks          func(s *stateMock, d *dbTxMock, t *testCase)
+		expectedError       Error
+		setupMocks          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase)
 	}
 
 	testCases := []testCase{
@@ -56,7 +57,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			bn:                  nil,
 			expectedBlockNumber: 40,
 			expectedError:       nil,
-			setupMocks: func(s *stateMock, d *dbTxMock, t *testCase) {
+			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
 				s.
 					On("GetLastL2BlockNumber", context.Background(), d).
 					Return(uint64(40), nil).
@@ -68,7 +69,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			bn:                  bnPtr(LatestBlockNumber),
 			expectedBlockNumber: 50,
 			expectedError:       nil,
-			setupMocks: func(s *stateMock, d *dbTxMock, t *testCase) {
+			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
 				s.
 					On("GetLastL2BlockNumber", context.Background(), d).
 					Return(uint64(50), nil).
@@ -80,7 +81,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			bn:                  bnPtr(PendingBlockNumber),
 			expectedBlockNumber: 30,
 			expectedError:       nil,
-			setupMocks: func(s *stateMock, d *dbTxMock, t *testCase) {
+			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
 				s.
 					On("GetLastL2BlockNumber", context.Background(), d).
 					Return(uint64(30), nil).
@@ -92,30 +93,30 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			bn:                  bnPtr(EarliestBlockNumber),
 			expectedBlockNumber: 0,
 			expectedError:       nil,
-			setupMocks:          func(s *stateMock, d *dbTxMock, t *testCase) {},
+			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
 			name:                "BlockNumber Positive Number",
 			bn:                  bnPtr(BlockNumber(int64(10))),
 			expectedBlockNumber: 10,
 			expectedError:       nil,
-			setupMocks:          func(s *stateMock, d *dbTxMock, t *testCase) {},
+			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
 			name:                "BlockNumber Negative Number <= -4",
 			bn:                  bnPtr(BlockNumber(int64(-4))),
 			expectedBlockNumber: 0,
-			expectedError:       newRPCError(invalidParamsErrorCode, "invalid block number: -4"),
-			setupMocks:          func(s *stateMock, d *dbTxMock, t *testCase) {},
+			expectedError:       NewRPCError(InvalidParamsErrorCode, "invalid block number: -4"),
+			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			tc := testCase
-			dbTx := newDbTxMock(t)
+			dbTx := mocks.NewDBTxMock(t)
 			testCase.setupMocks(s, dbTx, &tc)
-			result, rpcErr := testCase.bn.getNumericBlockNumber(context.Background(), s, dbTx)
+			result, rpcErr := testCase.bn.GetNumericBlockNumber(context.Background(), s, dbTx)
 			assert.Equal(t, testCase.expectedBlockNumber, result)
 			if rpcErr != nil || testCase.expectedError != nil {
 				assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode())
@@ -131,7 +132,7 @@ func TestResponseMarshal(t *testing.T) {
 		JSONRPC string
 		ID      interface{}
 		Result  interface{}
-		Error   rpcError
+		Error   Error
 
 		ExpectedJSON string
 	}{
@@ -151,7 +152,7 @@ func TestResponseMarshal(t *testing.T) {
 			JSONRPC: "2.0",
 			ID:      1,
 			Result:  nil,
-			Error:   newRPCError(123, "m"),
+			Error:   NewRPCError(123, "m"),
 
 			ExpectedJSON: "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":123,\"message\":\"m\"}}",
 		},
@@ -162,7 +163,7 @@ func TestResponseMarshal(t *testing.T) {
 			Result: struct {
 				A string `json:"A"`
 			}{"A"},
-			Error: newRPCError(123, "m"),
+			Error: NewRPCError(123, "m"),
 
 			ExpectedJSON: "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":123,\"message\":\"m\"}}",
 		},
@@ -212,6 +213,24 @@ func TestIndexUnmarshalJSON(t *testing.T) {
 		err := json.Unmarshal(testCase.input, &i)
 		assert.Equal(t, int64(testCase.expectedIndex), int64(i))
 		assert.IsType(t, testCase.expectedError, err)
+	}
+}
+
+func TestBlockNumberStringOrHex(t *testing.T) {
+	testCases := []struct {
+		bn             *BlockNumber
+		expectedResult string
+	}{
+		{bn: bnPtr(BlockNumber(-3)), expectedResult: "pending"},
+		{bn: bnPtr(BlockNumber(-2)), expectedResult: "latest"},
+		{bn: bnPtr(BlockNumber(-1)), expectedResult: "earliest"},
+		{bn: bnPtr(BlockNumber(0)), expectedResult: "0x0"},
+		{bn: bnPtr(BlockNumber(100)), expectedResult: "0x64"},
+	}
+
+	for _, testCase := range testCases {
+		result := testCase.bn.StringOrHex()
+		assert.Equal(t, testCase.expectedResult, result)
 	}
 }
 

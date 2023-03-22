@@ -19,6 +19,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/gasprice"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
@@ -104,7 +105,7 @@ func start(cliCtx *cli.Context) error {
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
-	st := newState(ctx, c, l2ChainID, currentForkID, forkIDIntervals, stateSqlDB)
+	st := newState(ctx, c, l2ChainID, forkIDIntervals, stateSqlDB)
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
 	if err != nil {
@@ -197,7 +198,19 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 }
 
 func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool) {
-	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, pool, ethTxManager, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
+	var trustedSequencerURL string
+	var err error
+	if !cfg.IsTrustedSequencer {
+		log.Debug("getting trusted sequencer URL from smc")
+		trustedSequencerURL, err = etherman.GetTrustedSequencerURL()
+		if err != nil {
+			log.Fatal("error getting trusted sequencer URI. Error: %v", err)
+		}
+		log.Debug("trustedSequencerURL ", trustedSequencerURL)
+	}
+	zkEVMClient := client.NewClient(trustedSequencerURL)
+
+	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, pool, ethTxManager, zkEVMClient, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -281,7 +294,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, currentForkID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool) *state.State {
+func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)

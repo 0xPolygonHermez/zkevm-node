@@ -28,7 +28,7 @@ var (
 	dbTxMock      = new(DbTxMock)
 	bc            = batchConstraints{
 		MaxTxsPerBatch:       150,
-		MaxBatchBytesSize:    150000,
+		MaxBatchBytesSize:    129848,
 		MaxCumulativeGasUsed: 30000000,
 		MaxKeccakHashes:      468,
 		MaxPoseidonHashes:    279620,
@@ -224,7 +224,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
 	nonce := uint64(0)
-	tx := &TxTracker{Hash: oldHash, From: sender}
+	tx := &TxTracker{Hash: oldHash, From: sender, Cost: big.NewInt(0)}
 	testCases := []struct {
 		name               string
 		error              pb.RomError

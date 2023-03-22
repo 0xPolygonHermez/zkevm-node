@@ -156,7 +156,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 
-	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg)
+	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg, s.etherman)
 	go closingSignalsManager.Start()
 
 	go s.trackOldTxs(ctx)
@@ -279,6 +279,14 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last isSynced batch, err: %v", err)
 		return false
+	}
+	lastBatchNum, err := s.state.GetLastBatchNumber(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Errorf("failed to get last batch num, err: %v", err)
+		return false
+	}
+	if lastBatchNum > lastSyncedBatchNum {
+		return true
 	}
 	lastEthBatchNum, err := s.etherman.GetLatestBatchNumber()
 	if err != nil {

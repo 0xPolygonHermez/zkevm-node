@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/mocks"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/mock"
@@ -23,18 +26,18 @@ type mockedServer struct {
 	ServerURL string
 }
 
-type mocks struct {
-	Pool    *poolMock
-	State   *stateMock
+type mocksWrapper struct {
+	Pool    *mocks.PoolMock
+	State   *mocks.StateMock
 	Storage *storageMock
-	DbTx    *dbTxMock
+	DbTx    *mocks.DBTxMock
 }
 
-func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclient.Client) {
-	pool := newPoolMock(t)
-	st := newStateMock(t)
+func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *ethclient.Client) {
+	pool := mocks.NewPoolMock(t)
+	st := mocks.NewStateMock(t)
 	storage := newStorageMock(t)
-	dbTx := newDbTxMock(t)
+	dbTx := mocks.NewDBTxMock(t)
 	apis := map[string]bool{
 		APIEth:    true,
 		APINet:    true,
@@ -77,7 +80,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 		ServerURL: serverURL,
 	}
 
-	mks := &mocks{
+	mks := &mocksWrapper{
 		Pool:    pool,
 		State:   st,
 		Storage: storage,
@@ -99,12 +102,12 @@ func getDefaultConfig() Config {
 	return cfg
 }
 
-func newSequencerMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
+func newSequencerMockedServer(t *testing.T) (*mockedServer, *mocksWrapper, *ethclient.Client) {
 	cfg := getDefaultConfig()
 	return newMockedServer(t, cfg)
 }
 
-func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mockedServer, *mocks, *ethclient.Client) {
+func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mockedServer, *mocksWrapper, *ethclient.Client) {
 	cfg := getDefaultConfig()
 	cfg.Port = 9124
 	cfg.SequencerNodeURI = sequencerNodeURI
@@ -118,6 +121,6 @@ func (s *mockedServer) Stop() {
 	}
 }
 
-func (s *mockedServer) JSONRPCCall(method string, parameters ...interface{}) (Response, error) {
-	return JSONRPCCall(s.ServerURL, method, parameters...)
+func (s *mockedServer) JSONRPCCall(method string, parameters ...interface{}) (types.Response, error) {
+	return client.JSONRPCCall(s.ServerURL, method, parameters...)
 }

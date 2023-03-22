@@ -181,6 +181,13 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 	for {
 		txToStore := <-d.txsStore.Ch
 		d.checkIfReorg()
+
+		// Flush the state db
+		err := d.state.FlushMerkleTree(d.ctx)
+		if err != nil {
+			log.Fatalf("StoreProcessedTxAndDeleteFromPool. Error flushing state db: %v", err)
+		}
+
 		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
 		dbTx, err := d.BeginStateTransaction(d.ctx)
 		if err != nil {
@@ -538,4 +545,14 @@ func (d *dbManager) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx
 // CountReorgs returns the number of reorgs
 func (d *dbManager) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	return d.state.CountReorgs(ctx, dbTx)
+}
+
+// FlushMerkleTree persists updates in the Merkle tree
+func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
+	return d.state.FlushMerkleTree(ctx)
+}
+
+// AddDebugInfo is used to store debug info useful during runtime
+func (d *dbManager) AddDebugInfo(ctx context.Context, info *state.DebugInfo, dbTx pgx.Tx) error {
+	return d.state.AddDebugInfo(ctx, info, dbTx)
 }

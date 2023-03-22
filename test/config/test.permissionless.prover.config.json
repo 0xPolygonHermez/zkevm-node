@@ -1,0 +1,85 @@
+{
+    "runExecutorServer": true,
+    "runExecutorClient": false,
+    "runExecutorClientMultithread": false,
+
+    "runStateDBServer": true,
+    "runStateDBTest": false,
+
+    "runAggregatorServer": false,
+    "runAggregatorClient": false,
+    "runAggregatorClientMock": true, 
+    "aggregatorClientMockTimeout": 15000000,
+    "proverName": "test-prover",
+    
+    "runFileGenBatchProof": false,
+    "runFileGenAggregatedProof": false,
+    "runFileGenFinalProof": false,
+    "runFileProcessBatch": false,
+    "runFileProcessBatchMultithread": false,
+
+    "runKeccakScriptGenerator": false,
+    "runKeccakTest": false,
+    "runStorageSMTest": false,
+    "runBinarySMTest": false,
+    "runMemAlignSMTest": false,
+    "runSHA256Test": false,
+    "runBlakeTest": false,
+
+    "executeInParallel": true,
+    "useMainExecGenerated": false,
+    "saveRequestToFile": false,
+    "saveInputToFile": false,
+    "saveDbReadsToFile": false,
+    "saveDbReadsToFileOnChange": false,
+    "saveOutputToFile": true,
+    "saveProofToFile": true,
+    "saveResponseToFile": false,
+    "loadDBToMemCache": true,
+    "opcodeTracer": false,
+    "logRemoteDbReads": false,
+    "logExecutorServerResponses": false,
+
+    "proverServerPort": 50051,
+    "proverServerMockPort": 50052,
+    "proverServerMockTimeout": 10000000,
+    "proverClientPort": 50051,
+    "proverClientHost": "127.0.0.1",
+
+    "executorServerPort": 50071,
+    "executorROMLineTraces": false,
+    "executorClientPort": 50071,
+    "executorClientHost": "127.0.0.1",
+
+    "stateDBServerPort": 50061,
+    "stateDBURL": "local",
+
+    "aggregatorServerPort": 50081,
+    "aggregatorClientPort": 50081,
+    "aggregatorClientHost": "zkevm-aggregator",
+
+    "mapConstPolsFile": false,
+    "mapConstantsTreeFile": false,
+
+    "inputFile": "input_executor_0.json",
+    "inputFile2": "input_executor_1.json",
+
+    "keccakScriptFile": "config/scripts/keccak_script.json",
+    "storageRomFile": "config/scripts/storage_sm_rom.json",
+
+    "outputPath": "output",
+
+    "databaseURL": "postgresql://prover_user:prover_pass@zkevm-permissionless-db:5432/prover_db",
+    "dbNodesTableName": "state.nodes",
+    "dbProgramTableName": "state.program",
+    "dbMultiWrite": true,
+    "dbFlushInParallel": false,
+    "dbMTCacheSize": 1024,
+    "dbProgramCacheSize": 1024,
+    "cleanerPollingPeriod": 600,
+    "requestsPersistence": 3600,
+    "maxExecutorThreads": 20,
+    "maxProverThreads": 8,
+    "maxStateDBThreads": 8
+}
+

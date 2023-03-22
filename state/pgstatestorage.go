@@ -41,7 +41,6 @@ const (
 	getL2BlockByNumberSQL                    = "SELECT header, uncles, received_at FROM state.l2block b WHERE b.block_num = $1"
 	getL2BlockHeaderByNumberSQL              = "SELECT header FROM state.l2block b WHERE b.block_num = $1"
 	getTransactionByHashSQL                  = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
-	getTransactionByL2BlockHashAndIndexSQL   = "SELECT t.encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.batch_num WHERE b.block_hash = $1 AND 0 = $2"
 	getTransactionByL2BlockNumberAndIndexSQL = "SELECT t.encoded FROM state.transaction t WHERE t.l2_block_num = $1 AND 0 = $2"
 	getL2BlockTransactionCountByHashSQL      = "SELECT COUNT(*) FROM state.transaction t INNER JOIN state.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
 	getL2BlockTransactionCountByNumberSQL    = "SELECT COUNT(*) FROM state.transaction t WHERE t.l2_block_num = $1"
@@ -105,15 +104,43 @@ func (p *PostgresStorage) Reset(ctx context.Context, blockNumber uint64, dbTx pg
 	return nil
 }
 
-// ResetTrustedState removes the batches with number greater than the given one
-// from the database.
-func (p *PostgresStorage) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
-	const resetTrustedStateSQL = "DELETE FROM state.batch WHERE batch_num > $1"
+// ResetForkID resets the state to reprocess the newer batches with the correct forkID
+func (p *PostgresStorage) ResetForkID(ctx context.Context, batchNumber, forkID uint64, version string, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
-	if _, err := e.Exec(ctx, resetTrustedStateSQL, batchNum); err != nil {
+	const resetVirtualStateSQL = "delete from state.block where block_num >=(select min(block_num) from state.virtual_batch where batch_num >= $1)"
+	if _, err := e.Exec(ctx, resetVirtualStateSQL, batchNumber); err != nil {
 		return err
 	}
-	// TODO Find a way to put txs in the pool again
+	err := p.ResetTrustedState(ctx, batchNumber-1, dbTx)
+	if err != nil {
+		return err
+	}
+	reorg := TrustedReorg{
+		BatchNumber: batchNumber,
+		Reason:      fmt.Sprintf("New ForkID: %d. Version: %s", forkID, version),
+	}
+	err = p.AddTrustedReorg(ctx, &reorg, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// Delete proofs for higher batches
+	const deleteProofsSQL = "delete from state.proof where batch_num >= $1 or (batch_num <= $1 and batch_num_final  >= $1)"
+	if _, err := e.Exec(ctx, deleteProofsSQL, batchNumber); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ResetTrustedState removes the batches with number greater than the given one
+// from the database.
+func (p *PostgresStorage) ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	const resetTrustedStateSQL = "DELETE FROM state.batch WHERE batch_num > $1"
+	e := p.getExecQuerier(dbTx)
+	if _, err := e.Exec(ctx, resetTrustedStateSQL, batchNumber); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1217,7 +1244,16 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 func (p *PostgresStorage) GetTransactionByL2BlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
 	var encoded string
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getTransactionByL2BlockHashAndIndexSQL, blockHash.String(), index).Scan(&encoded)
+	const query = `
+        SELECT t.encoded
+          FROM state.transaction t
+         INNER JOIN state.l2block b
+            ON t.l2_block_num = b.block_num
+         INNER JOIN state.receipt r
+            ON r.tx_hash = t.hash
+         WHERE b.block_hash = $1
+           AND r.tx_index = $2`
+	err := q.QueryRow(ctx, query, blockHash.String(), index).Scan(&encoded)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -2217,6 +2253,15 @@ func (p *PostgresStorage) AddDebugInfo(ctx context.Context, info *DebugInfo, dbT
 	return err
 }
 
+// AddEvent is used to store and event in the database
+func (p *PostgresStorage) AddEvent(ctx context.Context, event *Event, dbTx pgx.Tx) error {
+	const insertEventSQL = "INSERT INTO state.event (event_type, timestamp, ip, tx_hash, payload) VALUES ($1, $2, $3, $4, $5)"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, insertEventSQL, event.EventType, event.Timestamp, event.IP, event.TxHash.String(), event.Payload)
+	return err
+}
+
 // AddTrustedReorg is used to store trusted reorgs
 func (p *PostgresStorage) AddTrustedReorg(ctx context.Context, reorg *TrustedReorg, dbTx pgx.Tx) error {
 	const insertTrustedReorgSQL = "INSERT INTO state.trusted_reorg (timestamp, batch_num, reason) VALUES (NOW(), $1, $2)"
@@ -2233,6 +2278,19 @@ func (p *PostgresStorage) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64,
 	var count uint64
 	q := p.getExecQuerier(dbTx)
 	err := q.QueryRow(ctx, countReorgsSQL).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetForkIDTrustedReorgCount returns the forkID
+func (p *PostgresStorage) GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error) {
+	const forkIDTrustedReorgSQL = "SELECT COUNT(*) FROM state.trusted_reorg WHERE reason=$1"
+
+	var count uint64
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, forkIDTrustedReorgSQL, fmt.Sprintf("New ForkID: %d. Version: %s", forkID, version)).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -2271,18 +2329,7 @@ func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumbe
 }
 
 // GetLatestGer is used to get the latest ger
-func (p *PostgresStorage) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (GlobalExitRoot, time.Time, error) {
-	lastBlock, err := p.GetLastBlock(ctx, nil)
-	if err != nil {
-		return GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %w", err)
-	}
-
-	blockNumber := lastBlock.BlockNumber
-
-	maxBlockNumber := uint64(0)
-	if gerFinalityNumberOfBlocks <= blockNumber {
-		maxBlockNumber = blockNumber - gerFinalityNumberOfBlocks
-	}
+func (p *PostgresStorage) GetLatestGer(ctx context.Context, maxBlockNumber uint64) (GlobalExitRoot, time.Time, error) {
 	ger, receivedAt, err := p.GetLatestGlobalExitRoot(ctx, maxBlockNumber, nil)
 	if err != nil && errors.Is(err, ErrNotFound) {
 		return GlobalExitRoot{}, time.Time{}, nil

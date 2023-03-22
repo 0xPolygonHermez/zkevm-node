@@ -48,7 +48,7 @@ func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters,
 
 	txTracker.IsClaim = isClaim
 	txTracker.BatchResources.zKCounters = counters
-	txTracker.BatchResources.bytes = uint64(tx.Size())
+	txTracker.BatchResources.bytes = tx.Size()
 	txTracker.HashStr = txTracker.Hash.String()
 	txTracker.FromStr = txTracker.From.String()
 	txTracker.Benefit = new(big.Int).Mul(new(big.Int).SetUint64(txTracker.Gas), txTracker.GasPrice)

@@ -15,18 +15,6 @@ import (
 )
 
 const (
-	// txSlotSize is used to calculate how many data slots a single transaction
-	// takes up based on its size. The slots are used as DoS protection, ensuring
-	// that validating a new transaction remains a constant operation (in reality
-	// O(maxslots), where max slots are 4 currently).
-	txSlotSize = 32 * 1024
-
-	// txMaxSize is the maximum size a single transaction can have. This field has
-	// non-trivial consequences: larger transactions are significantly harder and
-	// more expensive to propagate; larger transactions also take more resources
-	// to validate whether they fit into the pool or not.
-	txMaxSize = 4 * txSlotSize // 128KB
-
 	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
 	bridgeClaimMethodSignature = "0x2cffd02e"
 )
@@ -63,30 +51,45 @@ func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Addre
 }
 
 // AddTx adds a transaction to the pool with the pending state
-func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
+func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
 	if err := p.validateTx(ctx, tx); err != nil {
 		return err
 	}
 
-	return p.StoreTx(ctx, tx)
+	return p.StoreTx(ctx, tx, ip, false)
 }
 
 // StoreTx adds a transaction to the pool with the pending state
-func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction) error {
+func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
 	poolTx := Transaction{
 		Transaction: tx,
 		Status:      TxStatusPending,
 		IsClaims:    false,
 		ReceivedAt:  time.Now(),
-		IsWIP:       false,
+		IsWIP:       isWIP,
+		IP:          ip,
 	}
 
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
 	// Execute transaction to calculate its zkCounters
-	zkCounters, err := p.PreExecuteTx(ctx, tx)
+	zkCounters, err, isOOC := p.PreExecuteTx(ctx, tx)
 	if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
+
+		if isOOC {
+			event := &state.Event{
+				EventType: state.EventType_Prexecution_OOC,
+				Timestamp: time.Now(),
+				IP:        ip,
+				TxHash:    tx.Hash(),
+			}
+
+			err := p.state.AddEvent(ctx, event, nil)
+			if err != nil {
+				log.Errorf("Error adding event: %v", err)
+			}
+		}
 	}
 	poolTx.ZKCounters = zkCounters
 
@@ -94,12 +97,12 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction) error {
 }
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error) {
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error, bool) {
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
-		return state.ZKCounters{}, err
+		return state.ZKCounters{}, err, false
 	}
-	return processBatchResponse.UsedZkCounters, processBatchResponse.ExecutorError
+	return processBatchResponse.UsedZkCounters, processBatchResponse.ExecutorError, !processBatchResponse.IsBatchProcessed
 }
 
 // GetPendingTxs from the pool
@@ -165,7 +168,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return ErrTxTypeNotSupported
 	}
 	// Reject transactions over defined size to prevent DOS attacks
-	if uint64(tx.Size()) > txMaxSize {
+	if tx.Size() > p.cfg.MaxTxBytesSize {
 		return ErrOversizedData
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
@@ -228,7 +231,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	// when being selected
 	for _, oldTx := range oldTxs {
 		// discard invalid txs
-		if oldTx.Status == TxStatusInvalid {
+		if oldTx.Status == TxStatusInvalid || oldTx.Status == TxStatusFailed {
 			continue
 		}
 
@@ -265,8 +268,6 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx types.Transaction) error {
 	maxUint64BigInt := big.NewInt(0).SetUint64(math.MaxUint64)
 
-	const maxDataSize = 30000
-
 	// GasLimit, Nonce and To fields are limited by their types, no need to check
 	// Gas Price and Value are checked against the balance, and the max balance allowed
 	// by the merkletree service is uint256, in this case, if the transaction has a
@@ -274,8 +275,8 @@ func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx typ
 	// reject the transaction
 
 	dataSize := len(tx.Data())
-	if dataSize > maxDataSize {
-		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, maxDataSize)
+	if dataSize > p.cfg.MaxTxDataBytesSize {
+		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, p.cfg.MaxTxDataBytesSize)
 	}
 
 	if tx.ChainId().Cmp(maxUint64BigInt) == 1 {
