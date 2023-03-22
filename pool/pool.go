@@ -131,7 +131,7 @@ func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preexecu
 	response.usedZkCounters = processBatchResponse.UsedZkCounters
 
 	if processBatchResponse.IsBatchProcessed {
-		if processBatchResponse.Responses != nil && processBatchResponse.Responses[0] != nil &&
+		if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 &&
 			executor.IsROMOutOfGasError(executor.RomErrorCode(processBatchResponse.Responses[0].RomError)) {
 			response.isOOC = true
 		}
