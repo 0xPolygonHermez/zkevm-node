@@ -192,7 +192,7 @@ type TxArgs struct {
 func (args *TxArgs) ToTransaction(ctx context.Context, st StateInterface, blockNumber, maxCumulativeGasUsed uint64, defaultSenderAddress common.Address, dbTx pgx.Tx) (common.Address, *types.Transaction, error) {
 	sender := defaultSenderAddress
 	nonce := uint64(0)
-	if args.From != nil {
+	if args.From != nil && *args.From != state.ZeroAddress {
 		sender = *args.From
 		n, err := st.GetNonce(ctx, sender, blockNumber, dbTx)
 		if err != nil {
