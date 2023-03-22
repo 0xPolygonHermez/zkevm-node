@@ -63,7 +63,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: uint64(150000),
+			expectedValue: uint64(129848),
 		},
 		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
@@ -112,6 +112,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.MaxTxLifetime",
 			expectedValue: types.NewDuration(3 * time.Hour),
+		},
+		{
+			path:          "Sequencer.MaxTxSizeForL1",
+			expectedValue: uint64(131072),
 		},
 		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
@@ -244,6 +248,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.FreeClaimGasLimit",
 			expectedValue: uint64(150000),
+		},
+		{
+			path:          "Pool.MaxTxBytesSize",
+			expectedValue: uint64(30132),
+		},
+		{
+			path:          "Pool.MaxTxDataBytesSize",
+			expectedValue: 30000,
 		},
 		{
 			path:          "Pool.DB.User",

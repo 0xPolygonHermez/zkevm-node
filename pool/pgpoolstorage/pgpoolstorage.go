@@ -83,6 +83,25 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		) 
 		VALUES 
 			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+			ON CONFLICT (hash) DO UPDATE SET 
+			encoded = $2,
+			decoded = $3,
+			status = $4,
+			gas_price = $5,
+			nonce = $6,
+			is_claims = $7,
+			cumulative_gas_used = $8,
+			used_keccak_hashes = $9, 
+			used_poseidon_hashes = $10,
+			used_poseidon_paddings = $11,
+			used_mem_aligns = $12,
+			used_arithmetics = $13,
+			used_binaries = $14,
+			used_steps = $15,
+			received_at = $16,
+			from_address = $17,
+			is_wip = $18,
+			ip = $19
 	`
 
 	// Get FromAddress from the JSON data

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -20,18 +19,13 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 const (
-	poeAddress         = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"
-	maticTokenAddress  = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
-	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	cmdFolder          = "test"
+	cmdFolder = "test"
 )
 
 // Public shared
@@ -46,6 +40,7 @@ const (
 	DefaultL1ChainID             uint64 = 1337
 
 	DefaultL2NetworkURL                 = "http://localhost:8123"
+	PermissionlessL2NetworkURL          = "http://localhost:8125"
 	DefaultL2NetworkWebSocketURL        = "ws://localhost:8133"
 	DefaultL2ChainID             uint64 = 1001
 
@@ -163,13 +158,28 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 // ApplyL1Txs sends the given L1 txs, waits for them to be consolidated and
 // checks the final state.
 func ApplyL1Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
-	_, err := applyTxs(ctx, txs, auth, client)
+	_, err := applyTxs(ctx, txs, auth, client, true)
 	return err
 }
 
+// ConfirmationLevel type used to describe the confirmation level of a transaction
+type ConfirmationLevel int
+
+// PoolConfirmationLevel indicates that transaction is added into the pool
+const PoolConfirmationLevel ConfirmationLevel = 0
+
+// TrustedConfirmationLevel indicates that transaction is  added into the trusted state
+const TrustedConfirmationLevel ConfirmationLevel = 1
+
+// VirtualConfirmationLevel indicates that transaction is  added into the virtual state
+const VirtualConfirmationLevel ConfirmationLevel = 2
+
+// VerifiedConfirmationLevel indicates that transaction is  added into the verified state
+const VerifiedConfirmationLevel ConfirmationLevel = 3
+
 // ApplyL2Txs sends the given L2 txs, waits for them to be consolidated and
 // checks the final state.
-func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) ([]*big.Int, error) {
+func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client, confirmationLevel ConfirmationLevel) ([]*big.Int, error) {
 	var err error
 	if auth == nil {
 		auth, err = GetAuth(DefaultSequencerPrivateKey, DefaultL2ChainID)
@@ -184,10 +194,13 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 			return nil, err
 		}
 	}
-
-	sentTxs, err := applyTxs(ctx, txs, auth, client)
+	waitToBeMined := confirmationLevel != PoolConfirmationLevel
+	sentTxs, err := applyTxs(ctx, txs, auth, client, waitToBeMined)
 	if err != nil {
 		return nil, err
+	}
+	if confirmationLevel == PoolConfirmationLevel {
+		return nil, nil
 	}
 
 	l2BlockNumbers := make([]*big.Int, 0, len(sentTxs))
@@ -204,12 +217,18 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 		if tx.Nonce() != expectedNonce {
 			return nil, fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
 		}
+		if confirmationLevel == TrustedConfirmationLevel {
+			continue
+		}
 
 		// wait for l2 block to be virtualized
 		log.Infof("waiting for the block number %v to be virtualized", receipt.BlockNumber.String())
 		err = WaitL2BlockToBeVirtualized(receipt.BlockNumber, 4*time.Minute) //nolint:gomnd
 		if err != nil {
 			return nil, err
+		}
+		if confirmationLevel == VirtualConfirmationLevel {
+			continue
 		}
 
 		// wait for l2 block number to be consolidated
@@ -223,7 +242,7 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 	return l2BlockNumbers, nil
 }
 
-func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) ([]*types.Transaction, error) {
+func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client, waitToBeMined bool) ([]*types.Transaction, error) {
 	var sentTxs []*types.Transaction
 
 	for i := 0; i < len(txs); i++ {
@@ -238,6 +257,9 @@ func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.Transact
 		}
 
 		sentTxs = append(sentTxs, signedTx)
+	}
+	if !waitToBeMined {
+		return nil, nil
 	}
 
 	// wait for TX to be mined
@@ -294,12 +316,31 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
-	err = m.SetUpSequencer()
+	// Run node container
+	err = m.StartNode()
 	if err != nil {
 		return err
 	}
 
-	err = m.StartNode()
+	return nil
+}
+
+// SetupWithPermissionless creates all the required components for both trusted and permissionless nodes
+// and initializes them according to the manager config.
+func (m *Manager) SetupWithPermissionless() error {
+	// Run network container
+	err := m.StartNetwork()
+	if err != nil {
+		return err
+	}
+
+	// Approve matic
+	err = ApproveMatic()
+	if err != nil {
+		return err
+	}
+
+	err = m.StartTrustedAndPermissionlessNode()
 	if err != nil {
 		return err
 	}
@@ -308,9 +349,44 @@ func (m *Manager) Setup() error {
 	return nil
 }
 
+// StartEthTxSender stops the eth tx sender service
+func (m *Manager) StartEthTxSender() error {
+	return StartComponent("eth-tx-manager")
+}
+
+// StopEthTxSender stops the eth tx sender service
+func (m *Manager) StopEthTxSender() error {
+	return StopComponent("eth-tx-manager")
+}
+
+// StartSequencer starts the sequencer
+func (m *Manager) StartSequencer() error {
+	return StartComponent("seq")
+}
+
+// StopSequencer stops the sequencer
+func (m *Manager) StopSequencer() error {
+	return StopComponent("seq")
+}
+
 // Teardown stops all the components.
 func Teardown() error {
 	err := stopNode()
+	if err != nil {
+		return err
+	}
+
+	err = stopNetwork()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// TeardownPermissionless stops all the components.
+func TeardownPermissionless() error {
+	err := stopPermissionlessNode()
 	if err != nil {
 		return err
 	}
@@ -341,122 +417,6 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
 	return st, nil
-}
-
-// func (m *Manager) checkRoot(root []byte, expectedRoot string) error {
-// 	actualRoot := hex.EncodeToHex(root)
-
-// 	if expectedRoot != actualRoot {
-// 		return fmt.Errorf("Invalid root, want %q, got %q", expectedRoot, actualRoot)
-// 	}
-// 	return nil
-// }
-
-// SetUpSequencer provide ETH, Matic to and register the sequencer
-func (m *Manager) SetUpSequencer() error {
-	ctx := context.Background()
-	// Eth client
-	client, err := ethclient.Dial(DefaultL1NetworkURL)
-	if err != nil {
-		return err
-	}
-
-	// Get network chain id
-	chainID, err := client.NetworkID(context.Background())
-	if err != nil {
-		return err
-	}
-
-	auth, err := GetAuth(l1AccHexPrivateKey, chainID.Uint64())
-	if err != nil {
-		return err
-	}
-
-	// Getting l1 info
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	if err != nil {
-		return err
-	}
-
-	// Send some Ether from l1Acc to sequencer acc
-	fromAddress := common.HexToAddress(l1AccHexAddress)
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		return err
-	}
-
-	const (
-		gasLimit = 21000
-		OneEther = 1000000000000000000
-	)
-	toAddress := common.HexToAddress(m.cfg.Sequencer.Address)
-	tx := types.NewTransaction(nonce, toAddress, big.NewInt(OneEther), uint64(gasLimit), gasPrice, nil)
-	signedTx, err := auth.Signer(auth.From, tx)
-	if err != nil {
-		return err
-	}
-
-	err = client.SendTransaction(context.Background(), signedTx)
-	if err != nil {
-		return err
-	}
-
-	// Wait eth transfer to be mined
-	err = WaitTxToBeMined(ctx, client, signedTx, DefaultTxMinedDeadline)
-	if err != nil {
-		return err
-	}
-
-	// Create matic maticTokenSC sc instance
-	maticTokenSC, err := NewToken(common.HexToAddress(maticTokenAddress), client)
-	if err != nil {
-		return err
-	}
-
-	// Send matic to sequencer
-	maticAmount, ok := big.NewInt(0).SetString("100000000000000000000000", encoding.Base10)
-	if !ok {
-		return fmt.Errorf("Error setting matic amount")
-	}
-
-	tx, err = maticTokenSC.Transfer(auth, toAddress, maticAmount)
-	if err != nil {
-		return err
-	}
-
-	// wait matic transfer to be mined
-	err = WaitTxToBeMined(ctx, client, tx, DefaultTxMinedDeadline)
-	if err != nil {
-		return err
-	}
-
-	// Check matic balance
-	b, err := maticTokenSC.BalanceOf(&bind.CallOpts{}, toAddress)
-	if err != nil {
-		return err
-	}
-
-	if b.Cmp(maticAmount) < 0 {
-		return fmt.Errorf("Minimum amount is: %v but found: %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10))
-	}
-
-	// Create sequencer auth
-	auth, err = GetAuth(m.cfg.Sequencer.PrivateKey, chainID.Uint64())
-	if err != nil {
-		return err
-	}
-
-	// approve tokens to be used by PoE SC on behalf of the sequencer
-	tx, err = maticTokenSC.Approve(auth, common.HexToAddress(poeAddress), maticAmount)
-	if err != nil {
-		return err
-	}
-
-	err = WaitTxToBeMined(ctx, client, tx, DefaultTxMinedDeadline)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // StartNetwork starts the L1 network container
@@ -492,6 +452,11 @@ func (m *Manager) StartNode() error {
 	return StartComponent("node", nodeUpCondition)
 }
 
+// StartTrustedAndPermissionlessNode starts the node container
+func (m *Manager) StartTrustedAndPermissionlessNode() error {
+	return StartComponent("permissionless", nodeUpCondition)
+}
+
 // ApproveMatic runs the approving matic command
 func ApproveMatic() error {
 	return StartComponent("approve-matic")
@@ -499,6 +464,10 @@ func ApproveMatic() error {
 
 func stopNode() error {
 	return StopComponent("node")
+}
+
+func stopPermissionlessNode() error {
+	return StopComponent("permissionless")
 }
 
 func runCmd(c *exec.Cmd) error {

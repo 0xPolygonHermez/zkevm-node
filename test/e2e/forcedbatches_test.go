@@ -80,7 +80,7 @@ func TestForcedBatches(t *testing.T) {
 	var l2BlockNumbers []*big.Int
 	go func() {
 		defer wgNormalL2Transfers.Done()
-		l2BlockNumbers, err = operations.ApplyL2Txs(ctx, txs, auth, client)
+		l2BlockNumbers, err = operations.ApplyL2Txs(ctx, txs, auth, client, operations.VerifiedConfirmationLevel)
 		require.NoError(t, err)
 	}()
 
