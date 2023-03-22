@@ -21,16 +21,6 @@ import (
 const (
 	ethTxManagerOwner = "sequencer"
 	monitoredIDFormat = "sequence-from-%v-to-%v"
-	// txSlotSize is used to calculate how many data slots a single transaction
-	// takes up based on its size. The slots are used as DoS protection, ensuring
-	// that validating a new transaction remains a constant operation (in reality
-	// O(maxslots), where max slots are 4 currently).
-	txSlotSize = 32 * 1024
-	// txMaxSize is the maximum size a single transaction can have. This field has
-	// non-trivial consequences: larger transactions are significantly harder and
-	// more expensive to propagate; larger transactions also take more resources
-	// to validate whether they fit into the pool or not.
-	txMaxSize = 4 * txSlotSize // 128KB
 )
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
@@ -144,7 +134,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		// Check if can be send
 		sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
 		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
-		if err == nil && tx.Size() > txMaxSize {
+		if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
 			metrics.SequencesOvesizedDataError()
 			log.Infof("oversized Data on TX oldHash %s (txSize %d > 128KB)", tx.Hash(), tx.Size())
 			err = txpool.ErrOversizedData
@@ -203,13 +193,6 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 		return nil, err
 	}
 	if isDataForEthTxTooBig(err) {
-		if len(sequences) == 1 {
-			// TODO: gracefully handle this situation by creating an L2 reorg
-			log.Fatalf(
-				"BatchNum %d is too big to be sent to L1, even when it's the only item in the sequence: %v",
-				currentBatchNumToSequence, err,
-			)
-		}
 		// Remove the latest item and send the sequences
 		log.Infof(
 			"Done building sequences, selected batches to %d. Batch %d caused the L1 tx to be too big",
