@@ -782,24 +782,24 @@ func (s *State) ProcessAndStoreClosedBatch(
 	encodedTxs []byte,
 	dbTx pgx.Tx,
 	caller CallerLabel,
-) (*pb.ProcessBatchResponse, error) {
+) (common.Hash, error) {
 	// Decode transactions
 	decodedTransactions, _, err := DecodeTxs(encodedTxs)
 	if err != nil && !errors.Is(err, InvalidData) {
 		log.Debugf("error decoding transactions: %v", err)
-		return nil, err
+		return common.Hash{}, err
 	}
 
 	// Open the batch and process the txs
 	if dbTx == nil {
-		return nil, ErrDBTxNil
+		return common.Hash{}, ErrDBTxNil
 	}
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
-		return nil, err
+		return common.Hash{}, err
 	}
 	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, caller, dbTx)
 	if err != nil {
-		return nil, err
+		return common.Hash{}, err
 	}
 
 	// Sanity check
@@ -830,19 +830,19 @@ func (s *State) ProcessAndStoreClosedBatch(
 
 	processedBatch, err := s.convertToProcessBatchResponse(decodedTransactions, processed)
 	if err != nil {
-		return nil, err
+		return common.Hash{}, err
 	}
 
 	if len(processedBatch.Responses) > 0 {
 		// Store processed txs into the batch
 		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
 		if err != nil {
-			return nil, err
+			return common.Hash{}, err
 		}
 	}
 
 	// Close batch
-	return processed, s.closeBatch(ctx, ProcessingReceipt{
+	return common.BytesToHash(processed.NewStateRoot), s.closeBatch(ctx, ProcessingReceipt{
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,

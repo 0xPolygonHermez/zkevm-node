@@ -27,6 +27,7 @@ type mocks struct {
 	ZKEVMClient  *zkEVMClientMock
 }
 
+// Test commented until we remove the fatal in checkTrustedReorg function
 // func TestTrustedStateReorg(t *testing.T) {
 // 	type testCase struct {
 // 		Name            string
@@ -208,10 +209,10 @@ type mocks struct {
 // 					GlobalExitRoot: sequencedBatch.GlobalExitRoot,
 // 				}
 
-				m.State.
-					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
-					Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
-					Once()
+// 				m.State.
+// 					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
+// 					Return(trustedBatch.StateRoot, nil).
+// 					Once()
 
 // 				virtualBatch := &state.VirtualBatch{
 // 					BatchNumber: sequencedBatch.BatchNumber,
@@ -717,7 +718,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 			m.State.
 				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
-				Return(&pb.ProcessBatchResponse{}, nil).
+				Return(common.Hash{}, nil).
 				Once()
 
 			virtualBatch := &state.VirtualBatch{

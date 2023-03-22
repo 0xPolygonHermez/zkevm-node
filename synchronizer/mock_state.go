@@ -470,19 +470,22 @@ func (_m *stateMock) OpenBatch(ctx context.Context, processingContext state.Proc
 }
 
 // ProcessAndStoreClosedBatch provides a mock function with given fields: ctx, processingCtx, encodedTxs, dbTx, caller
-func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller state.CallerLabel) (*pb.ProcessBatchResponse, error) {
+func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller state.CallerLabel) (common.Hash, error) {
 	ret := _m.Called(ctx, processingCtx, encodedTxs, dbTx, caller)
 
-	var r0 *pb.ProcessBatchResponse
-	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, state.CallerLabel) *pb.ProcessBatchResponse); ok {
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, state.CallerLabel) (common.Hash, error)); ok {
+		return rf(ctx, processingCtx, encodedTxs, dbTx, caller)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, state.CallerLabel) common.Hash); ok {
 		r0 = rf(ctx, processingCtx, encodedTxs, dbTx, caller)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*pb.ProcessBatchResponse)
+			r0 = ret.Get(0).(common.Hash)
 		}
 	}
 
-	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, state.CallerLabel) error); ok {
 		r1 = rf(ctx, processingCtx, encodedTxs, dbTx, caller)
 	} else {
