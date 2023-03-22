@@ -178,11 +178,11 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	} else {
 		fromTimestamp := time.Now().UTC().Add(-p.cfg.MinSuggestedGasPriceInterval.Duration)
 		gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
-		if err != nil {
+		if err == state.ErrNotFound {
+			log.Warnf("No suggested min gas price since: %v", fromTimestamp)
+		} else if err != nil {
 			return err
-		}
-
-		if tx.GasPrice().Cmp(big.NewInt(0).SetUint64(gasPrice)) == -1 {
+		} else if tx.GasPrice().Cmp(big.NewInt(0).SetUint64(gasPrice)) == -1 {
 			return ErrIntrinsicGasPrice
 		}
 	}

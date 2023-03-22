@@ -439,9 +439,12 @@ func (p *PostgresPoolStorage) MinGasPriceSince(ctx context.Context, timestamp ti
 	sql := "SELECT MIN(price) FROM pool.gas_price WHERE \"timestamp\" >= $1 LIMIT 1"
 	var gasPrice uint64
 	err := p.db.QueryRow(ctx, sql, timestamp).Scan(&gasPrice)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, state.ErrNotFound
+	} else if err != nil {
 		return 0, err
 	}
+
 	return gasPrice, nil
 }
 
