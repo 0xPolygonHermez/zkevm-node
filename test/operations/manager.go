@@ -307,21 +307,18 @@ func (m *Manager) Setup() error {
 	// Run network container
 	err := m.StartNetwork()
 	if err != nil {
-		log.Error(1)
 		return err
 	}
 
 	// Approve matic
 	err = ApproveMatic()
 	if err != nil {
-		log.Error(2)
 		return err
 	}
 
 	// Run node container
 	err = m.StartNode()
 	if err != nil {
-		log.Error(3)
 		return err
 	}
 
