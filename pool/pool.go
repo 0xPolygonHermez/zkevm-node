@@ -37,6 +37,7 @@ type Pool struct {
 	l2BridgeAddr common.Address
 	chainID      uint64
 	cfg          Config
+	minGasPrice  *big.Int
 }
 
 // NewPool creates and initializes an instance of Pool
@@ -47,6 +48,7 @@ func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Addre
 		state:        st,
 		l2BridgeAddr: l2BridgeAddr,
 		chainID:      chainID,
+		minGasPrice:  big.NewInt(0).SetUint64(cfg.MinGasPrice),
 	}
 }
 
@@ -170,6 +172,19 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	// Reject transactions over defined size to prevent DOS attacks
 	if tx.Size() > p.cfg.MaxTxBytesSize {
 		return ErrOversizedData
+	}
+	if tx.GasPrice().Cmp(p.minGasPrice) == -1 {
+		return ErrGasPrice
+	} else {
+		fromTimestamp := time.Now().UTC().Add(-p.cfg.MinSuggestedGasPriceInterval.Duration)
+		gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
+		if err == state.ErrNotFound {
+			log.Warnf("No suggested min gas price since: %v", fromTimestamp)
+		} else if err != nil {
+			return err
+		} else if tx.GasPrice().Cmp(big.NewInt(0).SetUint64(gasPrice)) == -1 {
+			return ErrGasPrice
+		}
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.

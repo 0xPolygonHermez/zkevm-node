@@ -137,7 +137,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 
 	result, err := d.state.DebugTransaction(ctx, hash, traceConfig, dbTx)
 	if errors.Is(err, state.ErrNotFound) {
-		return rpcErrorResponse(types.DefaultErrorCode, "genesis is not traceable", nil)
+		return rpcErrorResponse(types.DefaultErrorCode, "transaction not found", nil)
 	} else if err != nil {
 		const errorMessage = "failed to get trace"
 		log.Infof("%v: %v", errorMessage, err)
