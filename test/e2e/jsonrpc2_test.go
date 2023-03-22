@@ -368,3 +368,44 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 		assert.Equal(t, "Today is not juernes", unpackedData)
 	}
 }
+
+func TestCallMissingParameters(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	setup()
+	defer teardown()
+
+	type testCase struct {
+		name          string
+		params        []interface{}
+		expectedError types.ErrorObject
+	}
+
+	testCases := []testCase{
+		{
+			name:          "params is empty",
+			params:        []interface{}{},
+			expectedError: types.ErrorObject{Code: types.InvalidParamsErrorCode, Message: "missing value for required argument 0"},
+		},
+		{
+			name:          "params has only first parameter",
+			params:        []interface{}{map[string]interface{}{"value": "0x1"}},
+			expectedError: types.ErrorObject{Code: types.InvalidParamsErrorCode, Message: "missing value for required argument 1"},
+		},
+	}
+
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+		for _, testCase := range testCases {
+			t.Run(network.Name+testCase.name, func(t *testing.T) {
+				response, err := client.JSONRPCCall(network.URL, "eth_call", testCase.params...)
+				require.NoError(t, err)
+				require.NotNil(t, response.Error)
+				require.Nil(t, response.Result)
+				require.Equal(t, testCase.expectedError.Code, response.Error.Code)
+				require.Equal(t, testCase.expectedError.Message, response.Error.Message)
+			})
+		}
+	}
+}
