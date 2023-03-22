@@ -15,18 +15,6 @@ import (
 )
 
 const (
-	// txSlotSize is used to calculate how many data slots a single transaction
-	// takes up based on its size. The slots are used as DoS protection, ensuring
-	// that validating a new transaction remains a constant operation (in reality
-	// O(maxslots), where max slots are 4 currently).
-	txSlotSize = 32 * 1024
-
-	// txMaxSize is the maximum size a single transaction can have. This field has
-	// non-trivial consequences: larger transactions are significantly harder and
-	// more expensive to propagate; larger transactions also take more resources
-	// to validate whether they fit into the pool or not.
-	txMaxSize = 4 * txSlotSize // 128KB
-
 	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
 	bridgeClaimMethodSignature = "0x2cffd02e"
 )
@@ -180,7 +168,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return ErrTxTypeNotSupported
 	}
 	// Reject transactions over defined size to prevent DOS attacks
-	if uint64(tx.Size()) > txMaxSize {
+	if tx.Size() > p.cfg.MaxTxBytesSize {
 		return ErrOversizedData
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
@@ -243,7 +231,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	// when being selected
 	for _, oldTx := range oldTxs {
 		// discard invalid txs
-		if oldTx.Status == TxStatusInvalid {
+		if oldTx.Status == TxStatusInvalid || oldTx.Status == TxStatusFailed {
 			continue
 		}
 
@@ -280,8 +268,6 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx types.Transaction) error {
 	maxUint64BigInt := big.NewInt(0).SetUint64(math.MaxUint64)
 
-	const maxDataSize = 30000
-
 	// GasLimit, Nonce and To fields are limited by their types, no need to check
 	// Gas Price and Value are checked against the balance, and the max balance allowed
 	// by the merkletree service is uint256, in this case, if the transaction has a
@@ -289,8 +275,8 @@ func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx typ
 	// reject the transaction
 
 	dataSize := len(tx.Data())
-	if dataSize > maxDataSize {
-		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, maxDataSize)
+	if dataSize > p.cfg.MaxTxDataBytesSize {
+		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, p.cfg.MaxTxDataBytesSize)
 	}
 
 	if tx.ChainId().Cmp(maxUint64BigInt) == 1 {

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -20,18 +19,13 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 const (
-	poeAddress         = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"
-	maticTokenAddress  = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
-	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	cmdFolder          = "test"
+	cmdFolder = "test"
 )
 
 // Public shared
@@ -322,17 +316,12 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
-	err = m.SetUpSequencer()
-	if err != nil {
-		return err
-	}
-
+	// Run node container
 	err = m.StartNode()
 	if err != nil {
 		return err
 	}
 
-	// Run node container
 	return nil
 }
 
@@ -347,11 +336,6 @@ func (m *Manager) SetupWithPermissionless() error {
 
 	// Approve matic
 	err = ApproveMatic()
-	if err != nil {
-		return err
-	}
-
-	err = m.SetUpSequencer()
 	if err != nil {
 		return err
 	}
@@ -433,122 +417,6 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
 	return st, nil
-}
-
-// func (m *Manager) checkRoot(root []byte, expectedRoot string) error {
-// 	actualRoot := hex.EncodeToHex(root)
-
-// 	if expectedRoot != actualRoot {
-// 		return fmt.Errorf("Invalid root, want %q, got %q", expectedRoot, actualRoot)
-// 	}
-// 	return nil
-// }
-
-// SetUpSequencer provide ETH, Matic to and register the sequencer
-func (m *Manager) SetUpSequencer() error {
-	ctx := context.Background()
-	// Eth client
-	client, err := ethclient.Dial(DefaultL1NetworkURL)
-	if err != nil {
-		return err
-	}
-
-	// Get network chain id
-	chainID, err := client.NetworkID(context.Background())
-	if err != nil {
-		return err
-	}
-
-	auth, err := GetAuth(l1AccHexPrivateKey, chainID.Uint64())
-	if err != nil {
-		return err
-	}
-
-	// Getting l1 info
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	if err != nil {
-		return err
-	}
-
-	// Send some Ether from l1Acc to sequencer acc
-	fromAddress := common.HexToAddress(l1AccHexAddress)
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		return err
-	}
-
-	const (
-		gasLimit = 21000
-		OneEther = 1000000000000000000
-	)
-	toAddress := common.HexToAddress(m.cfg.Sequencer.Address)
-	tx := types.NewTransaction(nonce, toAddress, big.NewInt(OneEther), uint64(gasLimit), gasPrice, nil)
-	signedTx, err := auth.Signer(auth.From, tx)
-	if err != nil {
-		return err
-	}
-
-	err = client.SendTransaction(context.Background(), signedTx)
-	if err != nil {
-		return err
-	}
-
-	// Wait eth transfer to be mined
-	err = WaitTxToBeMined(ctx, client, signedTx, DefaultTxMinedDeadline)
-	if err != nil {
-		return err
-	}
-
-	// Create matic maticTokenSC sc instance
-	maticTokenSC, err := NewToken(common.HexToAddress(maticTokenAddress), client)
-	if err != nil {
-		return err
-	}
-
-	// Send matic to sequencer
-	maticAmount, ok := big.NewInt(0).SetString("100000000000000000000000", encoding.Base10)
-	if !ok {
-		return fmt.Errorf("Error setting matic amount")
-	}
-
-	tx, err = maticTokenSC.Transfer(auth, toAddress, maticAmount)
-	if err != nil {
-		return err
-	}
-
-	// wait matic transfer to be mined
-	err = WaitTxToBeMined(ctx, client, tx, DefaultTxMinedDeadline)
-	if err != nil {
-		return err
-	}
-
-	// Check matic balance
-	b, err := maticTokenSC.BalanceOf(&bind.CallOpts{}, toAddress)
-	if err != nil {
-		return err
-	}
-
-	if b.Cmp(maticAmount) < 0 {
-		return fmt.Errorf("Minimum amount is: %v but found: %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10))
-	}
-
-	// Create sequencer auth
-	auth, err = GetAuth(m.cfg.Sequencer.PrivateKey, chainID.Uint64())
-	if err != nil {
-		return err
-	}
-
-	// approve tokens to be used by PoE SC on behalf of the sequencer
-	tx, err = maticTokenSC.Approve(auth, common.HexToAddress(poeAddress), maticAmount)
-	if err != nil {
-		return err
-	}
-
-	err = WaitTxToBeMined(ctx, client, tx, DefaultTxMinedDeadline)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // StartNetwork starts the L1 network container

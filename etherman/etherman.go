@@ -35,21 +35,30 @@ import (
 )
 
 var (
-	updateGlobalExitRootSignatureHash           = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
-	forcedBatchSignatureHash                    = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
-	sequencedBatchesEventSignatureHash          = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
-	forceSequencedBatchesSignatureHash          = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
-	verifyBatchesSignatureHash                  = crypto.Keccak256Hash([]byte("VerifyBatches(uint64,bytes32,address)"))
-	verifyBatchesTrustedAggregatorSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatchesTrustedAggregator(uint64,bytes32,address)"))
-	setTrustedSequencerURLSignatureHash         = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))
-	setForceBatchAllowedSignatureHash           = crypto.Keccak256Hash([]byte("SetForceBatchAllowed(bool)"))
-	setTrustedSequencerSignatureHash            = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))
-	transferOwnershipSignatureHash              = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
-	setSecurityCouncilSignatureHash             = crypto.Keccak256Hash([]byte("SetSecurityCouncil(address)"))
-	proofDifferentStateSignatureHash            = crypto.Keccak256Hash([]byte("ProofDifferentState(bytes32,bytes32)"))
-	emergencyStateActivatedSignatureHash        = crypto.Keccak256Hash([]byte("EmergencyStateActivated()"))
-	emergencyStateDeactivatedSignatureHash      = crypto.Keccak256Hash([]byte("EmergencyStateDeactivated()"))
-	updateZkEVMVersionSignatureHash             = crypto.Keccak256Hash([]byte("UpdateZkEVMVersion(uint64,uint64,string)"))
+	updateGlobalExitRootSignatureHash              = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
+	forcedBatchSignatureHash                       = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
+	sequencedBatchesEventSignatureHash             = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
+	forceSequencedBatchesSignatureHash             = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
+	verifyBatchesSignatureHash                     = crypto.Keccak256Hash([]byte("VerifyBatches(uint64,bytes32,address)"))
+	verifyBatchesTrustedAggregatorSignatureHash    = crypto.Keccak256Hash([]byte("VerifyBatchesTrustedAggregator(uint64,bytes32,address)"))
+	setTrustedSequencerURLSignatureHash            = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))
+	setTrustedSequencerSignatureHash               = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))
+	transferOwnershipSignatureHash                 = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	emergencyStateActivatedSignatureHash           = crypto.Keccak256Hash([]byte("EmergencyStateActivated()"))
+	emergencyStateDeactivatedSignatureHash         = crypto.Keccak256Hash([]byte("EmergencyStateDeactivated()"))
+	updateZkEVMVersionSignatureHash                = crypto.Keccak256Hash([]byte("UpdateZkEVMVersion(uint64,uint64,string)"))
+	consolidatePendingStateSignatureHash           = crypto.Keccak256Hash([]byte("ConsolidatePendingState(uint64,bytes32,uint64)"))
+	setTrustedAggregatorTimeoutSignatureHash       = crypto.Keccak256Hash([]byte("SetTrustedAggregatorTimeout(uint64)"))
+	setTrustedAggregatorSignatureHash              = crypto.Keccak256Hash([]byte("SetTrustedAggregator(address)"))
+	setPendingStateTimeoutSignatureHash            = crypto.Keccak256Hash([]byte("SetPendingStateTimeout(uint64)"))
+	setMultiplierBatchFeeSignatureHash             = crypto.Keccak256Hash([]byte("SetMultiplierBatchFee(uint16)"))
+	setVerifyBatchTimeTargetSignatureHash          = crypto.Keccak256Hash([]byte("SetVerifyBatchTimeTarget(uint64)"))
+	setForceBatchTimeoutSignatureHash              = crypto.Keccak256Hash([]byte("SetForceBatchTimeout(uint64)"))
+	activateForceBatchesSignatureHash              = crypto.Keccak256Hash([]byte("ActivateForceBatches()"))
+	transferAdminRoleSignatureHash                 = crypto.Keccak256Hash([]byte("TransferAdminRole(address)"))
+	acceptAdminRoleSignatureHash                   = crypto.Keccak256Hash([]byte("AcceptAdminRole(address)"))
+	proveNonDeterministicPendingStateSignatureHash = crypto.Keccak256Hash([]byte("ProveNonDeterministicPendingState(bytes32,bytes32)"))
+	overridePendingStateSignatureHash              = crypto.Keccak256Hash([]byte("OverridePendingState(uint64,bytes32,address)"))
 
 	// Proxy events
 	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
@@ -301,9 +310,6 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case setTrustedSequencerURLSignatureHash:
 		log.Debug("SetTrustedSequencerURL event detected")
 		return nil
-	case setForceBatchAllowedSignatureHash:
-		log.Debug("SetForceBatchAllowed event detected")
-		return nil
 	case setTrustedSequencerSignatureHash:
 		log.Debug("SetTrustedSequencer event detected")
 		return nil
@@ -322,12 +328,6 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case transferOwnershipSignatureHash:
 		log.Debug("TransferOwnership event detected")
 		return nil
-	case setSecurityCouncilSignatureHash:
-		log.Debug("SetSecurityCouncil event detected")
-		return nil
-	case proofDifferentStateSignatureHash:
-		log.Debug("ProofDifferentState event detected")
-		return nil
 	case emergencyStateActivatedSignatureHash:
 		log.Debug("EmergencyStateActivated event detected")
 		return nil
@@ -336,6 +336,42 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return nil
 	case updateZkEVMVersionSignatureHash:
 		return etherMan.updateZkevmVersion(ctx, vLog, blocks, blocksOrder)
+	case consolidatePendingStateSignatureHash:
+		log.Debug("ConsolidatePendingState event detected")
+		return nil
+	case setTrustedAggregatorTimeoutSignatureHash:
+		log.Debug("SetTrustedAggregatorTimeout event detected")
+		return nil
+	case setTrustedAggregatorSignatureHash:
+		log.Debug("setTrustedAggregator event detected")
+		return nil
+	case setPendingStateTimeoutSignatureHash:
+		log.Debug("SetPendingStateTimeout event detected")
+		return nil
+	case setMultiplierBatchFeeSignatureHash:
+		log.Debug("SetMultiplierBatchFee event detected")
+		return nil
+	case setVerifyBatchTimeTargetSignatureHash:
+		log.Debug("SetVerifyBatchTimeTarget event detected")
+		return nil
+	case setForceBatchTimeoutSignatureHash:
+		log.Debug("SetForceBatchTimeout event detected")
+		return nil
+	case activateForceBatchesSignatureHash:
+		log.Debug("ActivateForceBatches event detected")
+		return nil
+	case transferAdminRoleSignatureHash:
+		log.Debug("TransferAdminRole event detected")
+		return nil
+	case acceptAdminRoleSignatureHash:
+		log.Debug("AcceptAdminRole event detected")
+		return nil
+	case proveNonDeterministicPendingStateSignatureHash:
+		log.Debug("ProveNonDeterministicPendingState event detected")
+		return nil
+	case overridePendingStateSignatureHash:
+		log.Debug("OverridePendingState event detected")
+		return nil
 	}
 	log.Warn("Event not registered: ", vLog)
 	return nil
