@@ -103,6 +103,10 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
+	_, err = poe.ActivateForceBatches(auth)
+	if err != nil {
+		return nil, nil, common.Address{}, nil, err
+	}
 
 	client.Commit()
 	c := &Client{

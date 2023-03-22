@@ -55,6 +55,12 @@ func (e *EthEndpoints) BlockNumber() (interface{}, types.Error) {
 // useful to execute view/pure methods and retrieve values.
 func (e *EthEndpoints) Call(arg *types.TxArgs, number *types.BlockNumber) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		if arg == nil {
+			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil)
+		} else if number == nil {
+			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 1", nil)
+		}
+
 		// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
 		if arg.Gas == nil || *arg.Gas == types.ArgUint64(0) {
 			header, err := e.getBlockHeader(ctx, *number, dbTx)
