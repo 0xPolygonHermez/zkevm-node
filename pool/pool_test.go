@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -35,6 +36,7 @@ import (
 
 const (
 	senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	senderAddress    = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
 )
 
 var (
@@ -43,18 +45,22 @@ var (
 	genesis    = state.Genesis{
 		Actions: []*state.GenesisAction{
 			{
-				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
-				Value:   "1000000000000000000000",
+				Value:   "90000000000000000000000000000000000000000000000000000000000",
 			},
 		},
 	}
 	cfg = pool.Config{
-		FreeClaimGasLimit:  150000,
-		MaxTxBytesSize:     30132,
-		MaxTxDataBytesSize: 30000,
+		FreeClaimGasLimit:            150000,
+		MaxTxBytesSize:               30132,
+		MaxTxDataBytesSize:           30000,
+		MinGasPrice:                  1000000000,
+		MinSuggestedGasPriceInterval: cfgTypes.NewDuration(5 * time.Minute),
 	}
-	chainID = big.NewInt(1337)
+	gasPrice = big.NewInt(0).SetUint64(cfg.MinGasPrice)
+	gasLimit = uint64(21000)
+	chainID  = big.NewInt(1337)
 )
 
 func TestMain(m *testing.M) {
@@ -90,15 +96,6 @@ func Test_AddTx(t *testing.T) {
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
 	}
-	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
-			{
-				Address: "0xb48cA794d49EeC406A5dD2c547717e37b5952a83",
-				Type:    int(merkletree.LeafTypeBalance),
-				Value:   "1000000000000000000000",
-			},
-		},
-	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -113,13 +110,17 @@ func Test_AddTx(t *testing.T) {
 
 	const chainID = 2576980377
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
-
-	txRLPHash := "0xf86e8212658082520894fd8b27a263e19f0e9592180e61f0f8c9dfeb1ff6880de0b6b3a764000080850133333355a01eac4c2defc7ed767ae36bbd02613c581b8fb87d0e4f579c9ee3a7cfdb16faa7a043ce30f43d952b9d034cf8f04fecb631192a5dbc7ee2a47f1f49c0d022a8849d"
-	b, err := hex.DecodeHex(txRLPHash)
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
 	if err != nil {
 		t.Error(err)
 	}
+
 	tx := new(types.Transaction)
+	expectedTxEncoded := "0xf86880843b9aca008252089400000000000000000000000000000000000000008080850133333355a03ee24709870c8dbc67884c9c8acb864c1aceaaa7332b9a3db0d7a5d7c68eb8e4a0302980b070f5e3ffca3dc27b07daf69d66ab27d4df648e0b3ed059cf23aa168d"
+	b, err := hex.DecodeHex(expectedTxEncoded)
+	if err != nil {
+		t.Error(err)
+	}
 	tx.UnmarshalBinary(b) //nolint:gosec,errcheck
 
 	err = p.AddTx(ctx, *tx, "")
@@ -143,8 +144,8 @@ func Test_AddTx(t *testing.T) {
 		}
 		b, _ := tx.MarshalJSON()
 
-		assert.Equal(t, "0xa3cff5abdf47d4feb8204a45c0a8c58fc9b9bb9b29c6588c1d206b746815e9cc", hash, "invalid hash")
-		assert.Equal(t, txRLPHash, encoded, "invalid encoded")
+		assert.Equal(t, "0x3c499a6308dbf4e67bd4e949b0b609e3a0a5a7fd6a497acb23e37ae7f0a923cc", hash, "invalid hash")
+		assert.Equal(t, expectedTxEncoded, encoded, "invalid encoded")
 		assert.JSONEq(t, string(b), decoded, "invalid decoded")
 		assert.Equal(t, string(pool.TxStatusPending), status, "invalid tx status")
 		assert.Greater(t, usedSteps, 0, "invalid used steps")
@@ -180,7 +181,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	genesis := state.Genesis{
 		Actions: []*state.GenesisAction{
 			{
-				Address: "0xb48cA794d49EeC406A5dD2c547717e37b5952a83",
+				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
 				Value:   "1000000000000000000000",
 			},
@@ -202,8 +203,8 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
 
 	b := make([]byte, cfg.MaxTxBytesSize+1)
-	from := common.HexToAddress(operations.DefaultSequencerAddress)
-	tx := types.NewTransaction(0, from, big.NewInt(0), 0, big.NewInt(0), b)
+	to := common.HexToAddress(operations.DefaultSequencerAddress)
+	tx := types.NewTransaction(0, to, big.NewInt(0), gasLimit, big.NewInt(0), b)
 
 	// GetAuth configures and returns an auth object.
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, chainID)
@@ -241,7 +242,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	genesis := state.Genesis{
 		Actions: []*state.GenesisAction{
 			{
-				Address: "0xb48cA794d49EeC406A5dD2c547717e37b5952a83",
+				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
 				Value:   "1000000000000000000000",
 			},
@@ -266,6 +267,10 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 
 	const chainID = 2576980377
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
 
 	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81b"
 	b, err := hex.DecodeHex(batchL2Data)
@@ -334,6 +339,10 @@ func Test_GetPendingTxs(t *testing.T) {
 	}
 
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
 
 	const txsCount = 10
 	const limit = 5
@@ -346,7 +355,7 @@ func Test_GetPendingTxs(t *testing.T) {
 
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
@@ -358,7 +367,6 @@ func Test_GetPendingTxs(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	assert.Equal(t, limit, len(txs))
 
 	for i := 0; i < txsCount; i++ {
@@ -395,6 +403,10 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		t.Error(err)
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
 
 	const txsCount = 10
 	const limit = 0
@@ -407,7 +419,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
@@ -456,6 +468,10 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		t.Error(err)
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
 
 	const txsCount = 10
 
@@ -467,7 +483,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10+int64(i)), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), gasLimit, big.NewInt(gasPrice.Int64()+int64(i)), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		if err := p.AddTx(ctx, *signedTx, ""); err != nil {
@@ -517,6 +533,10 @@ func Test_UpdateTxsStatus(t *testing.T) {
 		t.Error(err)
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -524,14 +544,14 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
-	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
+	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
 	if err := p.AddTx(ctx, *signedTx1, ""); err != nil {
 		t.Error(err)
 	}
 
-	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
+	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
 	if err := p.AddTx(ctx, *signedTx2, ""); err != nil {
@@ -587,14 +607,17 @@ func Test_UpdateTxStatus(t *testing.T) {
 		t.Error(err)
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
 
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
-
-	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
+	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 	if err := p.AddTx(ctx, *signedTx, ""); err != nil {
@@ -680,6 +703,10 @@ func TestGetPendingTxSince(t *testing.T) {
 		t.Error(err)
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
 
 	const txsCount = 10
 
@@ -695,7 +722,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	timeBeforeTxs := time.Now()
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		txsAddedTime = append(txsAddedTime, time.Now())
@@ -782,6 +809,10 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 		t.Error(err)
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -789,14 +820,14 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
-	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
+	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
 	if err := p.AddTx(ctx, *signedTx1, ""); err != nil {
 		t.Error(err)
 	}
 
-	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(100000), big.NewInt(10), []byte{})
+	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
 	if err := p.AddTx(ctx, *signedTx2, ""); err != nil {
@@ -889,7 +920,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 			createIncompatibleTx: func() types.Transaction {
 				tx := types.NewTransaction(uint64(0),
 					common.HexToAddress("0x1"),
-					big.NewInt(1), uint64(1000000), bigIntOver256Bits, nil)
+					big.NewInt(1), gasLimit, bigIntOver256Bits, nil)
 				signedTx, err := auth.Signer(auth.From, tx)
 				require.NoError(t, err)
 				return *signedTx
@@ -901,7 +932,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 			createIncompatibleTx: func() types.Transaction {
 				tx := types.NewTransaction(uint64(0),
 					common.HexToAddress("0x1"),
-					bigIntOver256Bits, uint64(1000000), big.NewInt(1), nil)
+					bigIntOver256Bits, gasLimit, gasPrice, nil)
 				signedTx, err := auth.Signer(auth.From, tx)
 				require.NoError(t, err)
 				return *signedTx
@@ -914,7 +945,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 				data := [30001]byte{}
 				tx := types.NewTransaction(uint64(0),
 					common.HexToAddress("0x1"),
-					big.NewInt(1), uint64(1000000), big.NewInt(1), data[:])
+					big.NewInt(1), 141004, gasPrice, data[:])
 				signedTx, err := auth.Signer(auth.From, tx)
 				require.NoError(t, err)
 				return *signedTx
@@ -926,7 +957,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 			createIncompatibleTx: func() types.Transaction {
 				tx := types.NewTransaction(uint64(0),
 					common.HexToAddress("0x1"),
-					big.NewInt(1), uint64(1000000), big.NewInt(1), nil)
+					big.NewInt(1), gasLimit, gasPrice, nil)
 				signedTx, err := authChainIdOver64Bits.Signer(authChainIdOver64Bits.From, tx)
 				require.NoError(t, err)
 				return *signedTx
@@ -938,6 +969,10 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			incompatibleTx := testCase.createIncompatibleTx()
 			p := pool.NewPool(cfg, s, st, common.Address{}, incompatibleTx.ChainId().Uint64())
+			err = p.SetGasPrice(ctx, gasPrice.Uint64())
+			if err != nil {
+				t.Error(err)
+			}
 			err = p.AddTx(ctx, incompatibleTx, "")
 			assert.Equal(t, testCase.expectedError, err)
 		})
@@ -1001,6 +1036,10 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 		t.Error(err)
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -1012,9 +1051,9 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    uint64(0),
 		To:       &common.Address{},
-		Value:    big.NewInt(10),
-		Gas:      uint64(20999),
-		GasPrice: big.NewInt(10),
+		Value:    big.NewInt(0),
+		Gas:      0,
+		GasPrice: gasPrice,
 		Data:     []byte{},
 	})
 	signedTx, err := auth.Signer(auth.From, tx)
@@ -1027,8 +1066,8 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 		Nonce:    uint64(0),
 		To:       nil,
 		Value:    big.NewInt(10),
-		Gas:      uint64(21000),
-		GasPrice: big.NewInt(10),
+		Gas:      0,
+		GasPrice: gasPrice,
 		Data:     []byte{},
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
@@ -1042,7 +1081,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 		To:       &common.Address{},
 		Value:    big.NewInt(10),
 		Gas:      uint64(21000),
-		GasPrice: big.NewInt(10),
+		GasPrice: gasPrice,
 		Data:     []byte{},
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
@@ -1054,8 +1093,8 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 		Nonce:    uint64(1),
 		To:       &common.Address{},
 		Value:    big.NewInt(10),
-		Gas:      uint64(21000),
-		GasPrice: big.NewInt(10),
+		Gas:      0,
+		GasPrice: gasPrice,
 		Data:     []byte("data inside tx"),
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
@@ -1069,7 +1108,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 		To:       &common.Address{},
 		Value:    big.NewInt(10),
 		Gas:      uint64(21223),
-		GasPrice: big.NewInt(10),
+		GasPrice: gasPrice,
 		Data:     []byte("data inside tx"),
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
@@ -1083,7 +1122,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 		To:       &common.Address{},
 		Value:    big.NewInt(10),
 		Gas:      uint64(21224),
-		GasPrice: big.NewInt(10),
+		GasPrice: gasPrice,
 		Data:     []byte("data inside tx"),
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
@@ -1098,6 +1137,77 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		assert.Equal(t, pool.TxStatusPending, txs[0].Status)
 	}
+}
+
+func Test_AddTxWithIntrinsicGasPriceTooLow(t *testing.T) {
+	initOrResetDB()
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: senderAddress,
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
+		},
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	const chainID = 2576980377
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    uint64(0),
+		To:       nil,
+		Value:    big.NewInt(0),
+		Gas:      uint64(21000),
+		GasPrice: big.NewInt(0).SetUint64(cfg.MinGasPrice - 1),
+		Data:     []byte{},
+	})
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, "")
+	require.ErrorIs(t, err, pool.ErrIntrinsicGasPrice)
 }
 
 func Test_AddRevertedTx(t *testing.T) {
@@ -1129,6 +1239,10 @@ func Test_AddRevertedTx(t *testing.T) {
 		t.Error(err)
 	}
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
+	err = p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -1142,7 +1256,7 @@ func Test_AddRevertedTx(t *testing.T) {
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    uint64(0),
 		Gas:      uint64(1000000),
-		GasPrice: big.NewInt(10),
+		GasPrice: gasPrice,
 		Data:     revertScData,
 	})
 	signedTx, err := auth.Signer(auth.From, tx)
