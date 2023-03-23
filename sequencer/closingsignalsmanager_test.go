@@ -23,6 +23,7 @@ import (
 const numberOfForcesBatches = 10
 
 var (
+	localStateDb                                 *db.SQLDB
 	localTestDbManager                           *dbManager
 	localCtx                                     context.Context
 	localMtDBCancel, localExecutorCancel         context.CancelFunc
@@ -44,25 +45,25 @@ func setupTest(t *testing.T) {
 
 	localCtx = context.Background()
 
-	stateDb, err = db.NewSQLDB(stateDBCfg)
+	localStateDb, err = db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		panic(err)
 	}
 
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
-	locatlMtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	localMtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	localExecutorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 
 	localExecutorClient, localExecutorClientConn, localExecutorCancel = executor.NewExecutorClient(localCtx, localExecutorServerConfig)
 	s := localExecutorClientConn.GetState()
 	log.Infof("executorClientConn state: %s", s.String())
 
-	localMtDBServiceClient, localMtDBClientConn, localMtDBCancel = merkletree.NewMTDBServiceClient(localCtx, locatlMtDBServerConfig)
+	localMtDBServiceClient, localMtDBClientConn, localMtDBCancel = merkletree.NewMTDBServiceClient(localCtx, localMtDBServerConfig)
 	s = localMtDBClientConn.GetState()
-	log.Infof("stateDbClientConn state: %s", s.String())
+	log.Infof("localStateDbClientConn state: %s", s.String())
 
 	localStateTree := merkletree.NewStateTree(localMtDBServiceClient)
-	localState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), localExecutorClient, localStateTree)
+	localState = state.NewState(stateCfg, state.NewPostgresStorage(localStateDb), localExecutorClient, localStateTree)
 
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       150,
