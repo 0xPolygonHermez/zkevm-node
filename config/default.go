@@ -36,9 +36,9 @@ MinSuggestedGasPriceInterval = "5m"
 [Etherman]
 URL = "http://localhost:8545"
 L1ChainID = 1337
-PoEAddr = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
+PoEAddr = "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-GlobalExitRootManagerAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+GlobalExitRootManagerAddr = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"
 MultiGasProvider = true
 	[Etherman.Etherscan]
 		ApiKey = ""
@@ -64,7 +64,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
-GenBlockNumber = 67
+GenBlockNumber = 69
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
