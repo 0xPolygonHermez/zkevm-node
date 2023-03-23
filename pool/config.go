@@ -19,9 +19,9 @@ type Config struct {
 	// DB is the database configuration
 	DB db.Config `mapstructure:"DB"`
 
-	// MinGasPrice is the minimum gas price allowed for a tx
-	MinGasPrice uint64 `mapstructure:"MinGasPrice"`
-
 	// MinSuggestedGasPriceInterval is the interval to look back of the suggested min gas price for a tx
 	MinSuggestedGasPriceInterval types.Duration `mapstructure:"MinSuggestedGasPriceInterval"`
+
+	// PollMinSuggestedGasPriceInterval is the interval to poll the suggested min gas price for a tx
+	PollMinSuggestedGasPriceInterval types.Duration `mapstructure:"PollMinSuggestedGasPriceInterval"`
 }
