@@ -206,6 +206,68 @@ func StringToBlockNumber(str string) (BlockNumber, error) {
 	return BlockNumber(n), nil
 }
 
+// BlockNumberOrHash allows a string value to be parsed
+// into a block number or a hash, it's used by methods
+// like eth_call that allows the block to be specified
+// either by the block number or the block hash
+type BlockNumberOrHash struct {
+	number *BlockNumber
+	hash   *ArgHash
+}
+
+// IsHash checks if the hash has value
+func (b *BlockNumberOrHash) IsHash() bool {
+	return b.hash != nil
+}
+
+// IsNumber checks if the number has value
+func (b *BlockNumberOrHash) IsNumber() bool {
+	return b.number != nil
+}
+
+// SetHash sets the hash and nullify the number
+func (b *BlockNumberOrHash) SetHash(hash ArgHash) {
+	t := hash
+	b.number = nil
+	b.hash = &t
+}
+
+// SetNumber sets the number and nullify the hash
+func (b *BlockNumberOrHash) SetNumber(number BlockNumber) {
+	t := number
+	b.number = &t
+	b.hash = nil
+}
+
+// Hash returns the hash
+func (b *BlockNumberOrHash) Hash() *ArgHash {
+	return b.hash
+}
+
+// Number returns the number
+func (b *BlockNumberOrHash) Number() *BlockNumber {
+	return b.number
+}
+
+// UnmarshalJSON automatically decodes the user input for the block number, when a JSON RPC method is called
+func (b *BlockNumberOrHash) UnmarshalJSON(buffer []byte) error {
+	var number BlockNumber
+	err := json.Unmarshal(buffer, &number)
+	if err == nil {
+		b.SetNumber(number)
+		return nil
+	}
+
+	var hash ArgHash
+	err = json.Unmarshal(buffer, &hash)
+	if err == nil {
+		b.SetHash(hash)
+		return nil
+	}
+
+	return err
+}
+
 // Index of a item
 type Index int64
 

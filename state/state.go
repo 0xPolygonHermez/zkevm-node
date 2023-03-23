@@ -176,7 +176,7 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 }
 
 // EstimateGas for a transaction
-func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
+func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	const ethTransferGas = 21000
 
 	var lowEnd uint64
@@ -184,7 +184,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	ctx := context.Background()
 
-	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, &l2BlockNumber, two, dbTx)
 	if err != nil {
 		return 0, err
 	}
