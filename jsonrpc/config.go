@@ -33,6 +33,9 @@ type Config struct {
 
 	// Websockets
 	WebSockets WebSocketsConfig `mapstructure:"WebSockets"`
+
+	// EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.
+	EnableL2SuggestedGasPricePolling bool `mapstructure:"EnableL2SuggestedGasPricePolling"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support

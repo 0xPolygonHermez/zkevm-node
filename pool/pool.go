@@ -18,6 +18,7 @@ import (
 const (
 	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
 	bridgeClaimMethodSignature = "0x2cffd02e"
+	retryInterval              = 2 * time.Second
 )
 
 var (
@@ -38,34 +39,46 @@ type Pool struct {
 	l2BridgeAddr            common.Address
 	chainID                 uint64
 	cfg                     Config
-	minGasPriceWei          *big.Int
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64, minGasPriceWei uint64) *Pool {
+func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
 	return &Pool{
 		cfg:                     cfg,
 		storage:                 s,
 		state:                   st,
 		l2BridgeAddr:            l2BridgeAddr,
 		chainID:                 chainID,
-		minGasPriceWei:          big.NewInt(0).SetUint64(minGasPriceWei),
 		minSuggestedGasPriceMux: new(sync.RWMutex),
 	}
 }
 
 // StartPollingMinSuggestedGasPrice starts polling the minimum suggested gas price
 func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
-	p.pollMinSuggestedGasPrice(ctx)
+	err := p.pollMinSuggestedGasPrice(ctx)
+	if err != nil && err != state.ErrNotFound {
+		log.Fatalf("Error polling min suggested gas price: %v", err)
+	}
+
+	// Retrying until we have a valid minSuggestedGasPrice
+	for err == state.ErrNotFound {
+		err = p.pollMinSuggestedGasPrice(ctx)
+		log.Infof("Retrying to poll min suggested gas price ...")
+		time.Sleep(retryInterval)
+	}
+
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(p.cfg.PollMinSuggestedGasPriceInterval.Duration):
-				p.pollMinSuggestedGasPrice(ctx)
+				err = p.pollMinSuggestedGasPrice(ctx)
+				if err != nil {
+					log.Errorf("Error polling min suggested gas price: %v", err)
+				}
 			}
 		}
 	}()
@@ -193,14 +206,11 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return ErrOversizedData
 	}
 	// Reject transactions with a gas price lower than the minimum gas price
-	if tx.GasPrice().Cmp(p.minGasPriceWei) == -1 {
+	p.minSuggestedGasPriceMux.RLock()
+	gasPriceCmp := tx.GasPrice().Cmp(p.minSuggestedGasPrice)
+	p.minSuggestedGasPriceMux.RUnlock()
+	if gasPriceCmp == -1 {
 		return ErrGasPrice
-	} else {
-		p.minSuggestedGasPriceMux.RLock()
-		if p.minSuggestedGasPrice != nil && tx.GasPrice().Cmp(p.minSuggestedGasPrice) == -1 {
-			return ErrGasPrice
-		}
-		p.minSuggestedGasPriceMux.RUnlock()
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
@@ -287,18 +297,23 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	return nil
 }
 
-func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
+func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) error {
 	fromTimestamp := time.Now().UTC().Add(-p.cfg.MinSuggestedGasPriceInterval.Duration)
 	gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
 	if err == state.ErrNotFound {
 		log.Warnf("No suggested min gas price since: %v", fromTimestamp)
+		return err
 	} else if err != nil {
 		log.Errorf("Error getting min gas price since: %v", fromTimestamp)
+		return err
 	} else {
 		p.minSuggestedGasPriceMux.Lock()
 		p.minSuggestedGasPrice = big.NewInt(0).SetUint64(gasPrice)
 		p.minSuggestedGasPriceMux.Unlock()
+		log.Infof("Min suggested gas price updated to: %d", gasPrice)
 	}
+
+	return nil
 }
 
 // checkTxFieldCompatibilityWithExecutor checks the field sizes of the transaction to make sure

@@ -329,6 +329,11 @@ func Test_Defaults(t *testing.T) {
 			path:          "RPC.WebSockets.Enabled",
 			expectedValue: false,
 		},
+
+		{
+			path:          "RPC.EnableL2SuggestedGasPricePolling",
+			expectedValue: true,
+		},
 		{
 			path:          "RPC.WebSockets.Port",
 			expectedValue: 8133,

@@ -113,7 +113,6 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	etm := ethtxmanager.New(c.EthTxManager, etherman, ethTxManagerStorage, st)
-	defaultGasPriceWei := c.L2GasPriceSuggester.DefaultGasPriceWei
 
 	for _, component := range components {
 		switch component {
@@ -122,13 +121,16 @@ func start(cliCtx *cli.Context) error {
 			go runAggregator(ctx, c.Aggregator, etherman, etm, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, defaultGasPriceWei)
+			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, defaultGasPriceWei)
-			poolInstance.StartPollingMinSuggestedGasPrice(ctx)
+			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			if c.RPC.EnableL2SuggestedGasPricePolling {
+				// Needed for rejecting transactions with too low gas price
+				poolInstance.StartPollingMinSuggestedGasPrice(ctx)
+			}
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
@@ -136,7 +138,7 @@ func start(cliCtx *cli.Context) error {
 			go runJSONRPCServer(*c, poolInstance, st, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, defaultGasPriceWei)
+			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			go runSynchronizer(*c, etherman, etm, st, poolInstance)
 		case BROADCAST:
 			log.Info("Running broadcast service")
@@ -147,7 +149,7 @@ func start(cliCtx *cli.Context) error {
 			go etm.Start()
 		case L2GASPRICER:
 			log.Info("Running L2 gasPricer")
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, defaultGasPriceWei)
+			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			go runL2GasPriceSuggester(c.L2GasPriceSuggester, st, poolInstance, etherman)
 		}
 	}
@@ -312,13 +314,13 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 	return st
 }
 
-func createPool(cfgPool pool.Config, l2BridgeAddr common.Address, l2ChainID uint64, st *state.State, minGasPriceWei uint64) *pool.Pool {
+func createPool(cfgPool pool.Config, l2BridgeAddr common.Address, l2ChainID uint64, st *state.State) *pool.Pool {
 	runPoolMigrations(cfgPool.DB)
 	poolStorage, err := pgpoolstorage.NewPostgresPoolStorage(cfgPool.DB)
 	if err != nil {
 		log.Fatal(err)
 	}
-	poolInstance := pool.NewPool(cfgPool, poolStorage, st, l2BridgeAddr, l2ChainID, minGasPriceWei)
+	poolInstance := pool.NewPool(cfgPool, poolStorage, st, l2BridgeAddr, l2ChainID)
 	return poolInstance
 }
 

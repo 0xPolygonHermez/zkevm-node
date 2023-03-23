@@ -48,6 +48,7 @@ MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
 		Enabled = true
 		Port = 8133

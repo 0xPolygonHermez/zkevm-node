@@ -20,7 +20,6 @@ import (
 
 const (
 	sleepDuration                           = 5 * time.Second
-	minGasPriceInWei                        = 1000000000
 	minSuggestedGasPriceIntervalMinutes     = 5
 	pollMinSuggestedGasPriceIntervalSeconds = 15
 )
@@ -53,7 +52,6 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	st := opsman.State()
 	s, err := pgpoolstorage.NewPostgresPoolStorage(params.PoolDbConfig)
 	require.NoError(b, err)
-	minGasPriceWei := big.NewInt(minGasPriceInWei)
 	config := pool.Config{
 		FreeClaimGasLimit:                1000000, //nolint:gomnd
 		DB:                               params.PoolDbConfig,
@@ -61,7 +59,7 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 		PollMinSuggestedGasPriceInterval: types.NewDuration(pollMinSuggestedGasPriceIntervalSeconds * time.Second),
 	}
 
-	pl := pool.NewPool(config, s, st, common.Address{}, params.ChainID, minGasPriceWei.Uint64())
+	pl := pool.NewPool(config, s, st, common.Address{}, params.ChainID)
 
 	// Print Info before send
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)
