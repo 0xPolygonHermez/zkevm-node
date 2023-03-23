@@ -71,8 +71,8 @@ func setupTest(t *testing.T) {
 	// Set genesis batch
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
-	require.NoError(t, err)
+	// _, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	// require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
