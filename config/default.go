@@ -22,8 +22,9 @@ MaxConns = 200
 FreeClaimGasLimit = 150000
 MaxTxBytesSize=30132
 MaxTxDataBytesSize=30000
-MinSuggestedGasPriceInterval = "5m"
-PollMinSuggestedGasPriceInterval = "15s"
+DefaultMinGasPriceAllowed = 1000000000
+MinAllowedGasPriceInterval = "5m"
+PollMinAllowedGasPriceInterval = "15s"
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"

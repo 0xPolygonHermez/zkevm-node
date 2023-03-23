@@ -52,11 +52,12 @@ var (
 		},
 	}
 	cfg = pool.Config{
-		FreeClaimGasLimit:                150000,
-		MaxTxBytesSize:                   30132,
-		MaxTxDataBytesSize:               30000,
-		MinSuggestedGasPriceInterval:     cfgTypes.NewDuration(5 * time.Minute),
-		PollMinSuggestedGasPriceInterval: cfgTypes.NewDuration(15 * time.Second),
+		FreeClaimGasLimit:              150000,
+		MaxTxBytesSize:                 30132,
+		MaxTxDataBytesSize:             30000,
+		MinAllowedGasPriceInterval:     cfgTypes.NewDuration(5 * time.Minute),
+		PollMinAllowedGasPriceInterval: cfgTypes.NewDuration(15 * time.Second),
+		DefaultMinGasPriceAllowed:      1000000000,
 	}
 	gasPrice = big.NewInt(1000000000)
 	gasLimit = uint64(21000)

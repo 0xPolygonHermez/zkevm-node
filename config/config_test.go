@@ -257,12 +257,17 @@ func Test_Defaults(t *testing.T) {
 			path:          "Pool.MaxTxDataBytesSize",
 			expectedValue: 30000,
 		},
+
 		{
-			path:          "Pool.MinSuggestedGasPriceInterval",
+			path:          "Pool.DefaultMinGasPriceAllowed",
+			expectedValue: uint64(1000000000),
+		},
+		{
+			path:          "Pool.MinAllowedGasPriceInterval",
 			expectedValue: types.NewDuration(5 * time.Minute),
 		},
 		{
-			path:          "Pool.PollMinSuggestedGasPriceInterval",
+			path:          "Pool.PollMinAllowedGasPriceInterval",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{

@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	sleepDuration                           = 5 * time.Second
-	minSuggestedGasPriceIntervalMinutes     = 5
-	pollMinSuggestedGasPriceIntervalSeconds = 15
+	sleepDuration                         = 5 * time.Second
+	minAllowedGasPriceIntervalMinutes     = 5
+	pollMinAllowedGasPriceIntervalSeconds = 15
 )
 
 // Environment sets up the environment for the benchmark
@@ -53,10 +53,10 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	s, err := pgpoolstorage.NewPostgresPoolStorage(params.PoolDbConfig)
 	require.NoError(b, err)
 	config := pool.Config{
-		FreeClaimGasLimit:                1000000, //nolint:gomnd
-		DB:                               params.PoolDbConfig,
-		MinSuggestedGasPriceInterval:     types.NewDuration(minSuggestedGasPriceIntervalMinutes * time.Minute),
-		PollMinSuggestedGasPriceInterval: types.NewDuration(pollMinSuggestedGasPriceIntervalSeconds * time.Second),
+		FreeClaimGasLimit:              1000000, //nolint:gomnd
+		DB:                             params.PoolDbConfig,
+		MinAllowedGasPriceInterval:     types.NewDuration(minAllowedGasPriceIntervalMinutes * time.Minute),
+		PollMinAllowedGasPriceInterval: types.NewDuration(pollMinAllowedGasPriceIntervalSeconds * time.Second),
 	}
 
 	pl := pool.NewPool(config, s, st, common.Address{}, params.ChainID)
