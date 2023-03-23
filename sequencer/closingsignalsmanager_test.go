@@ -44,11 +44,11 @@ func setupTest(t *testing.T) {
 		panic(err)
 	}
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.104.156")
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 
 	localMtDBServiceClient, localMtDBClientConn, localMtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
-	s := mtDBClientConn.GetState()
+	s := localMtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
 
 	localStateTree := merkletree.NewStateTree(localMtDBServiceClient)
