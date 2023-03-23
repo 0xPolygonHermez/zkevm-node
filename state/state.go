@@ -1351,13 +1351,6 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		return newRoot, ErrDBTxNil
 	}
 
-	// flush state db
-	err = s.tree.Flush(ctx)
-	if err != nil {
-		log.Errorf("TO BE DELETED error flushing state tree after genesis: %v", err)
-		return newRoot, err
-	}
-
 	for _, action := range genesis.Actions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {

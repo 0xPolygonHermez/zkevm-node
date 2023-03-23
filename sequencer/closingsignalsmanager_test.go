@@ -68,10 +68,19 @@ func setupTest(t *testing.T) {
 	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
 
 	// Set genesis batch
-	time.Sleep(5 * time.Second)
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "10000000",
+			},
+		},
+	}
+
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 }
