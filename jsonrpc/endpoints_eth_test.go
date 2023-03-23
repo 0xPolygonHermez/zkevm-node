@@ -108,18 +108,12 @@ func TestBlockNumber(t *testing.T) {
 }
 
 func TestCall(t *testing.T) {
-	s, m, c := newSequencerMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
 		name           string
-		from           common.Address
-		to             *common.Address
-		gas            uint64
-		gasPrice       *big.Int
-		value          *big.Int
-		data           []byte
-		blockNumber    *big.Int
+		params         []interface{}
 		expectedResult []byte
 		expectedError  interface{}
 		setupMocks     func(Config, *mocksWrapper, *testCase)
@@ -127,13 +121,18 @@ func TestCall(t *testing.T) {
 
 	testCases := []*testCase{
 		{
-			name:           "Transaction with all information",
-			from:           common.HexToAddress("0x1"),
-			to:             state.AddressPtr(common.HexToAddress("0x2")),
-			gas:            uint64(24000),
-			gasPrice:       big.NewInt(1),
-			value:          big.NewInt(2),
-			data:           []byte("data"),
+			name: "Transaction with all information from latest block",
+			params: []interface{}{
+				types.TxArgs{
+					From:     state.HexToAddressPtr("0x1"),
+					To:       state.HexToAddressPtr("0x2"),
+					Gas:      types.ArgUint64Ptr(24000),
+					GasPrice: types.ArgBytesPtr(big.NewInt(1).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+				"latest",
+			},
 			expectedResult: []byte("hello world"),
 			expectedError:  nil,
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
@@ -142,127 +141,211 @@ func TestCall(t *testing.T) {
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
 					return tx != nil &&
-						tx.Gas() == testCase.gas &&
-						tx.To().Hex() == testCase.to.Hex() &&
-						tx.GasPrice().Uint64() == testCase.gasPrice.Uint64() &&
-						tx.Value().Uint64() == testCase.value.Uint64() &&
-						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data) &&
+						tx.To().Hex() == txArgs.To.Hex() &&
+						tx.Gas() == uint64(*txArgs.Gas) &&
+						tx.GasPrice().Uint64() == gasPrice.Uint64() &&
+						tx.Value().Uint64() == value.Uint64() &&
+						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data) &&
 						tx.Nonce() == nonce
 				})
-				m.State.On("GetNonce", context.Background(), testCase.from, blockNumber, m.DbTx).Return(nonce, nil).Once()
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
+				m.State.
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).
+					Once()
 			},
 		},
 		{
-			name:           "Transaction without from and gas from latest block",
-			to:             state.AddressPtr(common.HexToAddress("0x2")),
-			gasPrice:       big.NewInt(0),
-			value:          big.NewInt(2),
-			data:           []byte("data"),
+			name: "Transaction with all information from block by hash",
+			params: []interface{}{
+				types.TxArgs{
+					From:     state.HexToAddressPtr("0x1"),
+					To:       state.HexToAddressPtr("0x2"),
+					Gas:      types.ArgUint64Ptr(24000),
+					GasPrice: types.ArgBytesPtr(big.NewInt(1).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+				"0x82ba516e76a4bfaba6d1d95c8ccde96e353ce3c683231d011021f43dee7b2d95",
+			},
+			expectedResult: []byte("hello world"),
+			expectedError:  nil,
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
+				blockNumber := uint64(10)
+				nonce := uint64(7)
+				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
+				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
+				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(0).SetUint64(blockNumber)})
+				m.State.
+					On("GetL2BlockByHash", context.Background(), common.HexToHash("0x82ba516e76a4bfaba6d1d95c8ccde96e353ce3c683231d011021f43dee7b2d95"), m.DbTx).
+					Return(block, nil).Once()
+				txArgs := testCase.params[0].(types.TxArgs)
+				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
+					return tx != nil &&
+						tx.To().Hex() == txArgs.To.Hex() &&
+						tx.Gas() == uint64(*txArgs.Gas) &&
+						tx.GasPrice().Uint64() == gasPrice.Uint64() &&
+						tx.Value().Uint64() == value.Uint64() &&
+						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data) &&
+						tx.Nonce() == nonce
+				})
+				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
+				m.State.
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).
+					Once()
+			},
+		},
+		{
+			name: "Transaction with all information from block by number",
+			params: []interface{}{
+				types.TxArgs{
+					From:     state.HexToAddressPtr("0x1"),
+					To:       state.HexToAddressPtr("0x2"),
+					Gas:      types.ArgUint64Ptr(24000),
+					GasPrice: types.ArgBytesPtr(big.NewInt(1).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+				"0xa",
+			},
+			expectedResult: []byte("hello world"),
+			expectedError:  nil,
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
+				blockNumber := uint64(10)
+				nonce := uint64(7)
+				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
+				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
+				txArgs := testCase.params[0].(types.TxArgs)
+				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
+					return tx != nil &&
+						tx.To().Hex() == txArgs.To.Hex() &&
+						tx.Gas() == uint64(*txArgs.Gas) &&
+						tx.GasPrice().Uint64() == gasPrice.Uint64() &&
+						tx.Value().Uint64() == value.Uint64() &&
+						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data) &&
+						tx.Nonce() == nonce
+				})
+				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
+				m.State.
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).
+					Once()
+			},
+		},
+		{
+			name: "Transaction without from and gas from latest block",
+			params: []interface{}{
+				types.TxArgs{
+					To:       state.HexToAddressPtr("0x2"),
+					GasPrice: types.ArgBytesPtr(big.NewInt(0).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+				"latest",
+			},
 			expectedResult: []byte("hello world"),
 			expectedError:  nil,
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(1)
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Root: common.Hash{}, GasLimit: s.Config.MaxCumulativeGasUsed})
+				blockHeader := &ethTypes.Header{GasLimit: s.Config.MaxCumulativeGasUsed}
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
-				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
+				m.State.On("GetL2BlockHeaderByNumber", context.Background(), blockNumber, m.DbTx).Return(blockHeader, nil).Once()
+				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
 					hasTx := tx != nil
-					gasMatch := tx.Gas() == block.Header().GasLimit
-					toMatch := tx.To().Hex() == testCase.to.Hex()
-					gasPriceMatch := tx.GasPrice().Uint64() == testCase.gasPrice.Uint64()
-					valueMatch := tx.Value().Uint64() == testCase.value.Uint64()
-					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
+					gasMatch := tx.Gas() == blockHeader.GasLimit
+					toMatch := tx.To().Hex() == txArgs.To.Hex()
+					gasPriceMatch := tx.GasPrice().Uint64() == gasPrice.Uint64()
+					valueMatch := tx.Value().Uint64() == value.Uint64()
+					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data)
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
 				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
 			},
 		},
 		{
-			name:           "Transaction without from and gas from pending block",
-			to:             state.AddressPtr(common.HexToAddress("0x2")),
-			gasPrice:       big.NewInt(0),
-			value:          big.NewInt(2),
-			data:           []byte("data"),
-			blockNumber:    big.NewInt(-1),
+			name: "Transaction without from and gas from pending block",
+			params: []interface{}{
+				types.TxArgs{
+					To:       state.HexToAddressPtr("0x2"),
+					GasPrice: types.ArgBytesPtr(big.NewInt(0).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+				"pending",
+			},
 			expectedResult: []byte("hello world"),
 			expectedError:  nil,
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(1)
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(1), Root: common.Hash{}, GasLimit: s.Config.MaxCumulativeGasUsed})
+				blockHeader := &ethTypes.Header{GasLimit: s.Config.MaxCumulativeGasUsed}
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
-				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
+				m.State.On("GetL2BlockHeaderByNumber", context.Background(), blockNumber, m.DbTx).Return(blockHeader, nil).Once()
+				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
 					hasTx := tx != nil
-					gasMatch := tx.Gas() == block.Header().GasLimit
-					toMatch := tx.To().Hex() == testCase.to.Hex()
-					gasPriceMatch := tx.GasPrice().Uint64() == testCase.gasPrice.Uint64()
-					valueMatch := tx.Value().Uint64() == testCase.value.Uint64()
-					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
+					gasMatch := tx.Gas() == blockHeader.GasLimit
+					toMatch := tx.To().Hex() == txArgs.To.Hex()
+					gasPriceMatch := tx.GasPrice().Uint64() == gasPrice.Uint64()
+					valueMatch := tx.Value().Uint64() == value.Uint64()
+					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data)
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
 				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
 			},
 		},
 		{
-			name:           "Transaction without from and gas and failed to get latest block header",
-			to:             state.AddressPtr(common.HexToAddress("0x2")),
-			gasPrice:       big.NewInt(1),
-			value:          big.NewInt(2),
-			data:           []byte("data"),
+			name: "Transaction without from and gas and failed to get block header",
+			params: []interface{}{
+				types.TxArgs{
+					To:       state.HexToAddressPtr("0x2"),
+					GasPrice: types.ArgBytesPtr(big.NewInt(0).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+				"latest",
+			},
 			expectedResult: nil,
 			expectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get block header"),
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
+				blockNumber := uint64(1)
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(nil, errors.New("failed to get last block")).Once()
+				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				m.State.On("GetL2BlockHeaderByNumber", context.Background(), blockNumber, m.DbTx).Return(nil, errors.New("failed to get block header")).Once()
 			},
 		},
 		{
-			name:           "Transaction without from and gas and failed to get pending block header",
-			to:             state.AddressPtr(common.HexToAddress("0x2")),
-			gasPrice:       big.NewInt(1),
-			value:          big.NewInt(2),
-			data:           []byte("data"),
-			blockNumber:    big.NewInt(-1),
-			expectedResult: nil,
-			expectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get block header"),
-			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
-				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
-				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(nil, errors.New("failed to get last block")).Once()
+			name: "Transaction with all information but failed to process unsigned transaction",
+			params: []interface{}{
+				types.TxArgs{
+					From:     state.HexToAddressPtr("0x1"),
+					To:       state.HexToAddressPtr("0x2"),
+					Gas:      types.ArgUint64Ptr(24000),
+					GasPrice: types.ArgBytesPtr(big.NewInt(1).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+				"latest",
 			},
-		},
-		{
-			name:           "Transaction with gas but failed to get last block number",
-			from:           common.HexToAddress("0x1"),
-			to:             state.AddressPtr(common.HexToAddress("0x2")),
-			gas:            uint64(24000),
-			gasPrice:       big.NewInt(1),
-			value:          big.NewInt(2),
-			data:           []byte("data"),
-			expectedResult: nil,
-			expectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
-			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
-				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
-				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(uint64(0), errors.New("failed to get last block number")).Once()
-			},
-		},
-		{
-			name:           "Transaction with all information but failed to process unsigned transaction",
-			from:           common.HexToAddress("0x1"),
-			to:             state.AddressPtr(common.HexToAddress("0x2")),
-			gas:            uint64(24000),
-			gasPrice:       big.NewInt(1),
-			value:          big.NewInt(2),
-			data:           []byte("data"),
 			expectedResult: nil,
 			expectedError:  types.NewRPCError(types.RevertedErrorCode, "failed to process unsigned transaction"),
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
@@ -271,38 +354,50 @@ func TestCall(t *testing.T) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
 					hasTx := tx != nil
-					gasMatch := tx.Gas() == testCase.gas
-					toMatch := tx.To().Hex() == testCase.to.Hex()
-					gasPriceMatch := tx.GasPrice().Uint64() == testCase.gasPrice.Uint64()
-					valueMatch := tx.Value().Uint64() == testCase.value.Uint64()
-					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
+					gasMatch := tx.Gas() == uint64(*txArgs.Gas)
+					toMatch := tx.To().Hex() == txArgs.To.Hex()
+					gasPriceMatch := tx.GasPrice().Uint64() == gasPrice.Uint64()
+					valueMatch := tx.Value().Uint64() == value.Uint64()
+					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data)
 					nonceMatch := tx.Nonce() == nonce
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch && nonceMatch
 				})
-				m.State.On("GetNonce", context.Background(), testCase.from, blockNumber, m.DbTx).Return(nonce, nil).Once()
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}).Once()
+				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
+				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}).Once()
 			},
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			msg := ethereum.CallMsg{From: testCase.from, To: testCase.to, Gas: testCase.gas, GasPrice: testCase.gasPrice, Value: testCase.value, Data: testCase.data}
-
 			testCase.setupMocks(s.Config, m, testCase)
 
-			result, err := c.CallContract(context.Background(), msg, testCase.blockNumber)
-			assert.Equal(t, testCase.expectedResult, result)
-			if err != nil || testCase.expectedError != nil {
-				if expectedErr, ok := testCase.expectedError.(*types.RPCError); ok {
-					rpcErr := err.(rpc.Error)
-					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
-					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
-				} else {
-					assert.Equal(t, testCase.expectedError, err)
-				}
+			res, err := s.JSONRPCCall("eth_call", testCase.params...)
+			require.NoError(t, err)
+
+			if testCase.expectedResult != nil {
+				require.NotNil(t, res.Result)
+				require.Nil(t, res.Error)
+
+				var s string
+				err = json.Unmarshal(res.Result, &s)
+				require.NoError(t, err)
+
+				result, err := hex.DecodeHex(s)
+				require.NoError(t, err)
+
+				assert.Equal(t, testCase.expectedResult, result)
+			}
+
+			if testCase.expectedError != nil {
+				expectedErr := testCase.expectedError.(*types.RPCError)
+				assert.Equal(t, expectedErr.ErrorCode(), res.Error.Code)
+				assert.Equal(t, expectedErr.Error(), res.Error.Message)
 			}
 		})
 	}
@@ -319,44 +414,47 @@ func TestChainID(t *testing.T) {
 }
 
 func TestEstimateGas(t *testing.T) {
-	s, m, c := newSequencerMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
-		name       string
-		from       common.Address
-		to         *common.Address
-		gas        uint64
-		gasPrice   *big.Int
-		value      *big.Int
-		data       []byte
-		setupMocks func(Config, *mocksWrapper, *testCase)
-
-		expectedResult uint64
+		name           string
+		params         []interface{}
+		expectedResult *uint64
+		expectedError  interface{}
+		setupMocks     func(Config, *mocksWrapper, *testCase)
 	}
 
 	testCases := []testCase{
 		{
-			name:           "Transaction with all information",
-			from:           common.HexToAddress("0x1"),
-			to:             state.AddressPtr(common.HexToAddress("0x2")),
-			gas:            uint64(24000),
-			gasPrice:       big.NewInt(1),
-			value:          big.NewInt(2),
-			data:           []byte("data"),
-			expectedResult: 100,
+			name: "Transaction with all information",
+			params: []interface{}{
+				types.TxArgs{
+					From:     state.HexToAddressPtr("0x1"),
+					To:       state.HexToAddressPtr("0x2"),
+					Gas:      types.ArgUint64Ptr(24000),
+					GasPrice: types.ArgBytesPtr(big.NewInt(1).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+			},
+			expectedResult: ptrUint64(100),
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(10)
 				nonce := uint64(7)
+				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
 					if tx == nil {
 						return false
 					}
 
-					matchTo := tx.To().Hex() == testCase.to.Hex()
-					matchGasPrice := tx.GasPrice().Uint64() == testCase.gasPrice.Uint64()
-					matchValue := tx.Value().Uint64() == testCase.value.Uint64()
-					matchData := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
+
+					matchTo := tx.To().Hex() == txArgs.To.Hex()
+					matchGasPrice := tx.GasPrice().Uint64() == gasPrice.Uint64()
+					matchValue := tx.Value().Uint64() == value.Uint64()
+					matchData := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data)
 					matchNonce := tx.Nonce() == nonce
 					return matchTo && matchGasPrice && matchValue && matchData && matchNonce
 				})
@@ -370,36 +468,42 @@ func TestEstimateGas(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetNonce", context.Background(), testCase.from, blockNumber, m.DbTx).
+					On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).
 					Return(nonce, nil).
 					Once()
 
-				var nilBlockNumber *uint64
 				m.State.
-					On("EstimateGas", txMatchBy, testCase.from, nilBlockNumber, m.DbTx).
-					Return(testCase.expectedResult, nil).
+					On("EstimateGas", txMatchBy, *txArgs.From, blockNumber, m.DbTx).
+					Return(*testCase.expectedResult, nil).
 					Once()
 			},
 		},
 		{
-			name:           "Transaction without from and gas",
-			to:             state.AddressPtr(common.HexToAddress("0x2")),
-			gasPrice:       big.NewInt(0),
-			value:          big.NewInt(2),
-			data:           []byte("data"),
-			expectedResult: 100,
+			name: "Transaction without from and gas",
+			params: []interface{}{
+				types.TxArgs{
+					To:       state.HexToAddressPtr("0x2"),
+					GasPrice: types.ArgBytesPtr(big.NewInt(0).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+			},
+			expectedResult: ptrUint64(100),
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(9)
 				nonce := uint64(0)
+				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
 					if tx == nil {
 						return false
 					}
 
-					matchTo := tx.To().Hex() == testCase.to.Hex()
-					matchGasPrice := tx.GasPrice().Uint64() == testCase.gasPrice.Uint64()
-					matchValue := tx.Value().Uint64() == testCase.value.Uint64()
-					matchData := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
+					matchTo := tx.To().Hex() == txArgs.To.Hex()
+					matchGasPrice := tx.GasPrice().Uint64() == gasPrice.Uint64()
+					matchValue := tx.Value().Uint64() == value.Uint64()
+					matchData := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data)
 					matchNonce := tx.Nonce() == nonce
 					return matchTo && matchGasPrice && matchValue && matchData && matchNonce
 				})
@@ -412,10 +516,9 @@ func TestEstimateGas(t *testing.T) {
 					Return(blockNumber, nil).
 					Once()
 
-				var nilBlockNumber *uint64
 				m.State.
-					On("EstimateGas", txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilBlockNumber, m.DbTx).
-					Return(testCase.expectedResult, nil).
+					On("EstimateGas", txMatchBy, common.HexToAddress(c.DefaultSenderAddress), blockNumber, m.DbTx).
+					Return(*testCase.expectedResult, nil).
 					Once()
 			},
 		},
@@ -426,11 +529,27 @@ func TestEstimateGas(t *testing.T) {
 			tc := testCase
 			tc.setupMocks(s.Config, m, &tc)
 
-			msg := ethereum.CallMsg{From: testCase.from, To: testCase.to, Gas: testCase.gas, GasPrice: testCase.gasPrice, Value: testCase.value, Data: testCase.data}
-			result, err := c.EstimateGas(context.Background(), msg)
+			res, err := s.JSONRPCCall("eth_estimateGas", testCase.params...)
 			require.NoError(t, err)
 
-			assert.Equal(t, testCase.expectedResult, result)
+			if testCase.expectedResult != nil {
+				require.NotNil(t, res.Result)
+				require.Nil(t, res.Error)
+
+				var s string
+				err = json.Unmarshal(res.Result, &s)
+				require.NoError(t, err)
+
+				result := hex.DecodeUint64(s)
+
+				assert.Equal(t, *testCase.expectedResult, result)
+			}
+
+			if testCase.expectedError != nil {
+				expectedErr := testCase.expectedError.(*types.RPCError)
+				assert.Equal(t, expectedErr.ErrorCode(), res.Error.Code)
+				assert.Equal(t, expectedErr.Error(), res.Error.Message)
+			}
 		})
 	}
 }
