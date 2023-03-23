@@ -1225,6 +1225,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 	if err != nil {
 		result.Err = err
+		return result
 	}
 	if response != nil && response.Responses[0] != nil {
 		r := response.Responses[0]
