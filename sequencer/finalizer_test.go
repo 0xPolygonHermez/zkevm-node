@@ -61,15 +61,6 @@ var (
 		SleepDurationInMs: cfgTypes.Duration{
 			Duration: 60,
 		},
-		ClosingSignalsManagerWaitForCheckingL1Timeout: cfgTypes.Duration{
-			Duration: 10 * time.Second,
-		},
-		ClosingSignalsManagerWaitForCheckingGER: cfgTypes.Duration{
-			Duration: 10 * time.Second,
-		},
-		ClosingSignalsManagerWaitForCheckingForcedBatches: cfgTypes.Duration{
-			Duration: 10 * time.Second,
-		},
 		ResourcePercentageToCloseBatch: 10,
 		GERFinalityNumberOfBlocks:      64,
 	}
