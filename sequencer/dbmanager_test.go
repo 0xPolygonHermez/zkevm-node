@@ -23,6 +23,7 @@ import (
 )
 
 var (
+	mtDBCancel context.CancelFunc
 	ctx        context.Context
 	testState  *state.State
 	stateTree  *merkletree.StateTree
@@ -51,14 +52,10 @@ func setupDBManager() {
 
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
-	var mtDBCancel context.CancelFunc
+
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s := mtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
-	defer func() {
-		mtDBCancel()
-		mtDBClientConn.Close()
-	}()
 
 	stateTree = merkletree.NewStateTree(mtDBServiceClient)
 	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
@@ -98,6 +95,11 @@ func initOrResetDB() {
 	}
 }
 
+func cleanupDBManager() {
+	mtDBCancel()
+	mtDBClientConn.Close()
+}
+
 func TestOpenBatch(t *testing.T) {
 	setupDBManager()
 	defer stateDb.Close()
@@ -119,6 +121,7 @@ func TestOpenBatch(t *testing.T) {
 	require.NoError(t, err)
 	err = dbTx.Commit(ctx)
 	require.NoError(t, err)
+	cleanupDBManager()
 }
 
 func TestGetLastBatchNumber(t *testing.T) {
@@ -146,6 +149,7 @@ func TestGetLastBatchNumber(t *testing.T) {
 	lastBatchNum, err := testDbManager.GetLastBatchNumber(ctx)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), lastBatchNum)
+	cleanupDBManager()
 }
 
 func TestCreateFirstBatch(t *testing.T) {
@@ -161,4 +165,5 @@ func TestCreateFirstBatch(t *testing.T) {
 
 	processingContext := testDbManager.CreateFirstBatch(ctx, common.Address{})
 	require.Equal(t, uint64(1), processingContext.BatchNumber)
+	cleanupDBManager()
 }

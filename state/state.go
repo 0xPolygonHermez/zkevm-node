@@ -1405,6 +1405,13 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 
 	root.SetBytes(newRoot)
 
+	// flush state db
+	err = s.tree.Flush(ctx)
+	if err != nil {
+		log.Errorf("error flushing state tree after genesis: %v", err)
+		return newRoot, err
+	}
+
 	// store L1 block related to genesis batch
 	err = s.AddBlock(ctx, &block, dbTx)
 	if err != nil {
