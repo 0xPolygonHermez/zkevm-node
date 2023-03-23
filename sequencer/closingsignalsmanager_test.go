@@ -9,20 +9,25 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 const numberOfForcesBatches = 10
 
 var (
-	mtDBCancel  context.CancelFunc
-	testGER     = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
-	testAddr    = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
-	testRawData = common.Hex2Bytes("0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b")
+	localMtDBCancel        context.CancelFunc
+	localMtDBServiceClient mtDBclientpb.StateDBServiceClient
+	localMtDBClientConn    *grpc.ClientConn
+	localState             *state.State
+	testGER                = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	testAddr               = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	testRawData            = common.Hex2Bytes("0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b")
 )
 
 type mocks struct {
@@ -42,12 +47,12 @@ func setupTest(t *testing.T) {
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 
-	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	localMtDBServiceClient, localMtDBClientConn, localMtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s := mtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
 
-	stateTree = merkletree.NewStateTree(mtDBServiceClient)
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
+	localStateTree := merkletree.NewStateTree(localMtDBServiceClient)
+	localState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, localStateTree)
 
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       150,
@@ -62,19 +67,19 @@ func setupTest(t *testing.T) {
 		MaxSteps:             8388608,
 	}
 
-	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
+	testDbManager = newDBManager(ctx, dbManagerCfg, nil, localState, nil, closingSignalCh, txsStore, batchConstraints)
 
 	// Set genesis batch
-	dbTx, err := testState.BeginStateTransaction(ctx)
+	dbTx, err := localState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	_, err = localState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
 func cleanup(t *testing.T) {
-	mtDBCancel()
-	mtDBClientConn.Close()
+	localMtDBCancel()
+	localMtDBClientConn.Close()
 }
 
 func prepareForcedBatches(t *testing.T) {
@@ -83,7 +88,7 @@ func prepareForcedBatches(t *testing.T) {
 
 	for x := 0; x < numberOfForcesBatches; x++ {
 		forcedBatchNum := int64(x)
-		_, err := testState.PostgresStorage.Exec(ctx, sql, forcedBatchNum, testGER.String(), time.Now(), testRawData, testAddr.String(), 0)
+		_, err := localState.PostgresStorage.Exec(ctx, sql, forcedBatchNum, testGER.String(), time.Now(), testRawData, testAddr.String(), 0)
 		assert.NoError(t, err)
 	}
 }
