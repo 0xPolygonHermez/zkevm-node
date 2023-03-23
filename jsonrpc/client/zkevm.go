@@ -8,7 +8,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
 // BatchNumber returns the latest batch number
@@ -47,7 +46,6 @@ func (c *Client) BatchByNumber(ctx context.Context, number *big.Int) (*types.Bat
 	}
 
 	var result *types.Batch
-	log.Debugf(string(response.Result))
 	err = json.Unmarshal(response.Result, &result)
 	if err != nil {
 		return nil, err
