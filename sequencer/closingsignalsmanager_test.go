@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,7 +38,7 @@ func setupTest(t *testing.T) {
 		panic(err)
 	}
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.104.156")
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	var mtDBCancel context.CancelFunc
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
@@ -71,8 +70,8 @@ func setupTest(t *testing.T) {
 	// Set genesis batch
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	// _, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
-	// require.NoError(t, err)
+	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
@@ -91,13 +90,6 @@ func TestClosingSignalsManager(t *testing.T) {
 	m := mocks{
 		Etherman: NewEthermanMock(t),
 	}
-
-	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
-	lastL1BlockNumber := uint64(1)
-
-	m.Etherman.
-		On("GetLatestBlockNumber", ctxMatchBy).
-		Return(lastL1BlockNumber, nil)
 
 	setupTest(t)
 	channels := ClosingSignalCh{
