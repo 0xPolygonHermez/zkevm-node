@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -34,11 +35,12 @@ var (
 // that uses a postgres database to store the data
 type Pool struct {
 	storage
-	state        stateInterface
-	l2BridgeAddr common.Address
-	chainID      uint64
-	cfg          Config
-	minGasPrice  *big.Int
+	state                   stateInterface
+	l2BridgeAddr            common.Address
+	chainID                 uint64
+	cfg                     Config
+	minSuggestedGasPrice    *big.Int
+	minSuggestedGasPriceMux *sync.RWMutex
 }
 
 type preexecutionResponse struct {
@@ -50,13 +52,28 @@ type preexecutionResponse struct {
 // NewPool creates and initializes an instance of Pool
 func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
 	return &Pool{
-		cfg:          cfg,
-		storage:      s,
-		state:        st,
-		l2BridgeAddr: l2BridgeAddr,
-		chainID:      chainID,
-		minGasPrice:  big.NewInt(0).SetUint64(cfg.MinGasPrice),
+		cfg:                     cfg,
+		storage:                 s,
+		state:                   st,
+		l2BridgeAddr:            l2BridgeAddr,
+		chainID:                 chainID,
+		minSuggestedGasPriceMux: new(sync.RWMutex),
 	}
+}
+
+// StartPollingMinSuggestedGasPrice starts polling the minimum suggested gas price
+func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
+	p.pollMinSuggestedGasPrice(ctx)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(p.cfg.PollMinAllowedGasPriceInterval.Duration):
+				p.pollMinSuggestedGasPrice(ctx)
+			}
+		}
+	}()
 }
 
 // AddTx adds a transaction to the pool with the pending state
@@ -204,23 +221,20 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	if tx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported
 	}
+
 	// Reject transactions over defined size to prevent DOS attacks
 	if tx.Size() > p.cfg.MaxTxBytesSize {
 		return ErrOversizedData
 	}
-	if tx.GasPrice().Cmp(p.minGasPrice) == -1 {
+
+	// Reject transactions with a gas price lower than the minimum gas price
+	p.minSuggestedGasPriceMux.RLock()
+	gasPriceCmp := tx.GasPrice().Cmp(p.minSuggestedGasPrice)
+	p.minSuggestedGasPriceMux.RUnlock()
+	if gasPriceCmp == -1 {
 		return ErrGasPrice
-	} else {
-		fromTimestamp := time.Now().UTC().Add(-p.cfg.MinSuggestedGasPriceInterval.Duration)
-		gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
-		if err == state.ErrNotFound {
-			log.Warnf("No suggested min gas price since: %v", fromTimestamp)
-		} else if err != nil {
-			return err
-		} else if tx.GasPrice().Cmp(big.NewInt(0).SetUint64(gasPrice)) == -1 {
-			return ErrGasPrice
-		}
 	}
+
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
 	if tx.Value().Sign() < 0 {
@@ -304,6 +318,30 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	}
 
 	return nil
+}
+
+func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
+	fromTimestamp := time.Now().UTC().Add(-p.cfg.MinAllowedGasPriceInterval.Duration)
+	gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
+	if err != nil {
+		p.minSuggestedGasPriceMux.Lock()
+		// Ensuring we always have suggested minimum gas price
+		if p.minSuggestedGasPrice == nil {
+			p.minSuggestedGasPrice = big.NewInt(0).SetUint64(p.cfg.DefaultMinGasPriceAllowed)
+			log.Infof("Min allowed gas price updated to: %d", p.cfg.DefaultMinGasPriceAllowed)
+		}
+		p.minSuggestedGasPriceMux.Unlock()
+		if err == state.ErrNotFound {
+			log.Warnf("No suggested min gas price since: %v", fromTimestamp)
+		} else {
+			log.Errorf("Error getting min gas price since: %v", fromTimestamp)
+		}
+	} else {
+		p.minSuggestedGasPriceMux.Lock()
+		p.minSuggestedGasPrice = big.NewInt(0).SetUint64(gasPrice)
+		p.minSuggestedGasPriceMux.Unlock()
+		log.Infof("Min allowed gas price updated to: %d", gasPrice)
+	}
 }
 
 // checkTxFieldCompatibilityWithExecutor checks the field sizes of the transaction to make sure

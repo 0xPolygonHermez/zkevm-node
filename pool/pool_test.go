@@ -52,13 +52,14 @@ var (
 		},
 	}
 	cfg = pool.Config{
-		FreeClaimGasLimit:            150000,
-		MaxTxBytesSize:               30132,
-		MaxTxDataBytesSize:           30000,
-		MinGasPrice:                  1000000000,
-		MinSuggestedGasPriceInterval: cfgTypes.NewDuration(5 * time.Minute),
+		FreeClaimGasLimit:              150000,
+		MaxTxBytesSize:                 30132,
+		MaxTxDataBytesSize:             30000,
+		MinAllowedGasPriceInterval:     cfgTypes.NewDuration(5 * time.Minute),
+		PollMinAllowedGasPriceInterval: cfgTypes.NewDuration(15 * time.Second),
+		DefaultMinGasPriceAllowed:      1000000000,
 	}
-	gasPrice = big.NewInt(0).SetUint64(cfg.MinGasPrice)
+	gasPrice = big.NewInt(1000000000)
 	gasLimit = uint64(21000)
 	chainID  = big.NewInt(1337)
 )
@@ -109,11 +110,7 @@ func Test_AddTx(t *testing.T) {
 	}
 
 	const chainID = 2576980377
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID, ctx)
 
 	tx := new(types.Transaction)
 	expectedTxEncoded := "0xf86880843b9aca008252089400000000000000000000000000000000000000008080850133333355a03ee24709870c8dbc67884c9c8acb864c1aceaaa7332b9a3db0d7a5d7c68eb8e4a0302980b070f5e3ffca3dc27b07daf69d66ab27d4df648e0b3ed059cf23aa168d"
@@ -153,6 +150,16 @@ func Test_AddTx(t *testing.T) {
 	}
 
 	assert.Equal(t, 1, c, "invalid number of txs in the pool")
+}
+
+func setupPool(t *testing.T, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context) *pool.Pool {
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
+	err := p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
+	p.StartPollingMinSuggestedGasPrice(ctx)
+	return p
 }
 
 func Test_AddTx_OversizedData(t *testing.T) {
@@ -266,11 +273,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	}
 
 	const chainID = 2576980377
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID, ctx)
 
 	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81b"
 	b, err := hex.DecodeHex(batchL2Data)
@@ -337,12 +340,7 @@ func Test_GetPendingTxs(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID.Uint64(), ctx)
 
 	const txsCount = 10
 	const limit = 5
@@ -402,11 +400,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID.Uint64(), ctx)
 
 	const txsCount = 10
 	const limit = 0
@@ -467,11 +461,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID.Uint64(), ctx)
 
 	const txsCount = 10
 
@@ -532,11 +522,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -606,11 +592,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -702,11 +684,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID.Uint64(), ctx)
 
 	const txsCount = 10
 
@@ -808,11 +786,7 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -968,11 +942,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			incompatibleTx := testCase.createIncompatibleTx()
-			p := pool.NewPool(cfg, s, st, common.Address{}, incompatibleTx.ChainId().Uint64())
-			err = p.SetGasPrice(ctx, gasPrice.Uint64())
-			if err != nil {
-				t.Error(err)
-			}
+			p := setupPool(t, s, st, incompatibleTx.ChainId().Uint64(), ctx)
 			err = p.AddTx(ctx, incompatibleTx, "")
 			assert.Equal(t, testCase.expectedError, err)
 		})
@@ -1035,11 +1005,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -1139,7 +1105,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	}
 }
 
-func Test_AddTxWithIntrinsicGasPriceTooLow(t *testing.T) {
+func Test_AddTxWithGasPriceTooLowErr(t *testing.T) {
 	initOrResetDB()
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
@@ -1184,17 +1150,13 @@ func Test_AddTxWithIntrinsicGasPriceTooLow(t *testing.T) {
 	}
 
 	const chainID = 2576980377
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID, ctx)
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    uint64(0),
 		To:       nil,
 		Value:    big.NewInt(0),
-		Gas:      uint64(21000),
-		GasPrice: big.NewInt(0).SetUint64(cfg.MinGasPrice - 1),
+		Gas:      gasLimit,
+		GasPrice: big.NewInt(0).SetUint64(gasPrice.Uint64() - 1),
 		Data:     []byte{},
 	})
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
@@ -1238,11 +1200,7 @@ func Test_AddRevertedTx(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64())
-	err = p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	p := setupPool(t, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)

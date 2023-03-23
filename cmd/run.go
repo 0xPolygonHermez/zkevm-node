@@ -127,6 +127,10 @@ func start(cliCtx *cli.Context) error {
 		case RPC:
 			log.Info("Running JSON-RPC server")
 			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			if c.RPC.EnableL2SuggestedGasPricePolling {
+				// Needed for rejecting transactions with too low gas price
+				poolInstance.StartPollingMinSuggestedGasPrice(ctx)
+			}
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
