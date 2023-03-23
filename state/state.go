@@ -1212,7 +1212,7 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 	}
 
 	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, lastL2BlockNumber, false, dbTx)
-	if err != nil && !errors.Is(err, runtime.ErrExecutionReverted) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -1233,7 +1233,12 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	result.GasUsed = r.GasUsed
 	result.CreateAddress = r.CreateAddress
 	result.StateRoot = r.StateRoot.Bytes()
-	result.Err = r.RomError
+
+	if errors.Is(r.RomError, runtime.ErrExecutionReverted) {
+		result.Err = constructErrorFromRevert(r.RomError, r.ReturnValue)
+	} else {
+		result.Err = r.RomError
+	}
 
 	return result, nil
 }
@@ -1321,9 +1326,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 
 	if processBatchResponse.Responses[0].Error != pb.RomError(executor.ROM_ERROR_NO_ERROR) {
 		err := executor.RomErr(processBatchResponse.Responses[0].Error)
-		if isEVMRevertError(err) {
-			return response, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
-		} else {
+		if !isEVMRevertError(err) {
 			return response, err
 		}
 	}

@@ -100,10 +100,12 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to execute the unsigned transaction", err)
 		}
 
-		if result.Failed() {
+		if result.Reverted() {
 			data := make([]byte, len(result.ReturnValue))
 			copy(data, result.ReturnValue)
 			return rpcErrorResponseWithData(types.RevertedErrorCode, result.Err.Error(), &data, nil)
+		} else if result.Failed() {
+			return rpcErrorResponse(types.DefaultErrorCode, result.Err.Error(), nil)
 		}
 
 		return types.ArgBytesPtr(result.ReturnValue), nil
