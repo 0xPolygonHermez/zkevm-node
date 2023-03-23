@@ -95,7 +95,11 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumber, false, dbTx)
+		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumber, false, dbTx)
+		if err != nil {
+			return rpcErrorResponse(types.DefaultErrorCode, "failed to execute the unsigned transaction", err)
+		}
+
 		if result.Failed() {
 			data := make([]byte, len(result.ReturnValue))
 			copy(data, result.ReturnValue)

@@ -1220,27 +1220,22 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
 	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 	if err != nil {
-		result.Err = err
-		return result
-	}
-	if response != nil && response.Responses[0] != nil {
-		r := response.Responses[0]
-		result.ReturnValue = r.ReturnValue
-		result.GasLeft = r.GasLeft
-		result.GasUsed = r.GasUsed
-		result.CreateAddress = r.CreateAddress
-		result.StateRoot = r.StateRoot.Bytes()
-
-		if result.Err == nil {
-			result.Err = r.RomError
-		}
+		return nil, err
 	}
 
-	return result
+	r := response.Responses[0]
+	result.ReturnValue = r.ReturnValue
+	result.GasLeft = r.GasLeft
+	result.GasUsed = r.GasUsed
+	result.CreateAddress = r.CreateAddress
+	result.StateRoot = r.StateRoot.Bytes()
+	result.Err = r.RomError
+
+	return result, nil
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
