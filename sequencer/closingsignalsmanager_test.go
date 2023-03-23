@@ -23,6 +23,7 @@ import (
 const numberOfForcesBatches = 10
 
 var (
+	localTestDbManager                           *dbManager
 	localCtx                                     context.Context
 	localMtDBCancel, localExecutorCancel         context.CancelFunc
 	localMtDBServiceClient                       mtDBclientpb.StateDBServiceClient
@@ -76,7 +77,7 @@ func setupTest(t *testing.T) {
 		MaxSteps:             8388608,
 	}
 
-	testDbManager = newDBManager(localCtx, dbManagerCfg, nil, localState, nil, closingSignalCh, txsStore, batchConstraints)
+	localTestDbManager = newDBManager(localCtx, dbManagerCfg, nil, localState, nil, closingSignalCh, txsStore, batchConstraints)
 
 	// Set genesis batch
 	dbTx, err := localState.BeginStateTransaction(localCtx)
@@ -115,7 +116,7 @@ func TestClosingSignalsManager(t *testing.T) {
 	}
 
 	prepareForcedBatches(t)
-	closingSignalsManager := newClosingSignalsManager(localCtx, testDbManager, channels, cfg, m.Etherman)
+	closingSignalsManager := newClosingSignalsManager(localCtx, localTestDbManager, channels, cfg, m.Etherman)
 	closingSignalsManager.Start()
 
 	newCtx, cancelFunc := context.WithTimeout(localCtx, time.Second*3)
