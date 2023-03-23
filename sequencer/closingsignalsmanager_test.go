@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -46,7 +47,7 @@ func setupTest(t *testing.T) {
 
 	localCtx = context.Background()
 
-	localStateDb, err = db.NewSQLDB(stateDBCfg)
+	localStateDb, err = db.NewSQLDB(dbutils.NewStateConfigFromEnv())
 	if err != nil {
 		panic(err)
 	}
