@@ -73,7 +73,7 @@ func setupTest(t *testing.T) {
 	require.NoError(t, err)
 	// Insert into Batch table
 	const sql = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-	_, err = testState.PostgresStorage.Exec(ctx, sql, 0, common.Hash{}.String(), common.Hash{}.String(), common.Hash{}.String(), common.Hash{}.String(), time.Now(), common.Address{}, []byte{}, 0)
+	_, err = testState.PostgresStorage.Exec(ctx, sql, 0, common.Hash{}.String(), common.Hash{}.String(), common.Hash{}.String(), common.Hash{}.String(), time.Now(), common.Address{}.String(), []byte{}, 0)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 }
