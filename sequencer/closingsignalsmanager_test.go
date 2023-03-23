@@ -68,6 +68,7 @@ func setupTest(t *testing.T) {
 	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
 
 	// Set genesis batch
+	time.Sleep(5 * time.Second)
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
