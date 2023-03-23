@@ -9,24 +9,13 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
 const (
-	// txSlotSize is used to calculate how many data slots a single transaction
-	// takes up based on its size. The slots are used as DoS protection, ensuring
-	// that validating a new transaction remains a constant operation (in reality
-	// O(maxslots), where max slots are 4 currently).
-	txSlotSize = 32 * 1024
-
-	// txMaxSize is the maximum size a single transaction can have. This field has
-	// non-trivial consequences: larger transactions are significantly harder and
-	// more expensive to propagate; larger transactions also take more resources
-	// to validate whether they fit into the pool or not.
-	txMaxSize = 4 * txSlotSize // 128KB
-
 	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
 	bridgeClaimMethodSignature = "0x2cffd02e"
 )
@@ -49,6 +38,13 @@ type Pool struct {
 	l2BridgeAddr common.Address
 	chainID      uint64
 	cfg          Config
+	minGasPrice  *big.Int
+}
+
+type preexecutionResponse struct {
+	usedZkCounters state.ZKCounters
+	isOOC          bool
+	isOOG          bool
 }
 
 // NewPool creates and initializes an instance of Pool
@@ -59,6 +55,7 @@ func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Addre
 		state:        st,
 		l2BridgeAddr: l2BridgeAddr,
 		chainID:      chainID,
+		minGasPrice:  big.NewInt(0).SetUint64(cfg.MinGasPrice),
 	}
 }
 
@@ -85,11 +82,11 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
 
 	// Execute transaction to calculate its zkCounters
-	zkCounters, err, isOOC := p.PreExecuteTx(ctx, tx)
+	preexecutionResponse, err := p.PreExecuteTx(ctx, tx)
 	if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
 
-		if isOOC {
+		if preexecutionResponse.isOOC {
 			event := &state.Event{
 				EventType: state.EventType_Prexecution_OOC,
 				Timestamp: time.Now(),
@@ -101,20 +98,48 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			if err != nil {
 				log.Errorf("Error adding event: %v", err)
 			}
+			// Do not add tx to the pool
+			return fmt.Errorf("out of counters")
+		} else if preexecutionResponse.isOOG {
+			event := &state.Event{
+				EventType: state.EventType_Prexecution_OOG,
+				Timestamp: time.Now(),
+				IP:        ip,
+				TxHash:    tx.Hash(),
+			}
+
+			err := p.state.AddEvent(ctx, event, nil)
+			if err != nil {
+				log.Errorf("Error adding event: %v", err)
+			}
 		}
 	}
-	poolTx.ZKCounters = zkCounters
+	poolTx.ZKCounters = preexecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, poolTx)
 }
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error, bool) {
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preexecutionResponse, error) {
+	response := preexecutionResponse{usedZkCounters: state.ZKCounters{}, isOOC: false, isOOG: false}
+
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
-		return state.ZKCounters{}, err, false
+		return response, err
 	}
-	return processBatchResponse.UsedZkCounters, processBatchResponse.ExecutorError, !processBatchResponse.IsBatchProcessed
+
+	response.usedZkCounters = processBatchResponse.UsedZkCounters
+
+	if processBatchResponse.IsBatchProcessed {
+		if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 &&
+			executor.IsROMOutOfGasError(executor.RomErrorCode(processBatchResponse.Responses[0].RomError)) {
+			response.isOOC = true
+		}
+	} else {
+		response.isOOG = !processBatchResponse.IsBatchProcessed
+	}
+
+	return response, nil
 }
 
 // GetPendingTxs from the pool
@@ -180,8 +205,21 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return ErrTxTypeNotSupported
 	}
 	// Reject transactions over defined size to prevent DOS attacks
-	if uint64(tx.Size()) > txMaxSize {
+	if tx.Size() > p.cfg.MaxTxBytesSize {
 		return ErrOversizedData
+	}
+	if tx.GasPrice().Cmp(p.minGasPrice) == -1 {
+		return ErrGasPrice
+	} else {
+		fromTimestamp := time.Now().UTC().Add(-p.cfg.MinSuggestedGasPriceInterval.Duration)
+		gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
+		if err == state.ErrNotFound {
+			log.Warnf("No suggested min gas price since: %v", fromTimestamp)
+		} else if err != nil {
+			return err
+		} else if tx.GasPrice().Cmp(big.NewInt(0).SetUint64(gasPrice)) == -1 {
+			return ErrGasPrice
+		}
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
@@ -280,8 +318,6 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx types.Transaction) error {
 	maxUint64BigInt := big.NewInt(0).SetUint64(math.MaxUint64)
 
-	const maxDataSize = 30000
-
 	// GasLimit, Nonce and To fields are limited by their types, no need to check
 	// Gas Price and Value are checked against the balance, and the max balance allowed
 	// by the merkletree service is uint256, in this case, if the transaction has a
@@ -289,8 +325,8 @@ func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx typ
 	// reject the transaction
 
 	dataSize := len(tx.Data())
-	if dataSize > maxDataSize {
-		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, maxDataSize)
+	if dataSize > p.cfg.MaxTxDataBytesSize {
+		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, p.cfg.MaxTxDataBytesSize)
 	}
 
 	if tx.ChainId().Cmp(maxUint64BigInt) == 1 {

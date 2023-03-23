@@ -27,10 +27,11 @@ type TxTracker struct {
 	Efficiency     float64
 	RawTx          []byte
 	ReceivedAt     time.Time // To check if it has been in the efficiency list for too long
+	IP             string    // IP of the tx sender
 }
 
 // newTxTracker creates and inits a TxTracker
-func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, constraints batchConstraints, weights batchResourceWeights) (*TxTracker, error) {
+func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, constraints batchConstraints, weights batchResourceWeights, ip string) (*TxTracker, error) {
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err
@@ -44,11 +45,12 @@ func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters,
 		GasPrice:   tx.GasPrice(),
 		Cost:       tx.Cost(),
 		ReceivedAt: time.Now(),
+		IP:         ip,
 	}
 
 	txTracker.IsClaim = isClaim
 	txTracker.BatchResources.zKCounters = counters
-	txTracker.BatchResources.bytes = uint64(tx.Size())
+	txTracker.BatchResources.bytes = tx.Size()
 	txTracker.HashStr = txTracker.Hash.String()
 	txTracker.FromStr = txTracker.From.String()
 	txTracker.Benefit = new(big.Int).Mul(new(big.Int).SetUint64(txTracker.Gas), txTracker.GasPrice)

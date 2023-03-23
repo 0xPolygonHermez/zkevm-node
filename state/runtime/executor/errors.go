@@ -221,6 +221,11 @@ func IsROMOutOfCountersError(error pb.RomError) bool {
 	return int32(error) >= ROM_ERROR_OUT_OF_COUNTERS_STEP && int32(error) <= ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
 }
 
+// IsROMOutOfGasError indicates if the error is an ROM OOG
+func IsROMOutOfGasError(error pb.RomError) bool {
+	return int32(error) == ROM_ERROR_OUT_OF_GAS
+}
+
 // IsExecutorOutOfCountersError indicates if the error is an ROM OOC
 func IsExecutorOutOfCountersError(error pb.ExecutorError) bool {
 	return int32(error) >= EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK && int32(error) <= ROM_ERROR_OUT_OF_COUNTERS_POSEIDON

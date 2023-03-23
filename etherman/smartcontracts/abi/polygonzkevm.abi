@@ -67,7 +67,17 @@
 	},
 	{
 		"inputs": [],
+		"name": "ForceBatchNotAllowed",
+		"type": "error"
+	},
+	{
+		"inputs": [],
 		"name": "ForceBatchTimeoutNotExpired",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "ForceBatchesAlreadyActive",
 		"type": "error"
 	},
 	{
@@ -112,6 +122,11 @@
 	},
 	{
 		"inputs": [],
+		"name": "InvalidRangeForceBatchTimeout",
+		"type": "error"
+	},
+	{
+		"inputs": [],
 		"name": "InvalidRangeMultiplierBatchFee",
 		"type": "error"
 	},
@@ -123,6 +138,11 @@
 	{
 		"inputs": [],
 		"name": "NewPendingStateTimeoutMustBeLower",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "NewStateRootNotInsidePrime",
 		"type": "error"
 	},
 	{
@@ -241,6 +261,12 @@
 			}
 		],
 		"name": "AcceptAdminRole",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [],
+		"name": "ActivateForceBatches",
 		"type": "event"
 	},
 	{
@@ -411,6 +437,19 @@
 			}
 		],
 		"name": "SequenceForceBatches",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint64",
+				"name": "newforceBatchTimeout",
+				"type": "uint64"
+			}
+		],
+		"name": "SetForceBatchTimeout",
 		"type": "event"
 	},
 	{
@@ -614,6 +653,13 @@
 	},
 	{
 		"inputs": [],
+		"name": "activateForceBatches",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "admin",
 		"outputs": [
 			{
@@ -699,6 +745,25 @@
 	{
 		"inputs": [
 			{
+				"internalType": "uint256",
+				"name": "newStateRoot",
+				"type": "uint256"
+			}
+		],
+		"name": "checkStateRootInsidePrime",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "uint64",
 				"name": "pendingStateNum",
 				"type": "uint64"
@@ -732,6 +797,19 @@
 		"name": "forceBatch",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "forceBatchTimeout",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -907,6 +985,19 @@
 	{
 		"inputs": [],
 		"name": "isEmergencyState",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "isForcedBatchDisallowed",
 		"outputs": [
 			{
 				"internalType": "bool",
@@ -1342,6 +1433,19 @@
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "newforceBatchTimeout",
+				"type": "uint64"
+			}
+		],
+		"name": "setForceBatchTimeout",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{

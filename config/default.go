@@ -20,6 +20,10 @@ MaxConns = 200
 
 [Pool]
 FreeClaimGasLimit = 150000
+MaxTxBytesSize=30132
+MaxTxDataBytesSize=30000
+MinGasPrice = 1000000000
+MinSuggestedGasPriceInterval = "5m"
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
@@ -69,7 +73,7 @@ LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
-MaxBatchBytesSize = 150000
+MaxBatchBytesSize = 129848
 MaxCumulativeGasUsed = 30000000
 MaxKeccakHashes = 468
 MaxPoseidonHashes = 279620
@@ -89,6 +93,7 @@ WeightBinaries = 1
 WeightSteps = 1
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
+MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
 		GERDeadlineTimeoutInSec = "5s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"

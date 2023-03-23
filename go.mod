@@ -137,7 +137,7 @@ require (
 
 require (
 	github.com/gorilla/websocket v1.5.0
-	github.com/holiman/uint256 v1.2.1
+	github.com/holiman/uint256 v1.2.2
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 )
 

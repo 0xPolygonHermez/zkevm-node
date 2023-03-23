@@ -89,7 +89,7 @@ func TestDebugTraceTransactionNotFoundTx(t *testing.T) {
 		require.NotNil(t, response.Error)
 
 		require.Equal(t, -32000, response.Error.Code)
-		require.Equal(t, "genesis is not traceable", response.Error.Message)
+		require.Equal(t, "transaction not found", response.Error.Message)
 		require.Nil(t, response.Error.Data)
 	}
 }
