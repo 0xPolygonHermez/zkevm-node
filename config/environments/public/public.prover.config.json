@@ -99,6 +99,7 @@
     "dbMultiWrite": true,
     "dbMTCacheSize": 8192,
     "dbProgramCacheSize": 1024,
+    "dbNumberOfPoolConnections": 30,
     "cleanerPollingPeriod": 600,
     "requestsPersistence": 3600,
     "maxExecutorThreads": 20,

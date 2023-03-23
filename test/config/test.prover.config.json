@@ -76,6 +76,7 @@
     "dbFlushInParallel": false,
     "dbMTCacheSize": 1024,
     "dbProgramCacheSize": 1024,
+    "dbNumberOfPoolConnections": 30,
     "cleanerPollingPeriod": 600,
     "requestsPersistence": 3600,
     "maxExecutorThreads": 20,
