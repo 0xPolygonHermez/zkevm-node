@@ -281,6 +281,15 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		return nil, errors.New("state root and local exit root must have value to close batch")
 	}
 
+	// We need to process the batch to update the state root before closing the batch
+	if f.batch.initialStateRoot == f.batch.stateRoot {
+		log.Info("reprocessing batch because the state root has not changed...")
+		err := f.processTransaction(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Reprocess full batch as sanity check
 	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
 	if err != nil || !processBatchResponse.IsBatchProcessed {
@@ -660,15 +669,6 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
-	// We need to process the batch to update the state root before closing the batch
-	if f.batch.initialStateRoot == f.batch.stateRoot {
-		log.Info("reprocessing batch because the state root has not changed...")
-		err := f.processTransaction(ctx, nil)
-		if err != nil {
-			return err
-		}
-	}
-
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
 		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
