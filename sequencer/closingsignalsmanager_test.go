@@ -126,7 +126,7 @@ func TestClosingSignalsManager(t *testing.T) {
 	for {
 		select {
 		case <-newCtx.Done():
-			log.Infof("received context done, Err: %s", localCtx.Err())
+			log.Infof("received context done, Err: %s", newCtx.Err())
 			return
 		// Forced  batch ch
 		case fb := <-channels.ForcedBatchCh:
