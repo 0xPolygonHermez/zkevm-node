@@ -19,6 +19,7 @@ import (
 const numberOfForcesBatches = 10
 
 var (
+	mtDBCancel  context.CancelFunc
 	testGER     = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	testAddr    = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	testRawData = common.Hex2Bytes("0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b")
@@ -40,14 +41,10 @@ func setupTest(t *testing.T) {
 
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
-	var mtDBCancel context.CancelFunc
+
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s := mtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
-	defer func() {
-		mtDBCancel()
-		mtDBClientConn.Close()
-	}()
 
 	stateTree = merkletree.NewStateTree(mtDBServiceClient)
 	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
@@ -68,21 +65,16 @@ func setupTest(t *testing.T) {
 	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
 
 	// Set genesis batch
-	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
-			{
-				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
-				Type:    int(merkletree.LeafTypeBalance),
-				Value:   "10000000",
-			},
-		},
-	}
-
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, dbTx)
+	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func cleanup(t *testing.T) {
+	mtDBCancel()
+	mtDBClientConn.Close()
 }
 
 func prepareForcedBatches(t *testing.T) {
@@ -136,4 +128,6 @@ func TestClosingSignalsManager(t *testing.T) {
 	require.Equal(t, testGER, fb.GlobalExitRoot)
 	require.Equal(t, testAddr, fb.Sequencer)
 	require.Equal(t, testRawData, fb.RawTxsData)
+
+	cleanup(t)
 }
