@@ -23,6 +23,7 @@ import (
 const numberOfForcesBatches = 10
 
 var (
+	localCtx                                     context.Context
 	localMtDBCancel, localExecutorCancel         context.CancelFunc
 	localMtDBServiceClient                       mtDBclientpb.StateDBServiceClient
 	localMtDBClientConn, localExecutorClientConn *grpc.ClientConn
@@ -40,7 +41,7 @@ type mocks struct {
 func setupTest(t *testing.T) {
 	initOrResetDB()
 
-	ctx = context.Background()
+	localCtx = context.Background()
 
 	stateDb, err = db.NewSQLDB(stateDBCfg)
 	if err != nil {
@@ -51,11 +52,11 @@ func setupTest(t *testing.T) {
 	locatlMtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	localExecutorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 
-	localExecutorClient, localExecutorClientConn, localExecutorCancel = executor.NewExecutorClient(ctx, localExecutorServerConfig)
+	localExecutorClient, localExecutorClientConn, localExecutorCancel = executor.NewExecutorClient(localCtx, localExecutorServerConfig)
 	s := localExecutorClientConn.GetState()
 	log.Infof("executorClientConn state: %s", s.String())
 
-	localMtDBServiceClient, localMtDBClientConn, localMtDBCancel = merkletree.NewMTDBServiceClient(ctx, locatlMtDBServerConfig)
+	localMtDBServiceClient, localMtDBClientConn, localMtDBCancel = merkletree.NewMTDBServiceClient(localCtx, locatlMtDBServerConfig)
 	s = localMtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
 
@@ -75,14 +76,14 @@ func setupTest(t *testing.T) {
 		MaxSteps:             8388608,
 	}
 
-	testDbManager = newDBManager(ctx, dbManagerCfg, nil, localState, nil, closingSignalCh, txsStore, batchConstraints)
+	testDbManager = newDBManager(localCtx, dbManagerCfg, nil, localState, nil, closingSignalCh, txsStore, batchConstraints)
 
 	// Set genesis batch
-	dbTx, err := localState.BeginStateTransaction(ctx)
+	dbTx, err := localState.BeginStateTransaction(localCtx)
 	require.NoError(t, err)
-	_, err = localState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	_, err = localState.SetGenesis(localCtx, state.Block{}, state.Genesis{}, dbTx)
 	require.NoError(t, err)
-	require.NoError(t, dbTx.Commit(ctx))
+	require.NoError(t, dbTx.Commit(localCtx))
 }
 
 func cleanup(t *testing.T) {
@@ -98,7 +99,7 @@ func prepareForcedBatches(t *testing.T) {
 
 	for x := 0; x < numberOfForcesBatches; x++ {
 		forcedBatchNum := int64(x)
-		_, err := localState.PostgresStorage.Exec(ctx, sql, forcedBatchNum, testGER.String(), time.Now(), testRawData, testAddr.String(), 0)
+		_, err := localState.PostgresStorage.Exec(localCtx, sql, forcedBatchNum, testGER.String(), time.Now(), testRawData, testAddr.String(), 0)
 		assert.NoError(t, err)
 	}
 }
@@ -114,10 +115,10 @@ func TestClosingSignalsManager(t *testing.T) {
 	}
 
 	prepareForcedBatches(t)
-	closingSignalsManager := newClosingSignalsManager(ctx, testDbManager, channels, cfg, m.Etherman)
+	closingSignalsManager := newClosingSignalsManager(localCtx, testDbManager, channels, cfg, m.Etherman)
 	closingSignalsManager.Start()
 
-	newCtx, cancelFunc := context.WithTimeout(ctx, time.Second*3)
+	newCtx, cancelFunc := context.WithTimeout(localCtx, time.Second*3)
 	defer cancelFunc()
 
 	var fb *state.ForcedBatch
@@ -125,7 +126,7 @@ func TestClosingSignalsManager(t *testing.T) {
 	for {
 		select {
 		case <-newCtx.Done():
-			log.Infof("received context done, Err: %s", ctx.Err())
+			log.Infof("received context done, Err: %s", localCtx.Err())
 			return
 		// Forced  batch ch
 		case fb := <-channels.ForcedBatchCh:
