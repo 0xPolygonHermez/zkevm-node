@@ -231,15 +231,15 @@ func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, e
 		var fork state.ForkIDInterval
 		if i == 0 {
 			fork = state.ForkIDInterval{
-				FromBatchNumber: zkevmVersion.NumBatch,
+				FromBatchNumber: zkevmVersion.NumBatch + 1,
 				ToBatchNumber:   math.MaxUint64,
 				ForkId:          zkevmVersion.ForkID,
 				Version:         zkevmVersion.Version,
 			}
 		} else {
-			forks[len(forks)-1].ToBatchNumber = zkevmVersion.NumBatch - 1
+			forks[len(forks)-1].ToBatchNumber = zkevmVersion.NumBatch
 			fork = state.ForkIDInterval{
-				FromBatchNumber: zkevmVersion.NumBatch,
+				FromBatchNumber: zkevmVersion.NumBatch + 1,
 				ToBatchNumber:   math.MaxUint64,
 				ForkId:          zkevmVersion.ForkID,
 				Version:         zkevmVersion.Version,
