@@ -92,8 +92,8 @@ Used by: `rpc`
 |---|---|---|---|
 | Host   | ZKEVM_NODE_RPC_HOST   | "0.0.0.0"   | Host of the server  |
 | Port   | ZKEVM_NODE_RPC_PORT   | 8123   | Port of the server  |
-| ReadTimeoutInSec   | ZKEVM_NODE_RPC_READ_TIMEOUT_IN_SEC   | 60   | Maximum time allowed to read requests  |
-| WriteTimeoutInSec   | ZKEVM_NODE_RPC_WRITE_TIMEOUT_IN_SEC   | 60   | Maximum time allowed to write requests  |
+| ReadTimeout   | ZKEVM_NODE_RPC_READ_TIMEOUT   | 60   | Maximum time allowed to read requests  |
+| WriteTimeout   | ZKEVM_NODE_RPC_WRITE_TIMEOUT   | 60   | Maximum time allowed to write requests  |
 | MaxRequestsPerIPAndSecond   | ZKEVM_NODE_RPC_MAX_REQUESTS_PER_IP_PER_SECOND   | 50   | Maximum amount of requests per second allowed per IP address  |
 | SequencerNodeURI   | ZKEVM_NODE_RPC_SEQUENCER_NODE_URI   | ""   | RPC URL of the trusted sequencer. Used to proxy some pool related endpoints (such as sending txs)  |
 | BroadcastURI   | ZKEVM_NODE_RPC_BROADCAST_URI   | "127.0.0.1:61090"   | URL of the broadcast service (deprecated)  |
@@ -118,39 +118,11 @@ GenBlockNumber = 67
 
 Used by: `sequencer`
 
-NotSyncedWait = "1s"
-WaitPeriodSendSequence = "5s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
-BlocksAmountForTxsToBeDeleted = 100
-FrequencyToCheckTxsForDelete = "12h"
-MaxTxsPerBatch = 150
-MaxBatchBytesSize = 129848
-MaxCumulativeGasUsed = 30000000
-MaxKeccakHashes = 468
-MaxPoseidonHashes = 279620
-MaxPoseidonPaddings = 149796
-MaxMemAligns = 262144
-MaxArithmetics = 262144
-MaxBinaries = 262144
-MaxSteps = 8388608
-WeightBatchBytesSize = 1
-WeightCumulativeGasUsed = 1
-WeightKeccakHashes = 1
-WeightPoseidonHashes = 1
-WeightPoseidonPaddings = 1
-WeightMemAligns = 1
-WeightArithmetics = 1
-WeightBinaries = 1
-WeightSteps = 1
-TxLifetimeCheckTimeout = "10m"
-MaxTxLifetime = "3h"
-MaxTxSizeForL1 = 131072
-
 | config  | env  | default  | description  |
 |---|---|---|---|
 | NotSyncedWait   | ZKEVM_NODE_SEQUENCER_NOT_SYNCED_WAIT   | "1s"   | Time too wait when the sequencer is waiting for th synchronizer to catch up with L1   |
-| WaitPeriodSendSequence   | ZKEVM_NODE_SEQUENCER_   | "5s"   |   |
-| LastBatchVirtualizationTimeMaxWaitPeriod   | ZKEVM_NODE_SEQUENCER_   | "5s"   |   |
+| WaitPeriodSendSequence   | ZKEVM_NODE_SEQUENCER_WAIT_PERIOD_SEND_SEQUENCE   | "5s"   | Frequency in which the send sequences to L1 loop is run (doesn't mean that sequences will be sent with this frequency)  |
+| LastBatchVirtualizationTimeMaxWaitPeriod   | ZKEVM_NODE_SEQUENCER_LAST_BATCH_VIRTUALIZATION_TIME_MAX_WAIT_PERIOD   | "1h"   | If there has not been batches sent to L1 for longer than the specified duration, a batch will be sent even if the L1 tx could be more packed  |
 | BlocksAmountForTxsToBeDeleted   | ZKEVM_NODE_SEQUENCER_   | 100   |   |
 | FrequencyToCheckTxsForDelete   | ZKEVM_NODE_SEQUENCER_   | "12h"   |   |
 | MaxTxsPerBatch   | ZKEVM_NODE_SEQUENCER_   | 150   |   |

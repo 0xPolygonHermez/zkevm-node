@@ -71,7 +71,7 @@ GenBlockNumber = 67
 [Sequencer]
 NotSyncedWait = "1s"
 WaitPeriodSendSequence = "5s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "1h"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
