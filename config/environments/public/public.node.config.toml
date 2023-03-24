@@ -37,8 +37,8 @@ MultiGasProvider = false
 [RPC]
 Host = "0.0.0.0"
 Port = 8545
-ReadTimeoutInSec = 60
-WriteTimeoutInSec = 60
+ReadTimeout = "60s"
+WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://rpc.public.zkevm-test.net/"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
