@@ -302,12 +302,13 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-		gasUsed = processBatchResponse.Responses[0].GasUsed
 		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
 			log.Errorf("error estimating gas: %v", err)
 			return false, false, gasUsed, err
-		} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		}
+		gasUsed = processBatchResponse.Responses[0].GasUsed
+		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
 			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, err
@@ -1212,7 +1213,7 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 	}
 
 	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, lastL2BlockNumber, false, dbTx)
-	if err != nil && !errors.Is(err, runtime.ErrExecutionReverted) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -1220,26 +1221,27 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
 	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 	if err != nil {
-		result.Err = err
-	}
-	if response != nil && response.Responses[0] != nil {
-		r := response.Responses[0]
-		result.ReturnValue = r.ReturnValue
-		result.GasLeft = r.GasLeft
-		result.GasUsed = r.GasUsed
-		result.CreateAddress = r.CreateAddress
-		result.StateRoot = r.StateRoot.Bytes()
-
-		if result.Err == nil {
-			result.Err = r.RomError
-		}
+		return nil, err
 	}
 
-	return result
+	r := response.Responses[0]
+	result.ReturnValue = r.ReturnValue
+	result.GasLeft = r.GasLeft
+	result.GasUsed = r.GasUsed
+	result.CreateAddress = r.CreateAddress
+	result.StateRoot = r.StateRoot.Bytes()
+
+	if errors.Is(r.RomError, runtime.ErrExecutionReverted) {
+		result.Err = constructErrorFromRevert(r.RomError, r.ReturnValue)
+	} else {
+		result.Err = r.RomError
+	}
+
+	return result, nil
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
@@ -1325,9 +1327,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 
 	if processBatchResponse.Responses[0].Error != pb.RomError(executor.ROM_ERROR_NO_ERROR) {
 		err := executor.RomErr(processBatchResponse.Responses[0].Error)
-		if isEVMRevertError(err) {
-			return response, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
-		} else {
+		if !isEVMRevertError(err) {
 			return response, err
 		}
 	}
