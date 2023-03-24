@@ -60,7 +60,7 @@ SyncChunkSize = 100
 GenBlockNumber = 79
 
 [Sequencer]
-WaitPeriodPoolIsEmpty = "1s"
+NotSyncedWait = "1s"
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 BlocksAmountForTxsToBeDeleted = 100
