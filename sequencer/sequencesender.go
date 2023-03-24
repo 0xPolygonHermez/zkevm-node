@@ -196,7 +196,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 		// Remove the latest item and send the sequences
 		log.Infof(
 			"Done building sequences, selected batches to %d. Batch %d caused the L1 tx to be too big",
-			currentBatchNumToSequence, currentBatchNumToSequence+1,
+			currentBatchNumToSequence-1, currentBatchNumToSequence,
 		)
 		sequences = sequences[:len(sequences)-1]
 		return sequences, nil
