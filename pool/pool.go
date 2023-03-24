@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
-	bridgeClaimMethodSignature = "0x2cffd02e"
+	// BridgeClaimMethodSignature for tracking BridgeClaimMethodSignature method
+	BridgeClaimMethodSignature = "0x2cffd02e"
 )
 
 var (
