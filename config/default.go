@@ -52,8 +52,8 @@ ForcedGas = 0
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
-ReadTimeoutInSec = 60
-WriteTimeoutInSec = 60
+ReadTimeout = "60s"
+WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
@@ -97,10 +97,10 @@ TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "5s"
-		ForcedBatchDeadlineTimeoutInSec = "60s"
-		SendingToL1DeadlineTimeoutInSec = "20s"
-		SleepDurationInMs = "100ms"
+		GERDeadlineTimeout = "5s"
+		ForcedBatchDeadlineTimeout = "60s"
+		SendingToL1DeadlineTimeout = "20s"
+		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 64
 		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"

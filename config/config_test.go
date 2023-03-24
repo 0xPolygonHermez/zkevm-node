@@ -118,19 +118,19 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(131072),
 		},
 		{
-			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
+			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeoutInSec",
+			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeout",
 			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.SendingToL1DeadlineTimeoutInSec",
+			path:          "Sequencer.Finalizer.SendingToL1DeadlineTimeout",
 			expectedValue: types.NewDuration(20 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.SleepDurationInMs",
+			path:          "Sequencer.Finalizer.SleepDuration",
 			expectedValue: types.NewDuration(100 * time.Millisecond),
 		},
 		{
@@ -307,12 +307,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: int(8123),
 		},
 		{
-			path:          "RPC.ReadTimeoutInSec",
-			expectedValue: time.Duration(60),
+			path:          "RPC.ReadTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
-			path:          "RPC.WriteTimeoutInSec",
-			expectedValue: time.Duration(60),
+			path:          "RPC.WriteTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
 			path:          "RPC.SequencerNodeURI",

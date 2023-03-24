@@ -124,8 +124,8 @@ func (s *Server) startHTTP() error {
 
 	s.srv = &http.Server{
 		Handler:      mux,
-		ReadTimeout:  s.config.ReadTimeoutInSec * time.Second,
-		WriteTimeout: s.config.WriteTimeoutInSec * time.Second,
+		ReadTimeout:  s.config.ReadTimeout.Duration,
+		WriteTimeout: s.config.WriteTimeout.Duration,
 	}
 	log.Infof("http server started: %s", address)
 	if err := s.srv.Serve(lis); err != nil {
@@ -161,8 +161,8 @@ func (s *Server) startWS() {
 
 	s.wsSrv = &http.Server{
 		Handler:      mux,
-		ReadTimeout:  s.config.ReadTimeoutInSec * time.Second,
-		WriteTimeout: s.config.WriteTimeoutInSec * time.Second,
+		ReadTimeout:  s.config.ReadTimeout.Duration,
+		WriteTimeout: s.config.WriteTimeout.Duration,
 	}
 	s.wsUpgrader = websocket.Upgrader{
 		ReadBufferSize:  wsBufferSizeLimitInBytes,

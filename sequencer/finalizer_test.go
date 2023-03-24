@@ -49,16 +49,16 @@ var (
 		SendingToL1TimeoutCh: make(chan bool),
 	}
 	cfg = FinalizerCfg{
-		GERDeadlineTimeoutInSec: cfgTypes.Duration{
+		GERDeadlineTimeout: cfgTypes.Duration{
 			Duration: 60,
 		},
-		ForcedBatchDeadlineTimeoutInSec: cfgTypes.Duration{
+		ForcedBatchDeadlineTimeout: cfgTypes.Duration{
 			Duration: 60,
 		},
-		SendingToL1DeadlineTimeoutInSec: cfgTypes.Duration{
+		SendingToL1DeadlineTimeout: cfgTypes.Duration{
 			Duration: 60,
 		},
-		SleepDurationInMs: cfgTypes.Duration{
+		SleepDuration: cfgTypes.Duration{
 			Duration: 60,
 		},
 		ClosingSignalsManagerWaitForCheckingL1Timeout: cfgTypes.Duration{
@@ -1018,7 +1018,7 @@ func TestFinalizer_setNextForcedBatchDeadline(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-	expected := now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeoutInSec.Duration.Seconds())
+	expected := now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeout.Duration.Seconds())
 
 	// act
 	f.setNextForcedBatchDeadline()
@@ -1034,7 +1034,7 @@ func TestFinalizer_setNextGERDeadline(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-	expected := now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration.Seconds())
+	expected := now().Unix() + int64(f.cfg.GERDeadlineTimeout.Duration.Seconds())
 
 	// act
 	f.setNextGERDeadline()
@@ -1050,7 +1050,7 @@ func TestFinalizer_setNextSendingToL1Deadline(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-	expected := now().Unix() + int64(f.cfg.SendingToL1DeadlineTimeoutInSec.Duration.Seconds())
+	expected := now().Unix() + int64(f.cfg.SendingToL1DeadlineTimeout.Duration.Seconds())
 
 	// act
 	f.setNextSendingToL1Deadline()
