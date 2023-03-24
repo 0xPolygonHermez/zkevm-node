@@ -40,6 +40,21 @@ type Transaction struct {
 	IP                    string
 }
 
+// NewTransaction creates a new transaction
+func NewTransaction(tx types.Transaction, ip string, isWIP bool, p *Pool) *Transaction {
+	poolTx := Transaction{
+		Transaction: tx,
+		Status:      TxStatusPending,
+		IsClaims:    false,
+		ReceivedAt:  time.Now(),
+		IsWIP:       isWIP,
+		IP:          ip,
+	}
+
+	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
+	return &poolTx
+}
+
 // IsClaimTx checks, if tx is a claim tx
 func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address, freeClaimGasLimit uint64) bool {
 	if tx.To() == nil {
