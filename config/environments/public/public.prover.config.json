@@ -100,7 +100,7 @@
     "dbMTCacheSize": 10240,
     "dbProgramCacheSize": 1024,
     "dbConnectionsPool": true,
-    "dbNumberOfPoolConnections": 20,
+    "dbNumberOfPoolConnections": 28,
     "cleanerPollingPeriod": 600,
     "requestsPersistence": 3600,
     "maxExecutorThreads": 20,
