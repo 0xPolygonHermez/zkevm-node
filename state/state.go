@@ -302,12 +302,13 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-		gasUsed = processBatchResponse.Responses[0].GasUsed
 		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
 			log.Errorf("error estimating gas: %v", err)
 			return false, false, gasUsed, err
-		} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		}
+		gasUsed = processBatchResponse.Responses[0].GasUsed
+		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
 			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, err
