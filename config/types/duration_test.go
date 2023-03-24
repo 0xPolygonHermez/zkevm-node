@@ -51,5 +51,4 @@ func TestDurationUnmarshal(t *testing.T) {
 			}
 		})
 	}
-
 }
