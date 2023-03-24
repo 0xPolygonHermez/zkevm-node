@@ -402,7 +402,7 @@ func TestGetForks(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(forks))
 	assert.Equal(t, uint64(1), forks[0].ForkId)
-	assert.Equal(t, uint64(0), forks[0].FromBatchNumber)
+	assert.Equal(t, uint64(1), forks[0].FromBatchNumber)
 	assert.Equal(t, uint64(math.MaxUint64), forks[0].ToBatchNumber)
 	assert.Equal(t, "v1", forks[0].Version)
 	// Now read the event
