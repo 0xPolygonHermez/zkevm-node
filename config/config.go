@@ -15,7 +15,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -58,7 +57,6 @@ type Config struct {
 	RPC                 jsonrpc.Config
 	Synchronizer        synchronizer.Config
 	Sequencer           sequencer.Config
-	PriceGetter         pricegetter.Config
 	Aggregator          aggregator.Config
 	NetworkConfig       NetworkConfig
 	L2GasPriceSuggester gasprice.Config

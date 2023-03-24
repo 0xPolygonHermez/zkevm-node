@@ -103,7 +103,7 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 func (s *Sequencer) Start(ctx context.Context) {
 	for !s.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
-		time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
+		time.Sleep(s.cfg.NotSyncedWait.Duration)
 	}
 	metrics.Register()
 
@@ -160,9 +160,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	go closingSignalsManager.Start()
 
 	go s.trackOldTxs(ctx)
-	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	tickerSendSequence := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
-	defer tickerProcessTxs.Stop()
 	defer tickerSendSequence.Stop()
 
 	go func() {
@@ -200,7 +198,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 	for err != nil {
 		if errors.Is(err, state.ErrStateNotSynchronized) {
 			log.Warnf("state is not synchronized, trying to get last batch num once again...")
-			time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
+			time.Sleep(s.cfg.NotSyncedWait.Duration)
 			batchNum, err = dbManager.GetLastBatchNumber(ctx)
 		} else {
 			log.Fatalf("failed to get last batch number, err: %v", err)

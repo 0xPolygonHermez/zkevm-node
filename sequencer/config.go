@@ -10,9 +10,9 @@ type Config struct {
 	// trying to send a sequence to L1
 	WaitPeriodSendSequence types.Duration `mapstructure:"WaitPeriodSendSequence"`
 
-	// WaitPeriodPoolIsEmpty is the time the sequencer waits until
+	// NotSyncedWait is the time the sequencer waits until
 	// trying to add new txs to the state
-	WaitPeriodPoolIsEmpty types.Duration `mapstructure:"WaitPeriodPoolIsEmpty"`
+	NotSyncedWait types.Duration `mapstructure:"NotSyncedWait"`
 
 	// LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
 	LastBatchVirtualizationTimeMaxWaitPeriod types.Duration `mapstructure:"LastBatchVirtualizationTimeMaxWaitPeriod"`

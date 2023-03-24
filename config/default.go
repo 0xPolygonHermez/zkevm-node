@@ -20,8 +20,8 @@ MaxConns = 200
 
 [Pool]
 FreeClaimGasLimit = 150000
-MaxTxBytesSize=30132
-MaxTxDataBytesSize=30000
+MaxTxBytesSize = 30132
+MaxTxDataBytesSize = 30000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
@@ -69,7 +69,7 @@ SyncChunkSize = 100
 GenBlockNumber = 67
 
 [Sequencer]
-WaitPeriodPoolIsEmpty = "1s"
+NotSyncedWait = "1s"
 WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 BlocksAmountForTxsToBeDeleted = 100
@@ -112,10 +112,6 @@ MaxTxSizeForL1 = 131072
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 
-[PriceGetter]
-Type = "default"
-DefaultPrice = "2000"
-
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
@@ -131,9 +127,6 @@ GeneratingProofCleanupThreshold = "10m"
 [L2GasPriceSuggester]
 Type = "default"
 DefaultGasPriceWei = 1000000000
-
-[Prover]
-ProverURI = "0.0.0.0:50051"
 
 [MTClient]
 URI = "127.0.0.1:50061"
