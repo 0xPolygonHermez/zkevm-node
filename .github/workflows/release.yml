@@ -48,10 +48,10 @@ jobs:
           # MAINNET
           mkdir -p mainnet/config/environments/public
           mkdir -p mainnet/db/scripts
-          cp config/environments/public/* mainnet/config/environments/public
+          cp config/environments/mainnet/* mainnet/config/environments/public
           cp docker-compose.yml mainnet
           cp db/scripts/init_prover_db.sql mainnet/db/scripts
-          mv mainnet/config/environments/public/example.env mainnet
+          mv mainnet/config/environments/mainnet/example.env mainnet
           sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" mainnet/docker-compose.yml
           zip -r mainnet.zip mainnet
 
