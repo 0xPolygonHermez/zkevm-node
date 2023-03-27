@@ -34,8 +34,9 @@ jobs:
         uses: olegtarasov/get-tag@v2.1.2
         id: tagName
 
-      - name: Put testnet artifacts into a single zip
+      - name: Put testnet and mainnet artifacts into a single zip
         run: |
+          # TESTNET
           mkdir -p testnet/config/environments/public
           mkdir -p testnet/db/scripts
           cp config/environments/public/* testnet/config/environments/public
@@ -44,11 +45,20 @@ jobs:
           mv testnet/config/environments/public/example.env testnet
           sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" testnet/docker-compose.yml
           zip -r testnet.zip testnet
+          # MAINNET
+          mkdir -p mainnet/config/environments/public
+          mkdir -p mainnet/db/scripts
+          cp config/environments/public/* mainnet/config/environments/public
+          cp docker-compose.yml mainnet
+          cp db/scripts/init_prover_db.sql mainnet/db/scripts
+          mv mainnet/config/environments/public/example.env mainnet
+          sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" mainnet/docker-compose.yml
+          zip -r mainnet.zip mainnet
 
-      - name: Publish testnet zip into release
+      - name: Publish testnet and mainnet  zip into release
         uses: AButler/upload-release-assets@v2.0
         with:
-          files: 'testnet.zip'
+          files: 'testnet.zip;mainnet.zip'
           repo-token: ${{ secrets.TOKEN_RELEASE }}
           release-tag: ${{ steps.tagName.outputs.tag }}
         
