@@ -321,16 +321,16 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 		// this Tx and we are not able to identify automatically, so we mark this as failed to let the
 		// caller know something is not right and needs to be review and to avoid to monitor this
 		// tx infinitely
-		if len(mTx.history) == maxHistorySize {
-			mTx.status = MonitoredTxStatusFailed
-			mTxLog.Infof("marked as failed because reached the history size limit: %v", err)
-			// update monitored tx changes into storage
-			err = c.storage.Update(ctx, mTx, nil)
-			if err != nil {
-				mTxLog.Errorf("failed to update monitored tx when max history size limit reached: %v", err)
-				continue
-			}
-		}
+		// if len(mTx.history) == maxHistorySize {
+		// 	mTx.status = MonitoredTxStatusFailed
+		// 	mTxLog.Infof("marked as failed because reached the history size limit: %v", err)
+		// 	// update monitored tx changes into storage
+		// 	err = c.storage.Update(ctx, mTx, nil)
+		// 	if err != nil {
+		// 		mTxLog.Errorf("failed to update monitored tx when max history size limit reached: %v", err)
+		// 		continue
+		// 	}
+		// }
 
 		var signedTx *types.Transaction
 		if !mined {
