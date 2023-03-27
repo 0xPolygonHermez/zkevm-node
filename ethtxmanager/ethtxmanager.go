@@ -21,7 +21,7 @@ import (
 
 const (
 	failureIntervalInSeconds = 5
-	maxHistorySize           = 10
+	// maxHistorySize           = 10
 )
 
 var (
