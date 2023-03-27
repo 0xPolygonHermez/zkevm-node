@@ -574,7 +574,7 @@ func (_m *DbManagerMock) StoreProcessedTransaction(ctx context.Context, batchNum
 }
 
 // UpdateTxStatus provides a mock function with given fields: ctx, hash, newStatus, isWIP
-func (_m *DbManagerMock) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
+func (_m *DbManagerMock) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, reason *string) error {
 	ret := _m.Called(ctx, hash, newStatus, isWIP)
 
 	var r0 error

@@ -221,7 +221,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		}
 
 		// Change Tx status to selected
-		err = d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected, false)
+		err = d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected, false, nil)
 		if err != nil {
 			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
@@ -532,8 +532,8 @@ func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumbe
 	return d.state.GetTransactionsByBatchNumber(ctx, batchNumber, nil)
 }
 
-func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
-	return d.txPool.UpdateTxStatus(ctx, hash, newStatus, isWIP)
+func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, failedReason *string) error {
+	return d.txPool.UpdateTxStatus(ctx, hash, newStatus, isWIP, failedReason)
 }
 
 // GetLatestVirtualBatchTimestamp gets last virtual batch timestamp

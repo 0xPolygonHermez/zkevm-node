@@ -23,8 +23,8 @@ type storage interface {
 	GetNonWIPTxsByStatus(ctx context.Context, status TxStatus, isClaims bool, limit uint64) ([]Transaction, error)
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
-	UpdateTxsStatus(ctx context.Context, hashes []string, newStatus TxStatus) error
-	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus, isWIP bool) error
+	UpdateTxsStatus(ctx context.Context, updateInfo []TxStatusUpdateInfo) error
+	UpdateTxStatus(ctx context.Context, updateInfo TxStatusUpdateInfo) error
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
 	GetTxs(ctx context.Context, filterStatus TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*Transaction, error)
 	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)

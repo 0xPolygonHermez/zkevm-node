@@ -114,7 +114,7 @@ func (_m *PoolMock) MarkWIPTxsAsPending(ctx context.Context) error {
 }
 
 // UpdateTxStatus provides a mock function with given fields: ctx, hash, newStatus, isWIP
-func (_m *PoolMock) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
+func (_m *PoolMock) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, reason *string) error {
 	ret := _m.Called(ctx, hash, newStatus, isWIP)
 
 	var r0 error

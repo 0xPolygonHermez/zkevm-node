@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -125,6 +126,8 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 			//TODO: we need to update in the DB the deleted txs?
 			for _, txTracker := range a.notReadyTxs {
 				if txTracker.Nonce < a.currentNonce {
+					reason := runtime.ErrIntrinsicInvalidNonce.Error()
+					txTracker.FailedReason = &reason
 					txsToDelete = append(txsToDelete, txTracker)
 				}
 			}

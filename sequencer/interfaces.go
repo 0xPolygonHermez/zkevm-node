@@ -23,7 +23,7 @@ type txPool interface {
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
 	GetNonWIPPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
-	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error
+	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, failedReason *string) error
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
 }
@@ -112,7 +112,7 @@ type dbManagerInterface interface {
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
-	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error
+	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, reason *string) error
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	FlushMerkleTree(ctx context.Context) error

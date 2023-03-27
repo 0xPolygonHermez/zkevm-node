@@ -446,7 +446,7 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 	start := time.Now()
 	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
 	for _, txToDelete := range txsToDelete {
-		err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false)
+		err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
 		if err != nil {
 			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
 		}
@@ -462,13 +462,14 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 	addressInfo := result.ReadWriteAddresses[tx.From]
 	log.Infof("handleTransactionError: error in tx: %s, errorCode: %d", tx.Hash.String(), errorCode)
 
+	failedReason := executor.RomErr(errorCode).Error()
 	if executor.IsROMOutOfCountersError(errorCode) {
 		log.Errorf("ROM out of counters error, marking tx with Hash: %s as INVALID, errorCode: %s", tx.Hash.String(), errorCode.String())
 		start := time.Now()
 		f.worker.DeleteTx(tx.Hash, tx.From)
 		metrics.WorkerProcessingTime(time.Since(start))
 		go func() {
-			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false)
+			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
 			}
@@ -485,8 +486,9 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 		start := time.Now()
 		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY nonce(%d) balance(%s) cost(%s), err: %s", tx.Hash, nonce, balance.String(), tx.Cost.String(), txResponse.RomError)
 		txsToDelete := f.worker.MoveTxToNotReady(tx.Hash, tx.From, nonce, balance)
+
 		for _, txToDelete := range txsToDelete {
-			err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false)
+			err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
 			}
@@ -498,7 +500,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex(), "isClaim", tx.IsClaim)
 
 		// Update the status of the transaction to failed
-		err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false)
+		err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false, &failedReason)
 		if err != nil {
 			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
 		}

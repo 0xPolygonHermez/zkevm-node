@@ -276,8 +276,13 @@ func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]
 
 // UpdateTxStatus updates a transaction state accordingly to the
 // provided state and hash
-func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus, isWIP bool) error {
-	return p.storage.UpdateTxStatus(ctx, hash, newStatus, isWIP)
+func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus, isWIP bool, failedReason *string) error {
+	return p.storage.UpdateTxStatus(ctx, TxStatusUpdateInfo{
+		Hash:         hash,
+		NewStatus:    newStatus,
+		IsWIP:        isWIP,
+		FailedReason: failedReason,
+	})
 }
 
 // SetGasPrice allows an external component to define the gas price

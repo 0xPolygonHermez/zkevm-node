@@ -1,12 +1,16 @@
 package sequencer
 
 import (
+	"errors"
 	"fmt"
 )
 
 var (
 	// ErrBatchResourceBytesUnderflow happens when the batch runs out of bytes
 	ErrBatchResourceBytesUnderflow = NewBatchRemainingResourcesUnderflowError(nil, "Bytes")
+
+	// ErrExpiredTransaction happens when the transaction is expired
+	ErrExpiredTransaction = errors.New("transaction expired")
 )
 
 // BatchRemainingResourcesUnderflowError happens when the execution of a batch runs out of counters
