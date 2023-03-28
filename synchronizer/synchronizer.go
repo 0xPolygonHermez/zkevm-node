@@ -530,7 +530,10 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 		reason := reorgReasons.String()
 		log.Warnf("Trusted Reorg detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
 		if s.isTrustedSequencer {
-			log.Fatal("TRUSTED REORG DETECTED! Batch: ", batch.BatchNumber)
+			for {
+				log.Error("TRUSTED REORG DETECTED! Batch: ", batch.BatchNumber)
+				time.Sleep(5 * time.Second) //nolint:gomnd
+			}
 		}
 		// Store trusted reorg register
 		tr := state.TrustedReorg{
