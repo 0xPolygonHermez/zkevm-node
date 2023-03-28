@@ -67,7 +67,7 @@ func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address, freeClaimGasLimit 
 	}
 
 	if *tx.To() == l2BridgeAddr &&
-		strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), bridgeClaimMethodSignature) {
+		strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), BridgeClaimMethodSignature) {
 		return true
 	}
 	return false

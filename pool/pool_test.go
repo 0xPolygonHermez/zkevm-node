@@ -40,6 +40,10 @@ const (
 )
 
 var (
+	l2BridgeAddr = common.HexToAddress("0x00000000000000000000000000000001")
+)
+
+var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 	genesis    = state.Genesis{
@@ -150,16 +154,6 @@ func Test_AddTx(t *testing.T) {
 	}
 
 	assert.Equal(t, 1, c, "invalid number of txs in the pool")
-}
-
-func setupPool(t *testing.T, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context) *pool.Pool {
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
-	err := p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
-	p.StartPollingMinSuggestedGasPrice(ctx)
-	return p
 }
 
 func Test_AddTx_OversizedData(t *testing.T) {
@@ -1105,71 +1099,110 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	}
 }
 
-func Test_AddTxWithGasPriceTooLowErr(t *testing.T) {
-	initOrResetDB()
-
-	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		panic(err)
-	}
-	defer stateSqlDB.Close() //nolint:gosec,errcheck
-
-	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	defer poolSqlDB.Close() //nolint:gosec,errcheck
-
-	st := newState(stateSqlDB)
-
-	genesisBlock := state.Block{
-		BlockNumber: 0,
-		BlockHash:   state.ZeroHash,
-		ParentHash:  state.ZeroHash,
-		ReceivedAt:  time.Now(),
-	}
-	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
-			{
-				Address: senderAddress,
-				Type:    int(merkletree.LeafTypeBalance),
-				Value:   "1000000000000000000000",
-			},
+func Test_AddTx_GasPriceErr(t *testing.T) {
+	claimData, err := hex.DecodeHex(pool.BridgeClaimMethodSignature)
+	require.NoError(t, err)
+	testCases := []struct {
+		name          string
+		nonce         uint64
+		to            *common.Address
+		gasLimit      uint64
+		gasPrice      *big.Int
+		data          []byte
+		expectedError error
+	}{
+		{
+			name:          "GasPriceTooLowErr",
+			nonce:         0,
+			to:            nil,
+			gasLimit:      gasLimit,
+			gasPrice:      big.NewInt(0).SetUint64(gasPrice.Uint64() - uint64(1)),
+			data:          []byte{},
+			expectedError: pool.ErrGasPrice,
+		},
+		{
+			name:          "NoGasPriceTooLowErr_ForClaims",
+			nonce:         1,
+			to:            &l2BridgeAddr,
+			gasLimit:      cfg.FreeClaimGasLimit,
+			gasPrice:      big.NewInt(0),
+			data:          claimData,
+			expectedError: nil,
 		},
 	}
-	ctx := context.Background()
-	dbTx, err := st.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
-	require.NoError(t, err)
-	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			initOrResetDB()
+
+			stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+			if err != nil {
+				panic(err)
+			}
+			defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+			poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+			if err != nil {
+				t.Error(err)
+			}
+			defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+			st := newState(stateSqlDB)
+
+			genesisBlock := state.Block{
+				BlockNumber: 0,
+				BlockHash:   state.ZeroHash,
+				ParentHash:  state.ZeroHash,
+				ReceivedAt:  time.Now(),
+			}
+			genesis := state.Genesis{
+				Actions: []*state.GenesisAction{
+					{
+						Address: senderAddress,
+						Type:    int(merkletree.LeafTypeBalance),
+						Value:   "1000000000000000000000",
+					},
+				},
+			}
+			ctx := context.Background()
+			dbTx, err := st.BeginStateTransaction(ctx)
+			require.NoError(t, err)
+			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			require.NoError(t, err)
+			require.NoError(t, dbTx.Commit(ctx))
+
+			s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+			if err != nil {
+				t.Error(err)
+			}
+
+			const chainID = 2576980377
+			p := setupPool(t, s, st, chainID, ctx)
+			tx := types.NewTx(&types.LegacyTx{
+				Nonce:    tc.nonce,
+				To:       tc.to,
+				Value:    big.NewInt(0),
+				Gas:      tc.gasLimit,
+				GasPrice: tc.gasPrice,
+				Data:     tc.data,
+			})
+			privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+			require.NoError(t, err)
+
+			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
+			require.NoError(t, err)
+
+			signedTx, err := auth.Signer(auth.From, tx)
+			require.NoError(t, err)
+
+			err = p.AddTx(ctx, *signedTx, "")
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
+		})
 	}
-
-	const chainID = 2576980377
-	p := setupPool(t, s, st, chainID, ctx)
-	tx := types.NewTx(&types.LegacyTx{
-		Nonce:    uint64(0),
-		To:       nil,
-		Value:    big.NewInt(0),
-		Gas:      gasLimit,
-		GasPrice: big.NewInt(0).SetUint64(gasPrice.Uint64() - 1),
-		Data:     []byte{},
-	})
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
-	require.NoError(t, err)
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
-	require.NoError(t, err)
-
-	signedTx, err := auth.Signer(auth.From, tx)
-	require.NoError(t, err)
-
-	err = p.AddTx(ctx, *signedTx, "")
-	require.ErrorIs(t, err, pool.ErrGasPrice)
 }
 
 func Test_AddRevertedTx(t *testing.T) {
@@ -1230,4 +1263,14 @@ func Test_AddRevertedTx(t *testing.T) {
 	for i := 0; i < 1; i++ {
 		assert.Equal(t, pool.TxStatusPending, txs[0].Status)
 	}
+}
+
+func setupPool(t *testing.T, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context) *pool.Pool {
+	p := pool.NewPool(cfg, s, st, l2BridgeAddr, chainID)
+	err := p.SetGasPrice(ctx, gasPrice.Uint64())
+	if err != nil {
+		t.Error(err)
+	}
+	p.StartPollingMinSuggestedGasPrice(ctx)
+	return p
 }
