@@ -1313,7 +1313,6 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
 		// Log this error as an executor unspecified error
-		err = executor.ExecutorErr(processBatchResponse.Error)
 		s.LogExecutorError(pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
 		log.Errorf("error processing unsigned transaction ", err)
 		return nil, err
