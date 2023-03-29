@@ -121,6 +121,95 @@ func TestCall(t *testing.T) {
 
 	testCases := []*testCase{
 		{
+			name: "Transaction with all information from a block with EIP-1898",
+			params: []interface{}{
+				types.TxArgs{
+					From:     state.HexToAddressPtr("0x1"),
+					To:       state.HexToAddressPtr("0x2"),
+					Gas:      types.ArgUint64Ptr(24000),
+					GasPrice: types.ArgBytesPtr(big.NewInt(1).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+				map[string]interface{}{
+					"blockNumber": "0x1",
+				},
+			},
+			expectedResult: []byte("hello world"),
+			expectedError:  nil,
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
+				blockNumber := uint64(1)
+				nonce := uint64(7)
+				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
+				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
+				var block *ethTypes.Block = nil
+				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).Return(block, nil).Once()
+				txArgs := testCase.params[0].(types.TxArgs)
+				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
+					match := tx != nil &&
+						tx.To().Hex() == txArgs.To.Hex() &&
+						tx.Gas() == uint64(*txArgs.Gas) &&
+						tx.GasPrice().Uint64() == gasPrice.Uint64() &&
+						tx.Value().Uint64() == value.Uint64() &&
+						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data) &&
+						tx.Nonce() == nonce
+					return match
+				})
+				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
+				m.State.
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
+					Once()
+			},
+		},
+		{
+			name: "Transaction with all information from block by hash with EIP-1898",
+			params: []interface{}{
+				types.TxArgs{
+					From:     state.HexToAddressPtr("0x1"),
+					To:       state.HexToAddressPtr("0x2"),
+					Gas:      types.ArgUint64Ptr(24000),
+					GasPrice: types.ArgBytesPtr(big.NewInt(1).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+				map[string]interface{}{
+					"blockHash": "0x82ba516e76a4bfaba6d1d95c8ccde96e353ce3c683231d011021f43dee7b2d95",
+				},
+			},
+			expectedResult: []byte("hello world"),
+			expectedError:  nil,
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
+				blockNumber := uint64(10)
+				nonce := uint64(7)
+				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
+				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
+				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(0).SetUint64(blockNumber)})
+				m.State.
+					On("GetL2BlockByHash", context.Background(), common.HexToHash("0x82ba516e76a4bfaba6d1d95c8ccde96e353ce3c683231d011021f43dee7b2d95"), m.DbTx).
+					Return(block, nil).Once()
+				txArgs := testCase.params[0].(types.TxArgs)
+				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
+					return tx != nil &&
+						tx.To().Hex() == txArgs.To.Hex() &&
+						tx.Gas() == uint64(*txArgs.Gas) &&
+						tx.GasPrice().Uint64() == gasPrice.Uint64() &&
+						tx.Value().Uint64() == value.Uint64() &&
+						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data) &&
+						tx.Nonce() == nonce
+				})
+				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
+				m.State.
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
+					Once()
+			},
+		},
+		{
 			name: "Transaction with all information from latest block",
 			params: []interface{}{
 				types.TxArgs{
@@ -141,6 +230,8 @@ func TestCall(t *testing.T) {
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				var block *ethTypes.Block = nil
+				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).Return(block, nil).Once()
 				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
 					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
@@ -224,6 +315,8 @@ func TestCall(t *testing.T) {
 				nonce := uint64(7)
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
+				var block *ethTypes.Block = nil
+				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).Return(block, nil).Once()
 				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
 					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
@@ -263,6 +356,8 @@ func TestCall(t *testing.T) {
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
 				m.State.On("GetL2BlockHeaderByNumber", context.Background(), blockNumber, m.DbTx).Return(blockHeader, nil).Once()
+				var block *ethTypes.Block = nil
+				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).Return(block, nil).Once()
 				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
 					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
@@ -301,6 +396,8 @@ func TestCall(t *testing.T) {
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
 				m.State.On("GetL2BlockHeaderByNumber", context.Background(), blockNumber, m.DbTx).Return(blockHeader, nil).Once()
+				var block *ethTypes.Block = nil
+				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).Return(block, nil).Once()
 				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
 					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
@@ -337,6 +434,8 @@ func TestCall(t *testing.T) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				var block *ethTypes.Block = nil
+				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetL2BlockHeaderByNumber", context.Background(), blockNumber, m.DbTx).Return(nil, errors.New("failed to get block header")).Once()
 			},
 		},
@@ -361,6 +460,8 @@ func TestCall(t *testing.T) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				var block *ethTypes.Block = nil
+				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).Return(block, nil).Once()
 				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
 					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
@@ -402,6 +503,8 @@ func TestCall(t *testing.T) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				var block *ethTypes.Block = nil
+				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).Return(block, nil).Once()
 				txArgs := testCase.params[0].(types.TxArgs)
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
 					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
