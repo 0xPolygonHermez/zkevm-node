@@ -296,7 +296,6 @@ func (b *BlockNumberOrHash) UnmarshalJSON(buffer []byte) error {
 				}
 				return nil
 			}
-
 		} else {
 			return fmt.Errorf("invalid block or hash")
 		}
