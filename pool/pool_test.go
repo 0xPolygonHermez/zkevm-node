@@ -1102,7 +1102,25 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 }
 
 func Test_AddTx_GasPriceErr(t *testing.T) {
-	claimData, err := hex.DecodeHex(pool.BridgeClaimMethodSignature)
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	bridgeSC, err := bridge.NewPolygonzkevmbridge(l2BridgeAddr, nil)
+	require.NoError(t, err)
+
+	auth.NoSend = true
+	auth.GasLimit = 53000
+	auth.GasPrice = big.NewInt(0)
+	auth.Nonce = big.NewInt(0)
+
+	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
+	require.NoError(t, err)
+
+	claimData := signedTx.Data()
+
 	require.NoError(t, err)
 	testCases := []struct {
 		name          string
