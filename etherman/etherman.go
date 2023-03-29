@@ -564,7 +564,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 
 // GetSendSequenceFee get super/trusted sequencer fee
 func (etherMan *Client) GetSendSequenceFee(numBatches uint64) (*big.Int, error) {
-	f, err := etherMan.PoE.GetCurrentBatchFee(&bind.CallOpts{Pending: false})
+	f, err := etherMan.PoE.BatchFee(&bind.CallOpts{Pending: false})
 	if err != nil {
 		return nil, err
 	}
