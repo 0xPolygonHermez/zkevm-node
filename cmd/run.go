@@ -205,10 +205,14 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 	var trustedSequencerURL string
 	var err error
 	if !cfg.IsTrustedSequencer {
-		log.Debug("getting trusted sequencer URL from smc")
-		trustedSequencerURL, err = etherman.GetTrustedSequencerURL()
-		if err != nil {
-			log.Fatal("error getting trusted sequencer URI. Error: %v", err)
+		if cfg.Synchronizer.TrustedSequencerURL != "" {
+			trustedSequencerURL = cfg.Synchronizer.TrustedSequencerURL
+		} else {
+			log.Debug("getting trusted sequencer URL from smc")
+			trustedSequencerURL, err = etherman.GetTrustedSequencerURL()
+			if err != nil {
+				log.Fatal("error getting trusted sequencer URI. Error: %v", err)
+			}
 		}
 		log.Debug("trustedSequencerURL ", trustedSequencerURL)
 	}
