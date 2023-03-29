@@ -294,4 +294,6 @@ enum ExecutorError {
     EXECUTOR_ERROR_BALANCE_MISMATCH = 9;
     // EXECUTOR_ERROR_FEA2SCALAR indicates that there is a fea2scalar error in the execution
     EXECUTOR_ERROR_FEA2SCALAR = 10;
+    // EXECUTOR_ERROR_TOS32 indicates that there is a TOS32 error in the execution
+    EXECUTOR_ERROR_TOS32 = 11;
 }
