@@ -57,9 +57,9 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 <!-- ZKEVM -->
 - `zkevm_batchNumber`
 - `zkevm_batchNumberByBlockNumber`
+- `zkevm_consolidatedBlockNumber`
 - `zkevm_getBatchByNumber`
 - `zkevm_getBroadcastURI` _* deprecated, will be removed in the future_
-- `zkevm_consolidatedBlockNumber`
 - `zkevm_isBlockConsolidated`
 - `zkevm_isBlockVirtualized`
 - `zkevm_verifiedBatchNumber`
