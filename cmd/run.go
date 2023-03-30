@@ -127,6 +127,10 @@ func start(cliCtx *cli.Context) error {
 		case RPC:
 			log.Info("Running JSON-RPC server")
 			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			if c.RPC.EnableL2SuggestedGasPricePolling {
+				// Needed for rejecting transactions with too low gas price
+				poolInstance.StartPollingMinSuggestedGasPrice(ctx)
+			}
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
@@ -201,10 +205,14 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 	var trustedSequencerURL string
 	var err error
 	if !cfg.IsTrustedSequencer {
-		log.Debug("getting trusted sequencer URL from smc")
-		trustedSequencerURL, err = etherman.GetTrustedSequencerURL()
-		if err != nil {
-			log.Fatal("error getting trusted sequencer URI. Error: %v", err)
+		if cfg.Synchronizer.TrustedSequencerURL != "" {
+			trustedSequencerURL = cfg.Synchronizer.TrustedSequencerURL
+		} else {
+			log.Debug("getting trusted sequencer URL from smc")
+			trustedSequencerURL, err = etherman.GetTrustedSequencerURL()
+			if err != nil {
+				log.Fatal("error getting trusted sequencer URI. Error: %v", err)
+			}
 		}
 		log.Debug("trustedSequencerURL ", trustedSequencerURL)
 	}
@@ -350,8 +358,9 @@ func startProfilingHttpServer(c metrics.Config) {
 	mux.HandleFunc(metrics.ProfilingSymbolEndpoint, pprof.Symbol)
 	mux.HandleFunc(metrics.ProfilingTraceEndpoint, pprof.Trace)
 	profilingServer := &http.Server{
-		Handler:     mux,
-		ReadTimeout: two * time.Minute,
+		Handler:           mux,
+		ReadHeaderTimeout: two * time.Minute,
+		ReadTimeout:       two * time.Minute,
 	}
 	log.Infof("profiling server listening on port %d", c.ProfilingPort)
 	if err := profilingServer.Serve(lis); err != nil {
@@ -375,8 +384,9 @@ func startMetricsHttpServer(c metrics.Config) {
 	mux.Handle(metrics.Endpoint, promhttp.Handler())
 
 	metricsServer := &http.Server{
-		Handler:     mux,
-		ReadTimeout: ten * time.Second,
+		Handler:           mux,
+		ReadHeaderTimeout: ten * time.Second,
+		ReadTimeout:       ten * time.Second,
 	}
 	log.Infof("metrics server listening on port %d", c.Port)
 	if err := metricsServer.Serve(lis); err != nil {

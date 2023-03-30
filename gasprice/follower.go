@@ -2,8 +2,11 @@ package gasprice
 
 import (
 	"context"
+	"fmt"
 	"math/big"
+	"strconv"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
@@ -48,9 +51,27 @@ func (f *FollowerGasPrice) UpdateGasPriceAvg() {
 		log.Warn("setting minGasPrice for L2")
 		result = minGasPrice
 	}
-	log.Debug("Storing L2 gas price: ", result)
-	err := f.pool.SetGasPrice(ctx, result.Uint64())
-	if err != nil {
-		log.Errorf("failed to update gas price in poolDB, err: %v", err)
+	var truncateValue *big.Int
+	log.Debug("Full L2 gas price value: ", result, ". Length: ", len(result.String()))
+	numLength := len(result.String())
+	if numLength > 3 { //nolint:gomnd
+		aux := "%0" + strconv.Itoa(numLength-3) + "d" //nolint:gomnd
+		var ok bool
+		value := result.String()[:3] + fmt.Sprintf(aux, 0)
+		truncateValue, ok = new(big.Int).SetString(value, encoding.Base10)
+		if !ok {
+			log.Error("error converting: ", truncateValue)
+		}
+	} else {
+		truncateValue = result
+	}
+	log.Debug("Storing truncated L2 gas price: ", truncateValue)
+	if truncateValue != nil {
+		err := f.pool.SetGasPrice(ctx, truncateValue.Uint64())
+		if err != nil {
+			log.Errorf("failed to update gas price in poolDB, err: %v", err)
+		}
+	} else {
+		log.Error("nil value detected. Skipping...")
 	}
 }

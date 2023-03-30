@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
@@ -17,7 +18,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const sleepDuration = 5 * time.Second
+const (
+	sleepDuration                         = 5 * time.Second
+	minAllowedGasPriceIntervalMinutes     = 5
+	pollMinAllowedGasPriceIntervalSeconds = 15
+)
 
 // Environment sets up the environment for the benchmark
 func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethclient.Client, *pool.Pool, *bind.TransactOpts) {
@@ -47,10 +52,11 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	st := opsman.State()
 	s, err := pgpoolstorage.NewPostgresPoolStorage(params.PoolDbConfig)
 	require.NoError(b, err)
-
 	config := pool.Config{
-		FreeClaimGasLimit: 1000000, //nolint:gomnd
-		DB:                params.PoolDbConfig,
+		FreeClaimGasLimit:              1000000, //nolint:gomnd
+		DB:                             params.PoolDbConfig,
+		MinAllowedGasPriceInterval:     types.NewDuration(minAllowedGasPriceIntervalMinutes * time.Minute),
+		PollMinAllowedGasPriceInterval: types.NewDuration(pollMinAllowedGasPriceIntervalSeconds * time.Second),
 	}
 
 	pl := pool.NewPool(config, s, st, common.Address{}, params.ChainID)

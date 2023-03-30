@@ -1,8 +1,7 @@
 -- +migrate Up
-CREATE TABLE pool.blocked
-(
-    addr varchar NOT NULL PRIMARY KEY
-);
+ALTER TABLE pool.transaction
+ADD COLUMN deposit_count BIGINT;
 
 -- +migrate Down
-DROP TABLE pool.blocked;
+ALTER TABLE pool.transaction
+DROP COLUMN deposit_count;

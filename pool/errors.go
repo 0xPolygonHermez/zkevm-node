@@ -44,4 +44,7 @@ var (
 
 	// ErrGasUintOverflow is returned when calculating gas usage.
 	ErrGasUintOverflow = errors.New("gas uint64 overflow")
+
+	// ErrGasPrice is returned if the transaction has specified lower gas price than the minimum allowed.
+	ErrGasPrice = errors.New("gas price too low")
 )

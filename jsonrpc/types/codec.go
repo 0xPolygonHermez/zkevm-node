@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
@@ -204,6 +205,103 @@ func StringToBlockNumber(str string) (BlockNumber, error) {
 		return 0, err
 	}
 	return BlockNumber(n), nil
+}
+
+// BlockNumberOrHash allows a string value to be parsed
+// into a block number or a hash, it's used by methods
+// like eth_call that allows the block to be specified
+// either by the block number or the block hash
+type BlockNumberOrHash struct {
+	number           *BlockNumber
+	hash             *ArgHash
+	requireCanonical bool
+}
+
+// IsHash checks if the hash has value
+func (b *BlockNumberOrHash) IsHash() bool {
+	return b.hash != nil
+}
+
+// IsNumber checks if the number has value
+func (b *BlockNumberOrHash) IsNumber() bool {
+	return b.number != nil
+}
+
+// SetHash sets the hash and nullify the number
+func (b *BlockNumberOrHash) SetHash(hash ArgHash, requireCanonical bool) {
+	t := hash
+	b.number = nil
+	b.hash = &t
+	b.requireCanonical = requireCanonical
+}
+
+// SetNumber sets the number and nullify the hash
+func (b *BlockNumberOrHash) SetNumber(number BlockNumber) {
+	t := number
+	b.number = &t
+	b.hash = nil
+	b.requireCanonical = false
+}
+
+// Hash returns the hash
+func (b *BlockNumberOrHash) Hash() *ArgHash {
+	return b.hash
+}
+
+// Number returns the number
+func (b *BlockNumberOrHash) Number() *BlockNumber {
+	return b.number
+}
+
+// UnmarshalJSON automatically decodes the user input for the block number, when a JSON RPC method is called
+func (b *BlockNumberOrHash) UnmarshalJSON(buffer []byte) error {
+	var number BlockNumber
+	err := json.Unmarshal(buffer, &number)
+	if err == nil {
+		b.SetNumber(number)
+		return nil
+	}
+
+	var hash ArgHash
+	err = json.Unmarshal(buffer, &hash)
+	if err == nil {
+		b.SetHash(hash, false)
+		return nil
+	}
+
+	var m map[string]interface{}
+	err = json.Unmarshal(buffer, &m)
+	if err == nil {
+		if v, ok := m["blockNumber"]; ok {
+			input, _ := json.Marshal(v.(string))
+			err := json.Unmarshal(input, &number)
+			if err == nil {
+				b.SetNumber(number)
+				return nil
+			}
+		} else if v, ok := m["blockHash"]; ok {
+			input, _ := json.Marshal(v.(string))
+			err := json.Unmarshal(input, &hash)
+			if err == nil {
+				requireCanonical, ok := m["requireCanonical"]
+				if ok {
+					switch v := requireCanonical.(type) {
+					case bool:
+						b.SetHash(hash, v)
+					default:
+						return fmt.Errorf("invalid requiredCanonical")
+					}
+				} else {
+					b.SetHash(hash, false)
+				}
+				return nil
+			}
+		} else {
+			return fmt.Errorf("invalid block or hash")
+		}
+	}
+
+	return err
 }
 
 // Index of a item

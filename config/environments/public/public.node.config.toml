@@ -15,6 +15,11 @@ MaxConns = 200
 [Pool]
 FreeClaimGasLimit = 1500000
 IntervalToRefreshBlockedAddresses = "5m"
+MaxTxBytesSize=30132
+MaxTxDataBytesSize=30000
+DefaultMinGasPriceAllowed = 1000000000
+MinAllowedGasPriceInterval = "5m"
+PollMinAllowedGasPriceInterval = "15s"
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
@@ -43,6 +48,7 @@ MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://rpc.public.zkevm-test.net/"
 BroadcastURI = "public-grpc.zkevm-test.net:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+EnableL2SuggestedGasPricePolling = false
 	[RPC.WebSockets]
 		Enabled = true
 		Port = 8546

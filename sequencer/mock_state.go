@@ -40,6 +40,20 @@ func (_m *StateMock) AddDebugInfo(ctx context.Context, info *state.DebugInfo, db
 	return r0
 }
 
+// AddEvent provides a mock function with given fields: ctx, event, dbTx
+func (_m *StateMock) AddEvent(ctx context.Context, event *state.Event, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, event, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *state.Event, pgx.Tx) error); ok {
+		r0 = rf(ctx, event, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Begin provides a mock function with given fields: ctx
 func (_m *StateMock) Begin(ctx context.Context) (pgx.Tx, error) {
 	ret := _m.Called(ctx)

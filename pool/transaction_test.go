@@ -12,7 +12,7 @@ import (
 func Test_IsClaimTx(t *testing.T) {
 	l2BridgeAddr := common.HexToAddress("0x00000000000000000000000000000001")
 	differentAddr := common.HexToAddress("0x00000000000000000000000000000002")
-	claimData, err := hex.DecodeHex(bridgeClaimMethodSignature)
+	claimData, err := hex.DecodeHex(BridgeClaimMethodSignature)
 	if err != nil {
 		panic(err)
 	}

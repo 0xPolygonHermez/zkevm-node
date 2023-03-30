@@ -12,7 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -53,11 +53,43 @@ func (e *EthEndpoints) BlockNumber() (interface{}, types.Error) {
 // executed contract and potential error.
 // Note, this function doesn't make any changes in the state/blockchain and is
 // useful to execute view/pure methods and retrieve values.
-func (e *EthEndpoints) Call(arg *types.TxArgs, number *types.BlockNumber) (interface{}, types.Error) {
+func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		if arg == nil {
+			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil)
+		} else if blockArg == nil {
+			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 1", nil)
+		}
+
+		var blockNumber uint64
+		var err error
+		if blockArg.IsHash() {
+			block, err := e.state.GetL2BlockByHash(ctx, blockArg.Hash().Hash(), dbTx)
+			if errors.Is(err, state.ErrNotFound) {
+				return rpcErrorResponse(types.DefaultErrorCode, "header for hash not found", nil)
+			} else if err != nil {
+				errMsg := fmt.Sprintf("failed to get block by hash %v", blockArg.Hash().Hash())
+				return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
+			}
+			blockNumber = block.Number().Uint64()
+		} else {
+			var rpcErr types.Error
+			blockNumber, rpcErr = blockArg.Number().GetNumericBlockNumber(ctx, e.state, dbTx)
+			if rpcErr != nil {
+				return nil, rpcErr
+			}
+			_, err := e.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
+			if errors.Is(err, state.ErrNotFound) {
+				return rpcErrorResponse(types.DefaultErrorCode, "header not found", nil)
+			} else if err != nil {
+				errMsg := fmt.Sprintf("failed to get block by number %v", blockNumber)
+				return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
+			}
+		}
+
 		// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
-		if arg.Gas == nil || *arg.Gas == types.ArgUint64(0) {
-			header, err := e.getBlockHeader(ctx, *number, dbTx)
+		if arg.Gas == nil || uint64(*arg.Gas) <= 0 {
+			header, err := e.state.GetL2BlockHeaderByNumber(ctx, blockNumber, dbTx)
 			if err != nil {
 				return rpcErrorResponse(types.DefaultErrorCode, "failed to get block header", err)
 			}
@@ -66,22 +98,23 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, number *types.BlockNumber) (inter
 			arg.Gas = &gas
 		}
 
-		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, e.state, dbTx)
-		if rpcErr != nil {
-			return nil, rpcErr
-		}
-
 		defaultSenderAddress := common.HexToAddress(e.cfg.DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, blockNumber, e.cfg.MaxCumulativeGasUsed, defaultSenderAddress, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumber, false, dbTx)
-		if result.Failed() {
+		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumber, false, dbTx)
+		if err != nil {
+			return rpcErrorResponse(types.DefaultErrorCode, "failed to execute the unsigned transaction", err)
+		}
+
+		if result.Reverted() {
 			data := make([]byte, len(result.ReturnValue))
 			copy(data, result.ReturnValue)
 			return rpcErrorResponseWithData(types.RevertedErrorCode, result.Err.Error(), &data, nil)
+		} else if result.Failed() {
+			return rpcErrorResponse(types.DefaultErrorCode, result.Err.Error(), nil)
 		}
 
 		return types.ArgBytesPtr(result.ReturnValue), nil
@@ -99,11 +132,34 @@ func (e *EthEndpoints) ChainId() (interface{}, types.Error) { //nolint:revive
 // Note that the estimate may be significantly more than the amount of gas actually
 // used by the transaction, for a variety of reasons including EVM mechanics and
 // node performance.
-func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, number *types.BlockNumber) (interface{}, types.Error) {
+func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, e.state, dbTx)
-		if rpcErr != nil {
-			return nil, rpcErr
+		if arg == nil {
+			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil)
+		}
+
+		var blockNumber uint64
+		var err error
+		if blockArg == nil {
+			blockNumber, err = e.state.GetLastL2BlockNumber(ctx, dbTx)
+			if err != nil {
+				return rpcErrorResponse(types.DefaultErrorCode, "failed to get last block from state", err)
+			}
+		} else {
+			if blockArg.IsHash() {
+				block, err := e.state.GetL2BlockByHash(ctx, blockArg.Hash().Hash(), dbTx)
+				if err != nil {
+					errMsg := fmt.Sprintf("failed to get block by hash %v", blockArg.Hash().Hash())
+					return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
+				}
+				blockNumber = block.Number().Uint64()
+			} else {
+				var rpcErr types.Error
+				blockNumber, rpcErr = blockArg.Number().GetNumericBlockNumber(ctx, e.state, dbTx)
+				if rpcErr != nil {
+					return nil, rpcErr
+				}
+			}
 		}
 
 		defaultSenderAddress := common.HexToAddress(e.cfg.DefaultSenderAddress)
@@ -112,12 +168,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, number *types.BlockNumber)
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		var blockNumberToProcessTx *uint64
-		if number != nil && *number != types.LatestBlockNumber && *number != types.PendingBlockNumber {
-			blockNumberToProcessTx = &blockNumber
-		}
-
-		gasEstimation, err := e.state.EstimateGas(tx, sender, blockNumberToProcessTx, dbTx)
+		gasEstimation, err := e.state.EstimateGas(tx, sender, blockNumber, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 		}
@@ -477,7 +528,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 			return e.getTransactionByHashFromSequencerNode(hash.Hash())
 		}
 		poolTx, err := e.pool.GetTxByHash(ctx, hash.Hash())
-		if errors.Is(err, pgpoolstorage.ErrNotFound) {
+		if errors.Is(err, pool.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to load transaction by hash from pool", err)
@@ -827,43 +878,6 @@ func hexToTx(str string) (*ethTypes.Transaction, error) {
 	}
 
 	return tx, nil
-}
-
-func (e *EthEndpoints) getBlockHeader(ctx context.Context, number types.BlockNumber, dbTx pgx.Tx) (*ethTypes.Header, error) {
-	switch number {
-	case types.LatestBlockNumber:
-		block, err := e.state.GetLastL2Block(ctx, dbTx)
-		if err != nil {
-			return nil, err
-		}
-		return block.Header(), nil
-
-	case types.EarliestBlockNumber:
-		header, err := e.state.GetL2BlockHeaderByNumber(ctx, uint64(0), dbTx)
-		if err != nil {
-			return nil, err
-		}
-		return header, nil
-
-	case types.PendingBlockNumber:
-		lastBlock, err := e.state.GetLastL2Block(ctx, dbTx)
-		if err != nil {
-			return nil, err
-		}
-		parentHash := lastBlock.Hash()
-		number := lastBlock.Number().Uint64() + 1
-
-		header := &ethTypes.Header{
-			ParentHash: parentHash,
-			Number:     big.NewInt(0).SetUint64(number),
-			Difficulty: big.NewInt(0),
-			GasLimit:   lastBlock.Header().GasLimit,
-		}
-		return header, nil
-
-	default:
-		return e.state.GetL2BlockHeaderByNumber(ctx, uint64(number), dbTx)
-	}
 }
 
 func (e *EthEndpoints) updateFilterLastPoll(filterID string) types.Error {

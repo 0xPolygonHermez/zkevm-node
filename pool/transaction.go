@@ -38,6 +38,22 @@ type Transaction struct {
 	PreprocessedStateRoot common.Hash
 	IsWIP                 bool
 	IP                    string
+	DepositCount          *uint64
+}
+
+// NewTransaction creates a new transaction
+func NewTransaction(tx types.Transaction, ip string, isWIP bool, p *Pool) *Transaction {
+	poolTx := Transaction{
+		Transaction: tx,
+		Status:      TxStatusPending,
+		IsClaims:    false,
+		ReceivedAt:  time.Now(),
+		IsWIP:       isWIP,
+		IP:          ip,
+	}
+
+	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
+	return &poolTx
 }
 
 // IsClaimTx checks, if tx is a claim tx
@@ -52,7 +68,7 @@ func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address, freeClaimGasLimit 
 	}
 
 	if *tx.To() == l2BridgeAddr &&
-		strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), bridgeClaimMethodSignature) {
+		strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), BridgeClaimMethodSignature) {
 		return true
 	}
 	return false

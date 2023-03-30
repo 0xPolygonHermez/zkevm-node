@@ -63,7 +63,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: uint64(150000),
+			expectedValue: uint64(129848),
 		},
 		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
@@ -112,6 +112,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.MaxTxLifetime",
 			expectedValue: types.NewDuration(3 * time.Hour),
+		},
+		{
+			path:          "Sequencer.MaxTxSizeForL1",
+			expectedValue: uint64(131072),
 		},
 		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
@@ -246,6 +250,27 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(150000),
 		},
 		{
+			path:          "Pool.MaxTxBytesSize",
+			expectedValue: uint64(30132),
+		},
+		{
+			path:          "Pool.MaxTxDataBytesSize",
+			expectedValue: 30000,
+		},
+
+		{
+			path:          "Pool.DefaultMinGasPriceAllowed",
+			expectedValue: uint64(1000000000),
+		},
+		{
+			path:          "Pool.MinAllowedGasPriceInterval",
+			expectedValue: types.NewDuration(5 * time.Minute),
+		},
+		{
+			path:          "Pool.PollMinAllowedGasPriceInterval",
+			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
 			path:          "Pool.DB.User",
 			expectedValue: "pool_user",
 		},
@@ -308,6 +333,11 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.WebSockets.Enabled",
 			expectedValue: false,
+		},
+
+		{
+			path:          "RPC.EnableL2SuggestedGasPricePolling",
+			expectedValue: true,
 		},
 		{
 			path:          "RPC.WebSockets.Port",

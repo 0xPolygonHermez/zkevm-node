@@ -176,7 +176,7 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 }
 
 // EstimateGas for a transaction
-func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
+func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	const ethTransferGas = 21000
 
 	var lowEnd uint64
@@ -184,7 +184,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	ctx := context.Background()
 
-	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, &l2BlockNumber, two, dbTx)
 	if err != nil {
 		return 0, err
 	}
@@ -302,12 +302,13 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-		gasUsed = processBatchResponse.Responses[0].GasUsed
 		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
 			log.Errorf("error estimating gas: %v", err)
 			return false, false, gasUsed, err
-		} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		}
+		gasUsed = processBatchResponse.Responses[0].GasUsed
+		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
 			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, err
@@ -782,24 +783,24 @@ func (s *State) ProcessAndStoreClosedBatch(
 	encodedTxs []byte,
 	dbTx pgx.Tx,
 	caller CallerLabel,
-) error {
+) (common.Hash, error) {
 	// Decode transactions
 	decodedTransactions, _, err := DecodeTxs(encodedTxs)
 	if err != nil && !errors.Is(err, InvalidData) {
 		log.Debugf("error decoding transactions: %v", err)
-		return err
+		return common.Hash{}, err
 	}
 
 	// Open the batch and process the txs
 	if dbTx == nil {
-		return ErrDBTxNil
+		return common.Hash{}, ErrDBTxNil
 	}
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
-		return err
+		return common.Hash{}, err
 	}
 	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, caller, dbTx)
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
 
 	// Sanity check
@@ -830,19 +831,19 @@ func (s *State) ProcessAndStoreClosedBatch(
 
 	processedBatch, err := s.convertToProcessBatchResponse(decodedTransactions, processed)
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
 
 	if len(processedBatch.Responses) > 0 {
 		// Store processed txs into the batch
 		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
 		if err != nil {
-			return err
+			return common.Hash{}, err
 		}
 	}
 
 	// Close batch
-	return s.closeBatch(ctx, ProcessingReceipt{
+	return common.BytesToHash(processed.NewStateRoot), s.closeBatch(ctx, ProcessingReceipt{
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
@@ -1212,7 +1213,7 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 	}
 
 	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, lastL2BlockNumber, false, dbTx)
-	if err != nil && !errors.Is(err, runtime.ErrExecutionReverted) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -1220,26 +1221,27 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
 	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 	if err != nil {
-		result.Err = err
-	}
-	if response != nil && response.Responses[0] != nil {
-		r := response.Responses[0]
-		result.ReturnValue = r.ReturnValue
-		result.GasLeft = r.GasLeft
-		result.GasUsed = r.GasUsed
-		result.CreateAddress = r.CreateAddress
-		result.StateRoot = r.StateRoot.Bytes()
-
-		if result.Err == nil {
-			result.Err = r.RomError
-		}
+		return nil, err
 	}
 
-	return result
+	r := response.Responses[0]
+	result.ReturnValue = r.ReturnValue
+	result.GasLeft = r.GasLeft
+	result.GasUsed = r.GasUsed
+	result.CreateAddress = r.CreateAddress
+	result.StateRoot = r.StateRoot.Bytes()
+
+	if errors.Is(r.RomError, runtime.ErrExecutionReverted) {
+		result.Err = constructErrorFromRevert(r.RomError, r.ReturnValue)
+	} else {
+		result.Err = r.RomError
+	}
+
+	return result, nil
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
@@ -1310,6 +1312,8 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
+		// Log this error as an executor unspecified error
+		s.LogExecutorError(pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
 		log.Errorf("error processing unsigned transaction ", err)
 		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
@@ -1325,9 +1329,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 
 	if processBatchResponse.Responses[0].Error != pb.RomError(executor.ROM_ERROR_NO_ERROR) {
 		err := executor.RomErr(processBatchResponse.Responses[0].Error)
-		if isEVMRevertError(err) {
-			return response, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
-		} else {
+		if !isEVMRevertError(err) {
 			return response, err
 		}
 	}
@@ -1404,6 +1406,13 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	}
 
 	root.SetBytes(newRoot)
+
+	// flush state db
+	err = s.tree.Flush(ctx)
+	if err != nil {
+		log.Errorf("error flushing state tree after genesis: %v", err)
+		return newRoot, err
+	}
 
 	// store L1 block related to genesis batch
 	err = s.AddBlock(ctx, &block, dbTx)

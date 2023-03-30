@@ -281,6 +281,15 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		return nil, errors.New("state root and local exit root must have value to close batch")
 	}
 
+	// We need to process the batch to update the state root before closing the batch
+	if f.batch.initialStateRoot == f.batch.stateRoot {
+		log.Info("reprocessing batch because the state root has not changed...")
+		err := f.processTransaction(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Reprocess full batch as sanity check
 	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
 	if err != nil || !processBatchResponse.IsBatchProcessed {
@@ -398,7 +407,7 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 	}
 
 	// Check remaining resources
-	err := f.checkRemainingResources(result, tx)
+	err := f.checkRemainingResources(ctx, result, tx)
 	if err != nil {
 		return err
 	}
@@ -660,15 +669,6 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
-	// We need to process the batch to update the state root before closing the batch
-	if f.batch.initialStateRoot == f.batch.stateRoot {
-		log.Info("reprocessing batch because the state root has not changed...")
-		err := f.processTransaction(ctx, nil)
-		if err != nil {
-			return err
-		}
-	}
-
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
 		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
@@ -810,11 +810,14 @@ func (f *finalizer) isDeadlineEncountered() bool {
 }
 
 // checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
-func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker) error {
+func (f *finalizer) checkRemainingResources(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) error {
 	usedResources := batchResources{
 		zKCounters: result.UsedZkCounters,
 		bytes:      uint64(len(tx.RawTx)),
 	}
+
+	// Log an event in case the TX consumed more than the double of the expected for a zkCounter
+	f.checkZKCounterConsumption(ctx, result.UsedZkCounters, tx)
 
 	err := f.batch.remainingResources.sub(usedResources)
 	if err != nil {
@@ -826,6 +829,49 @@ func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, 
 	}
 
 	return nil
+}
+
+func (f *finalizer) checkZKCounterConsumption(ctx context.Context, zkCounters state.ZKCounters, tx *TxTracker) {
+	events := ""
+
+	if zkCounters.CumulativeGasUsed > tx.BatchResources.zKCounters.CumulativeGasUsed*2 {
+		events += "CumulativeGasUsed "
+	}
+	if zkCounters.UsedKeccakHashes > tx.BatchResources.zKCounters.UsedKeccakHashes*2 {
+		events += "UsedKeccakHashes "
+	}
+	if zkCounters.UsedPoseidonHashes > tx.BatchResources.zKCounters.UsedPoseidonHashes*2 {
+		events += "UsedPoseidonHashes "
+	}
+	if zkCounters.UsedPoseidonPaddings > tx.BatchResources.zKCounters.UsedPoseidonPaddings*2 {
+		events += "UsedPoseidonPaddings "
+	}
+	if zkCounters.UsedMemAligns > tx.BatchResources.zKCounters.UsedMemAligns*2 {
+		events += "UsedMemAligns "
+	}
+	if zkCounters.UsedArithmetics > tx.BatchResources.zKCounters.UsedArithmetics*2 {
+		events += "UsedArithmetics "
+	}
+	if zkCounters.UsedBinaries > tx.BatchResources.zKCounters.UsedBinaries*2 {
+		events += "UsedBinaries "
+	}
+	if zkCounters.UsedSteps > tx.BatchResources.zKCounters.UsedSteps*2 {
+		events += "UsedSteps "
+	}
+
+	if events != "" {
+		event := &state.Event{
+			EventType: state.EventType_ZKCounters_Diff + " " + events,
+			Timestamp: time.Now(),
+			IP:        tx.IP,
+			TxHash:    tx.Hash,
+		}
+
+		err := f.dbManager.AddEvent(ctx, event, nil)
+		if err != nil {
+			log.Errorf("Error adding event: %v", err)
+		}
+	}
 }
 
 // isBatchAlmostFull checks if the current batch remaining resources are under the constraints threshold for most efficient moment to close a batch

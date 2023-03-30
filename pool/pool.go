@@ -10,29 +10,22 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
 const (
-	// txSlotSize is used to calculate how many data slots a single transaction
-	// takes up based on its size. The slots are used as DoS protection, ensuring
-	// that validating a new transaction remains a constant operation (in reality
-	// O(maxslots), where max slots are 4 currently).
-	txSlotSize = 32 * 1024
-
-	// txMaxSize is the maximum size a single transaction can have. This field has
-	// non-trivial consequences: larger transactions are significantly harder and
-	// more expensive to propagate; larger transactions also take more resources
-	// to validate whether they fit into the pool or not.
-	txMaxSize = 4 * txSlotSize // 128KB
-
-	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
-	bridgeClaimMethodSignature = "0x2cffd02e"
+	// BridgeClaimMethodSignature for tracking BridgeClaimMethodSignature method
+	BridgeClaimMethodSignature = "0x2cffd02e"
 )
 
 var (
+	// ErrNotFound indicates an object has not been found for the search criteria used
+	ErrNotFound = errors.New("object not found")
+
 	// ErrAlreadyKnown is returned if the transactions is already contained
 	// within the pool.
 	ErrAlreadyKnown = errors.New("already known")
@@ -46,22 +39,32 @@ var (
 // that uses a postgres database to store the data
 type Pool struct {
 	storage
-	state            stateInterface
-	l2BridgeAddr     common.Address
-	chainID          uint64
-	cfg              Config
-	blockedAddresses sync.Map
+	state                   stateInterface
+	l2BridgeAddr            common.Address
+	chainID                 uint64
+	cfg                     Config
+	blockedAddresses        sync.Map
+	minSuggestedGasPrice    *big.Int
+	minSuggestedGasPriceMux *sync.RWMutex
+}
+
+type preExecutionResponse struct {
+	usedZkCounters state.ZKCounters
+	isOOC          bool
+	isOOG          bool
+	isReverted     bool
 }
 
 // NewPool creates and initializes an instance of Pool
 func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
 	p := &Pool{
-		cfg:              cfg,
-		storage:          s,
-		state:            st,
-		l2BridgeAddr:     l2BridgeAddr,
-		chainID:          chainID,
-		blockedAddresses: sync.Map{},
+		cfg:                     cfg,
+		storage:                 s,
+		state:                   st,
+		l2BridgeAddr:            l2BridgeAddr,
+		chainID:                 chainID,
+		blockedAddresses:        sync.Map{},
+		minSuggestedGasPriceMux: new(sync.RWMutex),
 	}
 
 	p.refreshBlockedAddresses()
@@ -107,9 +110,25 @@ func (p *Pool) refreshBlockedAddresses() {
 	}
 }
 
+// StartPollingMinSuggestedGasPrice starts polling the minimum suggested gas price
+func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
+	p.pollMinSuggestedGasPrice(ctx)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(p.cfg.PollMinAllowedGasPriceInterval.Duration):
+				p.pollMinSuggestedGasPrice(ctx)
+			}
+		}
+	}()
+}
+
 // AddTx adds a transaction to the pool with the pending state
 func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
-	if err := p.validateTx(ctx, tx); err != nil {
+	poolTx := NewTransaction(tx, ip, false, p)
+	if err := p.validateTx(ctx, *poolTx); err != nil {
 		return err
 	}
 
@@ -118,48 +137,109 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 
 // StoreTx adds a transaction to the pool with the pending state
 func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
-	poolTx := Transaction{
-		Transaction: tx,
-		Status:      TxStatusPending,
-		IsClaims:    false,
-		ReceivedAt:  time.Now(),
-		IsWIP:       isWIP,
-		IP:          ip,
-	}
-
-	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
-
+	poolTx := NewTransaction(tx, ip, isWIP, p)
 	// Execute transaction to calculate its zkCounters
-	zkCounters, err, isOOC := p.PreExecuteTx(ctx, tx)
+	preExecutionResponse, err := p.PreExecuteTx(ctx, tx)
 	if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
+	}
+	if preExecutionResponse.isOOC {
+		event := &state.Event{
+			EventType: state.EventType_Prexecution_OOC,
+			Timestamp: time.Now(),
+			IP:        ip,
+			TxHash:    tx.Hash(),
+		}
 
-		if isOOC {
-			event := &state.Event{
-				EventType: state.EventType_Prexecution_OOC,
-				Timestamp: time.Now(),
-				IP:        ip,
-				TxHash:    tx.Hash(),
-			}
+		err := p.state.AddEvent(ctx, event, nil)
+		if err != nil {
+			log.Errorf("Error adding event: %v", err)
+		}
+		// Do not add tx to the pool
+		return fmt.Errorf("out of counters")
+	} else if preExecutionResponse.isOOG {
+		event := &state.Event{
+			EventType: state.EventType_Prexecution_OOG,
+			Timestamp: time.Now(),
+			IP:        ip,
+			TxHash:    tx.Hash(),
+		}
 
-			err := p.state.AddEvent(ctx, event, nil)
-			if err != nil {
-				log.Errorf("Error adding event: %v", err)
-			}
+		err := p.state.AddEvent(ctx, event, nil)
+		if err != nil {
+			log.Errorf("Error adding event: %v", err)
 		}
 	}
-	poolTx.ZKCounters = zkCounters
 
-	return p.storage.AddTx(ctx, poolTx)
+	if poolTx.IsClaims {
+		isFreeTx := poolTx.GasPrice().Cmp(big.NewInt(0)) <= 0
+		if isFreeTx && preExecutionResponse.isReverted {
+			return fmt.Errorf("free claim reverted")
+		} else {
+			depositCount, err := p.extractDepositCountFromClaimTx(poolTx)
+			if err != nil {
+				return err
+			}
+			exists, err := p.storage.DepositCountExists(ctx, *depositCount)
+			if err != nil && !errors.Is(err, ErrNotFound) {
+				return err
+			}
+			if exists {
+				return fmt.Errorf("deposit count already exists")
+			}
+
+			poolTx.DepositCount = depositCount
+		}
+	}
+
+	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
+
+	return p.storage.AddTx(ctx, *poolTx)
+}
+
+// extractDepositCountFromClaimTx reads the transaction data if this is a
+// proper defined claim transaction, extracts the deposit count parameter
+// from its data
+func (p *Pool) extractDepositCountFromClaimTx(poolTx *Transaction) (*uint64, error) {
+	data := make([]byte, len(poolTx.Data()))
+	copy(data, poolTx.Data())
+
+	const methodLength = 4
+	const skipParamsLength = 32 * 32
+	const depositCountLength = 32
+	const minimumDataLength = methodLength + skipParamsLength + depositCountLength
+	if len(data) < minimumDataLength {
+		return nil, fmt.Errorf("invalid data length")
+	}
+
+	depositCountBytes := data[methodLength+skipParamsLength : methodLength+skipParamsLength+depositCountLength]
+	depositCountBig := big.NewInt(0).SetBytes(depositCountBytes)
+	depositCount := depositCountBig.Uint64()
+	return &depositCount, nil
 }
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (state.ZKCounters, error, bool) {
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preExecutionResponse, error) {
+	response := preExecutionResponse{usedZkCounters: state.ZKCounters{}, isOOC: false, isOOG: false, isReverted: false}
+
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
-		return state.ZKCounters{}, err, false
+		return response, err
 	}
-	return processBatchResponse.UsedZkCounters, processBatchResponse.ExecutorError, !processBatchResponse.IsBatchProcessed
+
+	response.usedZkCounters = processBatchResponse.UsedZkCounters
+
+	if processBatchResponse.IsBatchProcessed {
+		if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
+			r := processBatchResponse.Responses[0]
+			response.isOOC = executor.IsROMOutOfGasError(executor.RomErrorCode(r.RomError))
+			response.isReverted = errors.Is(r.RomError, runtime.ErrExecutionReverted)
+		}
+	} else {
+		response.isOOG = !processBatchResponse.IsBatchProcessed
+	}
+
+	return response, nil
 }
 
 // GetPendingTxs from the pool
@@ -213,31 +293,43 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 	return p.storage.IsTxPending(ctx, hash)
 }
 
-func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
+func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// check chain id
-	txChainID := tx.ChainId().Uint64()
+	txChainID := poolTx.ChainId().Uint64()
 	if txChainID != p.chainID && txChainID != 0 {
 		return ErrInvalidChainID
 	}
 
 	// Accept only legacy transactions until EIP-2718/2930 activates.
-	if tx.Type() != types.LegacyTxType {
+	if poolTx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported
 	}
+
 	// Reject transactions over defined size to prevent DOS attacks
-	if uint64(tx.Size()) > txMaxSize {
+	if poolTx.Size() > p.cfg.MaxTxBytesSize {
 		return ErrOversizedData
 	}
+
+	// Reject transactions with a gas price lower than the minimum gas price if not a claim (claims are free)
+	if !poolTx.IsClaims {
+		p.minSuggestedGasPriceMux.RLock()
+		gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
+		p.minSuggestedGasPriceMux.RUnlock()
+		if gasPriceCmp == -1 {
+			return ErrGasPrice
+		}
+	}
+
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
-	if tx.Value().Sign() < 0 {
+	if poolTx.Value().Sign() < 0 {
 		return ErrNegativeValue
 	}
 	// Make sure the transaction is signed properly.
-	if err := state.CheckSignature(tx); err != nil {
+	if err := state.CheckSignature(poolTx.Transaction); err != nil {
 		return ErrInvalidSender
 	}
-	from, err := state.GetSender(tx)
+	from, err := state.GetSender(poolTx.Transaction)
 	if err != nil {
 		return ErrInvalidSender
 	}
@@ -258,7 +350,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return err
 	}
 	// Ensure the transaction adheres to nonce ordering
-	if nonce > tx.Nonce() {
+	if nonce > poolTx.Nonce() {
 		return ErrNonceTooLow
 	}
 
@@ -269,22 +361,22 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return err
 	}
 
-	if balance.Cmp(tx.Cost()) < 0 {
+	if balance.Cmp(poolTx.Cost()) < 0 {
 		return ErrInsufficientFunds
 	}
 
-	// Ensure the transaction has more gas than the basic tx fee.
-	intrGas, err := IntrinsicGas(tx)
+	// Ensure the transaction has more gas than the basic poolTx fee.
+	intrGas, err := IntrinsicGas(poolTx.Transaction)
 	if err != nil {
 		return err
 	}
-	if tx.Gas() < intrGas {
+	if poolTx.Gas() < intrGas {
 		return ErrIntrinsicGas
 	}
 
 	// try to get a transaction from the pool with the same nonce to check
 	// if the new one has a price bump
-	oldTxs, err := p.storage.GetTxsByFromAndNonce(ctx, from, tx.Nonce())
+	oldTxs, err := p.storage.GetTxsByFromAndNonce(ctx, from, poolTx.Nonce())
 	if err != nil {
 		return err
 	}
@@ -294,29 +386,53 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	// when being selected
 	for _, oldTx := range oldTxs {
 		// discard invalid txs
-		if oldTx.Status == TxStatusInvalid {
+		if oldTx.Status == TxStatusInvalid || oldTx.Status == TxStatusFailed {
 			continue
 		}
 
 		oldTxPrice := new(big.Int).Mul(oldTx.GasPrice(), new(big.Int).SetUint64(oldTx.Gas()))
-		txPrice := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
+		txPrice := new(big.Int).Mul(poolTx.GasPrice(), new(big.Int).SetUint64(poolTx.Gas()))
 
-		if oldTx.Hash() == tx.Hash() {
+		if oldTx.Hash() == poolTx.Hash() {
 			return ErrAlreadyKnown
 		}
 
-		// if old Tx Price is higher than the new tx price, it returns an error
+		// if old Tx Price is higher than the new poolTx price, it returns an error
 		if oldTxPrice.Cmp(txPrice) > 0 {
 			return ErrReplaceUnderpriced
 		}
 	}
 
 	// Executor field size requirements check
-	if err := p.checkTxFieldCompatibilityWithExecutor(ctx, tx); err != nil {
+	if err := p.checkTxFieldCompatibilityWithExecutor(ctx, poolTx.Transaction); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
+	fromTimestamp := time.Now().UTC().Add(-p.cfg.MinAllowedGasPriceInterval.Duration)
+	gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
+	if err != nil {
+		p.minSuggestedGasPriceMux.Lock()
+		// Ensuring we always have suggested minimum gas price
+		if p.minSuggestedGasPrice == nil {
+			p.minSuggestedGasPrice = big.NewInt(0).SetUint64(p.cfg.DefaultMinGasPriceAllowed)
+			log.Infof("Min allowed gas price updated to: %d", p.cfg.DefaultMinGasPriceAllowed)
+		}
+		p.minSuggestedGasPriceMux.Unlock()
+		if err == state.ErrNotFound {
+			log.Warnf("No suggested min gas price since: %v", fromTimestamp)
+		} else {
+			log.Errorf("Error getting min gas price since: %v", fromTimestamp)
+		}
+	} else {
+		p.minSuggestedGasPriceMux.Lock()
+		p.minSuggestedGasPrice = big.NewInt(0).SetUint64(gasPrice)
+		p.minSuggestedGasPriceMux.Unlock()
+		log.Infof("Min allowed gas price updated to: %d", gasPrice)
+	}
 }
 
 // checkTxFieldCompatibilityWithExecutor checks the field sizes of the transaction to make sure
@@ -331,8 +447,6 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx types.Transaction) error {
 	maxUint64BigInt := big.NewInt(0).SetUint64(math.MaxUint64)
 
-	const maxDataSize = 30000
-
 	// GasLimit, Nonce and To fields are limited by their types, no need to check
 	// Gas Price and Value are checked against the balance, and the max balance allowed
 	// by the merkletree service is uint256, in this case, if the transaction has a
@@ -340,8 +454,8 @@ func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx typ
 	// reject the transaction
 
 	dataSize := len(tx.Data())
-	if dataSize > maxDataSize {
-		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, maxDataSize)
+	if dataSize > p.cfg.MaxTxDataBytesSize {
+		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, p.cfg.MaxTxDataBytesSize)
 	}
 
 	if tx.ChainId().Cmp(maxUint64BigInt) == 1 {
