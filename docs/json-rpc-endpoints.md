@@ -18,6 +18,8 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 - `eth_getBalance` _* if the block number is set to pending we assume it is the latest_
 - `eth_getBlockByHash`
 - `eth_getBlockByNumber`
+- `eth_getBlockTransactionCountByHash`
+- `eth_getBlockTransactionCountByNumber`
 - `eth_getCode` _* if the block number is set to pending we assume it is the latest_
 - `eth_getCompilers` _* response is always empty_
 - `eth_getFilterChanges`
@@ -27,8 +29,6 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 - `eth_getTransactionByBlockHashAndIndex`
 - `eth_getTransactionByHash`
 - `eth_getTransactionCount`
-- `eth_getBlockTransactionCountByHash`
-- `eth_getBlockTransactionCountByNumber`
 - `eth_getTransactionByBlockNumberAndIndex` _* if the block number is set to pending we assume it is the latest_
 - `eth_getTransactionReceipt`
 - `eth_getUncleByBlockHashAndIndex` _* response is always empty_
@@ -38,10 +38,10 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 - `eth_newBlockFilter`
 - `eth_newFilter`
 - `eth_protocolVersion` _* response is always zero_
-- `eth_uninstallFilter`
 - `eth_sendRawTransaction` _* can relay TXs to another node_
 - `eth_syncing`
 - `eth_subscribe`
+- `eth_uninstallFilter`
 - `eth_unsubscribe`
 
 <!-- NET -->
@@ -62,5 +62,5 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 - `zkevm_consolidatedBlockNumber`
 - `zkevm_isBlockConsolidated`
 - `zkevm_isBlockVirtualized`
-- `zkevm_virtualBatchNumber`
 - `zkevm_verifiedBatchNumber`
+- `zkevm_virtualBatchNumber`
