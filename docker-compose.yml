@@ -65,17 +65,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
     ports:
       - 5432:5432
     volumes:
       - ./db/scripts/init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
       - ${ZKEVM_NODE_STATEDB_DATA_DIR}:/var/lib/postgresql/data
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/postgresql.conf:/etc/postgresql.conf
     environment:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
@@ -84,6 +79,8 @@ services:
       - "postgres"
       - "-N"
       - "500"
+      - "-c"
+      - "config_file=/etc/postgresql.conf"
 
   zkevm-pool-db:
     container_name: zkevm-pool-db

@@ -145,18 +145,19 @@ func TestCall(t *testing.T) {
 				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
 					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
 					value := big.NewInt(0).SetBytes(*txArgs.Value)
-					return tx != nil &&
+					match := tx != nil &&
 						tx.To().Hex() == txArgs.To.Hex() &&
 						tx.Gas() == uint64(*txArgs.Gas) &&
 						tx.GasPrice().Uint64() == gasPrice.Uint64() &&
 						tx.Value().Uint64() == value.Uint64() &&
 						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data) &&
 						tx.Nonce() == nonce
+					return match
 				})
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
 				m.State.
 					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).
-					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
 		},
@@ -199,7 +200,7 @@ func TestCall(t *testing.T) {
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
 				m.State.
 					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).
-					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
 		},
@@ -238,7 +239,7 @@ func TestCall(t *testing.T) {
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
 				m.State.
 					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).
-					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
 		},
@@ -274,7 +275,10 @@ func TestCall(t *testing.T) {
 					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data)
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.State.
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), blockNumber, false, m.DbTx).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
+					Once()
 			},
 		},
 		{
@@ -309,7 +313,10 @@ func TestCall(t *testing.T) {
 					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data)
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.State.
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), blockNumber, false, m.DbTx).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
+					Once()
 			},
 		},
 		{
@@ -347,7 +354,7 @@ func TestCall(t *testing.T) {
 				"latest",
 			},
 			expectedResult: nil,
-			expectedError:  types.NewRPCError(types.RevertedErrorCode, "failed to process unsigned transaction"),
+			expectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to process unsigned transaction"),
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				blockNumber := uint64(1)
 				nonce := uint64(7)
@@ -368,7 +375,51 @@ func TestCall(t *testing.T) {
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch && nonceMatch
 				})
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
-				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}).Once()
+				m.State.
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).
+					Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}, nil).
+					Once()
+			},
+		},
+		{
+			name: "Transaction with all information but reverted to process unsigned transaction",
+			params: []interface{}{
+				types.TxArgs{
+					From:     state.HexToAddressPtr("0x1"),
+					To:       state.HexToAddressPtr("0x2"),
+					Gas:      types.ArgUint64Ptr(24000),
+					GasPrice: types.ArgBytesPtr(big.NewInt(1).Bytes()),
+					Value:    types.ArgBytesPtr(big.NewInt(2).Bytes()),
+					Data:     types.ArgBytesPtr([]byte("data")),
+				},
+				"latest",
+			},
+			expectedResult: nil,
+			expectedError:  types.NewRPCError(types.RevertedErrorCode, "execution reverted"),
+			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
+				blockNumber := uint64(1)
+				nonce := uint64(7)
+				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
+				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
+				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				txArgs := testCase.params[0].(types.TxArgs)
+				txMatchBy := mock.MatchedBy(func(tx *ethTypes.Transaction) bool {
+					gasPrice := big.NewInt(0).SetBytes(*txArgs.GasPrice)
+					value := big.NewInt(0).SetBytes(*txArgs.Value)
+					hasTx := tx != nil
+					gasMatch := tx.Gas() == uint64(*txArgs.Gas)
+					toMatch := tx.To().Hex() == txArgs.To.Hex()
+					gasPriceMatch := tx.GasPrice().Uint64() == gasPrice.Uint64()
+					valueMatch := tx.Value().Uint64() == value.Uint64()
+					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data)
+					nonceMatch := tx.Nonce() == nonce
+					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch && nonceMatch
+				})
+				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
+				m.State.
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, blockNumber, false, m.DbTx).
+					Return(&runtime.ExecutionResult{Err: runtime.ErrExecutionReverted}, nil).
+					Once()
 			},
 		},
 	}

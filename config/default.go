@@ -22,8 +22,9 @@ MaxConns = 200
 FreeClaimGasLimit = 150000
 MaxTxBytesSize=30132
 MaxTxDataBytesSize=30000
-MinGasPrice = 1000000000
-MinSuggestedGasPriceInterval = "5m"
+DefaultMinGasPriceAllowed = 1000000000
+MinAllowedGasPriceInterval = "5m"
+PollMinAllowedGasPriceInterval = "15s"
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
@@ -57,6 +58,7 @@ MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
 		Enabled = false
 		Port = 8133
@@ -65,6 +67,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 SyncInterval = "0s"
 SyncChunkSize = 100
 GenBlockNumber = 74
+trustedSequencerURL = ""
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"

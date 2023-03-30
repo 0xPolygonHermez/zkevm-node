@@ -24,13 +24,19 @@ const (
 )
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+	retry := false
 	// process monitored sequences before starting a next cycle
 	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
 		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
+			retry = true
 			resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
-			resultLog.Fatal("failed to send sequence, TODO: review this fatal and define what to do in this case")
+			resultLog.Error("failed to send sequence, TODO: review this fatal and define what to do in this case")
 		}
 	}, nil)
+
+	if retry {
+		return
+	}
 
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
@@ -196,7 +202,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 		// Remove the latest item and send the sequences
 		log.Infof(
 			"Done building sequences, selected batches to %d. Batch %d caused the L1 tx to be too big",
-			currentBatchNumToSequence, currentBatchNumToSequence+1,
+			currentBatchNumToSequence-1, currentBatchNumToSequence,
 		)
 		sequences = sequences[:len(sequences)-1]
 		return sequences, nil

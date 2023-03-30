@@ -529,7 +529,12 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 	if reorgReasons.Len() > 0 {
 		reason := reorgReasons.String()
 		log.Warnf("Trusted Reorg detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
-		log.Fatal("TRUSTED REORG DETECTED! Batch: ", batch.BatchNumber)
+		if s.isTrustedSequencer {
+			for {
+				log.Error("TRUSTED REORG DETECTED! Batch: ", batch.BatchNumber)
+				time.Sleep(5 * time.Second) //nolint:gomnd
+			}
+		}
 		// Store trusted reorg register
 		tr := state.TrustedReorg{
 			BatchNumber: tBatch.BatchNumber,
@@ -574,7 +579,7 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 	}
 
 	// If forkID affects to a batch from the past. State must be reseted.
-	log.Debugf("ForkID: %d, Reverting synchronization to batch: %d", forkID.ForkID, forkID.BatchNumber)
+	log.Debugf("ForkID: %d, Reverting synchronization to batch: %d", forkID.ForkID, forkID.BatchNumber+1)
 	count, err := s.state.GetForkIDTrustedReorgCount(s.ctx, forkID.ForkID, forkID.Version, dbTx)
 	if err != nil {
 		log.Error("error getting ForkIDTrustedReorg. Error: ", err)
@@ -602,7 +607,7 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 	}
 
 	//Reset DB
-	err = s.state.ResetForkID(s.ctx, forkID.BatchNumber, forkID.ForkID, forkID.Version, dbTx)
+	err = s.state.ResetForkID(s.ctx, forkID.BatchNumber+1, forkID.ForkID, forkID.Version, dbTx)
 	if err != nil {
 		log.Error("error resetting the state. Error: ", err)
 		rollbackErr := dbTx.Rollback(s.ctx)

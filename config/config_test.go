@@ -257,13 +257,18 @@ func Test_Defaults(t *testing.T) {
 			path:          "Pool.MaxTxDataBytesSize",
 			expectedValue: 30000,
 		},
+
 		{
-			path:          "Pool.MinGasPrice",
+			path:          "Pool.DefaultMinGasPriceAllowed",
 			expectedValue: uint64(1000000000),
 		},
 		{
-			path:          "Pool.MinSuggestedGasPriceInterval",
+			path:          "Pool.MinAllowedGasPriceInterval",
 			expectedValue: types.NewDuration(5 * time.Minute),
+		},
+		{
+			path:          "Pool.PollMinAllowedGasPriceInterval",
+			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
 			path:          "Pool.DB.User",
@@ -328,6 +333,11 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.WebSockets.Enabled",
 			expectedValue: false,
+		},
+
+		{
+			path:          "RPC.EnableL2SuggestedGasPricePolling",
+			expectedValue: true,
 		},
 		{
 			path:          "RPC.WebSockets.Port",

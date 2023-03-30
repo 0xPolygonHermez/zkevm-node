@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -16,8 +17,8 @@ import (
 )
 
 const (
-	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
-	bridgeClaimMethodSignature = "0x2cffd02e"
+	// BridgeClaimMethodSignature for tracking BridgeClaimMethodSignature method
+	BridgeClaimMethodSignature = "0x2cffd02e"
 )
 
 var (
@@ -34,11 +35,12 @@ var (
 // that uses a postgres database to store the data
 type Pool struct {
 	storage
-	state        stateInterface
-	l2BridgeAddr common.Address
-	chainID      uint64
-	cfg          Config
-	minGasPrice  *big.Int
+	state                   stateInterface
+	l2BridgeAddr            common.Address
+	chainID                 uint64
+	cfg                     Config
+	minSuggestedGasPrice    *big.Int
+	minSuggestedGasPriceMux *sync.RWMutex
 }
 
 type preexecutionResponse struct {
@@ -50,18 +52,34 @@ type preexecutionResponse struct {
 // NewPool creates and initializes an instance of Pool
 func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
 	return &Pool{
-		cfg:          cfg,
-		storage:      s,
-		state:        st,
-		l2BridgeAddr: l2BridgeAddr,
-		chainID:      chainID,
-		minGasPrice:  big.NewInt(0).SetUint64(cfg.MinGasPrice),
+		cfg:                     cfg,
+		storage:                 s,
+		state:                   st,
+		l2BridgeAddr:            l2BridgeAddr,
+		chainID:                 chainID,
+		minSuggestedGasPriceMux: new(sync.RWMutex),
 	}
+}
+
+// StartPollingMinSuggestedGasPrice starts polling the minimum suggested gas price
+func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
+	p.pollMinSuggestedGasPrice(ctx)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(p.cfg.PollMinAllowedGasPriceInterval.Duration):
+				p.pollMinSuggestedGasPrice(ctx)
+			}
+		}
+	}()
 }
 
 // AddTx adds a transaction to the pool with the pending state
 func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
-	if err := p.validateTx(ctx, tx); err != nil {
+	poolTx := NewTransaction(tx, ip, false, p)
+	if err := p.validateTx(ctx, *poolTx); err != nil {
 		return err
 	}
 
@@ -70,17 +88,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 
 // StoreTx adds a transaction to the pool with the pending state
 func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
-	poolTx := Transaction{
-		Transaction: tx,
-		Status:      TxStatusPending,
-		IsClaims:    false,
-		ReceivedAt:  time.Now(),
-		IsWIP:       isWIP,
-		IP:          ip,
-	}
-
-	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.cfg.FreeClaimGasLimit)
-
+	poolTx := NewTransaction(tx, ip, isWIP, p)
 	// Execute transaction to calculate its zkCounters
 	preexecutionResponse, err := p.PreExecuteTx(ctx, tx)
 	if err != nil {
@@ -116,7 +124,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	}
 	poolTx.ZKCounters = preexecutionResponse.usedZkCounters
 
-	return p.storage.AddTx(ctx, poolTx)
+	return p.storage.AddTx(ctx, *poolTx)
 }
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
@@ -193,44 +201,43 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 	return p.storage.IsTxPending(ctx, hash)
 }
 
-func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
+func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// check chain id
-	txChainID := tx.ChainId().Uint64()
+	txChainID := poolTx.ChainId().Uint64()
 	if txChainID != p.chainID && txChainID != 0 {
 		return ErrInvalidChainID
 	}
 
 	// Accept only legacy transactions until EIP-2718/2930 activates.
-	if tx.Type() != types.LegacyTxType {
+	if poolTx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported
 	}
+
 	// Reject transactions over defined size to prevent DOS attacks
-	if tx.Size() > p.cfg.MaxTxBytesSize {
+	if poolTx.Size() > p.cfg.MaxTxBytesSize {
 		return ErrOversizedData
 	}
-	if tx.GasPrice().Cmp(p.minGasPrice) == -1 {
-		return ErrGasPrice
-	} else {
-		fromTimestamp := time.Now().UTC().Add(-p.cfg.MinSuggestedGasPriceInterval.Duration)
-		gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
-		if err == state.ErrNotFound {
-			log.Warnf("No suggested min gas price since: %v", fromTimestamp)
-		} else if err != nil {
-			return err
-		} else if tx.GasPrice().Cmp(big.NewInt(0).SetUint64(gasPrice)) == -1 {
+
+	// Reject transactions with a gas price lower than the minimum gas price if not a claim (claims are free)
+	if !poolTx.IsClaims {
+		p.minSuggestedGasPriceMux.RLock()
+		gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
+		p.minSuggestedGasPriceMux.RUnlock()
+		if gasPriceCmp == -1 {
 			return ErrGasPrice
 		}
 	}
+
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
-	if tx.Value().Sign() < 0 {
+	if poolTx.Value().Sign() < 0 {
 		return ErrNegativeValue
 	}
 	// Make sure the transaction is signed properly.
-	if err := state.CheckSignature(tx); err != nil {
+	if err := state.CheckSignature(poolTx.Transaction); err != nil {
 		return ErrInvalidSender
 	}
-	from, err := state.GetSender(tx)
+	from, err := state.GetSender(poolTx.Transaction)
 	if err != nil {
 		return ErrInvalidSender
 	}
@@ -245,7 +252,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return err
 	}
 	// Ensure the transaction adheres to nonce ordering
-	if nonce > tx.Nonce() {
+	if nonce > poolTx.Nonce() {
 		return ErrNonceTooLow
 	}
 
@@ -256,22 +263,22 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return err
 	}
 
-	if balance.Cmp(tx.Cost()) < 0 {
+	if balance.Cmp(poolTx.Cost()) < 0 {
 		return ErrInsufficientFunds
 	}
 
-	// Ensure the transaction has more gas than the basic tx fee.
-	intrGas, err := IntrinsicGas(tx)
+	// Ensure the transaction has more gas than the basic poolTx fee.
+	intrGas, err := IntrinsicGas(poolTx.Transaction)
 	if err != nil {
 		return err
 	}
-	if tx.Gas() < intrGas {
+	if poolTx.Gas() < intrGas {
 		return ErrIntrinsicGas
 	}
 
 	// try to get a transaction from the pool with the same nonce to check
 	// if the new one has a price bump
-	oldTxs, err := p.storage.GetTxsByFromAndNonce(ctx, from, tx.Nonce())
+	oldTxs, err := p.storage.GetTxsByFromAndNonce(ctx, from, poolTx.Nonce())
 	if err != nil {
 		return err
 	}
@@ -286,24 +293,48 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		}
 
 		oldTxPrice := new(big.Int).Mul(oldTx.GasPrice(), new(big.Int).SetUint64(oldTx.Gas()))
-		txPrice := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
+		txPrice := new(big.Int).Mul(poolTx.GasPrice(), new(big.Int).SetUint64(poolTx.Gas()))
 
-		if oldTx.Hash() == tx.Hash() {
+		if oldTx.Hash() == poolTx.Hash() {
 			return ErrAlreadyKnown
 		}
 
-		// if old Tx Price is higher than the new tx price, it returns an error
+		// if old Tx Price is higher than the new poolTx price, it returns an error
 		if oldTxPrice.Cmp(txPrice) > 0 {
 			return ErrReplaceUnderpriced
 		}
 	}
 
 	// Executor field size requirements check
-	if err := p.checkTxFieldCompatibilityWithExecutor(ctx, tx); err != nil {
+	if err := p.checkTxFieldCompatibilityWithExecutor(ctx, poolTx.Transaction); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
+	fromTimestamp := time.Now().UTC().Add(-p.cfg.MinAllowedGasPriceInterval.Duration)
+	gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
+	if err != nil {
+		p.minSuggestedGasPriceMux.Lock()
+		// Ensuring we always have suggested minimum gas price
+		if p.minSuggestedGasPrice == nil {
+			p.minSuggestedGasPrice = big.NewInt(0).SetUint64(p.cfg.DefaultMinGasPriceAllowed)
+			log.Infof("Min allowed gas price updated to: %d", p.cfg.DefaultMinGasPriceAllowed)
+		}
+		p.minSuggestedGasPriceMux.Unlock()
+		if err == state.ErrNotFound {
+			log.Warnf("No suggested min gas price since: %v", fromTimestamp)
+		} else {
+			log.Errorf("Error getting min gas price since: %v", fromTimestamp)
+		}
+	} else {
+		p.minSuggestedGasPriceMux.Lock()
+		p.minSuggestedGasPrice = big.NewInt(0).SetUint64(gasPrice)
+		p.minSuggestedGasPriceMux.Unlock()
+		log.Infof("Min allowed gas price updated to: %d", gasPrice)
+	}
 }
 
 // checkTxFieldCompatibilityWithExecutor checks the field sizes of the transaction to make sure
