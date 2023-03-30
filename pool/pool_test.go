@@ -111,14 +111,12 @@ func Test_AddTx(t *testing.T) {
 	require.NoError(t, err)
 
 	const chainID = 2576980377
-	p := setupPool(t, s, st, chainID, ctx)
+	p := setupPool(t, cfg, s, st, chainID, ctx)
 
 	tx := new(ethTypes.Transaction)
 	expectedTxEncoded := "0xf86880843b9aca008252089400000000000000000000000000000000000000008080850133333355a03ee24709870c8dbc67884c9c8acb864c1aceaaa7332b9a3db0d7a5d7c68eb8e4a0302980b070f5e3ffca3dc27b07daf69d66ab27d4df648e0b3ed059cf23aa168d"
 	b, err := hex.DecodeHex(expectedTxEncoded)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	tx.UnmarshalBinary(b) //nolint:gosec,errcheck
 
 	err = p.AddTx(ctx, *tx, "")
@@ -157,9 +155,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -187,9 +183,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	const chainID = 2576980377
 	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
@@ -252,7 +246,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	require.NoError(t, err)
 
 	const chainID = 2576980377
-	p := setupPool(t, s, st, chainID, ctx)
+	p := setupPool(t, cfg, s, st, chainID, ctx)
 
 	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81b"
 	b, err := hex.DecodeHex(batchL2Data)
@@ -314,10 +308,8 @@ func Test_GetPendingTxs(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+	require.NoError(t, err)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx)
 
 	const txsCount = 10
 	const limit = 5
@@ -370,10 +362,8 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+	require.NoError(t, err)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx)
 
 	const txsCount = 10
 	const limit = 0
@@ -426,10 +416,8 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+	require.NoError(t, err)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx)
 
 	const txsCount = 10
 
@@ -482,10 +470,8 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+	require.NoError(t, err)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -542,10 +528,8 @@ func Test_UpdateTxStatus(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+	require.NoError(t, err)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -577,9 +561,7 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	initOrResetDB(t)
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	p := pool.NewPool(cfg, s, nil, common.Address{}, chainID.Uint64())
 
 	nBig, err := rand.Int(rand.Reader, big.NewInt(0).SetUint64(math.MaxUint64))
@@ -620,10 +602,8 @@ func TestGetPendingTxSince(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+	require.NoError(t, err)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx)
 
 	const txsCount = 10
 
@@ -708,10 +688,8 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+	require.NoError(t, err)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -855,7 +833,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			incompatibleTx := testCase.createIncompatibleTx()
-			p := setupPool(t, s, st, incompatibleTx.ChainId().Uint64(), ctx)
+			p := setupPool(t, cfg, s, st, incompatibleTx.ChainId().Uint64(), ctx)
 			err = p.AddTx(ctx, incompatibleTx, "")
 			assert.Equal(t, testCase.expectedError, err)
 		})
@@ -912,10 +890,8 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+	require.NoError(t, err)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -1076,9 +1052,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 			poolSqlDB, err := db.NewSQLDB(poolDBCfg)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoError(t, err)
 			defer poolSqlDB.Close() //nolint:gosec,errcheck
 
 			st := newState(stateSqlDB)
@@ -1106,12 +1080,10 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			require.NoError(t, dbTx.Commit(ctx))
 
 			s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoError(t, err)
 
 			const chainID = 2576980377
-			p := setupPool(t, s, st, chainID, ctx)
+			p := setupPool(t, cfg, s, st, chainID, ctx)
 			tx := ethTypes.NewTx(&ethTypes.LegacyTx{
 				Nonce:    tc.nonce,
 				To:       tc.to,
@@ -1162,10 +1134,8 @@ func Test_AddRevertedTx(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
-	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+	require.NoError(t, err)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -1241,8 +1211,16 @@ func Test_BlockedAddress(t *testing.T) {
 
 	require.NoError(t, err)
 
-	cfg := pool.Config{FreeClaimGasLimit: 150000, IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second)}
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID)
+	cfg := pool.Config{
+		FreeClaimGasLimit:                 150000,
+		MaxTxBytesSize:                    30132,
+		MaxTxDataBytesSize:                30000,
+		MinAllowedGasPriceInterval:        cfgTypes.NewDuration(5 * time.Minute),
+		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
+		DefaultMinGasPriceAllowed:         1000000000,
+		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
+	}
+	p := setupPool(t, cfg, s, st, chainID, ctx)
 
 	gasPrice, err := p.GetGasPrice(ctx)
 	require.NoError(t, err)
@@ -1294,12 +1272,10 @@ func Test_BlockedAddress(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func setupPool(t *testing.T, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context) *pool.Pool {
+func setupPool(t *testing.T, cfg pool.Config, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context) *pool.Pool {
 	p := pool.NewPool(cfg, s, st, l2BridgeAddr, chainID)
 	err := p.SetGasPrice(ctx, gasPrice.Uint64())
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	p.StartPollingMinSuggestedGasPrice(ctx)
 	return p
 }
@@ -1308,9 +1284,7 @@ func Test_AvoidDuplicatedClaims(t *testing.T) {
 	initOrResetDB(t)
 
 	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB)
@@ -1331,11 +1305,8 @@ func Test_AvoidDuplicatedClaims(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-
-	if err != nil {
-		t.Error(err)
-	}
-	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+	require.NoError(t, err)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
