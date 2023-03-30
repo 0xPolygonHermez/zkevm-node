@@ -12,7 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -519,7 +519,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 			return e.getTransactionByHashFromSequencerNode(hash.Hash())
 		}
 		poolTx, err := e.pool.GetTxByHash(ctx, hash.Hash())
-		if errors.Is(err, pgpoolstorage.ErrNotFound) {
+		if errors.Is(err, pool.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to load transaction by hash from pool", err)

@@ -448,11 +448,11 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=StateInterface --dir=../jsonrpc/types --output=../jsonrpc/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../jsonrpc/mocks --outpkg=mocks --structname=DBTxMock --filename=mock_dbtx.go
 
-	mockery --name=workerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=WorkerMock --filename=mock_worker.go
-	mockery --name=stateInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=StateMock --filename=mock_state.go
+	mockery --name=workerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=WorkerMock --filename=mock_worker.go
+	mockery --name=stateInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=StateMock --filename=mock_state.go
 	mockery --name=txPool --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=PoolMock --filename=mock_pool.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../sequencer --outpkg=sequencer --structname=DbTxMock --filename=mock_dbtx.go
-	mockery --name=dbManagerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=DbManagerMock --filename=mock_db_manager.go
+	mockery --name=dbManagerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=DbManagerMock --filename=mock_db_manager.go
 	mockery --name=etherman --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=EthermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=../sequencer/broadcast --output=../sequencer/broadcast/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 

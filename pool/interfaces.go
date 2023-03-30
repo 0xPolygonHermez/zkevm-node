@@ -33,6 +33,7 @@ type storage interface {
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
 	MinGasPriceSince(ctx context.Context, timestamp time.Time) (uint64, error)
+	DepositCountExists(ctx context.Context, depositCount uint64) (bool, error)
 }
 
 type stateInterface interface {

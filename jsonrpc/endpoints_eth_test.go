@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum"
@@ -2118,7 +2117,7 @@ func TestGetTransactionByHash(t *testing.T) {
 
 				m.Pool.
 					On("GetTxByHash", context.Background(), tc.Hash).
-					Return(nil, pgpoolstorage.ErrNotFound).
+					Return(nil, pool.ErrNotFound).
 					Once()
 			},
 		},

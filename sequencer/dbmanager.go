@@ -7,7 +7,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -126,7 +125,7 @@ func (d *dbManager) loadFromPool() {
 		time.Sleep(d.cfg.PoolRetrievalInterval.Duration)
 
 		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, false, 0)
-		if err != nil && err != pgpoolstorage.ErrNotFound {
+		if err != nil && err != pool.ErrNotFound {
 			log.Errorf("load tx from pool: %v", err)
 		}
 
@@ -138,7 +137,7 @@ func (d *dbManager) loadFromPool() {
 		}
 
 		poolClaims, err := d.txPool.GetNonWIPPendingTxs(d.ctx, true, 0)
-		if err != nil && err != pgpoolstorage.ErrNotFound {
+		if err != nil && err != pool.ErrNotFound {
 			log.Errorf("load claims from pool: %v", err)
 		}
 
