@@ -65,7 +65,9 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 		var err error
 		if blockArg.IsHash() {
 			block, err := e.state.GetL2BlockByHash(ctx, blockArg.Hash().Hash(), dbTx)
-			if err != nil {
+			if errors.Is(err, state.ErrNotFound) {
+				return rpcErrorResponse(types.DefaultErrorCode, "header for hash not found", nil)
+			} else if err != nil {
 				errMsg := fmt.Sprintf("failed to get block by hash %v", blockArg.Hash().Hash())
 				return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
 			}
@@ -75,6 +77,13 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			blockNumber, rpcErr = blockArg.Number().GetNumericBlockNumber(ctx, e.state, dbTx)
 			if rpcErr != nil {
 				return nil, rpcErr
+			}
+			_, err := e.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
+			if errors.Is(err, state.ErrNotFound) {
+				return rpcErrorResponse(types.DefaultErrorCode, "header not found", nil)
+			} else if err != nil {
+				errMsg := fmt.Sprintf("failed to get block by number %v", blockNumber)
+				return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
 			}
 		}
 
