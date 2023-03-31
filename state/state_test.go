@@ -1100,10 +1100,11 @@ func TestExecutorLogs(t *testing.T) {
 	assert.Equal(t, scAddress, common.HexToAddress(string(processBatchResponse.Responses[0].CreateAddress)))
 
 	assert.Equal(t, 0, len(processBatchResponse.Responses[0].Logs))
-	assert.Equal(t, 3, len(processBatchResponse.Responses[1].Logs))
+	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs))
 	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[0].Topics))
 	assert.Equal(t, 2, len(processBatchResponse.Responses[1].Logs[1].Topics))
 	assert.Equal(t, 1, len(processBatchResponse.Responses[1].Logs[2].Topics))
+	assert.Equal(t, 0, len(processBatchResponse.Responses[1].Logs[3].Topics))
 }
 
 func TestExecutorTransfer(t *testing.T) {

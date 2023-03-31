@@ -63,14 +63,19 @@ func TestEmitLog2(t *testing.T) {
 			Addresses: []common.Address{scAddr},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, 3, len(logs))
+		assert.Equal(t, 4, len(logs))
 
-		_, err = sc.ParseLog(logs[0])
+		log0 := logs[0]
+		assert.Equal(t, 0, len(log0.Topics))
+
+		_, err = sc.ParseLog(logs[1])
 		require.NoError(t, err)
-		logA, err := sc.ParseLogA(logs[1])
+
+		logA, err := sc.ParseLogA(logs[2])
 		require.NoError(t, err)
 		assert.Equal(t, big.NewInt(1), logA.A)
-		logABCD, err := sc.ParseLogABCD(logs[2])
+
+		logABCD, err := sc.ParseLogABCD(logs[3])
 		require.NoError(t, err)
 		assert.Equal(t, big.NewInt(1), logABCD.A)
 		assert.Equal(t, big.NewInt(2), logABCD.B)

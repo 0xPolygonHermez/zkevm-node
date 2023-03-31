@@ -1357,8 +1357,9 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 			return nil, err
 		}
 
+		log.Topics = []common.Hash{}
 		if topic0 != nil {
-			log.Topics = []common.Hash{common.HexToHash(*topic0)}
+			log.Topics = append(log.Topics, common.HexToHash(*topic0))
 		}
 
 		if topic1 != nil {
