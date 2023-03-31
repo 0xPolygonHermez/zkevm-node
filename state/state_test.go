@@ -1029,7 +1029,7 @@ func TestExecutorRevert(t *testing.T) {
 
 	unsignedTx := types.NewTransaction(2, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("4abbb40a"))
 
-	result, err := testState.ProcessUnsignedTransaction(ctx, unsignedTx, auth.From, lastL2BlockNumber, false, nil)
+	result, err := testState.ProcessUnsignedTransaction(ctx, unsignedTx, auth.From, &lastL2BlockNumber, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, result.Err)
 	assert.Equal(t, fmt.Errorf("execution reverted: Today is not juernes").Error(), result.Err.Error())
@@ -1788,7 +1788,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	})
 	l2BlockNumber := uint64(3)
 
-	result, err := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), l2BlockNumber, true, nil)
+	result, err := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), &l2BlockNumber, true, nil)
 	require.NoError(t, err)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
@@ -2217,7 +2217,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	blockNumber, err := testState.GetLastL2BlockNumber(ctx, nil)
 	require.NoError(t, err)
 
-	estimatedGas, err := testState.EstimateGas(signedTx2, sequencerAddress, blockNumber, nil)
+	estimatedGas, err := testState.EstimateGas(signedTx2, sequencerAddress, &blockNumber, nil)
 	require.NoError(t, err)
 	log.Debugf("Estimated gas = %v", estimatedGas)
 
@@ -2225,7 +2225,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	tx3 := types.NewTransaction(nonce, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("4abbb40a"))
 	signedTx3, err := auth.Signer(auth.From, tx3)
 	require.NoError(t, err)
-	_, err = testState.EstimateGas(signedTx3, sequencerAddress, blockNumber, nil)
+	_, err = testState.EstimateGas(signedTx3, sequencerAddress, &blockNumber, nil)
 	require.Error(t, err)
 }
 
@@ -2580,7 +2580,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	blockNumber, err := testState.GetLastL2BlockNumber(ctx, nil)
 	require.NoError(t, err)
 
-	estimatedGas, err := testState.EstimateGas(signedTx6, sequencerAddress, blockNumber, nil)
+	estimatedGas, err := testState.EstimateGas(signedTx6, sequencerAddress, &blockNumber, nil)
 	require.NoError(t, err)
 	log.Debugf("Estimated gas = %v", estimatedGas)
 
@@ -2979,28 +2979,28 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	})
 
 	l2BlockNumber := uint64(1)
-	result, err := testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	result, err := testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, &l2BlockNumber, true, nil)
 	require.NoError(t, err)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(result.ReturnValue))
 
 	l2BlockNumber = uint64(2)
-	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, &l2BlockNumber, true, nil)
 	require.NoError(t, err)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
 
 	l2BlockNumber = uint64(3)
-	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, &l2BlockNumber, true, nil)
 	require.NoError(t, err)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000002", hex.EncodeToString(result.ReturnValue))
 
 	l2BlockNumber = uint64(4)
-	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, &l2BlockNumber, true, nil)
 	require.NoError(t, err)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
