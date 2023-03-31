@@ -661,7 +661,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
-				ger := state.GlobalExitRoot {
+				ger := state.GlobalExitRoot{
 					MainnetExitRoot: common.HexToHash("0x4"),
 					RollupExitRoot:  common.HexToHash("0x4"),
 					GlobalExitRoot:  common.HexToHash("0x4"),
@@ -785,7 +785,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
-				ger := state.GlobalExitRoot {
+				ger := state.GlobalExitRoot{
 					MainnetExitRoot: common.HexToHash("0x4"),
 					RollupExitRoot:  common.HexToHash("0x4"),
 					GlobalExitRoot:  common.HexToHash("0x4"),
@@ -894,7 +894,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
-				ger := state.GlobalExitRoot {
+				ger := state.GlobalExitRoot{
 					MainnetExitRoot: common.HexToHash("0x4"),
 					RollupExitRoot:  common.HexToHash("0x4"),
 					GlobalExitRoot:  common.HexToHash("0x4"),
