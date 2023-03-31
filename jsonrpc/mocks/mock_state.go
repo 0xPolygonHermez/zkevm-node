@@ -103,21 +103,21 @@ func (_m *StateMock) DebugTransaction(ctx context.Context, transactionHash commo
 }
 
 // EstimateGas provides a mock function with given fields: transaction, senderAddress, l2BlockNumber, dbTx
-func (_m *StateMock) EstimateGas(transaction *coretypes.Transaction, senderAddress common.Address, l2BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+func (_m *StateMock) EstimateGas(transaction *coretypes.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(transaction, senderAddress, l2BlockNumber, dbTx)
 
 	var r0 uint64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, uint64, pgx.Tx) (uint64, error)); ok {
+	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) (uint64, error)); ok {
 		return rf(transaction, senderAddress, l2BlockNumber, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, uint64, pgx.Tx) uint64); ok {
+	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) uint64); ok {
 		r0 = rf(transaction, senderAddress, l2BlockNumber, dbTx)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(*coretypes.Transaction, common.Address, uint64, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) error); ok {
 		r1 = rf(transaction, senderAddress, l2BlockNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
@@ -840,15 +840,15 @@ func (_m *StateMock) PrepareWebSocket() {
 }
 
 // ProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx
-func (_m *StateMock) ProcessUnsignedTransaction(ctx context.Context, tx *coretypes.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
+func (_m *StateMock) ProcessUnsignedTransaction(ctx context.Context, tx *coretypes.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	ret := _m.Called(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 
 	var r0 *runtime.ExecutionResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, uint64, bool, pgx.Tx) (*runtime.ExecutionResult, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, bool, pgx.Tx) (*runtime.ExecutionResult, error)); ok {
 		return rf(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, uint64, bool, pgx.Tx) *runtime.ExecutionResult); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, bool, pgx.Tx) *runtime.ExecutionResult); ok {
 		r0 = rf(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 	} else {
 		if ret.Get(0) != nil {
@@ -856,7 +856,7 @@ func (_m *StateMock) ProcessUnsignedTransaction(ctx context.Context, tx *coretyp
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *coretypes.Transaction, common.Address, uint64, bool, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, bool, pgx.Tx) error); ok {
 		r1 = rf(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 	} else {
 		r1 = ret.Error(1)

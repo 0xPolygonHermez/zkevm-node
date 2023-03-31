@@ -63,6 +63,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 
 		var blockNumber uint64
 		var err error
+		var blockToProcess *uint64
 		if blockArg.IsHash() {
 			block, err := e.state.GetL2BlockByHash(ctx, blockArg.Hash().Hash(), dbTx)
 			if errors.Is(err, state.ErrNotFound) {
@@ -72,6 +73,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 				return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
 			}
 			blockNumber = block.Number().Uint64()
+			blockToProcess = &blockNumber
 		} else {
 			var rpcErr types.Error
 			blockNumber, rpcErr = blockArg.Number().GetNumericBlockNumber(ctx, e.state, dbTx)
@@ -84,6 +86,10 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			} else if err != nil {
 				errMsg := fmt.Sprintf("failed to get block by number %v", blockNumber)
 				return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
+			}
+			blockToProcess = &blockNumber
+			if *blockArg.Number() == types.LatestBlockNumber || *blockArg.Number() == types.PendingBlockNumber {
+				blockToProcess = nil
 			}
 		}
 
@@ -104,7 +110,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumber, false, dbTx)
+		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockToProcess, false, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to execute the unsigned transaction", err)
 		}
@@ -140,11 +146,13 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 
 		var blockNumber uint64
 		var err error
+		var blockToProcess *uint64
 		if blockArg == nil {
 			blockNumber, err = e.state.GetLastL2BlockNumber(ctx, dbTx)
 			if err != nil {
 				return rpcErrorResponse(types.DefaultErrorCode, "failed to get last block from state", err)
 			}
+			blockToProcess = nil
 		} else {
 			if blockArg.IsHash() {
 				block, err := e.state.GetL2BlockByHash(ctx, blockArg.Hash().Hash(), dbTx)
@@ -153,11 +161,16 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 					return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
 				}
 				blockNumber = block.Number().Uint64()
+				blockToProcess = &blockNumber
 			} else {
 				var rpcErr types.Error
 				blockNumber, rpcErr = blockArg.Number().GetNumericBlockNumber(ctx, e.state, dbTx)
 				if rpcErr != nil {
 					return nil, rpcErr
+				}
+				blockToProcess = &blockNumber
+				if *blockArg.Number() == types.LatestBlockNumber || *blockArg.Number() == types.PendingBlockNumber {
+					blockToProcess = nil
 				}
 			}
 		}
@@ -168,7 +181,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		gasEstimation, err := e.state.EstimateGas(tx, sender, blockNumber, dbTx)
+		gasEstimation, err := e.state.EstimateGas(tx, sender, blockToProcess, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 		}
