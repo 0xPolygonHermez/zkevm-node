@@ -477,7 +477,7 @@ func TestCall(t *testing.T) {
 					nonceMatch := tx.Nonce() == nonce
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch && nonceMatch
 				})
-				// m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
+				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).Return(nonce, nil).Once()
 				var nilBn *uint64
 				m.State.
 					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, nilBn, false, m.DbTx).
@@ -629,9 +629,9 @@ func TestEstimateGas(t *testing.T) {
 					On("GetNonce", context.Background(), *txArgs.From, blockNumber, m.DbTx).
 					Return(nonce, nil).
 					Once()
-
+				var nilBn *uint64
 				m.State.
-					On("EstimateGas", txMatchBy, *txArgs.From, blockNumber, m.DbTx).
+					On("EstimateGas", txMatchBy, *txArgs.From, nilBn, m.DbTx).
 					Return(*testCase.expectedResult, nil).
 					Once()
 			},
@@ -673,9 +673,9 @@ func TestEstimateGas(t *testing.T) {
 					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(blockNumber, nil).
 					Once()
-
+				var nilBn *uint64
 				m.State.
-					On("EstimateGas", txMatchBy, common.HexToAddress(c.DefaultSenderAddress), blockNumber, m.DbTx).
+					On("EstimateGas", txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilBn, m.DbTx).
 					Return(*testCase.expectedResult, nil).
 					Once()
 			},
