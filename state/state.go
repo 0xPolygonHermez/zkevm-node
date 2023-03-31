@@ -1246,7 +1246,16 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
-	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, l2BlockStateRoot.Bytes())
+	stateRoot := l2BlockStateRoot
+	if l2BlockNumber != nil {
+		l2Block, err := s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
+		if err != nil {
+			return nil, err
+		}
+		stateRoot = l2Block.Root()
+	}
+
+	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -1273,7 +1282,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		OldBatchNum:      lastBatch.BatchNumber,
 		BatchL2Data:      batchL2Data,
 		From:             senderAddress.String(),
-		OldStateRoot:     l2BlockStateRoot.Bytes(),
+		OldStateRoot:     stateRoot.Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
