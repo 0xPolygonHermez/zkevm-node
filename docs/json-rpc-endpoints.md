@@ -5,6 +5,7 @@ Here you will find the list of all supported JSON RPC endpoints and any differen
 If the endpoint is not in the list below, it means this specific endpoint is not supported yet, feel free to open an issue requesting it to be added and please explain the reason why you need it. 
 
 <!-- DEBUG -->
+> Warning: debug endpoints are considered experimental as they have not been deeply tested yet
 - `debug_traceBlockByHash`
 - `debug_traceBlockByNumber`
 - `debug_traceTransaction`
