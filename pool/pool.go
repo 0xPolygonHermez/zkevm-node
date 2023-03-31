@@ -306,7 +306,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	balance, err := p.state.GetBalance(ctx, from, lastL2BlockNumber, nil)
+	balance, err := p.state.GetBalanceByBlockNumber(ctx, from, lastL2BlockNumber, nil)
 	if err != nil {
 		return err
 	}

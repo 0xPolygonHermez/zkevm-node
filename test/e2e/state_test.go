@@ -80,7 +80,7 @@ func TestStateTransition(t *testing.T) {
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {
 				addr := common.HexToAddress(addrStr)
 
-				actualBalance, err := st.GetBalance(ctx, addr, l2BlockNumber, nil)
+				actualBalance, err := st.GetBalanceByBlockNumber(ctx, addr, l2BlockNumber, nil)
 				require.NoError(t, err)
 				require.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("addr: %s expected: %s found: %s", addr.Hex(), leaf.Balance.Text(encoding.Base10), actualBalance.Text(encoding.Base10)))
 
