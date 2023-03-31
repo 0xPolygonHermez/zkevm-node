@@ -63,6 +63,10 @@ var (
 	ErrUnsupportedForkId = errors.New("unsupported fork id")
 	// ErrBalanceMismatch indicates that the balance mismatch in the ROM
 	ErrBalanceMismatch = errors.New("balance mismatch")
+	// ErrFea2Scalar indicates a fea2scalar error in the ROM
+	ErrFea2Scalar = errors.New("fea2scalar")
+	// ErrTos32 indicates a tos32 error in the ROM
+	ErrTos32 = errors.New("tos32")
 )
 
 // ExecutionResult includes all output after executing given evm

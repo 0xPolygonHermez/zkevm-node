@@ -87,6 +87,10 @@ const (
 	EXECUTOR_ERROR_UNSUPPORTED_FORK_ID = 8
 	// EXECUTOR_ERROR_BALANCE_MISMATCH indicates that there is a balance mismatch error in the ROM
 	EXECUTOR_ERROR_BALANCE_MISMATCH = 9
+	// EXECUTOR_ERROR_FEA2SCALAR indicates that there is a fea2scalar error in the execution
+	EXECUTOR_ERROR_FEA2SCALAR = 10
+	// EXECUTOR_ERROR_TOS32 indicates that there is a TOS32 error in the execution
+	EXECUTOR_ERROR_TOS32 = 11
 )
 
 // RomErr returns an instance of error related to the ExecutorError
@@ -275,6 +279,10 @@ func ExecutorErr(errorCode pb.ExecutorError) error {
 		return runtime.ErrUnsupportedForkId
 	case EXECUTOR_ERROR_BALANCE_MISMATCH:
 		return runtime.ErrBalanceMismatch
+	case EXECUTOR_ERROR_FEA2SCALAR:
+		return runtime.ErrFea2Scalar
+	case EXECUTOR_ERROR_TOS32:
+		return runtime.ErrTos32
 	}
 	return fmt.Errorf("unknown error")
 }
@@ -300,6 +308,10 @@ func ExecutorErrorCode(err error) pb.ExecutorError {
 		return pb.ExecutorError(EXECUTOR_ERROR_UNSUPPORTED_FORK_ID)
 	case runtime.ErrBalanceMismatch:
 		return pb.ExecutorError(EXECUTOR_ERROR_BALANCE_MISMATCH)
+	case runtime.ErrFea2Scalar:
+		return pb.ExecutorError(EXECUTOR_ERROR_FEA2SCALAR)
+	case runtime.ErrTos32:
+		return pb.ExecutorError(EXECUTOR_ERROR_TOS32)
 	}
 	return math.MaxInt32
 }
