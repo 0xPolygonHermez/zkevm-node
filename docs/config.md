@@ -149,19 +149,81 @@ Used by: `sequencer`
 
 ### Sequencer.Finalizer
 
-| config  | env  | default  | description  |
-|---|---|---|---|
-| GERDeadlineTimeout  | ZKEVM_NODE_SEQUENCER_FINALIZER_GER_DEADLINE_TIMEOUT   | "5s"  | Grace period for the finalizer to update the GER in a new batch without having to close the current open one in a forced way  |
-| ForcedBatchDeadlineTimeout  | ZKEVM_NODE_SEQUENCER_FINALIZER_FORCED_BATCH_DEADLINE_TIMEOUT   | "60s"  | Grace period for the finalizer to update include forced batches in a new batch without having to close the current open one in a forced way  |
-| SendingToL1DeadlineTimeout  | ZKEVM_NODE_SEQUENCER_FINALIZER_SENDING_TO_L1_DEADLINE_TIMEOUT   | "20s"  | Grace period for the finalizer to close the current open batch  |
-| SleepDuration  | ZKEVM_NODE_SEQUENCER_FINALIZER_SLEEP_DURATION   | "100ms"  | Sleep time for the finalizer if there are no new processable txs  |
-| ResourcePercentageToCloseBatch  | ZKEVM_NODE_SEQUENCER_FINALIZER_RESOURCE_PERCENTAGE_TO_CLOSE_BATCH   | 10  | If a given resource of a batch exceeds this percentadge and there are no fitting txs in the worker, close batch  |
-| GERFinalityNumberOfBlocks  | ZKEVM_NODE_SEQUENCER_FINALIZER_GER_FINALITY_NUMBER_OF_BLOCKS   | 64  | Amount of (L1) blocks to consider that a tx that updates the GER is final  |
-| ClosingSignalsManagerWaitForCheckingL1Timeout  | ZKEVM_NODE_SEQUENCER_FINALIZER_CLOSING_SIGNALS_MANAGER_WAIT_FOR_CHECKING_L1_TIMEOUT   | "10s"  |   |
-| ClosingSignalsManagerWaitForCheckingGER  | ZKEVM_NODE_SEQUENCER_FINALIZER_CLOSING_SIGNALS_MANAGER_WAIT_FOR_CHECKING_GER   | "10s"  |   |
-| ClosingSignalsManagerWaitForCheckingForcedBatches  | ZKEVM_NODE_SEQUENCER_FINALIZER_CLOSING_SIGNALS_MANAGER_WAIT_FOR_CHECKING_FORCED_BATCHES   | "10s"  |   |
-| ForcedBatchesFinalityNumberOfBlocks  | ZKEVM_NODE_SEQUENCER_FINALIZER_FORCED_BATCHES_FINALITY_NUMBER_OF_BLOCKS   | 64  | Amount of (L1) blocks to consider that a tx that forces a batch is final  |
-| SenderAddress  | ZKEVM_NODE_SEQUENCER_FINALIZER_SENDER_ADDRESS   | "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"  | Address of the trusted sequencer  |
+<table>
+    <thead><tr>
+        <th>config</th>
+        <th>env</th>
+        <th>default</th>
+        <th>description</th>
+    </tr></thead>
+    <tbody><tr>
+        <td>GERDeadlineTimeout</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_GER_DEADLINE_TIMEOUT</td>
+        <td>&quot;5s&quot;</td>
+        <td>Grace period for the finalizer to update the GER in a new batch without having to close the current open one in a forced way</td>
+    </tr>
+    <tr>
+        <td>ForcedBatchDeadlineTimeout</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_FORCED_BATCH_DEADLINE_TIMEOUT</td>
+        <td>&quot;60s&quot;</td>
+        <td>Grace period for the finalizer to update include forced batches in a new batch without having to close the current open one in a forced way</td>
+    </tr>
+    <tr>
+        <td>SendingToL1DeadlineTimeout</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_SENDING_TO_L1_DEADLINE_TIMEOUT</td>
+        <td>&quot;20s&quot;</td>
+        <td>Grace period for the finalizer to close the current open batch</td>
+    </tr>
+    <tr>
+        <td>SleepDuration</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_SLEEP_DURATION</td>
+        <td>&quot;100ms&quot;</td>
+        <td>Sleep time for the finalizer if there are no new processable txs</td>
+    </tr>
+    <tr>
+        <td>ResourcePercentageToCloseBatch</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_RESOURCE_PERCENTAGE_TO_CLOSE_BATCH</td>
+        <td>10</td>
+        <td>If a given resource of a batch exceeds this percentadge and there are no fitting txs in the worker, close batch</td>
+    </tr>
+    <tr>
+        <td>GERFinalityNumberOfBlocks</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_GER_FINALITY_NUMBER_OF_BLOCKS</td>
+        <td>64</td>
+        <td>Amount of (L1) blocks to consider that a tx that updates the GER is final</td>
+    </tr>
+    <tr>
+        <td>ClosingSignalsManagerWaitForCheckingL1Timeout</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_CLOSING_SIGNALS_MANAGER_WAIT_FOR_CHECKING_L1_TIMEOUT</td>
+        <td>&quot;10s&quot;</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>ClosingSignalsManagerWaitForCheckingGER</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_CLOSING_SIGNALS_MANAGER_WAIT_FOR_CHECKING_GER</td>
+        <td>&quot;10s&quot;</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>ClosingSignalsManagerWaitForCheckingForcedBatches</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_CLOSING_SIGNALS_MANAGER_WAIT_FOR_CHECKING_FORCED_BATCHES</td>
+        <td>&quot;10s&quot;</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>ForcedBatchesFinalityNumberOfBlocks</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_FORCED_BATCHES_FINALITY_NUMBER_OF_BLOCKS</td>
+        <td>64</td>
+        <td>Amount of (L1) blocks to consider that a tx that forces a batch is final</td>
+    </tr>
+    <tr>
+        <td>SenderAddress</td>
+        <td>ZKEVM_NODE_SEQUENCER_FINALIZER_SENDER_ADDRESS</td>
+        <td>&quot;0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266&quot;</td>
+        <td>Address of the trusted sequencer</td>
+    </tr>
+    </tbody>
+</table>
 
 ## Aggregator
 
