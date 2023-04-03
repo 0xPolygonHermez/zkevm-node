@@ -99,7 +99,6 @@ MaxTxSizeForL1 = 131072
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 0
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-		PrivateKeys = [{Path = "./test/sequencer.keystore", Password = "testonly"}]
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 
