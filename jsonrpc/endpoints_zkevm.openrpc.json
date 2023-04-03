@@ -385,6 +385,12 @@
           "globalExitRoot": {
             "$ref": "#/components/schemas/Keccak"
           },
+          "mainnetExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
+          },
+          "rollupExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
+          },
           "accInputHash": {
             "$ref": "#/components/schemas/Keccak"
           },
