@@ -111,11 +111,6 @@ services:
     depends_on:
       zkevm-state-db:
         condition: service_healthy
-    resources:
-      limits:
-        memory: 26G
-      reservations:
-        memory: 10G
     ports:
       - 50061:50061 # MT
       - 50071:50071 # Executor
