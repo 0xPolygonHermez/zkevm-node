@@ -85,23 +85,21 @@ func (p *Pool) refreshBlockedAddresses() {
 		return
 	}
 
+	blockedAddressesMap := sync.Map{}
 	for _, blockedAddress := range blockedAddresses {
+		blockedAddressesMap.Store(blockedAddress.String(), 1)
 		p.blockedAddresses.Store(blockedAddress.String(), 1)
 	}
 
 	unblockedAddresses := []string{}
 	p.blockedAddresses.Range(func(key, value any) bool {
 		addrHex := key.(string)
-		addr := common.HexToAddress(addrHex)
-		blocked, err := p.storage.IsAddressBlocked(context.Background(), addr)
-		if err != nil {
-			log.Error("failed to check if %v is blocked", addrHex)
+		_, found := blockedAddressesMap.Load(addrHex)
+		if found {
 			return true
 		}
 
-		if !blocked {
-			unblockedAddresses = append(unblockedAddresses, addrHex)
-		}
+		unblockedAddresses = append(unblockedAddresses, addrHex)
 		return true
 	})
 
