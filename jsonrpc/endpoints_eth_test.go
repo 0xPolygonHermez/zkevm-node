@@ -38,6 +38,7 @@ var (
 	addressArg        = common.HexToAddress("0x123")
 	keyArg            = common.HexToHash("0x123")
 	blockHash         = common.HexToHash("0x82ba516e76a4bfaba6d1d95c8ccde96e353ce3c683231d011021f43dee7b2d95")
+	nilUint64         *uint64
 )
 
 func TestBlockNumber(t *testing.T) {
@@ -250,7 +251,7 @@ func TestCall(t *testing.T) {
 				})
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumOneUint64, m.DbTx).Return(nonce, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumOneUint64, false, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, nilUint64, false, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -367,7 +368,7 @@ func TestCall(t *testing.T) {
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), &blockNumOneUint64, false, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilUint64, false, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -404,7 +405,7 @@ func TestCall(t *testing.T) {
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), &blockNumOneUint64, false, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilUint64, false, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -464,7 +465,7 @@ func TestCall(t *testing.T) {
 				})
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumOneUint64, m.DbTx).Return(nonce, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumOneUint64, false, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, nilUint64, false, m.DbTx).
 					Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}, nil).
 					Once()
 			},
@@ -504,7 +505,7 @@ func TestCall(t *testing.T) {
 				})
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockNumOneUint64, m.DbTx).Return(nonce, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumOneUint64, false, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, nilUint64, false, m.DbTx).
 					Return(&runtime.ExecutionResult{Err: runtime.ErrExecutionReverted}, nil).
 					Once()
 			},
@@ -609,7 +610,7 @@ func TestEstimateGas(t *testing.T) {
 					Return(nonce, nil).
 					Once()
 				m.State.
-					On("EstimateGas", txMatchBy, *txArgs.From, &blockNumTenUint64, m.DbTx).
+					On("EstimateGas", txMatchBy, *txArgs.From, nilUint64, m.DbTx).
 					Return(*testCase.expectedResult, nil).
 					Once()
 			},
@@ -651,7 +652,7 @@ func TestEstimateGas(t *testing.T) {
 					Return(blockNumTenUint64, nil).
 					Once()
 				m.State.
-					On("EstimateGas", txMatchBy, common.HexToAddress(c.DefaultSenderAddress), &blockNumTenUint64, m.DbTx).
+					On("EstimateGas", txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilUint64, m.DbTx).
 					Return(*testCase.expectedResult, nil).
 					Once()
 			},

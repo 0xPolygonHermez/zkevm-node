@@ -64,6 +64,15 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 		if respErr != nil {
 			return resp, respErr
 		}
+		var blockToProcess *uint64
+		if blockArg != nil {
+			blockNumArg := blockArg.Number()
+			if blockNumArg != nil && (*blockArg.Number() == types.LatestBlockNumber || *blockArg.Number() == types.PendingBlockNumber) {
+				blockToProcess = nil
+			} else {
+				blockToProcess = &blockNumber
+			}
+		}
 
 		// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
 		if arg.Gas == nil || uint64(*arg.Gas) <= 0 {
@@ -82,7 +91,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, &blockNumber, false, dbTx)
+		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockToProcess, false, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to execute the unsigned transaction", err)
 		}
@@ -121,13 +130,23 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			return resp, respErr
 		}
 
+		var blockToProcess *uint64
+		if blockArg != nil {
+			blockNumArg := blockArg.Number()
+			if blockNumArg != nil && (*blockArg.Number() == types.LatestBlockNumber || *blockArg.Number() == types.PendingBlockNumber) {
+				blockToProcess = nil
+			} else {
+				blockToProcess = &blockNumber
+			}
+		}
+
 		defaultSenderAddress := common.HexToAddress(e.cfg.DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, blockNumber, e.cfg.MaxCumulativeGasUsed, defaultSenderAddress, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		gasEstimation, err := e.state.EstimateGas(tx, sender, &blockNumber, dbTx)
+		gasEstimation, err := e.state.EstimateGas(tx, sender, blockToProcess, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 		}
@@ -621,14 +640,17 @@ func (e *EthEndpoints) GetTransactionCount(address types.ArgAddress, blockArg *t
 		if respErr != nil {
 			return resp, respErr
 		}
-		blockNum := types.BlockNumber(blockNumber)
-		if blockNum == types.PendingBlockNumber {
-			if e.cfg.SequencerNodeURI != "" {
-				return e.getTransactionCountFromSequencerNode(address.Address(), &blockNum)
-			}
-			pendingNonce, err = e.pool.GetNonce(ctx, address.Address())
-			if err != nil {
-				return rpcErrorResponse(types.DefaultErrorCode, "failed to count pending transactions", err)
+
+		if blockArg != nil {
+			blockNumArg := blockArg.Number()
+			if blockNumArg != nil && *blockNumArg == types.PendingBlockNumber {
+				if e.cfg.SequencerNodeURI != "" {
+					return e.getTransactionCountFromSequencerNode(address.Address(), blockArg.Number())
+				}
+				pendingNonce, err = e.pool.GetNonce(ctx, address.Address())
+				if err != nil {
+					return rpcErrorResponse(types.DefaultErrorCode, "failed to count pending transactions", err)
+				}
 			}
 		}
 
