@@ -66,7 +66,9 @@ func (z *ZKEVMEndpoints) IsBlockVirtualized(blockNumber types.ArgUint64) (interf
 func (z *ZKEVMEndpoints) BatchNumberByBlockNumber(blockNumber types.ArgUint64) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		batchNum, err := z.state.BatchNumberByL2BlockNumber(ctx, uint64(blockNumber), dbTx)
-		if err != nil {
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
 			const errorMessage = "failed to get batch number from block number"
 			log.Errorf("%v: %v", errorMessage, err.Error())
 			return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
