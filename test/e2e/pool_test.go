@@ -217,7 +217,7 @@ func Test_FreeClaimRejectedWhenReverted(t *testing.T) {
 	client := operations.MustGetClient(operations.DefaultL2NetworkURL)
 	auth := operations.MustGetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
 
-	bridgeAddr := common.HexToAddress("0xDD96FbBe673848c0b2f2B4B8f6e5b9a0665166ca")
+	bridgeAddr := common.HexToAddress("0xff0EE8ea08cEf5cb4322777F5CC3E8A584B8A4A0")
 	bridgeSC, err := bridge.NewPolygonzkevmbridge(bridgeAddr, client)
 	require.NoError(t, err)
 

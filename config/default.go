@@ -66,8 +66,8 @@ EnableL2SuggestedGasPricePolling = true
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
-GenBlockNumber = 67
-trustedSequencerURL = ""
+GenBlockNumber = 74
+TrustedSequencerURL = ""
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"

@@ -56,7 +56,7 @@ EnableL2SuggestedGasPricePolling = false
 SyncInterval = "2s"
 SyncChunkSize = 100
 GenBlockNumber = 16896721
-trustedSequencerURL = ""
+TrustedSequencerURL = ""
 
 [MTClient]
 URI = "zkevm-prover:50061"

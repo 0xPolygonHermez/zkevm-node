@@ -105,7 +105,7 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 	log.Debug("currentBlock.Time(): ", currentBlock.Time())
 
 	// Get tip
-	tip, err := poe.GetCurrentBatchFee(&bind.CallOpts{Pending: false})
+	tip, err := poe.BatchFee(&bind.CallOpts{Pending: false})
 	if err != nil {
 		log.Error("error getting tip. Error: ", err)
 		return err
