@@ -117,35 +117,111 @@ GenBlockNumber = 67
 ## Sequencer
 
 Used by: `sequencer`
-| config                                   | env                                                                 | default  | description                                                                                                                                  |
-| ---------------------------------------- | ------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| NotSyncedWait                            | ZKEVM_NODE_SEQUENCER_NOT_SYNCED_WAIT                                | "1s"     | Time too wait when the sequencer is waiting for th synchronizer to catch up with L1                                                          |
-| WaitPeriodSendSequence                   | ZKEVM_NODE_SEQUENCER_WAIT_PERIOD_SEND_SEQUENCE                      | "5s"     | Frequency in which the send sequences to L1 loop is run (doesn't mean that sequences will be sent with this frequency)                       |
-| LastBatchVirtualizationTimeMaxWaitPeriod | ZKEVM_NODE_SEQUENCER_LAST_BATCH_VIRTUALIZATION_TIME_MAX_WAIT_PERIOD | "1h"     | If there has not been batches sent to L1 for longer than the specified duration, a batch will be sent even if the L1 tx could be more packed |
-| BlocksAmountForTxsToBeDeleted            | ZKEVM_NODE_SEQUENCER_BLOCKS_AMOUNT_FORTXS_TO_BE_DELETED             | 100      | Will delete txs from the pool that have been mined on L1 (virtual state) for more than the indicated amount of L1 blocks                     |
-| FrequencyToCheckTxsForDelete             | ZKEVM_NODE_SEQUENCER_FREQUENCY_TO_CHECK_TXS_FOR_DELETE              | "12h"    | Frequency in which the deletion process of already mined txs will happen                                                                     |
-| MaxTxsPerBatch                           | ZKEVM_NODE_SEQUENCER_MAX_TXS_PER_BATCH                              | 150      | Maximum amount of txs that the sequencer will include in a batch                                                                             |
-| MaxBatchBytesSize                        | ZKEVM_NODE_SEQUENCER_MAX_BATCH_BYTES_SIZE                           | 129848   | Sequencer will close a batch before it reaches the indicated size                                                                            |
-| MaxCumulativeGasUsed                     | ZKEVM_NODE_SEQUENCER_MAX_CUMULATIVE_GAS_USED                        | 30000000 | Sequencer will close a batch before it consumes the indicated amount of gas                                                                  |
-| MaxKeccakHashes                          | ZKEVM_NODE_SEQUENCER_MAX_KECCAK_HASHES                              | 468      | Sequencer will close a batch before it consumes the indicated amount of Keccack hashes                                                       |
-| MaxPoseidonHashes                        | ZKEVM_NODE_SEQUENCER_MAX_POSEIDON_HASHES                            | 279620   | Sequencer will close a batch before it consumes the indicated amount of Poseidon hashes                                                      |
-| MaxPoseidonPaddings                      | ZKEVM_NODE_SEQUENCER_MAX_POSEIDON_PADDINGS                          | 149796   | Sequencer will close a batch before it consumes the indicated amount of Poseidon paddings                                                    |
-| MaxMemAligns                             | ZKEVM_NODE_SEQUENCER_MAX_MEM_ALIGNS                                 | 262144   | Sequencer will close a batch before it consumes the indicated amount of memory alignments                                                    |
-| MaxArithmetics                           | ZKEVM_NODE_SEQUENCER_MAX_ARITHEMTICS                                | 262144   | Sequencer will close a batch before it consumes the indicated amount of arithmetic operations                                                |
-| MaxBinaries                              | ZKEVM_NODE_SEQUENCER_MAX_BINARIES                                   | 262144   | Sequencer will close a batch before it consumes the indicated amount of binary operations                                                    |
-| MaxSteps                                 | ZKEVM_NODE_SEQUENCER_MAX_STEPS                                      | 8388608  | Sequencer will close a batch before it consumes the indicated amount of steps                                                                |
-| WeightBatchBytesSize                     | ZKEVM_NODE_SEQUENCER_WEIGHT_BATCH_BYTE_SIZE                         | 1        | Factor multiplied on the size by a tx to set the efficiency score                                                                            |
-| WeightCumulativeGasUsed                  | ZKEVM_NODE_SEQUENCER_WEIGHT_CUMULATIVE_GAS_USED                     | 1        | Factor multiplied on the gas used by a tx to set the efficiency score                                                                        |
-| WeightKeccakHashes                       | ZKEVM_NODE_SEQUENCER_WEIGHT_KECCACK_HASHES                          | 1        | Factor multiplied on the keccack hashes used by a tx to set the efficiency score                                                             |
-| WeightPoseidonHashes                     | ZKEVM_NODE_SEQUENCER_WEIGHT_POSEIDON_HASHES                         | 1        | Factor multiplied on the Poseidon hashes used by a tx to set the efficiency score                                                            |
-| WeightPoseidonPaddings                   | ZKEVM_NODE_SEQUENCER_WEIGHT_POSEIDON_PADDINGS                       | 1        | Factor multiplied on the Poseidon paddings used by a tx to set the efficiency score                                                          |
-| WeightMemAligns                          | ZKEVM_NODE_SEQUENCER_WEIGHT_MEM_ALIGNS                              | 1        | Factor multiplied on the mem aligns used by a tx to set the efficiency score                                                                 |
-| WeightArithmetics                        | ZKEVM_NODE_SEQUENCER_WEIGHT_ARITHMETICS                             | 1        | Factor multiplied on the arithemtics used by a tx to set the efficiency score                                                                |
-| WeightBinaries                           | ZKEVM_NODE_SEQUENCER_WEIGHT_BINNARIES                               | 1        | Factor multiplied on the binnaries used by a tx to set the efficiency score                                                                  |
-| WeightSteps                              | ZKEVM_NODE_SEQUENCER_WEIGHT_STEPS                                   | 1        | Factor multiplied on the steps used by a tx to set the efficiency score                                                                      |
-| TxLifetimeCheckTimeout                   | ZKEVM_NODE_SEQUENCER_TX_LIFETIME_CHECK_TIMEOUT                      | "10m"    | Frequency in which the expire logic for pending txs will be triggered                                                                        |
-| MaxTxLifetime                            | ZKEVM_NODE_SEQUENCER_MAX_TX_LIFETIME                                | "3h"     | Maximum time for txs to be in pending state                                                                                                  |
-| MaxTxSizeForL1                           | ZKEVM_NODE_SEQUENCER_MAX_TX_SIZE_FOR_L1                             | 131072   | Max size of an L1 tx                                                                                                                         |
+
+#### NotSyncedWait
+- env: ZKEVM_NODE_SEQUENCER_NOT_SYNCED_WAIT
+#### WaitPeriodSendSequence
+- env: ZKEVM_NODE_SEQUENCER_WAIT_PERIOD_SEND_SEQUENCE
+#### LastBatchVirtualizationTimeMaxWaitPeriod
+- env: ZKEVM_NODE_SEQUENCER_LAST_BATCH_VIRTUALIZATION_TIME_MAX_WAIT_PERIOD
+#### BlocksAmountForTxsToBeDeleted
+- env: ZKEVM_NODE_SEQUENCER_BLOCKS_AMOUNT_FORTXS_TO_BE_DELETED
+#### FrequencyToCheckTxsForDelete
+- env: ZKEVM_NODE_SEQUENCER_FREQUENCY_TO_CHECK_TXS_FOR_DELETE
+#### MaxTxsPerBatch
+- env: ZKEVM_NODE_SEQUENCER_MAX_TXS_PER_BATCH
+#### MaxBatchBytesSize
+- env: ZKEVM_NODE_SEQUENCER_MAX_BATCH_BYTES_SIZE
+#### MaxCumulativeGasUsed
+- env: ZKEVM_NODE_SEQUENCER_MAX_CUMULATIVE_GAS_USED
+#### MaxKeccakHashes
+- env: ZKEVM_NODE_SEQUENCER_MAX_KECCAK_HASHES
+#### MaxPoseidonHashes
+- env: ZKEVM_NODE_SEQUENCER_MAX_POSEIDON_HASHES
+#### MaxPoseidonPaddings
+- env: ZKEVM_NODE_SEQUENCER_MAX_POSEIDON_PADDINGS
+#### MaxMemAligns
+- env: ZKEVM_NODE_SEQUENCER_MAX_MEM_ALIGNS
+#### MaxArithmetics
+- env: ZKEVM_NODE_SEQUENCER_MAX_ARITHEMTICS
+#### MaxBinaries
+- env: ZKEVM_NODE_SEQUENCER_MAX_BINARIES
+#### MaxSteps
+- env: ZKEVM_NODE_SEQUENCER_MAX_STEPS
+#### WeightBatchBytesSize
+- env: ZKEVM_NODE_SEQUENCER_WEIGHT_BATCH_BYTE_SIZE
+#### WeightCumulativeGasUsed
+- env: ZKEVM_NODE_SEQUENCER_WEIGHT_CUMULATIVE_GAS_USED
+#### WeightKeccakHashes
+- env: ZKEVM_NODE_SEQUENCER_WEIGHT_KECCACK_HASHES
+#### WeightPoseidonHashes
+- env: ZKEVM_NODE_SEQUENCER_WEIGHT_POSEIDON_HASHES
+#### WeightPoseidonPaddings
+- env: ZKEVM_NODE_SEQUENCER_WEIGHT_POSEIDON_PADDINGS
+#### WeightMemAligns
+- env: ZKEVM_NODE_SEQUENCER_WEIGHT_MEM_ALIGNS
+#### WeightArithmetics
+- env: ZKEVM_NODE_SEQUENCER_WEIGHT_ARITHMETICS
+#### WeightBinaries
+- env: ZKEVM_NODE_SEQUENCER_WEIGHT_BINNARIES
+#### WeightSteps
+- env: ZKEVM_NODE_SEQUENCER_WEIGHT_STEPS
+#### TxLifetimeCheckTimeout
+- env: ZKEVM_NODE_SEQUENCER_TX_LIFETIME_CHECK_TIMEOUT
+#### MaxTxLifetime
+- env: ZKEVM_NODE_SEQUENCER_MAX_TX_LIFETIME
+#### MaxTxSizeForL1
+- env: ZKEVM_NODE_SEQUENCER_MAX_TX_SIZE_FOR_L1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+"1s"     | Time too wait when the sequencer is waiting for th synchronizer to catch up with L1                                                          |
+"5s"     | Frequency in which the send sequences to L1 loop is run (doesn't mean that sequences will be sent with this frequency)                       |
+"1h"     | If there has not been batches sent to L1 for longer than the specified duration, a batch will be sent even if the L1 tx could be more packed |
+100      | Will delete txs from the pool that have been mined on L1 (virtual state) for more than the indicated amount of L1 blocks                     |
+"12h"    | Frequency in which the deletion process of already mined txs will happen                                                                     |
+150      | Maximum amount of txs that the sequencer will include in a batch                                                                             |
+129848   | Sequencer will close a batch before it reaches the indicated size                                                                            |
+30000000 | Sequencer will close a batch before it consumes the indicated amount of gas                                                                  |
+468      | Sequencer will close a batch before it consumes the indicated amount of Keccack hashes                                                       |
+279620   | Sequencer will close a batch before it consumes the indicated amount of Poseidon hashes                                                      |
+149796   | Sequencer will close a batch before it consumes the indicated amount of Poseidon paddings                                                    |
+262144   | Sequencer will close a batch before it consumes the indicated amount of memory alignments                                                    |
+262144   | Sequencer will close a batch before it consumes the indicated amount of arithmetic operations                                                |
+262144   | Sequencer will close a batch before it consumes the indicated amount of binary operations                                                    |
+8388608  | Sequencer will close a batch before it consumes the indicated amount of steps                                                                |
+1        | Factor multiplied on the size by a tx to set the efficiency score                                                                            |
+1        | Factor multiplied on the gas used by a tx to set the efficiency score                                                                        |
+1        | Factor multiplied on the keccack hashes used by a tx to set the efficiency score                                                             |
+1        | Factor multiplied on the Poseidon hashes used by a tx to set the efficiency score                                                            |
+1        | Factor multiplied on the Poseidon paddings used by a tx to set the efficiency score                                                          |
+1        | Factor multiplied on the mem aligns used by a tx to set the efficiency score                                                                 |
+1        | Factor multiplied on the arithemtics used by a tx to set the efficiency score                                                                |
+1        | Factor multiplied on the binnaries used by a tx to set the efficiency score                                                                  |
+1        | Factor multiplied on the steps used by a tx to set the efficiency score
+"10m"    | Frequency in which the expire logic for pending txs will be triggered
+"3h"     | Maximum time for txs to be in pending state
+131072   | Max size of an L1 tx
 
 ### Sequencer.Finalizer
 
