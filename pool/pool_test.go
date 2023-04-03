@@ -14,6 +14,7 @@ import (
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	bridge "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -772,6 +773,7 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
+
 	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
@@ -1100,7 +1102,25 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 }
 
 func Test_AddTx_GasPriceErr(t *testing.T) {
-	claimData, err := hex.DecodeHex(pool.BridgeClaimMethodSignature)
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	bridgeSC, err := bridge.NewPolygonzkevmbridge(l2BridgeAddr, nil)
+	require.NoError(t, err)
+
+	auth.NoSend = true
+	auth.GasLimit = 53000
+	auth.GasPrice = big.NewInt(0)
+	auth.Nonce = big.NewInt(0)
+
+	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
+	require.NoError(t, err)
+
+	claimData := signedTx.Data()
+
 	require.NoError(t, err)
 	testCases := []struct {
 		name          string
@@ -1273,4 +1293,64 @@ func setupPool(t *testing.T, s *pgpoolstorage.PostgresPoolStorage, st *state.Sta
 	}
 	p.StartPollingMinSuggestedGasPrice(ctx)
 	return p
+}
+
+func Test_AvoidDuplicatedClaims(t *testing.T) {
+	initOrResetDB()
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	p := setupPool(t, s, st, chainID.Uint64(), ctx)
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	// insert transaction
+	bridgeSC, err := bridge.NewPolygonzkevmbridge(l2BridgeAddr, nil)
+	require.NoError(t, err)
+
+	auth.NoSend = true
+	auth.GasLimit = 53000
+	auth.GasPrice = big.NewInt(0)
+	auth.Nonce = big.NewInt(0)
+
+	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, "")
+	require.NoError(t, err)
+
+	auth.Nonce = big.NewInt(1)
+	signedTx, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, "")
+	require.Equal(t, err.Error(), "deposit count already exists")
 }
