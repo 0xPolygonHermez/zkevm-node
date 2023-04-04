@@ -122,34 +122,19 @@ func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-// GetBalanceByBlockNumber from a given address and block number
-func (s *State) GetBalanceByBlockNumber(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
-	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.GetBalance(ctx, address, l2Block)
-}
-
 // GetBalance from a given address
-func (s *State) GetBalance(ctx context.Context, address common.Address, l2Block *types.Block) (*big.Int, error) {
-	return s.tree.GetBalance(ctx, address, l2Block.Root().Bytes())
+func (s *State) GetBalance(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
+	return s.tree.GetBalance(ctx, address, root.Bytes())
 }
 
 // GetCode from a given address
-func (s *State) GetCode(ctx context.Context, address common.Address, l2Block *types.Block) ([]byte, error) {
-	return s.tree.GetCode(ctx, address, l2Block.Root().Bytes())
+func (s *State) GetCode(ctx context.Context, address common.Address, root common.Hash) ([]byte, error) {
+	return s.tree.GetCode(ctx, address, root.Bytes())
 }
 
 // GetNonce returns the nonce of the given account at the given block number
-func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		return 0, err
-	}
-
-	nonce, err := s.tree.GetNonce(ctx, address, l2Block.Root().Bytes())
+func (s *State) GetNonce(ctx context.Context, address common.Address, root common.Hash) (uint64, error) {
+	nonce, err := s.tree.GetNonce(ctx, address, root.Bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -166,8 +151,8 @@ func (s *State) GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash,
 }
 
 // GetStorageAt from a given address
-func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, l2Block *types.Block) (*big.Int, error) {
-	return s.tree.GetStorageAt(ctx, address, position, l2Block.Root().Bytes())
+func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error) {
+	return s.tree.GetStorageAt(ctx, address, position, root.Bytes())
 }
 
 // EstimateGas for a transaction
