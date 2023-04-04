@@ -18,6 +18,8 @@ type Component string
 type Level string
 
 const (
+	// EventID_NodeStarted is triggered when the node starts
+	EventID_NodeComponentStarted = "NODE COMPONENT STARTED"
 	// EventID_PreexecutionOOC is triggered when an OOC error is detected during the preexecution
 	EventID_PreexecutionOOC EventID = "PRE EXECUTION OOC"
 	// EventID_PreexecutionOOG is triggered when an OOG error is detected during the preexecution
@@ -50,6 +52,8 @@ const (
 	Component_GasPricer Component = "gaspricer"
 	// Component_Executor is the component that triggered the event
 	Component_Executor Component = "executor"
+	// Component_Broadcast is the component that triggered the event
+	Component_Broadcast Component = "broadcast"
 
 	// Level_Emergency is the most severe level
 	Level_Emergency Level = "emerg"

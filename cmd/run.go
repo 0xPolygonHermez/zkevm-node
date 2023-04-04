@@ -135,18 +135,31 @@ func start(cliCtx *cli.Context) error {
 
 	etm := ethtxmanager.New(c.EthTxManager, etherman, ethTxManagerStorage, st)
 
+	ev := &event.Event{
+		ReceivedAt: time.Now(),
+		Source:     event.Source_Node,
+		Level:      event.Level_Info,
+		EventID:    event.EventID_NodeComponentStarted,
+	}
+
 	for _, component := range components {
 		switch component {
 		case AGGREGATOR:
-			log.Info("Running aggregator")
+			ev.Component = event.Component_Aggregator
+			ev.Description = "Running aggregator"
+			eventLog.LogEvent(ctx, ev)
 			go runAggregator(ctx, c.Aggregator, etherman, etm, st)
 		case SEQUENCER:
-			log.Info("Running sequencer")
+			ev.Component = event.Component_Sequencer
+			ev.Description = "Running sequencer"
+			eventLog.LogEvent(ctx, ev)
 			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
 			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st, eventLog)
 			go seq.Start(ctx)
 		case RPC:
-			log.Info("Running JSON-RPC server")
+			ev.Component = event.Component_RPC
+			ev.Description = "Running JSON-RPC server"
+			eventLog.LogEvent(ctx, ev)
 			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
 			if c.RPC.EnableL2SuggestedGasPricePolling {
 				// Needed for rejecting transactions with too low gas price
@@ -158,18 +171,26 @@ func start(cliCtx *cli.Context) error {
 			}
 			go runJSONRPCServer(*c, poolInstance, st, apis)
 		case SYNCHRONIZER:
-			log.Info("Running synchronizer")
+			ev.Component = event.Component_Synchronizer
+			ev.Description = "Running synchronizer"
+			eventLog.LogEvent(ctx, ev)
 			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
 			go runSynchronizer(*c, etherman, etm, st, poolInstance)
 		case BROADCAST:
-			log.Info("Running broadcast service")
+			ev.Component = event.Component_Broadcast
+			ev.Description = "Running broadcast service"
+			eventLog.LogEvent(ctx, ev)
 			go runBroadcastServer(c.BroadcastServer, st)
 		case ETHTXMANAGER:
-			log.Info("Running eth tx manager service")
+			ev.Component = event.Component_EthTxManager
+			ev.Description = "Running eth tx manager service"
+			eventLog.LogEvent(ctx, ev)
 			etm := createEthTxManager(*c, ethTxManagerStorage, st)
 			go etm.Start()
 		case L2GASPRICER:
-			log.Info("Running L2 gasPricer")
+			ev.Component = event.Component_GasPricer
+			ev.Description = "Running L2 gasPricer"
+			eventLog.LogEvent(ctx, ev)
 			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
 			go runL2GasPriceSuggester(c.L2GasPriceSuggester, st, poolInstance, etherman)
 		}

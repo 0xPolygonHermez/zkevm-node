@@ -34,10 +34,28 @@ func (p *PostgresEventStorage) Close() error {
 }
 
 // LogEvent logs an event to the database
-func (p *PostgresEventStorage) LogEvent(ctx context.Context, event *event.Event) error {
-	const insertEventSQL = "INSERT INTO event (received_at, ip_address, source, component, level, eventid, description, data, json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+func (p *PostgresEventStorage) LogEvent(ctx context.Context, ev *event.Event) error {
+	const insertEventSQL = "INSERT INTO event (received_at, ip_address, source, component, level, event_id, description, data, json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 
-	log.Debugf("Event: %v", event)
-	_, err := p.db.Exec(ctx, insertEventSQL, event.ReceivedAt, event.IPAddress, event.Source, event.Component, event.Level, event.EventID, event.Description, event.Data, event.Json)
+	switch ev.Level {
+	case event.Level_Emergency:
+		log.Error("Event: %+v", ev)
+	case event.Level_Alert:
+		log.Error("Event: %+v", ev)
+	case event.Level_Critical:
+		log.Error("Event: %+v", ev)
+	case event.Level_Error:
+		log.Error("Event: %+v", ev)
+	case event.Level_Warning:
+		log.Warn("Event: %+v", ev)
+	case event.Level_Notice:
+		log.Info("Event: %+v", ev)
+	case event.Level_Info:
+		log.Info("Event: %+v", ev)
+	case event.Level_Debug:
+		log.Debug("Event: %+v", ev)
+	}
+
+	_, err := p.db.Exec(ctx, insertEventSQL, ev.ReceivedAt, ev.IPAddress, ev.Source, ev.Component, ev.Level, ev.EventID, ev.Description, ev.Data, ev.Json)
 	return err
 }

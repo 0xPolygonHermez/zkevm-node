@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
@@ -772,7 +773,13 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 	if e.cfg.SequencerNodeURI != "" {
 		return e.relayTxToSequencerNode(input)
 	} else {
-		ip := httpRequest.Header.Get("X-Forwarded-For")
+		ip := ""
+		ips := httpRequest.Header.Get("X-Forwarded-For")
+
+		if ips != "" {
+			ip = strings.Split(ips, ",")[0]
+		}
+
 		return e.tryToAddTxToPool(input, ip)
 	}
 }
