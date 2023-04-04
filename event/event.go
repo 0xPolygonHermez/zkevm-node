@@ -18,7 +18,7 @@ type Component string
 type Level string
 
 const (
-	// EventID_NodeStarted is triggered when the node starts
+	// EventID_NodeComponentStarted is triggered when the node starts
 	EventID_NodeComponentStarted = "NODE COMPONENT STARTED"
 	// EventID_PreexecutionOOC is triggered when an OOC error is detected during the preexecution
 	EventID_PreexecutionOOC EventID = "PRE EXECUTION OOC"
