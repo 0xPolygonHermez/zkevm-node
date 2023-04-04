@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"golang.org/x/crypto/sha3"
 )
@@ -13,7 +14,7 @@ type Web3Endpoints struct {
 
 // ClientVersion returns the client version.
 func (e *Web3Endpoints) ClientVersion() (interface{}, types.Error) {
-	return "Polygon Hermez zkEVM/v2.0.0", nil
+	return zkevm.Version, nil
 }
 
 // Sha3 returns the keccak256 hash of the given data.
