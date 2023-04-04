@@ -16,7 +16,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	bridge "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
 	"github.com/0xPolygonHermez/zkevm-node/event"
-	"github.com/0xPolygonHermez/zkevm-node/event/pgeventstorage"
+	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -49,7 +49,6 @@ var (
 var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
-	eventDBCfg = dbutils.NewEventConfigFromEnv()
 	genesis    = state.Genesis{
 		Actions: []*state.GenesisAction{
 			{
@@ -97,12 +96,11 @@ func Test_AddTx(t *testing.T) {
 	}
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -182,12 +180,11 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	}
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -250,12 +247,11 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	}
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -340,12 +336,11 @@ func Test_GetPendingTxs(t *testing.T) {
 	}
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -407,12 +402,11 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	}
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -476,12 +470,11 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	}
 	defer stateSqlDB.Close()
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -544,12 +537,11 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	}
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -621,12 +613,11 @@ func Test_UpdateTxStatus(t *testing.T) {
 	}
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -688,12 +679,11 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 		t.Error(err)
 	}
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	p := pool.NewPool(cfg, s, nil, common.Address{}, chainID.Uint64(), eventLog)
 
@@ -727,12 +717,11 @@ func TestGetPendingTxSince(t *testing.T) {
 	}
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -837,12 +826,11 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	}
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -913,12 +901,11 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	}
 	defer poolSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -1071,12 +1058,11 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	}
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -1247,12 +1233,11 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 		},
 	}
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1337,12 +1322,11 @@ func Test_AddRevertedTx(t *testing.T) {
 	}
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 
@@ -1414,12 +1398,11 @@ func Test_AvoidDuplicatedClaims(t *testing.T) {
 	}
 	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	eventStorage, err := pgeventstorage.NewPostgresEventStorage(eventDBCfg)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {
 		log.Fatal(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-	defer eventStorage.Close() //nolint:gosec,errcheck
 
 	st := newState(stateSqlDB, eventLog)
 

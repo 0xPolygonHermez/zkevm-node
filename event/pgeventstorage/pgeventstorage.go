@@ -39,21 +39,21 @@ func (p *PostgresEventStorage) LogEvent(ctx context.Context, ev *event.Event) er
 
 	switch ev.Level {
 	case event.Level_Emergency:
-		log.Error("Event: %+v", ev)
+		log.Errorf("Event: %+v", ev)
 	case event.Level_Alert:
-		log.Error("Event: %+v", ev)
+		log.Errorf("Event: %+v", ev)
 	case event.Level_Critical:
-		log.Error("Event: %+v", ev)
+		log.Errorf("Event: %+v", ev)
 	case event.Level_Error:
-		log.Error("Event: %+v", ev)
+		log.Errorf("Event: %+v", ev)
 	case event.Level_Warning:
-		log.Warn("Event: %+v", ev)
+		log.Warnf("Event: %+v", ev)
 	case event.Level_Notice:
-		log.Info("Event: %+v", ev)
+		log.Infof("Event: %+v", ev)
 	case event.Level_Info:
-		log.Info("Event: %+v", ev)
+		log.Infof("Event: %+v", ev)
 	case event.Level_Debug:
-		log.Debug("Event: %+v", ev)
+		log.Debugf("Event: %+v", ev)
 	}
 
 	_, err := p.db.Exec(ctx, insertEventSQL, ev.ReceivedAt, ev.IPAddress, ev.Source, ev.Component, ev.Level, ev.EventID, ev.Description, ev.Data, ev.Json)

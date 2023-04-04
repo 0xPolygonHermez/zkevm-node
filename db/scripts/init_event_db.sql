@@ -1,8 +1,6 @@
-CREATE SCHEMA event;
-
 CREATE TYPE level_t AS ENUM ('emerg', 'alert', 'crit', 'err', 'warning', 'notice', 'info', 'debug');
 
-CREATE TABLE event (
+CREATE TABLE public.event (
    id BIGSERIAL PRIMARY KEY,
    received_at timestamp WITH TIME ZONE default CURRENT_TIMESTAMP,
    ip_address inet,

@@ -21,21 +21,21 @@ func NewNilEventStorage() (*NilEventStorage, error) {
 func (p *NilEventStorage) LogEvent(ctx context.Context, ev *event.Event) error {
 	switch ev.Level {
 	case event.Level_Emergency:
-		log.Error("Event: %+v", ev)
+		log.Errorf("Event: %+v", ev)
 	case event.Level_Alert:
-		log.Error("Event: %+v", ev)
+		log.Errorf("Event: %+v", ev)
 	case event.Level_Critical:
-		log.Error("Event: %+v", ev)
+		log.Errorf("Event: %+v", ev)
 	case event.Level_Error:
-		log.Error("Event: %+v", ev)
+		log.Errorf("Event: %+v", ev)
 	case event.Level_Warning:
-		log.Warn("Event: %+v", ev)
+		log.Warnf("Event: %+v", ev)
 	case event.Level_Notice:
-		log.Info("Event: %+v", ev)
+		log.Infof("Event: %+v", ev)
 	case event.Level_Info:
-		log.Info("Event: %+v", ev)
+		log.Infof("Event: %+v", ev)
 	case event.Level_Debug:
-		log.Debug("Event: %+v", ev)
+		log.Debugf("Event: %+v", ev)
 	}
 	return nil
 }
