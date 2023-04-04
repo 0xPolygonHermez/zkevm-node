@@ -5,7 +5,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/event"
-	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -37,25 +37,7 @@ func (p *PostgresEventStorage) Close() error {
 func (p *PostgresEventStorage) LogEvent(ctx context.Context, ev *event.Event) error {
 	const insertEventSQL = "INSERT INTO event (received_at, ip_address, source, component, level, event_id, description, data, json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 
-	switch ev.Level {
-	case event.Level_Emergency:
-		log.Errorf("Event: %+v", ev)
-	case event.Level_Alert:
-		log.Errorf("Event: %+v", ev)
-	case event.Level_Critical:
-		log.Errorf("Event: %+v", ev)
-	case event.Level_Error:
-		log.Errorf("Event: %+v", ev)
-	case event.Level_Warning:
-		log.Warnf("Event: %+v", ev)
-	case event.Level_Notice:
-		log.Infof("Event: %+v", ev)
-	case event.Level_Info:
-		log.Infof("Event: %+v", ev)
-	case event.Level_Debug:
-		log.Debugf("Event: %+v", ev)
-	}
-
+	nileventstorage.LogEvent(ev)
 	_, err := p.db.Exec(ctx, insertEventSQL, ev.ReceivedAt, ev.IPAddress, ev.Source, ev.Component, ev.Level, ev.EventID, ev.Description, ev.Data, ev.Json)
 	return err
 }

@@ -17,8 +17,14 @@ func NewNilEventStorage() (*NilEventStorage, error) {
 	return &NilEventStorage{}, nil
 }
 
-// LogEvent logs an event
+// LogEvent logs an event following the defined interface
 func (p *NilEventStorage) LogEvent(ctx context.Context, ev *event.Event) error {
+	LogEvent(ev)
+	return nil
+}
+
+// LogEvent actually logs the event
+func LogEvent(ev *event.Event) {
 	switch ev.Level {
 	case event.Level_Emergency:
 		log.Errorf("Event: %+v", ev)
@@ -37,5 +43,4 @@ func (p *NilEventStorage) LogEvent(ctx context.Context, ev *event.Event) error {
 	case event.Level_Debug:
 		log.Debugf("Event: %+v", ev)
 	}
-	return nil
 }
