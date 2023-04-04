@@ -114,7 +114,6 @@ MaxTxSizeForL1 = 131072
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-ForkId = 2
 RetryTime = "5s"
 VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
