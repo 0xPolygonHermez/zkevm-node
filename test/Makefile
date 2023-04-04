@@ -104,6 +104,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -114,6 +115,7 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -135,6 +137,7 @@ test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -145,6 +148,7 @@ test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 test-e2e-group-5: stop ## Runs group 5 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -166,6 +170,7 @@ test-e2e-group-6: stop ## Runs group 6 e2e tests checking race conditions
 test-e2e-group-7: stop ## Runs group 7 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -177,6 +182,7 @@ benchmark-sequencer-eth-transfers: stop
 	$(RUNL1NETWORK)
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	$(RUNSYNC)
