@@ -17,7 +17,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/mitchellh/mapstructure"
@@ -63,7 +62,6 @@ type Config struct {
 	NetworkConfig       NetworkConfig
 	L2GasPriceSuggester gasprice.Config
 	Executor            executor.Config
-	BroadcastServer     broadcast.ServerConfig
 	MTClient            merkletree.Config
 	StateDB             db.Config
 	Metrics             metrics.Config

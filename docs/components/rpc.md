@@ -40,7 +40,6 @@ The container alone needs some parameters configured, access to certain configur
     - `ZKEVM_NODE_STATEDB_HOST`: Name of StateDB Database Host
     - `ZKEVM_NODE_POOL_HOST`: Name of PoolDB Database Host 
     - `ZKEVM_NODE_RPC_DB_HOST`: Name of RPCDB Database Host
-    - `ZKEVM_NODE_RPC_BROADCASTURI`: String to return when a client requests the following resource: `zkevm_getBroadcastURI`
 - volumes:
     - `your config.toml file`: /app/config.toml
     - `your genesis file`: /app/genesis.json

@@ -26,8 +26,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
@@ -35,7 +33,6 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -140,9 +137,6 @@ func start(cliCtx *cli.Context) error {
 			log.Info("Running synchronizer")
 			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			go runSynchronizer(*c, etherman, etm, st, poolInstance)
-		case BROADCAST:
-			log.Info("Running broadcast service")
-			go runBroadcastServer(c.BroadcastServer, st)
 		case ETHTXMANAGER:
 			log.Info("Running eth tx manager service")
 			etm := createEthTxManager(*c, ethTxManagerStorage, st)
@@ -267,15 +261,6 @@ func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {
-	s := grpc.NewServer()
-
-	broadcastSrv := broadcast.NewServer(&c, st)
-	pb.RegisterBroadcastServiceServer(s, broadcastSrv)
-
-	broadcastSrv.Start()
 }
 
 // runL2GasPriceSuggester init gas price gasPriceEstimator based on type in config.

@@ -39,7 +39,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 	// Step 1:
 	// - actions: send nTxsStep1 transactions to the trusted sequencer through the permissionless sequencer
 	// first transaction gets the current nonce. The others are generated
-	// - assert: transactions are properly relayed, added in to the trusted state and broadcasted to the permissionless ndoe
+	// - assert: transactions are properly relayed, added in to the trusted state and broadcasted to the permissionless node
 
 	nTxsStep1 := 10
 	// Load account with balance on local genesis

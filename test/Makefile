@@ -4,7 +4,6 @@ DOCKERCOMPOSEAPPL2GASP := zkevm-l2gaspricer
 DOCKERCOMPOSEAPPAGG := zkevm-aggregator
 DOCKERCOMPOSEAPPRPC := zkevm-json-rpc
 DOCKERCOMPOSEAPPSYNC := zkevm-sync
-DOCKERCOMPOSEAPPBROADCAST := zkevm-broadcast
 DOCKERCOMPOSEAPPETHTXMANAGER := zkevm-eth-tx-manager
 DOCKERCOMPOSESTATEDB := zkevm-state-db
 DOCKERCOMPOSEPOOLDB := zkevm-pool-db
@@ -30,7 +29,6 @@ RUNL2GASPRICER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPL2GASP)
 RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
 RUNSYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
-RUNBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
 RUNETHTXMANAGER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPETHTXMANAGER)
 RUNGRAFANA := DOCKERGID=`stat -c '%g' /var/run/docker.sock` $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEGRAFANA)
 
@@ -60,7 +58,6 @@ STOPL2GASPRICER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPL2GASP) && $(DOCKERCO
 STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
 STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
 STOPSYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
-STOPBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
 STOPETHTXMANAGER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPETHTXMANAGER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPETHTXMANAGER)
 STOPGRAFANA := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEGRAFANA) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEGRAFANA)
 
@@ -221,7 +218,6 @@ run-node: ## Runs the node
 	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
-	$(RUNBROADCAST)
 
 .PHONY: stop-node
 stop-node: ## Stops the node
@@ -231,7 +227,6 @@ stop-node: ## Stops the node
 	$(STOPAGGREGATOR)
 	$(STOPSYNC)
 	$(STOPETHTXMANAGER)
-	$(STOPBROADCAST)
 
 .PHONY: run-network
 run-network: ## Runs the l1 network
@@ -328,14 +323,6 @@ run-l2gaspricer: ## runs the L2 Gas Price component
 .PHONY: stop-l2gaspricer
 stop-l2gaspricer: ## stops the L2 Gas Price component
 	$(STOPL2GASPRICER)
-
-.PHONY: run-broadcast
-run-broadcast: ## Runs the broadcast service
-	$(RUNBROADCAST)
-
-.PHONY: stop-broadcast
-stop-broadcast: ## Stops the broadcast service
-	$(STOPBROADCAST)
 
 .PHONY: run-eth-tx-manager
 run-eth-tx-manager: ## Runs the eth tx manager service
@@ -454,7 +441,6 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../sequencer --outpkg=sequencer --structname=DbTxMock --filename=mock_dbtx.go
 	mockery --name=dbManagerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=DbManagerMock --filename=mock_db_manager.go
 	mockery --name=etherman --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=EthermanMock --filename=mock_etherman.go
-	mockery --name=stateInterface --dir=../sequencer/broadcast --output=../sequencer/broadcast/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 
 	mockery --name=ethermanInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=ethermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=stateMock --filename=mock_state.go
