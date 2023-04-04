@@ -693,6 +693,16 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
+				ger := state.GlobalExitRoot{
+					MainnetExitRoot: common.HexToHash("0x4"),
+					RollupExitRoot:  common.HexToHash("0x4"),
+					GlobalExitRoot:  common.HexToHash("0x4"),
+				}
+				m.State.
+					On("GetExitRootByGlobalExitRoot", context.Background(), batch.GlobalExitRoot, m.DbTx).
+					Return(&ger, nil).
+					Once()
+
 				txs := []*ethTypes.Transaction{
 					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
 					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
@@ -807,6 +817,16 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
+				ger := state.GlobalExitRoot{
+					MainnetExitRoot: common.HexToHash("0x4"),
+					RollupExitRoot:  common.HexToHash("0x4"),
+					GlobalExitRoot:  common.HexToHash("0x4"),
+				}
+				m.State.
+					On("GetExitRootByGlobalExitRoot", context.Background(), batch.GlobalExitRoot, m.DbTx).
+					Return(&ger, nil).
+					Once()
+
 				txs := []*ethTypes.Transaction{
 					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
 					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
@@ -904,6 +924,16 @@ func TestGetBatchByNumber(t *testing.T) {
 				m.State.
 					On("GetVerifiedBatch", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
 					Return(verifiedBatch, nil).
+					Once()
+
+				ger := state.GlobalExitRoot{
+					MainnetExitRoot: common.HexToHash("0x4"),
+					RollupExitRoot:  common.HexToHash("0x4"),
+					GlobalExitRoot:  common.HexToHash("0x4"),
+				}
+				m.State.
+					On("GetExitRootByGlobalExitRoot", context.Background(), batch.GlobalExitRoot, m.DbTx).
+					Return(&ger, nil).
 					Once()
 
 				txs := []*ethTypes.Transaction{

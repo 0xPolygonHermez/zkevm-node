@@ -204,6 +204,32 @@ func (_m *StateMock) GetCode(ctx context.Context, address common.Address, blockN
 	return r0, r1
 }
 
+// GetExitRootByGlobalExitRoot provides a mock function with given fields: ctx, ger, dbTx
+func (_m *StateMock) GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*state.GlobalExitRoot, error) {
+	ret := _m.Called(ctx, ger, dbTx)
+
+	var r0 *state.GlobalExitRoot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (*state.GlobalExitRoot, error)); ok {
+		return rf(ctx, ger, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) *state.GlobalExitRoot); ok {
+		r0 = rf(ctx, ger, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.GlobalExitRoot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, ger, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetL2BlockByHash provides a mock function with given fields: ctx, hash, dbTx
 func (_m *StateMock) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*coretypes.Block, error) {
 	ret := _m.Called(ctx, hash, dbTx)

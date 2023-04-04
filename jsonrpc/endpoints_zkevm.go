@@ -154,8 +154,15 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
 		}
 
+		ger, err := z.state.GetExitRootByGlobalExitRoot(ctx, batch.GlobalExitRoot, dbTx)
+		if err != nil && !errors.Is(err, state.ErrNotFound) {
+			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load full GER from state by number %v", batchNumber), err)
+		} else if errors.Is(err, state.ErrNotFound) {
+			ger = &state.GlobalExitRoot{}
+		}
+
 		batch.Transactions = txs
-		rpcBatch := types.NewBatch(batch, virtualBatch, verifiedBatch, receipts, fullTx)
+		rpcBatch := types.NewBatch(batch, virtualBatch, verifiedBatch, receipts, fullTx, ger)
 
 		return rpcBatch, nil
 	})
