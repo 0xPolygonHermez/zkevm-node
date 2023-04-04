@@ -30,6 +30,15 @@ const (
 	Latest = "latest"
 	// Pending contains the string to represent pending blocks.
 	Pending = "pending"
+
+	// EIP-1898: https://eips.ethereum.org/EIPS/eip-1898 //
+
+	// BlockNumberKey is the key for the block number for EIP-1898
+	BlockNumberKey = "blockNumber"
+	// BlockHashKey is the key for the block hash for EIP-1898
+	BlockHashKey = "blockHash"
+	// RequireCanonicalKey is the key for the require canonical for EIP-1898
+	RequireCanonicalKey = "requireCanonical"
 )
 
 // Request is a jsonrpc request
@@ -272,18 +281,18 @@ func (b *BlockNumberOrHash) UnmarshalJSON(buffer []byte) error {
 	var m map[string]interface{}
 	err = json.Unmarshal(buffer, &m)
 	if err == nil {
-		if v, ok := m["blockNumber"]; ok {
+		if v, ok := m[BlockNumberKey]; ok {
 			input, _ := json.Marshal(v.(string))
 			err := json.Unmarshal(input, &number)
 			if err == nil {
 				b.SetNumber(number)
 				return nil
 			}
-		} else if v, ok := m["blockHash"]; ok {
+		} else if v, ok := m[BlockHashKey]; ok {
 			input, _ := json.Marshal(v.(string))
 			err := json.Unmarshal(input, &hash)
 			if err == nil {
-				requireCanonical, ok := m["requireCanonical"]
+				requireCanonical, ok := m[RequireCanonicalKey]
 				if ok {
 					switch v := requireCanonical.(type) {
 					case bool:

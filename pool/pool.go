@@ -290,12 +290,12 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		return ErrInvalidSender
 	}
 
-	lastL2BlockNumber, err := p.state.GetLastL2BlockNumber(ctx, nil)
+	lastL2Block, err := p.state.GetLastL2Block(ctx, nil)
 	if err != nil {
 		return err
 	}
 
-	nonce, err := p.state.GetNonce(ctx, from, lastL2BlockNumber, nil)
+	nonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	balance, err := p.state.GetBalance(ctx, from, lastL2BlockNumber, nil)
+	balance, err := p.state.GetBalance(ctx, from, lastL2Block.Root())
 	if err != nil {
 		return err
 	}

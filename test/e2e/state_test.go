@@ -75,16 +75,16 @@ func TestStateTransition(t *testing.T) {
 			st := opsman.State()
 
 			// Check leafs
-			l2BlockNumber, err := st.GetLastL2BlockNumber(ctx, nil)
+			l2Block, err := st.GetLastL2Block(ctx, nil)
 			require.NoError(t, err)
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {
 				addr := common.HexToAddress(addrStr)
 
-				actualBalance, err := st.GetBalance(ctx, addr, l2BlockNumber, nil)
+				actualBalance, err := st.GetBalance(ctx, addr, l2Block.Root())
 				require.NoError(t, err)
 				require.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("addr: %s expected: %s found: %s", addr.Hex(), leaf.Balance.Text(encoding.Base10), actualBalance.Text(encoding.Base10)))
 
-				actualNonce, err := st.GetNonce(ctx, addr, l2BlockNumber, nil)
+				actualNonce, err := st.GetNonce(ctx, addr, l2Block.Root())
 				require.NoError(t, err)
 				require.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}
