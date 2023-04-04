@@ -145,3 +145,13 @@ Enabled = false
 ProfilingHost = "0.0.0.0"
 ProfilingPort = 6060
 ProfilingEnabled = false
+
+[EventLog]
+	[EventLog.DB]
+	User = "event_user"
+	Password = "event_password"
+	Name = "event_db"
+	Host = "zkevm-event-db"
+	Port = "5432"
+	EnableLog = false
+	MaxConns = 200

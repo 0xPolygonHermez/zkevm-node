@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -70,6 +71,7 @@ type State struct {
 	*PostgresStorage
 	executorClient pb.ExecutorServiceClient
 	tree           *merkletree.StateTree
+	eventLog       *event.EventLog
 
 	lastL2BlockSeen         types.Block
 	newL2BlockEvents        chan NewL2BlockEvent
@@ -77,7 +79,7 @@ type State struct {
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree) *State {
+func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog) *State {
 	once.Do(func() {
 		metrics.Register()
 	})
@@ -87,6 +89,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorSe
 		PostgresStorage:         storage,
 		executorClient:          executorClient,
 		tree:                    stateTree,
+		eventLog:                eventLog,
 		newL2BlockEvents:        make(chan NewL2BlockEvent),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 	}
@@ -310,7 +313,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		gasUsed = processBatchResponse.Responses[0].GasUsed
 		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
-			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+			s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, err
 		}
 
@@ -570,7 +573,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 		return nil, err
 	} else if processBatchResponse != nil && processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 	}
 
 	return processBatchResponse, err
@@ -655,7 +658,7 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 		log.Errorf("Error s.executorClient.ProcessBatch response: %v", res)
 	} else if res.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(res.Error)
-		s.LogExecutorError(res.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, res.Error, processBatchRequest)
 	}
 	elapsed := time.Since(now)
 	if caller != DiscardCallerLabel {
@@ -945,7 +948,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
 	endTime := time.Now()
@@ -1311,12 +1314,12 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
 		// Log this error as an executor unspecified error
-		s.LogExecutorError(pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
 		log.Errorf("error processing unsigned transaction ", err)
 		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
 
@@ -1726,26 +1729,6 @@ func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Addres
 // GetNonceByStateRoot gets nonce from the MT Service using the provided state root
 func (s *State) GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	return s.tree.GetNonce(ctx, address, root.Bytes())
-}
-
-// LogExecutorError is used to store Executor error for runtime debugging
-func (s *State) LogExecutorError(responseError pb.ExecutorError, processBatchRequest *pb.ProcessBatchRequest) {
-	timestamp := time.Now()
-	log.Errorf("error found in the executor: %v at %v", responseError, timestamp)
-	payload, err := json.Marshal(processBatchRequest)
-	if err != nil {
-		log.Errorf("error marshaling payload: %v", err)
-	} else {
-		debugInfo := &DebugInfo{
-			ErrorType: DebugInfoErrorType_EXECUTOR_ERROR + " " + responseError.String(),
-			Timestamp: timestamp,
-			Payload:   string(payload),
-		}
-		err = s.AddDebugInfo(context.Background(), debugInfo, nil)
-		if err != nil {
-			log.Errorf("error storing payload: %v", err)
-		}
-	}
 }
 
 // GetForkIdByBatchNumber returns the fork id for the given batch number

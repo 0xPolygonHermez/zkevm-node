@@ -150,4 +150,8 @@ Port = 61090
 Host = "0.0.0.0"
 Port = 9091
 Enabled = false
+
+[EventLog]
+	[EventLog.DB]
+	Name = "disabled"
 `

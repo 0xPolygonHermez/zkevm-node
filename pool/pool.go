@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
@@ -45,6 +46,7 @@ type Pool struct {
 	cfg                     Config
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
+	eventLog                *event.EventLog
 }
 
 type preExecutionResponse struct {
@@ -55,7 +57,7 @@ type preExecutionResponse struct {
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
+func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64, eventLog *event.EventLog) *Pool {
 	return &Pool{
 		cfg:                     cfg,
 		storage:                 s,
@@ -63,6 +65,7 @@ func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Addre
 		l2BridgeAddr:            l2BridgeAddr,
 		chainID:                 chainID,
 		minSuggestedGasPriceMux: new(sync.RWMutex),
+		eventLog:                eventLog,
 	}
 }
 
@@ -99,29 +102,36 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
 	}
+
 	if preExecutionResponse.isOOC {
-		event := &state.Event{
-			EventType: state.EventType_Prexecution_OOC,
-			Timestamp: time.Now(),
-			IP:        ip,
-			TxHash:    tx.Hash(),
+		event := &event.Event{
+			ReceivedAt:  time.Now(),
+			IPAddress:   ip,
+			Source:      event.Source_Node,
+			Component:   event.Component_Pool,
+			Level:       event.Level_Warning,
+			EventID:     event.EventID_PreexecutionOOC,
+			Description: tx.Hash().String(),
 		}
 
-		err := p.state.AddEvent(ctx, event, nil)
+		err := p.eventLog.LogEvent(ctx, event)
 		if err != nil {
 			log.Errorf("Error adding event: %v", err)
 		}
 		// Do not add tx to the pool
 		return fmt.Errorf("out of counters")
 	} else if preExecutionResponse.isOOG {
-		event := &state.Event{
-			EventType: state.EventType_Prexecution_OOG,
-			Timestamp: time.Now(),
-			IP:        ip,
-			TxHash:    tx.Hash(),
+		event := &event.Event{
+			ReceivedAt:  time.Now(),
+			IPAddress:   ip,
+			Source:      event.Source_Node,
+			Component:   event.Component_Pool,
+			Level:       event.Level_Warning,
+			EventID:     event.EventID_PreexecutionOOG,
+			Description: tx.Hash().String(),
 		}
 
-		err := p.state.AddEvent(ctx, event, nil)
+		err := p.eventLog.LogEvent(ctx, event)
 		if err != nil {
 			log.Errorf("Error adding event: %v", err)
 		}
