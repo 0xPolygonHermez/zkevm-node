@@ -60,9 +60,9 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 		} else if blockArg == nil {
 			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 1", nil)
 		}
-		blockNumber, resp, respErr := e.getBlockNumByArg(ctx, dbTx, blockArg)
+		blockNumber, respErr := e.getBlockNumByArg(ctx, blockArg, dbTx)
 		if respErr != nil {
-			return resp, respErr
+			return nil, respErr
 		}
 		var blockToProcess *uint64
 		if blockArg != nil {
@@ -125,9 +125,9 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil)
 		}
 
-		blockNumber, resp, respErr := e.getBlockNumByArg(ctx, dbTx, blockArg)
+		blockNumber, respErr := e.getBlockNumByArg(ctx, blockArg, dbTx)
 		if respErr != nil {
-			return resp, respErr
+			return nil, respErr
 		}
 
 		var blockToProcess *uint64
@@ -188,9 +188,9 @@ func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {
 // GetBalance returns the account's balance at the referenced block
 func (e *EthEndpoints) GetBalance(address types.ArgAddress, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		_, block, resp, rpcErr := e.getBlockByArg(ctx, dbTx, blockArg)
+		_, block, rpcErr := e.getBlockByArg(ctx, blockArg, dbTx)
 		if rpcErr != nil {
-			return resp, rpcErr
+			return nil, rpcErr
 		}
 
 		balance, err := e.state.GetBalance(ctx, address.Address(), block)
@@ -204,52 +204,45 @@ func (e *EthEndpoints) GetBalance(address types.ArgAddress, blockArg *types.Bloc
 	})
 }
 
-func (e *EthEndpoints) getBlockNumByArg(ctx context.Context, dbTx pgx.Tx, blockArg *types.BlockNumberOrHash) (uint64, interface{}, types.Error) {
+func (e *EthEndpoints) getBlockNumByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (uint64, types.Error) {
 	var (
 		blockNum uint64
 		err      error
-		resp     interface{}
-		rpcErr   types.Error
 	)
 
 	if blockArg == nil {
 		blockNum, err = e.state.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
-			resp, rpcErr = rpcErrorResponse(types.DefaultErrorCode, "failed to get the last block number from state", err)
-			return 0, resp, rpcErr
+			return 0, types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state")
 		}
 	} else {
 		if blockArg.IsHash() {
 			block, err := e.state.GetL2BlockByHash(ctx, blockArg.Hash().Hash(), dbTx)
 			if errors.Is(err, state.ErrNotFound) {
-				resp, rpcErr = rpcErrorResponse(types.DefaultErrorCode, "header for hash not found", nil)
-				return 0, resp, rpcErr
+				return 0, types.NewRPCError(types.DefaultErrorCode, "header for hash not found", nil)
 			} else if err != nil {
 				errMsg := fmt.Sprintf("failed to get block by hash %v", blockArg.Hash().Hash())
-				resp, rpcErr = rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
-				return 0, resp, rpcErr
+				return 0, types.NewRPCError(types.DefaultErrorCode, errMsg)
 			}
 			blockNum = block.Number().Uint64()
 		} else {
 			var rpcErr types.Error
 			blockNum, rpcErr = blockArg.Number().GetNumericBlockNumber(ctx, e.state, dbTx)
 			if rpcErr != nil {
-				return 0, nil, rpcErr
+				return 0, rpcErr
 			}
 		}
 	}
 
-	return blockNum, nil, nil
+	return blockNum, nil
 }
 
-func (e *EthEndpoints) getBlockByArg(ctx context.Context, dbTx pgx.Tx, blockArg *types.BlockNumberOrHash) (*types.BlockNumber, *ethTypes.Block, interface{}, types.Error) {
+func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*types.BlockNumber, *ethTypes.Block, types.Error) {
 	var (
 		blockNum    uint64
 		blockNumber *types.BlockNumber
 		block       *ethTypes.Block
 		err         error
-		resp        interface{}
-		rpcErr      types.Error
 		errMsg      string
 	)
 
@@ -279,7 +272,7 @@ func (e *EthEndpoints) getBlockByArg(ctx context.Context, dbTx pgx.Tx, blockArg 
 	if err == nil && block == nil && blockNumber != nil {
 		blockNum, err = blockNumber.GetNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
-			return nil, nil, nil, rpcErr
+			return nil, nil, types.NewRPCError(types.DefaultErrorCode, err.Error())
 		}
 		block, err = e.state.GetL2BlockByNumber(context.Background(), blockNum, dbTx)
 		if errors.Is(err, state.ErrNotFound) || block == nil {
@@ -290,11 +283,10 @@ func (e *EthEndpoints) getBlockByArg(ctx context.Context, dbTx pgx.Tx, blockArg 
 	}
 
 	if err != nil {
-		resp, rpcErr = rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
-		return nil, nil, resp, rpcErr
+		return nil, nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
 	}
 
-	return blockNumber, block, nil, nil
+	return blockNumber, block, nil
 }
 
 // GetBlockByHash returns information about a block by hash
@@ -354,9 +346,9 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (
 func (e *EthEndpoints) GetCode(address types.ArgAddress, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		var err error
-		_, block, resp, rpcErr := e.getBlockByArg(ctx, dbTx, blockArg)
+		_, block, rpcErr := e.getBlockByArg(ctx, blockArg, dbTx)
 		if rpcErr != nil {
-			return resp, rpcErr
+			return nil, rpcErr
 		}
 
 		code, err := e.state.GetCode(ctx, address.Address(), block)
@@ -505,9 +497,9 @@ func (e *EthEndpoints) GetStorageAt(address types.ArgAddress, storageKeyStr stri
 	}
 
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		_, block, resp, respErr := e.getBlockByArg(ctx, dbTx, blockArg)
+		_, block, respErr := e.getBlockByArg(ctx, blockArg, dbTx)
 		if respErr != nil {
-			return resp, respErr
+			return nil, respErr
 		}
 
 		value, err := e.state.GetStorageAt(ctx, address.Address(), storageKey.Hash().Big(), block)
@@ -636,9 +628,9 @@ func (e *EthEndpoints) GetTransactionCount(address types.ArgAddress, blockArg *t
 			err          error
 		)
 
-		blockNumber, resp, respErr := e.getBlockNumByArg(ctx, dbTx, blockArg)
+		blockNumber, respErr := e.getBlockNumByArg(ctx, blockArg, dbTx)
 		if respErr != nil {
-			return resp, respErr
+			return nil, respErr
 		}
 
 		if blockArg != nil {
