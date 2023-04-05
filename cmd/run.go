@@ -84,7 +84,7 @@ func start(cliCtx *cli.Context) error {
 		}
 	}
 
-	// Event LOG BEGIN
+	// Event log
 	var eventLog *event.EventLog
 	var eventStorage event.Storage
 
