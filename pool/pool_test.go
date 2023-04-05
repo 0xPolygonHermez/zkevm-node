@@ -626,6 +626,8 @@ func Test_UpdateTxStatus(t *testing.T) {
 	}
 
 	rows, err := poolSqlDB.Query(ctx, "SELECT status, failed_reason FROM pool.transaction WHERE hash = $1", signedTx.Hash().Hex())
+	require.NoError(t, err)
+
 	defer rows.Close() // nolint:staticcheck
 	var state, failedReason string
 	rows.Next()

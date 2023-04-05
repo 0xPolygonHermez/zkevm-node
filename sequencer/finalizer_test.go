@@ -236,60 +236,6 @@ func TestNewFinalizer(t *testing.T) {
 //	}
 //}
 
-func TestFinalizer_handleTransactionError(t *testing.T) {
-	// arrange
-	f = setupFinalizer(true)
-	nonce := uint64(0)
-	tx := &TxTracker{Hash: oldHash, From: sender, Cost: big.NewInt(0)}
-	testCases := []struct {
-		name               string
-		error              pb.RomError
-		expectedDeleteCall bool
-		expectedMoveCall   bool
-	}{
-		{
-			name:               "OutOfCountersError",
-			error:              pb.RomError(executor.ROM_ERROR_OUT_OF_COUNTERS_STEP),
-			expectedDeleteCall: true,
-		},
-		{
-			name:             "IntrinsicError",
-			error:            pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_NONCE),
-			expectedMoveCall: true,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// arrange
-			if tc.expectedDeleteCall {
-				workerMock.On("DeleteTx", oldHash, sender).Return()
-				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, pool.TxStatusFailed, false, tc.error.String()).Return(nil).Once()
-				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, pool.TxStatusInvalid, false, tc.error.String()).Return(nil).Once()
-				dbManagerMock.On("DeleteTransactionFromPool", ctx, tx.Hash).Return(nil).Once()
-			}
-			if tc.expectedMoveCall {
-				workerMock.On("MoveTxToNotReady", oldHash, sender, &nonce, big.NewInt(0)).Return([]*TxTracker{}).Once()
-			}
-
-			result := &state.ProcessBatchResponse{
-				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
-					sender: {Nonce: &nonce, Balance: big.NewInt(0)},
-				},
-				Responses: []*state.ProcessTransactionResponse{{
-					RomError: executor.RomErr(tc.error),
-				},
-				},
-			}
-
-			// act
-			f.handleTransactionError(ctx, result, tx)
-
-			// assert
-			workerMock.AssertExpectations(t)
-		})
-	}
-}
-
 func TestFinalizer_syncWithState(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
@@ -1147,5 +1093,64 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		nextForcedBatchesMux:      new(sync.RWMutex),
 		nextSendingToL1Deadline:   0,
 		nextSendingToL1TimeoutMux: new(sync.RWMutex),
+	}
+}
+
+func TestFinalizer_handleTransactionError(t *testing.T) {
+	// arrange
+	f = setupFinalizer(true)
+	nonce := uint64(0)
+	tx := &TxTracker{Hash: oldHash, From: sender, Cost: big.NewInt(0)}
+	testCases := []struct {
+		name               string
+		error              pb.RomError
+		expectedDeleteCall bool
+		updateTxStatus     pool.TxStatus
+		expectedMoveCall   bool
+	}{
+		{
+			name:               "OutOfCountersError",
+			error:              pb.RomError(executor.ROM_ERROR_OUT_OF_COUNTERS_STEP),
+			updateTxStatus:     pool.TxStatusInvalid,
+			expectedDeleteCall: true,
+		},
+		{
+			name:             "IntrinsicError",
+			error:            pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_NONCE),
+			updateTxStatus:   pool.TxStatusFailed,
+			expectedMoveCall: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// arrange
+			if tc.expectedDeleteCall {
+				workerMock.On("DeleteTx", oldHash, sender).Return()
+				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, tc.updateTxStatus, false, mock.Anything).Return(nil).Once()
+				dbManagerMock.On("DeleteTransactionFromPool", ctx, tx.Hash).Return(nil).Once()
+			}
+			if tc.expectedMoveCall {
+				workerMock.On("MoveTxToNotReady", oldHash, sender, &nonce, big.NewInt(0)).Return([]*TxTracker{}).Once()
+			}
+
+			result := &state.ProcessBatchResponse{
+				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
+					sender: {Nonce: &nonce, Balance: big.NewInt(0)},
+				},
+				Responses: []*state.ProcessTransactionResponse{{
+					RomError: executor.RomErr(tc.error),
+				},
+				},
+			}
+
+			// act
+			wg := f.handleTransactionError(ctx, result, tx)
+			if wg != nil {
+				wg.Wait()
+			}
+
+			// assert
+			workerMock.AssertExpectations(t)
+		})
 	}
 }
