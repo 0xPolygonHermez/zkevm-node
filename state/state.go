@@ -956,10 +956,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	// 	return nil, err
 	// }
 
-	for _, response := range processBatchResponse.Responses {
-		log.Debugf(string(response.TxHash))
-	}
-
 	txs, _, err := DecodeTxs(batchL2Data)
 	if err != nil && !errors.Is(err, InvalidData) {
 		return nil, err
@@ -974,17 +970,9 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	var response *ProcessTransactionResponse
-
-	// Get the response for the tx
-	for _, response = range convertedResponse.Responses {
-		log.Debugf(response.TxHash.String())
-		if response.TxHash == transactionHash {
-			break
-		}
-	}
-
 	// Sanity check
+	response := convertedResponse.Responses[0]
+	log.Debugf(response.TxHash.String())
 	if response.TxHash != transactionHash {
 		return nil, fmt.Errorf("tx hash not found in executor response")
 	}
