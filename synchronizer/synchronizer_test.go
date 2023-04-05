@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -210,7 +211,7 @@ type mocks struct {
 // 				}
 
 // 				m.State.
-// 					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
+// 					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx, state.metrics.SynchronizerCallerLabel).
 // 					Return(trustedBatch.StateRoot, nil).
 // 					Once()
 
@@ -717,7 +718,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 			}
 
 			m.State.
-				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
+				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
 				Return(common.Hash{}, nil).
 				Once()
 

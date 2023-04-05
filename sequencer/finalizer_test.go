@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
@@ -517,7 +518,7 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 					Transactions:   forcedBatch.RawTxsData,
 					Coinbase:       f.sequencerAddress,
 					Timestamp:      uint64(now().Unix()),
-					Caller:         state.SequencerCallerLabel,
+					Caller:         stateMetrics.SequencerCallerLabel,
 				}
 				dbManagerMock.On("ProcessForcedBatch", forcedBatch.ForcedBatchNumber, processRequest).Return(&state.ProcessBatchResponse{
 					NewStateRoot:   stateRoot,
