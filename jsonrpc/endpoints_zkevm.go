@@ -167,9 +167,3 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 		return rpcBatch, nil
 	})
 }
-
-// GetBroadcastURI returns the IP:PORT of the broadcast service provided
-// by the Trusted Sequencer JSON RPC server
-func (z *ZKEVMEndpoints) GetBroadcastURI() (interface{}, types.Error) {
-	return z.config.BroadcastURI, nil
-}

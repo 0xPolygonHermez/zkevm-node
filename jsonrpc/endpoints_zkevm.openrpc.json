@@ -83,29 +83,6 @@
       ]
     },
     {
-      "name": "zkevm_getBroadcastURI",
-      "summary": "Returns the configured Broadcast URL of the Trusted Sequencer.",
-      "params": [],
-      "result": {
-        "name": "result",
-        "schema": {
-          "type": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "example",
-          "description": "",
-          "params": [],
-          "result": {
-            "name": "exampleResult",
-            "description": "",
-            "value": "https://broadcast:1111"
-          }
-        }
-      ]
-    },
-    {
       "name": "zkevm_batchNumber",
       "summary": "Returns the latest batch number.",
       "params": [],

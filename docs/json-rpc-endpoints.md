@@ -60,7 +60,6 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 - `zkevm_batchNumberByBlockNumber`
 - `zkevm_consolidatedBlockNumber`
 - `zkevm_getBatchByNumber`
-- `zkevm_getBroadcastURI` _* deprecated, will be removed in the future_
 - `zkevm_isBlockConsolidated`
 - `zkevm_isBlockVirtualized`
 - `zkevm_verifiedBatchNumber`
