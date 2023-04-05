@@ -76,12 +76,9 @@ func start(cliCtx *cli.Context) error {
 
 	for _, component := range components {
 		switch component {
-		case SEQUENCER, RPC:
+		case SEQUENCER, RPC, SYNCHRONIZER:
 			needsExecutor = true
 			needsStateTree = true
-		case SYNCHRONIZER:
-			needsExecutor = true
-		}
 	}
 
 	// Event log
