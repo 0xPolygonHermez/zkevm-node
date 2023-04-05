@@ -33,17 +33,13 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	executorpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
-)
-
-const (
-	two = 2
-	ten = 10
 )
 
 func start(cliCtx *cli.Context) error {
@@ -75,7 +71,36 @@ func start(cliCtx *cli.Context) error {
 	}
 	checkStateMigrations(c.StateDB)
 
-	// Prepare event log
+	// Decide if this node instance needs an prover or executor and/or a statedb
+	var needsExecutor, needsStateDB bool
+
+	for _, component := range components {
+		switch component {
+		case AGGREGATOR:
+			needsExecutor = true
+			needsStateDB = false
+		case SEQUENCER:
+			needsExecutor = true
+			needsStateDB = true
+		case RPC:
+			needsExecutor = true
+			needsStateDB = true
+		case SYNCHRONIZER:
+			needsExecutor = false
+			needsStateDB = false
+		case BROADCAST:
+			needsExecutor = false
+			needsStateDB = false
+		case ETHTXMANAGER:
+			needsExecutor = false
+			needsStateDB = false
+		case L2GASPRICER:
+			needsExecutor = false
+			needsStateDB = false
+		}
+	}
+
+	// Event LOG BEGIN
 	var eventLog *event.EventLog
 	var eventStorage event.Storage
 
@@ -90,9 +115,9 @@ func start(cliCtx *cli.Context) error {
 			log.Fatal(err)
 		}
 	}
-
 	eventLog = event.NewEventLog(c.EventLog, eventStorage)
 
+	// Core State DB
 	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
 		log.Fatal(err)
@@ -126,7 +151,7 @@ func start(cliCtx *cli.Context) error {
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
-	st := newState(ctx, c, l2ChainID, forkIDIntervals, stateSqlDB, eventLog)
+	st := newState(ctx, c, l2ChainID, forkIDIntervals, stateSqlDB, eventLog, needsExecutor, needsStateDB)
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
 	if err != nil {
@@ -365,11 +390,21 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
+func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateDB bool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
-	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
-	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
-	stateTree := merkletree.NewStateTree(stateDBClient)
+
+	// Executor / Prover
+	var executorClient executorpb.ExecutorServiceClient
+	if needsExecutor {
+		executorClient, _, _ = executor.NewExecutorClient(ctx, c.Executor)
+	}
+
+	// StateDB
+	var stateTree *merkletree.StateTree
+	if needsStateDB {
+		stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
+		stateTree = merkletree.NewStateTree(stateDBClient)
+	}
 
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
@@ -408,6 +443,7 @@ func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStor
 }
 
 func startProfilingHttpServer(c metrics.Config) {
+	const two = 2
 	mux := http.NewServeMux()
 	address := fmt.Sprintf("%s:%d", c.ProfilingHost, c.ProfilingPort)
 	lis, err := net.Listen("tcp", address)
@@ -436,6 +472,7 @@ func startProfilingHttpServer(c metrics.Config) {
 }
 
 func startMetricsHttpServer(c metrics.Config) {
+	const ten = 10
 	mux := http.NewServeMux()
 	address := fmt.Sprintf("%s:%d", c.Host, c.Port)
 	lis, err := net.Listen("tcp", address)
