@@ -393,13 +393,13 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 
-	// Executor / Prover
+	// Executor
 	var executorClient executorpb.ExecutorServiceClient
 	if needsExecutor {
 		executorClient, _, _ = executor.NewExecutorClient(ctx, c.Executor)
 	}
 
-	// StateDB
+	// State Tree
 	var stateTree *merkletree.StateTree
 	if needsStateTree {
 		stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
