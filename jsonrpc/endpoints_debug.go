@@ -56,7 +56,7 @@ type traceBlockTransactionResponse struct {
 
 // TraceTransaction creates a response for debug_traceTransaction request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtracetransaction
-func (d *DebugEndpoints) TraceTransaction(hash types.ArgHash, cfg *traceConfig) (interface{}, types.Error) {
+func (d *DebugEndpoints) TraceTransaction(ctx *types.RequestContext, hash types.ArgHash, cfg *traceConfig) (interface{}, types.Error) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		return d.buildTraceTransaction(ctx, hash.Hash(), cfg, dbTx)
 	})
@@ -64,7 +64,7 @@ func (d *DebugEndpoints) TraceTransaction(hash types.ArgHash, cfg *traceConfig) 
 
 // TraceBlockByNumber creates a response for debug_traceBlockByNumber request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbynumber
-func (d *DebugEndpoints) TraceBlockByNumber(number types.BlockNumber, cfg *traceConfig) (interface{}, types.Error) {
+func (d *DebugEndpoints) TraceBlockByNumber(ctx *types.RequestContext, number types.BlockNumber, cfg *traceConfig) (interface{}, types.Error) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, d.state, dbTx)
 		if rpcErr != nil {
@@ -89,7 +89,7 @@ func (d *DebugEndpoints) TraceBlockByNumber(number types.BlockNumber, cfg *trace
 
 // TraceBlockByHash creates a response for debug_traceBlockByHash request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbyhash
-func (d *DebugEndpoints) TraceBlockByHash(hash types.ArgHash, cfg *traceConfig) (interface{}, types.Error) {
+func (d *DebugEndpoints) TraceBlockByHash(ctx *types.RequestContext, hash types.ArgHash, cfg *traceConfig) (interface{}, types.Error) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		block, err := d.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {

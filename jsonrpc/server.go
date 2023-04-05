@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/didip/tollbooth/v6"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -265,15 +266,14 @@ func (s *Server) isSingleRequest(data []byte) (bool, types.Error) {
 	return x[0] == '{', nil
 }
 
-func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
+func (s *Server) handleSingleRequest(r *http.Request, w http.ResponseWriter, data []byte) int {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelSingle)
-	request, err := s.parseRequest(data)
+	request, err := s.parseRequest(r, data)
 	if err != nil {
 		handleError(w, err)
 		return 0
 	}
-	req := handleRequest{Request: request, HttpRequest: httpRequest}
-	response := s.handler.Handle(req)
+	response := s.handler.Handle(request)
 
 	respBytes, err := json.Marshal(response)
 	if err != nil {
@@ -289,9 +289,9 @@ func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseW
 	return len(respBytes)
 }
 
-func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
+func (s *Server) handleBatchRequest(r *http.Request, w http.ResponseWriter, data []byte) int {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelBatch)
-	requests, err := s.parseRequests(data)
+	requests, err := s.parseRequests(r, data)
 	if err != nil {
 		handleError(w, err)
 		return 0
@@ -300,8 +300,7 @@ func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWr
 	responses := make([]types.Response, 0, len(requests))
 
 	for _, request := range requests {
-		req := handleRequest{Request: request, HttpRequest: httpRequest}
-		response := s.handler.Handle(req)
+		response := s.handler.Handle(request)
 		responses = append(responses, response)
 	}
 
@@ -314,21 +313,33 @@ func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWr
 	return len(respBytes)
 }
 
-func (s *Server) parseRequest(data []byte) (types.Request, error) {
+func (s *Server) parseRequest(r *http.Request, data []byte) (types.Request, error) {
 	var req types.Request
 
 	if err := json.Unmarshal(data, &req); err != nil {
 		return types.Request{}, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
 	}
 
+	requestID := getRequestId(r)
+	requestContext := types.NewRequestContext(r.Context(), requestID)
+	requestContext.SetHttpRequest(r)
+	req.SetContext(requestContext)
+
 	return req, nil
 }
 
-func (s *Server) parseRequests(data []byte) ([]types.Request, error) {
+func (s *Server) parseRequests(r *http.Request, data []byte) ([]types.Request, error) {
 	var requests []types.Request
 
 	if err := json.Unmarshal(data, &requests); err != nil {
 		return nil, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
+	}
+
+	requestID := getRequestId(r)
+	requestContext := types.NewRequestContext(r.Context(), requestID)
+	for i := 0; i < len(requests); i++ {
+		requestContext.SetHttpRequest(r)
+		requests[i].SetContext(requestContext)
 	}
 
 	return requests, nil
@@ -422,4 +433,14 @@ func combinedLog(r *http.Request, start time.Time, httpStatus, dataLen int) {
 		r.Host,
 		r.UserAgent(),
 	)
+}
+
+func getRequestId(r *http.Request) string {
+	const requestIDKey = "X-Request-ID"
+	requestID := r.Header.Get(requestIDKey)
+	if requestID == "" {
+		requestID = uuid.NewString()
+	}
+
+	return requestID
 }

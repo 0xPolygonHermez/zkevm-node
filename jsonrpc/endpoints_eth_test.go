@@ -30,16 +30,17 @@ import (
 )
 
 var (
-	latest            = "latest"
-	blockNumOne       = big.NewInt(1)
-	blockNumOneUint64 = blockNumOne.Uint64()
-	blockNumTen       = big.NewInt(10)
-	blockNumTenUint64 = blockNumTen.Uint64()
-	addressArg        = common.HexToAddress("0x123")
-	keyArg            = common.HexToHash("0x123")
-	blockHash         = common.HexToHash("0x82ba516e76a4bfaba6d1d95c8ccde96e353ce3c683231d011021f43dee7b2d95")
-	blockRoot         = common.HexToHash("0xce3c683231d011021f43dee7b2d9582ba516e76a4bfaba6d1d95c8ccde96e353")
-	nilUint64         *uint64
+	latest                       = "latest"
+	blockNumOne                  = big.NewInt(1)
+	blockNumOneUint64            = blockNumOne.Uint64()
+	blockNumTen                  = big.NewInt(10)
+	blockNumTenUint64            = blockNumTen.Uint64()
+	addressArg                   = common.HexToAddress("0x123")
+	keyArg                       = common.HexToHash("0x123")
+	blockHash                    = common.HexToHash("0x82ba516e76a4bfaba6d1d95c8ccde96e353ce3c683231d011021f43dee7b2d95")
+	blockRoot                    = common.HexToHash("0xce3c683231d011021f43dee7b2d9582ba516e76a4bfaba6d1d95c8ccde96e353")
+	anythingOfTypeRequestContext = mock.AnythingOfType("*types.RequestContext")
+	nilUint64                    *uint64
 )
 
 func TestBlockNumber(t *testing.T) {
@@ -721,7 +722,7 @@ func TestGasPrice(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			m.Pool.
-				On("GetGasPrice", context.Background()).
+				On("GetGasPrice", anythingOfTypeRequestContext).
 				Return(testCase.gasPrice, testCase.error).
 				Once()
 

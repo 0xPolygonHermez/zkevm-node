@@ -13,12 +13,12 @@ type Web3Endpoints struct {
 }
 
 // ClientVersion returns the client version.
-func (e *Web3Endpoints) ClientVersion() (interface{}, types.Error) {
+func (e *Web3Endpoints) ClientVersion(ctx *types.RequestContext) (interface{}, types.Error) {
 	return zkevm.Version, nil
 }
 
 // Sha3 returns the keccak256 hash of the given data.
-func (e *Web3Endpoints) Sha3(data types.ArgBig) (interface{}, types.Error) {
+func (e *Web3Endpoints) Sha3(ctx *types.RequestContext, data types.ArgBig) (interface{}, types.Error) {
 	b := (*big.Int)(&data)
 	hash := sha3.NewLegacyKeccak256()
 	hash.Write(b.Bytes()) //nolint:errcheck,gosec

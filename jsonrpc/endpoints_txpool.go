@@ -29,7 +29,7 @@ type txPoolTransaction struct {
 
 // Content creates a response for txpool_content request.
 // See https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_content.
-func (e *TxPoolEndpoints) Content() (interface{}, types.Error) {
+func (e *TxPoolEndpoints) Content(ctx *types.RequestContext) (interface{}, types.Error) {
 	resp := contentResponse{
 		Pending: make(map[common.Address]map[uint64]*txPoolTransaction),
 		Queued:  make(map[common.Address]map[uint64]*txPoolTransaction),
