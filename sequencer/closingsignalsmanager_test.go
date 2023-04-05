@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
@@ -64,8 +66,14 @@ func setupTest(t *testing.T) {
 	s = localMtDBClientConn.GetState()
 	log.Infof("localStateDbClientConn state: %s", s.String())
 
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		panic(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
 	localStateTree := merkletree.NewStateTree(localMtDBServiceClient)
-	localState = state.NewState(stateCfg, state.NewPostgresStorage(localStateDb), localExecutorClient, localStateTree)
+	localState = state.NewState(stateCfg, state.NewPostgresStorage(localStateDb), localExecutorClient, localStateTree, eventLog)
 
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       150,

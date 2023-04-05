@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
@@ -18,8 +19,9 @@ import (
 type Sequencer struct {
 	cfg Config
 
-	pool  txPool
-	state stateInterface
+	pool     txPool
+	state    stateInterface
+	eventLog *event.EventLog
 	// dbManager dbManagerInterface
 	ethTxManager ethTxManager
 	etherman     etherman
@@ -83,7 +85,7 @@ type txToStore struct {
 }
 
 // New init sequencer
-func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager) (*Sequencer, error) {
+func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
@@ -96,6 +98,7 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 		etherman:     etherman,
 		ethTxManager: manager,
 		address:      addr,
+		eventLog:     eventLog,
 	}, nil
 }
 
@@ -152,7 +155,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints)
+	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints, s.eventLog)
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 

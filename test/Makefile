@@ -8,6 +8,7 @@ DOCKERCOMPOSEAPPBROADCAST := zkevm-broadcast
 DOCKERCOMPOSEAPPETHTXMANAGER := zkevm-eth-tx-manager
 DOCKERCOMPOSESTATEDB := zkevm-state-db
 DOCKERCOMPOSEPOOLDB := zkevm-pool-db
+DOCKERCOMPOSEEVENTDB := zkevm-event-db
 DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
 DOCKERCOMPOSEEXPLORERL1 := zkevm-explorer-l1
 DOCKERCOMPOSEEXPLORERL1DB := zkevm-explorer-l1-db
@@ -25,6 +26,7 @@ DOCKERCOMPOSEGRAFANA := grafana
 
 RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
 RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
+RUNEVENTDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEVENTDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
 RUNL2GASPRICER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPL2GASP)
 RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
@@ -55,6 +57,7 @@ RUN := $(DOCKERCOMPOSE) up -d
 
 STOPSTATEDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSESTATEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSESTATEDB)
 STOPPOOLDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPOOLDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPOOLDB)
+STOPEVENTDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEVENTDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEVENTDB)
 STOPSEQUENCER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
 STOPL2GASPRICER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPL2GASP) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPL2GASP)
 STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
@@ -87,6 +90,7 @@ STOP := $(DOCKERCOMPOSE) down --remove-orphans
 test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	$(RUNZKPROVER)
 	sleep 5
 	$(RUNZKPROVERMOCK)
@@ -100,6 +104,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -110,6 +115,7 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -120,6 +126,7 @@ test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -130,6 +137,7 @@ test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -140,6 +148,7 @@ test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 test-e2e-group-5: stop ## Runs group 5 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -150,6 +159,7 @@ test-e2e-group-5: stop ## Runs group 5 e2e tests checking race conditions
 test-e2e-group-6: stop ## Runs group 6 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -160,6 +170,7 @@ test-e2e-group-6: stop ## Runs group 6 e2e tests checking race conditions
 test-e2e-group-7: stop ## Runs group 7 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -171,6 +182,7 @@ benchmark-sequencer-eth-transfers: stop
 	$(RUNL1NETWORK)
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	$(RUNSYNC)
@@ -189,6 +201,7 @@ benchmark-sequencer-erc20-transfers: stop
 	$(RUNL1NETWORK)
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
 	$(RUNSYNC)
@@ -206,9 +219,11 @@ benchmark-sequencer-erc20-transfers: stop
 run-db: ## Runs the node database
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 
 .PHONY: stop-db
 stop-db: ## Stops the node database
+	$(STOPEVENTDB)
 	$(STOPPOOLDB)
 	$(STOPSTATEDB)
 
@@ -386,6 +401,7 @@ stop-approve-matic: ## Stops approve in node container
 run: ## Runs a full node
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
+	$(RUNEVENTDB)
 	$(RUNL1NETWORK)
 	sleep 1
 	$(RUNZKPROVER)
@@ -448,11 +464,11 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=StateInterface --dir=../jsonrpc/types --output=../jsonrpc/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../jsonrpc/mocks --outpkg=mocks --structname=DBTxMock --filename=mock_dbtx.go
 
-	mockery --name=workerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=WorkerMock --filename=mock_worker.go
-	mockery --name=stateInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=StateMock --filename=mock_state.go
+	mockery --name=workerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=WorkerMock --filename=mock_worker.go
+	mockery --name=stateInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=StateMock --filename=mock_state.go
 	mockery --name=txPool --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=PoolMock --filename=mock_pool.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../sequencer --outpkg=sequencer --structname=DbTxMock --filename=mock_dbtx.go
-	mockery --name=dbManagerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage  --structname=DbManagerMock --filename=mock_db_manager.go
+	mockery --name=dbManagerInterface --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=DbManagerMock --filename=mock_db_manager.go
 	mockery --name=etherman --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=EthermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=../sequencer/broadcast --output=../sequencer/broadcast/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 

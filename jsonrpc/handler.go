@@ -258,7 +258,7 @@ func (h *Handler) getFnHandler(req types.Request) (*serviceData, *funcData, type
 
 func validateFunc(funcName string, fv reflect.Value, isMethod bool) (inNum int, reqt []reflect.Type, err error) {
 	if funcName == "" {
-		err = fmt.Errorf("funcName cannot be empty")
+		err = fmt.Errorf("getBlockNumByArg cannot be empty")
 		return
 	}
 

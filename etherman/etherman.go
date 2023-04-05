@@ -231,15 +231,15 @@ func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, e
 		var fork state.ForkIDInterval
 		if i == 0 {
 			fork = state.ForkIDInterval{
-				FromBatchNumber: zkevmVersion.NumBatch,
+				FromBatchNumber: zkevmVersion.NumBatch + 1,
 				ToBatchNumber:   math.MaxUint64,
 				ForkId:          zkevmVersion.ForkID,
 				Version:         zkevmVersion.Version,
 			}
 		} else {
-			forks[len(forks)-1].ToBatchNumber = zkevmVersion.NumBatch - 1
+			forks[len(forks)-1].ToBatchNumber = zkevmVersion.NumBatch
 			fork = state.ForkIDInterval{
-				FromBatchNumber: zkevmVersion.NumBatch,
+				FromBatchNumber: zkevmVersion.NumBatch + 1,
 				ToBatchNumber:   math.MaxUint64,
 				ForkId:          zkevmVersion.ForkID,
 				Version:         zkevmVersion.Version,
@@ -564,7 +564,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 
 // GetSendSequenceFee get super/trusted sequencer fee
 func (etherMan *Client) GetSendSequenceFee(numBatches uint64) (*big.Int, error) {
-	f, err := etherMan.PoE.GetCurrentBatchFee(&bind.CallOpts{Pending: false})
+	f, err := etherMan.PoE.BatchFee(&bind.CallOpts{Pending: false})
 	if err != nil {
 		return nil, err
 	}

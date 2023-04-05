@@ -9,6 +9,8 @@ import (
 	"time"
 
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -17,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -94,8 +97,12 @@ func testNow() time.Time {
 }
 
 func TestNewFinalizer(t *testing.T) {
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	require.NoError(t, err)
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
 	// arrange and act
-	f = newFinalizer(cfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, txsStore, bc)
+	f = newFinalizer(cfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, txsStore, bc, eventLog)
 
 	// assert
 	assert.NotNil(t, f)

@@ -8,8 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -17,11 +19,14 @@ import (
 )
 
 const (
-	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
-	bridgeClaimMethodSignature = "0x2cffd02e"
+	// BridgeClaimMethodSignature for tracking BridgeClaimMethodSignature method
+	BridgeClaimMethodSignature = "0x2cffd02e"
 )
 
 var (
+	// ErrNotFound indicates an object has not been found for the search criteria used
+	ErrNotFound = errors.New("object not found")
+
 	// ErrAlreadyKnown is returned if the transactions is already contained
 	// within the pool.
 	ErrAlreadyKnown = errors.New("already known")
@@ -41,16 +46,18 @@ type Pool struct {
 	cfg                     Config
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
+	eventLog                *event.EventLog
 }
 
-type preexecutionResponse struct {
+type preExecutionResponse struct {
 	usedZkCounters state.ZKCounters
 	isOOC          bool
 	isOOG          bool
+	isReverted     bool
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
+func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64, eventLog *event.EventLog) *Pool {
 	return &Pool{
 		cfg:                     cfg,
 		storage:                 s,
@@ -58,6 +65,7 @@ func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Addre
 		l2BridgeAddr:            l2BridgeAddr,
 		chainID:                 chainID,
 		minSuggestedGasPriceMux: new(sync.RWMutex),
+		eventLog:                eventLog,
 	}
 }
 
@@ -90,46 +98,95 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
 	poolTx := NewTransaction(tx, ip, isWIP, p)
 	// Execute transaction to calculate its zkCounters
-	preexecutionResponse, err := p.PreExecuteTx(ctx, tx)
+	preExecutionResponse, err := p.PreExecuteTx(ctx, tx)
 	if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
+	}
 
-		if preexecutionResponse.isOOC {
-			event := &state.Event{
-				EventType: state.EventType_Prexecution_OOC,
-				Timestamp: time.Now(),
-				IP:        ip,
-				TxHash:    tx.Hash(),
-			}
+	if preExecutionResponse.isOOC {
+		event := &event.Event{
+			ReceivedAt:  time.Now(),
+			IPAddress:   ip,
+			Source:      event.Source_Node,
+			Component:   event.Component_Pool,
+			Level:       event.Level_Warning,
+			EventID:     event.EventID_PreexecutionOOC,
+			Description: tx.Hash().String(),
+		}
 
-			err := p.state.AddEvent(ctx, event, nil)
-			if err != nil {
-				log.Errorf("Error adding event: %v", err)
-			}
-			// Do not add tx to the pool
-			return fmt.Errorf("out of counters")
-		} else if preexecutionResponse.isOOG {
-			event := &state.Event{
-				EventType: state.EventType_Prexecution_OOG,
-				Timestamp: time.Now(),
-				IP:        ip,
-				TxHash:    tx.Hash(),
-			}
+		err := p.eventLog.LogEvent(ctx, event)
+		if err != nil {
+			log.Errorf("Error adding event: %v", err)
+		}
+		// Do not add tx to the pool
+		return fmt.Errorf("out of counters")
+	} else if preExecutionResponse.isOOG {
+		event := &event.Event{
+			ReceivedAt:  time.Now(),
+			IPAddress:   ip,
+			Source:      event.Source_Node,
+			Component:   event.Component_Pool,
+			Level:       event.Level_Warning,
+			EventID:     event.EventID_PreexecutionOOG,
+			Description: tx.Hash().String(),
+		}
 
-			err := p.state.AddEvent(ctx, event, nil)
-			if err != nil {
-				log.Errorf("Error adding event: %v", err)
-			}
+		err := p.eventLog.LogEvent(ctx, event)
+		if err != nil {
+			log.Errorf("Error adding event: %v", err)
 		}
 	}
-	poolTx.ZKCounters = preexecutionResponse.usedZkCounters
+
+	if poolTx.IsClaims {
+		isFreeTx := poolTx.GasPrice().Cmp(big.NewInt(0)) <= 0
+		if isFreeTx && preExecutionResponse.isReverted {
+			return fmt.Errorf("free claim reverted")
+		} else {
+			depositCount, err := p.extractDepositCountFromClaimTx(poolTx)
+			if err != nil {
+				return err
+			}
+			exists, err := p.storage.DepositCountExists(ctx, *depositCount)
+			if err != nil && !errors.Is(err, ErrNotFound) {
+				return err
+			}
+			if exists {
+				return fmt.Errorf("deposit count already exists")
+			}
+
+			poolTx.DepositCount = depositCount
+		}
+	}
+
+	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, *poolTx)
 }
 
+// extractDepositCountFromClaimTx reads the transaction data if this is a
+// proper defined claim transaction, extracts the deposit count parameter
+// from its data
+func (p *Pool) extractDepositCountFromClaimTx(poolTx *Transaction) (*uint64, error) {
+	data := make([]byte, len(poolTx.Data()))
+	copy(data, poolTx.Data())
+
+	const methodLength = 4
+	const skipParamsLength = 32 * 32
+	const depositCountLength = 32
+	const minimumDataLength = methodLength + skipParamsLength + depositCountLength
+	if len(data) < minimumDataLength {
+		return nil, fmt.Errorf("invalid data length")
+	}
+
+	depositCountBytes := data[methodLength+skipParamsLength : methodLength+skipParamsLength+depositCountLength]
+	depositCountBig := big.NewInt(0).SetBytes(depositCountBytes)
+	depositCount := depositCountBig.Uint64()
+	return &depositCount, nil
+}
+
 // PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preexecutionResponse, error) {
-	response := preexecutionResponse{usedZkCounters: state.ZKCounters{}, isOOC: false, isOOG: false}
+func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preExecutionResponse, error) {
+	response := preExecutionResponse{usedZkCounters: state.ZKCounters{}, isOOC: false, isOOG: false, isReverted: false}
 
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
@@ -139,9 +196,10 @@ func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preexecu
 	response.usedZkCounters = processBatchResponse.UsedZkCounters
 
 	if processBatchResponse.IsBatchProcessed {
-		if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 &&
-			executor.IsROMOutOfGasError(executor.RomErrorCode(processBatchResponse.Responses[0].RomError)) {
-			response.isOOC = true
+		if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
+			r := processBatchResponse.Responses[0]
+			response.isOOC = executor.IsROMOutOfGasError(executor.RomErrorCode(r.RomError))
+			response.isReverted = errors.Is(r.RomError, runtime.ErrExecutionReverted)
 		}
 	} else {
 		response.isOOG = !processBatchResponse.IsBatchProcessed
@@ -242,12 +300,12 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		return ErrInvalidSender
 	}
 
-	lastL2BlockNumber, err := p.state.GetLastL2BlockNumber(ctx, nil)
+	lastL2Block, err := p.state.GetLastL2Block(ctx, nil)
 	if err != nil {
 		return err
 	}
 
-	nonce, err := p.state.GetNonce(ctx, from, lastL2BlockNumber, nil)
+	nonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
 	if err != nil {
 		return err
 	}
@@ -258,7 +316,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	balance, err := p.state.GetBalance(ctx, from, lastL2BlockNumber, nil)
+	balance, err := p.state.GetBalance(ctx, from, lastL2Block.Root())
 	if err != nil {
 		return err
 	}

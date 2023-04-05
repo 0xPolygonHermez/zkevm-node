@@ -1357,8 +1357,9 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 			return nil, err
 		}
 
+		log.Topics = []common.Hash{}
 		if topic0 != nil {
-			log.Topics = []common.Hash{common.HexToHash(*topic0)}
+			log.Topics = append(log.Topics, common.HexToHash(*topic0))
 		}
 
 		if topic1 != nil {
@@ -2242,24 +2243,6 @@ func (p *PostgresStorage) GetLastTrustedForcedBatchNumber(ctx context.Context, d
 		return 0, ErrStateNotSynchronized
 	}
 	return forcedBatchNumber, err
-}
-
-// AddDebugInfo is used to store debug info useful during runtime
-func (p *PostgresStorage) AddDebugInfo(ctx context.Context, info *DebugInfo, dbTx pgx.Tx) error {
-	const insertDebugInfoSQL = "INSERT INTO state.debug (error_type, timestamp, payload) VALUES ($1, $2, $3)"
-
-	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, insertDebugInfoSQL, info.ErrorType, info.Timestamp, info.Payload)
-	return err
-}
-
-// AddEvent is used to store and event in the database
-func (p *PostgresStorage) AddEvent(ctx context.Context, event *Event, dbTx pgx.Tx) error {
-	const insertEventSQL = "INSERT INTO state.event (event_type, timestamp, ip, tx_hash, payload) VALUES ($1, $2, $3, $4, $5)"
-
-	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, insertEventSQL, event.EventType, event.Timestamp, event.IP, event.TxHash.String(), event.Payload)
-	return err
 }
 
 // AddTrustedReorg is used to store trusted reorgs

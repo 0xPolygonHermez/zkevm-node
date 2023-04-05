@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
@@ -50,6 +51,7 @@ type finalizer struct {
 	nextSendingToL1Deadline   int64
 	nextSendingToL1TimeoutMux *sync.RWMutex
 	handlingL2Reorg           bool
+	eventLog                  *event.EventLog
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -80,6 +82,7 @@ func newFinalizer(
 	closingSignalCh ClosingSignalCh,
 	txsStore TxsStore,
 	batchConstraints batchConstraints,
+	eventLog *event.EventLog,
 ) *finalizer {
 	return &finalizer{
 		cfg:                cfg,
@@ -104,6 +107,7 @@ func newFinalizer(
 		nextForcedBatchesMux:      new(sync.RWMutex),
 		nextSendingToL1Deadline:   0,
 		nextSendingToL1TimeoutMux: new(sync.RWMutex),
+		eventLog:                  eventLog,
 	}
 }
 
@@ -254,14 +258,18 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 }
 
 func (f *finalizer) halt(ctx context.Context, err error) {
-	debugInfo := &state.DebugInfo{
-		ErrorType: state.DebugInfoErrorType_FINALIZER_HALT,
-		Timestamp: time.Now(),
-		Payload:   err.Error(),
+	event := &event.Event{
+		ReceivedAt:  time.Now(),
+		Source:      event.Source_Node,
+		Component:   event.Component_Sequencer,
+		Level:       event.Level_Critical,
+		EventID:     event.EventID_FinalizerHalt,
+		Description: fmt.Sprintf("finalizer halted due to error: %s", err),
 	}
-	debugInfoErr := f.dbManager.AddDebugInfo(ctx, debugInfo, nil)
-	if debugInfoErr != nil {
-		log.Errorf("error storing finalizer halt debug info: %v", debugInfoErr)
+
+	eventErr := f.eventLog.LogEvent(ctx, event)
+	if eventErr != nil {
+		log.Errorf("error storing finalizer halt event: %v", eventErr)
 	}
 
 	for {
@@ -733,18 +741,21 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 	}
 
 	if !result.IsBatchProcessed {
-		timestamp := time.Now()
 		log.Errorf("failed to process batch %v because OutOfCounters", batch.BatchNumber)
 		payload, err := json.Marshal(processRequest)
 		if err != nil {
 			log.Errorf("error marshaling payload: %v", err)
 		} else {
-			debugInfo := &state.DebugInfo{
-				ErrorType: state.DebugInfoErrorType_OOC_ERROR_ON_REPROCESS_FULL_BATCH,
-				Timestamp: timestamp,
-				Payload:   string(payload),
+			event := &event.Event{
+				ReceivedAt:  time.Now(),
+				Source:      event.Source_Node,
+				Component:   event.Component_Sequencer,
+				Level:       event.Level_Critical,
+				EventID:     event.EventID_ReprocessFullBatchOOC,
+				Description: string(payload),
+				Json:        processRequest,
 			}
-			err = f.dbManager.AddDebugInfo(ctx, debugInfo, nil)
+			err = f.eventLog.LogEvent(ctx, event)
 			if err != nil {
 				log.Errorf("error storing payload: %v", err)
 			}
@@ -816,9 +827,6 @@ func (f *finalizer) checkRemainingResources(ctx context.Context, result *state.P
 		bytes:      uint64(len(tx.RawTx)),
 	}
 
-	// Log an event in case the TX consumed more than the double of the expected for a zkCounter
-	f.checkZKCounterConsumption(ctx, result.UsedZkCounters, tx)
-
 	err := f.batch.remainingResources.sub(usedResources)
 	if err != nil {
 		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
@@ -829,49 +837,6 @@ func (f *finalizer) checkRemainingResources(ctx context.Context, result *state.P
 	}
 
 	return nil
-}
-
-func (f *finalizer) checkZKCounterConsumption(ctx context.Context, zkCounters state.ZKCounters, tx *TxTracker) {
-	events := ""
-
-	if zkCounters.CumulativeGasUsed > tx.BatchResources.zKCounters.CumulativeGasUsed*2 {
-		events += "CumulativeGasUsed "
-	}
-	if zkCounters.UsedKeccakHashes > tx.BatchResources.zKCounters.UsedKeccakHashes*2 {
-		events += "UsedKeccakHashes "
-	}
-	if zkCounters.UsedPoseidonHashes > tx.BatchResources.zKCounters.UsedPoseidonHashes*2 {
-		events += "UsedPoseidonHashes "
-	}
-	if zkCounters.UsedPoseidonPaddings > tx.BatchResources.zKCounters.UsedPoseidonPaddings*2 {
-		events += "UsedPoseidonPaddings "
-	}
-	if zkCounters.UsedMemAligns > tx.BatchResources.zKCounters.UsedMemAligns*2 {
-		events += "UsedMemAligns "
-	}
-	if zkCounters.UsedArithmetics > tx.BatchResources.zKCounters.UsedArithmetics*2 {
-		events += "UsedArithmetics "
-	}
-	if zkCounters.UsedBinaries > tx.BatchResources.zKCounters.UsedBinaries*2 {
-		events += "UsedBinaries "
-	}
-	if zkCounters.UsedSteps > tx.BatchResources.zKCounters.UsedSteps*2 {
-		events += "UsedSteps "
-	}
-
-	if events != "" {
-		event := &state.Event{
-			EventType: state.EventType_ZKCounters_Diff + " " + events,
-			Timestamp: time.Now(),
-			IP:        tx.IP,
-			TxHash:    tx.Hash,
-		}
-
-		err := f.dbManager.AddEvent(ctx, event, nil)
-		if err != nil {
-			log.Errorf("Error adding event: %v", err)
-		}
-	}
 }
 
 // isBatchAlmostFull checks if the current batch remaining resources are under the constraints threshold for most efficient moment to close a batch

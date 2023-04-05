@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -70,6 +71,7 @@ type State struct {
 	*PostgresStorage
 	executorClient pb.ExecutorServiceClient
 	tree           *merkletree.StateTree
+	eventLog       *event.EventLog
 
 	lastL2BlockSeen         types.Block
 	newL2BlockEvents        chan NewL2BlockEvent
@@ -77,7 +79,7 @@ type State struct {
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree) *State {
+func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog) *State {
 	once.Do(func() {
 		metrics.Register()
 	})
@@ -87,6 +89,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorSe
 		PostgresStorage:         storage,
 		executorClient:          executorClient,
 		tree:                    stateTree,
+		eventLog:                eventLog,
 		newL2BlockEvents:        make(chan NewL2BlockEvent),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 	}
@@ -123,33 +126,18 @@ func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 }
 
 // GetBalance from a given address
-func (s *State) GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
-	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.tree.GetBalance(ctx, address, l2Block.Root().Bytes())
+func (s *State) GetBalance(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
+	return s.tree.GetBalance(ctx, address, root.Bytes())
 }
 
 // GetCode from a given address
-func (s *State) GetCode(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) ([]byte, error) {
-	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.tree.GetCode(ctx, address, l2Block.Root().Bytes())
+func (s *State) GetCode(ctx context.Context, address common.Address, root common.Hash) ([]byte, error) {
+	return s.tree.GetCode(ctx, address, root.Bytes())
 }
 
 // GetNonce returns the nonce of the given account at the given block number
-func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		return 0, err
-	}
-
-	nonce, err := s.tree.GetNonce(ctx, address, l2Block.Root().Bytes())
+func (s *State) GetNonce(ctx context.Context, address common.Address, root common.Hash) (uint64, error) {
+	nonce, err := s.tree.GetNonce(ctx, address, root.Bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -166,17 +154,12 @@ func (s *State) GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash,
 }
 
 // GetStorageAt from a given address
-func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
-	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.tree.GetStorageAt(ctx, address, position, l2Block.Root().Bytes())
+func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error) {
+	return s.tree.GetStorageAt(ctx, address, position, root.Bytes())
 }
 
 // EstimateGas for a transaction
-func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
 	const ethTransferGas = 21000
 
 	var lowEnd uint64
@@ -184,7 +167,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	ctx := context.Background()
 
-	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, &l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
 	if err != nil {
 		return 0, err
 	}
@@ -310,7 +293,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		gasUsed = processBatchResponse.Responses[0].GasUsed
 		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
-			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+			s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, err
 		}
 
@@ -570,7 +553,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 		return nil, err
 	} else if processBatchResponse != nil && processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 	}
 
 	return processBatchResponse, err
@@ -655,7 +638,7 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 		log.Errorf("Error s.executorClient.ProcessBatch response: %v", res)
 	} else if res.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(res.Error)
-		s.LogExecutorError(res.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, res.Error, processBatchRequest)
 	}
 	elapsed := time.Since(now)
 	if caller != DiscardCallerLabel {
@@ -945,7 +928,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
 	endTime := time.Now()
@@ -1207,12 +1190,7 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 		return nil, err
 	}
 
-	lastL2BlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
-	if err != nil {
-		return nil, err
-	}
-
-	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, lastL2BlockNumber, false, dbTx)
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, nil, false, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -1221,7 +1199,7 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
 	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 	if err != nil {
@@ -1245,23 +1223,26 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
-	lastBatches, _, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, &l2BlockNumber, two, dbTx)
+func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
 	if err != nil {
 		return nil, err
 	}
 
-	l2Block, err := s.GetL2BlockByNumber(ctx, l2BlockNumber, dbTx)
-	if err != nil {
-		log.Errorf("error getting l2 block", err)
-		return nil, err
+	stateRoot := l2BlockStateRoot
+	if l2BlockNumber != nil {
+		l2Block, err := s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
+		if err != nil {
+			return nil, err
+		}
+		stateRoot = l2Block.Root()
 	}
 
-	nonce, err := s.tree.GetNonce(ctx, senderAddress, l2Block.Root().Bytes())
+	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
 	if err != nil {
 		return nil, err
 	}
-	forcedNonce := nonce.Uint64()
+	nonce := loadedNonce.Uint64()
 
 	// Get latest batch from the database to get globalExitRoot and Timestamp
 	lastBatch := lastBatches[0]
@@ -1272,7 +1253,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		previousBatch = lastBatches[1]
 	}
 
-	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &forcedNonce)
+	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce)
 	if err != nil {
 		log.Errorf("error encoding unsigned transaction ", err)
 		return nil, err
@@ -1284,7 +1265,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		OldBatchNum:      lastBatch.BatchNumber,
 		BatchL2Data:      batchL2Data,
 		From:             senderAddress.String(),
-		OldStateRoot:     l2Block.Root().Bytes(),
+		OldStateRoot:     stateRoot.Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
@@ -1312,11 +1293,13 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
+		// Log this error as an executor unspecified error
+		s.eventLog.LogExecutorError(ctx, pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
 		log.Errorf("error processing unsigned transaction ", err)
 		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
 
@@ -1726,26 +1709,6 @@ func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Addres
 // GetNonceByStateRoot gets nonce from the MT Service using the provided state root
 func (s *State) GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	return s.tree.GetNonce(ctx, address, root.Bytes())
-}
-
-// LogExecutorError is used to store Executor error for runtime debugging
-func (s *State) LogExecutorError(responseError pb.ExecutorError, processBatchRequest *pb.ProcessBatchRequest) {
-	timestamp := time.Now()
-	log.Errorf("error found in the executor: %v at %v", responseError, timestamp)
-	payload, err := json.Marshal(processBatchRequest)
-	if err != nil {
-		log.Errorf("error marshaling payload: %v", err)
-	} else {
-		debugInfo := &DebugInfo{
-			ErrorType: DebugInfoErrorType_EXECUTOR_ERROR + " " + responseError.String(),
-			Timestamp: timestamp,
-			Payload:   string(payload),
-		}
-		err = s.AddDebugInfo(context.Background(), debugInfo, nil)
-		if err != nil {
-			log.Errorf("error storing payload: %v", err)
-		}
-	}
 }
 
 // GetForkIdByBatchNumber returns the fork id for the given batch number

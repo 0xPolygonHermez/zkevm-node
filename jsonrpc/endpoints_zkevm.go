@@ -66,7 +66,9 @@ func (z *ZKEVMEndpoints) IsBlockVirtualized(blockNumber types.ArgUint64) (interf
 func (z *ZKEVMEndpoints) BatchNumberByBlockNumber(blockNumber types.ArgUint64) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		batchNum, err := z.state.BatchNumberByL2BlockNumber(ctx, uint64(blockNumber), dbTx)
-		if err != nil {
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
 			const errorMessage = "failed to get batch number from block number"
 			log.Errorf("%v: %v", errorMessage, err.Error())
 			return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
@@ -152,8 +154,15 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
 		}
 
+		ger, err := z.state.GetExitRootByGlobalExitRoot(ctx, batch.GlobalExitRoot, dbTx)
+		if err != nil && !errors.Is(err, state.ErrNotFound) {
+			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load full GER from state by number %v", batchNumber), err)
+		} else if errors.Is(err, state.ErrNotFound) {
+			ger = &state.GlobalExitRoot{}
+		}
+
 		batch.Transactions = txs
-		rpcBatch := types.NewBatch(batch, virtualBatch, verifiedBatch, receipts, fullTx)
+		rpcBatch := types.NewBatch(batch, virtualBatch, verifiedBatch, receipts, fullTx, ger)
 
 		return rpcBatch, nil
 	})

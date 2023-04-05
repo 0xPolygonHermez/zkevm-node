@@ -846,7 +846,7 @@
 	},
 	{
 		"inputs": [],
-		"name": "getCurrentBatchFee",
+		"name": "getForcedBatchFee",
 		"outputs": [
 			{
 				"internalType": "uint256",

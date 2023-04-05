@@ -189,12 +189,12 @@ type TxArgs struct {
 }
 
 // ToTransaction transforms txnArgs into a Transaction
-func (args *TxArgs) ToTransaction(ctx context.Context, st StateInterface, blockNumber, maxCumulativeGasUsed uint64, defaultSenderAddress common.Address, dbTx pgx.Tx) (common.Address, *types.Transaction, error) {
+func (args *TxArgs) ToTransaction(ctx context.Context, st StateInterface, maxCumulativeGasUsed uint64, root common.Hash, defaultSenderAddress common.Address, dbTx pgx.Tx) (common.Address, *types.Transaction, error) {
 	sender := defaultSenderAddress
 	nonce := uint64(0)
 	if args.From != nil && *args.From != state.ZeroAddress {
 		sender = *args.From
-		n, err := st.GetNonce(ctx, sender, blockNumber, dbTx)
+		n, err := st.GetNonce(ctx, sender, root)
 		if err != nil {
 			return common.Address{}, nil, err
 		}
@@ -329,6 +329,8 @@ type Batch struct {
 	Coinbase            common.Address      `json:"coinbase"`
 	StateRoot           common.Hash         `json:"stateRoot"`
 	GlobalExitRoot      common.Hash         `json:"globalExitRoot"`
+	MainnetExitRoot     common.Hash         `json:"mainnetExitRoot"`
+	RollupExitRoot      common.Hash         `json:"rollupExitRoot"`
 	LocalExitRoot       common.Hash         `json:"localExitRoot"`
 	AccInputHash        common.Hash         `json:"accInputHash"`
 	Timestamp           ArgUint64           `json:"timestamp"`
@@ -338,15 +340,17 @@ type Batch struct {
 }
 
 // NewBatch creates a Batch instance
-func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, receipts []types.Receipt, fullTx bool) *Batch {
+func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, receipts []types.Receipt, fullTx bool, ger *state.GlobalExitRoot) *Batch {
 	res := &Batch{
-		Number:         ArgUint64(batch.BatchNumber),
-		GlobalExitRoot: batch.GlobalExitRoot,
-		AccInputHash:   batch.AccInputHash,
-		Timestamp:      ArgUint64(batch.Timestamp.Unix()),
-		StateRoot:      batch.StateRoot,
-		Coinbase:       batch.Coinbase,
-		LocalExitRoot:  batch.LocalExitRoot,
+		Number:          ArgUint64(batch.BatchNumber),
+		GlobalExitRoot:  batch.GlobalExitRoot,
+		MainnetExitRoot: ger.MainnetExitRoot,
+		RollupExitRoot:  ger.RollupExitRoot,
+		AccInputHash:    batch.AccInputHash,
+		Timestamp:       ArgUint64(batch.Timestamp.Unix()),
+		StateRoot:       batch.StateRoot,
+		Coinbase:        batch.Coinbase,
+		LocalExitRoot:   batch.LocalExitRoot,
 	}
 
 	if virtualBatch != nil {
