@@ -1,9 +1,10 @@
 package aggregator
 
 import (
-	"context"
 	"math/big"
 	"time"
+
+	"github.com/0xPolygonHermez/zkevm-node/context"
 )
 
 // TxProfitabilityCheckerType checks profitability of batch validation
@@ -33,7 +34,7 @@ func NewTxProfitabilityCheckerBase(state stateInterface, interval time.Duration,
 }
 
 // IsProfitable checks matic collateral with min reward
-func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, maticCollateral *big.Int) (bool, error) {
+func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx *context.RequestContext, maticCollateral *big.Int) (bool, error) {
 	//if pc.IntervalAfterWhichBatchSentAnyway != 0 {
 	//	ok, err := isConsolidatedBatchAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
 	//	if err != nil {
@@ -62,7 +63,7 @@ func NewTxProfitabilityCheckerAcceptAll(state stateInterface, interval time.Dura
 }
 
 // IsProfitable validate batch anyway and don't check anything
-func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, maticCollateral *big.Int) (bool, error) {
+func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx *context.RequestContext, maticCollateral *big.Int) (bool, error) {
 	//if pc.IntervalAfterWhichBatchSentAnyway != 0 {
 	//	ok, err := isConsolidatedBatchAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
 	//	if err != nil {

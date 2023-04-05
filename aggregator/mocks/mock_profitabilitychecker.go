@@ -3,9 +3,9 @@
 package mocks
 
 import (
-	context "context"
 	big "math/big"
 
+	context "github.com/0xPolygonHermez/zkevm-node/context"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -15,21 +15,21 @@ type ProfitabilityCheckerMock struct {
 }
 
 // IsProfitable provides a mock function with given fields: _a0, _a1
-func (_m *ProfitabilityCheckerMock) IsProfitable(_a0 context.Context, _a1 *big.Int) (bool, error) {
+func (_m *ProfitabilityCheckerMock) IsProfitable(_a0 *context.RequestContext, _a1 *big.Int) (bool, error) {
 	ret := _m.Called(_a0, _a1)
 
 	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) (bool, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, *big.Int) (bool, error)); ok {
 		return rf(_a0, _a1)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) bool); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, *big.Int) bool); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *big.Int) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext, *big.Int) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)

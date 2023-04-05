@@ -1,11 +1,11 @@
 package e2e
 
 import (
-	"context"
 	"math/big"
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"

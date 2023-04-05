@@ -5,12 +5,12 @@
 package ethtxmanager
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum"
@@ -43,7 +43,7 @@ var (
 
 // Client for eth tx manager
 type Client struct {
-	ctx    context.Context
+	ctx    *context.RequestContext
 	cancel context.CancelFunc
 
 	cfg      Config
@@ -65,7 +65,7 @@ func New(cfg Config, ethMan ethermanInterface, storage storageInterface, state s
 }
 
 // Add a transaction to be sent and monitored
-func (c *Client) Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error {
+func (c *Client) Add(ctx *context.RequestContext, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error {
 	// get next nonce
 	nonce, err := c.etherman.CurrentNonce(ctx, from)
 	if err != nil {
@@ -120,7 +120,7 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 // if the statuses are empty, all the statuses are considered.
 //
 // the slice is returned is in order by created_at field ascending
-func (c *Client) ResultsByStatus(ctx context.Context, owner string, statuses []MonitoredTxStatus, dbTx pgx.Tx) ([]MonitoredTxResult, error) {
+func (c *Client) ResultsByStatus(ctx *context.RequestContext, owner string, statuses []MonitoredTxStatus, dbTx pgx.Tx) ([]MonitoredTxResult, error) {
 	mTxs, err := c.storage.GetByStatus(ctx, &owner, statuses, dbTx)
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (c *Client) ResultsByStatus(ctx context.Context, owner string, statuses []M
 }
 
 // Result returns the current result of the transaction execution with all the details
-func (c *Client) Result(ctx context.Context, owner, id string, dbTx pgx.Tx) (MonitoredTxResult, error) {
+func (c *Client) Result(ctx *context.RequestContext, owner, id string, dbTx pgx.Tx) (MonitoredTxResult, error) {
 	mTx, err := c.storage.Get(ctx, owner, id, dbTx)
 	if err != nil {
 		return MonitoredTxResult{}, err
@@ -152,7 +152,7 @@ func (c *Client) Result(ctx context.Context, owner, id string, dbTx pgx.Tx) (Mon
 // SetStatusDone sets the status of a monitored tx to MonitoredStatusDone.
 // this method is provided to the callers to decide when a monitored tx should be
 // considered done, so they can start to ignore it when querying it by Status.
-func (c *Client) setStatusDone(ctx context.Context, owner, id string, dbTx pgx.Tx) error {
+func (c *Client) setStatusDone(ctx *context.RequestContext, owner, id string, dbTx pgx.Tx) error {
 	mTx, err := c.storage.Get(ctx, owner, id, nil)
 	if err != nil {
 		return err
@@ -163,7 +163,7 @@ func (c *Client) setStatusDone(ctx context.Context, owner, id string, dbTx pgx.T
 	return c.storage.Update(ctx, mTx, dbTx)
 }
 
-func (c *Client) buildResult(ctx context.Context, mTx monitoredTx) (MonitoredTxResult, error) {
+func (c *Client) buildResult(ctx *context.RequestContext, mTx monitoredTx) (MonitoredTxResult, error) {
 	history := mTx.historyHashSlice()
 	txs := make(map[common.Hash]TxResult, len(history))
 
@@ -204,7 +204,8 @@ func (c *Client) buildResult(ctx context.Context, mTx monitoredTx) (MonitoredTxR
 // get mined
 func (c *Client) Start() {
 	// infinite loop to manage txs as they arrive
-	c.ctx, c.cancel = context.WithCancel(context.Background())
+	c.ctx = context.Background()
+	c.cancel = c.ctx.WithCancel()
 
 	for {
 		select {
@@ -226,7 +227,7 @@ func (c *Client) Stop() {
 
 // Reorg updates all monitored txs from provided block number until the last one to
 // Reorged status, allowing it to be reprocessed by the tx monitoring
-func (c *Client) Reorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx) error {
+func (c *Client) Reorg(ctx *context.RequestContext, fromBlockNumber uint64, dbTx pgx.Tx) error {
 	log.Infof("processing reorg from block: %v", fromBlockNumber)
 	mTxs, err := c.storage.GetByBlock(ctx, &fromBlockNumber, nil, dbTx)
 	if err != nil {
@@ -250,7 +251,7 @@ func (c *Client) Reorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx)
 }
 
 // monitorTxs process all pending monitored tx
-func (c *Client) monitorTxs(ctx context.Context) error {
+func (c *Client) monitorTxs(ctx *context.RequestContext) error {
 	statusesFilter := []MonitoredTxStatus{MonitoredTxStatusCreated, MonitoredTxStatusSent, MonitoredTxStatusReorged}
 	mTxs, err := c.storage.GetByStatus(ctx, nil, statusesFilter, nil)
 	if err != nil {
@@ -474,7 +475,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 // shouldContinueToMonitorThisTx checks the the tx receipt and decides if it should
 // continue or not to monitor the monitored tx related to the tx from this receipt
-func (c *Client) shouldContinueToMonitorThisTx(ctx context.Context, receipt *types.Receipt) bool {
+func (c *Client) shouldContinueToMonitorThisTx(ctx *context.RequestContext, receipt *types.Receipt) bool {
 	// if the receipt has a is successful result, stop monitoring
 	if receipt.Status == types.ReceiptStatusSuccessful {
 		return false
@@ -501,7 +502,7 @@ func (c *Client) shouldContinueToMonitorThisTx(ctx context.Context, receipt *typ
 // ReviewMonitoredTx checks if some field needs to be updated
 // accordingly to the current information stored and the current
 // state of the blockchain
-func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error {
+func (c *Client) ReviewMonitoredTx(ctx *context.RequestContext, mTx *monitoredTx) error {
 	mTxLog := log.WithFields("monitoredTx", mTx.id)
 	mTxLog.Debug("reviewing")
 	// get gas
@@ -540,7 +541,7 @@ func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error 
 // IMPORTANT: Nonce is reviewed apart from the other fields because it is a very
 // sensible information and can make duplicated data to be sent to the blockchain,
 // causing possible side effects and wasting resources on taxes.
-func (c *Client) ReviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx) error {
+func (c *Client) ReviewMonitoredTxNonce(ctx *context.RequestContext, mTx *monitoredTx) error {
 	mTxLog := log.WithFields("monitoredTx", mTx.id)
 	mTxLog.Debug("reviewing nonce")
 	nonce, err := c.etherman.CurrentNonce(ctx, mTx.from)
@@ -572,7 +573,7 @@ type ResultHandler func(MonitoredTxResult, pgx.Tx)
 // and wait until all of them are either confirmed or failed before continuing
 //
 // for the confirmed and failed ones, the resultHandler will be triggered
-func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, resultHandler ResultHandler, dbTx pgx.Tx) {
+func (c *Client) ProcessPendingMonitoredTxs(ctx *context.RequestContext, owner string, resultHandler ResultHandler, dbTx pgx.Tx) {
 	statusesFilter := []MonitoredTxStatus{
 		MonitoredTxStatusCreated,
 		MonitoredTxStatusSent,

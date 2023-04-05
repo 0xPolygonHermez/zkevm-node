@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -53,7 +53,7 @@ func NewServer(
 	storage storageInterface,
 	apis map[string]bool,
 ) *Server {
-	s.PrepareWebSocket()
+	s.PrepareToHandleNewL2BlockEvents()
 	handler := newJSONRpcHandler()
 
 	if _, ok := apis[APIEth]; ok {
@@ -182,8 +182,9 @@ func (s *Server) startWS() {
 
 // Stop shutdown the rpc server
 func (s *Server) Stop() error {
+	ctx := context.Background()
 	if s.srv != nil {
-		if err := s.srv.Shutdown(context.Background()); err != nil {
+		if err := s.srv.Shutdown(ctx); err != nil {
 			return err
 		}
 
@@ -194,7 +195,7 @@ func (s *Server) Stop() error {
 	}
 
 	if s.wsSrv != nil {
-		if err := s.wsSrv.Shutdown(context.Background()); err != nil {
+		if err := s.wsSrv.Shutdown(ctx); err != nil {
 			return err
 		}
 
@@ -321,7 +322,7 @@ func (s *Server) parseRequest(r *http.Request, data []byte) (types.Request, erro
 	}
 
 	requestID := getRequestId(r)
-	requestContext := types.NewRequestContext(r.Context(), requestID)
+	requestContext := context.NewRequestContext(r.Context(), requestID)
 	requestContext.SetHttpRequest(r)
 	req.SetContext(requestContext)
 
@@ -336,7 +337,7 @@ func (s *Server) parseRequests(r *http.Request, data []byte) ([]types.Request, e
 	}
 
 	requestID := getRequestId(r)
-	requestContext := types.NewRequestContext(r.Context(), requestID)
+	requestContext := context.NewRequestContext(r.Context(), requestID)
 	for i := 0; i < len(requests); i++ {
 		requestContext.SetHttpRequest(r)
 		requests[i].SetContext(requestContext)

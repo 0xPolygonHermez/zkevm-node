@@ -1,12 +1,12 @@
 package gasprice
 
 import (
-	"context"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 

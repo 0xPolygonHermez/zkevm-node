@@ -1,9 +1,9 @@
 package gasprice
 
 import (
-	"context"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
@@ -12,17 +12,17 @@ import (
 
 // pool contains methods to interact with the tx pool.
 type pool interface {
-	SetGasPrice(ctx context.Context, gasPrice uint64) error
-	GetGasPrice(ctx context.Context) (uint64, error)
+	SetGasPrice(ctx *context.RequestContext, gasPrice uint64) error
+	GetGasPrice(ctx *context.RequestContext) (uint64, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetTxsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
+	GetLastL2BlockNumber(ctx *context.RequestContext, dbTx pgx.Tx) (uint64, error)
+	GetTxsByBlockNumber(ctx *context.RequestContext, blockNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
 }
 
 // ethermanInterface contains the methods required to interact with ethereum.
 type ethermanInterface interface {
-	GetL1GasPrice(ctx context.Context) *big.Int
+	GetL1GasPrice(ctx *context.RequestContext) *big.Int
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/urfave/cli/v2"
@@ -56,7 +57,8 @@ func approveTokens(ctx *cli.Context) error {
 		return err
 	}
 
-	tx, err := etherman.ApproveMatic(ctx.Context, auth.From, amount, c.Etherman.PoEAddr)
+	wrappedCtx := context.Wrap(ctx.Context)
+	tx, err := etherman.ApproveMatic(wrappedCtx, auth.From, amount, c.Etherman.PoEAddr)
 	if err != nil {
 		return err
 	}

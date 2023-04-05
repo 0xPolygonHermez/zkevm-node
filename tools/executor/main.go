@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -9,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -73,7 +73,7 @@ func main() {
 	}
 }
 
-func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error {
+func runTestCase(ctx *context.RequestContext, genesis []genesisItem, tc testCase) error {
 	// DB connection
 	dbConfig := db.Config{
 		User:      testutils.GetEnv("PGUSER", "prover_user"),

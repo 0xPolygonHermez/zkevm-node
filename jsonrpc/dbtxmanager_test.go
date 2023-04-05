@@ -1,10 +1,10 @@
 package jsonrpc
 
 import (
-	"context"
 	"errors"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/mocks"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/jackc/pgx/v4"
@@ -23,61 +23,61 @@ func TestNewDbTxScope(t *testing.T) {
 	testCases := []testCase{
 		{
 			Name: "Run scoped func commits DB tx",
-			Fn: func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+			Fn: func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 				return 1, nil
 			},
 			ExpectedResult: 1,
 			ExpectedError:  nil,
 			SetupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock) {
-				d.On("Commit", context.Background()).Return(nil).Once()
-				s.On("BeginStateTransaction", context.Background()).Return(d, nil).Once()
+				d.On("Commit", anythingOfTypeRequestContext).Return(nil).Once()
+				s.On("BeginStateTransaction", anythingOfTypeRequestContext).Return(d, nil).Once()
 			},
 		},
 		{
 			Name: "Run scoped func rollbacks DB tx",
-			Fn: func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+			Fn: func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 				return nil, types.NewRPCError(types.DefaultErrorCode, "func returned an error")
 			},
 			ExpectedResult: nil,
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "func returned an error"),
 			SetupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock) {
-				d.On("Rollback", context.Background()).Return(nil).Once()
-				s.On("BeginStateTransaction", context.Background()).Return(d, nil).Once()
+				d.On("Rollback", anythingOfTypeRequestContext).Return(nil).Once()
+				s.On("BeginStateTransaction", anythingOfTypeRequestContext).Return(d, nil).Once()
 			},
 		},
 		{
 			Name: "Run scoped func but fails create a db tx",
-			Fn: func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+			Fn: func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 				return nil, nil
 			},
 			ExpectedResult: nil,
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to connect to the state"),
 			SetupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock) {
-				s.On("BeginStateTransaction", context.Background()).Return(nil, errors.New("failed to create db tx")).Once()
+				s.On("BeginStateTransaction", anythingOfTypeRequestContext).Return(nil, errors.New("failed to create db tx")).Once()
 			},
 		},
 		{
 			Name: "Run scoped func but fails to commit DB tx",
-			Fn: func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+			Fn: func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 				return 1, nil
 			},
 			ExpectedResult: nil,
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to commit db transaction"),
 			SetupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock) {
-				d.On("Commit", context.Background()).Return(errors.New("failed to commit db tx")).Once()
-				s.On("BeginStateTransaction", context.Background()).Return(d, nil).Once()
+				d.On("Commit", anythingOfTypeRequestContext).Return(errors.New("failed to commit db tx")).Once()
+				s.On("BeginStateTransaction", anythingOfTypeRequestContext).Return(d, nil).Once()
 			},
 		},
 		{
 			Name: "Run scoped func but fails to rollbacks DB tx",
-			Fn: func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+			Fn: func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 				return nil, types.NewRPCError(types.DefaultErrorCode, "func returned an error")
 			},
 			ExpectedResult: nil,
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to rollback db transaction"),
 			SetupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock) {
-				d.On("Rollback", context.Background()).Return(errors.New("failed to rollback db tx")).Once()
-				s.On("BeginStateTransaction", context.Background()).Return(d, nil).Once()
+				d.On("Rollback", anythingOfTypeRequestContext).Return(errors.New("failed to rollback db tx")).Once()
+				s.On("BeginStateTransaction", anythingOfTypeRequestContext).Return(d, nil).Once()
 			},
 		},
 	}
@@ -90,7 +90,7 @@ func TestNewDbTxScope(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(s, d)
-			ctx := types.NewRequestContext(context.Background(), "dbTxManagerTest")
+			ctx := context.Background()
 			result, err := dbTxManager.NewDbTxScope(ctx, s, tc.Fn)
 			assert.Equal(t, tc.ExpectedResult, result)
 			assert.Equal(t, tc.ExpectedError, err)

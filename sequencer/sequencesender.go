@@ -1,11 +1,11 @@
 package sequencer
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -23,7 +23,7 @@ const (
 	monitoredIDFormat = "sequence-from-%v-to-%v"
 )
 
-func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+func (s *Sequencer) tryToSendSequence(ctx *context.RequestContext, ticker *time.Ticker) {
 	retry := false
 	// process monitored sequences before starting a next cycle
 	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
@@ -92,7 +92,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 // getSequencesToSend generates an array of sequences to be send to L1.
 // If the array is empty, it doesn't necessarily mean that there are no sequences to be sent,
 // it could be that it's not worth it to do so yet.
-func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, error) {
+func (s *Sequencer) getSequencesToSend(ctx *context.RequestContext) ([]types.Sequence, error) {
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
@@ -189,7 +189,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 // sequence, nil: handled gracefully. Potentially manipulating the sequences
 // nil, nil: a situation that requires waiting
 func (s *Sequencer) handleEstimateGasSendSequenceErr(
-	ctx context.Context,
+	ctx *context.RequestContext,
 	sequences []types.Sequence,
 	currentBatchNumToSequence uint64,
 	err error,

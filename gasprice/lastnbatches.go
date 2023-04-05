@@ -1,11 +1,11 @@
 package gasprice
 
 import (
-	"context"
 	"math/big"
 	"sort"
 	"sync"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
@@ -17,7 +17,7 @@ type LastNL2BlocksGasPrice struct {
 	lastPrice         *big.Int
 
 	cfg Config
-	ctx context.Context
+	ctx *context.RequestContext
 
 	cacheLock sync.RWMutex
 	fetchLock sync.Mutex
@@ -27,7 +27,7 @@ type LastNL2BlocksGasPrice struct {
 }
 
 // newLastNL2BlocksGasPriceSuggester init gas price suggester for last n l2 blocks strategy.
-func newLastNL2BlocksGasPriceSuggester(ctx context.Context, cfg Config, state stateInterface, pool pool) *LastNL2BlocksGasPrice {
+func newLastNL2BlocksGasPriceSuggester(ctx *context.RequestContext, cfg Config, state stateInterface, pool pool) *LastNL2BlocksGasPrice {
 	return &LastNL2BlocksGasPrice{
 		cfg:   cfg,
 		ctx:   ctx,
@@ -104,7 +104,7 @@ func (g *LastNL2BlocksGasPrice) UpdateGasPriceAvg() {
 }
 
 // getL2BlockTxsTips calculates l2 block transaction gas fees.
-func (g *LastNL2BlocksGasPrice) getL2BlockTxsTips(ctx context.Context, l2BlockNumber uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
+func (g *LastNL2BlocksGasPrice) getL2BlockTxsTips(ctx *context.RequestContext, l2BlockNumber uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
 	txs, err := g.state.GetTxsByBlockNumber(ctx, l2BlockNumber, nil)
 	if txs == nil {
 		select {

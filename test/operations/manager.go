@@ -1,7 +1,6 @@
 package operations
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
@@ -74,7 +74,7 @@ type Config struct {
 // down a functional environment.
 type Manager struct {
 	cfg *Config
-	ctx context.Context
+	ctx *context.RequestContext
 
 	st   *state.State
 	wait *Wait
@@ -82,7 +82,7 @@ type Manager struct {
 
 // NewManager returns a manager ready to be used and a potential error caused
 // during its creation (which can come from the setup of the db connection).
-func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
+func NewManager(ctx *context.RequestContext, cfg *Config) (*Manager, error) {
 	// Init database instance
 	initOrResetDB()
 
@@ -159,7 +159,7 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 
 // ApplyL1Txs sends the given L1 txs, waits for them to be consolidated and
 // checks the final state.
-func ApplyL1Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
+func ApplyL1Txs(ctx *context.RequestContext, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
 	_, err := applyTxs(ctx, txs, auth, client, true)
 	return err
 }
@@ -181,7 +181,7 @@ const VerifiedConfirmationLevel ConfirmationLevel = 3
 
 // ApplyL2Txs sends the given L2 txs, waits for them to be consolidated and
 // checks the final state.
-func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client, confirmationLevel ConfirmationLevel) ([]*big.Int, error) {
+func ApplyL2Txs(ctx *context.RequestContext, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client, confirmationLevel ConfirmationLevel) ([]*big.Int, error) {
 	var err error
 	if auth == nil {
 		auth, err = GetAuth(DefaultSequencerPrivateKey, DefaultL2ChainID)
@@ -244,7 +244,7 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 	return l2BlockNumbers, nil
 }
 
-func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client, waitToBeMined bool) ([]*types.Transaction, error) {
+func applyTxs(ctx *context.RequestContext, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client, waitToBeMined bool) ([]*types.Transaction, error) {
 	var sentTxs []*types.Transaction
 
 	for i := 0; i < len(txs); i++ {

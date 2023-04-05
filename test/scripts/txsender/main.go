@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -107,7 +108,7 @@ func setLogLevel(ctx *cli.Context) error {
 }
 
 func sendTxs(cliCtx *cli.Context) error {
-	ctx := cliCtx.Context
+	ctx := context.Wrap(cliCtx.Context)
 
 	nTxs := 1 // send 1 tx by default
 	if cliCtx.NArg() > 0 {

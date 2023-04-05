@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -88,7 +89,7 @@ func setLogLevel(ctx *cli.Context) error {
 }
 
 func sendForcedBatches(cliCtx *cli.Context) error {
-	ctx := cliCtx.Context
+	ctx := context.Wrap(cliCtx.Context)
 
 	url := cliCtx.String(flagL1URLName)
 	// Connect to ethereum node

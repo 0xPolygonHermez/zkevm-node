@@ -1,10 +1,10 @@
 package executor
 
 import (
-	"context"
 	"os/exec"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"google.golang.org/grpc"
@@ -14,7 +14,7 @@ import (
 const maxMsgSize = 100000000
 
 // NewExecutorClient is the executor client constructor.
-func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient, *grpc.ClientConn, context.CancelFunc) {
+func NewExecutorClient(ctx *context.RequestContext, c Config) (pb.ExecutorServiceClient, *grpc.ClientConn, context.CancelFunc) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)),
@@ -22,7 +22,7 @@ func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient,
 	}
 	const maxWaitSeconds = 120
 	const maxRetries = 5
-	ctx, cancel := context.WithTimeout(ctx, maxWaitSeconds*time.Second)
+	cancel := ctx.SetTimeout(maxWaitSeconds * time.Second)
 
 	connectionRetries := 0
 

@@ -1,11 +1,11 @@
 package transactions
 
 import (
-	"context"
 	"math/big"
 	"strconv"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
@@ -17,10 +17,10 @@ import (
 
 // SendAndWait sends a number of transactions and waits for them to be marked as pending in the pool
 func SendAndWait(
-	ctx context.Context,
+	ctx *context.RequestContext,
 	auth *bind.TransactOpts,
 	client *ethclient.Client,
-	countByStatusFunc func(ctx context.Context, status pool.TxStatus) (uint64, error),
+	countByStatusFunc func(ctx *context.RequestContext, status pool.TxStatus) (uint64, error),
 	nTxs int,
 	erc20SC *ERC20.ERC20,
 	txSenderFunc func(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts, erc20SC *ERC20.ERC20) error,
@@ -59,7 +59,7 @@ func SendAndWait(
 }
 
 // WaitStatusSelected waits for a number of transactions to be marked as selected in the pool
-func WaitStatusSelected(countByStatusFunc func(ctx context.Context, status pool.TxStatus) (uint64, error), initialCount uint64, nTxs uint64) error {
+func WaitStatusSelected(countByStatusFunc func(ctx *context.RequestContext, status pool.TxStatus) (uint64, error), initialCount uint64, nTxs uint64) error {
 	log.Debug("Wait for sequencer to select all txs from the pool")
 	pollingInterval := 1 * time.Second
 

@@ -1,16 +1,13 @@
 package types
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -44,63 +41,9 @@ const (
 	RequireCanonicalKey = "requireCanonical"
 )
 
-// contextKey is required by the context.WithValue func to
-// avoid conflict among the context keys
-type contextKey string
-
-const (
-	requestIDKey   contextKey = "requestID"
-	loggerKey      contextKey = "loggerID"
-	wsConnKey      contextKey = "wsConn"
-	httpRequestKey contextKey = "httpRequest"
-)
-
-// RequestContext is a context used by the jRPC requests
-type RequestContext struct {
-	context.Context
-}
-
-// NewRequestContext creates and initializes an instance of RequestContext
-func NewRequestContext(ctx context.Context, requestID string) *RequestContext {
-	c := context.WithValue(ctx, requestIDKey, requestID)
-	logger := log.WithFields(string(requestIDKey), requestID)
-	c = context.WithValue(c, loggerKey, logger)
-	return &RequestContext{Context: c}
-}
-
-// RequestID returns the request ID from the context
-func (r *RequestContext) RequestID() string {
-	return r.Value(requestIDKey).(string)
-}
-
-// Logger returns a contextualized instance of Logger
-func (r *RequestContext) Logger() *log.Logger {
-	return r.Value(requestIDKey).(*log.Logger)
-}
-
-// SetWsConn sets the websocket connection attached to this request
-func (r *RequestContext) SetWsConn(wsConn *websocket.Conn) {
-	r.Context = context.WithValue(r.Context, wsConnKey, wsConn)
-}
-
-// WsConn returns the websocket connection attached to this request
-func (r *RequestContext) WsConn() *websocket.Conn {
-	return r.Value(wsConnKey).(*websocket.Conn)
-}
-
-// SetHttpRequest sets the http request to this request
-func (r *RequestContext) SetHttpRequest(httpRequest *http.Request) {
-	r.Context = context.WithValue(r.Context, httpRequestKey, httpRequest)
-}
-
-// HttpRequest returns the http request to this request
-func (r *RequestContext) HttpRequest() *http.Request {
-	return r.Value(httpRequestKey).(*http.Request)
-}
-
 // Request is a jsonrpc request
 type Request struct {
-	ctx *RequestContext
+	ctx *context.RequestContext
 
 	JSONRPC string          `json:"jsonrpc"`
 	ID      interface{}     `json:"id"`
@@ -109,12 +52,12 @@ type Request struct {
 }
 
 // Context returns the request context
-func (r *Request) Context() *RequestContext {
+func (r *Request) Context() *context.RequestContext {
 	return r.ctx
 }
 
 // SetContext sets the request context
-func (r *Request) SetContext(ctx *RequestContext) {
+func (r *Request) SetContext(ctx *context.RequestContext) {
 	r.ctx = ctx
 }
 
@@ -222,7 +165,7 @@ func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
 }
 
 // GetNumericBlockNumber returns a numeric block number based on the BlockNumber instance
-func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterface, dbTx pgx.Tx) (uint64, Error) {
+func (b *BlockNumber) GetNumericBlockNumber(ctx *context.RequestContext, s StateInterface, dbTx pgx.Tx) (uint64, Error) {
 	bValue := LatestBlockNumber
 	if b != nil {
 		bValue = *b
@@ -410,7 +353,7 @@ func (b *BatchNumber) UnmarshalJSON(buffer []byte) error {
 }
 
 // GetNumericBatchNumber returns a numeric batch number based on the BatchNumber instance
-func (b *BatchNumber) GetNumericBatchNumber(ctx context.Context, s StateInterface, dbTx pgx.Tx) (uint64, Error) {
+func (b *BatchNumber) GetNumericBatchNumber(ctx *context.RequestContext, s StateInterface, dbTx pgx.Tx) (uint64, Error) {
 	bValue := LatestBatchNumber
 	if b != nil {
 		bValue = *b

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -111,7 +111,8 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 	// Read Fork ID FROM POE SC
-	forkIDIntervals, err := etherman.GetForks(cliCtx.Context)
+	ctx := context.Wrap(cliCtx.Context)
+	forkIDIntervals, err := etherman.GetForks(ctx)
 	if err != nil || len(forkIDIntervals) == 0 {
 		log.Fatal("error getting forks: ", err)
 	}
@@ -122,7 +123,6 @@ func start(cliCtx *cli.Context) error {
 	c.RPC.ChainID = l2ChainID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
-	ctx := context.Background()
 	st := newState(ctx, c, l2ChainID, forkIDIntervals, stateSqlDB, eventLog)
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
@@ -310,7 +310,7 @@ func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanage
 	return seq
 }
 
-func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
+func runAggregator(ctx *context.RequestContext, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
 	agg, err := aggregator.New(c, st, ethTxManager, etherman)
 	if err != nil {
 		log.Fatal(err)
@@ -345,7 +345,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
+func newState(ctx *context.RequestContext, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)

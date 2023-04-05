@@ -3,9 +3,9 @@
 package sequencer
 
 import (
-	context "context"
 	big "math/big"
 
+	context "github.com/0xPolygonHermez/zkevm-node/context"
 	common "github.com/ethereum/go-ethereum/common"
 
 	coretypes "github.com/ethereum/go-ethereum/core/types"
@@ -130,21 +130,21 @@ func (_m *EthermanMock) GetLatestBatchNumber() (uint64, error) {
 }
 
 // GetLatestBlockNumber provides a mock function with given fields: ctx
-func (_m *EthermanMock) GetLatestBlockNumber(ctx context.Context) (uint64, error) {
+func (_m *EthermanMock) GetLatestBlockNumber(ctx *context.RequestContext) (uint64, error) {
 	ret := _m.Called(ctx)
 
 	var r0 uint64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (uint64, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) (uint64, error)); ok {
 		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) uint64); ok {
 		r0 = rf(ctx)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext) error); ok {
 		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
@@ -154,21 +154,21 @@ func (_m *EthermanMock) GetLatestBlockNumber(ctx context.Context) (uint64, error
 }
 
 // GetLatestBlockTimestamp provides a mock function with given fields: ctx
-func (_m *EthermanMock) GetLatestBlockTimestamp(ctx context.Context) (uint64, error) {
+func (_m *EthermanMock) GetLatestBlockTimestamp(ctx *context.RequestContext) (uint64, error) {
 	ret := _m.Called(ctx)
 
 	var r0 uint64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (uint64, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) (uint64, error)); ok {
 		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) uint64); ok {
 		r0 = rf(ctx)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext) error); ok {
 		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)

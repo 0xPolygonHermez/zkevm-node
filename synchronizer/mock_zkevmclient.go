@@ -3,9 +3,9 @@
 package synchronizer
 
 import (
-	context "context"
 	big "math/big"
 
+	context "github.com/0xPolygonHermez/zkevm-node/context"
 	mock "github.com/stretchr/testify/mock"
 
 	types "github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -17,15 +17,15 @@ type zkEVMClientMock struct {
 }
 
 // BatchByNumber provides a mock function with given fields: ctx, number
-func (_m *zkEVMClientMock) BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error) {
+func (_m *zkEVMClientMock) BatchByNumber(ctx *context.RequestContext, number *big.Int) (*types.Batch, error) {
 	ret := _m.Called(ctx, number)
 
 	var r0 *types.Batch
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) (*types.Batch, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, *big.Int) (*types.Batch, error)); ok {
 		return rf(ctx, number)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) *types.Batch); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, *big.Int) *types.Batch); ok {
 		r0 = rf(ctx, number)
 	} else {
 		if ret.Get(0) != nil {
@@ -33,7 +33,7 @@ func (_m *zkEVMClientMock) BatchByNumber(ctx context.Context, number *big.Int) (
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *big.Int) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext, *big.Int) error); ok {
 		r1 = rf(ctx, number)
 	} else {
 		r1 = ret.Error(1)
@@ -43,21 +43,21 @@ func (_m *zkEVMClientMock) BatchByNumber(ctx context.Context, number *big.Int) (
 }
 
 // BatchNumber provides a mock function with given fields: ctx
-func (_m *zkEVMClientMock) BatchNumber(ctx context.Context) (uint64, error) {
+func (_m *zkEVMClientMock) BatchNumber(ctx *context.RequestContext) (uint64, error) {
 	ret := _m.Called(ctx)
 
 	var r0 uint64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (uint64, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) (uint64, error)); ok {
 		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) uint64); ok {
 		r0 = rf(ctx)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext) error); ok {
 		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)

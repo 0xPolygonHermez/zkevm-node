@@ -3,9 +3,9 @@
 package synchronizer
 
 import (
-	context "context"
 	big "math/big"
 
+	context "github.com/0xPolygonHermez/zkevm-node/context"
 	common "github.com/ethereum/go-ethereum/common"
 
 	etherman "github.com/0xPolygonHermez/zkevm-node/etherman"
@@ -23,15 +23,15 @@ type ethermanMock struct {
 }
 
 // EthBlockByNumber provides a mock function with given fields: ctx, blockNumber
-func (_m *ethermanMock) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+func (_m *ethermanMock) EthBlockByNumber(ctx *context.RequestContext, blockNumber uint64) (*types.Block, error) {
 	ret := _m.Called(ctx, blockNumber)
 
 	var r0 *types.Block
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*types.Block, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, uint64) (*types.Block, error)); ok {
 		return rf(ctx, blockNumber)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) *types.Block); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, uint64) *types.Block); ok {
 		r0 = rf(ctx, blockNumber)
 	} else {
 		if ret.Get(0) != nil {
@@ -39,7 +39,7 @@ func (_m *ethermanMock) EthBlockByNumber(ctx context.Context, blockNumber uint64
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext, uint64) error); ok {
 		r1 = rf(ctx, blockNumber)
 	} else {
 		r1 = ret.Error(1)
@@ -49,15 +49,15 @@ func (_m *ethermanMock) EthBlockByNumber(ctx context.Context, blockNumber uint64
 }
 
 // GetForks provides a mock function with given fields: ctx
-func (_m *ethermanMock) GetForks(ctx context.Context) ([]state.ForkIDInterval, error) {
+func (_m *ethermanMock) GetForks(ctx *context.RequestContext) ([]state.ForkIDInterval, error) {
 	ret := _m.Called(ctx)
 
 	var r0 []state.ForkIDInterval
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]state.ForkIDInterval, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) ([]state.ForkIDInterval, error)); ok {
 		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []state.ForkIDInterval); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) []state.ForkIDInterval); ok {
 		r0 = rf(ctx)
 	} else {
 		if ret.Get(0) != nil {
@@ -65,7 +65,7 @@ func (_m *ethermanMock) GetForks(ctx context.Context) ([]state.ForkIDInterval, e
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext) error); ok {
 		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
@@ -99,16 +99,16 @@ func (_m *ethermanMock) GetLatestBatchNumber() (uint64, error) {
 }
 
 // GetRollupInfoByBlockRange provides a mock function with given fields: ctx, fromBlock, toBlock
-func (_m *ethermanMock) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error) {
+func (_m *ethermanMock) GetRollupInfoByBlockRange(ctx *context.RequestContext, fromBlock uint64, toBlock *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error) {
 	ret := _m.Called(ctx, fromBlock, toBlock)
 
 	var r0 []etherman.Block
 	var r1 map[common.Hash][]etherman.Order
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, uint64, *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error)); ok {
 		return rf(ctx, fromBlock, toBlock)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *uint64) []etherman.Block); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, uint64, *uint64) []etherman.Block); ok {
 		r0 = rf(ctx, fromBlock, toBlock)
 	} else {
 		if ret.Get(0) != nil {
@@ -116,7 +116,7 @@ func (_m *ethermanMock) GetRollupInfoByBlockRange(ctx context.Context, fromBlock
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, *uint64) map[common.Hash][]etherman.Order); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext, uint64, *uint64) map[common.Hash][]etherman.Order); ok {
 		r1 = rf(ctx, fromBlock, toBlock)
 	} else {
 		if ret.Get(1) != nil {
@@ -124,7 +124,7 @@ func (_m *ethermanMock) GetRollupInfoByBlockRange(ctx context.Context, fromBlock
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, uint64, *uint64) error); ok {
+	if rf, ok := ret.Get(2).(func(*context.RequestContext, uint64, *uint64) error); ok {
 		r2 = rf(ctx, fromBlock, toBlock)
 	} else {
 		r2 = ret.Error(2)
@@ -158,15 +158,15 @@ func (_m *ethermanMock) GetTrustedSequencerURL() (string, error) {
 }
 
 // HeaderByNumber provides a mock function with given fields: ctx, number
-func (_m *ethermanMock) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+func (_m *ethermanMock) HeaderByNumber(ctx *context.RequestContext, number *big.Int) (*types.Header, error) {
 	ret := _m.Called(ctx, number)
 
 	var r0 *types.Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) (*types.Header, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, *big.Int) (*types.Header, error)); ok {
 		return rf(ctx, number)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) *types.Header); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, *big.Int) *types.Header); ok {
 		r0 = rf(ctx, number)
 	} else {
 		if ret.Get(0) != nil {
@@ -174,7 +174,7 @@ func (_m *ethermanMock) HeaderByNumber(ctx context.Context, number *big.Int) (*t
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *big.Int) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext, *big.Int) error); ok {
 		r1 = rf(ctx, number)
 	} else {
 		r1 = ret.Error(1)
@@ -184,21 +184,21 @@ func (_m *ethermanMock) HeaderByNumber(ctx context.Context, number *big.Int) (*t
 }
 
 // VerifyGenBlockNumber provides a mock function with given fields: ctx, genBlockNumber
-func (_m *ethermanMock) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
+func (_m *ethermanMock) VerifyGenBlockNumber(ctx *context.RequestContext, genBlockNumber uint64) (bool, error) {
 	ret := _m.Called(ctx, genBlockNumber)
 
 	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) (bool, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, uint64) (bool, error)); ok {
 		return rf(ctx, genBlockNumber)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) bool); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, uint64) bool); ok {
 		r0 = rf(ctx, genBlockNumber)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext, uint64) error); ok {
 		r1 = rf(ctx, genBlockNumber)
 	} else {
 		r1 = ret.Error(1)

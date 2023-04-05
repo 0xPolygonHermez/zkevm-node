@@ -1,11 +1,11 @@
 package gasprice
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"strconv"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
@@ -14,12 +14,12 @@ import (
 type FollowerGasPrice struct {
 	cfg  Config
 	pool pool
-	ctx  context.Context
+	ctx  *context.RequestContext
 	eth  ethermanInterface
 }
 
 // newFollowerGasPriceSuggester inits l2 follower gas price suggester which is based on the l1 gas price.
-func newFollowerGasPriceSuggester(ctx context.Context, cfg Config, pool pool, ethMan ethermanInterface) *FollowerGasPrice {
+func newFollowerGasPriceSuggester(ctx *context.RequestContext, cfg Config, pool pool, ethMan ethermanInterface) *FollowerGasPrice {
 	gps := &FollowerGasPrice{
 		cfg:  cfg,
 		pool: pool,

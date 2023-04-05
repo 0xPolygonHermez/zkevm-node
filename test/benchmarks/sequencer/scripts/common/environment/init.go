@@ -1,11 +1,11 @@
 package environment
 
 import (
-	"context"
 	"math/big"
 	"strconv"
 	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
@@ -22,7 +22,7 @@ var (
 )
 
 // Init sets up the environment for the benchmark
-func Init() (context.Context, *pgpoolstorage.PostgresPoolStorage, *state.PostgresStorage, *ethclient.Client, *bind.TransactOpts) {
+func Init() (*context.RequestContext, *pgpoolstorage.PostgresPoolStorage, *state.PostgresStorage, *ethclient.Client, *bind.TransactOpts) {
 	ctx := context.Background()
 	pl, err := pgpoolstorage.NewPostgresPoolStorage(db.Config{
 		Name:      poolDbName,

@@ -1,7 +1,6 @@
 package etherman
 
 import (
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
@@ -182,7 +182,7 @@ func NewClient(cfg Config) (*Client, error) {
 }
 
 // VerifyGenBlockNumber verifies if the genesis Block Number is valid
-func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
+func (etherMan *Client) VerifyGenBlockNumber(ctx *context.RequestContext, genBlockNumber uint64) (bool, error) {
 	genBlock := big.NewInt(0).SetUint64(genBlockNumber)
 	response, err := etherMan.EthClient.CodeAt(ctx, etherMan.cfg.PoEAddr, genBlock)
 	if err != nil {
@@ -211,7 +211,7 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 }
 
 // GetForks returns fork information
-func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, error) {
+func (etherMan *Client) GetForks(ctx *context.RequestContext) ([]state.ForkIDInterval, error) {
 	// Filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(1),
@@ -253,7 +253,7 @@ func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, e
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
 // from block x to block y.
-func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]Block, map[common.Hash][]Order, error) {
+func (etherMan *Client) GetRollupInfoByBlockRange(ctx *context.RequestContext, fromBlock uint64, toBlock *uint64) ([]Block, map[common.Hash][]Order, error) {
 	// Filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -275,7 +275,7 @@ type Order struct {
 	Pos  int
 }
 
-func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]Block, map[common.Hash][]Order, error) {
+func (etherMan *Client) readEvents(ctx *context.RequestContext, query ethereum.FilterQuery) ([]Block, map[common.Hash][]Order, error) {
 	logs, err := etherMan.EthClient.FilterLogs(ctx, query)
 	if err != nil {
 		return nil, nil, err
@@ -292,7 +292,7 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 	return blocks, blocksOrder, nil
 }
 
-func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+func (etherMan *Client) processEvent(ctx *context.RequestContext, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	switch vLog.Topics[0] {
 	case sequencedBatchesEventSignatureHash:
 		return etherMan.sequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
@@ -377,7 +377,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	return nil
 }
 
-func (etherMan *Client) updateZkevmVersion(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+func (etherMan *Client) updateZkevmVersion(ctx *context.RequestContext, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("UpdateZkEVMVersion event detected")
 	zkevmVersion, err := etherMan.PoE.ParseUpdateZkEVMVersion(vLog)
 	if err != nil {
@@ -412,7 +412,7 @@ func (etherMan *Client) updateZkevmVersion(ctx context.Context, vLog types.Log, 
 	return nil
 }
 
-func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+func (etherMan *Client) updateGlobalExitRootEvent(ctx *context.RequestContext, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("UpdateGlobalExitRoot event detected")
 	globalExitRoot, err := etherMan.GlobalExitRootManager.ParseUpdateGlobalExitRoot(vLog)
 	if err != nil {
@@ -448,7 +448,7 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 }
 
 // WaitTxToBeMined waits for an L1 tx to be mined. It will return error if the tx is reverted or timeout is exceeded
-func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) (bool, error) {
+func (etherMan *Client) WaitTxToBeMined(ctx *context.RequestContext, tx *types.Transaction, timeout time.Duration) (bool, error) {
 	err := operations.WaitTxToBeMined(ctx, etherMan.EthClient, tx, timeout)
 	if errors.Is(err, context.DeadlineExceeded) {
 		return false, nil
@@ -577,7 +577,7 @@ func (etherMan *Client) TrustedSequencer() (common.Address, error) {
 	return etherMan.PoE.TrustedSequencer(&bind.CallOpts{Pending: false})
 }
 
-func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+func (etherMan *Client) forcedBatchEvent(ctx *context.RequestContext, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("ForceBatch event detected")
 	fb, err := etherMan.PoE.ParseForceBatch(vLog)
 	if err != nil {
@@ -648,7 +648,7 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 	return nil
 }
 
-func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+func (etherMan *Client) sequencedBatchesEvent(ctx *context.RequestContext, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("SequenceBatches event detected")
 	sb, err := etherMan.PoE.ParseSequenceBatches(vLog)
 	if err != nil {
@@ -737,7 +737,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	return sequencedBatches, nil
 }
 
-func (etherMan *Client) verifyBatchesTrustedAggregatorEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+func (etherMan *Client) verifyBatchesTrustedAggregatorEvent(ctx *context.RequestContext, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("TrustedVerifyBatches event detected")
 	vb, err := etherMan.PoE.ParseVerifyBatchesTrustedAggregator(vLog)
 	if err != nil {
@@ -772,7 +772,7 @@ func (etherMan *Client) verifyBatchesTrustedAggregatorEvent(ctx context.Context,
 	return nil
 }
 
-func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+func (etherMan *Client) forceSequencedBatchesEvent(ctx *context.RequestContext, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("SequenceForceBatches event detect")
 	fsb, err := etherMan.PoE.ParseSequenceForceBatches(vLog)
 	if err != nil {
@@ -884,12 +884,12 @@ func hash(data ...[32]byte) [32]byte {
 
 // HeaderByNumber returns a block header from the current canonical chain. If number is
 // nil, the latest known header is returned.
-func (etherMan *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+func (etherMan *Client) HeaderByNumber(ctx *context.RequestContext, number *big.Int) (*types.Header, error) {
 	return etherMan.EthClient.HeaderByNumber(ctx, number)
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number.
-func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+func (etherMan *Client) EthBlockByNumber(ctx *context.RequestContext, blockNumber uint64) (*types.Block, error) {
 	block, err := etherMan.EthClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
 		if errors.Is(err, ethereum.NotFound) || err.Error() == "block does not exist in blockchain" {
@@ -911,7 +911,7 @@ func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 }
 
 // GetLatestBlockNumber gets the latest block number from the ethereum
-func (etherMan *Client) GetLatestBlockNumber(ctx context.Context) (uint64, error) {
+func (etherMan *Client) GetLatestBlockNumber(ctx *context.RequestContext) (uint64, error) {
 	header, err := etherMan.EthClient.HeaderByNumber(ctx, nil)
 	if err != nil || header == nil {
 		return 0, err
@@ -920,7 +920,7 @@ func (etherMan *Client) GetLatestBlockNumber(ctx context.Context) (uint64, error
 }
 
 // GetLatestBlockTimestamp gets the latest block timestamp from the ethereum
-func (etherMan *Client) GetLatestBlockTimestamp(ctx context.Context) (uint64, error) {
+func (etherMan *Client) GetLatestBlockTimestamp(ctx *context.RequestContext) (uint64, error) {
 	header, err := etherMan.EthClient.HeaderByNumber(ctx, nil)
 	if err != nil || header == nil {
 		return 0, err
@@ -934,17 +934,17 @@ func (etherMan *Client) GetLatestVerifiedBatchNum() (uint64, error) {
 }
 
 // GetTx function get ethereum tx
-func (etherMan *Client) GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
+func (etherMan *Client) GetTx(ctx *context.RequestContext, txHash common.Hash) (*types.Transaction, bool, error) {
 	return etherMan.EthClient.TransactionByHash(ctx, txHash)
 }
 
 // GetTxReceipt function gets ethereum tx receipt
-func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+func (etherMan *Client) GetTxReceipt(ctx *context.RequestContext, txHash common.Hash) (*types.Receipt, error) {
 	return etherMan.EthClient.TransactionReceipt(ctx, txHash)
 }
 
 // ApproveMatic function allow to approve tokens in matic smc
-func (etherMan *Client) ApproveMatic(ctx context.Context, account common.Address, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+func (etherMan *Client) ApproveMatic(ctx *context.RequestContext, account common.Address, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
 	opts, err := etherMan.getAuthByAddress(account)
 	if err == ErrNotFound {
 		return nil, errors.New("can't find account private key to sign tx")
@@ -986,7 +986,7 @@ func (etherMan *Client) GetL2ForkIDIntervals() ([]state.ForkIDInterval, error) {
 }
 
 // GetL1GasPrice gets the l1 gas price
-func (etherMan *Client) GetL1GasPrice(ctx context.Context) *big.Int {
+func (etherMan *Client) GetL1GasPrice(ctx *context.RequestContext) *big.Int {
 	// Get gasPrice from providers
 	gasPrice := big.NewInt(0)
 	for i, prov := range etherMan.GasProviders.Providers {
@@ -1002,17 +1002,17 @@ func (etherMan *Client) GetL1GasPrice(ctx context.Context) *big.Int {
 }
 
 // SendTx sends a tx to L1
-func (etherMan *Client) SendTx(ctx context.Context, tx *types.Transaction) error {
+func (etherMan *Client) SendTx(ctx *context.RequestContext, tx *types.Transaction) error {
 	return etherMan.EthClient.SendTransaction(ctx, tx)
 }
 
 // CurrentNonce returns the current nonce for the provided account
-func (etherMan *Client) CurrentNonce(ctx context.Context, account common.Address) (uint64, error) {
+func (etherMan *Client) CurrentNonce(ctx *context.RequestContext, account common.Address) (uint64, error) {
 	return etherMan.EthClient.NonceAt(ctx, account, nil)
 }
 
 // SuggestedGasPrice returns the suggest nonce for the network at the moment
-func (etherMan *Client) SuggestedGasPrice(ctx context.Context) (*big.Int, error) {
+func (etherMan *Client) SuggestedGasPrice(ctx *context.RequestContext) (*big.Int, error) {
 	suggestedGasPrice := etherMan.GetL1GasPrice(ctx)
 	if suggestedGasPrice.Cmp(big.NewInt(0)) == 0 {
 		return nil, errors.New("failed to get the suggested gas price")
@@ -1021,7 +1021,7 @@ func (etherMan *Client) SuggestedGasPrice(ctx context.Context) (*big.Int, error)
 }
 
 // EstimateGas returns the estimated gas for the tx
-func (etherMan *Client) EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error) {
+func (etherMan *Client) EstimateGas(ctx *context.RequestContext, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error) {
 	return etherMan.EthClient.EstimateGas(ctx, ethereum.CallMsg{
 		From:  from,
 		To:    to,
@@ -1031,7 +1031,7 @@ func (etherMan *Client) EstimateGas(ctx context.Context, from common.Address, to
 }
 
 // CheckTxWasMined check if a tx was already mined
-func (etherMan *Client) CheckTxWasMined(ctx context.Context, txHash common.Hash) (bool, *types.Receipt, error) {
+func (etherMan *Client) CheckTxWasMined(ctx *context.RequestContext, txHash common.Hash) (bool, *types.Receipt, error) {
 	receipt, err := etherMan.EthClient.TransactionReceipt(ctx, txHash)
 	if errors.Is(err, ethereum.NotFound) {
 		return false, nil, nil
@@ -1043,7 +1043,7 @@ func (etherMan *Client) CheckTxWasMined(ctx context.Context, txHash common.Hash)
 }
 
 // SignTx tries to sign a transaction accordingly to the provided sender
-func (etherMan *Client) SignTx(ctx context.Context, sender common.Address, tx *types.Transaction) (*types.Transaction, error) {
+func (etherMan *Client) SignTx(ctx *context.RequestContext, sender common.Address, tx *types.Transaction) (*types.Transaction, error) {
 	auth, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
 		return nil, ErrPrivateKeyNotFound
@@ -1056,7 +1056,7 @@ func (etherMan *Client) SignTx(ctx context.Context, sender common.Address, tx *t
 }
 
 // GetRevertMessage tries to get a revert message of a transaction
-func (etherMan *Client) GetRevertMessage(ctx context.Context, tx *types.Transaction) (string, error) {
+func (etherMan *Client) GetRevertMessage(ctx *context.RequestContext, tx *types.Transaction) (string, error) {
 	if tx == nil {
 		return "", nil
 	}

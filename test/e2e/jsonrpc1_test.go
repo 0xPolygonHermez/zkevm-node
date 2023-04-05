@@ -1,12 +1,12 @@
 package e2e
 
 import (
-	"context"
 	"encoding/json"
 	"math/big"
 	"reflect"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"

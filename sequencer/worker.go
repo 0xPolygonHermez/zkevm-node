@@ -1,12 +1,12 @@
 package sequencer
 
 import (
-	"context"
 	"math/big"
 	"runtime"
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,7 +42,7 @@ func (w *Worker) NewTxTracker(tx types.Transaction, isClaim bool, counters state
 }
 
 // AddTxTracker adds a new Tx to the Worker
-func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
+func (w *Worker) AddTxTracker(ctx *context.RequestContext, tx *TxTracker) {
 	// TODO: Review if additional mutex is needed to lock GetBestFittingTx
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()

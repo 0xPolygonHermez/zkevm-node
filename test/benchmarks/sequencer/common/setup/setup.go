@@ -1,12 +1,12 @@
 package setup
 
 import (
-	"context"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -27,7 +27,7 @@ const (
 )
 
 // Environment sets up the environment for the benchmark
-func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethclient.Client, *pool.Pool, *bind.TransactOpts) {
+func Environment(ctx *context.RequestContext, b *testing.B) (*operations.Manager, *ethclient.Client, *pool.Pool, *bind.TransactOpts) {
 	if testing.Short() {
 		b.Skip()
 	}

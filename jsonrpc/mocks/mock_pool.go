@@ -3,8 +3,7 @@
 package mocks
 
 import (
-	context "context"
-
+	context "github.com/0xPolygonHermez/zkevm-node/context"
 	common "github.com/ethereum/go-ethereum/common"
 
 	mock "github.com/stretchr/testify/mock"
@@ -22,11 +21,11 @@ type PoolMock struct {
 }
 
 // AddTx provides a mock function with given fields: ctx, tx, ip
-func (_m *PoolMock) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
+func (_m *PoolMock) AddTx(ctx *context.RequestContext, tx types.Transaction, ip string) error {
 	ret := _m.Called(ctx, tx, ip)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, types.Transaction, string) error); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, types.Transaction, string) error); ok {
 		r0 = rf(ctx, tx, ip)
 	} else {
 		r0 = ret.Error(0)
@@ -36,21 +35,21 @@ func (_m *PoolMock) AddTx(ctx context.Context, tx types.Transaction, ip string) 
 }
 
 // CountPendingTransactions provides a mock function with given fields: ctx
-func (_m *PoolMock) CountPendingTransactions(ctx context.Context) (uint64, error) {
+func (_m *PoolMock) CountPendingTransactions(ctx *context.RequestContext) (uint64, error) {
 	ret := _m.Called(ctx)
 
 	var r0 uint64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (uint64, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) (uint64, error)); ok {
 		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) uint64); ok {
 		r0 = rf(ctx)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext) error); ok {
 		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
@@ -60,21 +59,21 @@ func (_m *PoolMock) CountPendingTransactions(ctx context.Context) (uint64, error
 }
 
 // GetGasPrice provides a mock function with given fields: ctx
-func (_m *PoolMock) GetGasPrice(ctx context.Context) (uint64, error) {
+func (_m *PoolMock) GetGasPrice(ctx *context.RequestContext) (uint64, error) {
 	ret := _m.Called(ctx)
 
 	var r0 uint64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (uint64, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) (uint64, error)); ok {
 		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext) uint64); ok {
 		r0 = rf(ctx)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext) error); ok {
 		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
@@ -84,21 +83,21 @@ func (_m *PoolMock) GetGasPrice(ctx context.Context) (uint64, error) {
 }
 
 // GetNonce provides a mock function with given fields: ctx, address
-func (_m *PoolMock) GetNonce(ctx context.Context, address common.Address) (uint64, error) {
+func (_m *PoolMock) GetNonce(ctx *context.RequestContext, address common.Address) (uint64, error) {
 	ret := _m.Called(ctx, address)
 
 	var r0 uint64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Address) (uint64, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, common.Address) (uint64, error)); ok {
 		return rf(ctx, address)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Address) uint64); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, common.Address) uint64); ok {
 		r0 = rf(ctx, address)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, common.Address) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext, common.Address) error); ok {
 		r1 = rf(ctx, address)
 	} else {
 		r1 = ret.Error(1)
@@ -108,15 +107,15 @@ func (_m *PoolMock) GetNonce(ctx context.Context, address common.Address) (uint6
 }
 
 // GetPendingTxHashesSince provides a mock function with given fields: ctx, since
-func (_m *PoolMock) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
+func (_m *PoolMock) GetPendingTxHashesSince(ctx *context.RequestContext, since time.Time) ([]common.Hash, error) {
 	ret := _m.Called(ctx, since)
 
 	var r0 []common.Hash
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time) ([]common.Hash, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, time.Time) ([]common.Hash, error)); ok {
 		return rf(ctx, since)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time) []common.Hash); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, time.Time) []common.Hash); ok {
 		r0 = rf(ctx, since)
 	} else {
 		if ret.Get(0) != nil {
@@ -124,7 +123,7 @@ func (_m *PoolMock) GetPendingTxHashesSince(ctx context.Context, since time.Time
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext, time.Time) error); ok {
 		r1 = rf(ctx, since)
 	} else {
 		r1 = ret.Error(1)
@@ -134,15 +133,15 @@ func (_m *PoolMock) GetPendingTxHashesSince(ctx context.Context, since time.Time
 }
 
 // GetPendingTxs provides a mock function with given fields: ctx, isClaims, limit
-func (_m *PoolMock) GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error) {
+func (_m *PoolMock) GetPendingTxs(ctx *context.RequestContext, isClaims bool, limit uint64) ([]pool.Transaction, error) {
 	ret := _m.Called(ctx, isClaims, limit)
 
 	var r0 []pool.Transaction
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, bool, uint64) ([]pool.Transaction, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, bool, uint64) ([]pool.Transaction, error)); ok {
 		return rf(ctx, isClaims, limit)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, bool, uint64) []pool.Transaction); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, bool, uint64) []pool.Transaction); ok {
 		r0 = rf(ctx, isClaims, limit)
 	} else {
 		if ret.Get(0) != nil {
@@ -150,7 +149,7 @@ func (_m *PoolMock) GetPendingTxs(ctx context.Context, isClaims bool, limit uint
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, bool, uint64) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext, bool, uint64) error); ok {
 		r1 = rf(ctx, isClaims, limit)
 	} else {
 		r1 = ret.Error(1)
@@ -160,15 +159,15 @@ func (_m *PoolMock) GetPendingTxs(ctx context.Context, isClaims bool, limit uint
 }
 
 // GetTxByHash provides a mock function with given fields: ctx, hash
-func (_m *PoolMock) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+func (_m *PoolMock) GetTxByHash(ctx *context.RequestContext, hash common.Hash) (*pool.Transaction, error) {
 	ret := _m.Called(ctx, hash)
 
 	var r0 *pool.Transaction
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (*pool.Transaction, error)); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, common.Hash) (*pool.Transaction, error)); ok {
 		return rf(ctx, hash)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) *pool.Transaction); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, common.Hash) *pool.Transaction); ok {
 		r0 = rf(ctx, hash)
 	} else {
 		if ret.Get(0) != nil {
@@ -176,7 +175,7 @@ func (_m *PoolMock) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Tr
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
+	if rf, ok := ret.Get(1).(func(*context.RequestContext, common.Hash) error); ok {
 		r1 = rf(ctx, hash)
 	} else {
 		r1 = ret.Error(1)

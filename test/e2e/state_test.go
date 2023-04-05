@@ -1,12 +1,12 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"strconv"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"

@@ -1,11 +1,11 @@
 package ethtxmanager
 
 import (
-	"context"
 	"math/big"
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -13,6 +13,7 @@ import (
 )
 
 func TestAddGetAndUpdate(t *testing.T) {
+	ctx := context.Background()
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
 
@@ -36,10 +37,10 @@ func TestAddGetAndUpdate(t *testing.T) {
 		owner: owner, id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
 		blockNumber: blockNumber, gas: gas, gasPrice: gasPrice, status: status, history: history,
 	}
-	err = storage.Add(context.Background(), mTx, nil)
+	err = storage.Add(ctx, mTx, nil)
 	require.NoError(t, err)
 
-	returnedMtx, err := storage.Get(context.Background(), owner, id, nil)
+	returnedMtx, err := storage.Get(ctx, owner, id, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, owner, returnedMtx.owner)
@@ -74,10 +75,10 @@ func TestAddGetAndUpdate(t *testing.T) {
 		owner: owner, id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
 		blockNumber: blockNumber, gas: gas, gasPrice: gasPrice, status: status, history: history,
 	}
-	err = storage.Update(context.Background(), mTx, nil)
+	err = storage.Update(ctx, mTx, nil)
 	require.NoError(t, err)
 
-	returnedMtx, err = storage.Get(context.Background(), owner, id, nil)
+	returnedMtx, err = storage.Get(ctx, owner, id, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, owner, returnedMtx.owner)
@@ -99,6 +100,7 @@ func TestAddGetAndUpdate(t *testing.T) {
 }
 
 func TestAddAndGetByStatus(t *testing.T) {
+	ctx := context.Background()
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
 
@@ -132,17 +134,17 @@ func TestAddAndGetByStatus(t *testing.T) {
 		baseMtx.status = replaceInfo.status
 		baseMtx.createdAt = baseMtx.createdAt.Add(time.Microsecond)
 		baseMtx.updatedAt = baseMtx.updatedAt.Add(time.Microsecond)
-		err = storage.Add(context.Background(), baseMtx, nil)
+		err = storage.Add(ctx, baseMtx, nil)
 		require.NoError(t, err)
 	}
 
-	mTxs, err := storage.GetByStatus(context.Background(), nil, []MonitoredTxStatus{MonitoredTxStatusConfirmed}, nil)
+	mTxs, err := storage.GetByStatus(ctx, nil, []MonitoredTxStatus{MonitoredTxStatusConfirmed}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(mTxs))
 	assert.Equal(t, "confirmed1", mTxs[0].id)
 	assert.Equal(t, "confirmed2", mTxs[1].id)
 
-	mTxs, err = storage.GetByStatus(context.Background(), nil, []MonitoredTxStatus{MonitoredTxStatusSent, MonitoredTxStatusCreated}, nil)
+	mTxs, err = storage.GetByStatus(ctx, nil, []MonitoredTxStatus{MonitoredTxStatusSent, MonitoredTxStatusCreated}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 4, len(mTxs))
 	assert.Equal(t, "created1", mTxs[0].id)
@@ -150,7 +152,7 @@ func TestAddAndGetByStatus(t *testing.T) {
 	assert.Equal(t, "created2", mTxs[2].id)
 	assert.Equal(t, "sent2", mTxs[3].id)
 
-	mTxs, err = storage.GetByStatus(context.Background(), nil, []MonitoredTxStatus{}, nil)
+	mTxs, err = storage.GetByStatus(ctx, nil, []MonitoredTxStatus{}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 8, len(mTxs))
 	assert.Equal(t, "created1", mTxs[0].id)
@@ -164,6 +166,7 @@ func TestAddAndGetByStatus(t *testing.T) {
 }
 
 func TestAddRepeated(t *testing.T) {
+	ctx := context.Background()
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
 
@@ -187,37 +190,40 @@ func TestAddRepeated(t *testing.T) {
 		owner: owner, id: id, from: from, to: &to, nonce: nonce, value: value, data: data,
 		blockNumber: blockNumber, gas: gas, gasPrice: gasPrice, status: status, history: history,
 	}
-	err = storage.Add(context.Background(), mTx, nil)
+	err = storage.Add(ctx, mTx, nil)
 	require.NoError(t, err)
 
-	err = storage.Add(context.Background(), mTx, nil)
+	err = storage.Add(ctx, mTx, nil)
 	require.Equal(t, ErrAlreadyExists, err)
 }
 
 func TestGetNotFound(t *testing.T) {
+	ctx := context.Background()
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
 
 	storage, err := NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
-	_, err = storage.Get(context.Background(), "not found owner", "not found id", nil)
+	_, err = storage.Get(ctx, "not found owner", "not found id", nil)
 	require.Equal(t, ErrNotFound, err)
 }
 
 func TestGetByStatusNoRows(t *testing.T) {
+	ctx := context.Background()
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
 
 	storage, err := NewPostgresStorage(dbCfg)
 	require.NoError(t, err)
 
-	mTxs, err := storage.GetByStatus(context.Background(), nil, []MonitoredTxStatus{}, nil)
+	mTxs, err := storage.GetByStatus(ctx, nil, []MonitoredTxStatus{}, nil)
 	require.NoError(t, err)
 	require.Empty(t, mTxs)
 }
 
 func TestAddAndGetByBlock(t *testing.T) {
+	ctx := context.Background()
 	dbCfg := dbutils.NewStateConfigFromEnv()
 	require.NoError(t, dbutils.InitOrResetState(dbCfg))
 
@@ -248,12 +254,12 @@ func TestAddAndGetByBlock(t *testing.T) {
 		baseMtx.blockNumber = replaceInfo.blockNumber
 		baseMtx.createdAt = baseMtx.createdAt.Add(time.Microsecond)
 		baseMtx.updatedAt = baseMtx.updatedAt.Add(time.Microsecond)
-		err = storage.Add(context.Background(), baseMtx, nil)
+		err = storage.Add(ctx, baseMtx, nil)
 		require.NoError(t, err)
 	}
 
 	// all monitored txs
-	mTxs, err := storage.GetByBlock(context.Background(), nil, nil, nil)
+	mTxs, err := storage.GetByBlock(ctx, nil, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 4, len(mTxs))
 	assert.Equal(t, "2", mTxs[0].id)
@@ -267,7 +273,7 @@ func TestAddAndGetByBlock(t *testing.T) {
 
 	// all monitored tx with block number less or equal 3
 	toBlock := uint64(3)
-	mTxs, err = storage.GetByBlock(context.Background(), nil, &toBlock, nil)
+	mTxs, err = storage.GetByBlock(ctx, nil, &toBlock, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(mTxs))
 	assert.Equal(t, "2", mTxs[0].id)
@@ -277,7 +283,7 @@ func TestAddAndGetByBlock(t *testing.T) {
 
 	// all monitored tx with block number greater or equal 2
 	fromBlock := uint64(3)
-	mTxs, err = storage.GetByBlock(context.Background(), &fromBlock, nil, nil)
+	mTxs, err = storage.GetByBlock(ctx, &fromBlock, nil, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(mTxs))
 	assert.Equal(t, "3", mTxs[0].id)
@@ -290,7 +296,7 @@ func TestAddAndGetByBlock(t *testing.T) {
 	// all monitored txs with block number between 3 and 4 inclusive
 	fromBlock = uint64(3)
 	toBlock = uint64(4)
-	mTxs, err = storage.GetByBlock(context.Background(), &fromBlock, &toBlock, nil)
+	mTxs, err = storage.GetByBlock(ctx, &fromBlock, &toBlock, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(mTxs))
 	assert.Equal(t, "3", mTxs[0].id)

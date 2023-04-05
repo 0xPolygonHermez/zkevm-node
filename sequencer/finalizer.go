@@ -1,7 +1,6 @@
 package sequencer
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -31,7 +31,7 @@ type finalizer struct {
 	cfg                FinalizerCfg
 	txsStore           TxsStore
 	closingSignalCh    ClosingSignalCh
-	isSynced           func(ctx context.Context) bool
+	isSynced           func(ctx *context.RequestContext) bool
 	sequencerAddress   common.Address
 	worker             workerInterface
 	dbManager          dbManagerInterface
@@ -78,7 +78,7 @@ func newFinalizer(
 	dbManager dbManagerInterface,
 	executor stateInterface,
 	sequencerAddr common.Address,
-	isSynced func(ctx context.Context) bool,
+	isSynced func(ctx *context.RequestContext) bool,
 	closingSignalCh ClosingSignalCh,
 	txsStore TxsStore,
 	batchConstraints batchConstraints,
@@ -112,7 +112,7 @@ func newFinalizer(
 }
 
 // Start starts the finalizer.
-func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *state.ProcessRequest) {
+func (f *finalizer) Start(ctx *context.RequestContext, batch *WipBatch, processingReq *state.ProcessRequest) {
 	var err error
 	if batch != nil {
 		f.batch = batch
@@ -153,7 +153,7 @@ func (f *finalizer) SortForcedBatches(fb []state.ForcedBatch) []state.ForcedBatc
 }
 
 // listenForClosingSignals listens for signals for the batch and sets the deadline for when they need to be closed.
-func (f *finalizer) listenForClosingSignals(ctx context.Context) {
+func (f *finalizer) listenForClosingSignals(ctx *context.RequestContext) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -196,7 +196,7 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 }
 
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
-func (f *finalizer) finalizeBatches(ctx context.Context) {
+func (f *finalizer) finalizeBatches(ctx *context.RequestContext) {
 	for {
 		start := now()
 		log.Debug("finalizer init loop")
@@ -243,7 +243,7 @@ func (f *finalizer) isBatchFull() bool {
 }
 
 // finalizeBatch retries to until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
-func (f *finalizer) finalizeBatch(ctx context.Context) {
+func (f *finalizer) finalizeBatch(ctx *context.RequestContext) {
 	start := time.Now()
 	defer func() {
 		metrics.ProcessingTime(time.Since(start))
@@ -257,7 +257,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 	}
 }
 
-func (f *finalizer) halt(ctx context.Context, err error) {
+func (f *finalizer) halt(ctx *context.RequestContext, err error) {
 	event := &event.Event{
 		ReceivedAt:  time.Now(),
 		Source:      event.Source_Node,
@@ -280,7 +280,7 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 }
 
 // newWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
-func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
+func (f *finalizer) newWIPBatch(ctx *context.RequestContext) (*WipBatch, error) {
 	f.sharedResourcesMux.Lock()
 	defer f.sharedResourcesMux.Unlock()
 
@@ -354,7 +354,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 }
 
 // processTransaction processes a single transaction.
-func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error {
+func (f *finalizer) processTransaction(ctx *context.RequestContext, tx *TxTracker) error {
 	var txHash string
 	if tx != nil {
 		txHash = tx.Hash.String()
@@ -407,7 +407,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 }
 
 // handleTxProcessResp handles the response of a successful transaction processing.
-func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) error {
+func (f *finalizer) handleTxProcessResp(ctx *context.RequestContext, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) error {
 	// Handle Transaction Error
 	if result.Responses[0].RomError != nil && !errors.Is(result.Responses[0].RomError, runtime.ErrExecutionReverted) {
 		f.handleTransactionError(ctx, result, tx)
@@ -426,7 +426,7 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 	return nil
 }
 
-func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRoot common.Hash, tx *TxTracker, result *state.ProcessBatchResponse) {
+func (f *finalizer) storeProcessedTx(ctx *context.RequestContext, previousL2BlockStateRoot common.Hash, tx *TxTracker, result *state.ProcessBatchResponse) {
 	log.Infof("storeProcessedTx: storing processed tx: %s", tx.Hash.String())
 	f.txsStore.Wg.Wait()
 	txResponse := result.Responses[0]
@@ -456,7 +456,7 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 }
 
 // handleTransactionError handles the error of a transaction
-func (f *finalizer) handleTransactionError(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) {
+func (f *finalizer) handleTransactionError(ctx *context.RequestContext, result *state.ProcessBatchResponse, tx *TxTracker) {
 	txResponse := result.Responses[0]
 	errorCode := executor.RomErrorCode(txResponse.RomError)
 	addressInfo := result.ReadWriteAddresses[tx.From]
@@ -506,7 +506,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 }
 
 // syncWithState syncs the WIP batch and processRequest with the state
-func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) error {
+func (f *finalizer) syncWithState(ctx *context.RequestContext, lastBatchNum *uint64) error {
 	f.sharedResourcesMux.Lock()
 	defer f.sharedResourcesMux.Unlock()
 	f.txsStore.Wg.Wait()
@@ -577,7 +577,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 }
 
 // processForcedBatches processes all the forced batches that are pending to be processed
-func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInState uint64, stateRoot common.Hash) (uint64, common.Hash, error) {
+func (f *finalizer) processForcedBatches(ctx *context.RequestContext, lastBatchNumberInState uint64, stateRoot common.Hash) (uint64, common.Hash, error) {
 	f.nextForcedBatchesMux.Lock()
 	defer f.nextForcedBatchesMux.Unlock()
 	f.nextForcedBatchDeadline = 0
@@ -637,7 +637,7 @@ func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot 
 }
 
 // openWIPBatch opens a new batch in the state and returns it as WipBatch
-func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stateRoot common.Hash) (*WipBatch, error) {
+func (f *finalizer) openWIPBatch(ctx *context.RequestContext, batchNum uint64, ger, stateRoot common.Hash) (*WipBatch, error) {
 	dbTx, err := f.dbManager.BeginStateTransaction(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin state transaction to open batch, err: %w", err)
@@ -676,7 +676,7 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 }
 
 // closeBatch closes the current batch in the state
-func (f *finalizer) closeBatch(ctx context.Context) error {
+func (f *finalizer) closeBatch(ctx *context.RequestContext) error {
 	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
 		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
@@ -694,7 +694,7 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 }
 
 // openBatch opens a new batch in the state
-func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, dbTx pgx.Tx) (state.ProcessingContext, error) {
+func (f *finalizer) openBatch(ctx *context.RequestContext, num uint64, ger common.Hash, dbTx pgx.Tx) (state.ProcessingContext, error) {
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    num,
 		Coinbase:       f.sequencerAddress,
@@ -710,7 +710,7 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 }
 
 // reprocessBatch reprocesses a batch used as sanity check
-func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, expectedStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
+func (f *finalizer) reprocessFullBatch(ctx *context.RequestContext, batchNum uint64, expectedStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
 	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get batch by number, err: %v", err)
@@ -771,7 +771,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 	return result, nil
 }
 
-func (f *finalizer) getLastBatchNumAndOldStateRoot(ctx context.Context) (uint64, common.Hash, error) {
+func (f *finalizer) getLastBatchNumAndOldStateRoot(ctx *context.RequestContext) (uint64, common.Hash, error) {
 	const two = 2
 	var oldStateRoot common.Hash
 	batches, err := f.dbManager.GetLastNBatches(ctx, two)
@@ -821,7 +821,7 @@ func (f *finalizer) isDeadlineEncountered() bool {
 }
 
 // checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
-func (f *finalizer) checkRemainingResources(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) error {
+func (f *finalizer) checkRemainingResources(ctx *context.RequestContext, result *state.ProcessBatchResponse, tx *TxTracker) error {
 	usedResources := batchResources{
 		zKCounters: result.UsedZkCounters,
 		bytes:      uint64(len(tx.RawTx)),

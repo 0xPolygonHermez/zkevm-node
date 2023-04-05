@@ -1,13 +1,13 @@
 package jsonrpc
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -31,14 +31,14 @@ type EthEndpoints struct {
 // newEthEndpoints creates an new instance of Eth
 func newEthEndpoints(cfg Config, p types.PoolInterface, s types.StateInterface, storage storageInterface) *EthEndpoints {
 	e := &EthEndpoints{cfg: cfg, pool: p, state: s, storage: storage}
-	s.RegisterNewL2BlockEventHandler(e.onNewL2Block)
+	s.RegisterNewL2BlockEventHandler(context.Background(), e.onNewL2Block)
 
 	return e
 }
 
 // BlockNumber returns current block number
-func (e *EthEndpoints) BlockNumber(ctx *types.RequestContext) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) BlockNumber(ctx *context.RequestContext) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		lastBlockNumber, err := e.state.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
 			return "0x0", types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state")
@@ -52,8 +52,8 @@ func (e *EthEndpoints) BlockNumber(ctx *types.RequestContext) (interface{}, type
 // executed contract and potential error.
 // Note, this function doesn't make any changes in the state/blockchain and is
 // useful to execute view/pure methods and retrieve values.
-func (e *EthEndpoints) Call(ctx *types.RequestContext, arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) Call(ctx *context.RequestContext, arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		if arg == nil {
 			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil)
 		} else if blockArg == nil {
@@ -109,7 +109,7 @@ func (e *EthEndpoints) Call(ctx *types.RequestContext, arg *types.TxArgs, blockA
 }
 
 // ChainId returns the chain id of the client
-func (e *EthEndpoints) ChainId(ctx *types.RequestContext) (interface{}, types.Error) { //nolint:revive
+func (e *EthEndpoints) ChainId(ctx *context.RequestContext) (interface{}, types.Error) { //nolint:revive
 	return hex.EncodeUint64(e.cfg.ChainID), nil
 }
 
@@ -119,8 +119,8 @@ func (e *EthEndpoints) ChainId(ctx *types.RequestContext) (interface{}, types.Er
 // Note that the estimate may be significantly more than the amount of gas actually
 // used by the transaction, for a variety of reasons including EVM mechanics and
 // node performance.
-func (e *EthEndpoints) EstimateGas(ctx *types.RequestContext, arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) EstimateGas(ctx *context.RequestContext, arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		if arg == nil {
 			return rpcErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil)
 		}
@@ -147,7 +147,7 @@ func (e *EthEndpoints) EstimateGas(ctx *types.RequestContext, arg *types.TxArgs,
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		gasEstimation, err := e.state.EstimateGas(tx, sender, blockToProcess, dbTx)
+		gasEstimation, err := e.state.EstimateGas(ctx, tx, sender, blockToProcess, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 		}
@@ -156,7 +156,7 @@ func (e *EthEndpoints) EstimateGas(ctx *types.RequestContext, arg *types.TxArgs,
 }
 
 // GasPrice returns the average gas price based on the last x blocks
-func (e *EthEndpoints) GasPrice(ctx *types.RequestContext) (interface{}, types.Error) {
+func (e *EthEndpoints) GasPrice(ctx *context.RequestContext) (interface{}, types.Error) {
 	if e.cfg.SequencerNodeURI != "" {
 		return e.getPriceFromSequencerNode()
 	}
@@ -186,8 +186,8 @@ func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {
 }
 
 // GetBalance returns the account's balance at the referenced block
-func (e *EthEndpoints) GetBalance(ctx *types.RequestContext, address types.ArgAddress, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetBalance(ctx *context.RequestContext, address types.ArgAddress, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		block, rpcErr := e.getBlockByArg(ctx, blockArg, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
@@ -204,7 +204,7 @@ func (e *EthEndpoints) GetBalance(ctx *types.RequestContext, address types.ArgAd
 	})
 }
 
-func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*ethTypes.Block, types.Error) {
+func (e *EthEndpoints) getBlockByArg(ctx *context.RequestContext, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*ethTypes.Block, types.Error) {
 	// If no block argument is provided, return the latest block
 	if blockArg == nil {
 		block, err := e.state.GetLastL2Block(ctx, dbTx)
@@ -230,7 +230,7 @@ func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockN
 	if rpcErr != nil {
 		return nil, rpcErr
 	}
-	block, err := e.state.GetL2BlockByNumber(context.Background(), blockNum, dbTx)
+	block, err := e.state.GetL2BlockByNumber(ctx, blockNum, dbTx)
 	if errors.Is(err, state.ErrNotFound) || block == nil {
 		return nil, types.NewRPCError(types.DefaultErrorCode, "header not found")
 	} else if err != nil {
@@ -241,8 +241,8 @@ func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockN
 }
 
 // GetBlockByHash returns information about a block by hash
-func (e *EthEndpoints) GetBlockByHash(ctx *types.RequestContext, hash types.ArgHash, fullTx bool) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetBlockByHash(ctx *context.RequestContext, hash types.ArgHash, fullTx bool) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		block, err := e.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
@@ -257,8 +257,8 @@ func (e *EthEndpoints) GetBlockByHash(ctx *types.RequestContext, hash types.ArgH
 }
 
 // GetBlockByNumber returns information about a block by block number
-func (e *EthEndpoints) GetBlockByNumber(ctx *types.RequestContext, number types.BlockNumber, fullTx bool) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetBlockByNumber(ctx *context.RequestContext, number types.BlockNumber, fullTx bool) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		if number == types.PendingBlockNumber {
 			lastBlock, err := e.state.GetLastL2Block(ctx, dbTx)
 			if err != nil {
@@ -294,8 +294,8 @@ func (e *EthEndpoints) GetBlockByNumber(ctx *types.RequestContext, number types.
 }
 
 // GetCode returns account code at given block number
-func (e *EthEndpoints) GetCode(ctx *types.RequestContext, address types.ArgAddress, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetCode(ctx *context.RequestContext, address types.ArgAddress, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		var err error
 		block, rpcErr := e.getBlockByArg(ctx, blockArg, dbTx)
 		if rpcErr != nil {
@@ -314,13 +314,13 @@ func (e *EthEndpoints) GetCode(ctx *types.RequestContext, address types.ArgAddre
 }
 
 // GetCompilers eth_getCompilers
-func (e *EthEndpoints) GetCompilers(ctx *types.RequestContext) (interface{}, types.Error) {
+func (e *EthEndpoints) GetCompilers(ctx *context.RequestContext) (interface{}, types.Error) {
 	return []interface{}{}, nil
 }
 
 // GetFilterChanges polling method for a filter, which returns
 // an array of logs which occurred since last poll.
-func (e *EthEndpoints) GetFilterChanges(ctx *types.RequestContext, filterID string) (interface{}, types.Error) {
+func (e *EthEndpoints) GetFilterChanges(ctx *context.RequestContext, filterID string) (interface{}, types.Error) {
 	filter, err := e.storage.GetFilter(filterID)
 	if errors.Is(err, ErrNotFound) {
 		return rpcErrorResponse(types.DefaultErrorCode, "filter not found", err)
@@ -331,7 +331,7 @@ func (e *EthEndpoints) GetFilterChanges(ctx *types.RequestContext, filterID stri
 	switch filter.Type {
 	case FilterTypeBlock:
 		{
-			res, err := e.state.GetL2BlockHashesSince(context.Background(), filter.LastPoll, nil)
+			res, err := e.state.GetL2BlockHashesSince(ctx, filter.LastPoll, nil)
 			if err != nil {
 				return rpcErrorResponse(types.DefaultErrorCode, "failed to get block hashes", err)
 			}
@@ -346,7 +346,7 @@ func (e *EthEndpoints) GetFilterChanges(ctx *types.RequestContext, filterID stri
 		}
 	case FilterTypePendingTx:
 		{
-			res, err := e.pool.GetPendingTxHashesSince(context.Background(), filter.LastPoll)
+			res, err := e.pool.GetPendingTxHashesSince(ctx, filter.LastPoll)
 			if err != nil {
 				return rpcErrorResponse(types.DefaultErrorCode, "failed to get pending transaction hashes", err)
 			}
@@ -364,7 +364,7 @@ func (e *EthEndpoints) GetFilterChanges(ctx *types.RequestContext, filterID stri
 			filterParameters := filter.Parameters.(LogFilter)
 			filterParameters.Since = &filter.LastPoll
 
-			resInterface, err := e.internalGetLogs(context.Background(), nil, filterParameters)
+			resInterface, err := e.internalGetLogs(ctx, nil, filterParameters)
 			if err != nil {
 				return nil, err
 			}
@@ -385,7 +385,7 @@ func (e *EthEndpoints) GetFilterChanges(ctx *types.RequestContext, filterID stri
 
 // GetFilterLogs returns an array of all logs matching filter
 // with given id.
-func (e *EthEndpoints) GetFilterLogs(ctx *types.RequestContext, filterID string) (interface{}, types.Error) {
+func (e *EthEndpoints) GetFilterLogs(ctx *context.RequestContext, filterID string) (interface{}, types.Error) {
 	filter, err := e.storage.GetFilter(filterID)
 	if errors.Is(err, ErrNotFound) {
 		return nil, nil
@@ -404,13 +404,13 @@ func (e *EthEndpoints) GetFilterLogs(ctx *types.RequestContext, filterID string)
 }
 
 // GetLogs returns a list of logs accordingly to the provided filter
-func (e *EthEndpoints) GetLogs(ctx *types.RequestContext, filter LogFilter) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetLogs(ctx *context.RequestContext, filter LogFilter) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		return e.internalGetLogs(ctx, dbTx, filter)
 	})
 }
 
-func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, types.Error) {
+func (e *EthEndpoints) internalGetLogs(ctx *context.RequestContext, dbTx pgx.Tx, filter LogFilter) (interface{}, types.Error) {
 	var err error
 	var fromBlock uint64 = 0
 	if filter.FromBlock != nil {
@@ -440,14 +440,14 @@ func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter 
 }
 
 // GetStorageAt gets the value stored for an specific address and position
-func (e *EthEndpoints) GetStorageAt(ctx *types.RequestContext, address types.ArgAddress, storageKeyStr string, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
+func (e *EthEndpoints) GetStorageAt(ctx *context.RequestContext, address types.ArgAddress, storageKeyStr string, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	storageKey := types.ArgHash{}
 	err := storageKey.UnmarshalText([]byte(storageKeyStr))
 	if err != nil {
 		return rpcErrorResponse(types.DefaultErrorCode, "unable to decode storage key: hex string invalid", nil)
 	}
 
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		block, respErr := e.getBlockByArg(ctx, blockArg, dbTx)
 		if respErr != nil {
 			return nil, respErr
@@ -466,8 +466,8 @@ func (e *EthEndpoints) GetStorageAt(ctx *types.RequestContext, address types.Arg
 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by
 // block hash and transaction index position.
-func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(ctx *types.RequestContext, hash types.ArgHash, index types.Index) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(ctx *context.RequestContext, hash types.ArgHash, index types.Index) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		tx, err := e.state.GetTransactionByL2BlockHashAndIndex(ctx, hash.Hash(), uint64(index), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
@@ -489,8 +489,8 @@ func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(ctx *types.RequestConte
 
 // GetTransactionByBlockNumberAndIndex returns information about a transaction by
 // block number and transaction index position.
-func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(ctx *types.RequestContext, number *types.BlockNumber, index types.Index) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(ctx *context.RequestContext, number *types.BlockNumber, index types.Index) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		var err error
 		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
@@ -517,8 +517,8 @@ func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(ctx *types.RequestCon
 }
 
 // GetTransactionByHash returns a transaction by his hash
-func (e *EthEndpoints) GetTransactionByHash(ctx *types.RequestContext, hash types.ArgHash) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetTransactionByHash(ctx *context.RequestContext, hash types.ArgHash) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		// try to get tx from state
 		tx, err := e.state.GetTransactionByHash(ctx, hash.Hash(), dbTx)
 		if err != nil && !errors.Is(err, state.ErrNotFound) {
@@ -571,8 +571,8 @@ func (e *EthEndpoints) getTransactionByHashFromSequencerNode(hash common.Hash) (
 }
 
 // GetTransactionCount returns account nonce
-func (e *EthEndpoints) GetTransactionCount(ctx *types.RequestContext, address types.ArgAddress, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetTransactionCount(ctx *context.RequestContext, address types.ArgAddress, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		var (
 			pendingNonce uint64
 			nonce        uint64
@@ -633,8 +633,8 @@ func (e *EthEndpoints) getTransactionCountFromSequencerNode(address common.Addre
 
 // GetBlockTransactionCountByHash returns the number of transactions in a
 // block from a block matching the given block hash.
-func (e *EthEndpoints) GetBlockTransactionCountByHash(ctx *types.RequestContext, hash types.ArgHash) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetBlockTransactionCountByHash(ctx *context.RequestContext, hash types.ArgHash) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		c, err := e.state.GetL2BlockTransactionCountByHash(ctx, hash.Hash(), dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to count transactions", err)
@@ -646,8 +646,8 @@ func (e *EthEndpoints) GetBlockTransactionCountByHash(ctx *types.RequestContext,
 
 // GetBlockTransactionCountByNumber returns the number of transactions in a
 // block from a block matching the given block number.
-func (e *EthEndpoints) GetBlockTransactionCountByNumber(ctx *types.RequestContext, number *types.BlockNumber) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetBlockTransactionCountByNumber(ctx *context.RequestContext, number *types.BlockNumber) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		if number != nil && *number == types.PendingBlockNumber {
 			if e.cfg.SequencerNodeURI != "" {
 				return e.getBlockTransactionCountByNumberFromSequencerNode(number)
@@ -693,8 +693,8 @@ func (e *EthEndpoints) getBlockTransactionCountByNumberFromSequencerNode(number 
 }
 
 // GetTransactionReceipt returns a transaction receipt by his hash
-func (e *EthEndpoints) GetTransactionReceipt(ctx *types.RequestContext, hash types.ArgHash) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) GetTransactionReceipt(ctx *context.RequestContext, hash types.ArgHash) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		tx, err := e.state.GetTransactionByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
@@ -721,7 +721,7 @@ func (e *EthEndpoints) GetTransactionReceipt(ctx *types.RequestContext, hash typ
 // NewBlockFilter creates a filter in the node, to notify when
 // a new block arrives. To check if the state has changed,
 // call eth_getFilterChanges.
-func (e *EthEndpoints) NewBlockFilter(ctx *types.RequestContext) (interface{}, types.Error) {
+func (e *EthEndpoints) NewBlockFilter(ctx *context.RequestContext) (interface{}, types.Error) {
 	return e.newBlockFilter(nil)
 }
 
@@ -738,7 +738,7 @@ func (e *EthEndpoints) newBlockFilter(wsConn *websocket.Conn) (interface{}, type
 // NewFilter creates a filter object, based on filter options,
 // to notify when the state changes (logs). To check if the state
 // has changed, call eth_getFilterChanges.
-func (e *EthEndpoints) NewFilter(ctx *types.RequestContext, filter LogFilter) (interface{}, types.Error) {
+func (e *EthEndpoints) NewFilter(ctx *context.RequestContext, filter LogFilter) (interface{}, types.Error) {
 	return e.newFilter(nil, filter)
 }
 
@@ -757,7 +757,7 @@ func (e *EthEndpoints) newFilter(wsConn *websocket.Conn, filter LogFilter) (inte
 // NewPendingTransactionFilter creates a filter in the node, to
 // notify when new pending transactions arrive. To check if the
 // state has changed, call eth_getFilterChanges.
-func (e *EthEndpoints) NewPendingTransactionFilter(ctx *types.RequestContext) (interface{}, types.Error) {
+func (e *EthEndpoints) NewPendingTransactionFilter(ctx *context.RequestContext) (interface{}, types.Error) {
 	return e.newPendingTransactionFilter(nil)
 }
 
@@ -775,7 +775,7 @@ func (e *EthEndpoints) newPendingTransactionFilter(wsConn *websocket.Conn) (inte
 // SendRawTransaction has two different ways to handle new transactions:
 // - for Sequencer nodes it tries to add the tx to the pool
 // - for Non-Sequencer nodes it relays the Tx to the Sequencer node
-func (e *EthEndpoints) SendRawTransaction(ctx *types.RequestContext, input string) (interface{}, types.Error) {
+func (e *EthEndpoints) SendRawTransaction(ctx *context.RequestContext, input string) (interface{}, types.Error) {
 	if e.cfg.SequencerNodeURI != "" {
 		return e.relayTxToSequencerNode(input)
 	} else {
@@ -805,14 +805,14 @@ func (e *EthEndpoints) relayTxToSequencerNode(input string) (interface{}, types.
 	return txHash, nil
 }
 
-func (e *EthEndpoints) tryToAddTxToPool(ctx *types.RequestContext, input, ip string) (interface{}, types.Error) {
+func (e *EthEndpoints) tryToAddTxToPool(ctx *context.RequestContext, input, ip string) (interface{}, types.Error) {
 	tx, err := hexToTx(input)
 	if err != nil {
 		return rpcErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err)
 	}
 
 	ctx.Logger().Infof("adding TX to the pool: %v", tx.Hash().Hex())
-	if err := e.pool.AddTx(context.Background(), *tx, ip); err != nil {
+	if err := e.pool.AddTx(ctx, *tx, ip); err != nil {
 		return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 	}
 	ctx.Logger().Infof("TX added to the pool: %v", tx.Hash().Hex())
@@ -821,7 +821,7 @@ func (e *EthEndpoints) tryToAddTxToPool(ctx *types.RequestContext, input, ip str
 }
 
 // UninstallFilter uninstalls a filter with given id.
-func (e *EthEndpoints) UninstallFilter(ctx *types.RequestContext, filterID string) (interface{}, types.Error) {
+func (e *EthEndpoints) UninstallFilter(ctx *context.RequestContext, filterID string) (interface{}, types.Error) {
 	err := e.storage.UninstallFilter(filterID)
 	if errors.Is(err, ErrNotFound) {
 		return false, nil
@@ -834,8 +834,8 @@ func (e *EthEndpoints) UninstallFilter(ctx *types.RequestContext, filterID strin
 
 // Syncing returns an object with data about the sync status or false.
 // https://eth.wiki/json-rpc/API#eth_syncing
-func (e *EthEndpoints) Syncing(ctx *types.RequestContext) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) Syncing(ctx *context.RequestContext) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		_, err := e.state.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to get last block number from state", err)
@@ -864,30 +864,30 @@ func (e *EthEndpoints) Syncing(ctx *types.RequestContext) (interface{}, types.Er
 
 // GetUncleByBlockHashAndIndex returns information about a uncle of a
 // block by hash and uncle index position
-func (e *EthEndpoints) GetUncleByBlockHashAndIndex(ctx *types.RequestContext, hash types.ArgHash, index types.Index) (interface{}, types.Error) {
+func (e *EthEndpoints) GetUncleByBlockHashAndIndex(ctx *context.RequestContext, hash types.ArgHash, index types.Index) (interface{}, types.Error) {
 	return nil, nil
 }
 
 // GetUncleByBlockNumberAndIndex returns information about a uncle of a
 // block by number and uncle index position
-func (e *EthEndpoints) GetUncleByBlockNumberAndIndex(ctx *types.RequestContext, number types.BlockNumber, index types.Index) (interface{}, types.Error) {
+func (e *EthEndpoints) GetUncleByBlockNumberAndIndex(ctx *context.RequestContext, number types.BlockNumber, index types.Index) (interface{}, types.Error) {
 	return nil, nil
 }
 
 // GetUncleCountByBlockHash returns the number of uncles in a block
 // matching the given block hash
-func (e *EthEndpoints) GetUncleCountByBlockHash(ctx *types.RequestContext, hash types.ArgAddress) (interface{}, types.Error) {
+func (e *EthEndpoints) GetUncleCountByBlockHash(ctx *context.RequestContext, hash types.ArgAddress) (interface{}, types.Error) {
 	return "0x0", nil
 }
 
 // GetUncleCountByBlockNumber returns the number of uncles in a block
 // matching the given block number
-func (e *EthEndpoints) GetUncleCountByBlockNumber(ctx *types.RequestContext, number types.BlockNumber) (interface{}, types.Error) {
+func (e *EthEndpoints) GetUncleCountByBlockNumber(ctx *context.RequestContext, number types.BlockNumber) (interface{}, types.Error) {
 	return "0x0", nil
 }
 
 // ProtocolVersion returns the protocol version.
-func (e *EthEndpoints) ProtocolVersion(ctx *types.RequestContext) (interface{}, types.Error) {
+func (e *EthEndpoints) ProtocolVersion(ctx *context.RequestContext) (interface{}, types.Error) {
 	return "0x0", nil
 }
 
@@ -918,7 +918,7 @@ func (e *EthEndpoints) updateFilterLastPoll(filterID string) types.Error {
 // The node will return a subscription id.
 // For each event that matches the subscription a notification with relevant
 // data is sent together with the subscription id.
-func (e *EthEndpoints) Subscribe(ctx *types.RequestContext, name string, logFilter *LogFilter) (interface{}, types.Error) {
+func (e *EthEndpoints) Subscribe(ctx *context.RequestContext, name string, logFilter *LogFilter) (interface{}, types.Error) {
 	switch name {
 	case "newHeads":
 		return e.newBlockFilter(ctx.WsConn())
@@ -938,7 +938,7 @@ func (e *EthEndpoints) Subscribe(ctx *types.RequestContext, name string, logFilt
 }
 
 // Unsubscribe uninstalls the filter based on the provided filterID
-func (e *EthEndpoints) Unsubscribe(ctx *types.RequestContext, filterID string) (interface{}, types.Error) {
+func (e *EthEndpoints) Unsubscribe(ctx *context.RequestContext, filterID string) (interface{}, types.Error) {
 	return e.UninstallFilter(ctx, filterID)
 }
 
@@ -950,7 +950,7 @@ func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *websocket.Conn) error {
 
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
-	ctx := types.NewRequestContext(context.Background(), "onNewL2Block")
+	ctx := context.Background()
 	blockFilters, err := e.storage.GetAllBlockFiltersWithWSConn()
 	if err != nil {
 		ctx.Logger().Errorf("failed to get all block filters with web sockets connections: %v", err)
@@ -979,7 +979,7 @@ func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 	}
 }
 
-func (e *EthEndpoints) sendSubscriptionResponse(ctx *types.RequestContext, filter *Filter, data interface{}) {
+func (e *EthEndpoints) sendSubscriptionResponse(ctx *context.RequestContext, filter *Filter, data interface{}) {
 	const errMessage = "Unable to write WS message to filter %v, %s"
 	result, err := json.Marshal(data)
 	if err != nil {

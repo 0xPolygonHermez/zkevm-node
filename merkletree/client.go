@@ -1,9 +1,9 @@
 package merkletree
 
 import (
-	"context"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"google.golang.org/grpc"
@@ -11,13 +11,13 @@ import (
 )
 
 // NewMTDBServiceClient creates a new MTDB client.
-func NewMTDBServiceClient(ctx context.Context, c Config) (pb.StateDBServiceClient, *grpc.ClientConn, context.CancelFunc) {
+func NewMTDBServiceClient(ctx *context.RequestContext, c Config) (pb.StateDBServiceClient, *grpc.ClientConn, context.CancelFunc) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	}
 	const maxWaitSeconds = 120
-	ctx, cancel := context.WithTimeout(ctx, maxWaitSeconds*time.Second)
+	cancel := ctx.SetTimeout(maxWaitSeconds * time.Second)
 
 	log.Infof("trying to connect to merkletree: %v", c.URI)
 	mtDBConn, err := grpc.DialContext(ctx, c.URI, opts...)

@@ -1,13 +1,13 @@
 package synchronizer
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math/big"
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -32,7 +32,7 @@ type ClientSynchronizer struct {
 	pool               poolInterface
 	ethTxManager       ethTxManager
 	zkEVMClient        zkEVMClientInterface
-	ctx                context.Context
+	ctx                *context.RequestContext
 	cancelCtx          context.CancelFunc
 	genesis            state.Genesis
 	cfg                Config
@@ -48,7 +48,8 @@ func NewSynchronizer(
 	zkEVMClient zkEVMClientInterface,
 	genesis state.Genesis,
 	cfg Config) (Synchronizer, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
+	cancel := ctx.WithCancel()
 
 	return &ClientSynchronizer{
 		isTrustedSequencer: isTrustedSequencer,
@@ -129,7 +130,8 @@ func (s *ClientSynchronizer) Sync() error {
 			return nil
 		case <-time.After(waitDuration):
 			//Sync L1Blocks
-			if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
+			ctx := context.Background()
+			if lastEthBlockSynced, err = s.syncBlocks(ctx, lastEthBlockSynced); err != nil {
 				log.Warn("error syncing blocks: ", err)
 				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
 				if err != nil {
@@ -163,7 +165,7 @@ func (s *ClientSynchronizer) Sync() error {
 }
 
 // This function syncs the node from a specific block to the latest
-func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
+func (s *ClientSynchronizer) syncBlocks(ctx *context.RequestContext, lastEthBlockSynced *state.Block) (*state.Block, error) {
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {
@@ -204,7 +206,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		if err != nil {
 			return lastEthBlockSynced, err
 		}
-		err = s.processBlockRange(blocks, order)
+		err = s.processBlockRange(ctx, blocks, order)
 		if err != nil {
 			return lastEthBlockSynced, err
 		}
@@ -237,7 +239,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 				ParentHash:  fb.ParentHash(),
 				ReceivedAt:  time.Unix(int64(fb.Time()), 0),
 			}
-			err = s.processBlockRange([]etherman.Block{b}, order)
+			err = s.processBlockRange(ctx, []etherman.Block{b}, order)
 			if err != nil {
 				return lastEthBlockSynced, err
 			}
@@ -312,7 +314,7 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 	return nil
 }
 
-func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order map[common.Hash][]etherman.Order) error {
+func (s *ClientSynchronizer) processBlockRange(ctx *context.RequestContext, blocks []etherman.Block, order map[common.Hash][]etherman.Order) error {
 	// New info has to be included into the db using the state
 	for i := range blocks {
 		// Begin db transaction
@@ -366,7 +368,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 					return err
 				}
 			case etherman.ForkIDsOrder:
-				err = s.processForkID(blocks[i].ForkIDs[element.Pos], blocks[i].BlockNumber, dbTx)
+				err = s.processForkID(ctx, blocks[i].ForkIDs[element.Pos], blocks[i].BlockNumber, dbTx)
 				if err != nil {
 					return err
 				}
@@ -549,7 +551,7 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 	return false
 }
 
-func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
+func (s *ClientSynchronizer) processForkID(ctx *context.RequestContext, forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
 	//If the forkID.batchnumber is a future batch
 	latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx, dbTx)
 	if err != nil {
@@ -574,7 +576,7 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 			return err
 		}
 		// Update forkID intervals in the state
-		s.state.UpdateForkIDIntervals(forkIDIntervals)
+		s.state.UpdateForkIDIntervals(ctx, forkIDIntervals)
 		return nil
 	}
 
@@ -629,7 +631,7 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 	}
 
 	// Update forkID intervals in the state
-	s.state.UpdateForkIDIntervals(forkIDIntervals)
+	s.state.UpdateForkIDIntervals(ctx, forkIDIntervals)
 
 	return fmt.Errorf("new ForkID detected, reseting synchronizarion")
 }

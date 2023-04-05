@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -92,7 +93,7 @@ func setLogLevel(ctx *cli.Context) error {
 }
 
 func sendBatches(cliCtx *cli.Context) error {
-	ctx := cliCtx.Context
+	ctx := context.Wrap(cliCtx.Context)
 
 	// retrieve default configuration
 	var cfg config.Config

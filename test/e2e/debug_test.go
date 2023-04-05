@@ -1,13 +1,13 @@
 package e2e
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"strings"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -276,8 +276,8 @@ func TestDebugTraceTransaction(t *testing.T) {
 
 	type testCase struct {
 		name           string
-		prepare        func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
-		createSignedTx func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error)
+		prepare        func(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
+		createSignedTx func(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error)
 	}
 	testCases := []testCase{
 		// successful transactions
@@ -472,8 +472,8 @@ func TestDebugTraceBlock(t *testing.T) {
 	type testCase struct {
 		name              string
 		blockNumberOrHash string
-		prepare           func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
-		createSignedTx    func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error)
+		prepare           func(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
+		createSignedTx    func(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error)
 	}
 	testCases := []testCase{
 		// successful transactions
@@ -618,7 +618,7 @@ func TestDebugTraceBlock(t *testing.T) {
 	}
 }
 
-func createEthTransferSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+func createEthTransferSignedTx(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
 
@@ -643,7 +643,7 @@ func createEthTransferSignedTx(t *testing.T, ctx context.Context, auth *bind.Tra
 	return auth.Signer(auth.From, tx)
 }
 
-func createScDeploySignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+func createScDeploySignedTx(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
 
@@ -670,7 +670,7 @@ func createScDeploySignedTx(t *testing.T, ctx context.Context, auth *bind.Transa
 	return auth.Signer(auth.From, tx)
 }
 
-func prepareScCall(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+func prepareScCall(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
 	_, tx, sc, err := EmitLog.DeployEmitLog(auth, client)
 	require.NoError(t, err)
 
@@ -682,7 +682,7 @@ func prepareScCall(t *testing.T, ctx context.Context, auth *bind.TransactOpts, c
 	}, nil
 }
 
-func createScCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+func createScCallSignedTx(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	scInterface := customData["sc"]
 	sc := scInterface.(*EmitLog.EmitLog)
 
@@ -695,7 +695,7 @@ func createScCallSignedTx(t *testing.T, ctx context.Context, auth *bind.Transact
 	return tx, nil
 }
 
-func prepareERC20Transfer(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+func prepareERC20Transfer(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
 	_, tx, sc, err := ERC20.DeployERC20(auth, client, "MyToken", "MT")
 	require.NoError(t, err)
 
@@ -713,7 +713,7 @@ func prepareERC20Transfer(t *testing.T, ctx context.Context, auth *bind.Transact
 	}, nil
 }
 
-func createERC20TransferSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+func createERC20TransferSignedTx(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	scInterface := customData["sc"]
 	sc := scInterface.(*ERC20.ERC20)
 
@@ -728,7 +728,7 @@ func createERC20TransferSignedTx(t *testing.T, ctx context.Context, auth *bind.T
 	return tx, nil
 }
 
-func createScDeployRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+func createScDeployRevertedSignedTx(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
 
@@ -749,7 +749,7 @@ func createScDeployRevertedSignedTx(t *testing.T, ctx context.Context, auth *bin
 	return auth.Signer(auth.From, tx)
 }
 
-func prepareScCallReverted(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+func prepareScCallReverted(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
 	_, tx, sc, err := Revert2.DeployRevert2(auth, client)
 	require.NoError(t, err)
 
@@ -761,7 +761,7 @@ func prepareScCallReverted(t *testing.T, ctx context.Context, auth *bind.Transac
 	}, nil
 }
 
-func createScCallRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+func createScCallRevertedSignedTx(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	scInterface := customData["sc"]
 	sc := scInterface.(*Revert2.Revert2)
 
@@ -775,7 +775,7 @@ func createScCallRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.
 	return tx, nil
 }
 
-func prepareERC20TransferReverted(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+func prepareERC20TransferReverted(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
 	_, tx, sc, err := ERC20.DeployERC20(auth, client, "MyToken2", "MT2")
 	require.NoError(t, err)
 
@@ -790,7 +790,7 @@ func prepareERC20TransferReverted(t *testing.T, ctx context.Context, auth *bind.
 	}, nil
 }
 
-func createERC20TransferRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+func createERC20TransferRevertedSignedTx(t *testing.T, ctx *context.RequestContext, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	scInterface := customData["sc"]
 	sc := scInterface.(*ERC20.ERC20)
 

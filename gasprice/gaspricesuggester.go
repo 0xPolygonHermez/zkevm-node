@@ -1,9 +1,9 @@
 package gasprice
 
 import (
-	"context"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -15,7 +15,7 @@ type L2GasPricer interface {
 }
 
 // NewL2GasPriceSuggester init.
-func NewL2GasPriceSuggester(ctx context.Context, cfg Config, pool pool, ethMan *etherman.Client, state *state.State) {
+func NewL2GasPriceSuggester(ctx *context.RequestContext, cfg Config, pool pool, ethMan *etherman.Client, state *state.State) {
 	var gpricer L2GasPricer
 	switch cfg.Type {
 	case LastNBatchesType:

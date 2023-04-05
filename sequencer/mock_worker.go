@@ -3,9 +3,9 @@
 package sequencer
 
 import (
-	context "context"
 	big "math/big"
 
+	context "github.com/0xPolygonHermez/zkevm-node/context"
 	common "github.com/ethereum/go-ethereum/common"
 
 	mock "github.com/stretchr/testify/mock"
@@ -21,7 +21,7 @@ type WorkerMock struct {
 }
 
 // AddTxTracker provides a mock function with given fields: ctx, txTracker
-func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) {
+func (_m *WorkerMock) AddTxTracker(ctx *context.RequestContext, txTracker *TxTracker) {
 	_m.Called(ctx, txTracker)
 }
 

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	ERC20 "github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
@@ -206,7 +206,7 @@ func swapExactTokensForTokens(auth *bind.TransactOpts, client *ethclient.Client,
 	err = operations.WaitTxToBeMined(ctx, client, tx, txTimeout)
 	chkErr(err)
 }
-func getAuth(ctx context.Context, client *ethclient.Client, pkHex string) *bind.TransactOpts {
+func getAuth(ctx *context.RequestContext, client *ethclient.Client, pkHex string) *bind.TransactOpts {
 	chainID, err := client.ChainID(ctx)
 	chkErr(err)
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(pkHex, "0x"))

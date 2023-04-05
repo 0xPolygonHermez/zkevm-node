@@ -1,13 +1,13 @@
 package pool
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math/big"
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -70,7 +70,7 @@ func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Addre
 }
 
 // StartPollingMinSuggestedGasPrice starts polling the minimum suggested gas price
-func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
+func (p *Pool) StartPollingMinSuggestedGasPrice(ctx *context.RequestContext) {
 	p.pollMinSuggestedGasPrice(ctx)
 	go func() {
 		for {
@@ -85,7 +85,7 @@ func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
 }
 
 // AddTx adds a transaction to the pool with the pending state
-func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
+func (p *Pool) AddTx(ctx *context.RequestContext, tx types.Transaction, ip string) error {
 	poolTx := NewTransaction(tx, ip, false, p)
 	if err := p.validateTx(ctx, *poolTx); err != nil {
 		return err
@@ -95,7 +95,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 }
 
 // StoreTx adds a transaction to the pool with the pending state
-func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
+func (p *Pool) StoreTx(ctx *context.RequestContext, tx types.Transaction, ip string, isWIP bool) error {
 	poolTx := NewTransaction(tx, ip, isWIP, p)
 	// Execute transaction to calculate its zkCounters
 	preExecutionResponse, err := p.PreExecuteTx(ctx, tx)
@@ -185,7 +185,7 @@ func (p *Pool) extractDepositCountFromClaimTx(poolTx *Transaction) (*uint64, err
 }
 
 // PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preExecutionResponse, error) {
+func (p *Pool) PreExecuteTx(ctx *context.RequestContext, tx types.Transaction) (preExecutionResponse, error) {
 	response := preExecutionResponse{usedZkCounters: state.ZKCounters{}, isOOC: false, isOOG: false, isReverted: false}
 
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
@@ -211,55 +211,55 @@ func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 // GetPendingTxs from the pool
 // limit parameter is used to limit amount of pending txs from the db,
 // if limit = 0, then there is no limit
-func (p *Pool) GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]Transaction, error) {
+func (p *Pool) GetPendingTxs(ctx *context.RequestContext, isClaims bool, limit uint64) ([]Transaction, error) {
 	return p.storage.GetTxsByStatus(ctx, TxStatusPending, isClaims, limit)
 }
 
 // GetNonWIPPendingTxs from the pool
 // limit parameter is used to limit amount of pending txs from the db,
 // if limit = 0, then there is no limit
-func (p *Pool) GetNonWIPPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]Transaction, error) {
+func (p *Pool) GetNonWIPPendingTxs(ctx *context.RequestContext, isClaims bool, limit uint64) ([]Transaction, error) {
 	return p.storage.GetNonWIPTxsByStatus(ctx, TxStatusPending, isClaims, limit)
 }
 
 // GetSelectedTxs gets selected txs from the pool db
-func (p *Pool) GetSelectedTxs(ctx context.Context, limit uint64) ([]Transaction, error) {
+func (p *Pool) GetSelectedTxs(ctx *context.RequestContext, limit uint64) ([]Transaction, error) {
 	return p.storage.GetTxsByStatus(ctx, TxStatusSelected, false, limit)
 }
 
 // GetPendingTxHashesSince returns the hashes of pending tx since the given date.
-func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
+func (p *Pool) GetPendingTxHashesSince(ctx *context.RequestContext, since time.Time) ([]common.Hash, error) {
 	return p.storage.GetPendingTxHashesSince(ctx, since)
 }
 
 // UpdateTxStatus updates a transaction state accordingly to the
 // provided state and hash
-func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus, isWIP bool) error {
+func (p *Pool) UpdateTxStatus(ctx *context.RequestContext, hash common.Hash, newStatus TxStatus, isWIP bool) error {
 	return p.storage.UpdateTxStatus(ctx, hash, newStatus, isWIP)
 }
 
 // SetGasPrice allows an external component to define the gas price
-func (p *Pool) SetGasPrice(ctx context.Context, gasPrice uint64) error {
+func (p *Pool) SetGasPrice(ctx *context.RequestContext, gasPrice uint64) error {
 	return p.storage.SetGasPrice(ctx, gasPrice)
 }
 
 // GetGasPrice returns the current gas price
-func (p *Pool) GetGasPrice(ctx context.Context) (uint64, error) {
+func (p *Pool) GetGasPrice(ctx *context.RequestContext) (uint64, error) {
 	return p.storage.GetGasPrice(ctx)
 }
 
 // CountPendingTransactions get number of pending transactions
 // used in bench tests
-func (p *Pool) CountPendingTransactions(ctx context.Context) (uint64, error) {
+func (p *Pool) CountPendingTransactions(ctx *context.RequestContext) (uint64, error) {
 	return p.storage.CountTransactionsByStatus(ctx, TxStatusPending)
 }
 
 // IsTxPending check if tx is still pending
-func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) {
+func (p *Pool) IsTxPending(ctx *context.RequestContext, hash common.Hash) (bool, error) {
 	return p.storage.IsTxPending(ctx, hash)
 }
 
-func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
+func (p *Pool) validateTx(ctx *context.RequestContext, poolTx Transaction) error {
 	// check chain id
 	txChainID := poolTx.ChainId().Uint64()
 	if txChainID != p.chainID && txChainID != 0 {
@@ -371,7 +371,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	return nil
 }
 
-func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
+func (p *Pool) pollMinSuggestedGasPrice(ctx *context.RequestContext) {
 	fromTimestamp := time.Now().UTC().Add(-p.cfg.MinAllowedGasPriceInterval.Duration)
 	gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
 	if err != nil {
@@ -404,7 +404,7 @@ func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
 // Nonce: 64 bits
 // To: 160 bits
 // ChainId: 64 bits
-func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx types.Transaction) error {
+func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx *context.RequestContext, tx types.Transaction) error {
 	maxUint64BigInt := big.NewInt(0).SetUint64(math.MaxUint64)
 
 	// GasLimit, Nonce and To fields are limited by their types, no need to check
@@ -426,7 +426,7 @@ func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx typ
 }
 
 // DeleteReorgedTransactions deletes transactions from the pool
-func (p *Pool) DeleteReorgedTransactions(ctx context.Context, transactions []*types.Transaction) error {
+func (p *Pool) DeleteReorgedTransactions(ctx *context.RequestContext, transactions []*types.Transaction) error {
 	hashes := []common.Hash{}
 
 	for _, tx := range transactions {
@@ -438,7 +438,7 @@ func (p *Pool) DeleteReorgedTransactions(ctx context.Context, transactions []*ty
 
 // UpdateTxWIPStatus updates a transaction wip status accordingly to the
 // provided WIP status and hash
-func (p *Pool) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error {
+func (p *Pool) UpdateTxWIPStatus(ctx *context.RequestContext, hash common.Hash, isWIP bool) error {
 	return p.storage.UpdateTxWIPStatus(ctx, hash, isWIP)
 }
 

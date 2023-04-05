@@ -1,19 +1,20 @@
 package gasprice
 
 import (
-	"context"
 	"fmt"
+
+	"github.com/0xPolygonHermez/zkevm-node/context"
 )
 
 // DefaultGasPricer gas price from config is set.
 type DefaultGasPricer struct {
 	cfg  Config
 	pool pool
-	ctx  context.Context
+	ctx  *context.RequestContext
 }
 
 // newDefaultGasPriceSuggester init default gas price suggester.
-func newDefaultGasPriceSuggester(ctx context.Context, cfg Config, pool pool) *DefaultGasPricer {
+func newDefaultGasPriceSuggester(ctx *context.RequestContext, cfg Config, pool pool) *DefaultGasPricer {
 	gpe := &DefaultGasPricer{ctx: ctx, cfg: cfg, pool: pool}
 	gpe.setDefaultGasPrice()
 	return gpe

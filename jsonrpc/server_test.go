@@ -48,9 +48,9 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	}
 
 	var newL2BlockEventHandler state.NewL2BlockEventHandler = func(e state.NewL2BlockEvent) {}
-	st.On("RegisterNewL2BlockEventHandler", mock.IsType(newL2BlockEventHandler)).Once()
+	st.On("RegisterNewL2BlockEventHandler", anythingOfTypeRequestContext, mock.IsType(newL2BlockEventHandler)).Once()
 
-	st.On("PrepareWebSocket").Once()
+	st.On("PrepareToHandleNewL2BlockEvents").Once()
 	server := NewServer(cfg, pool, st, storage, apis)
 
 	go func() {

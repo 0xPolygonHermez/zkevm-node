@@ -1,12 +1,12 @@
 package sequencer
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -103,7 +103,7 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 }
 
 // Start starts the sequencer
-func (s *Sequencer) Start(ctx context.Context) {
+func (s *Sequencer) Start(ctx *context.RequestContext) {
 	for !s.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
 		time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
@@ -193,7 +193,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	<-ctx.Done()
 }
 
-func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) (*WipBatch, *state.ProcessRequest) {
+func (s *Sequencer) bootstrap(ctx *context.RequestContext, dbManager *dbManager, finalizer *finalizer) (*WipBatch, *state.ProcessRequest) {
 	var (
 		currBatch      *WipBatch
 		processRequest *state.ProcessRequest
@@ -248,7 +248,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 	return currBatch, processRequest
 }
 
-func (s *Sequencer) trackOldTxs(ctx context.Context) {
+func (s *Sequencer) trackOldTxs(ctx *context.RequestContext) {
 	ticker := time.NewTicker(s.cfg.FrequencyToCheckTxsForDelete.Duration)
 	for {
 		waitTick(ctx, ticker)
@@ -268,7 +268,7 @@ func (s *Sequencer) trackOldTxs(ctx context.Context) {
 	}
 }
 
-func waitTick(ctx context.Context, ticker *time.Ticker) {
+func waitTick(ctx *context.RequestContext, ticker *time.Ticker) {
 	select {
 	case <-ticker.C:
 		// nothing
@@ -277,7 +277,7 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 	}
 }
 
-func (s *Sequencer) isSynced(ctx context.Context) bool {
+func (s *Sequencer) isSynced(ctx *context.RequestContext) bool {
 	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last isSynced batch, err: %v", err)

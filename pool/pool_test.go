@@ -1,7 +1,6 @@
 package pool_test
 
 import (
-	"context"
 	"crypto/rand"
 	"fmt"
 	"math"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	bridge "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
@@ -1379,7 +1379,7 @@ func Test_AddRevertedTx(t *testing.T) {
 	}
 }
 
-func setupPool(t *testing.T, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {
+func setupPool(t *testing.T, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx *context.RequestContext, eventLog *event.EventLog) *pool.Pool {
 	p := pool.NewPool(cfg, s, st, l2BridgeAddr, chainID, eventLog)
 	err := p.SetGasPrice(ctx, gasPrice.Uint64())
 	if err != nil {

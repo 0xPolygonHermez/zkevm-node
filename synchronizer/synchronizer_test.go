@@ -1,12 +1,12 @@
 package synchronizer
 
 import (
-	context "context"
 	"math/big"
 	"testing"
 	"time"
 
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -31,7 +31,7 @@ type mocks struct {
 // func TestTrustedStateReorg(t *testing.T) {
 // 	type testCase struct {
 // 		Name            string
-// 		getTrustedBatch func(*mocks, context.Context, etherman.SequencedBatch) *state.Batch
+// 		getTrustedBatch func(*mocks, *context.RequestContext, etherman.SequencedBatch) *state.Batch
 // 		getTrustedReorg func(m *mocks, batchNumber, timestamp uint64) state.TrustedReorg
 // 	}
 
@@ -47,11 +47,11 @@ type mocks struct {
 // 		require.NoError(t, err)
 
 // 		// state preparation
-// 		ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
+// 		ctxMatchBy := mock.MatchedBy(func(ctx *context.RequestContext) bool { return ctx != nil })
 // 		m.State.
 // 			On("BeginStateTransaction", ctxMatchBy).
 // 			Run(func(args mock.Arguments) {
-// 				ctx := args[0].(context.Context)
+// 				ctx := args[0].(*context.RequestContext)
 // 				parentHash := common.HexToHash("0x111")
 // 				ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
 // 				ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
@@ -252,7 +252,7 @@ type mocks struct {
 // 	testCases := []testCase{
 // 		{
 // 			Name: "Transactions are different",
-// 			getTrustedBatch: func(m *mocks, ctx context.Context, sequencedBatch etherman.SequencedBatch) *state.Batch {
+// 			getTrustedBatch: func(m *mocks, ctx *context.RequestContext, sequencedBatch etherman.SequencedBatch) *state.Batch {
 // 				return &state.Batch{
 // 					BatchNumber:    1,
 // 					BatchL2Data:    []byte{1},
@@ -270,7 +270,7 @@ type mocks struct {
 // 		},
 // 		{
 // 			Name: "Global Exit Root is different",
-// 			getTrustedBatch: func(m *mocks, ctx context.Context, sequencedBatch etherman.SequencedBatch) *state.Batch {
+// 			getTrustedBatch: func(m *mocks, ctx *context.RequestContext, sequencedBatch etherman.SequencedBatch) *state.Batch {
 // 				return &state.Batch{
 // 					BatchNumber:    1,
 // 					BatchL2Data:    sequencedBatch.Transactions,
@@ -288,7 +288,7 @@ type mocks struct {
 // 		},
 // 		{
 // 			Name: "Timestamp is different",
-// 			getTrustedBatch: func(m *mocks, ctx context.Context, sequencedBatch etherman.SequencedBatch) *state.Batch {
+// 			getTrustedBatch: func(m *mocks, ctx *context.RequestContext, sequencedBatch etherman.SequencedBatch) *state.Batch {
 // 				return &state.Batch{
 // 					BatchNumber:    1,
 // 					BatchL2Data:    sequencedBatch.Transactions,
@@ -306,7 +306,7 @@ type mocks struct {
 // 		},
 // 		{
 // 			Name: "Coinbase is different",
-// 			getTrustedBatch: func(m *mocks, ctx context.Context, sequencedBatch etherman.SequencedBatch) *state.Batch {
+// 			getTrustedBatch: func(m *mocks, ctx *context.RequestContext, sequencedBatch etherman.SequencedBatch) *state.Batch {
 // 				return &state.Batch{
 // 					BatchNumber:    1,
 // 					BatchL2Data:    sequencedBatch.Transactions,
@@ -364,11 +364,11 @@ func TestForcedBatch(t *testing.T) {
 	require.NoError(t, err)
 
 	// state preparation
-	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
+	ctxMatchBy := mock.MatchedBy(func(ctx *context.RequestContext) bool { return ctx != nil })
 	m.State.
 		On("BeginStateTransaction", ctxMatchBy).
 		Run(func(args mock.Arguments) {
-			ctx := args[0].(context.Context)
+			ctx := args[0].(*context.RequestContext)
 			parentHash := common.HexToHash("0x111")
 			ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
 			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
@@ -583,11 +583,11 @@ func TestSequenceForcedBatch(t *testing.T) {
 	require.NoError(t, err)
 
 	// state preparation
-	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
+	ctxMatchBy := mock.MatchedBy(func(ctx *context.RequestContext) bool { return ctx != nil })
 	m.State.
 		On("BeginStateTransaction", ctxMatchBy).
 		Run(func(args mock.Arguments) {
-			ctx := args[0].(context.Context)
+			ctx := args[0].(*context.RequestContext)
 			parentHash := common.HexToHash("0x111")
 			ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
 			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)

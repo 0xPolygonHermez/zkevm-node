@@ -1,7 +1,6 @@
 package etherman
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -9,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"

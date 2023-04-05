@@ -3,8 +3,7 @@
 package synchronizer
 
 import (
-	context "context"
-
+	context "github.com/0xPolygonHermez/zkevm-node/context"
 	mock "github.com/stretchr/testify/mock"
 
 	types "github.com/ethereum/go-ethereum/core/types"
@@ -16,11 +15,11 @@ type poolMock struct {
 }
 
 // DeleteReorgedTransactions provides a mock function with given fields: ctx, txs
-func (_m *poolMock) DeleteReorgedTransactions(ctx context.Context, txs []*types.Transaction) error {
+func (_m *poolMock) DeleteReorgedTransactions(ctx *context.RequestContext, txs []*types.Transaction) error {
 	ret := _m.Called(ctx, txs)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, []*types.Transaction) error); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, []*types.Transaction) error); ok {
 		r0 = rf(ctx, txs)
 	} else {
 		r0 = ret.Error(0)
@@ -30,11 +29,11 @@ func (_m *poolMock) DeleteReorgedTransactions(ctx context.Context, txs []*types.
 }
 
 // StoreTx provides a mock function with given fields: ctx, tx, ip, isWIP
-func (_m *poolMock) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
+func (_m *poolMock) StoreTx(ctx *context.RequestContext, tx types.Transaction, ip string, isWIP bool) error {
 	ret := _m.Called(ctx, tx, ip, isWIP)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, types.Transaction, string, bool) error); ok {
+	if rf, ok := ret.Get(0).(func(*context.RequestContext, types.Transaction, string, bool) error); ok {
 		r0 = rf(ctx, tx, ip, isWIP)
 	} else {
 		r0 = ret.Error(0)

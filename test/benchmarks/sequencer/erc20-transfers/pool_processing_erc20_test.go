@@ -1,13 +1,13 @@
 package erc20_transfers
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/metrics"
@@ -76,7 +76,7 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 	metrics.PrintPrometheus(deploySCSequencerTime, deploySCExecutorOnlyTime, 0)
 }
 
-func deployERC20Contract(b *testing.B, client *ethclient.Client, ctx context.Context, auth *bind.TransactOpts) error {
+func deployERC20Contract(b *testing.B, client *ethclient.Client, ctx *context.RequestContext, auth *bind.TransactOpts) error {
 	var (
 		tx  *types.Transaction
 		err error

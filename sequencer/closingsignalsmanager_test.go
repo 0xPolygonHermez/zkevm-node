@@ -1,11 +1,11 @@
 package sequencer
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
@@ -29,7 +29,7 @@ const numberOfForcesBatches = 10
 var (
 	localStateDb                                 *pgxpool.Pool
 	localTestDbManager                           *dbManager
-	localCtx                                     context.Context
+	localCtx                                     *context.RequestContext
 	localMtDBCancel, localExecutorCancel         context.CancelFunc
 	localMtDBServiceClient                       mtDBclientpb.StateDBServiceClient
 	localMtDBClientConn, localExecutorClientConn *grpc.ClientConn
@@ -130,7 +130,8 @@ func TestClosingSignalsManager(t *testing.T) {
 	closingSignalsManager := newClosingSignalsManager(localCtx, localTestDbManager, channels, cfg, m.Etherman)
 	closingSignalsManager.Start()
 
-	newCtx, cancelFunc := context.WithTimeout(localCtx, time.Second*3)
+	newCtx := localCtx.Clone()
+	cancelFunc := newCtx.SetTimeout(time.Second * 3)
 	defer cancelFunc()
 
 	var fb *state.ForcedBatch

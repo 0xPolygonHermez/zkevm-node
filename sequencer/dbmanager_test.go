@@ -1,13 +1,13 @@
 package sequencer
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
@@ -26,7 +26,7 @@ import (
 
 var (
 	mtDBCancel context.CancelFunc
-	ctx        context.Context
+	ctx        *context.RequestContext
 	testState  *state.State
 	stateTree  *merkletree.StateTree
 	stateDb    *pgxpool.Pool

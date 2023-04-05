@@ -1,10 +1,10 @@
 package e2e
 
 import (
-	"context"
 	"math/big"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/FailureTest"

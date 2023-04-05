@@ -1,14 +1,14 @@
 package sequencer
 
 import (
-	"context"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
 type closingSignalsManager struct {
-	ctx                    context.Context
+	ctx                    *context.RequestContext
 	dbManager              dbManagerInterface
 	closingSignalCh        ClosingSignalCh
 	cfg                    FinalizerCfg
@@ -16,7 +16,7 @@ type closingSignalsManager struct {
 	etherman               etherman
 }
 
-func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface, closingSignalCh ClosingSignalCh, cfg FinalizerCfg, etherman etherman) *closingSignalsManager {
+func newClosingSignalsManager(ctx *context.RequestContext, dbManager dbManagerInterface, closingSignalCh ClosingSignalCh, cfg FinalizerCfg, etherman etherman) *closingSignalsManager {
 	return &closingSignalsManager{ctx: ctx, dbManager: dbManager, closingSignalCh: closingSignalCh, cfg: cfg, etherman: etherman}
 }
 

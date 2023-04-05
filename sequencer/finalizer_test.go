@@ -1,7 +1,6 @@
 package sequencer
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"sync"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -80,7 +80,7 @@ var (
 	oldHash  = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
 	newHash  = common.HexToHash("0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	sender   = common.HexToAddress("0x3445324")
-	isSynced = func(ctx context.Context) bool {
+	isSynced = func(ctx *context.RequestContext) bool {
 		return true
 	}
 	// tx1 = ethTypes.NewTransaction(0, common.HexToAddress("0"), big.NewInt(0), 0, big.NewInt(0), []byte("aaa"))

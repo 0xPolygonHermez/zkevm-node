@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
@@ -54,16 +55,16 @@ type traceBlockTransactionResponse struct {
 
 // TraceTransaction creates a response for debug_traceTransaction request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtracetransaction
-func (d *DebugEndpoints) TraceTransaction(ctx *types.RequestContext, hash types.ArgHash, cfg *traceConfig) (interface{}, types.Error) {
-	return d.txMan.NewDbTxScope(ctx, d.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (d *DebugEndpoints) TraceTransaction(ctx *context.RequestContext, hash types.ArgHash, cfg *traceConfig) (interface{}, types.Error) {
+	return d.txMan.NewDbTxScope(ctx, d.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		return d.buildTraceTransaction(ctx, hash.Hash(), cfg, dbTx)
 	})
 }
 
 // TraceBlockByNumber creates a response for debug_traceBlockByNumber request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbynumber
-func (d *DebugEndpoints) TraceBlockByNumber(ctx *types.RequestContext, number types.BlockNumber, cfg *traceConfig) (interface{}, types.Error) {
-	return d.txMan.NewDbTxScope(ctx, d.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (d *DebugEndpoints) TraceBlockByNumber(ctx *context.RequestContext, number types.BlockNumber, cfg *traceConfig) (interface{}, types.Error) {
+	return d.txMan.NewDbTxScope(ctx, d.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, d.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
@@ -87,8 +88,8 @@ func (d *DebugEndpoints) TraceBlockByNumber(ctx *types.RequestContext, number ty
 
 // TraceBlockByHash creates a response for debug_traceBlockByHash request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbyhash
-func (d *DebugEndpoints) TraceBlockByHash(ctx *types.RequestContext, hash types.ArgHash, cfg *traceConfig) (interface{}, types.Error) {
-	return d.txMan.NewDbTxScope(ctx, d.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (d *DebugEndpoints) TraceBlockByHash(ctx *context.RequestContext, hash types.ArgHash, cfg *traceConfig) (interface{}, types.Error) {
+	return d.txMan.NewDbTxScope(ctx, d.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		block, err := d.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("block %s not found", hash.Hash().String()))
@@ -105,7 +106,7 @@ func (d *DebugEndpoints) TraceBlockByHash(ctx *types.RequestContext, hash types.
 	})
 }
 
-func (d *DebugEndpoints) buildTraceBlock(ctx *types.RequestContext, txs []*ethTypes.Transaction, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
+func (d *DebugEndpoints) buildTraceBlock(ctx *context.RequestContext, txs []*ethTypes.Transaction, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
 	traces := []traceBlockTransactionResponse{}
 	for _, tx := range txs {
 		traceTransaction, err := d.buildTraceTransaction(ctx, tx.Hash(), cfg, dbTx)
@@ -122,7 +123,7 @@ func (d *DebugEndpoints) buildTraceBlock(ctx *types.RequestContext, txs []*ethTy
 	return traces, nil
 }
 
-func (d *DebugEndpoints) buildTraceTransaction(ctx *types.RequestContext, hash common.Hash, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
+func (d *DebugEndpoints) buildTraceTransaction(ctx *context.RequestContext, hash common.Hash, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
 	traceConfig := state.TraceConfig{}
 
 	if cfg != nil {

@@ -1,11 +1,11 @@
 package pgpoolstorage
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -35,7 +35,7 @@ func NewPostgresPoolStorage(cfg db.Config) (*PostgresPoolStorage, error) {
 }
 
 // AddTx adds a transaction to the pool table with the provided status
-func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) error {
+func (p *PostgresPoolStorage) AddTx(ctx *context.RequestContext, tx pool.Transaction) error {
 	hash := tx.Hash().Hex()
 
 	b, err := tx.MarshalBinary()
@@ -137,7 +137,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 // GetTxsByStatus returns an array of transactions filtered by status
 // limit parameter is used to limit amount txs from the db,
 // if limit = 0, then there is no limit
-func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.TxStatus, isClaims bool, limit uint64) ([]pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTxsByStatus(ctx *context.RequestContext, status pool.TxStatus, isClaims bool, limit uint64) ([]pool.Transaction, error) {
 	var (
 		rows pgx.Rows
 		err  error
@@ -170,7 +170,7 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 // GetNonWIPTxsByStatus returns an array of transactions filtered by status
 // limit parameter is used to limit amount txs from the db,
 // if limit = 0, then there is no limit
-func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status pool.TxStatus, isClaims bool, limit uint64) ([]pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx *context.RequestContext, status pool.TxStatus, isClaims bool, limit uint64) ([]pool.Transaction, error) {
 	var (
 		rows pgx.Rows
 		err  error
@@ -201,7 +201,7 @@ func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status p
 }
 
 // GetPendingTxHashesSince returns the pending tx since the given time.
-func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
+func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx *context.RequestContext, since time.Time) ([]common.Hash, error) {
 	sql := "SELECT hash FROM pool.transaction WHERE status = $1 AND received_at >= $2"
 	rows, err := p.db.Query(ctx, sql, pool.TxStatusPending, since)
 	if err != nil {
@@ -222,7 +222,7 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 }
 
 // GetTxs gets txs with the lowest nonce
-func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTxs(ctx *context.RequestContext, filterStatus pool.TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*pool.Transaction, error) {
 	query := `
 		SELECT
 			encoded,
@@ -356,7 +356,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 
 // CountTransactionsByStatus get number of transactions
 // accordingly to the provided status
-func (p *PostgresPoolStorage) CountTransactionsByStatus(ctx context.Context, status pool.TxStatus) (uint64, error) {
+func (p *PostgresPoolStorage) CountTransactionsByStatus(ctx *context.RequestContext, status pool.TxStatus) (uint64, error) {
 	sql := "SELECT COUNT(*) FROM pool.transaction WHERE status = $1"
 	var counter uint64
 	err := p.db.QueryRow(ctx, sql, status.String()).Scan(&counter)
@@ -368,7 +368,7 @@ func (p *PostgresPoolStorage) CountTransactionsByStatus(ctx context.Context, sta
 
 // UpdateTxStatus updates a transaction status accordingly to the
 // provided status and hash
-func (p *PostgresPoolStorage) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
+func (p *PostgresPoolStorage) UpdateTxStatus(ctx *context.RequestContext, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
 	sql := "UPDATE pool.transaction SET status = $1, is_wip = $2 WHERE hash = $3"
 	if _, err := p.db.Exec(ctx, sql, newStatus, isWIP, hash.Hex()); err != nil {
 		return err
@@ -377,7 +377,7 @@ func (p *PostgresPoolStorage) UpdateTxStatus(ctx context.Context, hash common.Ha
 }
 
 // UpdateTxsStatus updates transactions status accordingly to the provided status and hashes
-func (p *PostgresPoolStorage) UpdateTxsStatus(ctx context.Context, hashes []string, newStatus pool.TxStatus) error {
+func (p *PostgresPoolStorage) UpdateTxsStatus(ctx *context.RequestContext, hashes []string, newStatus pool.TxStatus) error {
 	sql := "UPDATE pool.transaction SET status = $1 WHERE hash = ANY ($2)"
 	if _, err := p.db.Exec(ctx, sql, newStatus, hashes); err != nil {
 		return err
@@ -386,7 +386,7 @@ func (p *PostgresPoolStorage) UpdateTxsStatus(ctx context.Context, hashes []stri
 }
 
 // DeleteTransactionsByHashes deletes txs by their hashes
-func (p *PostgresPoolStorage) DeleteTransactionsByHashes(ctx context.Context, hashes []common.Hash) error {
+func (p *PostgresPoolStorage) DeleteTransactionsByHashes(ctx *context.RequestContext, hashes []common.Hash) error {
 	hh := make([]string, 0, len(hashes))
 	for _, h := range hashes {
 		hh = append(hh, h.Hex())
@@ -400,7 +400,7 @@ func (p *PostgresPoolStorage) DeleteTransactionsByHashes(ctx context.Context, ha
 }
 
 // SetGasPrice allows an external component to define the gas price
-func (p *PostgresPoolStorage) SetGasPrice(ctx context.Context, gasPrice uint64) error {
+func (p *PostgresPoolStorage) SetGasPrice(ctx *context.RequestContext, gasPrice uint64) error {
 	sql := "INSERT INTO pool.gas_price (price, timestamp) VALUES ($1, $2)"
 	if _, err := p.db.Exec(ctx, sql, gasPrice, time.Now().UTC()); err != nil {
 		return err
@@ -409,7 +409,7 @@ func (p *PostgresPoolStorage) SetGasPrice(ctx context.Context, gasPrice uint64) 
 }
 
 // GetGasPrice returns the current gas price
-func (p *PostgresPoolStorage) GetGasPrice(ctx context.Context) (uint64, error) {
+func (p *PostgresPoolStorage) GetGasPrice(ctx *context.RequestContext) (uint64, error) {
 	sql := "SELECT price FROM pool.gas_price ORDER BY item_id DESC LIMIT 1"
 	rows, err := p.db.Query(ctx, sql)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -433,7 +433,7 @@ func (p *PostgresPoolStorage) GetGasPrice(ctx context.Context) (uint64, error) {
 }
 
 // MinGasPriceSince returns the min gas price after given timestamp
-func (p *PostgresPoolStorage) MinGasPriceSince(ctx context.Context, timestamp time.Time) (uint64, error) {
+func (p *PostgresPoolStorage) MinGasPriceSince(ctx *context.RequestContext, timestamp time.Time) (uint64, error) {
 	sql := "SELECT COALESCE(MIN(price), 0) FROM pool.gas_price WHERE \"timestamp\" >= $1 LIMIT 1"
 	var gasPrice uint64
 	err := p.db.QueryRow(ctx, sql, timestamp).Scan(&gasPrice)
@@ -448,7 +448,7 @@ func (p *PostgresPoolStorage) MinGasPriceSince(ctx context.Context, timestamp ti
 
 // IsTxPending determines if the tx associated to the given hash is pending or
 // not.
-func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) {
+func (p *PostgresPoolStorage) IsTxPending(ctx *context.RequestContext, hash common.Hash) (bool, error) {
 	var exists bool
 	req := "SELECT exists (SELECT 1 FROM pool.transaction WHERE hash = $1 AND status = $2)"
 	err := p.db.QueryRow(ctx, req, hash.Hex(), pool.TxStatusPending).Scan(&exists)
@@ -460,7 +460,7 @@ func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash)
 }
 
 // GetTxsByFromAndNonce get all the transactions from the pool with the same from and nonce
-func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx *context.RequestContext, from common.Address, nonce uint64) ([]pool.Transaction, error) {
 	sql := `SELECT encoded, status, received_at, is_wip, ip, deposit_count
 	          FROM pool.transaction
 			 WHERE from_address = $1
@@ -486,7 +486,7 @@ func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from com
 }
 
 // GetTxFromAddressFromByHash gets tx from address by hash
-func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error) {
+func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx *context.RequestContext, hash common.Hash) (common.Address, uint64, error) {
 	query := `SELECT from_address, nonce
 			  FROM pool.transaction
 			  WHERE hash = $1
@@ -505,7 +505,7 @@ func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx context.Context, ha
 }
 
 // GetNonce gets the nonce to the provided address accordingly to the txs in the pool
-func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Address) (uint64, error) {
+func (p *PostgresPoolStorage) GetNonce(ctx *context.RequestContext, address common.Address) (uint64, error) {
 	sql := `SELECT MAX(nonce)
               FROM pool.transaction
              WHERE from_address = $1
@@ -540,7 +540,7 @@ func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Addre
 }
 
 // GetTxByHash gets a transaction in the pool by its hash
-func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTxByHash(ctx *context.RequestContext, hash common.Hash) (*pool.Transaction, error) {
 	var (
 		encoded, status, ip string
 		receivedAt          time.Time
@@ -611,7 +611,7 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 }
 
 // DeleteTransactionByHash deletes tx by its hash
-func (p *PostgresPoolStorage) DeleteTransactionByHash(ctx context.Context, hash common.Hash) error {
+func (p *PostgresPoolStorage) DeleteTransactionByHash(ctx *context.RequestContext, hash common.Hash) error {
 	query := "DELETE FROM pool.transaction WHERE hash = $1"
 	if _, err := p.db.Exec(ctx, query, hash); err != nil {
 		return err
@@ -620,7 +620,7 @@ func (p *PostgresPoolStorage) DeleteTransactionByHash(ctx context.Context, hash 
 }
 
 // GetTxZkCountersByHash gets a transaction zkcounters by its hash
-func (p *PostgresPoolStorage) GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error) {
+func (p *PostgresPoolStorage) GetTxZkCountersByHash(ctx *context.RequestContext, hash common.Hash) (*state.ZKCounters, error) {
 	var zkCounters state.ZKCounters
 
 	sql := `SELECT cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
@@ -638,7 +638,7 @@ func (p *PostgresPoolStorage) GetTxZkCountersByHash(ctx context.Context, hash co
 }
 
 // MarkWIPTxsAsPending updates WIP status to non WIP
-func (p *PostgresPoolStorage) MarkWIPTxsAsPending(ctx context.Context) error {
+func (p *PostgresPoolStorage) MarkWIPTxsAsPending(ctx *context.RequestContext) error {
 	const query = `UPDATE pool.transaction SET is_wip = false WHERE is_wip = true`
 	if _, err := p.db.Exec(ctx, query); err != nil {
 		return err
@@ -648,7 +648,7 @@ func (p *PostgresPoolStorage) MarkWIPTxsAsPending(ctx context.Context) error {
 
 // UpdateTxWIPStatus updates a transaction wip status accordingly to the
 // provided WIP status and hash
-func (p *PostgresPoolStorage) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error {
+func (p *PostgresPoolStorage) UpdateTxWIPStatus(ctx *context.RequestContext, hash common.Hash, isWIP bool) error {
 	sql := "UPDATE pool.transaction SET is_wip = $1 WHERE hash = $2"
 	if _, err := p.db.Exec(ctx, sql, isWIP, hash.Hex()); err != nil {
 		return err
@@ -658,7 +658,7 @@ func (p *PostgresPoolStorage) UpdateTxWIPStatus(ctx context.Context, hash common
 
 // DepositCountExists checks if already exists a transaction in the pool with the
 // provided deposit count
-func (p *PostgresPoolStorage) DepositCountExists(ctx context.Context, depositCount uint64) (bool, error) {
+func (p *PostgresPoolStorage) DepositCountExists(ctx *context.RequestContext, depositCount uint64) (bool, error) {
 	var exists bool
 	req := "SELECT exists (SELECT 1 FROM pool.transaction WHERE deposit_count = $1)"
 	err := p.db.QueryRow(ctx, req, depositCount).Scan(&exists)

@@ -1,14 +1,19 @@
 package types
 
 import (
-	"context"
 	"encoding/json"
 	"strconv"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	anythingOfTypeRequestContext = mock.AnythingOfType("*types.RequestContext")
 )
 
 func TestBlockNumberMarshalJSON(t *testing.T) {
@@ -59,7 +64,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
 				s.
-					On("GetLastL2BlockNumber", context.Background(), d).
+					On("GetLastL2BlockNumber", anythingOfTypeRequestContext, d).
 					Return(uint64(40), nil).
 					Once()
 			},
@@ -71,7 +76,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
 				s.
-					On("GetLastL2BlockNumber", context.Background(), d).
+					On("GetLastL2BlockNumber", anythingOfTypeRequestContext, d).
 					Return(uint64(50), nil).
 					Once()
 			},
@@ -83,7 +88,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
 				s.
-					On("GetLastL2BlockNumber", context.Background(), d).
+					On("GetLastL2BlockNumber", anythingOfTypeRequestContext, d).
 					Return(uint64(30), nil).
 					Once()
 			},
@@ -116,7 +121,8 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			tc := testCase
 			dbTx := mocks.NewDBTxMock(t)
 			testCase.setupMocks(s, dbTx, &tc)
-			result, rpcErr := testCase.bn.GetNumericBlockNumber(context.Background(), s, dbTx)
+			ctx := context.Background()
+			result, rpcErr := testCase.bn.GetNumericBlockNumber(ctx, s, dbTx)
 			assert.Equal(t, testCase.expectedBlockNumber, result)
 			if rpcErr != nil || testCase.expectedError != nil {
 				assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode())

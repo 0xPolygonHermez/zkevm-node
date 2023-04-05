@@ -1,13 +1,13 @@
 package types
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -189,7 +189,7 @@ type TxArgs struct {
 }
 
 // ToTransaction transforms txnArgs into a Transaction
-func (args *TxArgs) ToTransaction(ctx context.Context, st StateInterface, maxCumulativeGasUsed uint64, root common.Hash, defaultSenderAddress common.Address, dbTx pgx.Tx) (common.Address, *types.Transaction, error) {
+func (args *TxArgs) ToTransaction(ctx *context.RequestContext, st StateInterface, maxCumulativeGasUsed uint64, root common.Hash, defaultSenderAddress common.Address, dbTx pgx.Tx) (common.Address, *types.Transaction, error) {
 	sender := defaultSenderAddress
 	nonce := uint64(0)
 	if args.From != nil && *args.From != state.ZeroAddress {

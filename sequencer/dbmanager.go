@@ -1,10 +1,10 @@
 package sequencer
 
 import (
-	"context"
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -25,12 +25,12 @@ type dbManager struct {
 	worker           workerInterface
 	txsStore         TxsStore
 	l2ReorgCh        chan L2ReorgEvent
-	ctx              context.Context
+	ctx              *context.RequestContext
 	batchConstraints batchConstraints
 	numberOfReorgs   uint64
 }
 
-func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
+func (d *dbManager) GetBatchByNumber(ctx *context.RequestContext, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	return d.state.GetBatchByNumber(ctx, batchNumber, dbTx)
 }
 
@@ -43,7 +43,7 @@ type ClosingBatchParameters struct {
 	Txs           []types.Transaction
 }
 
-func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
+func newDBManager(ctx *context.RequestContext, config DBManagerCfg, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
 	numberOfReorgs, err := state.CountReorgs(ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)
@@ -66,17 +66,17 @@ func (d *dbManager) Start() {
 }
 
 // GetLastBatchNumber get the latest batch number from state
-func (d *dbManager) GetLastBatchNumber(ctx context.Context) (uint64, error) {
+func (d *dbManager) GetLastBatchNumber(ctx *context.RequestContext) (uint64, error) {
 	return d.state.GetLastBatchNumber(ctx, nil)
 }
 
 // OpenBatch opens a new batch to star processing transactions
-func (d *dbManager) OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error {
+func (d *dbManager) OpenBatch(ctx *context.RequestContext, processingContext state.ProcessingContext, dbTx pgx.Tx) error {
 	return d.state.OpenBatch(ctx, processingContext, dbTx)
 }
 
 // CreateFirstBatch is using during genesis
-func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext {
+func (d *dbManager) CreateFirstBatch(ctx *context.RequestContext, sequencerAddress common.Address) state.ProcessingContext {
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    1,
 		Coinbase:       sequencerAddress,
@@ -160,17 +160,17 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
 }
 
 // BeginStateTransaction starts a db transaction in the state
-func (d *dbManager) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
+func (d *dbManager) BeginStateTransaction(ctx *context.RequestContext) (pgx.Tx, error) {
 	return d.state.BeginStateTransaction(ctx)
 }
 
 // StoreProcessedTransaction stores a transaction in the state
-func (d *dbManager) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
+func (d *dbManager) StoreProcessedTransaction(ctx *context.RequestContext, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
 	return d.state.StoreTransaction(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
 }
 
 // DeleteTransactionFromPool deletes a transaction from the pool
-func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common.Hash) error {
+func (d *dbManager) DeleteTransactionFromPool(ctx *context.RequestContext, txHash common.Hash) error {
 	return d.txPool.DeleteTransactionByHash(ctx, txHash)
 }
 
@@ -232,7 +232,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 }
 
 // GetWIPBatch returns ready WIP batch
-func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
+func (d *dbManager) GetWIPBatch(ctx *context.RequestContext) (*WipBatch, error) {
 	const two = 2
 	var lastBatch, previousLastBatch *state.Batch
 	dbTx, err := d.BeginStateTransaction(ctx)
@@ -362,12 +362,12 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 }
 
 // GetLastClosedBatch gets the latest closed batch from state
-func (d *dbManager) GetLastClosedBatch(ctx context.Context) (*state.Batch, error) {
+func (d *dbManager) GetLastClosedBatch(ctx *context.RequestContext) (*state.Batch, error) {
 	return d.state.GetLastClosedBatch(ctx, nil)
 }
 
 // GetLastBatch gets the latest batch from state
-func (d *dbManager) GetLastBatch(ctx context.Context) (*state.Batch, error) {
+func (d *dbManager) GetLastBatch(ctx *context.RequestContext) (*state.Batch, error) {
 	batch, err := d.state.GetLastBatch(d.ctx, nil)
 	if err != nil {
 		return nil, err
@@ -376,22 +376,22 @@ func (d *dbManager) GetLastBatch(ctx context.Context) (*state.Batch, error) {
 }
 
 // IsBatchClosed checks if a batch is closed
-func (d *dbManager) IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error) {
+func (d *dbManager) IsBatchClosed(ctx *context.RequestContext, batchNum uint64) (bool, error) {
 	return d.state.IsBatchClosed(ctx, batchNum, nil)
 }
 
 // GetLastNBatches gets the latest N batches from state
-func (d *dbManager) GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error) {
+func (d *dbManager) GetLastNBatches(ctx *context.RequestContext, numBatches uint) ([]*state.Batch, error) {
 	return d.state.GetLastNBatches(ctx, numBatches, nil)
 }
 
 // GetLatestGer gets the latest global exit root
-func (d *dbManager) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
+func (d *dbManager) GetLatestGer(ctx *context.RequestContext, gerFinalityNumberOfBlocks uint64) (state.GlobalExitRoot, time.Time, error) {
 	return d.state.GetLatestGer(ctx, gerFinalityNumberOfBlocks)
 }
 
 // CloseBatch closes a batch in the state
-func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters) error {
+func (d *dbManager) CloseBatch(ctx *context.RequestContext, params ClosingBatchParameters) error {
 	processingReceipt := state.ProcessingReceipt{
 		BatchNumber:   params.BatchNumber,
 		StateRoot:     params.StateRoot,
@@ -507,46 +507,46 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 }
 
 // GetForcedBatchesSince gets L1 forced batches since timestamp
-func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
+func (d *dbManager) GetForcedBatchesSince(ctx *context.RequestContext, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error) {
 	return d.state.GetForcedBatchesSince(ctx, forcedBatchNumber, maxBlockNumber, dbTx)
 }
 
 // GetLastL2BlockHeader gets the last l2 block number
-func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+func (d *dbManager) GetLastL2BlockHeader(ctx *context.RequestContext, dbTx pgx.Tx) (*types.Header, error) {
 	return d.state.GetLastL2BlockHeader(ctx, dbTx)
 }
 
-func (d *dbManager) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error) {
+func (d *dbManager) GetLastBlock(ctx *context.RequestContext, dbTx pgx.Tx) (*state.Block, error) {
 	return d.state.GetLastBlock(ctx, dbTx)
 }
 
-func (d *dbManager) GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+func (d *dbManager) GetLastTrustedForcedBatchNumber(ctx *context.RequestContext, dbTx pgx.Tx) (uint64, error) {
 	return d.state.GetLastTrustedForcedBatchNumber(ctx, dbTx)
 }
 
-func (d *dbManager) GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
+func (d *dbManager) GetBalanceByStateRoot(ctx *context.RequestContext, address common.Address, root common.Hash) (*big.Int, error) {
 	return d.state.GetBalanceByStateRoot(ctx, address, root)
 }
 
-func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) (txs []types.Transaction, err error) {
+func (d *dbManager) GetTransactionsByBatchNumber(ctx *context.RequestContext, batchNumber uint64) (txs []types.Transaction, err error) {
 	return d.state.GetTransactionsByBatchNumber(ctx, batchNumber, nil)
 }
 
-func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
+func (d *dbManager) UpdateTxStatus(ctx *context.RequestContext, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
 	return d.txPool.UpdateTxStatus(ctx, hash, newStatus, isWIP)
 }
 
 // GetLatestVirtualBatchTimestamp gets last virtual batch timestamp
-func (d *dbManager) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
+func (d *dbManager) GetLatestVirtualBatchTimestamp(ctx *context.RequestContext, dbTx pgx.Tx) (time.Time, error) {
 	return d.state.GetLatestVirtualBatchTimestamp(ctx, dbTx)
 }
 
 // CountReorgs returns the number of reorgs
-func (d *dbManager) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+func (d *dbManager) CountReorgs(ctx *context.RequestContext, dbTx pgx.Tx) (uint64, error) {
 	return d.state.CountReorgs(ctx, dbTx)
 }
 
 // FlushMerkleTree persists updates in the Merkle tree
-func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
+func (d *dbManager) FlushMerkleTree(ctx *context.RequestContext) error {
 	return d.state.FlushMerkleTree(ctx)
 }

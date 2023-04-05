@@ -1,11 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -144,7 +144,7 @@ func main() {
 	}
 }
 
-func ethTransfer(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, to common.Address, amount *big.Int, nonce *uint64) *types.Transaction {
+func ethTransfer(ctx *context.RequestContext, client *ethclient.Client, auth *bind.TransactOpts, to common.Address, amount *big.Int, nonce *uint64) *types.Transaction {
 	if nonce == nil {
 		log.Infof("reading nonce for account: %v", auth.From.Hex())
 		var err error

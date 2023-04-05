@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -19,8 +20,8 @@ type ZKEVMEndpoints struct {
 }
 
 // ConsolidatedBlockNumber returns current block number for consolidated blocks
-func (e *ZKEVMEndpoints) ConsolidatedBlockNumber(ctx *types.RequestContext) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *ZKEVMEndpoints) ConsolidatedBlockNumber(ctx *context.RequestContext) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		lastBlockNumber, err := e.state.GetLastConsolidatedL2BlockNumber(ctx, dbTx)
 		if err != nil {
 			const errorMessage = "failed to get last consolidated block number from state"
@@ -33,8 +34,8 @@ func (e *ZKEVMEndpoints) ConsolidatedBlockNumber(ctx *types.RequestContext) (int
 }
 
 // IsBlockConsolidated returns the consolidation status of a provided block number
-func (e *ZKEVMEndpoints) IsBlockConsolidated(ctx *types.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *ZKEVMEndpoints) IsBlockConsolidated(ctx *context.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		IsL2BlockConsolidated, err := e.state.IsL2BlockConsolidated(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
 			const errorMessage = "failed to check if the block is consolidated"
@@ -47,8 +48,8 @@ func (e *ZKEVMEndpoints) IsBlockConsolidated(ctx *types.RequestContext, blockNum
 }
 
 // IsBlockVirtualized returns the virtualization status of a provided block number
-func (e *ZKEVMEndpoints) IsBlockVirtualized(ctx *types.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *ZKEVMEndpoints) IsBlockVirtualized(ctx *context.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		IsL2BlockVirtualized, err := e.state.IsL2BlockVirtualized(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
 			const errorMessage = "failed to check if the block is virtualized"
@@ -61,8 +62,8 @@ func (e *ZKEVMEndpoints) IsBlockVirtualized(ctx *types.RequestContext, blockNumb
 }
 
 // BatchNumberByBlockNumber returns the batch number from which the passed block number is created
-func (e *ZKEVMEndpoints) BatchNumberByBlockNumber(ctx *types.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *ZKEVMEndpoints) BatchNumberByBlockNumber(ctx *context.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		batchNum, err := e.state.BatchNumberByL2BlockNumber(ctx, uint64(blockNumber), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
@@ -77,8 +78,8 @@ func (e *ZKEVMEndpoints) BatchNumberByBlockNumber(ctx *types.RequestContext, blo
 }
 
 // BatchNumber returns the latest virtualized batch number
-func (e *ZKEVMEndpoints) BatchNumber(ctx *types.RequestContext) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *ZKEVMEndpoints) BatchNumber(ctx *context.RequestContext) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx, dbTx)
 		if err != nil {
 			return "0x0", types.NewRPCError(types.DefaultErrorCode, "failed to get the last batch number from state")
@@ -89,8 +90,8 @@ func (e *ZKEVMEndpoints) BatchNumber(ctx *types.RequestContext) (interface{}, ty
 }
 
 // VirtualBatchNumber returns the latest virtualized batch number
-func (e *ZKEVMEndpoints) VirtualBatchNumber(ctx *types.RequestContext) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *ZKEVMEndpoints) VirtualBatchNumber(ctx *context.RequestContext) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		lastBatchNumber, err := e.state.GetLastVirtualBatchNum(ctx, dbTx)
 		if err != nil {
 			return "0x0", types.NewRPCError(types.DefaultErrorCode, "failed to get the last virtual batch number from state")
@@ -101,8 +102,8 @@ func (e *ZKEVMEndpoints) VirtualBatchNumber(ctx *types.RequestContext) (interfac
 }
 
 // VerifiedBatchNumber returns the latest verified batch number
-func (e *ZKEVMEndpoints) VerifiedBatchNumber(ctx *types.RequestContext) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *ZKEVMEndpoints) VerifiedBatchNumber(ctx *context.RequestContext) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		lastBatch, err := e.state.GetLastVerifiedBatch(ctx, dbTx)
 		if err != nil {
 			return "0x0", types.NewRPCError(types.DefaultErrorCode, "failed to get the last verified batch number from state")
@@ -113,8 +114,8 @@ func (e *ZKEVMEndpoints) VerifiedBatchNumber(ctx *types.RequestContext) (interfa
 }
 
 // GetBatchByNumber returns information about a batch by batch number
-func (e *ZKEVMEndpoints) GetBatchByNumber(ctx *types.RequestContext, batchNumber types.BatchNumber, fullTx bool) (interface{}, types.Error) {
-	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *ZKEVMEndpoints) GetBatchByNumber(ctx *context.RequestContext, batchNumber types.BatchNumber, fullTx bool) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *context.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		var err error
 		batchNumber, rpcErr := batchNumber.GetNumericBatchNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {

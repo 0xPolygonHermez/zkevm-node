@@ -1,7 +1,7 @@
 package aggregator
 
 import (
-	"context"
+	stdContext "context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -63,7 +64,7 @@ type Aggregator struct {
 	verifyingProof bool
 
 	srv  *grpc.Server
-	ctx  context.Context
+	ctx  *context.RequestContext
 	exit context.CancelFunc
 }
 
@@ -100,12 +101,12 @@ func New(
 }
 
 // Start starts the aggregator
-func (a *Aggregator) Start(ctx context.Context) error {
+func (a *Aggregator) Start(ctx *context.RequestContext) error {
 	var cancel context.CancelFunc
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	ctx, cancel = context.WithCancel(ctx)
+	cancel = ctx.WithCancel()
 	a.ctx = ctx
 	a.exit = cancel
 
@@ -210,17 +211,18 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 				continue
 			}
 
-			_, err = a.tryBuildFinalProof(ctx, prover, nil)
+			wrappedCtx := context.Wrap(ctx)
+			_, err = a.tryBuildFinalProof(wrappedCtx, prover, nil)
 			if err != nil {
 				log.Errorf("Error checking proofs to verify: %v", err)
 			}
 
-			proofGenerated, err := a.tryAggregateProofs(ctx, prover)
+			proofGenerated, err := a.tryAggregateProofs(wrappedCtx, prover)
 			if err != nil {
 				log.Errorf("Error trying to aggregate proofs: %v", err)
 			}
 			if !proofGenerated {
-				proofGenerated, err = a.tryGenerateBatchProof(ctx, prover)
+				proofGenerated, err = a.tryGenerateBatchProof(wrappedCtx, prover)
 				if err != nil {
 					log.Errorf("Error trying to generate proof: %v", err)
 				}
@@ -295,7 +297,7 @@ func (a *Aggregator) sendFinalProof() {
 	}
 }
 
-func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Context, proof *state.Proof) {
+func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx *context.RequestContext, proof *state.Proof) {
 	log := log.WithFields("proofId", proof.ProofID, "batches", fmt.Sprintf("%d-%d", proof.BatchNumber, proof.BatchNumberFinal))
 	proof.GeneratingSince = nil
 	err := a.State.UpdateGeneratedProof(ctx, proof, nil)
@@ -306,7 +308,7 @@ func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Cont
 }
 
 // buildFinalProof builds and return the final proof for an aggregated/batch proof.
-func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (*pb.FinalProof, error) {
+func (a *Aggregator) buildFinalProof(ctx *context.RequestContext, prover proverInterface, proof *state.Proof) (*pb.FinalProof, error) {
 	log := log.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
@@ -353,7 +355,7 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 // build the final proof.  If no proof is provided it looks for a previously
 // generated proof.  If the proof is eligible, then the final proof generation
 // is triggered.
-func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (bool, error) {
+func (a *Aggregator) tryBuildFinalProof(ctx *context.RequestContext, prover proverInterface, proof *state.Proof) (bool, error) {
 	proverName := prover.Name()
 	proverID := prover.ID()
 
@@ -452,7 +454,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 	return true, nil
 }
 
-func (a *Aggregator) validateEligibleFinalProof(ctx context.Context, proof *state.Proof, lastVerifiedBatchNum uint64) (bool, error) {
+func (a *Aggregator) validateEligibleFinalProof(ctx *context.RequestContext, proof *state.Proof, lastVerifiedBatchNum uint64) (bool, error) {
 	batchNumberToVerify := lastVerifiedBatchNum + 1
 
 	if proof.BatchNumber != batchNumberToVerify {
@@ -484,7 +486,7 @@ func (a *Aggregator) validateEligibleFinalProof(ctx context.Context, proof *stat
 	return true, nil
 }
 
-func (a *Aggregator) getAndLockProofReadyToVerify(ctx context.Context, prover proverInterface, lastVerifiedBatchNum uint64) (*state.Proof, error) {
+func (a *Aggregator) getAndLockProofReadyToVerify(ctx *context.RequestContext, prover proverInterface, lastVerifiedBatchNum uint64) (*state.Proof, error) {
 	a.StateDBMutex.Lock()
 	defer a.StateDBMutex.Unlock()
 
@@ -505,7 +507,7 @@ func (a *Aggregator) getAndLockProofReadyToVerify(ctx context.Context, prover pr
 	return proofToVerify, nil
 }
 
-func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.Proof, proof2 *state.Proof) error {
+func (a *Aggregator) unlockProofsToAggregate(ctx *context.RequestContext, proof1 *state.Proof, proof2 *state.Proof) error {
 	// Release proofs from generating state in a single transaction
 	dbTx, err := a.State.BeginStateTransaction(ctx)
 	if err != nil {
@@ -537,7 +539,7 @@ func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.
 	return nil
 }
 
-func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover proverInterface) (*state.Proof, *state.Proof, error) {
+func (a *Aggregator) getAndLockProofsToAggregate(ctx *context.RequestContext, prover proverInterface) (*state.Proof, *state.Proof, error) {
 	log := log.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
@@ -584,7 +586,7 @@ func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover pro
 	return proof1, proof2, nil
 }
 
-func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterface) (bool, error) {
+func (a *Aggregator) tryAggregateProofs(ctx *context.RequestContext, prover proverInterface) (bool, error) {
 	proverName := prover.Name()
 	proverID := prover.ID()
 
@@ -738,7 +740,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	return true, nil
 }
 
-func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverInterface) (*state.Batch, *state.Proof, error) {
+func (a *Aggregator) getAndLockBatchToProve(ctx *context.RequestContext, prover proverInterface) (*state.Batch, *state.Proof, error) {
 	proverID := prover.ID()
 	proverName := prover.Name()
 
@@ -798,7 +800,7 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverIn
 	return batchToVerify, proof, nil
 }
 
-func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInterface) (bool, error) {
+func (a *Aggregator) tryGenerateBatchProof(ctx *context.RequestContext, prover proverInterface) (bool, error) {
 	log := log.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
@@ -935,7 +937,7 @@ func (a *Aggregator) resetVerifyProofTime() {
 
 // isSynced checks if the state is synchronized with L1. If a batch number is
 // provided, it makes sure that the state is synced with that batch.
-func (a *Aggregator) isSynced(ctx context.Context, batchNum *uint64) bool {
+func (a *Aggregator) isSynced(ctx *context.RequestContext, batchNum *uint64) bool {
 	// get latest verified batch as seen by the synchronizer
 	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
 	if err == state.ErrNotFound {
@@ -972,7 +974,7 @@ func (a *Aggregator) isSynced(ctx context.Context, batchNum *uint64) bool {
 	return true
 }
 
-func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.Batch) (*pb.InputProver, error) {
+func (a *Aggregator) buildInputProver(ctx *context.RequestContext, batchToVerify *state.Batch) (*pb.InputProver, error) {
 	previousBatch, err := a.State.GetBatchByNumber(ctx, batchToVerify.BatchNumber-1, nil)
 	if err != nil && err != state.ErrStateNotSynchronized {
 		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
@@ -1011,7 +1013,7 @@ func newHealthChecker() *healthChecker {
 
 // Check returns the current status of the server for unary gRPC health requests,
 // for now if the server is up and able to respond we will always return SERVING.
-func (hc *healthChecker) Check(ctx context.Context, req *grpchealth.HealthCheckRequest) (*grpchealth.HealthCheckResponse, error) {
+func (hc *healthChecker) Check(ctx stdContext.Context, req *grpchealth.HealthCheckRequest) (*grpchealth.HealthCheckResponse, error) {
 	log.Info("Serving the Check request for health check")
 	return &grpchealth.HealthCheckResponse{
 		Status: grpchealth.HealthCheckResponse_SERVING,

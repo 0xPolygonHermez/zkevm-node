@@ -2,7 +2,6 @@ package operations
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +12,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -78,8 +78,8 @@ type ethClienter interface {
 }
 
 // WaitTxToBeMined waits until a tx has been mined or the given timeout expires.
-func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Transaction, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+func WaitTxToBeMined(ctx *context.RequestContext, client ethClienter, tx *types.Transaction, timeout time.Duration) error {
+	cancel := ctx.SetTimeout(timeout)
 	defer cancel()
 	receipt, err := bind.WaitMined(ctx, client, tx)
 	if errors.Is(err, context.DeadlineExceeded) {
@@ -101,7 +101,7 @@ func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Tr
 }
 
 // RevertReason returns the revert reason for a tx that has a receipt with failed status
-func RevertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blockNumber *big.Int) (string, error) {
+func RevertReason(ctx *context.RequestContext, c ethClienter, tx *types.Transaction, blockNumber *big.Int) (string, error) {
 	if tx == nil {
 		return "", nil
 	}
@@ -243,7 +243,8 @@ func grpcHealthyCondition(address string) (bool, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx := context.Background()
+	cancel := ctx.SetTimeout(1 * time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, address, opts...)
 	if err != nil {

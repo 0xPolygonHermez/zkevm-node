@@ -1,10 +1,10 @@
 package e2e
 
 import (
-	"context"
 	"math/big"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	bridge "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"

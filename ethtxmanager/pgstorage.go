@@ -1,12 +1,13 @@
 package ethtxmanager
 
 import (
-	"context"
+	stdContext "context"
 	"encoding/hex"
 	"errors"
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/context"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgconn"
@@ -33,7 +34,7 @@ func NewPostgresStorage(dbCfg db.Config) (*PostgresStorage, error) {
 }
 
 // Add persist a monitored tx
-func (s *PostgresStorage) Add(ctx context.Context, mTx monitoredTx, dbTx pgx.Tx) error {
+func (s *PostgresStorage) Add(ctx *context.RequestContext, mTx monitoredTx, dbTx pgx.Tx) error {
 	conn := s.dbConn(dbTx)
 	cmd := `
         INSERT INTO state.monitored_txs (owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, block_num, history, created_at, updated_at)
@@ -58,7 +59,7 @@ func (s *PostgresStorage) Add(ctx context.Context, mTx monitoredTx, dbTx pgx.Tx)
 }
 
 // Get loads a persisted monitored tx
-func (s *PostgresStorage) Get(ctx context.Context, owner, id string, dbTx pgx.Tx) (monitoredTx, error) {
+func (s *PostgresStorage) Get(ctx *context.RequestContext, owner, id string, dbTx pgx.Tx) (monitoredTx, error) {
 	conn := s.dbConn(dbTx)
 	cmd := `
         SELECT owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, block_num, history, created_at, updated_at
@@ -80,7 +81,7 @@ func (s *PostgresStorage) Get(ctx context.Context, owner, id string, dbTx pgx.Tx
 }
 
 // GetByStatus loads all monitored tx that match the provided status
-func (s *PostgresStorage) GetByStatus(ctx context.Context, owner *string, statuses []MonitoredTxStatus, dbTx pgx.Tx) ([]monitoredTx, error) {
+func (s *PostgresStorage) GetByStatus(ctx *context.RequestContext, owner *string, statuses []MonitoredTxStatus, dbTx pgx.Tx) ([]monitoredTx, error) {
 	hasStatusToFilter := len(statuses) > 0
 
 	conn := s.dbConn(dbTx)
@@ -125,7 +126,7 @@ func (s *PostgresStorage) GetByStatus(ctx context.Context, owner *string, status
 
 // GetByBlock loads all monitored tx that have the blockNumber between
 // fromBlock and toBlock
-func (s *PostgresStorage) GetByBlock(ctx context.Context, fromBlock, toBlock *uint64, dbTx pgx.Tx) ([]monitoredTx, error) {
+func (s *PostgresStorage) GetByBlock(ctx *context.RequestContext, fromBlock, toBlock *uint64, dbTx pgx.Tx) ([]monitoredTx, error) {
 	conn := s.dbConn(dbTx)
 	cmd := `
         SELECT owner, id, from_addr, to_addr, nonce, value, data, gas, gas_price, status, block_num, history, created_at, updated_at
@@ -172,7 +173,7 @@ func (s *PostgresStorage) GetByBlock(ctx context.Context, fromBlock, toBlock *ui
 }
 
 // Update a persisted monitored tx
-func (s *PostgresStorage) Update(ctx context.Context, mTx monitoredTx, dbTx pgx.Tx) error {
+func (s *PostgresStorage) Update(ctx *context.RequestContext, mTx monitoredTx, dbTx pgx.Tx) error {
 	conn := s.dbConn(dbTx)
 	cmd := `
         UPDATE state.monitored_txs
@@ -263,9 +264,9 @@ func (s *PostgresStorage) scanMtx(row pgx.Row, mTx *monitoredTx) error {
 // dbConn represents an instance of an object that can
 // connect to a postgres db to execute sql commands and query data
 type dbConn interface {
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+	Exec(ctx stdContext.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
+	Query(ctx stdContext.Context, sql string, args ...interface{}) (pgx.Rows, error)
+	QueryRow(ctx stdContext.Context, sql string, args ...interface{}) pgx.Row
 }
 
 // dbConn determines which db connection to use, dbTx or the main pgxpool
