@@ -3,7 +3,7 @@ DROP table state.event;
 DROP table state.debug;
 
 -- +migrate Down
-CREATE TABLE state.event
+CREATE TABLE IF NOT EXISTS state.event
 (
     event_type  VARCHAR NOT NULL,
     timestamp   TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE state.event
     payload     VARCHAR
 );
 
-CREATE TABLE state.debug
+CREATE TABLE IF NOT EXISTS state.debug
 (
     error_type  VARCHAR,
     timestamp timestamp,

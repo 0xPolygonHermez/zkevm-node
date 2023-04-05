@@ -26,18 +26,10 @@ func (p *NilEventStorage) LogEvent(ctx context.Context, ev *event.Event) error {
 // LogEvent actually logs the event
 func LogEvent(ev *event.Event) {
 	switch ev.Level {
-	case event.Level_Emergency:
+	case event.Level_Emergency, event.Level_Alert, event.Level_Critical, event.Level_Error:
 		log.Errorf("Event: %+v", ev)
-	case event.Level_Alert:
-		log.Errorf("Event: %+v", ev)
-	case event.Level_Critical:
-		log.Errorf("Event: %+v", ev)
-	case event.Level_Error:
-		log.Errorf("Event: %+v", ev)
-	case event.Level_Warning:
+	case event.Level_Warning, event.Level_Notice:
 		log.Warnf("Event: %+v", ev)
-	case event.Level_Notice:
-		log.Infof("Event: %+v", ev)
 	case event.Level_Info:
 		log.Infof("Event: %+v", ev)
 	case event.Level_Debug:
