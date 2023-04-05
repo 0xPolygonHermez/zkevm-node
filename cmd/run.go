@@ -71,7 +71,7 @@ func start(cliCtx *cli.Context) error {
 	}
 	checkStateMigrations(c.StateDB)
 
-	// Decide if this node instance needs an prover or executor and/or a statedb
+	// Decide if this node instance needs an executor and/or a state tree
 	var needsExecutor, needsStateTree bool
 
 	for _, component := range components {
