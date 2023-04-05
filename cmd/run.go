@@ -77,7 +77,7 @@ func start(cliCtx *cli.Context) error {
 	for _, component := range components {
 		switch component {
 		case AGGREGATOR:
-			needsExecutor = true
+			needsExecutor = false
 			needsStateDB = false
 		case SEQUENCER:
 			needsExecutor = true
