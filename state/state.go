@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -70,6 +71,7 @@ type State struct {
 	*PostgresStorage
 	executorClient pb.ExecutorServiceClient
 	tree           *merkletree.StateTree
+	eventLog       *event.EventLog
 
 	lastL2BlockSeen         types.Block
 	newL2BlockEvents        chan NewL2BlockEvent
@@ -77,7 +79,7 @@ type State struct {
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree) *State {
+func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog) *State {
 	once.Do(func() {
 		metrics.Register()
 	})
@@ -87,6 +89,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorSe
 		PostgresStorage:         storage,
 		executorClient:          executorClient,
 		tree:                    stateTree,
+		eventLog:                eventLog,
 		newL2BlockEvents:        make(chan NewL2BlockEvent),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 	}
@@ -123,33 +126,18 @@ func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 }
 
 // GetBalance from a given address
-func (s *State) GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
-	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.tree.GetBalance(ctx, address, l2Block.Root().Bytes())
+func (s *State) GetBalance(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
+	return s.tree.GetBalance(ctx, address, root.Bytes())
 }
 
 // GetCode from a given address
-func (s *State) GetCode(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) ([]byte, error) {
-	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.tree.GetCode(ctx, address, l2Block.Root().Bytes())
+func (s *State) GetCode(ctx context.Context, address common.Address, root common.Hash) ([]byte, error) {
+	return s.tree.GetCode(ctx, address, root.Bytes())
 }
 
 // GetNonce returns the nonce of the given account at the given block number
-func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		return 0, err
-	}
-
-	nonce, err := s.tree.GetNonce(ctx, address, l2Block.Root().Bytes())
+func (s *State) GetNonce(ctx context.Context, address common.Address, root common.Hash) (uint64, error) {
+	nonce, err := s.tree.GetNonce(ctx, address, root.Bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -166,13 +154,8 @@ func (s *State) GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash,
 }
 
 // GetStorageAt from a given address
-func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
-	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.tree.GetStorageAt(ctx, address, position, l2Block.Root().Bytes())
+func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error) {
+	return s.tree.GetStorageAt(ctx, address, position, root.Bytes())
 }
 
 // EstimateGas for a transaction
@@ -310,7 +293,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		gasUsed = processBatchResponse.Responses[0].GasUsed
 		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
-			s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+			s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, err
 		}
 
@@ -570,7 +553,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 		return nil, err
 	} else if processBatchResponse != nil && processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 	}
 
 	return processBatchResponse, err
@@ -655,7 +638,7 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 		log.Errorf("Error s.executorClient.ProcessBatch response: %v", res)
 	} else if res.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(res.Error)
-		s.LogExecutorError(res.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, res.Error, processBatchRequest)
 	}
 	elapsed := time.Since(now)
 	if caller != DiscardCallerLabel {
@@ -868,39 +851,50 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, traceConfig TraceConfig, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
 
-	// Get the transaction
+	// gets the transaction
 	tx, err := s.GetTransactionByHash(ctx, transactionHash, dbTx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get batch including the transaction
-	batch, err := s.GetBatchByTxHash(ctx, transactionHash, dbTx)
+	// gets the tx receipt
+	receipt, err := s.GetTransactionReceipt(ctx, transactionHash, dbTx)
 	if err != nil {
 		return nil, err
 	}
 
-	// The previous batch to get OldStateRoot and globalExitRoot
-	pBatch, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
+	// gets the l2 block including the transaction
+	block, err := s.GetL2BlockByNumber(ctx, receipt.BlockNumber.Uint64(), dbTx)
 	if err != nil {
 		return nil, err
 	}
 
-	batchL2Data := batch.BatchL2Data
-	if batchL2Data == nil {
-		txs, err := s.GetTransactionsByBatchNumber(ctx, batch.BatchNumber, dbTx)
-		if err != nil {
-			return nil, err
-		}
+	// get the previous L2 Block
+	previousBlockNumber := uint64(0)
+	if receipt.BlockNumber.Uint64() > 0 {
+		previousBlockNumber = receipt.BlockNumber.Uint64() - 1
+	}
+	previousBlock, err := s.GetL2BlockByNumber(ctx, previousBlockNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
 
-		for _, tx := range txs {
-			log.Debugf(tx.Hash().String())
-		}
+	// generate batch l2 data for the transaction
+	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx})
+	if err != nil {
+		return nil, err
+	}
 
-		batchL2Data, err = EncodeTransactions(txs)
-		if err != nil {
-			return nil, err
-		}
+	// gets batch that including the l2 block
+	batch, err := s.GetBatchByL2BlockNumber(ctx, block.NumberU64(), dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// gets batch that including the previous l2 block
+	previousBatch, err := s.GetBatchByL2BlockNumber(ctx, previousBlock.NumberU64(), dbTx)
+	if err != nil {
+		return nil, err
 	}
 
 	forkId := s.GetForkIdByBatchNumber(batch.BatchNumber)
@@ -925,11 +919,12 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	processBatchRequest := &pb.ProcessBatchRequest{
-		OldBatchNum:      batch.BatchNumber - 1,
+		OldBatchNum:     batch.BatchNumber - 1,
+		OldStateRoot:    previousBlock.Root().Bytes(),
+		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
+
 		BatchL2Data:      batchL2Data,
-		OldStateRoot:     pBatch.StateRoot.Bytes(),
 		GlobalExitRoot:   batch.GlobalExitRoot.Bytes(),
-		OldAccInputHash:  pBatch.AccInputHash.Bytes(),
 		EthTimestamp:     uint64(batch.Timestamp.Unix()),
 		Coinbase:         batch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
@@ -945,7 +940,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
 	endTime := time.Now()
@@ -961,10 +956,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	// 	return nil, err
 	// }
 
-	for _, response := range processBatchResponse.Responses {
-		log.Debugf(string(response.TxHash))
-	}
-
 	txs, _, err := DecodeTxs(batchL2Data)
 	if err != nil && !errors.Is(err, InvalidData) {
 		return nil, err
@@ -979,17 +970,9 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	var response *ProcessTransactionResponse
-
-	// Get the response for the tx
-	for _, response = range convertedResponse.Responses {
-		log.Debugf(response.TxHash.String())
-		if response.TxHash == transactionHash {
-			break
-		}
-	}
-
 	// Sanity check
+	response := convertedResponse.Responses[0]
+	log.Debugf(response.TxHash.String())
 	if response.TxHash != transactionHash {
 		return nil, fmt.Errorf("tx hash not found in executor response")
 	}
@@ -1311,12 +1294,12 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
 		// Log this error as an executor unspecified error
-		s.LogExecutorError(pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
 		log.Errorf("error processing unsigned transaction ", err)
 		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.LogExecutorError(processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
 
@@ -1726,26 +1709,6 @@ func (s *State) GetBalanceByStateRoot(ctx context.Context, address common.Addres
 // GetNonceByStateRoot gets nonce from the MT Service using the provided state root
 func (s *State) GetNonceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error) {
 	return s.tree.GetNonce(ctx, address, root.Bytes())
-}
-
-// LogExecutorError is used to store Executor error for runtime debugging
-func (s *State) LogExecutorError(responseError pb.ExecutorError, processBatchRequest *pb.ProcessBatchRequest) {
-	timestamp := time.Now()
-	log.Errorf("error found in the executor: %v at %v", responseError, timestamp)
-	payload, err := json.Marshal(processBatchRequest)
-	if err != nil {
-		log.Errorf("error marshaling payload: %v", err)
-	} else {
-		debugInfo := &DebugInfo{
-			ErrorType: DebugInfoErrorType_EXECUTOR_ERROR + " " + responseError.String(),
-			Timestamp: timestamp,
-			Payload:   string(payload),
-		}
-		err = s.AddDebugInfo(context.Background(), debugInfo, nil)
-		if err != nil {
-			log.Errorf("error storing payload: %v", err)
-		}
-	}
 }
 
 // GetForkIdByBatchNumber returns the fork id for the given batch number

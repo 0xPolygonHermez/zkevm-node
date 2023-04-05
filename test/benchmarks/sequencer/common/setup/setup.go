@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
@@ -59,7 +61,11 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 		PollMinAllowedGasPriceInterval: types.NewDuration(pollMinAllowedGasPriceIntervalSeconds * time.Second),
 	}
 
-	pl := pool.NewPool(config, s, st, common.Address{}, params.ChainID)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	require.NoError(b, err)
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	pl := pool.NewPool(config, s, st, common.Address{}, params.ChainID, eventLog)
 
 	// Print Info before send
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)

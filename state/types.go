@@ -3,7 +3,6 @@ package state
 import (
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
@@ -139,24 +138,6 @@ type InfoReadWrite struct {
 	Balance *big.Int
 }
 
-const (
-	// DebugInfoErrorType_EXECUTOR_ERROR indicates a error happened in the executor
-	DebugInfoErrorType_EXECUTOR_ERROR = "EXECUTOR ERROR"
-	// DebugInfoErrorType_OOC_ERROR_ON_REPROCESS_FULL_BATCH indicates and OOC error happened in the executor when reprocessing a full batch
-	DebugInfoErrorType_OOC_ERROR_ON_REPROCESS_FULL_BATCH = "OOC ON REPROCESS FULL BATCH"
-	// DebugInfoErrorType_EXECUTOR_RLP_ERROR indicates a error happened decoding the RLP returned by the executor
-	DebugInfoErrorType_EXECUTOR_RLP_ERROR = "EXECUTOR RLP ERROR"
-	// DebugInfoErrorType_FINALIZER_HALT indicates a fatal error happened in the finalizer when trying to close a batch
-	DebugInfoErrorType_FINALIZER_HALT = "FINALIZER HALT"
-)
-
-// DebugInfo allows handling runtime debug info
-type DebugInfo struct {
-	ErrorType string
-	Timestamp time.Time
-	Payload   string
-}
-
 // TraceConfig sets the debug configuration for the executor
 type TraceConfig struct {
 	DisableStorage   bool
@@ -170,24 +151,6 @@ type TraceConfig struct {
 type TrustedReorg struct {
 	BatchNumber uint64
 	Reason      string
-}
-
-const (
-	// EventType_Prexecution_OOC indicates a preexecution out of couters error
-	EventType_Prexecution_OOC = "PREEXECUTION OOC"
-	// EventType_Prexecution_OOG indicates a preexecution out of gas error
-	EventType_Prexecution_OOG = "PREEXECUTION OOG"
-	// EventType_ZKCounters_Diff indicates big different in preexecution and execution regarding ZKCounters
-	EventType_ZKCounters_Diff = "ZK COUNTERS DIFF"
-)
-
-// Event represents a event that may be investigated
-type Event struct {
-	EventType string
-	Timestamp time.Time
-	IP        string
-	TxHash    common.Hash
-	Payload   string
 }
 
 // HexToAddressPtr create an address from a hex and returns its pointer

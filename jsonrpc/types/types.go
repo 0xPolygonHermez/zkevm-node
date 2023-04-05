@@ -189,12 +189,12 @@ type TxArgs struct {
 }
 
 // ToTransaction transforms txnArgs into a Transaction
-func (args *TxArgs) ToTransaction(ctx context.Context, st StateInterface, blockNumber, maxCumulativeGasUsed uint64, defaultSenderAddress common.Address, dbTx pgx.Tx) (common.Address, *types.Transaction, error) {
+func (args *TxArgs) ToTransaction(ctx context.Context, st StateInterface, maxCumulativeGasUsed uint64, root common.Hash, defaultSenderAddress common.Address, dbTx pgx.Tx) (common.Address, *types.Transaction, error) {
 	sender := defaultSenderAddress
 	nonce := uint64(0)
 	if args.From != nil && *args.From != state.ZeroAddress {
 		sender = *args.From
-		n, err := st.GetNonce(ctx, sender, blockNumber, dbTx)
+		n, err := st.GetNonce(ctx, sender, root)
 		if err != nil {
 			return common.Address{}, nil, err
 		}

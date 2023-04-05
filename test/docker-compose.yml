@@ -185,6 +185,28 @@ services:
       - "-N"
       - "500"
 
+  zkevm-event-db:
+    container_name: zkevm-event-db
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5435:5432
+    volumes:
+      - ../db/scripts/init_event_db.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_USER=event_user
+      - POSTGRES_PASSWORD=event_password
+      - POSTGRES_DB=event_db
+    command:
+      - "postgres"
+      - "-N"
+      - "500"
+
   zkevm-explorer-l1:
     container_name: zkevm-explorer-l1
     image: hermeznetwork/hermez-node-blockscout:latest
@@ -299,7 +321,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:9e70a64
+    image: hermeznetwork/zkevm-prover:6d6e3aa
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
@@ -385,7 +407,7 @@ services:
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
-    image: hermeznetwork/zkevm-prover:9e70a64
+    image: hermeznetwork/zkevm-prover:6d6e3aa
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover

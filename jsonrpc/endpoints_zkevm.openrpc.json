@@ -168,15 +168,111 @@
     },
     {
       "name": "zkevm_getBatchByNumber",
-      "summary": "",
+      "summary": "Gets a batch for a given number",
       "params": [
         {
           "$ref": "#/components/contentDescriptors/BatchNumberOrTag"
+        },
+        {
+          "name": "includeTransactions",
+          "description": "If `true` it returns the full transaction objects, if `false` only the hashes of the transactions.",
+          "required": true,
+          "schema": {
+            "title": "isTransactionsIncluded",
+            "type": "boolean"
+          }
         }
       ],
       "result": {
         "$ref": "#/components/contentDescriptors/Batch"
-      }
+      },
+      "examples": [
+        {
+          "name": "batch without tx details",
+          "description": "Batch without transaction details",
+          "params": [
+            {
+              "name": "batch number",
+              "value": "0x1"
+            },
+            {
+              "name": "include txs",
+              "value": "false"
+            }
+          ],
+          "result": {
+            "name": "Batch",
+            "value": {
+              "number": "0x1",
+              "coinbase": "0x0000000000000000000000000000000000000001",
+              "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000001",
+              "globalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000002",
+              "mainnetExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000003",
+              "rollupExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000004",
+              "localExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000005",
+              "accInputHash": "0x0000000000000000000000000000000000000000000000000000000000000006",
+              "timestamp": "0x642af31f",
+              "sendSequencesTxHash": "0x0000000000000000000000000000000000000000000000000000000000000007",
+              "verifyBatchTxHash": "0x0000000000000000000000000000000000000000000000000000000000000008",
+              "transactions": [
+                "0x0000000000000000000000000000000000000000000000000000000000000009",
+                "0x0000000000000000000000000000000000000000000000000000000000000010",
+                "0x0000000000000000000000000000000000000000000000000000000000000011"
+              ]
+            }
+          }
+        },
+        {
+          "name": "batch with tx detail",
+          "description": "Batch with transaction details",
+          "params": [
+            {
+              "name": "batch number",
+              "value": "0x1"
+            },
+            {
+              "name": "include txs",
+              "value": "true"
+            }
+          ],
+          "result": {
+            "name": "Batch",
+            "value": {
+              "number": "0x1",
+              "coinbase": "0x0000000000000000000000000000000000000001",
+              "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000001",
+              "globalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000002",
+              "mainnetExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000003",
+              "rollupExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000004",
+              "localExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000005",
+              "accInputHash": "0x0000000000000000000000000000000000000000000000000000000000000006",
+              "timestamp": "0x642af31f",
+              "sendSequencesTxHash": "0x0000000000000000000000000000000000000000000000000000000000000007",
+              "verifyBatchTxHash": "0x0000000000000000000000000000000000000000000000000000000000000008",
+              "transactions": [
+                {
+                  "nonce": "0x1",
+                  "gasPrice": "0x123456",
+                  "gas": "0x59D8",
+                  "to": "0x0000000000000000000000000000000000000002",
+                  "value": "0x1",
+                  "input": "0x",
+                  "v": "0xAAA",
+                  "r": "0x0000000000000000000000000000000000000000000000000000000000000010",
+                  "s": "0x0000000000000000000000000000000000000000000000000000000000000011",
+                  "hash": "0x0000000000000000000000000000000000000000000000000000000000000012",
+                  "from": "0x0000000000000000000000000000000000000003",
+                  "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000013",
+                  "blockNumber": "0x1",
+                  "transactionIndex": "0x0",
+                  "chainId": "0x539",
+                  "type": "0x0"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "components": {
