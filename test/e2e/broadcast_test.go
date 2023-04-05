@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
@@ -92,7 +94,14 @@ func initState() (*state.State, error) {
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorUri})
 	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: merkleTreeUri})
 	stateTree := merkletree.NewStateTree(mtDBClient)
-	return state.NewState(state.Config{}, stateDb, executorClient, stateTree), nil
+
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		return nil, err
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	return state.NewState(state.Config{}, stateDb, executorClient, stateTree, eventLog), nil
 }
 
 func populateDB(ctx context.Context, st *state.State) error {

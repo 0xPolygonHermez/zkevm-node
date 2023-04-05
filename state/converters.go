@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -133,12 +134,16 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		if err != nil {
 			timestamp := time.Now()
 			log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
-			debugInfo := &DebugInfo{
-				ErrorType: DebugInfoErrorType_EXECUTOR_RLP_ERROR,
-				Timestamp: timestamp,
-				Payload:   string(response.GetRlpTx()),
+
+			event := &event.Event{
+				ReceivedAt: timestamp,
+				Source:     event.Source_Node,
+				Level:      event.Level_Error,
+				EventID:    event.EventID_ExecutorRLPError,
+				Json:       string(response.GetRlpTx()),
 			}
-			err = s.AddDebugInfo(context.Background(), debugInfo, nil)
+
+			err = s.eventLog.LogEvent(context.Background(), event)
 			if err != nil {
 				log.Errorf("error storing payload: %v", err)
 			}

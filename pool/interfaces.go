@@ -42,5 +42,4 @@ type stateInterface interface {
 	GetNonce(ctx context.Context, address common.Address, root common.Hash) (uint64, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
 	PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
-	AddEvent(ctx context.Context, event *state.Event, dbTx pgx.Tx) error
 }
