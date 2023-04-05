@@ -851,39 +851,50 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, traceConfig TraceConfig, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
 
-	// Get the transaction
+	// gets the transaction
 	tx, err := s.GetTransactionByHash(ctx, transactionHash, dbTx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get batch including the transaction
-	batch, err := s.GetBatchByTxHash(ctx, transactionHash, dbTx)
+	// gets the tx receipt
+	receipt, err := s.GetTransactionReceipt(ctx, transactionHash, dbTx)
 	if err != nil {
 		return nil, err
 	}
 
-	// The previous batch to get OldStateRoot and globalExitRoot
-	pBatch, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
+	// gets the l2 block including the transaction
+	block, err := s.GetL2BlockByNumber(ctx, receipt.BlockNumber.Uint64(), dbTx)
 	if err != nil {
 		return nil, err
 	}
 
-	batchL2Data := batch.BatchL2Data
-	if batchL2Data == nil {
-		txs, err := s.GetTransactionsByBatchNumber(ctx, batch.BatchNumber, dbTx)
-		if err != nil {
-			return nil, err
-		}
+	// get the previous L2 Block
+	previousBlockNumber := uint64(0)
+	if receipt.BlockNumber.Uint64() > 0 {
+		previousBlockNumber = receipt.BlockNumber.Uint64() - 1
+	}
+	previousBlock, err := s.GetL2BlockByNumber(ctx, previousBlockNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
 
-		for _, tx := range txs {
-			log.Debugf(tx.Hash().String())
-		}
+	// generate batch l2 data for the transaction
+	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx})
+	if err != nil {
+		return nil, err
+	}
 
-		batchL2Data, err = EncodeTransactions(txs)
-		if err != nil {
-			return nil, err
-		}
+	// gets batch that including the l2 block
+	batch, err := s.GetBatchByL2BlockNumber(ctx, block.NumberU64(), dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// gets batch that including the previous l2 block
+	previousBatch, err := s.GetBatchByL2BlockNumber(ctx, previousBlock.NumberU64(), dbTx)
+	if err != nil {
+		return nil, err
 	}
 
 	forkId := s.GetForkIdByBatchNumber(batch.BatchNumber)
@@ -908,11 +919,12 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	processBatchRequest := &pb.ProcessBatchRequest{
-		OldBatchNum:      batch.BatchNumber - 1,
+		OldBatchNum:     batch.BatchNumber - 1,
+		OldStateRoot:    previousBlock.Root().Bytes(),
+		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
+
 		BatchL2Data:      batchL2Data,
-		OldStateRoot:     pBatch.StateRoot.Bytes(),
 		GlobalExitRoot:   batch.GlobalExitRoot.Bytes(),
-		OldAccInputHash:  pBatch.AccInputHash.Bytes(),
 		EthTimestamp:     uint64(batch.Timestamp.Unix()),
 		Coinbase:         batch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
