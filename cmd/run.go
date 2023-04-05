@@ -72,31 +72,31 @@ func start(cliCtx *cli.Context) error {
 	checkStateMigrations(c.StateDB)
 
 	// Decide if this node instance needs an prover or executor and/or a statedb
-	var needsExecutor, needsStateDB bool
+	var needsExecutor, needsStateTree bool
 
 	for _, component := range components {
 		switch component {
 		case AGGREGATOR:
 			needsExecutor = false
-			needsStateDB = false
+			needsStateTree = false
 		case SEQUENCER:
 			needsExecutor = true
-			needsStateDB = true
+			needsStateTree = true
 		case RPC:
 			needsExecutor = true
-			needsStateDB = true
+			needsStateTree = true
 		case SYNCHRONIZER:
-			needsExecutor = false
-			needsStateDB = false
+			needsExecutor = true
+			needsStateTree = false
 		case BROADCAST:
 			needsExecutor = false
-			needsStateDB = false
+			needsStateTree = false
 		case ETHTXMANAGER:
 			needsExecutor = false
-			needsStateDB = false
+			needsStateTree = false
 		case L2GASPRICER:
 			needsExecutor = false
-			needsStateDB = false
+			needsStateTree = false
 		}
 	}
 
@@ -151,7 +151,7 @@ func start(cliCtx *cli.Context) error {
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
-	st := newState(ctx, c, l2ChainID, forkIDIntervals, stateSqlDB, eventLog, needsExecutor, needsStateDB)
+	st := newState(ctx, c, l2ChainID, forkIDIntervals, stateSqlDB, eventLog, needsExecutor, needsStateTree)
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
 	if err != nil {
@@ -390,7 +390,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateDB bool) *state.State {
+func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 
 	// Executor / Prover
@@ -401,7 +401,7 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 
 	// StateDB
 	var stateTree *merkletree.StateTree
-	if needsStateDB {
+	if needsStateTree {
 		stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
 		stateTree = merkletree.NewStateTree(stateDBClient)
 	}
