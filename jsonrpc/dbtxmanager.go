@@ -9,10 +9,9 @@ import (
 
 type dbTxManager struct{}
 
-type dbTxScopedFn func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error)
+type dbTxScopedFn func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error)
 
-func (f *dbTxManager) NewDbTxScope(st types.StateInterface, scopedFn dbTxScopedFn) (interface{}, types.Error) {
-	ctx := context.Background()
+func (f *dbTxManager) NewDbTxScope(ctx *types.RequestContext, st types.StateInterface, scopedFn dbTxScopedFn) (interface{}, types.Error) {
 	dbTx, err := st.BeginStateTransaction(ctx)
 	if err != nil {
 		return rpcErrorResponse(types.DefaultErrorCode, "failed to connect to the state", err)

@@ -1,13 +1,11 @@
 package jsonrpc
 
 import (
-	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
@@ -57,7 +55,7 @@ type traceBlockTransactionResponse struct {
 // TraceTransaction creates a response for debug_traceTransaction request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtracetransaction
 func (d *DebugEndpoints) TraceTransaction(ctx *types.RequestContext, hash types.ArgHash, cfg *traceConfig) (interface{}, types.Error) {
-	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+	return d.txMan.NewDbTxScope(ctx, d.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		return d.buildTraceTransaction(ctx, hash.Hash(), cfg, dbTx)
 	})
 }
@@ -65,7 +63,7 @@ func (d *DebugEndpoints) TraceTransaction(ctx *types.RequestContext, hash types.
 // TraceBlockByNumber creates a response for debug_traceBlockByNumber request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbynumber
 func (d *DebugEndpoints) TraceBlockByNumber(ctx *types.RequestContext, number types.BlockNumber, cfg *traceConfig) (interface{}, types.Error) {
-	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+	return d.txMan.NewDbTxScope(ctx, d.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, d.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
@@ -90,7 +88,7 @@ func (d *DebugEndpoints) TraceBlockByNumber(ctx *types.RequestContext, number ty
 // TraceBlockByHash creates a response for debug_traceBlockByHash request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbyhash
 func (d *DebugEndpoints) TraceBlockByHash(ctx *types.RequestContext, hash types.ArgHash, cfg *traceConfig) (interface{}, types.Error) {
-	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+	return d.txMan.NewDbTxScope(ctx, d.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		block, err := d.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("block %s not found", hash.Hash().String()))
@@ -107,7 +105,7 @@ func (d *DebugEndpoints) TraceBlockByHash(ctx *types.RequestContext, hash types.
 	})
 }
 
-func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*ethTypes.Transaction, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
+func (d *DebugEndpoints) buildTraceBlock(ctx *types.RequestContext, txs []*ethTypes.Transaction, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
 	traces := []traceBlockTransactionResponse{}
 	for _, tx := range txs {
 		traceTransaction, err := d.buildTraceTransaction(ctx, tx.Hash(), cfg, dbTx)
@@ -124,7 +122,7 @@ func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*ethTypes.Tr
 	return traces, nil
 }
 
-func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.Hash, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
+func (d *DebugEndpoints) buildTraceTransaction(ctx *types.RequestContext, hash common.Hash, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
 	traceConfig := state.TraceConfig{}
 
 	if cfg != nil {
@@ -140,7 +138,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 		return rpcErrorResponse(types.DefaultErrorCode, "transaction not found", nil)
 	} else if err != nil {
 		const errorMessage = "failed to get trace"
-		log.Infof("%v: %v", errorMessage, err)
+		ctx.Logger().Infof("%v: %v", errorMessage, err)
 		return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
 	}
 

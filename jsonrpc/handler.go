@@ -50,11 +50,11 @@ func (f *funcData) numParams() int {
 // be triggered when the method eth_myMethod is specified
 //
 // the public methods must follow the conventions:
+// - the first parameter must be of the type RequestContext
+// - extra parameters must match the type of the data provided for the method
 // - return interface{}, rpcError
-// - if the method depend on a Web Socket connection, it must be the first parameters as f(*websocket.Conn)
-// - parameter types must match the type of the data provided for the method
 //
-// check the `eth.go` file for more example on how the methods are implemented
+// check the `endpoints_eth.go` file for more examples on how these methods are implemented
 type Handler struct {
 	serviceMap map[string]*serviceData
 }

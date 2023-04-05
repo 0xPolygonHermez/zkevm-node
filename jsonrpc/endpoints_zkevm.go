@@ -1,13 +1,11 @@
 package jsonrpc
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -21,12 +19,12 @@ type ZKEVMEndpoints struct {
 }
 
 // ConsolidatedBlockNumber returns current block number for consolidated blocks
-func (z *ZKEVMEndpoints) ConsolidatedBlockNumber(ctx *types.RequestContext) (interface{}, types.Error) {
-	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		lastBlockNumber, err := z.state.GetLastConsolidatedL2BlockNumber(ctx, dbTx)
+func (e *ZKEVMEndpoints) ConsolidatedBlockNumber(ctx *types.RequestContext) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+		lastBlockNumber, err := e.state.GetLastConsolidatedL2BlockNumber(ctx, dbTx)
 		if err != nil {
 			const errorMessage = "failed to get last consolidated block number from state"
-			log.Errorf("%v:%v", errorMessage, err)
+			ctx.Logger().Errorf("%v:%v", errorMessage, err)
 			return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
 		}
 
@@ -35,12 +33,12 @@ func (z *ZKEVMEndpoints) ConsolidatedBlockNumber(ctx *types.RequestContext) (int
 }
 
 // IsBlockConsolidated returns the consolidation status of a provided block number
-func (z *ZKEVMEndpoints) IsBlockConsolidated(ctx *types.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
-	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		IsL2BlockConsolidated, err := z.state.IsL2BlockConsolidated(ctx, uint64(blockNumber), dbTx)
+func (e *ZKEVMEndpoints) IsBlockConsolidated(ctx *types.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+		IsL2BlockConsolidated, err := e.state.IsL2BlockConsolidated(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
 			const errorMessage = "failed to check if the block is consolidated"
-			log.Errorf("%v: %v", errorMessage, err)
+			ctx.Logger().Errorf("%v: %v", errorMessage, err)
 			return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
 		}
 
@@ -49,12 +47,12 @@ func (z *ZKEVMEndpoints) IsBlockConsolidated(ctx *types.RequestContext, blockNum
 }
 
 // IsBlockVirtualized returns the virtualization status of a provided block number
-func (z *ZKEVMEndpoints) IsBlockVirtualized(ctx *types.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
-	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		IsL2BlockVirtualized, err := z.state.IsL2BlockVirtualized(ctx, uint64(blockNumber), dbTx)
+func (e *ZKEVMEndpoints) IsBlockVirtualized(ctx *types.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+		IsL2BlockVirtualized, err := e.state.IsL2BlockVirtualized(ctx, uint64(blockNumber), dbTx)
 		if err != nil {
 			const errorMessage = "failed to check if the block is virtualized"
-			log.Errorf("%v: %v", errorMessage, err)
+			ctx.Logger().Errorf("%v: %v", errorMessage, err)
 			return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
 		}
 
@@ -63,14 +61,14 @@ func (z *ZKEVMEndpoints) IsBlockVirtualized(ctx *types.RequestContext, blockNumb
 }
 
 // BatchNumberByBlockNumber returns the batch number from which the passed block number is created
-func (z *ZKEVMEndpoints) BatchNumberByBlockNumber(ctx *types.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
-	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		batchNum, err := z.state.BatchNumberByL2BlockNumber(ctx, uint64(blockNumber), dbTx)
+func (e *ZKEVMEndpoints) BatchNumberByBlockNumber(ctx *types.RequestContext, blockNumber types.ArgUint64) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+		batchNum, err := e.state.BatchNumberByL2BlockNumber(ctx, uint64(blockNumber), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			const errorMessage = "failed to get batch number from block number"
-			log.Errorf("%v: %v", errorMessage, err.Error())
+			ctx.Logger().Errorf("%v: %v", errorMessage, err.Error())
 			return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
 		}
 
@@ -79,9 +77,9 @@ func (z *ZKEVMEndpoints) BatchNumberByBlockNumber(ctx *types.RequestContext, blo
 }
 
 // BatchNumber returns the latest virtualized batch number
-func (z *ZKEVMEndpoints) BatchNumber(ctx *types.RequestContext) (interface{}, types.Error) {
-	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		lastBatchNumber, err := z.state.GetLastBatchNumber(ctx, dbTx)
+func (e *ZKEVMEndpoints) BatchNumber(ctx *types.RequestContext) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx, dbTx)
 		if err != nil {
 			return "0x0", types.NewRPCError(types.DefaultErrorCode, "failed to get the last batch number from state")
 		}
@@ -91,9 +89,9 @@ func (z *ZKEVMEndpoints) BatchNumber(ctx *types.RequestContext) (interface{}, ty
 }
 
 // VirtualBatchNumber returns the latest virtualized batch number
-func (z *ZKEVMEndpoints) VirtualBatchNumber(ctx *types.RequestContext) (interface{}, types.Error) {
-	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		lastBatchNumber, err := z.state.GetLastVirtualBatchNum(ctx, dbTx)
+func (e *ZKEVMEndpoints) VirtualBatchNumber(ctx *types.RequestContext) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+		lastBatchNumber, err := e.state.GetLastVirtualBatchNum(ctx, dbTx)
 		if err != nil {
 			return "0x0", types.NewRPCError(types.DefaultErrorCode, "failed to get the last virtual batch number from state")
 		}
@@ -103,9 +101,9 @@ func (z *ZKEVMEndpoints) VirtualBatchNumber(ctx *types.RequestContext) (interfac
 }
 
 // VerifiedBatchNumber returns the latest verified batch number
-func (z *ZKEVMEndpoints) VerifiedBatchNumber(ctx *types.RequestContext) (interface{}, types.Error) {
-	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		lastBatch, err := z.state.GetLastVerifiedBatch(ctx, dbTx)
+func (e *ZKEVMEndpoints) VerifiedBatchNumber(ctx *types.RequestContext) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
+		lastBatch, err := e.state.GetLastVerifiedBatch(ctx, dbTx)
 		if err != nil {
 			return "0x0", types.NewRPCError(types.DefaultErrorCode, "failed to get the last verified batch number from state")
 		}
@@ -115,46 +113,46 @@ func (z *ZKEVMEndpoints) VerifiedBatchNumber(ctx *types.RequestContext) (interfa
 }
 
 // GetBatchByNumber returns information about a batch by batch number
-func (z *ZKEVMEndpoints) GetBatchByNumber(ctx *types.RequestContext, batchNumber types.BatchNumber, fullTx bool) (interface{}, types.Error) {
-	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *ZKEVMEndpoints) GetBatchByNumber(ctx *types.RequestContext, batchNumber types.BatchNumber, fullTx bool) (interface{}, types.Error) {
+	return e.txMan.NewDbTxScope(ctx, e.state, func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 		var err error
-		batchNumber, rpcErr := batchNumber.GetNumericBatchNumber(ctx, z.state, dbTx)
+		batchNumber, rpcErr := batchNumber.GetNumericBatchNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
 
-		batch, err := z.state.GetBatchByNumber(ctx, batchNumber, dbTx)
+		batch, err := e.state.GetBatchByNumber(ctx, batchNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err)
 		}
 
-		txs, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)
+		txs, err := e.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 		if !errors.Is(err, state.ErrNotFound) && err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v", batchNumber), err)
 		}
 
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
-			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
+			receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
 			if err != nil {
 				return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", tx.Hash().String()), err)
 			}
 			receipts = append(receipts, *receipt)
 		}
 
-		virtualBatch, err := z.state.GetVirtualBatch(ctx, batchNumber, dbTx)
+		virtualBatch, err := e.state.GetVirtualBatch(ctx, batchNumber, dbTx)
 		if err != nil && !errors.Is(err, state.ErrNotFound) {
 			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
 		}
 
-		verifiedBatch, err := z.state.GetVerifiedBatch(ctx, batchNumber, dbTx)
+		verifiedBatch, err := e.state.GetVerifiedBatch(ctx, batchNumber, dbTx)
 		if err != nil && !errors.Is(err, state.ErrNotFound) {
 			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
 		}
 
-		ger, err := z.state.GetExitRootByGlobalExitRoot(ctx, batch.GlobalExitRoot, dbTx)
+		ger, err := e.state.GetExitRootByGlobalExitRoot(ctx, batch.GlobalExitRoot, dbTx)
 		if err != nil && !errors.Is(err, state.ErrNotFound) {
 			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load full GER from state by number %v", batchNumber), err)
 		} else if errors.Is(err, state.ErrNotFound) {

@@ -23,7 +23,7 @@ func TestNewDbTxScope(t *testing.T) {
 	testCases := []testCase{
 		{
 			Name: "Run scoped func commits DB tx",
-			Fn: func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+			Fn: func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 				return 1, nil
 			},
 			ExpectedResult: 1,
@@ -35,7 +35,7 @@ func TestNewDbTxScope(t *testing.T) {
 		},
 		{
 			Name: "Run scoped func rollbacks DB tx",
-			Fn: func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+			Fn: func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 				return nil, types.NewRPCError(types.DefaultErrorCode, "func returned an error")
 			},
 			ExpectedResult: nil,
@@ -47,7 +47,7 @@ func TestNewDbTxScope(t *testing.T) {
 		},
 		{
 			Name: "Run scoped func but fails create a db tx",
-			Fn: func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+			Fn: func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 				return nil, nil
 			},
 			ExpectedResult: nil,
@@ -58,7 +58,7 @@ func TestNewDbTxScope(t *testing.T) {
 		},
 		{
 			Name: "Run scoped func but fails to commit DB tx",
-			Fn: func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+			Fn: func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 				return 1, nil
 			},
 			ExpectedResult: nil,
@@ -70,7 +70,7 @@ func TestNewDbTxScope(t *testing.T) {
 		},
 		{
 			Name: "Run scoped func but fails to rollbacks DB tx",
-			Fn: func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+			Fn: func(ctx *types.RequestContext, dbTx pgx.Tx) (interface{}, types.Error) {
 				return nil, types.NewRPCError(types.DefaultErrorCode, "func returned an error")
 			},
 			ExpectedResult: nil,
@@ -90,8 +90,8 @@ func TestNewDbTxScope(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(s, d)
-
-			result, err := dbTxManager.NewDbTxScope(s, tc.Fn)
+			ctx := types.NewRequestContext(context.Background(), "dbTxManagerTest")
+			result, err := dbTxManager.NewDbTxScope(ctx, s, tc.Fn)
 			assert.Equal(t, tc.ExpectedResult, result)
 			assert.Equal(t, tc.ExpectedError, err)
 		})
