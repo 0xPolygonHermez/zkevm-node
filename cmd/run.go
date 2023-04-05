@@ -76,27 +76,11 @@ func start(cliCtx *cli.Context) error {
 
 	for _, component := range components {
 		switch component {
-		case AGGREGATOR:
-			needsExecutor = false || needsExecutor
-			needsStateTree = false || needsStateTree
-		case SEQUENCER:
-			needsExecutor = true || needsExecutor
-			needsStateTree = true || needsStateTree
-		case RPC:
-			needsExecutor = true || needsExecutor
-			needsStateTree = true || needsStateTree
+		case SEQUENCER, RPC:
+			needsExecutor = true
+			needsStateTree = true
 		case SYNCHRONIZER:
-			needsExecutor = true || needsExecutor
-			needsStateTree = false || needsStateTree
-		case BROADCAST:
-			needsExecutor = false || needsExecutor
-			needsStateTree = false || needsStateTree
-		case ETHTXMANAGER:
-			needsExecutor = false || needsExecutor
-			needsStateTree = false || needsStateTree
-		case L2GASPRICER:
-			needsExecutor = false || needsExecutor
-			needsStateTree = false || needsStateTree
+			needsExecutor = true
 		}
 	}
 
