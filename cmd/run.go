@@ -79,6 +79,7 @@ func start(cliCtx *cli.Context) error {
 		case SEQUENCER, RPC, SYNCHRONIZER:
 			needsExecutor = true
 			needsStateTree = true
+		}
 	}
 
 	// Event log
