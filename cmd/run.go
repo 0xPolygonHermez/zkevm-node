@@ -401,8 +401,9 @@ func startProfilingHttpServer(c metrics.Config) {
 	mux.HandleFunc(metrics.ProfilingSymbolEndpoint, pprof.Symbol)
 	mux.HandleFunc(metrics.ProfilingTraceEndpoint, pprof.Trace)
 	profilingServer := &http.Server{
-		Handler:     mux,
-		ReadTimeout: two * time.Minute,
+		Handler:           mux,
+		ReadHeaderTimeout: two * time.Minute,
+		ReadTimeout:       two * time.Minute,
 	}
 	log.Infof("profiling server listening on port %d", c.ProfilingPort)
 	if err := profilingServer.Serve(lis); err != nil {
@@ -426,8 +427,9 @@ func startMetricsHttpServer(c metrics.Config) {
 	mux.Handle(metrics.Endpoint, promhttp.Handler())
 
 	metricsServer := &http.Server{
-		Handler:     mux,
-		ReadTimeout: ten * time.Second,
+		Handler:           mux,
+		ReadHeaderTimeout: ten * time.Second,
+		ReadTimeout:       ten * time.Second,
 	}
 	log.Infof("metrics server listening on port %d", c.Port)
 	if err := metricsServer.Serve(lis); err != nil {

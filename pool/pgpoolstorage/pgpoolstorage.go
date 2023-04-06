@@ -656,6 +656,33 @@ func (p *PostgresPoolStorage) UpdateTxWIPStatus(ctx context.Context, hash common
 	return nil
 }
 
+// GetAllAddressesBlocked get all addresses blocked
+func (p *PostgresPoolStorage) GetAllAddressesBlocked(ctx context.Context) ([]common.Address, error) {
+	sql := `SELECT addr FROM pool.blocked`
+
+	rows, err := p.db.Query(ctx, sql)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+	defer rows.Close()
+
+	var addrs []common.Address
+	for rows.Next() {
+		var addr string
+		err := rows.Scan(&addr)
+		if err != nil {
+			return nil, err
+		}
+		addrs = append(addrs, common.HexToAddress(addr))
+	}
+
+	return addrs, nil
+}
+
 // DepositCountExists checks if already exists a transaction in the pool with the
 // provided deposit count
 func (p *PostgresPoolStorage) DepositCountExists(ctx context.Context, depositCount uint64) (bool, error) {

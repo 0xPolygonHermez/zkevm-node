@@ -20,6 +20,7 @@ MaxConns = 200
 
 [Pool]
 FreeClaimGasLimit = 150000
+IntervalToRefreshBlockedAddresses = "5m"
 MaxTxBytesSize=30132
 MaxTxDataBytesSize=30000
 DefaultMinGasPriceAllowed = 1000000000

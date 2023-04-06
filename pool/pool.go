@@ -44,6 +44,7 @@ type Pool struct {
 	l2BridgeAddr            common.Address
 	chainID                 uint64
 	cfg                     Config
+	blockedAddresses        sync.Map
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
 	eventLog                *event.EventLog
@@ -58,14 +59,55 @@ type preExecutionResponse struct {
 
 // NewPool creates and initializes an instance of Pool
 func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64, eventLog *event.EventLog) *Pool {
-	return &Pool{
+	p := &Pool{
 		cfg:                     cfg,
 		storage:                 s,
 		state:                   st,
 		l2BridgeAddr:            l2BridgeAddr,
 		chainID:                 chainID,
+		blockedAddresses:        sync.Map{},
 		minSuggestedGasPriceMux: new(sync.RWMutex),
 		eventLog:                eventLog,
+	}
+
+	p.refreshBlockedAddresses()
+	go func(cfg *Config, p *Pool) {
+		for {
+			time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
+			p.refreshBlockedAddresses()
+		}
+	}(&cfg, p)
+	return p
+}
+
+// refreshBlockedAddresses refreshes the list of blocked addresses for the provided instance of pool
+func (p *Pool) refreshBlockedAddresses() {
+	blockedAddresses, err := p.storage.GetAllAddressesBlocked(context.Background())
+	if err != nil {
+		log.Error("failed to load blocked addresses")
+		return
+	}
+
+	blockedAddressesMap := sync.Map{}
+	for _, blockedAddress := range blockedAddresses {
+		blockedAddressesMap.Store(blockedAddress.String(), 1)
+		p.blockedAddresses.Store(blockedAddress.String(), 1)
+	}
+
+	unblockedAddresses := []string{}
+	p.blockedAddresses.Range(func(key, value any) bool {
+		addrHex := key.(string)
+		_, found := blockedAddressesMap.Load(addrHex)
+		if found {
+			return true
+		}
+
+		unblockedAddresses = append(unblockedAddresses, addrHex)
+		return true
+	})
+
+	for _, unblockedAddress := range unblockedAddresses {
+		p.blockedAddresses.Delete(unblockedAddress)
 	}
 }
 
@@ -298,6 +340,12 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	from, err := state.GetSender(poolTx.Transaction)
 	if err != nil {
 		return ErrInvalidSender
+	}
+
+	// check if sender is blocked
+	_, blocked := p.blockedAddresses.Load(from.String())
+	if blocked {
+		return ErrBlockedSender
 	}
 
 	lastL2Block, err := p.state.GetLastL2Block(ctx, nil)

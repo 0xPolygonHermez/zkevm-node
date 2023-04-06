@@ -123,9 +123,10 @@ func (s *Server) startHTTP() error {
 	mux.Handle("/", tollbooth.LimitFuncHandler(lmt, s.handle))
 
 	s.srv = &http.Server{
-		Handler:      mux,
-		ReadTimeout:  s.config.ReadTimeoutInSec * time.Second,
-		WriteTimeout: s.config.WriteTimeoutInSec * time.Second,
+		Handler:           mux,
+		ReadHeaderTimeout: s.config.ReadTimeoutInSec * time.Second,
+		ReadTimeout:       s.config.ReadTimeoutInSec * time.Second,
+		WriteTimeout:      s.config.WriteTimeoutInSec * time.Second,
 	}
 	log.Infof("http server started: %s", address)
 	if err := s.srv.Serve(lis); err != nil {
@@ -160,9 +161,10 @@ func (s *Server) startWS() {
 	mux.HandleFunc("/", s.handleWs)
 
 	s.wsSrv = &http.Server{
-		Handler:      mux,
-		ReadTimeout:  s.config.ReadTimeoutInSec * time.Second,
-		WriteTimeout: s.config.WriteTimeoutInSec * time.Second,
+		Handler:           mux,
+		ReadHeaderTimeout: s.config.ReadTimeoutInSec * time.Second,
+		ReadTimeout:       s.config.ReadTimeoutInSec * time.Second,
+		WriteTimeout:      s.config.WriteTimeoutInSec * time.Second,
 	}
 	s.wsUpgrader = websocket.Upgrader{
 		ReadBufferSize:  wsBufferSizeLimitInBytes,
