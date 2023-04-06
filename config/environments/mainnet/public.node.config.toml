@@ -45,7 +45,6 @@ ReadTimeoutInSec = 60
 WriteTimeoutInSec = 60
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://zkevm-rpc.com"
-BroadcastURI = "broadcast.zkevm-rpc.com:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 EnableL2SuggestedGasPricePolling = false
 	[RPC.WebSockets]
@@ -56,7 +55,7 @@ EnableL2SuggestedGasPricePolling = false
 SyncInterval = "2s"
 SyncChunkSize = 100
 GenBlockNumber = 16896721
-trustedSequencerURL = ""
+TrustedSequencerURL = ""
 
 [MTClient]
 URI = "zkevm-prover:50061"

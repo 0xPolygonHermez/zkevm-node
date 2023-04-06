@@ -128,7 +128,7 @@ func sendForcedBatch(t *testing.T, opsman *operations.Manager) (*state.Batch, er
 	log.Debug("currentBlock.Time(): ", currentBlock.Time())
 
 	// Get tip
-	tip, err := zkEvm.GetCurrentBatchFee(&bind.CallOpts{Pending: false})
+	tip, err := zkEvm.BatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 
 	managerAddress, err := zkEvm.GlobalExitRootManager(&bind.CallOpts{Pending: false})

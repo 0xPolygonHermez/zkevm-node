@@ -262,15 +262,15 @@ func TestBatchNumberByBlockNumber(t *testing.T) {
 
 	type testCase struct {
 		Name           string
-		ExpectedResult uint64
+		ExpectedResult *uint64
 		ExpectedError  types.Error
 		SetupMocks     func(m *mocksWrapper)
 	}
 
 	testCases := []testCase{
 		{
-			Name:           "Query status of batch number of l2 block by its number successfully",
-			ExpectedResult: batchNumber,
+			Name:           "get batch number by block number successfully",
+			ExpectedResult: &batchNumber,
 			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -289,8 +289,8 @@ func TestBatchNumberByBlockNumber(t *testing.T) {
 			},
 		},
 		{
-			Name:           "Failed to query the consolidation status",
-			ExpectedResult: uint64(0),
+			Name:           "failed to get batch number",
+			ExpectedResult: nil,
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get batch number from block number"),
 			SetupMocks: func(m *mocksWrapper) {
 				m.DbTx.
@@ -309,6 +309,27 @@ func TestBatchNumberByBlockNumber(t *testing.T) {
 					Once()
 			},
 		},
+		{
+			Name:           "batch number not found",
+			ExpectedResult: nil,
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("BatchNumberByL2BlockNumber", context.Background(), blockNumber, m.DbTx).
+					Return(uint64(0), state.ErrNotFound).
+					Once()
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -319,16 +340,27 @@ func TestBatchNumberByBlockNumber(t *testing.T) {
 			res, err := s.JSONRPCCall("zkevm_batchNumberByBlockNumber", hex.EncodeUint64(blockNumber))
 			require.NoError(t, err)
 
-			if res.Result != nil {
+			if tc.ExpectedResult != nil {
 				var result types.ArgUint64
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
-				assert.Equal(t, tc.ExpectedResult, uint64(result))
+				assert.Equal(t, *tc.ExpectedResult, uint64(result))
+			} else {
+				if res.Result == nil {
+					assert.Nil(t, res.Result)
+				} else {
+					var result *uint64
+					err = json.Unmarshal(res.Result, &result)
+					require.NoError(t, err)
+					assert.Nil(t, result)
+				}
 			}
 
-			if res.Error != nil || tc.ExpectedError != nil {
+			if tc.ExpectedError != nil {
 				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
 				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			} else {
+				assert.Nil(t, res.Error)
 			}
 		})
 	}
@@ -661,6 +693,16 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
+				ger := state.GlobalExitRoot{
+					MainnetExitRoot: common.HexToHash("0x4"),
+					RollupExitRoot:  common.HexToHash("0x4"),
+					GlobalExitRoot:  common.HexToHash("0x4"),
+				}
+				m.State.
+					On("GetExitRootByGlobalExitRoot", context.Background(), batch.GlobalExitRoot, m.DbTx).
+					Return(&ger, nil).
+					Once()
+
 				txs := []*ethTypes.Transaction{
 					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
 					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
@@ -775,6 +817,16 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(verifiedBatch, nil).
 					Once()
 
+				ger := state.GlobalExitRoot{
+					MainnetExitRoot: common.HexToHash("0x4"),
+					RollupExitRoot:  common.HexToHash("0x4"),
+					GlobalExitRoot:  common.HexToHash("0x4"),
+				}
+				m.State.
+					On("GetExitRootByGlobalExitRoot", context.Background(), batch.GlobalExitRoot, m.DbTx).
+					Return(&ger, nil).
+					Once()
+
 				txs := []*ethTypes.Transaction{
 					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
 					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
@@ -872,6 +924,16 @@ func TestGetBatchByNumber(t *testing.T) {
 				m.State.
 					On("GetVerifiedBatch", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
 					Return(verifiedBatch, nil).
+					Once()
+
+				ger := state.GlobalExitRoot{
+					MainnetExitRoot: common.HexToHash("0x4"),
+					RollupExitRoot:  common.HexToHash("0x4"),
+					GlobalExitRoot:  common.HexToHash("0x4"),
+				}
+				m.State.
+					On("GetExitRootByGlobalExitRoot", context.Background(), batch.GlobalExitRoot, m.DbTx).
+					Return(&ger, nil).
 					Once()
 
 				txs := []*ethTypes.Transaction{

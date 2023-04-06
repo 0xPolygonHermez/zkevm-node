@@ -57,7 +57,6 @@ ReadTimeoutInSec = 60
 WriteTimeoutInSec = 60
 MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
-BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
@@ -67,8 +66,8 @@ EnableL2SuggestedGasPricePolling = true
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
-GenBlockNumber = 67
-trustedSequencerURL = ""
+GenBlockNumber = 74
+TrustedSequencerURL = ""
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
@@ -142,10 +141,6 @@ URI = "127.0.0.1:50061"
 
 [Executor]
 URI = "127.0.0.1:50071"
-
-[BroadcastServer]
-Host = "0.0.0.0"
-Port = 61090
 
 [Metrics]
 Host = "0.0.0.0"

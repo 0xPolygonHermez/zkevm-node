@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -415,7 +417,13 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 		MaxCumulativeGasUsed: maxCumulativeGasUsed,
 	}
 
-	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		return nil, err
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)
 	return st, nil
 }
 

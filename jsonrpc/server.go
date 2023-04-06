@@ -247,12 +247,14 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	start := time.Now()
+	var respLen int
 	if single {
-		s.handleSingleRequest(req, w, data)
+		respLen = s.handleSingleRequest(req, w, data)
 	} else {
-		s.handleBatchRequest(req, w, data)
+		respLen = s.handleBatchRequest(req, w, data)
 	}
 	metrics.RequestDuration(start)
+	combinedLog(req, start, http.StatusOK, respLen)
 }
 
 func (s *Server) isSingleRequest(data []byte) (bool, types.Error) {
@@ -265,12 +267,12 @@ func (s *Server) isSingleRequest(data []byte) (bool, types.Error) {
 	return x[0] == '{', nil
 }
 
-func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) {
+func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelSingle)
 	request, err := s.parseRequest(data)
 	if err != nil {
 		handleError(w, err)
-		return
+		return 0
 	}
 	req := handleRequest{Request: request, HttpRequest: httpRequest}
 	response := s.handler.Handle(req)
@@ -278,22 +280,23 @@ func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseW
 	respBytes, err := json.Marshal(response)
 	if err != nil {
 		handleError(w, err)
-		return
+		return 0
 	}
 
 	_, err = w.Write(respBytes)
 	if err != nil {
 		handleError(w, err)
-		return
+		return 0
 	}
+	return len(respBytes)
 }
 
-func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) {
+func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelBatch)
 	requests, err := s.parseRequests(data)
 	if err != nil {
 		handleError(w, err)
-		return
+		return 0
 	}
 
 	responses := make([]types.Response, 0, len(requests))
@@ -308,7 +311,9 @@ func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWr
 	_, err = w.Write(respBytes)
 	if err != nil {
 		log.Error(err)
+		return 0
 	}
+	return len(respBytes)
 }
 
 func (s *Server) parseRequest(data []byte) (types.Request, error) {
@@ -405,4 +410,18 @@ func rpcErrorResponseWithData(code int, message string, data *[]byte, err error)
 		log.Error(message)
 	}
 	return nil, types.NewRPCErrorWithData(code, message, data)
+}
+
+func combinedLog(r *http.Request, start time.Time, httpStatus, dataLen int) {
+	log.Infof("%s - - %s \"%s %s %s\" %d %d \"%s\" \"%s\"",
+		r.RemoteAddr,
+		start.Format("[02/Jan/2006:15:04:05 -0700]"),
+		r.Method,
+		r.URL.Path,
+		r.Proto,
+		httpStatus,
+		dataLen,
+		r.Host,
+		r.UserAgent(),
+	)
 }

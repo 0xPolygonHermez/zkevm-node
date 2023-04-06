@@ -48,6 +48,11 @@ func NewPoolConfigFromEnv() db.Config {
 	return newConfigFromEnv("pool", "5433")
 }
 
+// NewEventConfigFromEnv return a config for event db
+func NewEventConfigFromEnv() db.Config {
+	return newConfigFromEnv("event", "5435")
+}
+
 // newConfigFromEnv creates config from standard postgres environment variables,
 // see https://www.postgresql.org/docs/11/libpq-envars.html for details
 func newConfigFromEnv(prefix, port string) db.Config {

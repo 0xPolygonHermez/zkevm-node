@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/gasprice"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -17,7 +18,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/mitchellh/mapstructure"
@@ -63,10 +63,10 @@ type Config struct {
 	NetworkConfig       NetworkConfig
 	L2GasPriceSuggester gasprice.Config
 	Executor            executor.Config
-	BroadcastServer     broadcast.ServerConfig
 	MTClient            merkletree.Config
 	StateDB             db.Config
 	Metrics             metrics.Config
+	EventLog            event.Config
 }
 
 // Default parses the default configuration values.

@@ -16,6 +16,8 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -101,7 +103,13 @@ func TestMain(m *testing.M) {
 
 	stateTree = merkletree.NewStateTree(mtDBServiceClient)
 
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		panic(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree, eventLog)
 
 	result := m.Run()
 
@@ -1029,7 +1037,7 @@ func TestExecutorRevert(t *testing.T) {
 
 	unsignedTx := types.NewTransaction(2, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("4abbb40a"))
 
-	result, err := testState.ProcessUnsignedTransaction(ctx, unsignedTx, auth.From, lastL2BlockNumber, false, nil)
+	result, err := testState.ProcessUnsignedTransaction(ctx, unsignedTx, auth.From, &lastL2BlockNumber, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, result.Err)
 	assert.Equal(t, fmt.Errorf("execution reverted: Today is not juernes").Error(), result.Err.Error())
@@ -1100,10 +1108,11 @@ func TestExecutorLogs(t *testing.T) {
 	assert.Equal(t, scAddress, common.HexToAddress(string(processBatchResponse.Responses[0].CreateAddress)))
 
 	assert.Equal(t, 0, len(processBatchResponse.Responses[0].Logs))
-	assert.Equal(t, 3, len(processBatchResponse.Responses[1].Logs))
+	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs))
 	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[0].Topics))
 	assert.Equal(t, 2, len(processBatchResponse.Responses[1].Logs[1].Topics))
 	assert.Equal(t, 1, len(processBatchResponse.Responses[1].Logs[2].Topics))
+	assert.Equal(t, 0, len(processBatchResponse.Responses[1].Logs[3].Topics))
 }
 
 func TestExecutorTransfer(t *testing.T) {
@@ -1788,7 +1797,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	})
 	l2BlockNumber := uint64(3)
 
-	result, err := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), l2BlockNumber, true, nil)
+	result, err := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), &l2BlockNumber, true, nil)
 	require.NoError(t, err)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
@@ -2217,7 +2226,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	blockNumber, err := testState.GetLastL2BlockNumber(ctx, nil)
 	require.NoError(t, err)
 
-	estimatedGas, err := testState.EstimateGas(signedTx2, sequencerAddress, blockNumber, nil)
+	estimatedGas, err := testState.EstimateGas(signedTx2, sequencerAddress, &blockNumber, nil)
 	require.NoError(t, err)
 	log.Debugf("Estimated gas = %v", estimatedGas)
 
@@ -2225,7 +2234,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	tx3 := types.NewTransaction(nonce, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("4abbb40a"))
 	signedTx3, err := auth.Signer(auth.From, tx3)
 	require.NoError(t, err)
-	_, err = testState.EstimateGas(signedTx3, sequencerAddress, blockNumber, nil)
+	_, err = testState.EstimateGas(signedTx3, sequencerAddress, &blockNumber, nil)
 	require.Error(t, err)
 }
 
@@ -2580,7 +2589,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	blockNumber, err := testState.GetLastL2BlockNumber(ctx, nil)
 	require.NoError(t, err)
 
-	estimatedGas, err := testState.EstimateGas(signedTx6, sequencerAddress, blockNumber, nil)
+	estimatedGas, err := testState.EstimateGas(signedTx6, sequencerAddress, &blockNumber, nil)
 	require.NoError(t, err)
 	log.Debugf("Estimated gas = %v", estimatedGas)
 
@@ -2717,48 +2726,6 @@ func TestWaitSequencingTxToBeSyncedAndWaitVerifiedBatchToBeSynced(t *testing.T) 
 
 	err = testState.WaitVerifiedBatchToBeSynced(ctx, 1, 5*time.Second)
 	require.NoError(t, err)
-}
-
-func TestStoreDebugInfo(t *testing.T) {
-	var debugInfo state.DebugInfo
-
-	db := map[string]string{
-		"2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90": "00000000000000000000000000000000000000000000000000000000000000000d1f0da5a7b620c843fd1e18e59fd724d428d25da0cb1888e31f5542ac227c060000000000000000000000000000000000000000000000000000000000000000",
-		"e31f5542ac227c06d428d25da0cb188843fd1e18e59fd7240d1f0da5a7b620c8": "ed22ec7734d89ff2b2e639153607b7c542b2bd6ec2788851b7819329410847833e63658ee0db910d0b3e34316e81aa10e0dc203d93f4e3e5e10053d0ebc646020000000000000000000000000000000000000000000000000000000000000000",
-		"b78193294108478342b2bd6ec2788851b2e639153607b7c5ed22ec7734d89ff2": "16dde42596b907f049015d7e991a152894dd9dadd060910b60b4d5e9af514018b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
-		"3efad1dd58c2259d339438195426ad0af57d81efba5d4445b69b044f5e694795": "00000000dea000000000000035c9adc5000000000000003600000000000000000000000000000000000000000000000000000000000000000000000000000000",
-		"e10053d0ebc64602e0dc203d93f4e3e50b3e34316e81aa103e63658ee0db910d": "66ee2be0687eea766926f8ca8796c78a4c2f3e938869b82d649e63bfe1247ba4b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
-	}
-
-	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		OldBatchNum:      0,
-		Coinbase:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").String(),
-		BatchL2Data:      common.Hex2Bytes("ee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b"),
-		OldStateRoot:     common.Hex2Bytes("2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90"),
-		GlobalExitRoot:   common.Hex2Bytes("090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"),
-		OldAccInputHash:  common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
-		EthTimestamp:     uint64(1944498031),
-		UpdateMerkleTree: 0,
-		Db:               db,
-		ChainId:          stateCfg.ChainID,
-		ForkId:           forkID,
-	}
-
-	_, err := executorClient.ProcessBatch(ctx, processBatchRequest)
-	require.NoError(t, err)
-
-	// Log as it failed
-	testState.LogExecutorError(executorclientpb.ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK, processBatchRequest)
-	require.NoError(t, err)
-
-	payload, err := json.Marshal(processBatchRequest)
-	require.NoError(t, err)
-
-	err = testState.PostgresStorage.QueryRow(ctx, "SELECT * FROM state.debug").Scan(&debugInfo.ErrorType, &debugInfo.Timestamp, &debugInfo.Payload)
-	assert.NoError(t, err)
-	assert.Equal(t, state.DebugInfoErrorType_EXECUTOR_ERROR+" "+executorclientpb.ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK.String(), debugInfo.ErrorType)
-	assert.Equal(t, string(payload), debugInfo.Payload)
 }
 
 func TestExecuteWithoutUpdatingMT(t *testing.T) {
@@ -2979,28 +2946,28 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	})
 
 	l2BlockNumber := uint64(1)
-	result, err := testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	result, err := testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, &l2BlockNumber, true, nil)
 	require.NoError(t, err)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(result.ReturnValue))
 
 	l2BlockNumber = uint64(2)
-	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, &l2BlockNumber, true, nil)
 	require.NoError(t, err)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
 
 	l2BlockNumber = uint64(3)
-	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, &l2BlockNumber, true, nil)
 	require.NoError(t, err)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000002", hex.EncodeToString(result.ReturnValue))
 
 	l2BlockNumber = uint64(4)
-	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, l2BlockNumber, true, nil)
+	result, err = testState.ProcessUnsignedTransaction(context.Background(), getCountUnsignedTx, auth.From, &l2BlockNumber, true, nil)
 	require.NoError(t, err)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)

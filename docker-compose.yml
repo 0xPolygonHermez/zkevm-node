@@ -14,6 +14,12 @@ services:
       zkevm-sync:
         condition: service_started
     image: zkevm-node
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
     ports:
       - 8545:8545
       - 9091:9091 # needed if metrics enabled
@@ -34,6 +40,12 @@ services:
       zkevm-state-db:
         condition: service_healthy
     image: zkevm-node
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
     environment:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
@@ -79,12 +91,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
     ports:
       - 5433:5432
     volumes:
@@ -101,7 +107,7 @@ services:
   zkevm-prover:
     container_name: zkevm-prover
     restart: unless-stopped
-    image: hermeznetwork/zkevm-prover:3476ef0
+    image: hermeznetwork/zkevm-prover:6d6e3aa
     depends_on:
       zkevm-state-db:
         condition: service_healthy
