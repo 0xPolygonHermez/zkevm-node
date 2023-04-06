@@ -43,7 +43,7 @@ var (
 	}
 	customNetworkFlag = cli.StringFlag{
 		Name:     config.FlagCustomNetwork,
-		Aliases:  []string{"net"},
+		Aliases:  []string{"net-file"},
 		Usage:    "Load the network configuration file if --network=custom",
 		Required: false,
 	}
