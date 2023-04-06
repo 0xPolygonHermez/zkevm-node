@@ -113,6 +113,14 @@ type ethereumClient interface {
 	bind.DeployBackend
 }
 
+// L1Config represents the configuration of the network used in L1
+type L1Config struct {
+	L1ChainID                 uint64
+	PoEAddr                   common.Address
+	MaticAddr                 common.Address
+	GlobalExitRootManagerAddr common.Address
+}
+
 type externalGasProviders struct {
 	MultiGasProvider bool
 	Providers        []ethereum.GasPricer
@@ -128,12 +136,12 @@ type Client struct {
 
 	GasProviders externalGasProviders
 
-	cfg  Config
-	auth map[common.Address]bind.TransactOpts // empty in case of read-only client
+	l1Cfg L1Config
+	auth  map[common.Address]bind.TransactOpts // empty in case of read-only client
 }
 
 // NewClient creates a new etherman.
-func NewClient(cfg Config) (*Client, error) {
+func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -141,20 +149,20 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, err
 	}
 	// Create smc clients
-	poe, err := polygonzkevm.NewPolygonzkevm(cfg.PoEAddr, ethClient)
+	poe, err := polygonzkevm.NewPolygonzkevm(l1Config.PoEAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	globalExitRoot, err := polygonzkevmglobalexitroot.NewPolygonzkevmglobalexitroot(cfg.GlobalExitRootManagerAddr, ethClient)
+	globalExitRoot, err := polygonzkevmglobalexitroot.NewPolygonzkevmglobalexitroot(l1Config.GlobalExitRootManagerAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	matic, err := matic.NewMatic(cfg.MaticAddr, ethClient)
+	matic, err := matic.NewMatic(l1Config.MaticAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, cfg.PoEAddr, cfg.GlobalExitRootManagerAddr)
+	scAddresses = append(scAddresses, l1Config.PoEAddr, l1Config.GlobalExitRootManagerAddr)
 
 	gProviders := []ethereum.GasPricer{ethClient}
 	if cfg.MultiGasProvider {
@@ -177,15 +185,15 @@ func NewClient(cfg Config) (*Client, error) {
 			MultiGasProvider: cfg.MultiGasProvider,
 			Providers:        gProviders,
 		},
-		cfg:  cfg,
-		auth: map[common.Address]bind.TransactOpts{},
+		l1Cfg: l1Config,
+		auth:  map[common.Address]bind.TransactOpts{},
 	}, nil
 }
 
 // VerifyGenBlockNumber verifies if the genesis Block Number is valid
 func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
 	genBlock := big.NewInt(0).SetUint64(genBlockNumber)
-	response, err := etherMan.EthClient.CodeAt(ctx, etherMan.cfg.PoEAddr, genBlock)
+	response, err := etherMan.EthClient.CodeAt(ctx, etherMan.l1Cfg.PoEAddr, genBlock)
 	if err != nil {
 		log.Error("error getting smc code for gen block number. Error: ", err)
 		return false, err
@@ -194,7 +202,7 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 	if responseString == "" {
 		return false, nil
 	}
-	responsePrev, err := etherMan.EthClient.CodeAt(ctx, etherMan.cfg.PoEAddr, genBlock.Sub(genBlock, big.NewInt(1)))
+	responsePrev, err := etherMan.EthClient.CodeAt(ctx, etherMan.l1Cfg.PoEAddr, genBlock.Sub(genBlock, big.NewInt(1)))
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			if errors.Is(parsedErr, ErrMissingTrieNode) {
@@ -953,7 +961,7 @@ func (etherMan *Client) ApproveMatic(ctx context.Context, account common.Address
 	if etherMan.GasProviders.MultiGasProvider {
 		opts.GasPrice = etherMan.GetL1GasPrice(ctx)
 	}
-	tx, err := etherMan.Matic.Approve(&opts, etherMan.cfg.PoEAddr, maticAmount)
+	tx, err := etherMan.Matic.Approve(&opts, etherMan.l1Cfg.PoEAddr, maticAmount)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
@@ -1086,7 +1094,7 @@ func (etherMan *Client) AddOrReplaceAuth(auth bind.TransactOpts) error {
 
 // LoadAuthFromKeyStore loads an authorization from a key store file
 func (etherMan *Client) LoadAuthFromKeyStore(path, password string) (*bind.TransactOpts, error) {
-	auth, err := newAuthFromKeystore(path, password, etherMan.cfg.L1ChainID)
+	auth, err := newAuthFromKeystore(path, password, etherMan.l1Cfg.L1ChainID)
 	if err != nil {
 		return nil, err
 	}
@@ -1147,7 +1155,7 @@ func (etherMan *Client) generateRandomAuth() (bind.TransactOpts, error) {
 	if err != nil {
 		return bind.TransactOpts{}, errors.New("failed to generate a private key to estimate L1 txs")
 	}
-	chainID := big.NewInt(0).SetUint64(etherMan.cfg.L1ChainID)
+	chainID := big.NewInt(0).SetUint64(etherMan.l1Cfg.L1ChainID)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	if err != nil {
 		return bind.TransactOpts{}, errors.New("failed to generate a fake authorization to estimate L1 txs")

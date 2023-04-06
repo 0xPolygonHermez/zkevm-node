@@ -30,8 +30,10 @@ const (
 	FlagYes = "yes"
 	// FlagCfg is the flag for cfg.
 	FlagCfg = "cfg"
-	// FlagGenesisFile is the flag for genesis file.
-	FlagGenesisFile = "genesis"
+	// FlagNetwork is the flag for the network name. Valid values: ["testnet", "mainnet", "custom"].
+	FlagNetwork = "network"
+	// FlagCustomNetwork is the flag for the custom network file. This is required if --network=custom
+	FlagCustomNetwork = "custom-network-file"
 	// FlagAmount is the flag for amount.
 	FlagAmount = "amount"
 	// FlagRemoteMT is the flag for remote-merkletree.
@@ -128,12 +130,5 @@ func Load(ctx *cli.Context) (*Config, error) {
 	}
 	// Load genesis parameters
 	cfg.loadNetworkConfig(ctx)
-	/*
-		cfgJSON, err := json.MarshalIndent(cfg, "", "  ")
-		if err != nil {
-			return nil, err
-		}
-		log.Debugf("Configuration loaded: \n%s\n", string(cfgJSON))
-	*/
 	return cfg, nil
 }

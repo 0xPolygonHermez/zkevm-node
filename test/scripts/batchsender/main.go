@@ -111,7 +111,7 @@ func sendBatches(cliCtx *cli.Context) error {
 		return err
 	}
 
-	ethMan, err := etherman.NewClient(cfg.Etherman)
+	ethMan, err := etherman.NewClient(cfg.Etherman, cfg.NetworkConfig.L1Config)
 	if err != nil {
 		return err
 	}
@@ -258,7 +258,7 @@ func sendBatches(cliCtx *cli.Context) error {
 		for {
 			select {
 			case <-time.After(waitTimeout):
-				return errors.New("Deadline exceeded")
+				return errors.New("deadline exceeded")
 			case <-done:
 				success(sentBatches)
 				return nil

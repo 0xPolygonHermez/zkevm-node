@@ -849,7 +849,7 @@ func TestGenesis(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: actions,
+		GenesisActions: actions,
 	}
 
 	initOrResetDB()
@@ -933,7 +933,7 @@ func TestExecutorRevert(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: sequencerAddress.String(),
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1141,7 +1141,7 @@ func TestExecutorTransfer(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1402,7 +1402,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 				ReceivedAt:  time.Now(),
 			}
 			genesis := state.Genesis{
-				Actions: []*state.GenesisAction{
+				GenesisActions: []*state.GenesisAction{
 					{
 						Address: senderAddress.String(),
 						Type:    int(merkletree.LeafTypeBalance),
@@ -1469,7 +1469,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1745,7 +1745,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(context.Background())
 	require.NoError(t, err)
 	// Set genesis
-	genesis := state.Genesis{Actions: []*state.GenesisAction{
+	genesis := state.Genesis{GenesisActions: []*state.GenesisAction{
 		{
 			Address: sequencerAddress.Hex(),
 			Type:    int(merkletree.LeafTypeBalance),
@@ -2116,7 +2116,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 				Type:    int(merkletree.LeafTypeBalance),
@@ -2433,7 +2433,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 				Type:    int(merkletree.LeafTypeBalance),
@@ -2787,7 +2787,7 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(context.Background())
 	require.NoError(t, err)
 	// Set genesis
-	genesis := state.Genesis{Actions: []*state.GenesisAction{
+	genesis := state.Genesis{GenesisActions: []*state.GenesisAction{
 		{
 			Address: operations.DefaultSequencerAddress,
 			Type:    int(merkletree.LeafTypeBalance),

@@ -346,11 +346,12 @@ type mocks struct {
 // }
 
 func TestForcedBatch(t *testing.T) {
-	genesis := state.Genesis{}
+	genesis := state.Genesis{
+		GenesisBlockNum: uint64(123456),
+	}
 	cfg := Config{
-		SyncInterval:   cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize:  10,
-		GenBlockNumber: uint64(123456),
+		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize: 10,
 	}
 
 	m := mocks{
@@ -565,11 +566,12 @@ func TestForcedBatch(t *testing.T) {
 }
 
 func TestSequenceForcedBatch(t *testing.T) {
-	genesis := state.Genesis{}
+	genesis := state.Genesis{
+		GenesisBlockNum: uint64(123456),
+	}
 	cfg := Config{
-		SyncInterval:   cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize:  10,
-		GenBlockNumber: uint64(123456),
+		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize: 10,
 	}
 
 	m := mocks{
