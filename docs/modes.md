@@ -25,7 +25,6 @@ Use the default [public config file](https://github.com/0xPolygonHermez/zkevm-no
 [RPC]
 ...
 SequencerNodeURI = "https://public.zkevm-test.net:2083"
-BroadcastURI = "public-grpc.zkevm-test.net:61090"
 ```
 
 Same goes for the Prover Config ([prover-config.json](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.prover.config.json)):
