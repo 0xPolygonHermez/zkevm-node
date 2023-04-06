@@ -100,6 +100,7 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraints, weights b
 
 	var accuracy big.Accuracy
 	tx.Efficiency, accuracy = eff.Float64()
+	log.Infof("CalculateEfficiency(%f) for tx(%s)", tx.Efficiency, tx.Hash.String())
 	if accuracy != big.Exact {
 		log.Errorf("CalculateEfficiency accuracy warning (%s). Calculated=%s Assigned=%f", accuracy.String(), eff.String(), tx.Efficiency)
 	}
