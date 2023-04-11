@@ -83,7 +83,7 @@ func start(cliCtx *cli.Context) error {
 	var eventLog *event.EventLog
 	var eventStorage event.Storage
 
-	if c.EventLog.DB.Name == "" {
+	if c.EventLog.DB.Name != "" {
 		eventStorage, err = pgeventstorage.NewPostgresEventStorage(c.EventLog.DB)
 		if err != nil {
 			log.Fatal(err)
