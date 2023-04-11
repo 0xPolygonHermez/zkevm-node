@@ -28,7 +28,7 @@ func GetForkIDByBatchNumber(intervals []ForkIDInterval, batchNumber uint64) uint
 	return intervals[len(intervals)-1].ForkId
 }
 
-// GetForkIdByBatchNumber returns the fork id for the given batch number
-func (s *State) GetForkIdByBatchNumber(batchNumber uint64) uint64 {
+// GetForkIDByBatchNumber returns the fork id for the given batch number
+func (s *State) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	return GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, batchNumber)
 }

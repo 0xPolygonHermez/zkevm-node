@@ -245,7 +245,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	forkId := s.GetForkIdByBatchNumber(batch.BatchNumber)
+	forkId := s.GetForkIDByBatchNumber(batch.BatchNumber)
 
 	// Create Batch
 	traceConfigRequest := &pb.TraceConfig{

@@ -197,7 +197,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 		return nil, err
 	}
 
-	forkId := s.GetForkIdByBatchNumber(batch.BatchNumber)
+	forkId := s.GetForkIDByBatchNumber(batch.BatchNumber)
 
 	updateMT := uint32(cFalse)
 	if updateMerkleTree {
