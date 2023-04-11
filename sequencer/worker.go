@@ -256,7 +256,7 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 				if foundAt == -1 || foundAt > i {
 					foundAt = i
 					tx = txCandidate
-					log.Infof("GetBestFittingTx found tx(%s) at index(%d)", tx.Hash.String(), i)
+					log.Infof("GetBestFittingTx found tx(%s) at index(%d) with efficiency(%f)", tx.Hash.String(), i, tx.Efficiency)
 				}
 				foundMutex.Unlock()
 
