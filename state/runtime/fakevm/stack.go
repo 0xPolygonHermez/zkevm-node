@@ -17,18 +17,14 @@
 package fakevm
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/holiman/uint256"
 )
 
-// InitialStackSize represents the initial stack size.
-const InitialStackSize int = 16
-
 var stackPool = sync.Pool{
 	New: func() interface{} {
-		return &Stack{data: make([]uint256.Int, 0, InitialStackSize)}
+		return &Stack{data: make([]uint256.Int, 0, 16)}
 	},
 }
 
@@ -39,9 +35,13 @@ type Stack struct {
 	data []uint256.Int
 }
 
-// Newstack gets a stack from the pool.
-func Newstack() *Stack {
+func NewStack() *Stack {
 	return stackPool.Get().(*Stack)
+}
+
+func returnStack(s *Stack) {
+	s.data = s.data[:0]
+	stackPool.Put(s)
 }
 
 // Data returns the underlying uint256.Int array.
@@ -49,30 +49,34 @@ func (st *Stack) Data() []uint256.Int {
 	return st.data
 }
 
-// Push adds an item to the data.
 func (st *Stack) Push(d *uint256.Int) {
 	// NOTE push limit (1024) is checked in baseCheck
 	st.data = append(st.data, *d)
+}
+
+func (st *Stack) pop() (ret uint256.Int) {
+	ret = st.data[len(st.data)-1]
+	st.data = st.data[:len(st.data)-1]
+	return
 }
 
 func (st *Stack) len() int {
 	return len(st.data)
 }
 
+func (st *Stack) swap(n int) {
+	st.data[st.len()-n], st.data[st.len()-1] = st.data[st.len()-1], st.data[st.len()-n]
+}
+
+func (st *Stack) dup(n int) {
+	st.Push(&st.data[st.len()-n])
+}
+
+func (st *Stack) peek() *uint256.Int {
+	return &st.data[st.len()-1]
+}
+
 // Back returns the n'th item in stack
 func (st *Stack) Back(n int) *uint256.Int {
 	return &st.data[st.len()-n-1]
-}
-
-// Print dumps the content of the stack
-func (st *Stack) Print() {
-	fmt.Println("### stack ###")
-	if len(st.data) > 0 {
-		for i, val := range st.data {
-			fmt.Printf("%-3d  %s\n", i, val.String())
-		}
-	} else {
-		fmt.Println("-- empty --")
-	}
-	fmt.Println("#############")
 }

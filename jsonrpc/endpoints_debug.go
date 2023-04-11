@@ -3,8 +3,10 @@ package jsonrpc
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -22,11 +24,12 @@ type DebugEndpoints struct {
 }
 
 type traceConfig struct {
-	DisableStorage   bool    `json:"disableStorage"`
-	DisableStack     bool    `json:"disableStack"`
-	EnableMemory     bool    `json:"enableMemory"`
-	EnableReturnData bool    `json:"enableReturnData"`
-	Tracer           *string `json:"tracer"`
+	DisableStorage   bool            `json:"disableStorage"`
+	DisableStack     bool            `json:"disableStack"`
+	EnableMemory     bool            `json:"enableMemory"`
+	EnableReturnData bool            `json:"enableReturnData"`
+	Tracer           *string         `json:"tracer"`
+	TracerConfig     json.RawMessage `json:"tracerConfig"`
 }
 
 // StructLogRes represents the debug trace information for each opcode
@@ -133,6 +136,12 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 		traceConfig.EnableMemory = cfg.EnableMemory
 		traceConfig.EnableReturnData = cfg.EnableReturnData
 		traceConfig.Tracer = cfg.Tracer
+		traceConfig.TracerConfig = cfg.TracerConfig
+	}
+
+	// check tracer
+	if traceConfig.Tracer != nil && *traceConfig.Tracer != "" && !isBuiltInTracer(*traceConfig.Tracer) && !isJSCustomTracer(*traceConfig.Tracer) {
+		return rpcErrorResponse(types.DefaultErrorCode, "invalid tracer", nil)
 	}
 
 	result, err := d.state.DebugTransaction(ctx, hash, traceConfig, dbTx)
@@ -224,4 +233,23 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 		structLogs = append(structLogs, structLogRes)
 	}
 	return structLogs
+}
+
+// isBuiltInTracer checks if the tracer is one of the
+// built-in tracers
+func isBuiltInTracer(tracer string) bool {
+	// built-in tracers
+	switch tracer {
+	case "callTracer":
+		return true
+	default:
+		return false
+	}
+}
+
+// isJSCustomTracer checks if the tracer contains the
+// functions result and fault which are required for a custom tracer
+// https://geth.ethereum.org/docs/developers/evm-tracing/custom-tracer
+func isJSCustomTracer(tracer string) bool {
+	return strings.Contains(tracer, "result") && strings.Contains(tracer, "fault")
 }

@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -145,6 +146,7 @@ type TraceConfig struct {
 	EnableMemory     bool
 	EnableReturnData bool
 	Tracer           *string
+	TracerConfig     json.RawMessage
 }
 
 // TrustedReorg represents a trusted reorg
