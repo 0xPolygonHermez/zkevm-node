@@ -118,36 +118,6 @@ type dbManagerInterface interface {
 	FlushMerkleTree(ctx context.Context) error
 }
 
-type dbManagerStateInterface interface {
-	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
-	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
-	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLastNBatches(ctx context.Context, numBatches uint, dbTx pgx.Tx) ([]*state.Batch, error)
-	StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error
-	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
-	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
-	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error)
-	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
-	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
-	GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error)
-	GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error)
-	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
-	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
-	ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
-	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
-	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
-	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
-	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller state.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
-	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
-	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
-	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
-	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
-	FlushMerkleTree(ctx context.Context) error
-}
-
 type ethTxManager interface {
 	Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error
 	Result(ctx context.Context, owner, id string, dbTx pgx.Tx) (ethtxmanager.MonitoredTxResult, error)
