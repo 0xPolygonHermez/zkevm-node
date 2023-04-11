@@ -211,7 +211,7 @@ type mocks struct {
 // 				}
 
 // 				m.State.
-// 					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx, state.metrics.SynchronizerCallerLabel).
+// 					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
 // 					Return(trustedBatch.StateRoot, nil).
 // 					Once()
 
