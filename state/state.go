@@ -22,6 +22,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/js"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers/native"
 	"github.com/ethereum/go-ethereum/common"
@@ -989,13 +990,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return result, nil
 	}
 
-	// Parse the executor-like trace using the FakeEVM
-	// jsTracer, err := js.NewJsTracer(*traceConfig.Tracer, new(tracers.Context))
-	// if err != nil {
-	// 	log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
-	// 	return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
-	// }
-
 	context := instrumentation.Context{}
 
 	// Fill trace context
@@ -1036,17 +1030,29 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		TxIndex:     int(receipt.TransactionIndex),
 		TxHash:      transactionHash,
 	}
-	jsTracer, err := native.NewCallTracer(tracerContext, traceConfig.TracerConfig)
-	if err != nil {
-		log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
-		return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
+
+	var evmTracer tracers.Tracer
+	if traceConfig.IsCallTracer() {
+		evmTracer, err = native.NewCallTracer(tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create callTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create callTracer, err: %v", err)
+		}
+	} else if traceConfig.IsJSCustomTracer() {
+		evmTracer, err = js.NewJsTracer(*traceConfig.Tracer, tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
+		}
+	} else {
+		return nil, fmt.Errorf("invalid tracer: %v, err: %v", traceConfig.Tracer, err)
 	}
 
-	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: evmTracer})
 	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
 	env.SetStateDB(fakeDB)
 
-	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, jsTracer)
+	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, evmTracer)
 	if err != nil {
 		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
 		return nil, fmt.Errorf("failed parse the trace using the tracer: %v", err)
@@ -1058,7 +1064,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 }
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
-func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, jsTracer tracers.Tracer) (json.RawMessage, error) {
+func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
 	var previousDepth int
 	var previousOpcode string
 	var stateRoot []byte
@@ -1074,8 +1080,8 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		return nil, ErrParsingExecutorTrace
 	}
 
-	jsTracer.CaptureTxStart(contextGas.Uint64())
-	jsTracer.CaptureStart(env, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
+	tracer.CaptureTxStart(contextGas.Uint64())
+	tracer.CaptureStart(env, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
 
 	stack := fakevm.NewStack()
 	memory := fakevm.NewMemory()
@@ -1125,22 +1131,22 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		opcode := vm.OpCode(op.Uint64()).String()
 
 		if previousOpcode == "CALL" && step.Pc != 0 {
-			jsTracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
+			tracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
 
 		if opcode != "CALL" || trace.Steps[i+1].Pc == 0 {
 			if step.Error != "" {
 				err := fmt.Errorf(step.Error)
-				jsTracer.CaptureFault(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
+				tracer.CaptureFault(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
 			} else {
-				jsTracer.CaptureState(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.ReturnData, "0x")), step.Depth, nil)
+				tracer.CaptureState(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.ReturnData, "0x")), step.Depth, nil)
 			}
 		}
 
 		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
-			jsTracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
+			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
 			if step.OpCode == "SELFDESTRUCT" {
-				jsTracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
+				tracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
 			}
 		}
 
@@ -1168,7 +1174,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 
 		// Returning from a call or create
 		if previousDepth > step.Depth {
-			jsTracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
+			tracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
 
 		// Set StateRoot
@@ -1190,10 +1196,10 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		return nil, ErrParsingExecutorTrace
 	}
 
-	jsTracer.CaptureTxEnd(gasUsed.Uint64())
-	jsTracer.CaptureEnd(common.Hex2Bytes(trace.Context.Output), gasUsed.Uint64(), nil)
+	tracer.CaptureTxEnd(gasUsed.Uint64())
+	tracer.CaptureEnd(common.Hex2Bytes(trace.Context.Output), gasUsed.Uint64(), nil)
 
-	return jsTracer.GetResult()
+	return tracer.GetResult()
 }
 
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool

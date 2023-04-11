@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
@@ -147,6 +148,16 @@ type TraceConfig struct {
 	EnableReturnData bool
 	Tracer           *string
 	TracerConfig     json.RawMessage
+}
+
+// IsCallTracer returns true when should use callTracer
+func (t *TraceConfig) IsCallTracer() bool {
+	return t.Tracer != nil && *t.Tracer == "callTracer"
+}
+
+// IsJSCustomTracer returns true when should use js custom tracer
+func (t *TraceConfig) IsJSCustomTracer() bool {
+	return t.Tracer != nil && strings.Contains(*t.Tracer, "result") && strings.Contains(*t.Tracer, "fault")
 }
 
 // TrustedReorg represents a trusted reorg
