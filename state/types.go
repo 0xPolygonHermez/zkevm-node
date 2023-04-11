@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -18,7 +19,7 @@ type ProcessRequest struct {
 	Transactions    []byte
 	Coinbase        common.Address
 	Timestamp       uint64
-	Caller          CallerLabel
+	Caller          metrics.CallerLabel
 }
 
 // ProcessBatchResponse represents the response of a batch process.

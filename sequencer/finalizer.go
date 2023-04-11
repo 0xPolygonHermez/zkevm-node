@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
@@ -568,7 +569,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      f.batch.timestamp,
 		Transactions:   make([]byte, 0, 1),
-		Caller:         state.SequencerCallerLabel,
+		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 
 	log.Infof("synced with state, lastBatchNum: %d. State root: %s", *lastBatchNum, f.batch.initialStateRoot.Hex())
@@ -619,7 +620,7 @@ func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot 
 		Transactions:   forcedBatch.RawTxsData,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      uint64(now().Unix()),
-		Caller:         state.SequencerCallerLabel,
+		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, processRequest)
 	if err != nil {
@@ -722,7 +723,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 		Transactions:   batch.BatchL2Data,
 		Coinbase:       batch.Coinbase,
 		Timestamp:      uint64(batch.Timestamp.Unix()),
-		Caller:         state.DiscardCallerLabel,
+		Caller:         stateMetrics.DiscardCallerLabel,
 	}
 	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, Ger: %s", batch.BatchNumber, f.batch.initialStateRoot.String(), batch.GlobalExitRoot.String())
 	txs, _, err := state.DecodeTxs(batch.BatchL2Data)
