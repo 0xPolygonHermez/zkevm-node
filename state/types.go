@@ -150,9 +150,24 @@ type TraceConfig struct {
 	TracerConfig     json.RawMessage
 }
 
+// Is4ByteTracer returns true when should use 4byteTracer
+func (t *TraceConfig) Is4ByteTracer() bool {
+	return t.Tracer != nil && *t.Tracer == "4byteTracer"
+}
+
 // IsCallTracer returns true when should use callTracer
 func (t *TraceConfig) IsCallTracer() bool {
 	return t.Tracer != nil && *t.Tracer == "callTracer"
+}
+
+// IsNoopTracer returns true when should use noopTracer
+func (t *TraceConfig) IsNoopTracer() bool {
+	return t.Tracer != nil && *t.Tracer == "noopTracer"
+}
+
+// IsPrestateTracer returns true when should use prestateTracer
+func (t *TraceConfig) IsPrestateTracer() bool {
+	return t.Tracer != nil && *t.Tracer == "prestateTracer"
 }
 
 // IsJSCustomTracer returns true when should use js custom tracer

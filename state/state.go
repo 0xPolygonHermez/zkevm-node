@@ -1032,11 +1032,29 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	var evmTracer tracers.Tracer
-	if traceConfig.IsCallTracer() {
+	if traceConfig.Is4ByteTracer() {
+		evmTracer, err = native.NewFourByteTracer(tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create 4byteTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create 4byteTracer, err: %v", err)
+		}
+	} else if traceConfig.IsCallTracer() {
 		evmTracer, err = native.NewCallTracer(tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create callTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create callTracer, err: %v", err)
+		}
+	} else if traceConfig.IsNoopTracer() {
+		evmTracer, err = native.NewNoopTracer(tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create noopTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create noopTracer, err: %v", err)
+		}
+	} else if traceConfig.IsPrestateTracer() {
+		evmTracer, err = native.NewPrestateTracer(tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create prestateTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create prestateTracer, err: %v", err)
 		}
 	} else if traceConfig.IsJSCustomTracer() {
 		evmTracer, err = js.NewJsTracer(*traceConfig.Tracer, tracerContext, traceConfig.TracerConfig)
@@ -1048,9 +1066,8 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, fmt.Errorf("invalid tracer: %v, err: %v", traceConfig.Tracer, err)
 	}
 
-	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: evmTracer})
 	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
-	env.SetStateDB(fakeDB)
+	env := fakevm.NewFakeEVM(fakevm.BlockContext{BlockNumber: big.NewInt(1)}, fakevm.TxContext{GasPrice: gasPrice}, fakeDB, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: evmTracer})
 
 	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, evmTracer)
 	if err != nil {

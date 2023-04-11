@@ -1,3 +1,19 @@
+// Copyright 2014 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
 package fakevm
 
 import (
@@ -5,7 +21,6 @@ import (
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
@@ -18,11 +33,74 @@ const MemoryItemSize int = 32
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)
 
-// FakeEVM represents the fake EVM.
+type (
+	// CanTransferFunc is the signature of a transfer guard function
+	CanTransferFunc func(FakeDB, common.Address, *big.Int) bool
+	// TransferFunc is the signature of a transfer function
+	TransferFunc func(FakeDB, common.Address, common.Address, *big.Int)
+	// GetHashFunc returns the n'th block hash in the blockchain
+	// and is used by the BLOCKHASH EVM op code.
+	GetHashFunc func(uint64) common.Hash
+)
+
+func (evm *FakeEVM) precompile(addr common.Address) (PrecompiledContract, bool) {
+	var precompiles map[common.Address]PrecompiledContract
+	switch {
+	case evm.chainRules.IsBerlin:
+		precompiles = PrecompiledContractsBerlin
+	case evm.chainRules.IsIstanbul:
+		precompiles = PrecompiledContractsIstanbul
+	case evm.chainRules.IsByzantium:
+		precompiles = PrecompiledContractsByzantium
+	default:
+		precompiles = PrecompiledContractsHomestead
+	}
+	p, ok := precompiles[addr]
+	return p, ok
+}
+
+// BlockContext provides the EVM with auxiliary information. Once provided
+// it shouldn't be modified.
+type BlockContext struct {
+	// CanTransfer returns whether the account contains
+	// sufficient ether to transfer the value
+	CanTransfer CanTransferFunc
+	// Transfer transfers ether from one account to the other
+	Transfer TransferFunc
+	// GetHash returns the hash corresponding to n
+	GetHash GetHashFunc
+
+	// Block information
+	Coinbase    common.Address // Provides information for COINBASE
+	GasLimit    uint64         // Provides information for GASLIMIT
+	BlockNumber *big.Int       // Provides information for NUMBER
+	Time        uint64         // Provides information for TIME
+	Difficulty  *big.Int       // Provides information for DIFFICULTY
+	BaseFee     *big.Int       // Provides information for BASEFEE
+	Random      *common.Hash   // Provides information for PREVRANDAO
+}
+
+// TxContext provides the EVM with information about a transaction.
+// All fields can change between transactions.
+type TxContext struct {
+	// Message information
+	Origin   common.Address // Provides information for ORIGIN
+	GasPrice *big.Int       // Provides information for GASPRICE
+}
+
+// FakeEVM is the Ethereum Virtual Machine base object and provides
+// the necessary tools to run a contract on the given state with
+// the provided context. It should be noted that any error
+// generated through any of the calls should be considered a
+// revert-state-and-consume-all-gas operation, no checks on
+// specific errors should ever be performed. The interpreter makes
+// sure that any errors generated are to be considered faulty code.
+//
+// The FakeEVM should never be reused and is not thread safe.
 type FakeEVM struct {
 	// Context provides auxiliary blockchain related information
-	Context vm.BlockContext
-	vm.TxContext
+	Context BlockContext
+	TxContext
 	// StateDB gives access to the underlying state
 	StateDB FakeDB
 	// Depth is the current call stack
@@ -49,21 +127,24 @@ type FakeEVM struct {
 
 // NewFakeEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
-// func NewFakeEVM(blockCtx vm.BlockContext, txCtx vm.TxContext, statedb runtime.FakeDB, chainConfig *params.ChainConfig, config Config) *FakeEVM {
-func NewFakeEVM(blockCtx vm.BlockContext, txCtx vm.TxContext, chainConfig *params.ChainConfig, config Config) *FakeEVM {
+func NewFakeEVM(blockCtx BlockContext, txCtx TxContext, statedb FakeDB, chainConfig *params.ChainConfig, config Config) *FakeEVM {
 	evm := &FakeEVM{
 		Context:     blockCtx,
 		TxContext:   txCtx,
+		StateDB:     statedb,
 		Config:      config,
 		chainConfig: chainConfig,
 		chainRules:  chainConfig.Rules(blockCtx.BlockNumber, blockCtx.Random != nil, blockCtx.Time),
 	}
+	evm.interpreter = NewEVMInterpreter(evm)
 	return evm
 }
 
-// SetStateDB is the StateDB setter.
-func (evm *FakeEVM) SetStateDB(stateDB FakeDB) {
-	evm.StateDB = stateDB
+// Reset resets the EVM with a new transaction context.Reset
+// This is not threadsafe and should only be done very cautiously.
+func (evm *FakeEVM) Reset(txCtx TxContext, statedb FakeDB) {
+	evm.TxContext = txCtx
+	evm.StateDB = statedb
 }
 
 // Cancel cancels any running EVM operation. This may be called concurrently and
@@ -72,19 +153,22 @@ func (evm *FakeEVM) Cancel() {
 	atomic.StoreInt32(&evm.abort, 1)
 }
 
-// ChainConfig returns the environment's chain configuration
-func (evm *FakeEVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
-
-type codeAndHash struct {
-	code []byte
-	hash common.Hash
+// Cancelled returns true if Cancel has been called
+func (evm *FakeEVM) Cancelled() bool {
+	return atomic.LoadInt32(&evm.abort) == 1
 }
 
-func (c *codeAndHash) Hash() common.Hash {
-	if c.hash == (common.Hash{}) {
-		c.hash = crypto.Keccak256Hash(c.code)
-	}
-	return c.hash
+// Interpreter returns the current interpreter
+func (evm *FakeEVM) Interpreter() *EVMInterpreter {
+	return evm.interpreter
+}
+
+// SetBlockContext updates the block context of the EVM.
+func (evm *FakeEVM) SetBlockContext(blockCtx BlockContext) {
+	evm.Context = blockCtx
+	num := blockCtx.BlockNumber
+	timestamp := blockCtx.Time
+	evm.chainRules = evm.chainConfig.Rules(num, blockCtx.Random != nil, timestamp)
 }
 
 // Call executes the contract associated with the addr with the given input as
@@ -320,36 +404,16 @@ func (evm *FakeEVM) StaticCall(caller ContractRef, addr common.Address, input []
 	return ret, gas, err
 }
 
-// Create creates a new contract using code as deployment code.
-func (evm *FakeEVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	contractAddr = crypto.CreateAddress(caller.Address(), evm.StateDB.GetNonce(caller.Address()))
-	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr, CREATE)
+type codeAndHash struct {
+	code []byte
+	hash common.Hash
 }
 
-// Create2 creates a new contract using code as deployment code.
-//
-// The different between Create2 with Create is Create2 uses keccak256(0xff ++ msg.sender ++ salt ++ keccak256(init_code))[12:]
-// instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
-func (evm *FakeEVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	codeAndHash := &codeAndHash{code: code}
-	contractAddr = crypto.CreateAddress2(caller.Address(), salt.Bytes32(), codeAndHash.Hash().Bytes())
-	return evm.create(caller, codeAndHash, gas, endowment, contractAddr, CREATE2)
-}
-
-func (evm *FakeEVM) precompile(addr common.Address) (PrecompiledContract, bool) {
-	var precompiles map[common.Address]PrecompiledContract
-	switch {
-	case evm.chainRules.IsBerlin:
-		precompiles = PrecompiledContractsBerlin
-	case evm.chainRules.IsIstanbul:
-		precompiles = PrecompiledContractsIstanbul
-	case evm.chainRules.IsByzantium:
-		precompiles = PrecompiledContractsByzantium
-	default:
-		precompiles = PrecompiledContractsHomestead
+func (c *codeAndHash) Hash() common.Hash {
+	if c.hash == (common.Hash{}) {
+		c.hash = crypto.Keccak256Hash(c.code)
 	}
-	p, ok := precompiles[addr]
-	return p, ok
+	return c.hash
 }
 
 // create creates a new contract using code as deployment code.
@@ -442,3 +506,22 @@ func (evm *FakeEVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uin
 	}
 	return ret, address, contract.Gas, err
 }
+
+// Create creates a new contract using code as deployment code.
+func (evm *FakeEVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	contractAddr = crypto.CreateAddress(caller.Address(), evm.StateDB.GetNonce(caller.Address()))
+	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr, CREATE)
+}
+
+// Create2 creates a new contract using code as deployment code.
+//
+// The different between Create2 with Create is Create2 uses keccak256(0xff ++ msg.sender ++ salt ++ keccak256(init_code))[12:]
+// instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
+func (evm *FakeEVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	codeAndHash := &codeAndHash{code: code}
+	contractAddr = crypto.CreateAddress2(caller.Address(), salt.Bytes32(), codeAndHash.Hash().Bytes())
+	return evm.create(caller, codeAndHash, gas, endowment, contractAddr, CREATE2)
+}
+
+// ChainConfig returns the environment's chain configuration
+func (evm *FakeEVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }

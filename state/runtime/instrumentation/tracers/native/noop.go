@@ -26,15 +26,15 @@ import (
 )
 
 func init() {
-	tracers.DefaultDirectory.Register("noopTracer", newNoopTracer, false)
+	tracers.DefaultDirectory.Register("noopTracer", NewNoopTracer, false)
 }
 
 // noopTracer is a go implementation of the Tracer interface which
 // performs no action. It's mostly useful for testing purposes.
 type noopTracer struct{}
 
-// newNoopTracer returns a new noop tracer.
-func newNoopTracer(ctx *tracers.Context, _ json.RawMessage) (tracers.Tracer, error) {
+// NewNoopTracer returns a new noop tracer.
+func NewNoopTracer(ctx *tracers.Context, _ json.RawMessage) (tracers.Tracer, error) {
 	return &noopTracer{}, nil
 }
 

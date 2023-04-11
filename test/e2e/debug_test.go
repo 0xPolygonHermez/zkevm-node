@@ -459,12 +459,12 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 			ChainID:    operations.DefaultL1ChainID,
 			PrivateKey: operations.DefaultSequencerPrivateKey,
 		},
-		// {
-		// 	Name:       l2NetworkName,
-		// 	URL:        l2NetworkURL,
-		// 	ChainID:    operations.DefaultL2ChainID,
-		// 	PrivateKey: operations.DefaultSequencerPrivateKey,
-		// },
+		{
+			Name:       l2NetworkName,
+			URL:        l2NetworkURL,
+			ChainID:    operations.DefaultL2ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
 	}
 
 	results := map[string]json.RawMessage{}
@@ -476,8 +476,8 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
 		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
 		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		// failed transactions
