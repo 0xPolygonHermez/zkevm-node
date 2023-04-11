@@ -46,14 +46,17 @@ var (
 	// ErrInsufficientFunds is returned if the total cost of executing a transaction
 	// is higher than the balance of the user's account.
 	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
-
-	zkCounterErrPrefix = "ZKCounter: "
+	// ErrExecutorNil indicates that the method requires an executor that is not nil
+	ErrExecutorNil = errors.New("the method requires an executor that is not nil")
+	// ErrStateTreeNil indicates that the method requires a state tree that is not nil
+	ErrStateTreeNil = errors.New("the method requires a state tree that is not nil")
 	// ErrUnsupportedDuration is returned if the provided unit for a time
 	// interval is not supported by our conversion mechanism.
 	ErrUnsupportedDuration = errors.New("unsupported time duration")
+	// ErrInvalidData is the error when the raw txs is unexpected
+	ErrInvalidData = errors.New("invalid data")
 
-	// InvalidData is the error when the raw txs is unexpected
-	InvalidData = errors.New("invalid data")
+	zkCounterErrPrefix = "ZKCounter: "
 )
 
 func constructErrorFromRevert(err error, returnValue []byte) error {
