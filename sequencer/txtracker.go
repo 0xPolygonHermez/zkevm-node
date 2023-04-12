@@ -20,10 +20,10 @@ type TxTracker struct {
 	Nonce          uint64
 	Gas            uint64 // To check if it fits into a batch
 	GasPrice       *big.Int
-	Cost           *big.Int       // Cost = Amount + Benefit
-	Benefit        *big.Int       // GasLimit * GasPrice
-	IsClaim        bool           // Needed to calculate efficiency
-	BatchResources batchResources // To check if it fits into a batch
+	Cost           *big.Int             // Cost = Amount + Benefit
+	Benefit        *big.Int             // GasLimit * GasPrice
+	IsClaim        bool                 // Needed to calculate efficiency
+	BatchResources state.BatchResources // To check if it fits into a batch
 	Efficiency     float64
 	RawTx          []byte
 	ReceivedAt     time.Time // To check if it has been in the efficiency list for too long
@@ -49,8 +49,8 @@ func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters,
 	}
 
 	txTracker.IsClaim = isClaim
-	txTracker.BatchResources.zKCounters = counters
-	txTracker.BatchResources.bytes = tx.Size()
+	txTracker.BatchResources.ZKCounters = counters
+	txTracker.BatchResources.Bytes = tx.Size()
 	txTracker.HashStr = txTracker.Hash.String()
 	txTracker.FromStr = txTracker.From.String()
 	txTracker.Benefit = new(big.Int).Mul(new(big.Int).SetUint64(txTracker.Gas), txTracker.GasPrice)
@@ -65,7 +65,7 @@ func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters,
 
 // updateZKCounters updates the counters of the tx and recalculates the tx efficiency
 func (tx *TxTracker) updateZKCounters(counters state.ZKCounters, constraints batchConstraints, weights batchResourceWeights) {
-	tx.BatchResources.zKCounters = counters
+	tx.BatchResources.ZKCounters = counters
 	tx.calculateEfficiency(constraints, weights)
 }
 
@@ -78,15 +78,15 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraints, weights b
 
 	// TODO: Optmize tx.Efficiency calculation (precalculate constansts values)
 	// TODO: Evaluate avoid type conversion (performance impact?)
-	resourceCost := (float64(tx.BatchResources.zKCounters.CumulativeGasUsed)/float64(constraints.MaxCumulativeGasUsed))*float64(weights.WeightCumulativeGasUsed)/totalWeight +
-		(float64(tx.BatchResources.zKCounters.UsedArithmetics)/float64(constraints.MaxArithmetics))*float64(weights.WeightArithmetics)/totalWeight +
-		(float64(tx.BatchResources.zKCounters.UsedBinaries)/float64(constraints.MaxBinaries))*float64(weights.WeightBinaries)/totalWeight +
-		(float64(tx.BatchResources.zKCounters.UsedKeccakHashes)/float64(constraints.MaxKeccakHashes))*float64(weights.WeightKeccakHashes)/totalWeight +
-		(float64(tx.BatchResources.zKCounters.UsedMemAligns)/float64(constraints.MaxMemAligns))*float64(weights.WeightMemAligns)/totalWeight +
-		(float64(tx.BatchResources.zKCounters.UsedPoseidonHashes)/float64(constraints.MaxPoseidonHashes))*float64(weights.WeightPoseidonHashes)/totalWeight +
-		(float64(tx.BatchResources.zKCounters.UsedPoseidonPaddings)/float64(constraints.MaxPoseidonPaddings))*float64(weights.WeightPoseidonPaddings)/totalWeight +
-		(float64(tx.BatchResources.zKCounters.UsedSteps)/float64(constraints.MaxSteps))*float64(weights.WeightSteps)/totalWeight +
-		(float64(tx.BatchResources.bytes)/float64(constraints.MaxBatchBytesSize))*float64(weights.WeightBatchBytesSize)/totalWeight //Meto config
+	resourceCost := (float64(tx.BatchResources.ZKCounters.CumulativeGasUsed)/float64(constraints.MaxCumulativeGasUsed))*float64(weights.WeightCumulativeGasUsed)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedArithmetics)/float64(constraints.MaxArithmetics))*float64(weights.WeightArithmetics)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedBinaries)/float64(constraints.MaxBinaries))*float64(weights.WeightBinaries)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedKeccakHashes)/float64(constraints.MaxKeccakHashes))*float64(weights.WeightKeccakHashes)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedMemAligns)/float64(constraints.MaxMemAligns))*float64(weights.WeightMemAligns)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedPoseidonHashes)/float64(constraints.MaxPoseidonHashes))*float64(weights.WeightPoseidonHashes)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedPoseidonPaddings)/float64(constraints.MaxPoseidonPaddings))*float64(weights.WeightPoseidonPaddings)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedSteps)/float64(constraints.MaxSteps))*float64(weights.WeightSteps)/totalWeight +
+		(float64(tx.BatchResources.Bytes)/float64(constraints.MaxBatchBytesSize))*float64(weights.WeightBatchBytesSize)/totalWeight //Meto config
 
 	resourceCost = resourceCost * perThousand
 	var eff *big.Float

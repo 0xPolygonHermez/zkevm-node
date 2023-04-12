@@ -31,11 +31,11 @@ func (_m *WorkerMock) DeleteTx(txHash common.Hash, from common.Address) {
 }
 
 // GetBestFittingTx provides a mock function with given fields: resources
-func (_m *WorkerMock) GetBestFittingTx(resources batchResources) *TxTracker {
+func (_m *WorkerMock) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 	ret := _m.Called(resources)
 
 	var r0 *TxTracker
-	if rf, ok := ret.Get(0).(func(batchResources) *TxTracker); ok {
+	if rf, ok := ret.Get(0).(func(state.BatchResources) *TxTracker); ok {
 		r0 = rf(resources)
 	} else {
 		if ret.Get(0) != nil {

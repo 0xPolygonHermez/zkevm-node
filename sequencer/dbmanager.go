@@ -36,11 +36,13 @@ func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, db
 
 // ClosingBatchParameters contains the necessary parameters to close a batch
 type ClosingBatchParameters struct {
-	BatchNumber   uint64
-	StateRoot     common.Hash
-	LocalExitRoot common.Hash
-	AccInputHash  common.Hash
-	Txs           []types.Transaction
+	BatchNumber    uint64
+	StateRoot      common.Hash
+	LocalExitRoot  common.Hash
+	AccInputHash   common.Hash
+	Txs            []types.Transaction
+	BatchResources state.BatchResources
+	ClosingReason  state.ClosingReason
 }
 
 func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
@@ -357,7 +359,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		}
 	}
 
-	wipBatch.remainingResources = batchResources{zKCounters: batchZkCounters, bytes: totalBytes}
+	wipBatch.remainingResources = state.BatchResources{ZKCounters: batchZkCounters, Bytes: totalBytes}
 	return wipBatch, nil
 }
 
@@ -393,10 +395,12 @@ func (d *dbManager) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks 
 // CloseBatch closes a batch in the state
 func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters) error {
 	processingReceipt := state.ProcessingReceipt{
-		BatchNumber:   params.BatchNumber,
-		StateRoot:     params.StateRoot,
-		LocalExitRoot: params.LocalExitRoot,
-		AccInputHash:  params.AccInputHash,
+		BatchNumber:    params.BatchNumber,
+		StateRoot:      params.StateRoot,
+		LocalExitRoot:  params.LocalExitRoot,
+		AccInputHash:   params.AccInputHash,
+		BatchResources: params.BatchResources,
+		ClosingReason:  params.ClosingReason,
 	}
 
 	batchL2Data, err := state.EncodeTransactions(params.Txs)
@@ -477,12 +481,24 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	}
 
 	// Close Batch
+	txsBytes := uint64(0)
+	for _, resp := range processBatchResponse.Responses {
+		if !resp.IsProcessed {
+			continue
+		}
+		txsBytes += resp.Tx.Size()
+	}
 	processingReceipt := state.ProcessingReceipt{
 		BatchNumber:   request.BatchNumber,
 		StateRoot:     processBatchResponse.NewStateRoot,
 		LocalExitRoot: processBatchResponse.NewLocalExitRoot,
 		AccInputHash:  processBatchResponse.NewAccInputHash,
 		BatchL2Data:   forcedBatch.RawTxsData,
+		BatchResources: state.BatchResources{
+			ZKCounters: processBatchResponse.UsedZkCounters,
+			Bytes:      txsBytes,
+		},
+		ClosingReason: state.ForcedBatchClosingReason,
 	}
 
 	isClosed := false

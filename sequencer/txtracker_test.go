@@ -84,7 +84,7 @@ func TestTxTrackerEfficiencyCalculation(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tx := TxTracker{}
 			tx.Benefit = new(big.Int).SetInt64(testCase.benefit)
-			tx.BatchResources.bytes = testCase.usedBytes
+			tx.BatchResources.Bytes = testCase.usedBytes
 			tx.updateZKCounters(testCase.counters, rcMax, rcWeigth)
 			t.Logf("%s=%s", testCase.Name, fmt.Sprintf("%.2f", tx.Efficiency))
 			assert.Equal(t, fmt.Sprintf("%.2f", testCase.expectedResult), fmt.Sprintf("%.2f", tx.Efficiency), "Efficiency calculation error. Expected=%s, Actual=%s", fmt.Sprintf("%.2f", testCase.expectedResult), fmt.Sprintf("%.2f", tx.Efficiency))

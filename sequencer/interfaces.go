@@ -79,7 +79,7 @@ type stateInterface interface {
 }
 
 type workerInterface interface {
-	GetBestFittingTx(resources batchResources) *TxTracker
+	GetBestFittingTx(resources state.BatchResources) *TxTracker
 	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite) []*TxTracker
 	UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters)
 	AddTxTracker(ctx context.Context, txTracker *TxTracker)

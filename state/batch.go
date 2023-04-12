@@ -45,6 +45,24 @@ type ProcessingContext struct {
 	ForcedBatchNum *uint64
 }
 
+// ClosingReason represents the reason why a batch is closed.
+type ClosingReason string
+
+const (
+	// BatchFullClosingReason  is the closing reason used when a batch is closed when it is full
+	BatchFullClosingReason ClosingReason = "Batch is full"
+	// ForcedBatchClosingReason  is the closing reason used when a batch is closed because it is forced
+	ForcedBatchClosingReason ClosingReason = "Forced Batch"
+	// BatchAlmostFullClosingReason is the closing reason used when the batch it is almost full
+	BatchAlmostFullClosingReason ClosingReason = "Batch is almost full"
+	// ForcedBatchDeadlineClosingReason is the closing reason used when forced batch deadline is reached
+	ForcedBatchDeadlineClosingReason ClosingReason = "Forced Batch deadline"
+	// SendingToL1DeadlineClosingReason is the closing reason used when sending to L1 deadline is reached
+	SendingToL1DeadlineClosingReason ClosingReason = "Sending to L1 deadline"
+	// GlobalExitRootDeadlineClosingReason is the closing reason used when Global Exit Root deadline is reached
+	GlobalExitRootDeadlineClosingReason ClosingReason = "Global Exit Root deadline"
+)
+
 // ProcessingReceipt indicates the outcome (StateRoot, AccInputHash) of processing a batch
 type ProcessingReceipt struct {
 	BatchNumber   uint64
@@ -52,7 +70,9 @@ type ProcessingReceipt struct {
 	LocalExitRoot common.Hash
 	AccInputHash  common.Hash
 	// Txs           []types.Transaction
-	BatchL2Data []byte
+	BatchL2Data    []byte
+	ClosingReason  ClosingReason
+	BatchResources BatchResources
 }
 
 // VerifiedBatch represents a VerifiedBatch

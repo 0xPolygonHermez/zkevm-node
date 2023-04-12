@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	// Size of the memory in bytes reserved by the zkEVM
+	// Size of the memory in Bytes reserved by the zkEVM
 	zkEVMReservedMemorySize int  = 128
 	two                     uint = 2
 )
