@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
 
@@ -85,7 +86,8 @@ func TestPreEIP155Tx(t *testing.T) {
 		if network.ChainID == operations.DefaultL2ChainID {
 			go func() {
 				time.Sleep(30 * time.Second)
-				localClient := operations.MustGetClient(network.URL)
+				localClient, err := ethclient.Dial(network.URL)
+				require.NoError(t, err)
 
 				tx := types.NewTransaction(nonce+1, toAddress, big.NewInt(10000), gas, gasPrice, nil)
 				_, err = operations.ApplyL2Txs(context.Background(), []*types.Transaction{tx}, auth, localClient, operations.TrustedConfirmationLevel)
