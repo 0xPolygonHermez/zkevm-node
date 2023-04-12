@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"math/big"
 	"strings"
 	"testing"
 	"time"
@@ -83,13 +82,6 @@ func TestPreEIP155Tx(t *testing.T) {
 
 		// wait for l2 block to be virtualized
 		if network.ChainID == operations.DefaultL2ChainID {
-			go func() {
-				time.Sleep(30 * time.Second)
-				tx := types.NewTransaction(nonce+1, toAddress, big.NewInt(0), gas, gasPrice, nil)
-				_, err = operations.ApplyL2Txs(ctx, []*types.Transaction{tx}, auth, client, operations.TrustedConfirmationLevel)
-				require.NoError(t, err)
-			}()
-
 			log.Infof("waiting for the block number %v to be virtualized", receipt.BlockNumber.String())
 			err = operations.WaitL2BlockToBeVirtualized(receipt.BlockNumber, 4*time.Minute) //nolint:gomnd
 			require.NoError(t, err)
