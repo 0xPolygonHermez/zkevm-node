@@ -614,7 +614,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
-	if lastBatch.BatchNumber == latestL2Block {
+	if *l2BlockNumber == latestL2Block {
 		timestamp = uint64(time.Now().Unix())
 	}
 
@@ -821,7 +821,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		return 0, err
 	}
 
-	if lastBatch.BatchNumber == latestL2Block {
+	if *l2BlockNumber == latestL2Block {
 		timestamp = uint64(time.Now().Unix())
 	}
 

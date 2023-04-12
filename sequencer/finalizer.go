@@ -196,7 +196,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			if f.batch.isEmpty() {
 				f.batch.timestamp = uint64(now().Unix())
 			} else if uint64(now().Unix()-int64(f.cfg.TimestampResolution.Seconds())) > f.batch.timestamp {
-				log.Infof("Closing batch: %d, because of timestamp resolution was encountered.", f.batch.batchNumber)
+				log.Infof("Closing batch: %d, because of timestamp resolution.", f.batch.batchNumber)
 				f.finalizeBatch(ctx)
 			}
 
