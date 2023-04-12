@@ -69,8 +69,10 @@ func TestEthTransfer(t *testing.T) {
 
 	go func() {
 		time.Sleep(30 * time.Second)
+		localClient, err := ethclient.Dial(operations.DefaultL2NetworkURL)
+		require.NoError(t, err)
 		tx := types.NewTransaction(nonce+uint64(nTxs), toAddress, amount, gasLimit, gasPrice, nil)
-		_, err = operations.ApplyL2Txs(ctx, []*types.Transaction{tx}, auth, client, operations.TrustedConfirmationLevel)
+		_, err = operations.ApplyL2Txs(context.Background(), []*types.Transaction{tx}, auth, localClient, operations.TrustedConfirmationLevel)
 		require.NoError(t, err)
 	}()
 
