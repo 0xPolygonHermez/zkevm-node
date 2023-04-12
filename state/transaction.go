@@ -609,12 +609,12 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 
 	timestamp := uint64(lastBatch.Timestamp.Unix())
 
-	latestL2Block, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
+	latestL2BlockNumber, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
 	if err != nil {
 		return nil, err
 	}
 
-	if *l2BlockNumber == latestL2Block {
+	if *l2BlockNumber == latestL2BlockNumber {
 		timestamp = uint64(time.Now().Unix())
 	}
 
@@ -816,12 +816,12 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	timestamp := uint64(lastBatch.Timestamp.Unix())
 
-	latestL2Block, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
+	latestL2BlockNumber, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
 	if err != nil {
 		return 0, err
 	}
 
-	if *l2BlockNumber == latestL2Block {
+	if *l2BlockNumber == latestL2BlockNumber {
 		timestamp = uint64(time.Now().Unix())
 	}
 
