@@ -28,7 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
@@ -850,8 +849,6 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 
 // DebugTransaction re-executes a tx to generate its trace
 func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, traceConfig TraceConfig, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
-	result := new(runtime.ExecutionResult)
-
 	// gets the transaction
 	tx, err := s.GetTransactionByHash(ctx, transactionHash, dbTx)
 	if err != nil {
@@ -919,9 +916,10 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		traceConfigRequest.EnableReturnData = cTrue
 	}
 
+	oldStateRoot := previousBlock.Root()
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:     batch.BatchNumber - 1,
-		OldStateRoot:    previousBlock.Root().Bytes(),
+		OldStateRoot:    oldStateRoot.Bytes(),
 		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
 
 		BatchL2Data:      batchL2Data,
@@ -937,6 +935,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	// Send Batch to the Executor
 	startTime := time.Now()
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	endTime := time.Now()
 	if err != nil {
 		return nil, err
 	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
@@ -944,7 +943,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
-	endTime := time.Now()
 
 	// //save process batch response file
 	// b, err := json.Marshal(processBatchResponse)
@@ -978,19 +976,36 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, fmt.Errorf("tx hash not found in executor response")
 	}
 
-	result.CreateAddress = response.CreateAddress
-	result.GasLeft = response.GasLeft
-	result.GasUsed = response.GasUsed
-	result.ReturnValue = response.ReturnValue
-	result.StateRoot = response.StateRoot.Bytes()
-	result.StructLogs = response.ExecutionTrace
+	result := &runtime.ExecutionResult{
+		CreateAddress: response.CreateAddress,
+		GasLeft:       response.GasLeft,
+		GasUsed:       response.GasUsed,
+		ReturnValue:   response.ReturnValue,
+		StateRoot:     response.StateRoot.Bytes(),
+		StructLogs:    response.ExecutionTrace,
+	}
 
-	// if no tracer is specified, return the default trace result
-	if traceConfig.Tracer == nil || *traceConfig.Tracer == "" {
+	// if is the default trace, return the result
+	if traceConfig.IsDefaultTracer() {
 		return result, nil
 	}
 
-	context := instrumentation.Context{}
+	senderAddress, err := GetSender(*tx)
+	if err != nil {
+		return nil, err
+	}
+
+	context := instrumentation.Context{
+		From:         senderAddress.String(),
+		Input:        "0x" + hex.EncodeToString(tx.Data()),
+		Gas:          strconv.FormatUint(tx.Gas(), encoding.Base10),
+		Value:        tx.Value().String(),
+		Output:       "0x" + hex.EncodeToString(result.ReturnValue),
+		GasPrice:     tx.GasPrice().String(),
+		OldStateRoot: oldStateRoot.String(),
+		Time:         uint64(endTime.Sub(startTime)),
+		GasUsed:      strconv.FormatUint(result.GasUsed, encoding.Base10),
+	}
 
 	// Fill trace context
 	if tx.To() == nil {
@@ -1000,21 +1015,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		context.Type = "CALL"
 		context.To = tx.To().Hex()
 	}
-
-	senderAddress, err := GetSender(*tx)
-	if err != nil {
-		return nil, err
-	}
-
-	context.From = senderAddress.String()
-	context.Input = "0x" + hex.EncodeToString(tx.Data())
-	context.Gas = strconv.FormatUint(tx.Gas(), encoding.Base10)
-	context.Value = tx.Value().String()
-	context.Output = "0x" + hex.EncodeToString(result.ReturnValue)
-	context.GasPrice = tx.GasPrice().String()
-	context.OldStateRoot = batch.StateRoot.String()
-	context.Time = uint64(endTime.Sub(startTime))
-	context.GasUsed = strconv.FormatUint(result.GasUsed, encoding.Base10)
 
 	result.ExecutorTrace.Context = context
 
@@ -1067,9 +1067,9 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
-	env := fakevm.NewFakeEVM(fakevm.BlockContext{BlockNumber: big.NewInt(1)}, fakevm.TxContext{GasPrice: gasPrice}, fakeDB, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: evmTracer})
+	evm := fakevm.NewFakeEVM(fakevm.BlockContext{BlockNumber: big.NewInt(1)}, fakevm.TxContext{GasPrice: gasPrice}, fakeDB, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: evmTracer})
 
-	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, evmTracer)
+	traceResult, err := s.ParseTheTraceUsingTheTracer(evm, result.ExecutorTrace, evmTracer)
 	if err != nil {
 		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
 		return nil, fmt.Errorf("failed parse the trace using the tracer: %v", err)
@@ -1081,7 +1081,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 }
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
-func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
+func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
 	var previousDepth int
 	var previousOpcode string
 	var stateRoot []byte
@@ -1098,7 +1098,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	}
 
 	tracer.CaptureTxStart(contextGas.Uint64())
-	tracer.CaptureStart(env, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
+	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
 
 	stack := fakevm.NewStack()
 	memory := fakevm.NewMemory()
@@ -1109,7 +1109,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		return nil, ErrParsingExecutorTrace
 	}
 	stateRoot = bigStateRoot.Bytes()
-	env.StateDB.SetStateRoot(stateRoot)
+	evm.StateDB.SetStateRoot(stateRoot)
 
 	for i, step := range trace.Steps {
 		gas, ok := new(big.Int).SetString(step.Gas, encoding.Base10)
@@ -1145,8 +1145,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		codeAddr := common.HexToAddress(step.Contract.Address)
 		scope.Contract.CodeAddr = &codeAddr
 
-		opcode := vm.OpCode(op.Uint64()).String()
-
+		opcode := fakevm.OpCode(op.Uint64()).String()
 		if previousOpcode == "CALL" && step.Pc != 0 {
 			tracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
@@ -1202,7 +1201,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		}
 
 		stateRoot = bigStateRoot.Bytes()
-		env.StateDB.SetStateRoot(stateRoot)
+		evm.StateDB.SetStateRoot(stateRoot)
 		previousDepth = step.Depth
 		previousOpcode = step.OpCode
 	}
@@ -1213,8 +1212,10 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		return nil, ErrParsingExecutorTrace
 	}
 
-	tracer.CaptureTxEnd(gasUsed.Uint64())
-	tracer.CaptureEnd(common.Hex2Bytes(trace.Context.Output), gasUsed.Uint64(), nil)
+	restGas := contextGas.Uint64() - gasUsed.Uint64()
+	tracer.CaptureTxEnd(restGas)
+	output := common.FromHex(trace.Context.Output)
+	tracer.CaptureEnd(output, gasUsed.Uint64(), nil)
 
 	return tracer.GetResult()
 }

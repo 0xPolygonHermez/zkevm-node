@@ -152,7 +152,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 		EnableMemory:     trcCfg.EnableMemory,
 		EnableReturnData: trcCfg.EnableReturnData,
 		Tracer:           trcCfg.Tracer,
-		TracerConfig:     cfg.TracerConfig,
+		TracerConfig:     trcCfg.TracerConfig,
 	}
 	result, err := d.state.DebugTransaction(ctx, hash, stateTraceConfig, dbTx)
 	if errors.Is(err, state.ErrNotFound) {

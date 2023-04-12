@@ -150,6 +150,11 @@ type TraceConfig struct {
 	TracerConfig     json.RawMessage
 }
 
+// IsDefaultTracer returns true when no custom tracer is set
+func (t *TraceConfig) IsDefaultTracer() bool {
+	return t.Tracer == nil || *t.Tracer == ""
+}
+
 // Is4ByteTracer returns true when should use 4byteTracer
 func (t *TraceConfig) Is4ByteTracer() bool {
 	return t.Tracer != nil && *t.Tracer == "4byteTracer"

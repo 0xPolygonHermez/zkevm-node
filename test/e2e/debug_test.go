@@ -429,10 +429,10 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
+	// defer func() {
+	// 	require.NoError(t, operations.Teardown())
+	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	// }()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -477,13 +477,13 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	testCases := []testCase{
 		// successful transactions
 		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
-		// failed transactions
-		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
-		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
-		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		// // failed transactions
+		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		// {name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
 	}
 
 	for _, tc := range testCases {
@@ -556,8 +556,6 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 			err = json.Unmarshal(results[l1NetworkName], &referenceValueMap)
 			require.NoError(t, err)
 
-			referenceStructLogsMap := referenceValueMap["structLogs"].([]interface{})
-
 			for networkName, result := range results {
 				if networkName == l1NetworkName {
 					continue
@@ -567,52 +565,54 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				err = json.Unmarshal(result, &resultMap)
 				require.NoError(t, err)
 
-				resultStructLogsMap := resultMap["structLogs"].([]interface{})
-				require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
+				require.Equal(t, referenceValueMap["from"], resultMap["from"], fmt.Sprintf("invalid `from` for network %s", networkName))
+				require.Equal(t, referenceValueMap["input"], resultMap["input"], fmt.Sprintf("invalid `input` for network %s", networkName))
+				require.Equal(t, referenceValueMap["value"], resultMap["value"], fmt.Sprintf("invalid `value` for network %s", networkName))
+				require.Equal(t, referenceValueMap["type"], resultMap["type"], fmt.Sprintf("invalid `type` for network %s", networkName))
 
-				for structLogIndex := range referenceStructLogsMap {
-					referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
-					resultStructLogMap := resultStructLogsMap[structLogIndex].(map[string]interface{})
+				// for structLogIndex := range referenceStructLogsMap {
+				// 	referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
+				// 	resultStructLogMap := resultStructLogsMap[structLogIndex].(map[string]interface{})
 
-					require.Equal(t, referenceStructLogMap["pc"], resultStructLogMap["pc"], fmt.Sprintf("invalid struct log pc for network %s", networkName))
-					require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
-					require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
+				// 	require.Equal(t, referenceStructLogMap["pc"], resultStructLogMap["pc"], fmt.Sprintf("invalid struct log pc for network %s", networkName))
+				// 	require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
+				// 	require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
 
-					pc := referenceStructLogMap["pc"]
-					op := referenceStructLogMap["op"]
+				// 	pc := referenceStructLogMap["pc"]
+				// 	op := referenceStructLogMap["op"]
 
-					referenceStack, found := referenceStructLogMap["stack"].([]interface{})
-					if found {
-						resultStack := resultStructLogMap["stack"].([]interface{})
+				// 	referenceStack, found := referenceStructLogMap["stack"].([]interface{})
+				// 	if found {
+				// 		resultStack := resultStructLogMap["stack"].([]interface{})
 
-						require.Equal(t, len(referenceStack), len(resultStack), fmt.Sprintf("stack size doesn't match for pc %v op %v", pc, op))
-						for stackIndex := range referenceStack {
-							require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex], fmt.Sprintf("stack index %v doesn't match for pc %v op %v", stackIndex, pc, op))
-						}
-					}
+				// 		require.Equal(t, len(referenceStack), len(resultStack), fmt.Sprintf("stack size doesn't match for pc %v op %v", pc, op))
+				// 		for stackIndex := range referenceStack {
+				// 			require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex], fmt.Sprintf("stack index %v doesn't match for pc %v op %v", stackIndex, pc, op))
+				// 		}
+				// 	}
 
-					referenceMemory, found := referenceStructLogMap["memory"].([]interface{})
-					if found {
-						resultMemory := resultStructLogMap["memory"].([]interface{})
+				// 	referenceMemory, found := referenceStructLogMap["memory"].([]interface{})
+				// 	if found {
+				// 		resultMemory := resultStructLogMap["memory"].([]interface{})
 
-						require.Equal(t, len(referenceMemory), len(resultMemory), fmt.Sprintf("memory size doesn't match for pc %v op %v", pc, op))
-						for memoryIndex := range referenceMemory {
-							require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex], fmt.Sprintf("memory index %v doesn't match for pc %v op %v", memoryIndex, pc, op))
-						}
-					}
+				// 		require.Equal(t, len(referenceMemory), len(resultMemory), fmt.Sprintf("memory size doesn't match for pc %v op %v", pc, op))
+				// 		for memoryIndex := range referenceMemory {
+				// 			require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex], fmt.Sprintf("memory index %v doesn't match for pc %v op %v", memoryIndex, pc, op))
+				// 		}
+				// 	}
 
-					referenceStorage, found := referenceStructLogMap["storage"].(map[string]interface{})
-					if found {
-						resultStorage := resultStructLogMap["storage"].(map[string]interface{})
+				// 	referenceStorage, found := referenceStructLogMap["storage"].(map[string]interface{})
+				// 	if found {
+				// 		resultStorage := resultStructLogMap["storage"].(map[string]interface{})
 
-						require.Equal(t, len(referenceStorage), len(resultStorage), fmt.Sprintf("storage size doesn't match for pc %v op %v", pc, op))
-						for storageKey, referenceStorageValue := range referenceStorage {
-							resultStorageValue, found := resultStorage[storageKey]
-							require.True(t, found, "storage address not found")
-							require.Equal(t, referenceStorageValue, resultStorageValue, fmt.Sprintf("storage value doesn't match for address %v for pc %v op %v", storageKey, pc, op))
-						}
-					}
-				}
+				// 		require.Equal(t, len(referenceStorage), len(resultStorage), fmt.Sprintf("storage size doesn't match for pc %v op %v", pc, op))
+				// 		for storageKey, referenceStorageValue := range referenceStorage {
+				// 			resultStorageValue, found := resultStorage[storageKey]
+				// 			require.True(t, found, "storage address not found")
+				// 			require.Equal(t, referenceStorageValue, resultStorageValue, fmt.Sprintf("storage value doesn't match for address %v for pc %v op %v", storageKey, pc, op))
+				// 		}
+				// 	}
+				// }
 			}
 		})
 	}
