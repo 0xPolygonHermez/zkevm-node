@@ -67,6 +67,13 @@ func TestEthTransfer(t *testing.T) {
 		txs = append(txs, tx)
 	}
 
+	go func() {
+		time.Sleep(30 * time.Second);
+		tx := types.NewTransaction(nonce+uint64(nTxs), toAddress, amount, gasLimit, gasPrice, nil)
+		_, err = operations.ApplyL2Txs(ctx, []*types.Transaction{tx}, auth, client, operations.TrustedConfirmationLevel)
+		require.NoError(t, err)
+	}()
+
 	_, err = operations.ApplyL2Txs(ctx, txs, auth, client, operations.VerifiedConfirmationLevel)
 	require.NoError(t, err)
 }
