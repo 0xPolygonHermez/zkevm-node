@@ -23,27 +23,6 @@ func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface,
 func (c *closingSignalsManager) Start() {
 	go c.checkForcedBatches()
 	go c.checkGERUpdate()
-	go c.checkSendToL1Timeout()
-}
-
-func (c *closingSignalsManager) checkSendToL1Timeout() {
-	for {
-		timestamp, err := c.dbManager.GetLatestVirtualBatchTimestamp(c.ctx, nil)
-		if err != nil {
-			log.Errorf("error checking latest virtual batch timestamp: %v", err)
-			time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration)
-		} else {
-			limit := time.Now().Unix() - int64(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration.Seconds())
-
-			if timestamp.Unix() < limit {
-				log.Debugf("sending to L1 timeout signal (timestamp: %v, limit: %v)", timestamp.Unix(), limit)
-				c.closingSignalCh.SendingToL1TimeoutCh <- true
-				time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingL1Timeout.Duration)
-			} else {
-				time.Sleep(time.Duration(limit-timestamp.Unix()) * time.Second)
-			}
-		}
-	}
 }
 
 func (c *closingSignalsManager) checkGERUpdate() {

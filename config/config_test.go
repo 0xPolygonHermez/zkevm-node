@@ -126,10 +126,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.SendingToL1DeadlineTimeoutInSec",
-			expectedValue: types.NewDuration(20 * time.Second),
-		},
-		{
 			path:          "Sequencer.Finalizer.SleepDurationInMs",
 			expectedValue: types.NewDuration(100 * time.Millisecond),
 		},
@@ -156,6 +152,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks",
 			expectedValue: uint64(64),
+		},
+		{
+			path:          "Sequencer.Finalizer.TimestampResolution",
+			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",

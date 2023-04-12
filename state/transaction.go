@@ -607,6 +607,17 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		previousBatch = lastBatches[1]
 	}
 
+	timestamp := uint64(lastBatch.Timestamp.Unix())
+
+	latestL2Block, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	if lastBatch.BatchNumber == latestL2Block {
+		timestamp = uint64(time.Now().Unix())
+	}
+
 	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce)
 	if err != nil {
 		log.Errorf("error encoding unsigned transaction ", err)
@@ -622,7 +633,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		OldStateRoot:     stateRoot.Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
-		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		EthTimestamp:     timestamp,
 		Coinbase:         lastBatch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
 		ChainId:          s.cfg.ChainID,
@@ -803,6 +814,17 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		previousBatch = lastBatches[1]
 	}
 
+	timestamp := uint64(lastBatch.Timestamp.Unix())
+
+	latestL2Block, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
+	if err != nil {
+		return 0, err
+	}
+
+	if lastBatch.BatchNumber == latestL2Block {
+		timestamp = uint64(time.Now().Unix())
+	}
+
 	lowEnd, err = core.IntrinsicGas(transaction.Data(), transaction.AccessList(), s.isContractCreation(transaction), true, false, false)
 	if err != nil {
 		return 0, err
@@ -886,7 +908,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			OldStateRoot:     l2BlockStateRoot.Bytes(),
 			GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 			OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
-			EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+			EthTimestamp:     timestamp,
 			Coinbase:         lastBatch.Coinbase.String(),
 			UpdateMerkleTree: cFalse,
 			ChainId:          s.cfg.ChainID,

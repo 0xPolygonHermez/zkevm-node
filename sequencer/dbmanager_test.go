@@ -70,10 +70,9 @@ func setupDBManager() {
 
 	// DBManager
 	closingSignalCh := ClosingSignalCh{
-		ForcedBatchCh:        make(chan state.ForcedBatch),
-		GERCh:                make(chan common.Hash),
-		L2ReorgCh:            make(chan L2ReorgEvent),
-		SendingToL1TimeoutCh: make(chan bool),
+		ForcedBatchCh: make(chan state.ForcedBatch),
+		GERCh:         make(chan common.Hash),
+		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 
 	txsStore := TxsStore{

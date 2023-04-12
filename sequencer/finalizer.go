@@ -43,16 +43,14 @@ type finalizer struct {
 	sharedResourcesMux *sync.RWMutex
 	lastGERHash        common.Hash
 	// closing signals
-	nextGER                   common.Hash
-	nextGERDeadline           int64
-	nextGERMux                *sync.RWMutex
-	nextForcedBatches         []state.ForcedBatch
-	nextForcedBatchDeadline   int64
-	nextForcedBatchesMux      *sync.RWMutex
-	nextSendingToL1Deadline   int64
-	nextSendingToL1TimeoutMux *sync.RWMutex
-	handlingL2Reorg           bool
-	eventLog                  *event.EventLog
+	nextGER                 common.Hash
+	nextGERDeadline         int64
+	nextGERMux              *sync.RWMutex
+	nextForcedBatches       []state.ForcedBatch
+	nextForcedBatchDeadline int64
+	nextForcedBatchesMux    *sync.RWMutex
+	handlingL2Reorg         bool
+	eventLog                *event.EventLog
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -100,15 +98,13 @@ func newFinalizer(
 		sharedResourcesMux: new(sync.RWMutex),
 		lastGERHash:        state.ZeroHash,
 		// closing signals
-		nextGER:                   common.Hash{},
-		nextGERDeadline:           0,
-		nextGERMux:                new(sync.RWMutex),
-		nextForcedBatches:         make([]state.ForcedBatch, 0),
-		nextForcedBatchDeadline:   0,
-		nextForcedBatchesMux:      new(sync.RWMutex),
-		nextSendingToL1Deadline:   0,
-		nextSendingToL1TimeoutMux: new(sync.RWMutex),
-		eventLog:                  eventLog,
+		nextGER:                 common.Hash{},
+		nextGERDeadline:         0,
+		nextGERMux:              new(sync.RWMutex),
+		nextForcedBatches:       make([]state.ForcedBatch, 0),
+		nextForcedBatchDeadline: 0,
+		nextForcedBatchesMux:    new(sync.RWMutex),
+		eventLog:                eventLog,
 	}
 }
 
@@ -184,14 +180,6 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			f.handlingL2Reorg = true
 			f.halt(ctx, fmt.Errorf("L2 reorg event received"))
 			return
-		// Too much time without batches in L1 ch
-		case <-f.closingSignalCh.SendingToL1TimeoutCh:
-			log.Debug("finalizer received timeout for sending to L1")
-			f.nextSendingToL1TimeoutMux.Lock()
-			if f.nextSendingToL1Deadline == 0 {
-				f.setNextSendingToL1Deadline()
-			}
-			f.nextSendingToL1TimeoutMux.Unlock()
 		}
 	}
 }
@@ -204,13 +192,20 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
+			// Check timestamp resolution
+			if f.batch.isEmpty() {
+				f.batch.timestamp = uint64(now().Unix())
+			} else if uint64(now().Unix()-int64(f.cfg.TimestampResolution.Seconds())) > f.batch.timestamp {
+				log.Infof("Closing batch: %d, because of timestamp resolution was encountered.", f.batch.batchNumber)
+				f.finalizeBatch(ctx)
+			}
+
 			f.sharedResourcesMux.Lock()
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
 			err := f.processTransaction(ctx, tx)
 			if err != nil {
 				log.Errorf("failed to process transaction in finalizeBatches, Err: %v", err)
 			}
-
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
@@ -336,11 +331,6 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	f.nextGER = state.ZeroHash
 	f.nextGERDeadline = 0
 	f.nextGERMux.Unlock()
-
-	// Reset nextSendingToL1Deadline
-	f.nextSendingToL1TimeoutMux.Lock()
-	f.nextSendingToL1Deadline = 0
-	f.nextSendingToL1TimeoutMux.Unlock()
 
 	batch, err := f.openWIPBatch(ctx, lastBatchNumber+1, f.lastGERHash, stateRoot)
 	if err == nil {
@@ -803,19 +793,11 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	// Forced batch deadline
 	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
 		log.Infof("Closing batch: %d, forced batch deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
 		return true
 	}
 	// Global Exit Root deadline
 	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
 		log.Infof("Closing batch: %d, Global Exit Root deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
-		return true
-	}
-	// Delayed batch deadline
-	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline && !f.batch.isEmpty() {
-		log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
 		return true
 	}
 	return false
@@ -877,10 +859,6 @@ func (f *finalizer) setNextForcedBatchDeadline() {
 
 func (f *finalizer) setNextGERDeadline() {
 	f.nextGERDeadline = now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration.Seconds())
-}
-
-func (f *finalizer) setNextSendingToL1Deadline() {
-	f.nextSendingToL1Deadline = now().Unix() + int64(f.cfg.SendingToL1DeadlineTimeoutInSec.Duration.Seconds())
 }
 
 func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
