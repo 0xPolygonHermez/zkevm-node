@@ -21,7 +21,7 @@ const (
 type dbManager struct {
 	cfg              DBManagerCfg
 	txPool           txPool
-	state            dbManagerStateInterface
+	state            stateInterface
 	worker           workerInterface
 	txsStore         TxsStore
 	l2ReorgCh        chan L2ReorgEvent
@@ -43,7 +43,7 @@ type ClosingBatchParameters struct {
 	Txs           []types.Transaction
 }
 
-func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
+func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
 	numberOfReorgs, err := state.CountReorgs(ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)
