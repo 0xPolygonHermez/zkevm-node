@@ -17,6 +17,14 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+var defaultTraceConfig = &traceConfig{
+	DisableStorage:   false,
+	DisableStack:     false,
+	EnableMemory:     false,
+	EnableReturnData: false,
+	Tracer:           nil,
+}
+
 // DebugEndpoints is the debug jsonrpc endpoint
 type DebugEndpoints struct {
 	state types.StateInterface
@@ -128,42 +136,44 @@ func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*ethTypes.Tr
 }
 
 func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.Hash, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
-	traceConfig := state.TraceConfig{}
-
-	if cfg != nil {
-		traceConfig.DisableStack = cfg.DisableStack
-		traceConfig.DisableStorage = cfg.DisableStorage
-		traceConfig.EnableMemory = cfg.EnableMemory
-		traceConfig.EnableReturnData = cfg.EnableReturnData
-		traceConfig.Tracer = cfg.Tracer
-		traceConfig.TracerConfig = cfg.TracerConfig
+	trcCfg := cfg
+	if trcCfg == nil {
+		trcCfg = defaultTraceConfig
 	}
 
 	// check tracer
-	if traceConfig.Tracer != nil && *traceConfig.Tracer != "" && !isBuiltInTracer(*traceConfig.Tracer) && !isJSCustomTracer(*traceConfig.Tracer) {
+	if trcCfg.Tracer != nil && *trcCfg.Tracer != "" && !isBuiltInTracer(*trcCfg.Tracer) && !isJSCustomTracer(*trcCfg.Tracer) {
 		return rpcErrorResponse(types.DefaultErrorCode, "invalid tracer", nil)
 	}
 
-	result, err := d.state.DebugTransaction(ctx, hash, traceConfig, dbTx)
+	stateTraceConfig := state.TraceConfig{
+		DisableStack:     trcCfg.DisableStack,
+		DisableStorage:   trcCfg.DisableStorage,
+		EnableMemory:     trcCfg.EnableMemory,
+		EnableReturnData: trcCfg.EnableReturnData,
+		Tracer:           trcCfg.Tracer,
+		TracerConfig:     cfg.TracerConfig,
+	}
+	result, err := d.state.DebugTransaction(ctx, hash, stateTraceConfig, dbTx)
 	if errors.Is(err, state.ErrNotFound) {
 		return rpcErrorResponse(types.DefaultErrorCode, "transaction not found", nil)
 	} else if err != nil {
 		const errorMessage = "failed to get trace"
-		log.Infof("%v: %v", errorMessage, err)
+		log.Errorf("%v: %v", errorMessage, err)
 		return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
 	}
 
-	if traceConfig.Tracer != nil && *traceConfig.Tracer != "" && len(result.ExecutorTraceResult) > 0 {
+	if stateTraceConfig.Tracer != nil && *stateTraceConfig.Tracer != "" && len(result.ExecutorTraceResult) > 0 {
 		return result.ExecutorTraceResult, nil
 	}
 
 	failed := result.Failed()
 	var returnValue interface{}
-	if traceConfig.EnableReturnData {
+	if stateTraceConfig.EnableReturnData {
 		returnValue = common.Bytes2Hex(result.ReturnValue)
 	}
 
-	structLogs := d.buildStructLogs(result.StructLogs, cfg)
+	structLogs := d.buildStructLogs(result.StructLogs, *trcCfg)
 
 	resp := traceTransactionResponse{
 		Gas:         result.GasUsed,
@@ -175,7 +185,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 	return resp, nil
 }
 
-func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.StructLog, cfg *traceConfig) []StructLogRes {
+func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.StructLog, cfg traceConfig) []StructLogRes {
 	structLogs := make([]StructLogRes, 0, len(stateStructLogs))
 	for _, structLog := range stateStructLogs {
 		errRes := ""
