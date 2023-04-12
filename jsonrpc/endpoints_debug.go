@@ -167,7 +167,14 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 		return result.ExecutorTraceResult, nil
 	}
 
-	failed := result.Failed()
+	receipt, err := d.state.GetTransactionReceipt(ctx, hash, dbTx)
+	if err != nil {
+		const errorMessage = "failed to tx receipt"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
+	}
+
+	failed := receipt.Status == ethTypes.ReceiptStatusFailed
 	var returnValue interface{}
 	if stateTraceConfig.EnableReturnData {
 		returnValue = common.Bytes2Hex(result.ReturnValue)

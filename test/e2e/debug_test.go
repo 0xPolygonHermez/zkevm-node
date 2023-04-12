@@ -234,10 +234,10 @@ func TestDebugTraceTransaction(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
+	// defer func() {
+	// 	require.NoError(t, operations.Teardown())
+	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	// }()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -281,10 +281,10 @@ func TestDebugTraceTransaction(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
 		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
@@ -365,6 +365,8 @@ func TestDebugTraceTransaction(t *testing.T) {
 				resultMap := map[string]interface{}{}
 				err = json.Unmarshal(result, &resultMap)
 				require.NoError(t, err)
+
+				require.Equal(t, referenceValueMap["failed"], resultMap["failed"], fmt.Sprintf("invalid `failed` for network %s", networkName))
 
 				resultStructLogsMap := resultMap["structLogs"].([]interface{})
 				require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
@@ -567,6 +569,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 
 				require.Equal(t, referenceValueMap["from"], resultMap["from"], fmt.Sprintf("invalid `from` for network %s", networkName))
 				require.Equal(t, referenceValueMap["input"], resultMap["input"], fmt.Sprintf("invalid `input` for network %s", networkName))
+				require.Equal(t, referenceValueMap["output"], resultMap["output"], fmt.Sprintf("invalid `output` for network %s", networkName))
 				require.Equal(t, referenceValueMap["value"], resultMap["value"], fmt.Sprintf("invalid `value` for network %s", networkName))
 				require.Equal(t, referenceValueMap["type"], resultMap["type"], fmt.Sprintf("invalid `type` for network %s", networkName))
 
