@@ -36,10 +36,9 @@ import (
 
 const (
 	// Size of the memory in bytes reserved by the zkEVM
-	zkEVMReservedMemorySize int  = 128
-	two                     uint = 2
-	cTrue                        = 1
-	cFalse                       = 0
+	two    uint = 2
+	cTrue       = 1
+	cFalse      = 0
 )
 
 var (
@@ -983,6 +982,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		ReturnValue:   response.ReturnValue,
 		StateRoot:     response.StateRoot.Bytes(),
 		StructLogs:    response.ExecutionTrace,
+		ExecutorTrace: response.CallTrace,
 	}
 
 	// if is the default trace, return the result
@@ -1124,18 +1124,13 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			return nil, ErrParsingExecutorTrace
 		}
 
-		value, ok := new(big.Int).SetString(step.Contract.Value, encoding.Base10)
-		if !ok {
-			log.Debugf("error while parsing step value")
-			return nil, ErrParsingExecutorTrace
-		}
-
 		op, ok := new(big.Int).SetString(step.Op, 0)
 		if !ok {
 			log.Debugf("error while parsing step op")
 			return nil, ErrParsingExecutorTrace
 		}
 
+		value := hex.DecodeBig(step.Contract.Value)
 		scope := &fakevm.ScopeContext{
 			Contract: fakevm.NewContract(fakevm.NewAccount(common.HexToAddress(step.Contract.Caller)), fakevm.NewAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
 			Memory:   memory,
@@ -1166,12 +1161,20 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			}
 		}
 
+		const memoryContentSize = 128
 		// Set Memory
 		if len(step.Memory) > 0 {
-			memory.Resize(uint64(fakevm.MemoryItemSize*len(step.Memory) + zkEVMReservedMemorySize))
-			for offset, memoryContent := range step.Memory {
-				memory.Set(uint64((offset*fakevm.MemoryItemSize)+zkEVMReservedMemorySize), uint64(fakevm.MemoryItemSize), common.Hex2Bytes(memoryContent))
+			memoryContent := make([]byte, 0, len(step.Memory))
+			for _, memoryItem := range step.Memory {
+				memoryContent = append(memoryContent, []byte(memoryItem)...)
 			}
+
+			memoryContent = append(make([]byte, memoryContentSize), memoryContent...)
+			memoryContent = memoryContent[len(memoryContent)-memoryContentSize:]
+
+			memoryLen := uint64(memory.Len())
+			memory.Resize(memoryLen + uint64(memoryContentSize))
+			memory.Set(memoryLen, memoryContentSize, memoryContent)
 		} else {
 			memory = fakevm.NewMemory()
 		}
@@ -1179,7 +1182,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		// Set Stack
 		stack = fakevm.NewStack()
 		for _, stackContent := range step.Stack {
-			valueBigInt, ok := new(big.Int).SetString(stackContent, 0)
+			valueBigInt, ok := new(big.Int).SetString(stackContent, hex.Base)
 			if !ok {
 				log.Debugf("error while parsing stack valueBigInt")
 				return nil, ErrParsingExecutorTrace
@@ -1194,13 +1197,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		}
 
 		// Set StateRoot
-		bigStateRoot, ok := new(big.Int).SetString(step.StateRoot, 0)
-		if !ok {
-			log.Debugf("error while parsing step stateRoot")
-			return nil, ErrParsingExecutorTrace
-		}
-
-		stateRoot = bigStateRoot.Bytes()
+		stateRoot = []byte(step.StateRoot)
 		evm.StateDB.SetStateRoot(stateRoot)
 		previousDepth = step.Depth
 		previousOpcode = step.OpCode

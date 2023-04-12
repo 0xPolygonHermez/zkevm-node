@@ -26,9 +26,6 @@ import (
 	"github.com/holiman/uint256"
 )
 
-// MemoryItemSize is the memory item size.
-const MemoryItemSize int = 32
-
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
 // deployed contract addresses (relevant after the account abstraction).
 var emptyCodeHash = crypto.Keccak256Hash(nil)

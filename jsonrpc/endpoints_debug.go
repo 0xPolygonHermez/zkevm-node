@@ -163,6 +163,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 		return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
 	}
 
+	// if a tracer was specified, then return the trace result
 	if stateTraceConfig.Tracer != nil && *stateTraceConfig.Tracer != "" && len(result.ExecutorTraceResult) > 0 {
 		return result.ExecutorTraceResult, nil
 	}

@@ -234,10 +234,10 @@ func TestDebugTraceTransaction(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	// defer func() {
-	// 	require.NoError(t, operations.Teardown())
-	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	// }()
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	}()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -281,10 +281,10 @@ func TestDebugTraceTransaction(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
 		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
@@ -479,8 +479,8 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	testCases := []testCase{
 		// successful transactions
 		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
 		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		// // failed transactions
 		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
@@ -572,6 +572,27 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				require.Equal(t, referenceValueMap["output"], resultMap["output"], fmt.Sprintf("invalid `output` for network %s", networkName))
 				require.Equal(t, referenceValueMap["value"], resultMap["value"], fmt.Sprintf("invalid `value` for network %s", networkName))
 				require.Equal(t, referenceValueMap["type"], resultMap["type"], fmt.Sprintf("invalid `type` for network %s", networkName))
+
+				referenceLogs, found := referenceValueMap["logs"].([]interface{})
+				if found {
+					resultLogs := resultMap["logs"].([]interface{})
+					require.Equal(t, len(referenceLogs), len(resultLogs), "logs size doesn't match")
+					for logIndex := range referenceLogs {
+						referenceLog := referenceLogs[logIndex].(map[string]interface{})
+						resultLog := resultLogs[logIndex].(map[string]interface{})
+
+						// require.Equal(t, referenceLog["data"], resultLog["data"], fmt.Sprintf("log index %v data doesn't match", logIndex))
+
+						referenceTopics, found := referenceLog["topics"].([]interface{})
+						if found {
+							resultTopics := resultLog["topics"].([]interface{})
+							require.Equal(t, len(referenceTopics), len(resultTopics), "log index %v topics size doesn't match", logIndex)
+							for topicIndex := range referenceTopics {
+								require.Equal(t, referenceTopics[topicIndex], resultTopics[topicIndex], fmt.Sprintf("log index %v topic index %v doesn't match", logIndex, topicIndex))
+							}
+						}
+					}
+				}
 
 				// for structLogIndex := range referenceStructLogsMap {
 				// 	referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
