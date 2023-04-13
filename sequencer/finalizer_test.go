@@ -327,7 +327,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 				coinbase:           f.sequencerAddress,
 				initialStateRoot:   oldHash,
 				stateRoot:          oldHash,
-				timestamp:          uint64(testNow().Unix()),
+				timestamp:          testNow(),
 				globalExitRoot:     oldHash,
 				remainingResources: getMaxRemainingResources(f.batchConstraints),
 			},
@@ -350,7 +350,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 				coinbase:           f.sequencerAddress,
 				initialStateRoot:   oldHash,
 				stateRoot:          oldHash,
-				timestamp:          uint64(testNow().Unix()),
+				timestamp:          testNow(),
 				globalExitRoot:     oldHash,
 				remainingResources: getMaxRemainingResources(f.batchConstraints),
 			},
@@ -513,7 +513,7 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 					GlobalExitRoot: forcedBatch.GlobalExitRoot,
 					Transactions:   forcedBatch.RawTxsData,
 					Coinbase:       f.sequencerAddress,
-					Timestamp:      uint64(now().Unix()),
+					Timestamp:      now(),
 					Caller:         stateMetrics.SequencerCallerLabel,
 				}
 				dbManagerMock.On("ProcessForcedBatch", forcedBatch.ForcedBatchNumber, processRequest).Return(&state.ProcessBatchResponse{
@@ -549,7 +549,7 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 		coinbase:           f.sequencerAddress,
 		initialStateRoot:   oldHash,
 		stateRoot:          oldHash,
-		timestamp:          uint64(now().Unix()),
+		timestamp:          now(),
 		globalExitRoot:     oldHash,
 		remainingResources: getMaxRemainingResources(f.batchConstraints),
 	}
@@ -1100,7 +1100,7 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 			coinbase:           seqAddr,
 			initialStateRoot:   oldHash,
 			stateRoot:          newHash,
-			timestamp:          uint64(now().Unix()),
+			timestamp:          now(),
 			globalExitRoot:     oldHash,
 			remainingResources: getMaxRemainingResources(bc),
 		}

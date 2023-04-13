@@ -60,7 +60,7 @@ type WipBatch struct {
 	initialStateRoot   common.Hash
 	stateRoot          common.Hash
 	localExitRoot      common.Hash
-	timestamp          uint64
+	timestamp          time.Time
 	globalExitRoot     common.Hash // 0x000...0 (ZeroHash) means to not update
 	remainingResources batchResources
 	countOfTxs         int
@@ -194,7 +194,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		if tx != nil {
 			// Timestamp resolution
 			if f.batch.isEmpty() {
-				f.batch.timestamp = uint64(now().Unix())
+				f.batch.timestamp = now()
 			}
 
 			f.sharedResourcesMux.Lock()
@@ -423,7 +423,7 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 		batchNumber:              f.batch.batchNumber,
 		txResponse:               txResponse,
 		coinbase:                 f.batch.coinbase,
-		timestamp:                f.batch.timestamp,
+		timestamp:                uint64(f.batch.timestamp.Unix()),
 		previousL2BlockStateRoot: previousL2BlockStateRoot,
 	}
 
@@ -606,7 +606,7 @@ func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot 
 		GlobalExitRoot: forcedBatch.GlobalExitRoot,
 		Transactions:   forcedBatch.RawTxsData,
 		Coinbase:       f.sequencerAddress,
-		Timestamp:      uint64(now().Unix()),
+		Timestamp:      now(),
 		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, processRequest)
@@ -657,7 +657,7 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 		coinbase:           f.sequencerAddress,
 		initialStateRoot:   stateRoot,
 		stateRoot:          stateRoot,
-		timestamp:          uint64(openBatchResp.Timestamp.Unix()),
+		timestamp:          openBatchResp.Timestamp,
 		globalExitRoot:     ger,
 		remainingResources: getMaxRemainingResources(f.batchConstraints),
 	}, err
@@ -709,7 +709,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 		OldStateRoot:   f.batch.initialStateRoot,
 		Transactions:   batch.BatchL2Data,
 		Coinbase:       batch.Coinbase,
-		Timestamp:      uint64(batch.Timestamp.Unix()),
+		Timestamp:      batch.Timestamp,
 		Caller:         stateMetrics.DiscardCallerLabel,
 	}
 	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, Ger: %s", batch.BatchNumber, f.batch.initialStateRoot.String(), batch.GlobalExitRoot.String())
@@ -798,7 +798,7 @@ func (f *finalizer) isDeadlineEncountered() bool {
 		return true
 	}
 	// Timestamp resolution deadline
-	if uint64(now().Unix()-int64(f.cfg.TimestampResolution.Seconds())) > f.batch.timestamp {
+	if !f.batch.isEmpty() && f.batch.timestamp.Add(f.cfg.TimestampResolution.Duration).Before(time.Now()) {
 		log.Infof("Closing batch: %d, because of timestamp resolution.", f.batch.batchNumber)
 		return true
 	}
