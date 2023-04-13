@@ -98,6 +98,9 @@ type Config struct {
 
 	// DBManager's specific config properties
 	DBManager DBManagerCfg `mapstructure:"DBManager"`
+
+	// Worker's specific config properties
+	Worker WorkerCfg `mapstructure:"Worker"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -139,6 +142,12 @@ type FinalizerCfg struct {
 	// PrivateKeys defines all the key store files that are going
 	// to be read in order to provide the private keys to sign the L1 txs
 	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
+}
+
+// WorkerCfg contains the Worker's configuration properties
+type WorkerCfg struct {
+	// ResourceCostMultiplier is the multiplier for the resource cost
+	ResourceCostMultiplier float64 `mapstructure:"ResourceCostMultiplier"`
 }
 
 // DBManagerCfg contains the DBManager's configuration properties

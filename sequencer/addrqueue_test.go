@@ -35,7 +35,7 @@ func processAddTxTestCases(t *testing.T, testCases []addrQueueAddTxTestCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tx := newTestTxTracker(tc.hash, tc.nonce, tc.gasPrice, tc.cost)
-			newReadyTx, _ := addr.addTx(tx)
+			newReadyTx, _, _ := addr.addTx(tx)
 			if tc.expectedReadyTx.String() == emptyHash.String() {
 				if !(addr.readyTx == nil) {
 					t.Fatalf("Error readyTx. Expected=%s, Actual=%s", tc.expectedReadyTx, "")

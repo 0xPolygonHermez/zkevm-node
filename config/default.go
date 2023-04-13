@@ -112,6 +112,8 @@ MaxTxSizeForL1 = 131072
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
+	[Sequencer.Worker]
+		ResourceCostMultiplier = 1000
 
 [PriceGetter]
 Type = "default"

@@ -42,6 +42,9 @@ func TestTxTrackerEfficiencyCalculation(t *testing.T) {
 	rcMax.MaxSteps = 10
 	rcMax.MaxBatchBytesSize = 10
 
+	totalWeight := float64(rcWeigth.WeightArithmetics + rcWeigth.WeightBatchBytesSize + rcWeigth.WeightBinaries + rcWeigth.WeightCumulativeGasUsed +
+		rcWeigth.WeightKeccakHashes + rcWeigth.WeightMemAligns + rcWeigth.WeightPoseidonHashes + rcWeigth.WeightPoseidonPaddings + rcWeigth.WeightSteps)
+
 	testCases := []efficiencyCalcTestCase{
 		{
 			Name:           "Using all of the resources",
@@ -85,7 +88,10 @@ func TestTxTrackerEfficiencyCalculation(t *testing.T) {
 			tx := TxTracker{}
 			tx.Benefit = new(big.Int).SetInt64(testCase.benefit)
 			tx.BatchResources.bytes = testCase.usedBytes
-			tx.updateZKCounters(testCase.counters, rcMax, rcWeigth)
+			tx.weightMultipliers = calculateWeightMultipliers(rcWeigth, totalWeight)
+			tx.constraints = convertBatchConstraintsToFloat64(rcMax)
+			tx.resourceCostMultiplier = 1000
+			tx.updateZKCounters(testCase.counters)
 			t.Logf("%s=%s", testCase.Name, fmt.Sprintf("%.2f", tx.Efficiency))
 			assert.Equal(t, fmt.Sprintf("%.2f", testCase.expectedResult), fmt.Sprintf("%.2f", tx.Efficiency), "Efficiency calculation error. Expected=%s, Actual=%s", fmt.Sprintf("%.2f", testCase.expectedResult), fmt.Sprintf("%.2f", tx.Efficiency))
 		})
