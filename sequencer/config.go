@@ -143,5 +143,6 @@ type FinalizerCfg struct {
 
 // DBManagerCfg contains the DBManager's configuration properties
 type DBManagerCfg struct {
-	PoolRetrievalInterval types.Duration `mapstructure:"PoolRetrievalInterval"`
+	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
+	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
 }
