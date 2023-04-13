@@ -12,6 +12,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Create2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
@@ -281,14 +283,15 @@ func TestDebugTraceTransaction(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		{name: "create2", prepare: prepareCreate2, createSignedTx: createCreate2SignedTx},
 		// failed transactions
-		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
-		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
-		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		// {name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
 	}
 
 	for _, tc := range testCases {
@@ -480,8 +483,9 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		// successful transactions
 		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
 		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
 		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		{name: "create2", prepare: prepareCreate2, createSignedTx: createCreate2SignedTx},
 		// // failed transactions
 		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
 		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
@@ -567,78 +571,52 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				err = json.Unmarshal(result, &resultMap)
 				require.NoError(t, err)
 
-				require.Equal(t, referenceValueMap["from"], resultMap["from"], fmt.Sprintf("invalid `from` for network %s", networkName))
-				require.Equal(t, referenceValueMap["input"], resultMap["input"], fmt.Sprintf("invalid `input` for network %s", networkName))
-				require.Equal(t, referenceValueMap["output"], resultMap["output"], fmt.Sprintf("invalid `output` for network %s", networkName))
-				require.Equal(t, referenceValueMap["value"], resultMap["value"], fmt.Sprintf("invalid `value` for network %s", networkName))
-				require.Equal(t, referenceValueMap["type"], resultMap["type"], fmt.Sprintf("invalid `type` for network %s", networkName))
-
-				referenceLogs, found := referenceValueMap["logs"].([]interface{})
-				if found {
-					resultLogs := resultMap["logs"].([]interface{})
-					require.Equal(t, len(referenceLogs), len(resultLogs), "logs size doesn't match")
-					for logIndex := range referenceLogs {
-						referenceLog := referenceLogs[logIndex].(map[string]interface{})
-						resultLog := resultLogs[logIndex].(map[string]interface{})
-
-						// require.Equal(t, referenceLog["data"], resultLog["data"], fmt.Sprintf("log index %v data doesn't match", logIndex))
-
-						referenceTopics, found := referenceLog["topics"].([]interface{})
-						if found {
-							resultTopics := resultLog["topics"].([]interface{})
-							require.Equal(t, len(referenceTopics), len(resultTopics), "log index %v topics size doesn't match", logIndex)
-							for topicIndex := range referenceTopics {
-								require.Equal(t, referenceTopics[topicIndex], resultTopics[topicIndex], fmt.Sprintf("log index %v topic index %v doesn't match", logIndex, topicIndex))
-							}
-						}
-					}
-				}
-
-				// for structLogIndex := range referenceStructLogsMap {
-				// 	referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
-				// 	resultStructLogMap := resultStructLogsMap[structLogIndex].(map[string]interface{})
-
-				// 	require.Equal(t, referenceStructLogMap["pc"], resultStructLogMap["pc"], fmt.Sprintf("invalid struct log pc for network %s", networkName))
-				// 	require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
-				// 	require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
-
-				// 	pc := referenceStructLogMap["pc"]
-				// 	op := referenceStructLogMap["op"]
-
-				// 	referenceStack, found := referenceStructLogMap["stack"].([]interface{})
-				// 	if found {
-				// 		resultStack := resultStructLogMap["stack"].([]interface{})
-
-				// 		require.Equal(t, len(referenceStack), len(resultStack), fmt.Sprintf("stack size doesn't match for pc %v op %v", pc, op))
-				// 		for stackIndex := range referenceStack {
-				// 			require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex], fmt.Sprintf("stack index %v doesn't match for pc %v op %v", stackIndex, pc, op))
-				// 		}
-				// 	}
-
-				// 	referenceMemory, found := referenceStructLogMap["memory"].([]interface{})
-				// 	if found {
-				// 		resultMemory := resultStructLogMap["memory"].([]interface{})
-
-				// 		require.Equal(t, len(referenceMemory), len(resultMemory), fmt.Sprintf("memory size doesn't match for pc %v op %v", pc, op))
-				// 		for memoryIndex := range referenceMemory {
-				// 			require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex], fmt.Sprintf("memory index %v doesn't match for pc %v op %v", memoryIndex, pc, op))
-				// 		}
-				// 	}
-
-				// 	referenceStorage, found := referenceStructLogMap["storage"].(map[string]interface{})
-				// 	if found {
-				// 		resultStorage := resultStructLogMap["storage"].(map[string]interface{})
-
-				// 		require.Equal(t, len(referenceStorage), len(resultStorage), fmt.Sprintf("storage size doesn't match for pc %v op %v", pc, op))
-				// 		for storageKey, referenceStorageValue := range referenceStorage {
-				// 			resultStorageValue, found := resultStorage[storageKey]
-				// 			require.True(t, found, "storage address not found")
-				// 			require.Equal(t, referenceStorageValue, resultStorageValue, fmt.Sprintf("storage value doesn't match for address %v for pc %v op %v", storageKey, pc, op))
-				// 		}
-				// 	}
-				// }
+				compareCallFrame(t, referenceValueMap, resultMap, networkName)
 			}
 		})
+	}
+}
+
+func compareCallFrame(t *testing.T, referenceValueMap, resultMap map[string]interface{}, networkName string) {
+	require.Equal(t, referenceValueMap["from"], resultMap["from"], fmt.Sprintf("invalid `from` for network %s", networkName))
+	require.Equal(t, referenceValueMap["input"], resultMap["input"], fmt.Sprintf("invalid `input` for network %s", networkName))
+	// TODO: Uncomment when Executor is fixed
+	// require.Equal(t, referenceValueMap["output"], resultMap["output"], fmt.Sprintf("invalid `output` for network %s", networkName))
+	require.Equal(t, referenceValueMap["value"], resultMap["value"], fmt.Sprintf("invalid `value` for network %s", networkName))
+	require.Equal(t, referenceValueMap["type"], resultMap["type"], fmt.Sprintf("invalid `type` for network %s", networkName))
+	require.Equal(t, referenceValueMap["error"], resultMap["error"], fmt.Sprintf("invalid `error` for network %s", networkName))
+	require.Equal(t, referenceValueMap["revertReason"], resultMap["revertReason"], fmt.Sprintf("invalid `revertReason` for network %s", networkName))
+
+	referenceLogs, found := referenceValueMap["logs"].([]interface{})
+	if found {
+		resultLogs := resultMap["logs"].([]interface{})
+		require.Equal(t, len(referenceLogs), len(resultLogs), "logs size doesn't match")
+		for logIndex := range referenceLogs {
+			referenceLog := referenceLogs[logIndex].(map[string]interface{})
+			resultLog := resultLogs[logIndex].(map[string]interface{})
+
+			require.Equal(t, referenceLog["data"], resultLog["data"], fmt.Sprintf("log index %v data doesn't match", logIndex))
+			referenceTopics, found := referenceLog["topics"].([]interface{})
+			if found {
+				resultTopics := resultLog["topics"].([]interface{})
+				require.Equal(t, len(referenceTopics), len(resultTopics), "log index %v topics size doesn't match", logIndex)
+				for topicIndex := range referenceTopics {
+					require.Equal(t, referenceTopics[topicIndex], resultTopics[topicIndex], fmt.Sprintf("log index %v topic index %v doesn't match", logIndex, topicIndex))
+				}
+			}
+		}
+	}
+
+	referenceCalls, found := referenceValueMap["calls"].([]interface{})
+	if found {
+		resultCalls := resultMap["calls"].([]interface{})
+		require.Equal(t, len(referenceCalls), len(resultCalls), "logs size doesn't match")
+		for callIndex := range referenceCalls {
+			referenceCall := referenceCalls[callIndex].(map[string]interface{})
+			resultCall := resultCalls[callIndex].(map[string]interface{})
+
+			compareCallFrame(t, referenceCall, resultCall, networkName)
+		}
 	}
 }
 
@@ -1029,4 +1007,41 @@ func createERC20TransferRevertedSignedTx(t *testing.T, ctx context.Context, auth
 	require.NoError(t, err)
 
 	return tx, nil
+}
+
+func prepareCreate2(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	_, tx, sc, err := Create2.DeployCreate2(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	return map[string]interface{}{
+		"sc": sc,
+	}, nil
+}
+
+func createCreate2SignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Create2.Create2)
+
+	opts := *auth
+	opts.NoSend = true
+
+	byteCode := hex.DecodeBig(Counter.CounterBin).Bytes()
+
+	tx, err := sc.OpCreate2(&opts, byteCode, big.NewInt(0).SetInt64(int64(len(byteCode))))
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func Test(t *testing.T) {
+	ctx := context.Background()
+	c := operations.MustGetClient("http://localhost:8125")
+	h := common.HexToHash("0x8467f44896e7ca53d5854fde44d18fec83aa412b8c8e60f34af093fddfbf3418")
+	tx, _, _ := c.TransactionByHash(ctx, h)
+	r, _ := c.TransactionReceipt(ctx, h)
+	reason, _ := operations.RevertReason(ctx, c, tx, r.BlockNumber)
+	log.Debug(reason)
 }

@@ -928,12 +928,24 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		UpdateMerkleTree: cFalse,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkId,
-		TraceConfig:      traceConfigRequest,
+		// TraceConfig:      traceConfigRequest,
 	}
 
 	// Send Batch to the Executor
 	startTime := time.Now()
+	b, _ := json.Marshal(processBatchRequest)
+	log.Debug("processBatchRequest ", string(b))
+	processBatchResponseWithReturnValue, _ := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	b, _ = json.Marshal(processBatchResponseWithReturnValue)
+	log.Debug("processBatchResponseWithReturnValue ", string(b))
+
+	processBatchRequest.TraceConfig = traceConfigRequest
+	b, _ = json.Marshal(processBatchRequest)
+	log.Debug("processBatchRequest ", string(b))
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+
+	b, _ = json.Marshal(processBatchResponse)
+	log.Debug("processBatchResponse ", string(b))
 	endTime := time.Now()
 	if err != nil {
 		return nil, err
@@ -979,7 +991,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		CreateAddress: response.CreateAddress,
 		GasLeft:       response.GasLeft,
 		GasUsed:       response.GasUsed,
-		ReturnValue:   response.ReturnValue,
+		ReturnValue:   processBatchResponseWithReturnValue.Responses[0].ReturnValue,
 		StateRoot:     response.StateRoot.Bytes(),
 		StructLogs:    response.ExecutionTrace,
 		ExecutorTrace: response.CallTrace,
@@ -1100,9 +1112,6 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 	tracer.CaptureTxStart(contextGas.Uint64())
 	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
 
-	stack := fakevm.NewStack()
-	memory := fakevm.NewMemory()
-
 	bigStateRoot, ok := new(big.Int).SetString(trace.Context.OldStateRoot, 0)
 	if !ok {
 		log.Debugf("error while parsing context oldStateRoot")
@@ -1111,6 +1120,9 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 	stateRoot = bigStateRoot.Bytes()
 	evm.StateDB.SetStateRoot(stateRoot)
 
+	output := common.FromHex(trace.Context.Output)
+
+	var stepError error
 	for i, step := range trace.Steps {
 		gas, ok := new(big.Int).SetString(step.Gas, encoding.Base10)
 		if !ok {
@@ -1130,57 +1142,8 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			return nil, ErrParsingExecutorTrace
 		}
 
-		value := hex.DecodeBig(step.Contract.Value)
-		scope := &fakevm.ScopeContext{
-			Contract: fakevm.NewContract(fakevm.NewAccount(common.HexToAddress(step.Contract.Caller)), fakevm.NewAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
-			Memory:   memory,
-			Stack:    stack,
-		}
-
-		codeAddr := common.HexToAddress(step.Contract.Address)
-		scope.Contract.CodeAddr = &codeAddr
-
-		opcode := fakevm.OpCode(op.Uint64()).String()
-		if previousOpcode == "CALL" && step.Pc != 0 {
-			tracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
-		}
-
-		if opcode != "CALL" || trace.Steps[i+1].Pc == 0 {
-			if step.Error != "" {
-				err := fmt.Errorf(step.Error)
-				tracer.CaptureFault(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
-			} else {
-				tracer.CaptureState(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.ReturnData, "0x")), step.Depth, nil)
-			}
-		}
-
-		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
-			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
-			if step.OpCode == "SELFDESTRUCT" {
-				tracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
-			}
-		}
-
-		const memoryContentSize = 128
-		// Set Memory
-		if len(step.Memory) > 0 {
-			memoryContent := make([]byte, 0, len(step.Memory))
-			for _, memoryItem := range step.Memory {
-				memoryContent = append(memoryContent, []byte(memoryItem)...)
-			}
-
-			memoryContent = append(make([]byte, memoryContentSize), memoryContent...)
-			memoryContent = memoryContent[len(memoryContent)-memoryContentSize:]
-
-			memoryLen := uint64(memory.Len())
-			memory.Resize(memoryLen + uint64(memoryContentSize))
-			memory.Set(memoryLen, memoryContentSize, memoryContent)
-		} else {
-			memory = fakevm.NewMemory()
-		}
-
 		// Set Stack
-		stack = fakevm.NewStack()
+		stack := fakevm.NewStack()
 		for _, stackContent := range step.Stack {
 			valueBigInt, ok := new(big.Int).SetString(stackContent, hex.Base)
 			if !ok {
@@ -1191,9 +1154,62 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			stack.Push(value)
 		}
 
+		// Set Memory
+		memory := fakevm.NewMemory()
+		if len(step.Memory) > 0 {
+			memory.Resize(uint64(len(step.Memory)))
+			memory.Set(0, uint64(len(step.Memory)), step.Memory)
+		} else {
+			memory = fakevm.NewMemory()
+		}
+
+		value := hex.DecodeBig(step.Contract.Value)
+		scope := &fakevm.ScopeContext{
+			Contract: fakevm.NewContract(fakevm.NewAccount(common.HexToAddress(step.Contract.Caller)), fakevm.NewAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
+			Memory:   memory,
+			Stack:    stack,
+		}
+
+		codeAddr := common.HexToAddress(step.Contract.Address)
+		scope.Contract.CodeAddr = &codeAddr
+
+		if step.OpCode == "REVERT" {
+			stepError = fakevm.ErrExecutionReverted
+			break
+		}
+
+		if previousOpcode == "CALL" && step.Pc != 0 {
+			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), fmt.Errorf(step.Error))
+		}
+
+		if step.OpCode != "CALL" || trace.Steps[i+1].Pc == 0 {
+			if step.Error != "" {
+				err := fmt.Errorf(step.Error)
+				tracer.CaptureFault(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
+			} else {
+				tracer.CaptureState(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.ReturnData, step.Depth, nil)
+			}
+		}
+
+		if step.OpCode == "CALL" || step.OpCode == "CALLCODE" || step.OpCode == "DELEGATECALL" || step.OpCode == "STATICCALL" || step.OpCode == "SELFDESTRUCT" {
+			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.FromHex(step.Contract.Input), gas.Uint64(), value)
+			if step.OpCode == "SELFDESTRUCT" {
+				tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), fmt.Errorf(step.Error))
+			}
+		}
+
+		if step.OpCode == "CREATE" || step.OpCode == "CREATE2" {
+			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.FromHex(step.Contract.Input), gas.Uint64(), value)
+		}
+
+		if step.OpCode == "REVERT" {
+			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
+			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), fmt.Errorf(step.Error))
+		}
+
 		// Returning from a call or create
 		if previousDepth > step.Depth {
-			tracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
+			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
 
 		// Set StateRoot
@@ -1211,8 +1227,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 
 	restGas := contextGas.Uint64() - gasUsed.Uint64()
 	tracer.CaptureTxEnd(restGas)
-	output := common.FromHex(trace.Context.Output)
-	tracer.CaptureEnd(output, gasUsed.Uint64(), nil)
+	tracer.CaptureEnd(output, gasUsed.Uint64(), stepError)
 
 	return tracer.GetResult()
 }
@@ -1324,6 +1339,8 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 
+	b, _ := json.Marshal(processBatchRequest)
+	log.Debug("processBatchRequest", string(b))
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
