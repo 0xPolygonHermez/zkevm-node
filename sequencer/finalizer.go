@@ -192,12 +192,9 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
-			// Check timestamp resolution
+			// Timestamp resolution
 			if f.batch.isEmpty() {
 				f.batch.timestamp = uint64(now().Unix())
-			} else if uint64(now().Unix()-int64(f.cfg.TimestampResolution.Seconds())) > f.batch.timestamp {
-				log.Infof("Closing batch: %d, because of timestamp resolution.", f.batch.batchNumber)
-				f.finalizeBatch(ctx)
 			}
 
 			f.sharedResourcesMux.Lock()
@@ -798,6 +795,11 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	// Global Exit Root deadline
 	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
 		log.Infof("Closing batch: %d, Global Exit Root deadline encountered.", f.batch.batchNumber)
+		return true
+	}
+	// Timestamp resolution deadline
+	if uint64(now().Unix()-int64(f.cfg.TimestampResolution.Seconds())) > f.batch.timestamp {
+		log.Infof("Closing batch: %d, because of timestamp resolution.", f.batch.batchNumber)
 		return true
 	}
 	return false
