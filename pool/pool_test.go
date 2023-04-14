@@ -1322,7 +1322,7 @@ func Test_BlockedAddress(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: auth.From.String(),
 				Type:    int(merkletree.LeafTypeBalance),
