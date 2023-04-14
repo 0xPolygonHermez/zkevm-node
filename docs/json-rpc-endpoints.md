@@ -12,7 +12,9 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 
 <!-- ETH -->
 - `eth_blockNumber`
-- `eth_call` _* doesn't support state override at the moment and pending block_ 
+- `eth_call` 
+  - _* doesn't support state override at the moment and pending block. Will be implemented [#1990](https://github.com/0xPolygonHermez/zkevm-node/issues/1990)_ 
+  - _* doesn't support `from` values that are smart contract addresses. Will be implemented [#2017](https://github.com/0xPolygonHermez/zkevm-node/issues/2017)_  
 - `eth_chainId`
 - `eth_estimateGas` _* if the block number is set to pending we assume it is the latest_
 - `eth_gasPrice`
