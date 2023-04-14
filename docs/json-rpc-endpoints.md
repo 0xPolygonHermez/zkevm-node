@@ -13,8 +13,8 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 <!-- ETH -->
 - `eth_blockNumber`
 - `eth_call` 
-  - _* doesn't support state override at the moment and pending block. Will be implemented [#1990](https://github.com/0xPolygonHermez/zkevm-node/issues/1990)_ 
-  - _* doesn't support `from` values that are smart contract addresses. Will be implemented [#2017](https://github.com/0xPolygonHermez/zkevm-node/issues/2017)_  
+  - _doesn't support state override at the moment and pending block. Will be implemented [#1990](https://github.com/0xPolygonHermez/zkevm-node/issues/1990)_ 
+  - _doesn't support `from` values that are smart contract addresses. Will be implemented [#2017](https://github.com/0xPolygonHermez/zkevm-node/issues/2017)_  
 - `eth_chainId`
 - `eth_estimateGas` _* if the block number is set to pending we assume it is the latest_
 - `eth_gasPrice`
@@ -33,7 +33,7 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 - `eth_getTransactionByBlockNumberAndIndex` _* if the block number is set to pending we assume it is the latest_
 - `eth_getTransactionByHash`
 - `eth_getTransactionCount`
-- `eth_getTransactionReceipt`
+- `eth_getTransactionReceipt` _* doesn't include effectiveGasPrice. Will include once EIP1559 is implemented_
 - `eth_getUncleByBlockHashAndIndex` _* response is always empty_
 - `eth_getUncleByBlockNumberAndIndex` _* response is always empty_
 - `eth_getUncleCountByBlockHash` _* response is always zero_
