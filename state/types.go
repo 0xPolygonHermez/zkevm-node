@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
@@ -18,7 +19,7 @@ type ProcessRequest struct {
 	OldAccInputHash common.Hash
 	Transactions    []byte
 	Coinbase        common.Address
-	Timestamp       uint64
+	Timestamp       time.Time
 	Caller          metrics.CallerLabel
 }
 

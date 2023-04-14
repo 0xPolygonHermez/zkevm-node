@@ -63,10 +63,9 @@ type L2ReorgEvent struct {
 
 // ClosingSignalCh is a struct that contains all the channels that are used to receive batch closing signals
 type ClosingSignalCh struct {
-	ForcedBatchCh        chan state.ForcedBatch
-	GERCh                chan common.Hash
-	L2ReorgCh            chan L2ReorgEvent
-	SendingToL1TimeoutCh chan bool
+	ForcedBatchCh chan state.ForcedBatch
+	GERCh         chan common.Hash
+	L2ReorgCh     chan L2ReorgEvent
 }
 
 // TxsStore is a struct that contains the channel and the wait group for the txs to be stored in order
@@ -111,10 +110,9 @@ func (s *Sequencer) Start(ctx context.Context) {
 	metrics.Register()
 
 	closingSignalCh := ClosingSignalCh{
-		ForcedBatchCh:        make(chan state.ForcedBatch),
-		GERCh:                make(chan common.Hash),
-		L2ReorgCh:            make(chan L2ReorgEvent),
-		SendingToL1TimeoutCh: make(chan bool),
+		ForcedBatchCh: make(chan state.ForcedBatch),
+		GERCh:         make(chan common.Hash),
+		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 
 	txsStore := TxsStore{
@@ -214,7 +212,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 		// GENESIS Batch //
 		///////////////////
 		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
-		timestamp := uint64(processingCtx.Timestamp.Unix())
+		timestamp := processingCtx.Timestamp
 		_, oldStateRoot, err := finalizer.getLastBatchNumAndOldStateRoot(ctx)
 		if err != nil {
 			log.Fatalf("failed to get old state root, err: %v", err)

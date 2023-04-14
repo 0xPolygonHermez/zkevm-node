@@ -100,7 +100,6 @@ MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
 		GERDeadlineTimeoutInSec = "5s"
 		ForcedBatchDeadlineTimeoutInSec = "60s"
-		SendingToL1DeadlineTimeoutInSec = "20s"
 		SleepDurationInMs = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 64
@@ -108,6 +107,7 @@ MaxTxSizeForL1 = 131072
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
+		TimestampResolution = "15s"
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 	[Sequencer.DBManager]

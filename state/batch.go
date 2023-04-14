@@ -57,8 +57,8 @@ const (
 	BatchAlmostFullClosingReason ClosingReason = "Batch is almost full"
 	// ForcedBatchDeadlineClosingReason is the closing reason used when forced batch deadline is reached
 	ForcedBatchDeadlineClosingReason ClosingReason = "Forced Batch deadline"
-	// SendingToL1DeadlineClosingReason is the closing reason used when sending to L1 deadline is reached
-	SendingToL1DeadlineClosingReason ClosingReason = "Sending to L1 deadline"
+	// TimeoutResolutionDeadlineClosingReason is the closing reason used when timeout resolution deadline is reached
+	TimeoutResolutionDeadlineClosingReason ClosingReason = "timeout resolution deadline"
 	// GlobalExitRootDeadlineClosingReason is the closing reason used when Global Exit Root deadline is reached
 	GlobalExitRootDeadlineClosingReason ClosingReason = "Global Exit Root deadline"
 )
@@ -177,7 +177,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		OldStateRoot:     request.OldStateRoot.Bytes(),
 		GlobalExitRoot:   request.GlobalExitRoot.Bytes(),
 		OldAccInputHash:  request.OldAccInputHash.Bytes(),
-		EthTimestamp:     request.Timestamp,
+		EthTimestamp:     uint64(request.Timestamp.Unix()),
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,

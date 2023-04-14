@@ -105,11 +105,8 @@ type FinalizerCfg struct {
 	// GERDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to update Global Exit Root
 	GERDeadlineTimeoutInSec types.Duration `mapstructure:"GERDeadlineTimeoutInSec"`
 
-	// SendingToL1DeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to process Forced Batches
+	// ForcedBatchDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to process Forced Batches
 	ForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"ForcedBatchDeadlineTimeoutInSec"`
-
-	// SendingToL1DeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to sends a batch to L1
-	SendingToL1DeadlineTimeoutInSec types.Duration `mapstructure:"SendingToL1DeadlineTimeoutInSec"`
 
 	// SleepDurationInMs is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
 	SleepDurationInMs types.Duration `mapstructure:"SleepDurationInMs"`
@@ -131,6 +128,9 @@ type FinalizerCfg struct {
 
 	// ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
 	ForcedBatchesFinalityNumberOfBlocks uint64 `mapstructure:"ForcedBatchesFinalityNumberOfBlocks"`
+
+	// TimestampResolution is the resolution of the timestamp used to close a batch
+	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
 
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs

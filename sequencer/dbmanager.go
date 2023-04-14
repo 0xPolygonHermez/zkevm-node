@@ -21,7 +21,7 @@ const (
 type dbManager struct {
 	cfg              DBManagerCfg
 	txPool           txPool
-	state            dbManagerStateInterface
+	state            stateInterface
 	worker           workerInterface
 	txsStore         TxsStore
 	l2ReorgCh        chan L2ReorgEvent
@@ -45,7 +45,7 @@ type ClosingBatchParameters struct {
 	ClosingReason  state.ClosingReason
 }
 
-func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
+func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
 	numberOfReorgs, err := state.CountReorgs(ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)
@@ -274,7 +274,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		batchNumber:    lastBatch.BatchNumber,
 		coinbase:       lastBatch.Coinbase,
 		localExitRoot:  lastBatch.LocalExitRoot,
-		timestamp:      uint64(lastBatch.Timestamp.Unix()),
+		timestamp:      lastBatch.Timestamp,
 		globalExitRoot: lastBatch.GlobalExitRoot,
 		countOfTxs:     len(lastBatch.Transactions),
 	}
@@ -305,7 +305,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		processingContext := &state.ProcessingContext{
 			BatchNumber:    wipBatch.batchNumber,
 			Coinbase:       wipBatch.coinbase,
-			Timestamp:      time.Unix(int64(wipBatch.timestamp), 0),
+			Timestamp:      wipBatch.timestamp,
 			GlobalExitRoot: wipBatch.globalExitRoot,
 		}
 		err = d.state.OpenBatch(ctx, *processingContext, dbTx)
@@ -439,7 +439,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    request.BatchNumber,
 		Coinbase:       request.Coinbase,
-		Timestamp:      time.Unix(int64(request.Timestamp), 0),
+		Timestamp:      request.Timestamp,
 		GlobalExitRoot: request.GlobalExitRoot,
 		ForcedBatchNum: &forcedBatchNum,
 	}
