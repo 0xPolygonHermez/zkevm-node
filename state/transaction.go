@@ -609,13 +609,15 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 
 	timestamp := uint64(lastBatch.Timestamp.Unix())
 
-	latestL2BlockNumber, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
-	if err != nil {
-		return nil, err
-	}
+	if l2BlockNumber != nil {
+		latestL2BlockNumber, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
+		if err != nil {
+			return nil, err
+		}
 
-	if l2BlockNumber != nil && *l2BlockNumber == latestL2BlockNumber {
-		timestamp = uint64(time.Now().Unix())
+		if *l2BlockNumber == latestL2BlockNumber {
+			timestamp = uint64(time.Now().Unix())
+		}
 	}
 
 	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce)
@@ -816,13 +818,15 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	timestamp := uint64(lastBatch.Timestamp.Unix())
 
-	latestL2BlockNumber, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
-	if err != nil {
-		return 0, err
-	}
+	if l2BlockNumber != nil {
+		latestL2BlockNumber, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
+		if err != nil {
+			return 0, err
+		}
 
-	if l2BlockNumber != nil && *l2BlockNumber == latestL2BlockNumber {
-		timestamp = uint64(time.Now().Unix())
+		if *l2BlockNumber == latestL2BlockNumber {
+			timestamp = uint64(time.Now().Unix())
+		}
 	}
 
 	lowEnd, err = core.IntrinsicGas(transaction.Data(), transaction.AccessList(), s.isContractCreation(transaction), true, false, false)
