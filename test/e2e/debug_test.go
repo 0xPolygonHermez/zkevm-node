@@ -13,7 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
-	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Create2"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Creates"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
@@ -283,24 +284,73 @@ func TestDebugTraceTransaction(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
-		{name: "create2", prepare: prepareCreate2, createSignedTx: createCreate2SignedTx},
+		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		{name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
+		{name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
 		// failed transactions
-		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
-		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
-		// {name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+	}
+
+	privateKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	for _, network := range networks {
+		auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(network.ChainID))
+		require.NoError(t, err)
+
+		ethereumClient := operations.MustGetClient(network.URL)
+		sourceAuth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+		nonce, err := ethereumClient.NonceAt(ctx, sourceAuth.From, nil)
+		require.NoError(t, err)
+
+		balance, err := ethereumClient.BalanceAt(ctx, sourceAuth.From, nil)
+		require.NoError(t, err)
+
+		gasPrice, err := ethereumClient.SuggestGasPrice(ctx)
+		require.NoError(t, err)
+
+		value := big.NewInt(0).Quo(balance, big.NewInt(2))
+
+		gas, err := ethereumClient.EstimateGas(ctx, ethereum.CallMsg{
+			From:     sourceAuth.From,
+			To:       &auth.From,
+			GasPrice: gasPrice,
+			Value:    value,
+		})
+		require.NoError(t, err)
+
+		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+			To:       &auth.From,
+			Nonce:    nonce,
+			GasPrice: gasPrice,
+			Value:    value,
+			Gas:      gas,
+		})
+
+		signedTx, err := sourceAuth.Signer(sourceAuth.From, tx)
+		require.NoError(t, err)
+
+		err = ethereumClient.SendTransaction(ctx, signedTx)
+		require.NoError(t, err)
+
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			log.Debugf(tc.name)
+			log.Debug("------------------------ ", tc.name, " ------------------------")
+
 			for _, network := range networks {
-				log.Debugf(network.Name)
+				log.Debug("------------------------ ", network.Name, " ------------------------")
 				ethereumClient := operations.MustGetClient(network.URL)
-				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(network.ChainID))
+				require.NoError(t, err)
 
 				var customData map[string]interface{}
 				if tc.prepare != nil {
@@ -481,24 +531,72 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
-		{name: "create2", prepare: prepareCreate2, createSignedTx: createCreate2SignedTx},
-		// // failed transactions
-		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
-		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
-		// {name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		{name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
+		{name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
+		// failed transactions
+		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+	}
+	privateKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	for _, network := range networks {
+		auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(network.ChainID))
+		require.NoError(t, err)
+
+		ethereumClient := operations.MustGetClient(network.URL)
+		sourceAuth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+		nonce, err := ethereumClient.NonceAt(ctx, sourceAuth.From, nil)
+		require.NoError(t, err)
+
+		balance, err := ethereumClient.BalanceAt(ctx, sourceAuth.From, nil)
+		require.NoError(t, err)
+
+		gasPrice, err := ethereumClient.SuggestGasPrice(ctx)
+		require.NoError(t, err)
+
+		value := big.NewInt(0).Quo(balance, big.NewInt(2))
+
+		gas, err := ethereumClient.EstimateGas(ctx, ethereum.CallMsg{
+			From:     sourceAuth.From,
+			To:       &auth.From,
+			GasPrice: gasPrice,
+			Value:    value,
+		})
+		require.NoError(t, err)
+
+		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+			To:       &auth.From,
+			Nonce:    nonce,
+			GasPrice: gasPrice,
+			Value:    value,
+			Gas:      gas,
+		})
+
+		signedTx, err := sourceAuth.Signer(sourceAuth.From, tx)
+		require.NoError(t, err)
+
+		err = ethereumClient.SendTransaction(ctx, signedTx)
+		require.NoError(t, err)
+
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			log.Debugf(tc.name)
+			log.Debug("------------------------ ", tc.name, " ------------------------")
+
 			for _, network := range networks {
-				log.Debugf(network.Name)
+				log.Debug("------------------------ ", network.Name, " ------------------------")
 				ethereumClient := operations.MustGetClient(network.URL)
-				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(network.ChainID))
+				require.NoError(t, err)
 
 				var customData map[string]interface{}
 				if tc.prepare != nil {
@@ -1009,8 +1107,8 @@ func createERC20TransferRevertedSignedTx(t *testing.T, ctx context.Context, auth
 	return tx, nil
 }
 
-func prepareCreate2(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
-	_, tx, sc, err := Create2.DeployCreate2(auth, client)
+func prepareCreate(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	_, tx, sc, err := Creates.DeployCreates(auth, client)
 	require.NoError(t, err)
 
 	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
@@ -1021,9 +1119,24 @@ func prepareCreate2(t *testing.T, ctx context.Context, auth *bind.TransactOpts, 
 	}, nil
 }
 
+func createCreateSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Creates.Creates)
+
+	opts := *auth
+	opts.NoSend = true
+
+	byteCode := hex.DecodeBig(Counter.CounterBin).Bytes()
+
+	tx, err := sc.OpCreate(&opts, byteCode, big.NewInt(0).SetInt64(int64(len(byteCode))))
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
 func createCreate2SignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	scInterface := customData["sc"]
-	sc := scInterface.(*Create2.Create2)
+	sc := scInterface.(*Creates.Creates)
 
 	opts := *auth
 	opts.NoSend = true

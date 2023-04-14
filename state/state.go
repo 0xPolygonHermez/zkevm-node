@@ -1095,6 +1095,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
 func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
 	var previousDepth int
+	var previousOp, previousGas *big.Int
 	var previousOpcode string
 	var stateRoot []byte
 
@@ -1142,7 +1143,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			return nil, ErrParsingExecutorTrace
 		}
 
-		// Set Stack
+		// set Stack
 		stack := fakevm.NewStack()
 		for _, stackContent := range step.Stack {
 			valueBigInt, ok := new(big.Int).SetString(stackContent, hex.Base)
@@ -1154,7 +1155,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			stack.Push(value)
 		}
 
-		// Set Memory
+		// set Memory
 		memory := fakevm.NewMemory()
 		if len(step.Memory) > 0 {
 			memory.Resize(uint64(len(step.Memory)))
@@ -1173,6 +1174,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		codeAddr := common.HexToAddress(step.Contract.Address)
 		scope.Contract.CodeAddr = &codeAddr
 
+		// when a revert is detected, we stop the execution
 		if step.OpCode == "REVERT" {
 			stepError = fakevm.ErrExecutionReverted
 			break
@@ -1192,30 +1194,30 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		}
 
 		if step.OpCode == "CALL" || step.OpCode == "CALLCODE" || step.OpCode == "DELEGATECALL" || step.OpCode == "STATICCALL" || step.OpCode == "SELFDESTRUCT" {
-			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.FromHex(step.Contract.Input), gas.Uint64(), value)
+			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), gas.Uint64(), value)
 			if step.OpCode == "SELFDESTRUCT" {
 				tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), fmt.Errorf(step.Error))
 			}
 		}
 
-		if step.OpCode == "CREATE" || step.OpCode == "CREATE2" {
-			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.FromHex(step.Contract.Input), gas.Uint64(), value)
+		// when a create2 is detected, the next step contains the contract updated
+		if previousOpcode == "CREATE" || previousOpcode == "CREATE2" {
+			tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
 		}
 
-		if step.OpCode == "REVERT" {
-			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), fmt.Errorf(step.Error))
-		}
-
-		// Returning from a call or create
+		// returning from a call or create
 		if previousDepth > step.Depth {
 			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
 
-		// Set StateRoot
+		// set StateRoot
 		stateRoot = []byte(step.StateRoot)
 		evm.StateDB.SetStateRoot(stateRoot)
+
+		// set previous step values
 		previousDepth = step.Depth
+		previousOp = op
+		previousGas = gas
 		previousOpcode = step.OpCode
 	}
 
