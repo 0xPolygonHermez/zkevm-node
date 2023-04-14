@@ -444,7 +444,7 @@ func Test_Defaults(t *testing.T) {
 	require.NoError(t, os.WriteFile(file.Name(), []byte("{}"), 0600))
 
 	flagSet := flag.NewFlagSet("", flag.PanicOnError)
-	flagSet.String(config.FlagNetwork, file.Name(), "")
+	flagSet.String(config.FlagNetwork, "testnet", "")
 	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
 	cfg, err := config.Load(ctx)
 	if err != nil {
