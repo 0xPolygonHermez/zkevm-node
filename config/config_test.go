@@ -210,20 +210,20 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: "http://localhost:8545",
 		},
 		{
-			path:          "Etherman.L1ChainID",
-			expectedValue: uint64(1337),
+			path:          "NetworkConfig.L1Config.L1ChainID",
+			expectedValue: uint64(5),
 		},
 		{
-			path:          "Etherman.PoEAddr",
-			expectedValue: common.HexToAddress("0x610178dA211FEF7D417bC0e6FeD39F05609AD788"),
+			path:          "NetworkConfig.L1Config.PoEAddr",
+			expectedValue: common.HexToAddress("0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"),
 		},
 		{
-			path:          "Etherman.MaticAddr",
-			expectedValue: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+			path:          "NetworkConfig.L1Config.MaticAddr",
+			expectedValue: common.HexToAddress("0x1319D23c2F7034F52Eb07399702B040bA278Ca49"),
 		},
 		{
-			path:          "Etherman.GlobalExitRootManagerAddr",
-			expectedValue: common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
+			path:          "NetworkConfig.L1Config.GlobalExitRootManagerAddr",
+			expectedValue: common.HexToAddress("0x4d9427DCA0406358445bC0a8F88C26b704004f74"),
 		},
 		{
 			path:          "Etherman.MultiGasProvider",
