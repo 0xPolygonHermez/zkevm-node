@@ -123,6 +123,8 @@ func main() {
 					Usage:    "Amount that is gonna be approved",
 					Required: true,
 				},
+				&networkFlag,
+				&customNetworkFlag,
 			),
 		},
 		{
