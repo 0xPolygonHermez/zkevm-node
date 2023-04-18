@@ -6,14 +6,14 @@ IsTrustedSequencer = false
 
 [Log]
 Environment = "development" # "production" or "development"
-Level = "debug"
+Level = "info"
 Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
 Password = "state_password"
 Name = "state_db"
-Host = "localhost"
+Host = "zkevm-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200
@@ -30,7 +30,7 @@ PollMinAllowedGasPriceInterval = "15s"
 	User = "pool_user"
 	Password = "pool_password"
 	Name = "pool_db"
-	Host = "localhost"
+	Host = "zkevm-pool-db"
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
@@ -56,8 +56,8 @@ SequencerNodeURI = ""
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
-		Enabled = false
-		Port = 8133
+		Enabled = true
+		Port = 8124
 
 [Synchronizer]
 SyncInterval = "0s"
@@ -128,17 +128,19 @@ CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 
 [L2GasPriceSuggester]
-Type = "default"
-DefaultGasPriceWei = 1000000000
+Type = "follower"
+UpdatePeriod = "10s"
+Factor = 0.15
+DefaultGasPriceWei = 2000000000
 
 [Prover]
 ProverURI = "0.0.0.0:50051"
 
 [MTClient]
-URI = "127.0.0.1:50061"
+URI = "zkevm-prover:50061"
 
 [Executor]
-URI = "127.0.0.1:50071"
+URI = "zkevm-prover:50071"
 
 [Metrics]
 Host = "0.0.0.0"
