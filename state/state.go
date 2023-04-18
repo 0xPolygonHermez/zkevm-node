@@ -36,9 +36,12 @@ import (
 
 const (
 	// Size of the memory in bytes reserved by the zkEVM
-	two    uint = 2
-	cTrue       = 1
-	cFalse      = 0
+	two uint = 2
+)
+
+const (
+	cTrue  = 1
+	cFalse = 0
 )
 
 var (
@@ -928,22 +931,14 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		UpdateMerkleTree: cFalse,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkId,
-		// TraceConfig:      traceConfigRequest,
+		TraceConfig:      traceConfigRequest,
 	}
 
 	// Send Batch to the Executor
 	startTime := time.Now()
 	b, _ := json.Marshal(processBatchRequest)
 	log.Debug("processBatchRequest ", string(b))
-	processBatchResponseWithReturnValue, _ := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-	b, _ = json.Marshal(processBatchResponseWithReturnValue)
-	log.Debug("processBatchResponseWithReturnValue ", string(b))
-
-	processBatchRequest.TraceConfig = traceConfigRequest
-	b, _ = json.Marshal(processBatchRequest)
-	log.Debug("processBatchRequest ", string(b))
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-
 	b, _ = json.Marshal(processBatchResponse)
 	log.Debug("processBatchResponse ", string(b))
 	endTime := time.Now()
@@ -991,7 +986,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		CreateAddress: response.CreateAddress,
 		GasLeft:       response.GasLeft,
 		GasUsed:       response.GasUsed,
-		ReturnValue:   processBatchResponseWithReturnValue.Responses[0].ReturnValue,
+		ReturnValue:   response.ReturnValue,
 		StateRoot:     response.StateRoot.Bytes(),
 		StructLogs:    response.ExecutionTrace,
 		ExecutorTrace: response.CallTrace,
@@ -1009,10 +1004,10 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	context := instrumentation.Context{
 		From:         senderAddress.String(),
-		Input:        "0x" + hex.EncodeToString(tx.Data()),
+		Input:        hex.EncodeToHex(tx.Data()),
 		Gas:          strconv.FormatUint(tx.Gas(), encoding.Base10),
 		Value:        tx.Value().String(),
-		Output:       "0x" + hex.EncodeToString(result.ReturnValue),
+		Output:       hex.EncodeToHex(result.ReturnValue),
 		GasPrice:     tx.GasPrice().String(),
 		OldStateRoot: oldStateRoot.String(),
 		Time:         uint64(endTime.Sub(startTime)),
@@ -1125,6 +1120,11 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 
 	var stepError error
 	for i, step := range trace.Steps {
+		stepErrorMsg := strings.TrimSpace(step.Error)
+		if stepErrorMsg != "" {
+			stepError = fmt.Errorf(stepErrorMsg)
+		}
+
 		gas, ok := new(big.Int).SetString(step.Gas, encoding.Base10)
 		if !ok {
 			log.Debugf("error while parsing step gas")
@@ -1181,13 +1181,12 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		}
 
 		if previousOpcode == "CALL" && step.Pc != 0 {
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), fmt.Errorf(step.Error))
+			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
 		}
 
 		if step.OpCode != "CALL" || trace.Steps[i+1].Pc == 0 {
-			if step.Error != "" {
-				err := fmt.Errorf(step.Error)
-				tracer.CaptureFault(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
+			if stepError != nil {
+				tracer.CaptureFault(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, stepError)
 			} else {
 				tracer.CaptureState(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.ReturnData, step.Depth, nil)
 			}
@@ -1196,7 +1195,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		if step.OpCode == "CALL" || step.OpCode == "CALLCODE" || step.OpCode == "DELEGATECALL" || step.OpCode == "STATICCALL" || step.OpCode == "SELFDESTRUCT" {
 			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), gas.Uint64(), value)
 			if step.OpCode == "SELFDESTRUCT" {
-				tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), fmt.Errorf(step.Error))
+				tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
 			}
 		}
 
@@ -1207,7 +1206,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 
 		// returning from a call or create
 		if previousDepth > step.Depth {
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), fmt.Errorf(step.Error))
+			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
 		}
 
 		// set StateRoot

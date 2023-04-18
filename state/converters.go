@@ -304,15 +304,6 @@ func convertToInstrumentationContract(response *pb.Contract) instrumentation.Con
 	}
 }
 
-func convertByteArrayToStringArray(bytes []byte) []string {
-	results := make([]string, 0, len(bytes))
-	for _, b := range bytes {
-		s := string(b)
-		results = append(results, s)
-	}
-	return results
-}
-
 func convertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
 	return ZKCounters{
 		CumulativeGasUsed:    resp.CumulativeGasUsed,
