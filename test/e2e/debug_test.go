@@ -1147,13 +1147,3 @@ func createCreate2SignedTx(t *testing.T, ctx context.Context, auth *bind.Transac
 
 	return tx, nil
 }
-
-func Test(t *testing.T) {
-	ctx := context.Background()
-	c := operations.MustGetClient("http://localhost:8125")
-	h := common.HexToHash("0x8467f44896e7ca53d5854fde44d18fec83aa412b8c8e60f34af093fddfbf3418")
-	tx, _, _ := c.TransactionByHash(ctx, h)
-	r, _ := c.TransactionReceipt(ctx, h)
-	reason, _ := operations.RevertReason(ctx, c, tx, r.BlockNumber)
-	log.Debug(reason)
-}
