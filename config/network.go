@@ -24,11 +24,11 @@ type NetworkConfig struct {
 	MaxCumulativeGasUsed        uint64
 }
 
-type supportedNetworks string
+type network string
 
-const mainnet supportedNetworks = "mainnet"
-const testnet supportedNetworks = "testnet"
-const custom supportedNetworks = "custom"
+const mainnet network = "mainnet"
+const testnet network = "testnet"
+const custom network = "custom"
 
 type genesisFromJSON struct {
 	Root            string                   `json:"root"`
