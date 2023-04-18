@@ -936,11 +936,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	// Send Batch to the Executor
 	startTime := time.Now()
-	b, _ := json.Marshal(processBatchRequest)
-	log.Debug("processBatchRequest ", string(b))
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-	b, _ = json.Marshal(processBatchResponse)
-	log.Debug("processBatchResponse ", string(b))
 	endTime := time.Now()
 	if err != nil {
 		return nil, err
@@ -1340,8 +1336,6 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 
-	b, _ := json.Marshal(processBatchRequest)
-	log.Debug("processBatchRequest", string(b))
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {

@@ -64,7 +64,7 @@ var (
 			Version:         "",
 		}},
 	}
-	forkID                             uint64 = 2
+	forkID                             uint64 = 4
 	executorClient                     executorclientpb.ExecutorServiceClient
 	mtDBServiceClient                  mtDBclientpb.StateDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
