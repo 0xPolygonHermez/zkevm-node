@@ -31,7 +31,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Log.Level",
-			expectedValue: "debug",
+			expectedValue: "info",
 		},
 		{
 			path:          "Log.Outputs",
@@ -255,11 +255,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "L2GasPriceSuggester.DefaultGasPriceWei",
-			expectedValue: uint64(1000000000),
+			expectedValue: uint64(2000000000),
 		},
 		{
 			path:          "MTClient.URI",
-			expectedValue: "127.0.0.1:50061",
+			expectedValue: "zkevm-prover:50061",
 		},
 		{
 			path:          "StateDB.User",
@@ -275,7 +275,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "StateDB.Host",
-			expectedValue: "localhost",
+			expectedValue: "zkevm-state-db",
 		},
 		{
 			path:          "StateDB.Port",
@@ -328,7 +328,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Pool.DB.Host",
-			expectedValue: "localhost",
+			expectedValue: "zkevm-pool-db",
 		},
 		{
 			path:          "Pool.DB.Port",
@@ -372,7 +372,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.WebSockets.Enabled",
-			expectedValue: false,
+			expectedValue: true,
 		},
 
 		{
@@ -381,11 +381,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.WebSockets.Port",
-			expectedValue: 8133,
+			expectedValue: 8124,
 		},
 		{
 			path:          "Executor.URI",
-			expectedValue: "127.0.0.1:50071",
+			expectedValue: "zkevm-prover:50071",
 		},
 		{
 			path:          "Metrics.Host",
