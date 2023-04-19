@@ -149,7 +149,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		log.Fatalf("failed to mark WIP txs as pending, err: %v", err)
 	}
 
-	worker := NewWorker(s.state, batchConstraints, batchResourceWeights)
+	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights)
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
 	go dbManager.Start()
 

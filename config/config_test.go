@@ -162,6 +162,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
 		{
+			path:          "Sequencer.Worker.ResourceCostMultiplier",
+			expectedValue: float64(1000),
+		},
+		{
 			path:          "Etherman.URL",
 			expectedValue: "http://localhost:8545",
 		},
