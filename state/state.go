@@ -161,7 +161,7 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 }
 
 // EstimateGas for a transaction
-func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
+func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, []byte, error) {
 	const ethTransferGas = 21000
 
 	var lowEnd uint64
@@ -171,7 +171,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	// Get latest batch from the database to get globalExitRoot and Timestamp
@@ -185,7 +185,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	lowEnd, err = core.IntrinsicGas(transaction.Data(), transaction.AccessList(), s.isContractCreation(transaction), true, false, false)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
 	if lowEnd == ethTransferGas && transaction.To() != nil {
@@ -193,7 +193,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		if err != nil {
 			log.Warnf("error while getting transaction.to() code %v", err)
 		} else if len(code) == 0 {
-			return lowEnd, nil
+			return lowEnd, nil, nil
 		}
 	}
 
@@ -211,7 +211,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			if errors.Is(err, ErrNotFound) {
 				senderBalance = big.NewInt(0)
 			} else {
-				return 0, err
+				return 0, nil, err
 			}
 		}
 
@@ -219,7 +219,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		if transaction.Value() != nil {
 			if transaction.Value().Cmp(availableBalance) > 0 {
-				return 0, ErrInsufficientFunds
+				return 0, nil, ErrInsufficientFunds
 			}
 
 			availableBalance.Sub(availableBalance, transaction.Value())
@@ -240,8 +240,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	// Run the transaction with the specified gas value.
 	// Returns a status indicating if the transaction failed, if it was reverted and the accompanying error
-	testTransaction := func(gas uint64, shouldOmitErr bool) (bool, bool, uint64, error) {
-		var gasUsed uint64
+	testTransaction := func(gas uint64, shouldOmitErr bool) (failed, reverted bool, gasUsed uint64, returnValue []byte, err error) {
 		tx := types.NewTx(&types.LegacyTx{
 			Nonce:    transaction.Nonce(),
 			To:       transaction.To(),
@@ -254,7 +253,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, nil)
 		if err != nil {
 			log.Errorf("error encoding unsigned transaction ", err)
-			return false, false, gasUsed, err
+			return false, false, gasUsed, nil, err
 		}
 
 		forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
@@ -290,13 +289,13 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
 			log.Errorf("error estimating gas: %v", err)
-			return false, false, gasUsed, err
+			return false, false, gasUsed, nil, err
 		}
 		gasUsed = processBatchResponse.Responses[0].GasUsed
 		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
 			s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
-			return false, false, gasUsed, err
+			return false, false, gasUsed, nil, err
 		}
 
 		// Check if an out of gas error happened during EVM execution
@@ -307,34 +306,35 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 				// Specifying the transaction failed, but not providing an error
 				// is an indication that a valid error occurred due to low gas,
 				// which will increase the lower bound for the search
-				return true, false, gasUsed, nil
+				return true, false, gasUsed, nil, nil
 			}
 
 			if isEVMRevertError(err) {
 				// The EVM reverted during execution, attempt to extract the
 				// error message and return it
-				return true, true, gasUsed, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
+				returnValue := processBatchResponse.Responses[0].ReturnValue
+				return true, true, gasUsed, returnValue, constructErrorFromRevert(err, returnValue)
 			}
 
-			return true, false, gasUsed, err
+			return true, false, gasUsed, nil, err
 		}
 
-		return false, false, gasUsed, nil
+		return false, false, gasUsed, nil, nil
 	}
 
 	txExecutions := []time.Duration{}
 	var totalExecutionTime time.Duration
 
 	// Check if the highEnd is a good value to make the transaction pass
-	failed, reverted, gasUsed, err := testTransaction(highEnd, false)
+	failed, reverted, gasUsed, returnValue, err := testTransaction(highEnd, false)
 	log.Debugf("Estimate gas. Trying to execute TX with %v gas", highEnd)
 	if failed {
 		if reverted {
-			return 0, err
+			return 0, returnValue, err
 		}
 
 		// The transaction shouldn't fail, for whatever reason, at highEnd
-		return 0, fmt.Errorf(
+		return 0, nil, fmt.Errorf(
 			"unable to apply transaction even for the highest gas limit %d: %w",
 			highEnd,
 			err,
@@ -352,14 +352,14 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
 
-		failed, reverted, _, testErr := testTransaction(mid, true)
+		failed, reverted, _, _, testErr := testTransaction(mid, true)
 		executionTime := time.Since(txExecutionStart)
 		totalExecutionTime += executionTime
 		txExecutions = append(txExecutions, executionTime)
 		if testErr != nil && !reverted {
 			// Reverts are ignored in the binary search, but are checked later on
 			// during the execution for the optimal gas limit found
-			return 0, testErr
+			return 0, nil, testErr
 		}
 
 		if failed {
@@ -379,7 +379,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	} else {
 		log.Error("Estimate gas. Tx not executed")
 	}
-	return highEnd, nil
+	return highEnd, nil, nil
 }
 
 // Checks if executor level valid gas errors occurred

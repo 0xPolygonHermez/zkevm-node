@@ -369,6 +369,67 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 	}
 }
 
+func Test_RevertOnSCCallGasEstimation(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	setup()
+	defer teardown()
+
+	ctx := context.Background()
+
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+		auth.GasLimit = 1000000
+
+		_, scTx, sc, err := Revert2.DeployRevert2(auth, client)
+		require.NoError(t, err)
+
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		tx, err := sc.GenerateError(auth)
+		require.NoError(t, err)
+
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		errMsg := err.Error()
+		prefix := "transaction has failed, reason: execution reverted: Today is not juernes"
+		hasPrefix := strings.HasPrefix(errMsg, prefix)
+		require.True(t, hasPrefix)
+
+		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		require.NoError(t, err)
+
+		assert.Equal(t, receipt.Status, ethTypes.ReceiptStatusFailed)
+
+		msg := ethereum.CallMsg{
+			From: auth.From,
+			To:   tx.To(),
+			Gas:  tx.Gas(),
+
+			Value: tx.Value(),
+			Data:  tx.Data(),
+		}
+		result, err := client.EstimateGas(ctx, msg)
+		require.NotNil(t, err)
+		require.Equal(t, uint64(0), result)
+		rpcErr := err.(rpc.Error)
+		assert.Equal(t, 3, rpcErr.ErrorCode())
+		assert.Equal(t, "execution reverted: Today is not juernes", rpcErr.Error())
+
+		dataErr := err.(rpc.DataError)
+		data := dataErr.ErrorData().(string)
+		decodedData := hex.DecodeBig(data)
+		unpackedData, err := abi.UnpackRevert(decodedData.Bytes())
+		require.NoError(t, err)
+		assert.Equal(t, "Today is not juernes", unpackedData)
+	}
+}
+
 func TestCallMissingParameters(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
