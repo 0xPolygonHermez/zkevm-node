@@ -260,12 +260,27 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	lastBatch.Transactions = lastBatchTxs
 
-	lastStateRoot, err := d.state.GetLastStateRoot(ctx, dbTx)
-	if err != nil {
-		return nil, err
+	var prevLastBatchTxs []types.Transaction
+	if previousLastBatch != nil {
+		prevLastBatchTxs, _, err = state.DecodeTxs(previousLastBatch.BatchL2Data)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+
+	var lastStateRoot common.Hash
+	// If the last two batches has no txs, the stateRoot can not be retrieve from the l2block because there is no tx.
+	// In this case, the stateRoot must be get from the previousLastBatch
+	if len(lastBatchTxs) == 0 && previousLastBatch != nil && len(prevLastBatchTxs) == 0 {
+		lastStateRoot = previousLastBatch.StateRoot
+	} else {
+		lastStateRoot, err = d.state.GetLastStateRoot(ctx, dbTx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	wipBatch := &WipBatch{
