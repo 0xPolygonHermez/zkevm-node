@@ -1112,7 +1112,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 		},
 		{
 			name:          "NoGasPriceTooLowErr_ForClaims",
-			nonce:         1,
+			nonce:         0,
 			to:            &l2BridgeAddr,
 			gasLimit:      cfg.FreeClaimGasLimit,
 			gasPrice:      big.NewInt(0),
@@ -1430,16 +1430,28 @@ func Test_AvoidDuplicatedClaims(t *testing.T) {
 	auth.GasPrice = big.NewInt(0)
 	auth.Nonce = big.NewInt(0)
 
-	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
+	depositCount := uint32(123456789)
+	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, depositCount, [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
 	require.NoError(t, err)
 
+	// add claim
 	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
 
-	auth.Nonce = big.NewInt(1)
-	signedTx, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
+	auth.GasLimit++
+	signedTx, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, depositCount, [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
 	require.NoError(t, err)
 
+	// add claim with same deposit count
 	err = p.AddTx(ctx, *signedTx, "")
 	require.Equal(t, err.Error(), "deposit count already exists")
+
+	auth.Nonce = big.NewInt(1)
+	depositCount = uint32(12345678)
+	signedTx, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, depositCount, [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
+	require.NoError(t, err)
+
+	// add claim with wrong nonce
+	err = p.AddTx(ctx, *signedTx, "")
+	require.Equal(t, err.Error(), "invalid nonce")
 }
