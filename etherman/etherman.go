@@ -116,7 +116,7 @@ type ethereumClient interface {
 // L1Config represents the configuration of the network used in L1
 type L1Config struct {
 	L1ChainID                 uint64         `json:"chainId"`
-	PoEAddr                   common.Address `json:"polygonZkEVMAddress"`
+	ZkEVMAddr                 common.Address `json:"polygonZkEVMAddress"`
 	MaticAddr                 common.Address `json:"maticTokenAddress"`
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
 }
@@ -149,7 +149,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		return nil, err
 	}
 	// Create smc clients
-	poe, err := polygonzkevm.NewPolygonzkevm(l1Config.PoEAddr, ethClient)
+	poe, err := polygonzkevm.NewPolygonzkevm(l1Config.ZkEVMAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, l1Config.PoEAddr, l1Config.GlobalExitRootManagerAddr)
+	scAddresses = append(scAddresses, l1Config.ZkEVMAddr, l1Config.GlobalExitRootManagerAddr)
 
 	gProviders := []ethereum.GasPricer{ethClient}
 	if cfg.MultiGasProvider {
@@ -193,7 +193,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 // VerifyGenBlockNumber verifies if the genesis Block Number is valid
 func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
 	genBlock := big.NewInt(0).SetUint64(genBlockNumber)
-	response, err := etherMan.EthClient.CodeAt(ctx, etherMan.l1Cfg.PoEAddr, genBlock)
+	response, err := etherMan.EthClient.CodeAt(ctx, etherMan.l1Cfg.ZkEVMAddr, genBlock)
 	if err != nil {
 		log.Error("error getting smc code for gen block number. Error: ", err)
 		return false, err
@@ -202,7 +202,7 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 	if responseString == "" {
 		return false, nil
 	}
-	responsePrev, err := etherMan.EthClient.CodeAt(ctx, etherMan.l1Cfg.PoEAddr, genBlock.Sub(genBlock, big.NewInt(1)))
+	responsePrev, err := etherMan.EthClient.CodeAt(ctx, etherMan.l1Cfg.ZkEVMAddr, genBlock.Sub(genBlock, big.NewInt(1)))
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			if errors.Is(parsedErr, ErrMissingTrieNode) {
@@ -961,7 +961,7 @@ func (etherMan *Client) ApproveMatic(ctx context.Context, account common.Address
 	if etherMan.GasProviders.MultiGasProvider {
 		opts.GasPrice = etherMan.GetL1GasPrice(ctx)
 	}
-	tx, err := etherMan.Matic.Approve(&opts, etherMan.l1Cfg.PoEAddr, maticAmount)
+	tx, err := etherMan.Matic.Approve(&opts, etherMan.l1Cfg.ZkEVMAddr, maticAmount)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
