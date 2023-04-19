@@ -853,7 +853,10 @@ func (f *finalizer) isBatchAlmostFull() bool {
 	} else if zkCounters.CumulativeGasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
 		result = true
 	}
-	f.batch.closingReason = state.BatchAlmostFullClosingReason
+
+	if result {
+		f.batch.closingReason = state.BatchAlmostFullClosingReason
+	}
 
 	return result
 }
