@@ -150,9 +150,10 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
 	if err != nil {
 		return err
 	}
-	dropTx, isWIP := d.worker.AddTxTracker(d.ctx, txTracker)
-	if dropTx {
-		return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false)
+	dropReason, isWIP := d.worker.AddTxTracker(d.ctx, txTracker)
+	if dropReason != nil {
+		failedReason := dropReason.Error()
+		return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
 	} else {
 		if isWIP {
 			return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)

@@ -33,22 +33,22 @@ func newAddrQueue(addr common.Address, nonce uint64, balance *big.Int) *addrQueu
 }
 
 // addTx adds a tx to the addrQueue and updates the ready a notReady Txs
-func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx *TxTracker, drop bool) {
+func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx *TxTracker, dropReason error) {
 	if a.currentNonce == tx.Nonce { // Is a possible readyTx
 		// We set the tx as readyTx if we do not have one assigned or if the gasPrice is better or equal than the current readyTx
 		if a.readyTx == nil || ((a.readyTx != nil) && (tx.GasPrice.Cmp(a.readyTx.GasPrice) >= 0)) {
 			oldReadyTx := a.readyTx
 			if a.currentBalance.Cmp(tx.Cost) >= 0 { //
 				a.readyTx = tx
-				return tx, oldReadyTx, false
+				return tx, oldReadyTx, nil
 			} else { // If there is not enough balance we set the new tx as notReadyTxs
 				a.readyTx = nil
 				a.notReadyTxs[tx.Nonce] = tx
-				return nil, oldReadyTx, false
+				return nil, oldReadyTx, nil
 			}
 		}
 	} else if a.currentNonce > tx.Nonce {
-		return nil, nil, true
+		return nil, nil, runtime.ErrIntrinsicInvalidNonce
 	}
 
 	nrTx, found := a.notReadyTxs[tx.Nonce]
@@ -56,7 +56,7 @@ func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx *TxTracker, dr
 		a.notReadyTxs[tx.Nonce] = tx
 	}
 
-	return nil, nil, false
+	return nil, nil, nil
 }
 
 // ExpireTransactions removes the txs that have been in the queue for more than maxTime
