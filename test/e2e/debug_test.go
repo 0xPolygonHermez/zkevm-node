@@ -798,8 +798,10 @@ func TestDebugTraceBlock(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			log.Debug("************************ ", tc.name, " ************************")
+
 			for _, network := range networks {
-				log.Debugf(network.Name)
+				log.Debug("------------------------ ", network.Name, " ------------------------")
 				ethereumClient := operations.MustGetClient(network.URL)
 				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
