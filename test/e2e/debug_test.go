@@ -484,10 +484,10 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	// defer func() {
-	// 	require.NoError(t, operations.Teardown())
-	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	// }()
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	}()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
