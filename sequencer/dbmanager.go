@@ -13,10 +13,6 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-const (
-	wait time.Duration = 5
-)
-
 // Pool Loader and DB Updater
 type dbManager struct {
 	cfg              DBManagerCfg
@@ -59,8 +55,7 @@ func (d *dbManager) Start() {
 	go d.loadFromPool()
 	go func() {
 		for {
-			// TODO: Move this to a config parameter
-			time.Sleep(wait * time.Second)
+			time.Sleep(d.cfg.L2ReorgRetrievalInterval.Duration)
 			d.checkIfReorg()
 		}
 	}()
@@ -157,8 +152,17 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
 	if err != nil {
 		return err
 	}
-	d.worker.AddTxTracker(d.ctx, txTracker)
-	return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
+	dropReason, isWIP := d.worker.AddTxTracker(d.ctx, txTracker)
+	if dropReason != nil {
+		failedReason := dropReason.Error()
+		return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
+	} else {
+		if isWIP {
+			return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
+		}
+	}
+
+	return nil
 }
 
 // BeginStateTransaction starts a db transaction in the state
@@ -178,7 +182,6 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 
 // storeProcessedTxAndDeleteFromPool stores a tx into the state and changes it status in the pool
 func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
-	// TODO: Finish the retry mechanism and error handling
 	for {
 		txToStore := <-d.txsStore.Ch
 		d.checkIfReorg()
@@ -223,7 +226,7 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		}
 
 		// Change Tx status to selected
-		err = d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected, false)
+		err = d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected, false, nil)
 		if err != nil {
 			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
 		}
@@ -548,8 +551,8 @@ func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumbe
 	return d.state.GetTransactionsByBatchNumber(ctx, batchNumber, nil)
 }
 
-func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
-	return d.txPool.UpdateTxStatus(ctx, hash, newStatus, isWIP)
+func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, failedReason *string) error {
+	return d.txPool.UpdateTxStatus(ctx, hash, newStatus, isWIP, failedReason)
 }
 
 // GetLatestVirtualBatchTimestamp gets last virtual batch timestamp
