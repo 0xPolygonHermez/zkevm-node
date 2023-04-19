@@ -1112,7 +1112,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 		},
 		{
 			name:          "NoGasPriceTooLowErr_ForClaims",
-			nonce:         1,
+			nonce:         0,
 			to:            &l2BridgeAddr,
 			gasLimit:      cfg.FreeClaimGasLimit,
 			gasPrice:      big.NewInt(0),
