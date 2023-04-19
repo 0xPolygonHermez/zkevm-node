@@ -103,12 +103,13 @@ func (_m *StateMock) DebugTransaction(ctx context.Context, transactionHash commo
 }
 
 // EstimateGas provides a mock function with given fields: transaction, senderAddress, l2BlockNumber, dbTx
-func (_m *StateMock) EstimateGas(transaction *coretypes.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
+func (_m *StateMock) EstimateGas(transaction *coretypes.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, []byte, error) {
 	ret := _m.Called(transaction, senderAddress, l2BlockNumber, dbTx)
 
 	var r0 uint64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) (uint64, error)); ok {
+	var r1 []byte
+	var r2 error
+	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) (uint64, []byte, error)); ok {
 		return rf(transaction, senderAddress, l2BlockNumber, dbTx)
 	}
 	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) uint64); ok {
@@ -117,13 +118,21 @@ func (_m *StateMock) EstimateGas(transaction *coretypes.Transaction, senderAddre
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) []byte); ok {
 		r1 = rf(transaction, senderAddress, l2BlockNumber, dbTx)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]byte)
+		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) error); ok {
+		r2 = rf(transaction, senderAddress, l2BlockNumber, dbTx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetBalance provides a mock function with given fields: ctx, address, root
