@@ -214,7 +214,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(5),
 		},
 		{
-			path:          "NetworkConfig.L1Config.PoEAddr",
+			path:          "NetworkConfig.L1Config.ZkEVMAddr",
 			expectedValue: common.HexToAddress("0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"),
 		},
 		{
