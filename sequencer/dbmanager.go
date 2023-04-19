@@ -150,8 +150,16 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
 	if err != nil {
 		return err
 	}
-	d.worker.AddTxTracker(d.ctx, txTracker)
-	return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
+	dropTx, isWIP := d.worker.AddTxTracker(d.ctx, txTracker)
+	if dropTx {
+		return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false)
+	} else {
+		if isWIP {
+			return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
+		}
+	}
+
+	return nil
 }
 
 // BeginStateTransaction starts a db transaction in the state
@@ -266,7 +274,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		batchNumber:    lastBatch.BatchNumber,
 		coinbase:       lastBatch.Coinbase,
 		localExitRoot:  lastBatch.LocalExitRoot,
-		timestamp:      uint64(lastBatch.Timestamp.Unix()),
+		timestamp:      lastBatch.Timestamp,
 		globalExitRoot: lastBatch.GlobalExitRoot,
 		countOfTxs:     len(lastBatch.Transactions),
 	}
@@ -297,7 +305,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		processingContext := &state.ProcessingContext{
 			BatchNumber:    wipBatch.batchNumber,
 			Coinbase:       wipBatch.coinbase,
-			Timestamp:      time.Unix(int64(wipBatch.timestamp), 0),
+			Timestamp:      wipBatch.timestamp,
 			GlobalExitRoot: wipBatch.globalExitRoot,
 		}
 		err = d.state.OpenBatch(ctx, *processingContext, dbTx)
@@ -429,7 +437,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    request.BatchNumber,
 		Coinbase:       request.Coinbase,
-		Timestamp:      time.Unix(int64(request.Timestamp), 0),
+		Timestamp:      request.Timestamp,
 		GlobalExitRoot: request.GlobalExitRoot,
 		ForcedBatchNum: &forcedBatchNum,
 	}

@@ -157,7 +157,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		OldStateRoot:     request.OldStateRoot.Bytes(),
 		GlobalExitRoot:   request.GlobalExitRoot.Bytes(),
 		OldAccInputHash:  request.OldAccInputHash.Bytes(),
-		EthTimestamp:     request.Timestamp,
+		EthTimestamp:     uint64(request.Timestamp.Unix()),
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
