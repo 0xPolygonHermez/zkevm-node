@@ -13,10 +13,6 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-const (
-	wait time.Duration = 5
-)
-
 // Pool Loader and DB Updater
 type dbManager struct {
 	cfg              DBManagerCfg
@@ -57,8 +53,7 @@ func (d *dbManager) Start() {
 	go d.loadFromPool()
 	go func() {
 		for {
-			// TODO: Move this to a config parameter
-			time.Sleep(wait * time.Second)
+			time.Sleep(d.cfg.L2ReorgRetrievalInterval.Duration)
 			d.checkIfReorg()
 		}
 	}()
@@ -184,7 +179,6 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 
 // storeProcessedTxAndDeleteFromPool stores a tx into the state and changes it status in the pool
 func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
-	// TODO: Finish the retry mechanism and error handling
 	for {
 		txToStore := <-d.txsStore.Ch
 		d.checkIfReorg()
