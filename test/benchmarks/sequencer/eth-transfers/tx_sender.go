@@ -23,7 +23,6 @@ var (
 
 // TxSender sends eth transfer to the sequencer
 func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts, erc20SC *ERC20.ERC20) error {
-	countTxs += 1
 	log.Debugf("sending tx num: %d nonce: %d", countTxs, nonce)
 	auth.Nonce = big.NewInt(int64(nonce))
 	tx := types.NewTransaction(nonce, params.To, ethAmount, uint64(gasLimit), gasPrice, nil)
@@ -38,6 +37,10 @@ func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth 
 			time.Sleep(sleepTime)
 			err = l2Client.SendTransaction(params.Ctx, signedTx)
 		}
+	}
+
+	if err == nil {
+		countTxs += 1
 	}
 
 	return err

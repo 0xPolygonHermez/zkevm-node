@@ -29,16 +29,27 @@ func SendAndWait(
 	log.Debugf("Sending %d txs ...", nTxs)
 	startingNonce := auth.Nonce.Uint64()
 	maxNonce := uint64(nTxs) + startingNonce
+	initialPendingCount, err := countByStatusFunc(params.Ctx, pool.TxStatusPending)
+	if err != nil {
+		panic(err)
+	}
 
 	for nonce := startingNonce; nonce < maxNonce; nonce++ {
-		err := txSenderFunc(client, auth.GasPrice, nonce, auth, erc20SC)
+		err = txSenderFunc(client, auth.GasPrice, nonce, auth, erc20SC)
 		if err != nil {
+			for err != nil && err.Error() == "nonce intrinsic error" {
+				log.Warnf("nonce intrinsic error, retrying with nonce %d", nonce)
+				err = txSenderFunc(client, auth.GasPrice, nonce, auth, erc20SC)
+			}
+			if err == nil {
+				continue
+			}
 			return err
 		}
 	}
 	log.Debug("All txs were sent!")
 	log.Debug("Waiting pending transactions To be added in the pool ...")
-	err := operations.Poll(1*time.Second, params.DefaultDeadline, func() (bool, error) {
+	err = operations.Poll(1*time.Second, params.DefaultDeadline, func() (bool, error) {
 		// using a closure here To capture st and currentBatchNumber
 		count, err := countByStatusFunc(ctx, pool.TxStatusPending)
 		if err != nil {
@@ -46,7 +57,7 @@ func SendAndWait(
 		}
 
 		log.Debugf("amount of pending txs: %d\n", count)
-		done := count == 0
+		done := count-initialPendingCount == 0
 		return done, nil
 	})
 	if err != nil {
