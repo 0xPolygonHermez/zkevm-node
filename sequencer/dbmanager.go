@@ -270,7 +270,6 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		}
 	}
 
-
 	var lastStateRoot common.Hash
 	// If the last two batches has no txs, the stateRoot can not be retrieve from the l2block because there is no tx.
 	// In this case, the stateRoot must be get from the previousLastBatch
