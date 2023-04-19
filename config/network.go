@@ -17,7 +17,7 @@ import (
 
 // NetworkConfig is the configuration struct for the different environments
 type NetworkConfig struct {
-	L1Config                    etherman.L1Config
+	L1Config                    etherman.L1Config `json:"l1Config"`
 	L2GlobalExitRootManagerAddr common.Address
 	L2BridgeAddr                common.Address
 	Genesis                     state.Genesis

@@ -25,11 +25,11 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 			inputConfigStr: `{
 				"root": "0xBEEF",
 				"genesisBlockNumber": 69,
-				"L1Config" : {
-					"L1ChainID": 420,
-					"PoEAddr": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
-					"MaticAddr": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
-					"GlobalExitRootManagerAddr": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
+				"l1Config" : {
+					"chainId": 420,
+					"polygonZkEVMAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
+					"maticTokenAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
+					"polygonZkEVMGlobalExitRootAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
 				},
 				"genesis": [
 					{

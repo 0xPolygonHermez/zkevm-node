@@ -115,10 +115,10 @@ type ethereumClient interface {
 
 // L1Config represents the configuration of the network used in L1
 type L1Config struct {
-	L1ChainID                 uint64
-	PoEAddr                   common.Address
-	MaticAddr                 common.Address
-	GlobalExitRootManagerAddr common.Address
+	L1ChainID                 uint64         `json:"chainId"`
+	PoEAddr                   common.Address `json:"polygonZkEVMAddress"`
+	MaticAddr                 common.Address `json:"maticTokenAddress"`
+	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
 }
 
 type externalGasProviders struct {

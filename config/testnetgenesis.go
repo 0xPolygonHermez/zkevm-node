@@ -3,11 +3,11 @@ package config
 // TestnetNetworkConfigJSON is the hardcoded network configuration to be used for the official mainnet setup
 const TestnetNetworkConfigJSON = `
 {
-	"L1Config" : {
-		"L1ChainID": 5,
-		"PoEAddr": "0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A",
-		"MaticAddr": "0x1319D23c2F7034F52Eb07399702B040bA278Ca49",
-		"GlobalExitRootManagerAddr": "0x4d9427DCA0406358445bC0a8F88C26b704004f74"
+	"l1Config" : {
+		"chainId": 5,
+		"polygonZkEVMAddress": "0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A",
+		"maticTokenAddress": "0x1319D23c2F7034F52Eb07399702B040bA278Ca49",
+		"polygonZkEVMGlobalExitRootAddress": "0x4d9427DCA0406358445bC0a8F88C26b704004f74"
 	},
 	"root": "0x13a14c4a8288e782863d7ce916d224546c69dc428fbfa7115a0cc33a27a05b26",
     "genesisBlockNumber": 8572998,
