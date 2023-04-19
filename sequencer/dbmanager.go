@@ -13,15 +13,11 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-const (
-	wait time.Duration = 5
-)
-
 // Pool Loader and DB Updater
 type dbManager struct {
 	cfg              DBManagerCfg
 	txPool           txPool
-	state            dbManagerStateInterface
+	state            stateInterface
 	worker           workerInterface
 	txsStore         TxsStore
 	l2ReorgCh        chan L2ReorgEvent
@@ -43,7 +39,7 @@ type ClosingBatchParameters struct {
 	Txs           []types.Transaction
 }
 
-func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state dbManagerStateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
+func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
 	numberOfReorgs, err := state.CountReorgs(ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)
@@ -57,8 +53,7 @@ func (d *dbManager) Start() {
 	go d.loadFromPool()
 	go func() {
 		for {
-			// TODO: Move this to a config parameter
-			time.Sleep(wait * time.Second)
+			time.Sleep(d.cfg.L2ReorgRetrievalInterval.Duration)
 			d.checkIfReorg()
 		}
 	}()
@@ -155,8 +150,16 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
 	if err != nil {
 		return err
 	}
-	d.worker.AddTxTracker(d.ctx, txTracker)
-	return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
+	dropTx, isWIP := d.worker.AddTxTracker(d.ctx, txTracker)
+	if dropTx {
+		return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false)
+	} else {
+		if isWIP {
+			return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
+		}
+	}
+
+	return nil
 }
 
 // BeginStateTransaction starts a db transaction in the state
@@ -176,7 +179,6 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 
 // storeProcessedTxAndDeleteFromPool stores a tx into the state and changes it status in the pool
 func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
-	// TODO: Finish the retry mechanism and error handling
 	for {
 		txToStore := <-d.txsStore.Ch
 		d.checkIfReorg()
@@ -272,7 +274,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		batchNumber:    lastBatch.BatchNumber,
 		coinbase:       lastBatch.Coinbase,
 		localExitRoot:  lastBatch.LocalExitRoot,
-		timestamp:      uint64(lastBatch.Timestamp.Unix()),
+		timestamp:      lastBatch.Timestamp,
 		globalExitRoot: lastBatch.GlobalExitRoot,
 		countOfTxs:     len(lastBatch.Transactions),
 	}
@@ -303,7 +305,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		processingContext := &state.ProcessingContext{
 			BatchNumber:    wipBatch.batchNumber,
 			Coinbase:       wipBatch.coinbase,
-			Timestamp:      time.Unix(int64(wipBatch.timestamp), 0),
+			Timestamp:      wipBatch.timestamp,
 			GlobalExitRoot: wipBatch.globalExitRoot,
 		}
 		err = d.state.OpenBatch(ctx, *processingContext, dbTx)
@@ -435,7 +437,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    request.BatchNumber,
 		Coinbase:       request.Coinbase,
-		Timestamp:      time.Unix(int64(request.Timestamp), 0),
+		Timestamp:      request.Timestamp,
 		GlobalExitRoot: request.GlobalExitRoot,
 		ForcedBatchNum: &forcedBatchNum,
 	}

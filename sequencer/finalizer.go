@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,16 +43,14 @@ type finalizer struct {
 	sharedResourcesMux *sync.RWMutex
 	lastGERHash        common.Hash
 	// closing signals
-	nextGER                   common.Hash
-	nextGERDeadline           int64
-	nextGERMux                *sync.RWMutex
-	nextForcedBatches         []state.ForcedBatch
-	nextForcedBatchDeadline   int64
-	nextForcedBatchesMux      *sync.RWMutex
-	nextSendingToL1Deadline   int64
-	nextSendingToL1TimeoutMux *sync.RWMutex
-	handlingL2Reorg           bool
-	eventLog                  *event.EventLog
+	nextGER                 common.Hash
+	nextGERDeadline         int64
+	nextGERMux              *sync.RWMutex
+	nextForcedBatches       []state.ForcedBatch
+	nextForcedBatchDeadline int64
+	nextForcedBatchesMux    *sync.RWMutex
+	handlingL2Reorg         bool
+	eventLog                *event.EventLog
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -61,7 +60,7 @@ type WipBatch struct {
 	initialStateRoot   common.Hash
 	stateRoot          common.Hash
 	localExitRoot      common.Hash
-	timestamp          uint64
+	timestamp          time.Time
 	globalExitRoot     common.Hash // 0x000...0 (ZeroHash) means to not update
 	remainingResources batchResources
 	countOfTxs         int
@@ -99,15 +98,13 @@ func newFinalizer(
 		sharedResourcesMux: new(sync.RWMutex),
 		lastGERHash:        state.ZeroHash,
 		// closing signals
-		nextGER:                   common.Hash{},
-		nextGERDeadline:           0,
-		nextGERMux:                new(sync.RWMutex),
-		nextForcedBatches:         make([]state.ForcedBatch, 0),
-		nextForcedBatchDeadline:   0,
-		nextForcedBatchesMux:      new(sync.RWMutex),
-		nextSendingToL1Deadline:   0,
-		nextSendingToL1TimeoutMux: new(sync.RWMutex),
-		eventLog:                  eventLog,
+		nextGER:                 common.Hash{},
+		nextGERDeadline:         0,
+		nextGERMux:              new(sync.RWMutex),
+		nextForcedBatches:       make([]state.ForcedBatch, 0),
+		nextForcedBatchDeadline: 0,
+		nextForcedBatchesMux:    new(sync.RWMutex),
+		eventLog:                eventLog,
 	}
 }
 
@@ -183,14 +180,6 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			f.handlingL2Reorg = true
 			f.halt(ctx, fmt.Errorf("L2 reorg event received"))
 			return
-		// Too much time without batches in L1 ch
-		case <-f.closingSignalCh.SendingToL1TimeoutCh:
-			log.Debug("finalizer received timeout for sending to L1")
-			f.nextSendingToL1TimeoutMux.Lock()
-			if f.nextSendingToL1Deadline == 0 {
-				f.setNextSendingToL1Deadline()
-			}
-			f.nextSendingToL1TimeoutMux.Unlock()
 		}
 	}
 }
@@ -203,13 +192,17 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
+			// Timestamp resolution
+			if f.batch.isEmpty() {
+				f.batch.timestamp = now()
+			}
+
 			f.sharedResourcesMux.Lock()
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
 			err := f.processTransaction(ctx, tx)
 			if err != nil {
 				log.Errorf("failed to process transaction in finalizeBatches, Err: %v", err)
 			}
-
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
@@ -336,11 +329,6 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	f.nextGERDeadline = 0
 	f.nextGERMux.Unlock()
 
-	// Reset nextSendingToL1Deadline
-	f.nextSendingToL1TimeoutMux.Lock()
-	f.nextSendingToL1Deadline = 0
-	f.nextSendingToL1TimeoutMux.Unlock()
-
 	batch, err := f.openWIPBatch(ctx, lastBatchNumber+1, f.lastGERHash, stateRoot)
 	if err == nil {
 		f.processRequest.Timestamp = batch.timestamp
@@ -435,7 +423,7 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 		batchNumber:              f.batch.batchNumber,
 		txResponse:               txResponse,
 		coinbase:                 f.batch.coinbase,
-		timestamp:                f.batch.timestamp,
+		timestamp:                uint64(f.batch.timestamp.Unix()),
 		previousL2BlockStateRoot: previousL2BlockStateRoot,
 	}
 
@@ -581,7 +569,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      f.batch.timestamp,
 		Transactions:   make([]byte, 0, 1),
-		Caller:         state.SequencerCallerLabel,
+		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 
 	log.Infof("synced with state, lastBatchNum: %d. State root: %s", *lastBatchNum, f.batch.initialStateRoot.Hex())
@@ -631,8 +619,8 @@ func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot 
 		GlobalExitRoot: forcedBatch.GlobalExitRoot,
 		Transactions:   forcedBatch.RawTxsData,
 		Coinbase:       f.sequencerAddress,
-		Timestamp:      uint64(now().Unix()),
-		Caller:         state.SequencerCallerLabel,
+		Timestamp:      now(),
+		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, processRequest)
 	if err != nil {
@@ -682,7 +670,7 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 		coinbase:           f.sequencerAddress,
 		initialStateRoot:   stateRoot,
 		stateRoot:          stateRoot,
-		timestamp:          uint64(openBatchResp.Timestamp.Unix()),
+		timestamp:          openBatchResp.Timestamp,
 		globalExitRoot:     ger,
 		remainingResources: getMaxRemainingResources(f.batchConstraints),
 	}, err
@@ -734,8 +722,8 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 		OldStateRoot:   f.batch.initialStateRoot,
 		Transactions:   batch.BatchL2Data,
 		Coinbase:       batch.Coinbase,
-		Timestamp:      uint64(batch.Timestamp.Unix()),
-		Caller:         state.DiscardCallerLabel,
+		Timestamp:      batch.Timestamp,
+		Caller:         stateMetrics.DiscardCallerLabel,
 	}
 	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, Ger: %s", batch.BatchNumber, f.batch.initialStateRoot.String(), batch.GlobalExitRoot.String())
 	txs, _, err := state.DecodeTxs(batch.BatchL2Data)
@@ -815,19 +803,16 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	// Forced batch deadline
 	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
 		log.Infof("Closing batch: %d, forced batch deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
 		return true
 	}
 	// Global Exit Root deadline
 	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
 		log.Infof("Closing batch: %d, Global Exit Root deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
 		return true
 	}
-	// Delayed batch deadline
-	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline && !f.batch.isEmpty() {
-		log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
+	// Timestamp resolution deadline
+	if !f.batch.isEmpty() && f.batch.timestamp.Add(f.cfg.TimestampResolution.Duration).Before(time.Now()) {
+		log.Infof("Closing batch: %d, because of timestamp resolution.", f.batch.batchNumber)
 		return true
 	}
 	return false
@@ -889,10 +874,6 @@ func (f *finalizer) setNextForcedBatchDeadline() {
 
 func (f *finalizer) setNextGERDeadline() {
 	f.nextGERDeadline = now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration.Seconds())
-}
-
-func (f *finalizer) setNextSendingToL1Deadline() {
-	f.nextSendingToL1Deadline = now().Unix() + int64(f.cfg.SendingToL1DeadlineTimeoutInSec.Duration.Seconds())
 }
 
 func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
