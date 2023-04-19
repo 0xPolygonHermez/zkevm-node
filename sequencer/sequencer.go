@@ -177,9 +177,9 @@ func (s *Sequencer) Start(ctx context.Context) {
 		for {
 			time.Sleep(s.cfg.TxLifetimeCheckTimeout.Duration)
 			txTrackers := worker.ExpireTransactions(s.cfg.MaxTxLifetime.Duration)
-
+			failedReason := ErrExpiredTransaction.Error()
 			for _, txTracker := range txTrackers {
-				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false)
+				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
 				if err != nil {
 					log.Errorf("failed to update tx status, err: %v", err)
 				}

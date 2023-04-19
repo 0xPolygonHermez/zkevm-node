@@ -21,18 +21,18 @@ type WorkerMock struct {
 }
 
 // AddTxTracker provides a mock function with given fields: ctx, txTracker
-func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) (bool, bool) {
+func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) (error, bool) {
 	ret := _m.Called(ctx, txTracker)
 
-	var r0 bool
+	var r0 error
 	var r1 bool
-	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) (bool, bool)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) (error, bool)); ok {
 		return rf(ctx, txTracker)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) bool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) error); ok {
 		r0 = rf(ctx, txTracker)
 	} else {
-		r0 = ret.Get(0).(bool)
+		r0 = ret.Error(0)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, *TxTracker) bool); ok {

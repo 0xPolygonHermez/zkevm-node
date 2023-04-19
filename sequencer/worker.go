@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"runtime"
 	"sync"
@@ -44,7 +45,7 @@ func (w *Worker) NewTxTracker(tx types.Transaction, isClaim bool, counters state
 }
 
 // AddTxTracker adds a new Tx to the Worker
-func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropTx, isWIP bool) {
+func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropReason error, isWIP bool) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
@@ -56,18 +57,21 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropTx, isWIP
 
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
-			log.Errorf("AddTx GetLastStateRoot error: %v", err)
-			return false, false
+			dropReason = fmt.Errorf("AddTx GetLastStateRoot error: %v", err)
+			log.Error(dropReason)
+			return dropReason, false
 		}
 		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if err != nil {
-			log.Errorf("AddTx GetNonceByStateRoot error: %v", err)
-			return false, false
+			dropReason = fmt.Errorf("AddTx GetNonceByStateRoot error: %v", err)
+			log.Error(dropReason)
+			return dropReason, false
 		}
 		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if err != nil {
-			log.Errorf("AddTx GetBalanceByStateRoot error: %v", err)
-			return false, false
+			dropReason = fmt.Errorf("AddTx GetBalanceByStateRoot error: %v", err)
+			log.Error(dropReason)
+			return dropReason, false
 		}
 
 		addr = newAddrQueue(tx.From, nonce.Uint64(), balance)
@@ -82,10 +86,10 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropTx, isWIP
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
 	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s)", tx.Hash.String(), tx.Nonce, tx.Cost.String(), tx.FromStr)
 	var newReadyTx, prevReadyTx *TxTracker
-	newReadyTx, prevReadyTx, dropTx = addr.addTx(tx)
-	if dropTx {
+	newReadyTx, prevReadyTx, dropReason = addr.addTx(tx)
+	if dropReason != nil {
 		log.Infof("AddTx tx(%s) dropped from addrQueue(%s)", tx.Hash.String(), tx.FromStr)
-		return dropTx, false
+		return dropReason, false
 	}
 
 	// Update the EfficiencyList (if needed)
@@ -98,7 +102,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropTx, isWIP
 		w.efficiencyList.add(newReadyTx)
 	}
 
-	return false, true
+	return nil, true
 }
 
 func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker, []*TxTracker) {

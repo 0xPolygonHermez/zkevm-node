@@ -28,6 +28,7 @@ type TxTracker struct {
 	RawTx                  []byte
 	ReceivedAt             time.Time // To check if it has been in the efficiency list for too long
 	IP                     string    // IP of the tx sender
+	FailedReason           *string   // FailedReason is the reason why the tx failed, if it failed
 	constraints            batchConstraintsFloat64
 	weightMultipliers      batchResourceWeightMultipliers
 	resourceCostMultiplier float64
