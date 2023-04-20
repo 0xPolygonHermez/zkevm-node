@@ -20,10 +20,10 @@ type TxTracker struct {
 	Nonce                  uint64
 	Gas                    uint64 // To check if it fits into a batch
 	GasPrice               *big.Int
-	Cost                   *big.Int       // Cost = Amount + Benefit
-	Benefit                *big.Int       // GasLimit * GasPrice
-	IsClaim                bool           // Needed to calculate efficiency
-	BatchResources         batchResources // To check if it fits into a batch
+	Cost                   *big.Int             // Cost = Amount + Benefit
+	Benefit                *big.Int             // GasLimit * GasPrice
+	IsClaim                bool                 // Needed to calculate efficiency
+	BatchResources         state.BatchResources // To check if it fits into a batch
 	Efficiency             float64
 	RawTx                  []byte
 	ReceivedAt             time.Time // To check if it has been in the efficiency list for too long
@@ -68,13 +68,13 @@ func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters,
 	if err != nil {
 		return nil, err
 	}
+
+	totalWeight := float64(weights.WeightArithmetics + weights.WeightBatchBytesSize + weights.WeightBinaries + weights.WeightCumulativeGasUsed +
+		weights.WeightKeccakHashes + weights.WeightMemAligns + weights.WeightPoseidonHashes + weights.WeightPoseidonPaddings + weights.WeightSteps)
 	rawTx, err := state.EncodeTransactions([]types.Transaction{tx})
 	if err != nil {
 		return nil, err
 	}
-	totalWeight := float64(weights.WeightArithmetics + weights.WeightBatchBytesSize + weights.WeightBinaries + weights.WeightCumulativeGasUsed +
-		weights.WeightKeccakHashes + weights.WeightMemAligns + weights.WeightPoseidonHashes + weights.WeightPoseidonPaddings + weights.WeightSteps)
-
 	txTracker := &TxTracker{
 		Hash:     tx.Hash(),
 		HashStr:  tx.Hash().String(),
@@ -86,9 +86,9 @@ func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters,
 		Cost:     tx.Cost(),
 		Benefit:  new(big.Int).Mul(new(big.Int).SetUint64(tx.Gas()), tx.GasPrice()),
 		IsClaim:  isClaim,
-		BatchResources: batchResources{
-			bytes:      tx.Size(),
-			zKCounters: counters,
+		BatchResources: state.BatchResources{
+			Bytes:      tx.Size(),
+			ZKCounters: counters,
 		},
 		Efficiency:             0,
 		RawTx:                  rawTx,
@@ -99,30 +99,37 @@ func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters,
 		resourceCostMultiplier: resourceCostMultiplier,
 		totalWeight:            totalWeight,
 	}
-	txTracker.calculateEfficiency()
+	txTracker.calculateEfficiency(constraints, weights)
 
 	return txTracker, nil
 }
 
 // updateZKCounters updates the counters of the tx and recalculates the tx efficiency
-func (tx *TxTracker) updateZKCounters(counters state.ZKCounters) {
-	tx.BatchResources.zKCounters = counters
-	tx.calculateEfficiency()
+
+func (tx *TxTracker) updateZKCounters(counters state.ZKCounters, constraints batchConstraintsFloat64, weights batchResourceWeights) {
+	tx.BatchResources.ZKCounters = counters
+	tx.calculateEfficiency(constraints, weights)
 }
 
 // calculateEfficiency calculates the tx efficiency
-func (tx *TxTracker) calculateEfficiency() {
-	resourceCost := (float64(tx.BatchResources.zKCounters.CumulativeGasUsed)/tx.constraints.maxCumulativeGasUsed)*tx.weightMultipliers.cumulativeGasUsed +
-		(float64(tx.BatchResources.zKCounters.UsedArithmetics)/tx.constraints.maxArithmetics)*tx.weightMultipliers.arithmetics +
-		(float64(tx.BatchResources.zKCounters.UsedBinaries)/tx.constraints.maxBinaries)*tx.weightMultipliers.binaries +
-		(float64(tx.BatchResources.zKCounters.UsedKeccakHashes)/tx.constraints.maxKeccakHashes)*tx.weightMultipliers.keccakHashes +
-		(float64(tx.BatchResources.zKCounters.UsedMemAligns)/tx.constraints.maxMemAligns)*tx.weightMultipliers.memAligns +
-		(float64(tx.BatchResources.zKCounters.UsedPoseidonHashes)/tx.constraints.maxPoseidonHashes)*tx.weightMultipliers.poseidonHashes +
-		(float64(tx.BatchResources.zKCounters.UsedPoseidonPaddings)/tx.constraints.maxPoseidonPaddings)*tx.weightMultipliers.poseidonPaddings +
-		(float64(tx.BatchResources.zKCounters.UsedSteps)/tx.constraints.maxSteps)*tx.weightMultipliers.steps +
-		(float64(tx.BatchResources.bytes)/tx.constraints.maxBatchBytesSize)*tx.weightMultipliers.batchBytesSize
+func (tx *TxTracker) calculateEfficiency(constraints batchConstraintsFloat64, weights batchResourceWeights) {
+	totalWeight := float64(weights.WeightArithmetics + weights.WeightBatchBytesSize + weights.WeightBinaries + weights.WeightCumulativeGasUsed +
+		weights.WeightKeccakHashes + weights.WeightMemAligns + weights.WeightPoseidonHashes + weights.WeightPoseidonPaddings + weights.WeightSteps)
+
+	// TODO: Optmize tx.Efficiency calculation (precalculate constansts values)
+	// TODO: Evaluate avoid type conversion (performance impact?)
+	resourceCost := (float64(tx.BatchResources.ZKCounters.CumulativeGasUsed)/constraints.maxCumulativeGasUsed)*float64(weights.WeightCumulativeGasUsed)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedArithmetics)/constraints.maxArithmetics)*float64(weights.WeightArithmetics)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedBinaries)/constraints.maxBinaries)*float64(weights.WeightBinaries)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedKeccakHashes)/constraints.maxKeccakHashes)*float64(weights.WeightKeccakHashes)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedMemAligns)/constraints.maxMemAligns)*float64(weights.WeightMemAligns)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedPoseidonHashes)/constraints.maxPoseidonHashes)*float64(weights.WeightPoseidonHashes)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedPoseidonPaddings)/constraints.maxPoseidonPaddings)*float64(weights.WeightPoseidonPaddings)/totalWeight +
+		(float64(tx.BatchResources.ZKCounters.UsedSteps)/constraints.maxSteps)*float64(weights.WeightSteps)/totalWeight +
+		(float64(tx.BatchResources.Bytes)/constraints.maxBatchBytesSize)*float64(weights.WeightBatchBytesSize)/totalWeight //Meto config
 
 	resourceCost = resourceCost * tx.resourceCostMultiplier
+
 	var eff *big.Float
 	if tx.IsClaim {
 		eff = big.NewFloat(math.MaxFloat64)

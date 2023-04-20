@@ -133,6 +133,29 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 	return nil
 }
 
+// BatchResources is a struct that contains the ZKEVM resources used by a batch/tx
+type BatchResources struct {
+	ZKCounters ZKCounters
+	Bytes      uint64
+}
+
+// Sub subtracts the batch resources from other
+func (r *BatchResources) Sub(other BatchResources) error {
+	// Bytes
+	if other.Bytes > r.Bytes {
+		return ErrBatchResourceBytesUnderflow
+	}
+	bytesBackup := r.Bytes
+	r.Bytes -= other.Bytes
+	err := r.ZKCounters.Sub(other.ZKCounters)
+	if err != nil {
+		r.Bytes = bytesBackup
+		return NewBatchRemainingResourcesUnderflowError(err, err.Error())
+	}
+
+	return err
+}
+
 // InfoReadWrite has information about modified addresses during the execution
 type InfoReadWrite struct {
 	Address common.Address
