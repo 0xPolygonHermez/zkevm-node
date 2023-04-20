@@ -15,7 +15,6 @@ DOCKERCOMPOSEEXPLORERL2 := zkevm-explorer-l2
 DOCKERCOMPOSEEXPLORERL2DB := zkevm-explorer-l2-db
 DOCKERCOMPOSEEXPLORERRPC := zkevm-explorer-json-rpc
 DOCKERCOMPOSEZKPROVER := zkevm-prover
-DOCKERCOMPOSEZKPROVERMOCK := zkprover-mock
 DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
 DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
 DOCKERCOMPOSEPERMISSIONLESSZKPROVER := zkevm-permissionless-prover
@@ -258,14 +257,6 @@ run-zkprover: ## Runs zkprover
 .PHONY: stop-zkprover
 stop-zkprover: ## Stops zkprover
 	$(STOPZKPROVER)
-
-.PHONY: run-zkprover-mock
-run-zkprover-mock: ## Runs zkprover-mock
-	$(RUNZKPROVERMOCK)
-
-.PHONY: stop-zkprover-mock
-stop-zkprover-mock: ## Stops zkprover-mock
-	$(STOPZKPROVERMOCK)
 
 .PHONY: run-l1-explorer
 run-l1-explorer: ## Runs L1 blockscan explorer 
