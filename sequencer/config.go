@@ -98,6 +98,9 @@ type Config struct {
 
 	// DBManager's specific config properties
 	DBManager DBManagerCfg `mapstructure:"DBManager"`
+
+	// Worker's specific config properties
+	Worker WorkerCfg `mapstructure:"Worker"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -105,11 +108,8 @@ type FinalizerCfg struct {
 	// GERDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to update Global Exit Root
 	GERDeadlineTimeoutInSec types.Duration `mapstructure:"GERDeadlineTimeoutInSec"`
 
-	// SendingToL1DeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to process Forced Batches
+	// ForcedBatchDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to process Forced Batches
 	ForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"ForcedBatchDeadlineTimeoutInSec"`
-
-	// SendingToL1DeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to sends a batch to L1
-	SendingToL1DeadlineTimeoutInSec types.Duration `mapstructure:"SendingToL1DeadlineTimeoutInSec"`
 
 	// SleepDurationInMs is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
 	SleepDurationInMs types.Duration `mapstructure:"SleepDurationInMs"`
@@ -132,6 +132,9 @@ type FinalizerCfg struct {
 	// ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
 	ForcedBatchesFinalityNumberOfBlocks uint64 `mapstructure:"ForcedBatchesFinalityNumberOfBlocks"`
 
+	// TimestampResolution is the resolution of the timestamp used to close a batch
+	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
+
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
 	SenderAddress string `mapstructure:"SenderAddress"`
@@ -141,7 +144,14 @@ type FinalizerCfg struct {
 	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
 }
 
+// WorkerCfg contains the Worker's configuration properties
+type WorkerCfg struct {
+	// ResourceCostMultiplier is the multiplier for the resource cost
+	ResourceCostMultiplier float64 `mapstructure:"ResourceCostMultiplier"`
+}
+
 // DBManagerCfg contains the DBManager's configuration properties
 type DBManagerCfg struct {
-	PoolRetrievalInterval types.Duration `mapstructure:"PoolRetrievalInterval"`
+	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
+	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
 }

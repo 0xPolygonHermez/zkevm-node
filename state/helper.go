@@ -152,7 +152,7 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 			len = n + num - f7 // num - f7 is the header. For example 0xf7
 		}
 		if len > int64(txDataLength) || len < 0 {
-			return []types.Transaction{}, txsData, InvalidData
+			return []types.Transaction{}, txsData, ErrInvalidData
 		}
 
 		fullDataTx := txsData[pos : pos+len+rLength+sLength+vLength+headerByteLength]
@@ -167,7 +167,7 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 		var rlpFields [][]byte
 		err = rlp.DecodeBytes(txInfo, &rlpFields)
 		if err != nil {
-			log.Debug("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+			log.Debug("error decoding tx Bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
 			return []types.Transaction{}, txsData, err
 		}
 

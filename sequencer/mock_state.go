@@ -8,6 +8,8 @@ import (
 
 	common "github.com/ethereum/go-ethereum/common"
 
+	metrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
+
 	mock "github.com/stretchr/testify/mock"
 
 	pb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
@@ -767,15 +769,15 @@ func (_m *StateMock) ProcessBatch(ctx context.Context, request state.ProcessRequ
 }
 
 // ProcessSequencerBatch provides a mock function with given fields: ctx, batchNumber, batchL2Data, caller, dbTx
-func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller state.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
+func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
 	ret := _m.Called(ctx, batchNumber, batchL2Data, caller, dbTx)
 
 	var r0 *state.ProcessBatchResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, state.CallerLabel, pgx.Tx) (*state.ProcessBatchResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, metrics.CallerLabel, pgx.Tx) (*state.ProcessBatchResponse, error)); ok {
 		return rf(ctx, batchNumber, batchL2Data, caller, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, state.CallerLabel, pgx.Tx) *state.ProcessBatchResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, metrics.CallerLabel, pgx.Tx) *state.ProcessBatchResponse); ok {
 		r0 = rf(ctx, batchNumber, batchL2Data, caller, dbTx)
 	} else {
 		if ret.Get(0) != nil {
@@ -783,7 +785,7 @@ func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, []byte, state.CallerLabel, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, []byte, metrics.CallerLabel, pgx.Tx) error); ok {
 		r1 = rf(ctx, batchNumber, batchL2Data, caller, dbTx)
 	} else {
 		r1 = ret.Error(1)

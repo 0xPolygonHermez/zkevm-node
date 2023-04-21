@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"runtime"
 	"sync"
@@ -15,21 +16,23 @@ import (
 
 // Worker represents the worker component of the sequencer
 type Worker struct {
+	cfg                  WorkerCfg
 	pool                 map[string]*addrQueue
 	efficiencyList       *efficiencyList
 	workerMutex          sync.Mutex
 	state                stateInterface
-	batchConstraints     batchConstraints
+	batchConstraints     batchConstraintsFloat64
 	batchResourceWeights batchResourceWeights
 }
 
 // NewWorker creates an init a worker
-func NewWorker(state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
+func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
 	w := Worker{
+		cfg:                  cfg,
 		pool:                 make(map[string]*addrQueue),
 		efficiencyList:       newEfficiencyList(),
 		state:                state,
-		batchConstraints:     constraints,
+		batchConstraints:     convertBatchConstraintsToFloat64(constraints),
 		batchResourceWeights: weights,
 	}
 
@@ -38,12 +41,11 @@ func NewWorker(state stateInterface, constraints batchConstraints, weights batch
 
 // NewTxTracker creates and inits a TxTracker
 func (w *Worker) NewTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, ip string) (*TxTracker, error) {
-	return newTxTracker(tx, isClaim, counters, w.batchConstraints, w.batchResourceWeights, ip)
+	return newTxTracker(tx, isClaim, counters, w.batchConstraints, w.batchResourceWeights, w.cfg.ResourceCostMultiplier, ip)
 }
 
 // AddTxTracker adds a new Tx to the Worker
-func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
-	// TODO: Review if additional mutex is needed to lock GetBestFittingTx
+func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropReason error, isWIP bool) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
@@ -55,21 +57,21 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
 
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
-			// TODO: How to manage this
-			log.Errorf("AddTx GetLastStateRoot error: %v", err)
-			return
+			dropReason = fmt.Errorf("AddTx GetLastStateRoot error: %v", err)
+			log.Error(dropReason)
+			return dropReason, false
 		}
 		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if err != nil {
-			log.Errorf("AddTx GetNonceByStateRoot error: %v", err)
-			// TODO: How to manage this
-			return
+			dropReason = fmt.Errorf("AddTx GetNonceByStateRoot error: %v", err)
+			log.Error(dropReason)
+			return dropReason, false
 		}
 		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if err != nil {
-			log.Errorf("AddTx GetBalanceByStateRoot error: %v", err)
-			// TODO: How to manage this
-			return
+			dropReason = fmt.Errorf("AddTx GetBalanceByStateRoot error: %v", err)
+			log.Error(dropReason)
+			return dropReason, false
 		}
 
 		addr = newAddrQueue(tx.From, nonce.Uint64(), balance)
@@ -83,7 +85,12 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
 
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
 	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s)", tx.Hash.String(), tx.Nonce, tx.Cost.String(), tx.FromStr)
-	newReadyTx, prevReadyTx := addr.addTx(tx)
+	var newReadyTx, prevReadyTx *TxTracker
+	newReadyTx, prevReadyTx, dropReason = addr.addTx(tx)
+	if dropReason != nil {
+		log.Infof("AddTx tx(%s) dropped from addrQueue(%s)", tx.Hash.String(), tx.FromStr)
+		return dropReason, false
+	}
 
 	// Update the EfficiencyList (if needed)
 	if prevReadyTx != nil {
@@ -94,12 +101,13 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) {
 		log.Infof("AddTx newReadyTx(%s) nonce(%d) cost(%s) added to EfficiencyList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.Cost.String())
 		w.efficiencyList.add(newReadyTx)
 	}
+
+	return nil, true
 }
 
 func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker, []*TxTracker) {
 	addrQueue, found := w.pool[from.String()]
 
-	// TODO: What happens if addr no found. Could it be possible if addrQueue has not been yet created for this from addr (touchedAddresses)
 	if found {
 		newReadyTx, prevReadyTx, txsToDelete := addrQueue.updateCurrentNonceBalance(fromNonce, fromBalance)
 
@@ -159,7 +167,6 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 				readyHashStr = addrQueue.readyTx.HashStr
 			}
 			log.Errorf("MoveTxToNotReady txHash(%s) is not the readyTx(%s)", txHash.String(), readyHashStr)
-			// TODO: how to manage this?
 		}
 	}
 	_, _, txsToDelete := w.applyAddressUpdate(from, actualNonce, actualBalance)
@@ -218,7 +225,7 @@ func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters stat
 }
 
 // GetBestFittingTx gets the most efficient tx that fits in the available batch resources
-func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
+func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
@@ -235,7 +242,7 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 
 	// Each go routine looks for a fitting tx
 	for i := 0; i < nGoRoutines; i++ {
-		go func(n int, bresources batchResources) {
+		go func(n int, bresources state.BatchResources) {
 			defer wg.Done()
 			for i := n; i < w.efficiencyList.len(); i += nGoRoutines {
 				foundMutex.RLock()
@@ -246,7 +253,7 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 				foundMutex.RUnlock()
 
 				txCandidate := w.efficiencyList.getByIndex(i)
-				err := bresources.sub(txCandidate.BatchResources)
+				err := bresources.Sub(txCandidate.BatchResources)
 				if err != nil {
 					// We don't add this Tx
 					continue
@@ -256,7 +263,7 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 				if foundAt == -1 || foundAt > i {
 					foundAt = i
 					tx = txCandidate
-					log.Infof("GetBestFittingTx found tx(%s) at index(%d)", tx.Hash.String(), i)
+					log.Infof("GetBestFittingTx found tx(%s) at index(%d) with efficiency(%f)", tx.Hash.String(), i, tx.Efficiency)
 				}
 				foundMutex.Unlock()
 
@@ -302,4 +309,20 @@ func (w *Worker) GetEfficiencyList() *efficiencyList {
 // HandleL2Reorg handles the L2 reorg signal
 func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
 	log.Fatal("L2 Reorg detected. Restarting to sync with the new L2 state...")
+}
+
+// convertBatchConstraintsToFloat64 converts the batch constraints to float64
+func convertBatchConstraintsToFloat64(constraints batchConstraints) batchConstraintsFloat64 {
+	return batchConstraintsFloat64{
+		maxTxsPerBatch:       float64(constraints.MaxTxsPerBatch),
+		maxBatchBytesSize:    float64(constraints.MaxBatchBytesSize),
+		maxCumulativeGasUsed: float64(constraints.MaxCumulativeGasUsed),
+		maxKeccakHashes:      float64(constraints.MaxKeccakHashes),
+		maxPoseidonHashes:    float64(constraints.MaxPoseidonHashes),
+		maxPoseidonPaddings:  float64(constraints.MaxPoseidonPaddings),
+		maxMemAligns:         float64(constraints.MaxMemAligns),
+		maxArithmetics:       float64(constraints.MaxArithmetics),
+		maxBinaries:          float64(constraints.MaxBinaries),
+		maxSteps:             float64(constraints.MaxSteps),
+	}
 }

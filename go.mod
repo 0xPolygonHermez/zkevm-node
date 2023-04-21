@@ -25,6 +25,10 @@ require (
 	github.com/urfave/cli/v2 v2.25.1
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.8.0
+<<<<<<< HEAD
+=======
+	golang.org/x/net v0.9.0
+>>>>>>> develop
 	golang.org/x/sync v0.1.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
@@ -68,7 +72,7 @@ require (
 	github.com/gobuffalo/packd v1.0.2 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -125,7 +129,10 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771 // indirect
+<<<<<<< HEAD
 	golang.org/x/net v0.9.0 // indirect
+=======
+>>>>>>> develop
 	golang.org/x/sys v0.7.0 // indirect
 	golang.org/x/term v0.7.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
@@ -144,5 +151,5 @@ require (
 
 require (
 	github.com/imdario/mergo v0.3.13 // indirect
-	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/client_golang v1.15.0
 )

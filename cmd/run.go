@@ -31,16 +31,12 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	executorpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
-)
-
-const (
-	two = 2
-	ten = 10
 )
 
 func start(cliCtx *cli.Context) error {
@@ -72,7 +68,18 @@ func start(cliCtx *cli.Context) error {
 	}
 	checkStateMigrations(c.StateDB)
 
-	// Prepare event log
+	// Decide if this node instance needs an executor and/or a state tree
+	var needsExecutor, needsStateTree bool
+
+	for _, component := range components {
+		switch component {
+		case SEQUENCER, RPC, SYNCHRONIZER:
+			needsExecutor = true
+			needsStateTree = true
+		}
+	}
+
+	// Event log
 	var eventLog *event.EventLog
 	var eventStorage event.Storage
 
@@ -87,9 +94,9 @@ func start(cliCtx *cli.Context) error {
 			log.Fatal(err)
 		}
 	}
-
 	eventLog = event.NewEventLog(c.EventLog, eventStorage)
 
+	// Core State DB
 	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
 		log.Fatal(err)
@@ -123,7 +130,7 @@ func start(cliCtx *cli.Context) error {
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
-	st := newState(ctx, c, l2ChainID, forkIDIntervals, stateSqlDB, eventLog)
+	st := newState(ctx, c, l2ChainID, forkIDIntervals, stateSqlDB, eventLog, needsExecutor, needsStateTree)
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
 	if err != nil {
@@ -345,11 +352,21 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
+func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
-	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
-	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
-	stateTree := merkletree.NewStateTree(stateDBClient)
+
+	// Executor
+	var executorClient executorpb.ExecutorServiceClient
+	if needsExecutor {
+		executorClient, _, _ = executor.NewExecutorClient(ctx, c.Executor)
+	}
+
+	// State Tree
+	var stateTree *merkletree.StateTree
+	if needsStateTree {
+		stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
+		stateTree = merkletree.NewStateTree(stateDBClient)
+	}
 
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
@@ -388,6 +405,7 @@ func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStor
 }
 
 func startProfilingHttpServer(c metrics.Config) {
+	const two = 2
 	mux := http.NewServeMux()
 	address := fmt.Sprintf("%s:%d", c.ProfilingHost, c.ProfilingPort)
 	lis, err := net.Listen("tcp", address)
@@ -417,6 +435,7 @@ func startProfilingHttpServer(c metrics.Config) {
 }
 
 func startMetricsHttpServer(c metrics.Config) {
+	const ten = 10
 	mux := http.NewServeMux()
 	address := fmt.Sprintf("%s:%d", c.Host, c.Port)
 	lis, err := net.Listen("tcp", address)

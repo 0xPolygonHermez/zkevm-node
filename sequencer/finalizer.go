@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,16 +43,14 @@ type finalizer struct {
 	sharedResourcesMux *sync.RWMutex
 	lastGERHash        common.Hash
 	// closing signals
-	nextGER                   common.Hash
-	nextGERDeadline           int64
-	nextGERMux                *sync.RWMutex
-	nextForcedBatches         []state.ForcedBatch
-	nextForcedBatchDeadline   int64
-	nextForcedBatchesMux      *sync.RWMutex
-	nextSendingToL1Deadline   int64
-	nextSendingToL1TimeoutMux *sync.RWMutex
-	handlingL2Reorg           bool
-	eventLog                  *event.EventLog
+	nextGER                 common.Hash
+	nextGERDeadline         int64
+	nextGERMux              *sync.RWMutex
+	nextForcedBatches       []state.ForcedBatch
+	nextForcedBatchDeadline int64
+	nextForcedBatchesMux    *sync.RWMutex
+	handlingL2Reorg         bool
+	eventLog                *event.EventLog
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -61,10 +60,11 @@ type WipBatch struct {
 	initialStateRoot   common.Hash
 	stateRoot          common.Hash
 	localExitRoot      common.Hash
-	timestamp          uint64
+	timestamp          time.Time
 	globalExitRoot     common.Hash // 0x000...0 (ZeroHash) means to not update
-	remainingResources batchResources
+	remainingResources state.BatchResources
 	countOfTxs         int
+	closingReason      state.ClosingReason
 }
 
 func (w *WipBatch) isEmpty() bool {
@@ -99,15 +99,13 @@ func newFinalizer(
 		sharedResourcesMux: new(sync.RWMutex),
 		lastGERHash:        state.ZeroHash,
 		// closing signals
-		nextGER:                   common.Hash{},
-		nextGERDeadline:           0,
-		nextGERMux:                new(sync.RWMutex),
-		nextForcedBatches:         make([]state.ForcedBatch, 0),
-		nextForcedBatchDeadline:   0,
-		nextForcedBatchesMux:      new(sync.RWMutex),
-		nextSendingToL1Deadline:   0,
-		nextSendingToL1TimeoutMux: new(sync.RWMutex),
-		eventLog:                  eventLog,
+		nextGER:                 common.Hash{},
+		nextGERDeadline:         0,
+		nextGERMux:              new(sync.RWMutex),
+		nextForcedBatches:       make([]state.ForcedBatch, 0),
+		nextForcedBatchDeadline: 0,
+		nextForcedBatchesMux:    new(sync.RWMutex),
+		eventLog:                eventLog,
 	}
 }
 
@@ -183,14 +181,6 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			f.handlingL2Reorg = true
 			f.halt(ctx, fmt.Errorf("L2 reorg event received"))
 			return
-		// Too much time without batches in L1 ch
-		case <-f.closingSignalCh.SendingToL1TimeoutCh:
-			log.Debug("finalizer received timeout for sending to L1")
-			f.nextSendingToL1TimeoutMux.Lock()
-			if f.nextSendingToL1Deadline == 0 {
-				f.setNextSendingToL1Deadline()
-			}
-			f.nextSendingToL1TimeoutMux.Unlock()
 		}
 	}
 }
@@ -203,13 +193,17 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
+			// Timestamp resolution
+			if f.batch.isEmpty() {
+				f.batch.timestamp = now()
+			}
+
 			f.sharedResourcesMux.Lock()
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
 			err := f.processTransaction(ctx, tx)
 			if err != nil {
 				log.Errorf("failed to process transaction in finalizeBatches, Err: %v", err)
 			}
-
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
@@ -237,6 +231,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 func (f *finalizer) isBatchFull() bool {
 	if f.batch.countOfTxs >= int(f.batchConstraints.MaxTxsPerBatch) {
 		log.Infof("Closing batch: %d, because it's full.", f.batch.batchNumber)
+		f.batch.closingReason = state.BatchFullClosingReason
 		return true
 	}
 	return false
@@ -336,11 +331,6 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	f.nextGERDeadline = 0
 	f.nextGERMux.Unlock()
 
-	// Reset nextSendingToL1Deadline
-	f.nextSendingToL1TimeoutMux.Lock()
-	f.nextSendingToL1Deadline = 0
-	f.nextSendingToL1TimeoutMux.Unlock()
-
 	batch, err := f.openWIPBatch(ctx, lastBatchNumber+1, f.lastGERHash, stateRoot)
 	if err == nil {
 		f.processRequest.Timestamp = batch.timestamp
@@ -415,7 +405,7 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 	}
 
 	// Check remaining resources
-	err := f.checkRemainingResources(ctx, result, tx)
+	err := f.checkRemainingResources(result, tx)
 	if err != nil {
 		return err
 	}
@@ -435,7 +425,7 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 		batchNumber:              f.batch.batchNumber,
 		txResponse:               txResponse,
 		coinbase:                 f.batch.coinbase,
-		timestamp:                f.batch.timestamp,
+		timestamp:                uint64(f.batch.timestamp.Unix()),
 		previousL2BlockStateRoot: previousL2BlockStateRoot,
 	}
 
@@ -446,7 +436,7 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 	start := time.Now()
 	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
 	for _, txToDelete := range txsToDelete {
-		err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false)
+		err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
 		if err != nil {
 			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
 		}
@@ -456,19 +446,23 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 }
 
 // handleTransactionError handles the error of a transaction
-func (f *finalizer) handleTransactionError(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) {
+func (f *finalizer) handleTransactionError(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) *sync.WaitGroup {
 	txResponse := result.Responses[0]
 	errorCode := executor.RomErrorCode(txResponse.RomError)
 	addressInfo := result.ReadWriteAddresses[tx.From]
 	log.Infof("handleTransactionError: error in tx: %s, errorCode: %d", tx.Hash.String(), errorCode)
-
+	wg := new(sync.WaitGroup)
+	failedReason := executor.RomErr(errorCode).Error()
 	if executor.IsROMOutOfCountersError(errorCode) {
 		log.Errorf("ROM out of counters error, marking tx with Hash: %s as INVALID, errorCode: %s", tx.Hash.String(), errorCode.String())
 		start := time.Now()
 		f.worker.DeleteTx(tx.Hash, tx.From)
 		metrics.WorkerProcessingTime(time.Since(start))
+
+		wg.Add(1)
 		go func() {
-			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false)
+			defer wg.Done()
+			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
 			}
@@ -486,10 +480,14 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 		log.Errorf("intrinsic error, moving tx with Hash: %s to NOT READY nonce(%d) balance(%s) cost(%s), err: %s", tx.Hash, nonce, balance.String(), tx.Cost.String(), txResponse.RomError)
 		txsToDelete := f.worker.MoveTxToNotReady(tx.Hash, tx.From, nonce, balance)
 		for _, txToDelete := range txsToDelete {
-			err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false)
-			if err != nil {
-				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
-			}
+			wg.Add(1)
+			txToDelete := txToDelete
+			go func() {
+				err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, &failedReason)
+				if err != nil {
+					log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
+				}
+			}()
 		}
 		metrics.WorkerProcessingTime(time.Since(start))
 	} else {
@@ -497,12 +495,17 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 		f.worker.DeleteTx(tx.Hash, tx.From)
 		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex(), "isClaim", tx.IsClaim)
 
-		// Update the status of the transaction to failed
-		err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false)
-		if err != nil {
-			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
-		}
+		wg.Add(1)
+		go func() {
+			// Update the status of the transaction to failed
+			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false, &failedReason)
+			if err != nil {
+				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
+			}
+		}()
 	}
+
+	return wg
 }
 
 // syncWithState syncs the WIP batch and processRequest with the state
@@ -568,7 +571,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      f.batch.timestamp,
 		Transactions:   make([]byte, 0, 1),
-		Caller:         state.SequencerCallerLabel,
+		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 
 	log.Infof("synced with state, lastBatchNum: %d. State root: %s", *lastBatchNum, f.batch.initialStateRoot.Hex())
@@ -618,8 +621,8 @@ func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot 
 		GlobalExitRoot: forcedBatch.GlobalExitRoot,
 		Transactions:   forcedBatch.RawTxsData,
 		Coinbase:       f.sequencerAddress,
-		Timestamp:      uint64(now().Unix()),
-		Caller:         state.SequencerCallerLabel,
+		Timestamp:      now(),
+		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, processRequest)
 	if err != nil {
@@ -669,7 +672,7 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 		coinbase:           f.sequencerAddress,
 		initialStateRoot:   stateRoot,
 		stateRoot:          stateRoot,
-		timestamp:          uint64(openBatchResp.Timestamp.Unix()),
+		timestamp:          openBatchResp.Timestamp,
 		globalExitRoot:     ger,
 		remainingResources: getMaxRemainingResources(f.batchConstraints),
 	}, err
@@ -684,11 +687,14 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 	for i, tx := range transactions {
 		log.Infof("closeBatch: BatchNum: %d, Tx position: %d, txHash: %s", f.batch.batchNumber, i, tx.Hash().String())
 	}
+	usedResources := getUsedBatchResources(f.batchConstraints, f.batch.remainingResources)
 	receipt := ClosingBatchParameters{
-		BatchNumber:   f.batch.batchNumber,
-		StateRoot:     f.batch.stateRoot,
-		LocalExitRoot: f.batch.localExitRoot,
-		Txs:           transactions,
+		BatchNumber:    f.batch.batchNumber,
+		StateRoot:      f.batch.stateRoot,
+		LocalExitRoot:  f.batch.localExitRoot,
+		Txs:            transactions,
+		BatchResources: usedResources,
+		ClosingReason:  f.batch.closingReason,
 	}
 	return f.dbManager.CloseBatch(ctx, receipt)
 }
@@ -721,8 +727,8 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 		OldStateRoot:   f.batch.initialStateRoot,
 		Transactions:   batch.BatchL2Data,
 		Coinbase:       batch.Coinbase,
-		Timestamp:      uint64(batch.Timestamp.Unix()),
-		Caller:         state.DiscardCallerLabel,
+		Timestamp:      batch.Timestamp,
+		Caller:         stateMetrics.DiscardCallerLabel,
 	}
 	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, Ger: %s", batch.BatchNumber, f.batch.initialStateRoot.String(), batch.GlobalExitRoot.String())
 	txs, _, err := state.DecodeTxs(batch.BatchL2Data)
@@ -802,36 +808,35 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	// Forced batch deadline
 	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
 		log.Infof("Closing batch: %d, forced batch deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
 		return true
 	}
 	// Global Exit Root deadline
 	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
 		log.Infof("Closing batch: %d, Global Exit Root deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
+		f.batch.closingReason = state.GlobalExitRootDeadlineClosingReason
 		return true
 	}
-	// Delayed batch deadline
-	if f.nextSendingToL1Deadline != 0 && now().Unix() >= f.nextSendingToL1Deadline && !f.batch.isEmpty() {
-		log.Infof("Closing batch: %d, Sending to L1 deadline encountered.", f.batch.batchNumber)
-		f.setNextSendingToL1Deadline()
+	// Timestamp resolution deadline
+	if !f.batch.isEmpty() && f.batch.timestamp.Add(f.cfg.TimestampResolution.Duration).Before(time.Now()) {
+		log.Infof("Closing batch: %d, because of timestamp resolution.", f.batch.batchNumber)
+		f.batch.closingReason = state.TimeoutResolutionDeadlineClosingReason
 		return true
 	}
 	return false
 }
 
 // checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
-func (f *finalizer) checkRemainingResources(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) error {
-	usedResources := batchResources{
-		zKCounters: result.UsedZkCounters,
-		bytes:      uint64(len(tx.RawTx)),
+func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker) error {
+	usedResources := state.BatchResources{
+		ZKCounters: result.UsedZkCounters,
+		Bytes:      uint64(len(tx.RawTx)),
 	}
 
-	err := f.batch.remainingResources.sub(usedResources)
+	err := f.batch.remainingResources.Sub(usedResources)
 	if err != nil {
 		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
 		start := time.Now()
-		f.worker.UpdateTx(result.Responses[0].TxHash, tx.From, usedResources.zKCounters)
+		f.worker.UpdateTx(result.Responses[0].TxHash, tx.From, usedResources.ZKCounters)
 		metrics.WorkerProcessingTime(time.Since(start))
 		return err
 	}
@@ -842,32 +847,31 @@ func (f *finalizer) checkRemainingResources(ctx context.Context, result *state.P
 // isBatchAlmostFull checks if the current batch remaining resources are under the constraints threshold for most efficient moment to close a batch
 func (f *finalizer) isBatchAlmostFull() bool {
 	resources := f.batch.remainingResources
-	zkCounters := resources.zKCounters
-	if resources.bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
-		return true
+	zkCounters := resources.ZKCounters
+	result := false
+	if resources.Bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
+		result = true
+	} else if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
+		result = true
+	} else if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
+		result = true
+	} else if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
+		result = true
+	} else if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
+		result = true
+	} else if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
+		result = true
+	} else if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
+		result = true
+	} else if zkCounters.CumulativeGasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
+		result = true
 	}
-	if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
-		return true
+
+	if result {
+		f.batch.closingReason = state.BatchAlmostFullClosingReason
 	}
-	if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
-		return true
-	}
-	if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
-		return true
-	}
-	if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
-		return true
-	}
-	if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
-		return true
-	}
-	if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
-		return true
-	}
-	if zkCounters.CumulativeGasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
-		return true
-	}
-	return false
+
+	return result
 }
 
 func (f *finalizer) setNextForcedBatchDeadline() {
@@ -878,14 +882,26 @@ func (f *finalizer) setNextGERDeadline() {
 	f.nextGERDeadline = now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration.Seconds())
 }
 
-func (f *finalizer) setNextSendingToL1Deadline() {
-	f.nextSendingToL1Deadline = now().Unix() + int64(f.cfg.SendingToL1DeadlineTimeoutInSec.Duration.Seconds())
-}
-
 func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
 	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / oneHundred
 }
 
 func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / oneHundred
+}
+
+func getUsedBatchResources(constraints batchConstraints, remainingResources state.BatchResources) state.BatchResources {
+	return state.BatchResources{
+		ZKCounters: state.ZKCounters{
+			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.CumulativeGasUsed,
+			UsedKeccakHashes:     constraints.MaxKeccakHashes - remainingResources.ZKCounters.UsedKeccakHashes,
+			UsedPoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.ZKCounters.UsedPoseidonHashes,
+			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.ZKCounters.UsedPoseidonPaddings,
+			UsedMemAligns:        constraints.MaxMemAligns - remainingResources.ZKCounters.UsedMemAligns,
+			UsedArithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.UsedArithmetics,
+			UsedBinaries:         constraints.MaxBinaries - remainingResources.ZKCounters.UsedBinaries,
+			UsedSteps:            constraints.MaxSteps - remainingResources.ZKCounters.UsedSteps,
+		},
+		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
+	}
 }

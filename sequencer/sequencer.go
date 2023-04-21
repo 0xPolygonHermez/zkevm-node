@@ -10,8 +10,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -63,10 +63,9 @@ type L2ReorgEvent struct {
 
 // ClosingSignalCh is a struct that contains all the channels that are used to receive batch closing signals
 type ClosingSignalCh struct {
-	ForcedBatchCh        chan state.ForcedBatch
-	GERCh                chan common.Hash
-	L2ReorgCh            chan L2ReorgEvent
-	SendingToL1TimeoutCh chan bool
+	ForcedBatchCh chan state.ForcedBatch
+	GERCh         chan common.Hash
+	L2ReorgCh     chan L2ReorgEvent
 }
 
 // TxsStore is a struct that contains the channel and the wait group for the txs to be stored in order
@@ -111,10 +110,9 @@ func (s *Sequencer) Start(ctx context.Context) {
 	metrics.Register()
 
 	closingSignalCh := ClosingSignalCh{
-		ForcedBatchCh:        make(chan state.ForcedBatch),
-		GERCh:                make(chan common.Hash),
-		L2ReorgCh:            make(chan L2ReorgEvent),
-		SendingToL1TimeoutCh: make(chan bool),
+		ForcedBatchCh: make(chan state.ForcedBatch),
+		GERCh:         make(chan common.Hash),
+		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 
 	txsStore := TxsStore{
@@ -151,7 +149,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		log.Fatalf("failed to mark WIP txs as pending, err: %v", err)
 	}
 
-	worker := NewWorker(s.state, batchConstraints, batchResourceWeights)
+	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights)
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
 	go dbManager.Start()
 
@@ -179,9 +177,9 @@ func (s *Sequencer) Start(ctx context.Context) {
 		for {
 			time.Sleep(s.cfg.TxLifetimeCheckTimeout.Duration)
 			txTrackers := worker.ExpireTransactions(s.cfg.MaxTxLifetime.Duration)
-
+			failedReason := ErrExpiredTransaction.Error()
 			for _, txTracker := range txTrackers {
-				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false)
+				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
 				if err != nil {
 					log.Errorf("failed to update tx status, err: %v", err)
 				}
@@ -214,7 +212,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 		// GENESIS Batch //
 		///////////////////
 		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
-		timestamp := uint64(processingCtx.Timestamp.Unix())
+		timestamp := processingCtx.Timestamp
 		_, oldStateRoot, err := finalizer.getLastBatchNumAndOldStateRoot(ctx)
 		if err != nil {
 			log.Fatalf("failed to get old state root, err: %v", err)
@@ -225,7 +223,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 			GlobalExitRoot: processingCtx.GlobalExitRoot,
 			Coinbase:       processingCtx.Coinbase,
 			Timestamp:      timestamp,
-			Caller:         state.SequencerCallerLabel,
+			Caller:         metrics.SequencerCallerLabel,
 		}
 		currBatch = &WipBatch{
 			globalExitRoot:     processingCtx.GlobalExitRoot,
@@ -304,9 +302,9 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	return true
 }
 
-func getMaxRemainingResources(constraints batchConstraints) batchResources {
-	return batchResources{
-		zKCounters: state.ZKCounters{
+func getMaxRemainingResources(constraints batchConstraints) state.BatchResources {
+	return state.BatchResources{
+		ZKCounters: state.ZKCounters{
 			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed,
 			UsedKeccakHashes:     constraints.MaxKeccakHashes,
 			UsedPoseidonHashes:   constraints.MaxPoseidonHashes,
@@ -316,6 +314,6 @@ func getMaxRemainingResources(constraints batchConstraints) batchResources {
 			UsedBinaries:         constraints.MaxBinaries,
 			UsedSteps:            constraints.MaxSteps,
 		},
-		bytes: constraints.MaxBatchBytesSize,
+		Bytes: constraints.MaxBatchBytesSize,
 	}
 }

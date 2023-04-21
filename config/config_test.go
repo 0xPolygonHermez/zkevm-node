@@ -118,16 +118,48 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(131072),
 		},
 		{
+			path:          "Sequencer.WeightBatchBytesSize",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightCumulativeGasUsed",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightKeccakHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightPoseidonHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightPoseidonPaddings",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightMemAligns",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightArithmetics",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightBinaries",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightSteps",
+			expectedValue: 1,
+		},
+		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeoutInSec",
 			expectedValue: types.NewDuration(60 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.SendingToL1DeadlineTimeoutInSec",
-			expectedValue: types.NewDuration(20 * time.Second),
 		},
 		{
 			path:          "Sequencer.Finalizer.SleepDurationInMs",
@@ -158,8 +190,20 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
+			path:          "Sequencer.Finalizer.TimestampResolution",
+			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
+		},
+		{
+			path:          "Sequencer.DBManager.L2ReorgRetrievalInterval",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "Sequencer.Worker.ResourceCostMultiplier",
+			expectedValue: float64(1000),
 		},
 		{
 			path:          "Etherman.URL",
