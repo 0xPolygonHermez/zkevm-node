@@ -20,10 +20,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/js"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers/native"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
@@ -239,7 +239,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	forkId := s.GetForkIdByBatchNumber(batch.BatchNumber)
+	forkId := s.GetForkIDByBatchNumber(batch.BatchNumber)
 
 	// Create Batch
 	traceConfigRequest := &pb.TraceConfig{
@@ -300,7 +300,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	// }
 
 	txs, _, err := DecodeTxs(batchL2Data)
-	if err != nil && !errors.Is(err, InvalidData) {
+	if err != nil && !errors.Is(err, ErrInvalidData) {
 		return nil, err
 	}
 
