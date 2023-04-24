@@ -2,6 +2,7 @@ version: "3.5"
 networks:
   default:
     name: zkevm
+    
 services:
   grafana:
     container_name: grafana
