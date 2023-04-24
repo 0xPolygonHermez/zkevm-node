@@ -699,12 +699,16 @@ func (p *PostgresPoolStorage) GetAllAddressesBlocked(ctx context.Context) ([]com
 	return addrs, nil
 }
 
-// DepositCountExists checks if already exists a transaction in the pool with the
-// provided deposit count
+// DepositCountExists checks if already exists a `pending` or `selected` transaction
+// in the pool with the provided deposit count
 func (p *PostgresPoolStorage) DepositCountExists(ctx context.Context, depositCount uint64) (bool, error) {
 	var exists bool
-	req := "SELECT exists (SELECT 1 FROM pool.transaction WHERE deposit_count = $1)"
-	err := p.db.QueryRow(ctx, req, depositCount).Scan(&exists)
+	req := `
+        SELECT EXISTS (SELECT 1
+                         FROM pool.transaction
+                        WHERE deposit_count = $1
+                          AND status IN ($2, $3))`
+	err := p.db.QueryRow(ctx, req, depositCount, pool.TxStatusPending, pool.TxStatusSelected).Scan(&exists)
 	if err != nil && err != sql.ErrNoRows {
 		return false, err
 	}
