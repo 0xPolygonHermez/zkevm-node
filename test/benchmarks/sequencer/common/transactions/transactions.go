@@ -57,7 +57,7 @@ func SendAndWait(
 		}
 
 		log.Debugf("amount of pending txs: %d\n", count)
-		done := count-initialPendingCount == 0
+		done := count-initialPendingCount <= 0
 		return done, nil
 	})
 	if err != nil {
