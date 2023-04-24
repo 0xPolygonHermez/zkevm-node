@@ -32,6 +32,9 @@ func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth 
 		actualTransferAmount = big.NewInt(0).Add(transferAmountBig, auth.Nonce)
 	}
 	_, err := erc20SC.Transfer(auth, params.To, actualTransferAmount)
-	countTxs += 1
+	if err == nil {
+		countTxs += 1
+	}
+
 	return err
 }

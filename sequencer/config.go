@@ -98,6 +98,9 @@ type Config struct {
 
 	// DBManager's specific config properties
 	DBManager DBManagerCfg `mapstructure:"DBManager"`
+
+	// Worker's specific config properties
+	Worker WorkerCfg `mapstructure:"Worker"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -141,7 +144,14 @@ type FinalizerCfg struct {
 	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
 }
 
+// WorkerCfg contains the Worker's configuration properties
+type WorkerCfg struct {
+	// ResourceCostMultiplier is the multiplier for the resource cost
+	ResourceCostMultiplier float64 `mapstructure:"ResourceCostMultiplier"`
+}
+
 // DBManagerCfg contains the DBManager's configuration properties
 type DBManagerCfg struct {
-	PoolRetrievalInterval types.Duration `mapstructure:"PoolRetrievalInterval"`
+	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
+	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
 }

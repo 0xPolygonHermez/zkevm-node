@@ -1,8 +1,10 @@
 package state
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
@@ -133,6 +135,29 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 	return nil
 }
 
+// BatchResources is a struct that contains the ZKEVM resources used by a batch/tx
+type BatchResources struct {
+	ZKCounters ZKCounters
+	Bytes      uint64
+}
+
+// Sub subtracts the batch resources from other
+func (r *BatchResources) Sub(other BatchResources) error {
+	// Bytes
+	if other.Bytes > r.Bytes {
+		return ErrBatchResourceBytesUnderflow
+	}
+	bytesBackup := r.Bytes
+	r.Bytes -= other.Bytes
+	err := r.ZKCounters.Sub(other.ZKCounters)
+	if err != nil {
+		r.Bytes = bytesBackup
+		return NewBatchRemainingResourcesUnderflowError(err, err.Error())
+	}
+
+	return err
+}
+
 // InfoReadWrite has information about modified addresses during the execution
 type InfoReadWrite struct {
 	Address common.Address
@@ -147,6 +172,37 @@ type TraceConfig struct {
 	EnableMemory     bool
 	EnableReturnData bool
 	Tracer           *string
+	TracerConfig     json.RawMessage
+}
+
+// IsDefaultTracer returns true when no custom tracer is set
+func (t *TraceConfig) IsDefaultTracer() bool {
+	return t.Tracer == nil || *t.Tracer == ""
+}
+
+// Is4ByteTracer returns true when should use 4byteTracer
+func (t *TraceConfig) Is4ByteTracer() bool {
+	return t.Tracer != nil && *t.Tracer == "4byteTracer"
+}
+
+// IsCallTracer returns true when should use callTracer
+func (t *TraceConfig) IsCallTracer() bool {
+	return t.Tracer != nil && *t.Tracer == "callTracer"
+}
+
+// IsNoopTracer returns true when should use noopTracer
+func (t *TraceConfig) IsNoopTracer() bool {
+	return t.Tracer != nil && *t.Tracer == "noopTracer"
+}
+
+// IsPrestateTracer returns true when should use prestateTracer
+func (t *TraceConfig) IsPrestateTracer() bool {
+	return t.Tracer != nil && *t.Tracer == "prestateTracer"
+}
+
+// IsJSCustomTracer returns true when should use js custom tracer
+func (t *TraceConfig) IsJSCustomTracer() bool {
+	return t.Tracer != nil && strings.Contains(*t.Tracer, "result") && strings.Contains(*t.Tracer, "fault")
 }
 
 // TrustedReorg represents a trusted reorg

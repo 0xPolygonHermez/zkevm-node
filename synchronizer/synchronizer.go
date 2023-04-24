@@ -129,17 +129,6 @@ func (s *ClientSynchronizer) Sync() error {
 		case <-s.ctx.Done():
 			return nil
 		case <-time.After(waitDuration):
-			//Sync L1Blocks
-			if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
-				log.Warn("error syncing blocks: ", err)
-				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
-				if err != nil {
-					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)
-				}
-				if s.ctx.Err() != nil {
-					continue
-				}
-			}
 			latestSequencedBatchNumber, err := s.etherMan.GetLatestBatchNumber()
 			if err != nil {
 				log.Warn("error getting latest sequenced batch in the rollup. Error: ", err)
@@ -150,6 +139,7 @@ func (s *ClientSynchronizer) Sync() error {
 				log.Warn("error getting latest batch synced. Error: ", err)
 				continue
 			}
+			// Sync trusted state
 			if latestSyncedBatch >= latestSequencedBatchNumber {
 				log.Info("L1 state fully synchronized")
 				err = s.syncTrustedState(latestSyncedBatch)
@@ -158,6 +148,17 @@ func (s *ClientSynchronizer) Sync() error {
 					continue
 				}
 				waitDuration = s.cfg.SyncInterval.Duration
+			}
+			//Sync L1Blocks
+			if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
+				log.Warn("error syncing blocks: ", err)
+				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
+				if err != nil {
+					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)
+				}
+				if s.ctx.Err() != nil {
+					continue
+				}
 			}
 		}
 	}

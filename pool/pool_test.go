@@ -535,12 +535,39 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	err = p.AddTx(ctx, *signedTx2, "")
 	require.NoError(t, err)
 
-	err = p.UpdateTxsStatus(ctx, []string{signedTx1.Hash().String(), signedTx2.Hash().String()}, pool.TxStatusInvalid)
-	require.NoError(t, err)
+	expectedFailedReason := "failed"
+	newStatus := pool.TxStatusInvalid
+	err = p.UpdateTxsStatus(ctx, []pool.TxStatusUpdateInfo{
+		{
+			Hash:         signedTx1.Hash(),
+			NewStatus:    newStatus,
+			IsWIP:        false,
+			FailedReason: &expectedFailedReason,
+		},
+		{
+			Hash:         signedTx2.Hash(),
+			NewStatus:    newStatus,
+			IsWIP:        false,
+			FailedReason: &expectedFailedReason,
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
 
 	var count int
-	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.transaction WHERE status = $1", pool.TxStatusInvalid).Scan(&count)
-	require.NoError(t, err)
+	rows, err := poolSqlDB.Query(ctx, "SELECT status, failed_reason FROM pool.transaction WHERE hash = ANY($1)", []string{signedTx1.Hash().String(), signedTx2.Hash().String()})
+	defer rows.Close() // nolint:staticcheck
+	if err != nil {
+		t.Error(err)
+	}
+	var state, failedReason string
+	for rows.Next() {
+		count++
+		if err := rows.Scan(&state, &failedReason); err != nil {
+			t.Error(err)
+		}
+	}
 	assert.Equal(t, 2, count)
 }
 
@@ -589,22 +616,27 @@ func Test_UpdateTxStatus(t *testing.T) {
 	tx := ethTypes.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx, "")
+	if err := p.AddTx(ctx, *signedTx, ""); err != nil {
+		t.Error(err)
+	}
+	expectedFailedReason := "failed"
+	err = p.UpdateTxStatus(ctx, signedTx.Hash(), pool.TxStatusInvalid, false, &expectedFailedReason)
+	if err != nil {
+		t.Error(err)
+	}
+
+	rows, err := poolSqlDB.Query(ctx, "SELECT status, failed_reason FROM pool.transaction WHERE hash = $1", signedTx.Hash().Hex())
 	require.NoError(t, err)
 
-	err = p.UpdateTxStatus(ctx, signedTx.Hash(), pool.TxStatusInvalid, false)
-	require.NoError(t, err)
-
-	rows, err := poolSqlDB.Query(ctx, "SELECT status FROM pool.transaction WHERE hash = $1", signedTx.Hash().Hex())
-	require.NoError(t, err)
 	defer rows.Close() // nolint:staticcheck
-
-	var state string
+	var state, failedReason string
 	rows.Next()
-	err = rows.Scan(&state)
-	require.NoError(t, err)
+	if err := rows.Scan(&state, &failedReason); err != nil {
+		t.Error(err)
+	}
 
 	assert.Equal(t, pool.TxStatusInvalid, pool.TxStatus(state))
+	assert.Equal(t, expectedFailedReason, failedReason)
 }
 
 func Test_SetAndGetGasPrice(t *testing.T) {
@@ -1112,7 +1144,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 		},
 		{
 			name:          "NoGasPriceTooLowErr_ForClaims",
-			nonce:         1,
+			nonce:         0,
 			to:            &l2BridgeAddr,
 			gasLimit:      cfg.FreeClaimGasLimit,
 			gasPrice:      big.NewInt(0),
@@ -1430,16 +1462,28 @@ func Test_AvoidDuplicatedClaims(t *testing.T) {
 	auth.GasPrice = big.NewInt(0)
 	auth.Nonce = big.NewInt(0)
 
-	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
+	depositCount := uint32(123456789)
+	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, depositCount, [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
 	require.NoError(t, err)
 
+	// add claim
 	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
 
-	auth.Nonce = big.NewInt(1)
-	signedTx, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
+	auth.GasLimit++
+	signedTx, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, depositCount, [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
 	require.NoError(t, err)
 
+	// add claim with same deposit count
 	err = p.AddTx(ctx, *signedTx, "")
 	require.Equal(t, err.Error(), "deposit count already exists")
+
+	auth.Nonce = big.NewInt(1)
+	depositCount = uint32(12345678)
+	signedTx, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, depositCount, [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
+	require.NoError(t, err)
+
+	// add claim with wrong nonce
+	err = p.AddTx(ctx, *signedTx, "")
+	require.Equal(t, err.Error(), "invalid nonce")
 }

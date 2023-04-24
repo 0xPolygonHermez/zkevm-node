@@ -233,60 +233,6 @@ func TestNewFinalizer(t *testing.T) {
 //	}
 //}
 
-func TestFinalizer_handleTransactionError(t *testing.T) {
-	// arrange
-	f = setupFinalizer(true)
-	nonce := uint64(0)
-	tx := &TxTracker{Hash: oldHash, From: sender, Cost: big.NewInt(0)}
-	testCases := []struct {
-		name               string
-		error              pb.RomError
-		expectedDeleteCall bool
-		expectedMoveCall   bool
-	}{
-		{
-			name:               "OutOfCountersError",
-			error:              pb.RomError(executor.ROM_ERROR_OUT_OF_COUNTERS_STEP),
-			expectedDeleteCall: true,
-		},
-		{
-			name:             "IntrinsicError",
-			error:            pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_NONCE),
-			expectedMoveCall: true,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// arrange
-			if tc.expectedDeleteCall {
-				workerMock.On("DeleteTx", oldHash, sender).Return()
-				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, pool.TxStatusFailed, false).Return(nil).Once()
-				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, pool.TxStatusInvalid, false).Return(nil).Once()
-				dbManagerMock.On("DeleteTransactionFromPool", ctx, tx.Hash).Return(nil).Once()
-			}
-			if tc.expectedMoveCall {
-				workerMock.On("MoveTxToNotReady", oldHash, sender, &nonce, big.NewInt(0)).Return([]*TxTracker{}).Once()
-			}
-
-			result := &state.ProcessBatchResponse{
-				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
-					sender: {Nonce: &nonce, Balance: big.NewInt(0)},
-				},
-				Responses: []*state.ProcessTransactionResponse{{
-					RomError: executor.RomErr(tc.error),
-				},
-				},
-			}
-
-			// act
-			f.handleTransactionError(ctx, result, tx)
-
-			// assert
-			workerMock.AssertExpectations(t)
-		})
-	}
-}
-
 func TestFinalizer_syncWithState(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
@@ -631,11 +577,13 @@ func TestFinalizer_closeBatch(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
 	txs := make([]types.Transaction, 0)
+	usedResources := getUsedBatchResources(f.batchConstraints, f.batch.remainingResources)
 	receipt := ClosingBatchParameters{
-		BatchNumber:   f.batch.batchNumber,
-		StateRoot:     f.batch.stateRoot,
-		LocalExitRoot: f.processRequest.GlobalExitRoot,
-		Txs:           txs,
+		BatchNumber:    f.batch.batchNumber,
+		StateRoot:      f.batch.stateRoot,
+		LocalExitRoot:  f.processRequest.GlobalExitRoot,
+		BatchResources: usedResources,
+		Txs:            txs,
 	}
 	managerErr := fmt.Errorf("some error")
 	testCases := []struct {
@@ -914,14 +862,14 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 		UsedZkCounters: state.ZKCounters{CumulativeGasUsed: 1000},
 		Responses:      []*state.ProcessTransactionResponse{txResponse},
 	}
-	remainingResources := batchResources{
-		zKCounters: state.ZKCounters{CumulativeGasUsed: 9000},
-		bytes:      10000,
+	remainingResources := state.BatchResources{
+		ZKCounters: state.ZKCounters{CumulativeGasUsed: 9000},
+		Bytes:      10000,
 	}
 	f.batch.remainingResources = remainingResources
 	testCases := []struct {
 		name                 string
-		remaining            batchResources
+		remaining            state.BatchResources
 		expectedErr          error
 		expectedWorkerUpdate bool
 		expectedTxTracker    *TxTracker
@@ -935,19 +883,19 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 		},
 		{
 			name: "Bytes Resource Exceeded",
-			remaining: batchResources{
-				bytes: 0,
+			remaining: state.BatchResources{
+				Bytes: 0,
 			},
-			expectedErr:          ErrBatchResourceBytesUnderflow,
+			expectedErr:          state.ErrBatchResourceBytesUnderflow,
 			expectedWorkerUpdate: true,
 			expectedTxTracker:    &TxTracker{RawTx: []byte("test")},
 		},
 		{
 			name: "ZkCounter Resource Exceeded",
-			remaining: batchResources{
-				zKCounters: state.ZKCounters{CumulativeGasUsed: 0},
+			remaining: state.BatchResources{
+				ZKCounters: state.ZKCounters{CumulativeGasUsed: 0},
 			},
-			expectedErr:          NewBatchRemainingResourcesUnderflowError(cumulativeGasErr, cumulativeGasErr.Error()),
+			expectedErr:          state.NewBatchRemainingResourcesUnderflowError(cumulativeGasErr, cumulativeGasErr.Error()),
 			expectedWorkerUpdate: true,
 			expectedTxTracker:    &TxTracker{RawTx: make([]byte, 0)},
 		},
@@ -963,7 +911,7 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			}
 
 			// act
-			err := f.checkRemainingResources(ctx, result, tc.expectedTxTracker)
+			err := f.checkRemainingResources(result, tc.expectedTxTracker)
 
 			// assert
 			if tc.expectedErr != nil {
@@ -1003,7 +951,7 @@ func TestFinalizer_isBatchReadyToClose(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			maxRemainingResource.zKCounters.CumulativeGasUsed = tc.cumulativeGasUsed
+			maxRemainingResource.ZKCounters.CumulativeGasUsed = tc.cumulativeGasUsed
 			f.batch.remainingResources = maxRemainingResource
 			// act
 			result := f.isBatchAlmostFull()
@@ -1077,15 +1025,15 @@ func TestFinalizer_getRemainingResources(t *testing.T) {
 	remainingResources := getMaxRemainingResources(bc)
 
 	// assert
-	assert.Equal(t, remainingResources.zKCounters.CumulativeGasUsed, bc.MaxCumulativeGasUsed)
-	assert.Equal(t, remainingResources.zKCounters.UsedKeccakHashes, bc.MaxKeccakHashes)
-	assert.Equal(t, remainingResources.zKCounters.UsedPoseidonHashes, bc.MaxPoseidonHashes)
-	assert.Equal(t, remainingResources.zKCounters.UsedPoseidonPaddings, bc.MaxPoseidonPaddings)
-	assert.Equal(t, remainingResources.zKCounters.UsedMemAligns, bc.MaxMemAligns)
-	assert.Equal(t, remainingResources.zKCounters.UsedArithmetics, bc.MaxArithmetics)
-	assert.Equal(t, remainingResources.zKCounters.UsedBinaries, bc.MaxBinaries)
-	assert.Equal(t, remainingResources.zKCounters.UsedSteps, bc.MaxSteps)
-	assert.Equal(t, remainingResources.bytes, bc.MaxBatchBytesSize)
+	assert.Equal(t, remainingResources.ZKCounters.CumulativeGasUsed, bc.MaxCumulativeGasUsed)
+	assert.Equal(t, remainingResources.ZKCounters.UsedKeccakHashes, bc.MaxKeccakHashes)
+	assert.Equal(t, remainingResources.ZKCounters.UsedPoseidonHashes, bc.MaxPoseidonHashes)
+	assert.Equal(t, remainingResources.ZKCounters.UsedPoseidonPaddings, bc.MaxPoseidonPaddings)
+	assert.Equal(t, remainingResources.ZKCounters.UsedMemAligns, bc.MaxMemAligns)
+	assert.Equal(t, remainingResources.ZKCounters.UsedArithmetics, bc.MaxArithmetics)
+	assert.Equal(t, remainingResources.ZKCounters.UsedBinaries, bc.MaxBinaries)
+	assert.Equal(t, remainingResources.ZKCounters.UsedSteps, bc.MaxSteps)
+	assert.Equal(t, remainingResources.Bytes, bc.MaxBatchBytesSize)
 }
 
 func setupFinalizer(withWipBatch bool) *finalizer {
@@ -1125,5 +1073,64 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		nextForcedBatches:       make([]state.ForcedBatch, 0),
 		nextForcedBatchDeadline: 0,
 		nextForcedBatchesMux:    new(sync.RWMutex),
+	}
+}
+
+func TestFinalizer_handleTransactionError(t *testing.T) {
+	// arrange
+	f = setupFinalizer(true)
+	nonce := uint64(0)
+	tx := &TxTracker{Hash: oldHash, From: sender, Cost: big.NewInt(0)}
+	testCases := []struct {
+		name               string
+		error              pb.RomError
+		expectedDeleteCall bool
+		updateTxStatus     pool.TxStatus
+		expectedMoveCall   bool
+	}{
+		{
+			name:               "OutOfCountersError",
+			error:              pb.RomError(executor.ROM_ERROR_OUT_OF_COUNTERS_STEP),
+			updateTxStatus:     pool.TxStatusInvalid,
+			expectedDeleteCall: true,
+		},
+		{
+			name:             "IntrinsicError",
+			error:            pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_NONCE),
+			updateTxStatus:   pool.TxStatusFailed,
+			expectedMoveCall: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// arrange
+			if tc.expectedDeleteCall {
+				workerMock.On("DeleteTx", oldHash, sender).Return()
+				dbManagerMock.On("UpdateTxStatus", ctx, oldHash, tc.updateTxStatus, false, mock.Anything).Return(nil).Once()
+				dbManagerMock.On("DeleteTransactionFromPool", ctx, tx.Hash).Return(nil).Once()
+			}
+			if tc.expectedMoveCall {
+				workerMock.On("MoveTxToNotReady", oldHash, sender, &nonce, big.NewInt(0)).Return([]*TxTracker{}).Once()
+			}
+
+			result := &state.ProcessBatchResponse{
+				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
+					sender: {Nonce: &nonce, Balance: big.NewInt(0)},
+				},
+				Responses: []*state.ProcessTransactionResponse{{
+					RomError: executor.RomErr(tc.error),
+				},
+				},
+			}
+
+			// act
+			wg := f.handleTransactionError(ctx, result, tx)
+			if wg != nil {
+				wg.Wait()
+			}
+
+			// assert
+			workerMock.AssertExpectations(t)
+		})
 	}
 }

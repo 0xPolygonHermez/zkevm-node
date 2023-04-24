@@ -36,8 +36,8 @@ type Step struct {
 	Contract   Contract `json:"contract"`
 	GasCost    string   `json:"gasCost"`
 	Stack      []string `json:"stack"`
-	Memory     []string `json:"memory"`
-	ReturnData string   `json:"returnData"`
+	Memory     []byte   `json:"memory"`
+	ReturnData []byte   `json:"returnData"`
 }
 
 // Contract represents a contract in the trace.

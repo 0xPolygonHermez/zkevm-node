@@ -149,7 +149,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		log.Fatalf("failed to mark WIP txs as pending, err: %v", err)
 	}
 
-	worker := NewWorker(s.state, batchConstraints, batchResourceWeights)
+	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights)
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
 	go dbManager.Start()
 
@@ -177,9 +177,9 @@ func (s *Sequencer) Start(ctx context.Context) {
 		for {
 			time.Sleep(s.cfg.TxLifetimeCheckTimeout.Duration)
 			txTrackers := worker.ExpireTransactions(s.cfg.MaxTxLifetime.Duration)
-
+			failedReason := ErrExpiredTransaction.Error()
 			for _, txTracker := range txTrackers {
-				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false)
+				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
 				if err != nil {
 					log.Errorf("failed to update tx status, err: %v", err)
 				}
@@ -302,9 +302,9 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	return true
 }
 
-func getMaxRemainingResources(constraints batchConstraints) batchResources {
-	return batchResources{
-		zKCounters: state.ZKCounters{
+func getMaxRemainingResources(constraints batchConstraints) state.BatchResources {
+	return state.BatchResources{
+		ZKCounters: state.ZKCounters{
 			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed,
 			UsedKeccakHashes:     constraints.MaxKeccakHashes,
 			UsedPoseidonHashes:   constraints.MaxPoseidonHashes,
@@ -314,6 +314,6 @@ func getMaxRemainingResources(constraints batchConstraints) batchResources {
 			UsedBinaries:         constraints.MaxBinaries,
 			UsedSteps:            constraints.MaxSteps,
 		},
-		bytes: constraints.MaxBatchBytesSize,
+		Bytes: constraints.MaxBatchBytesSize,
 	}
 }

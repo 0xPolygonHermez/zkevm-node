@@ -3,8 +3,10 @@ package jsonrpc
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -15,6 +17,14 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+var defaultTraceConfig = &traceConfig{
+	DisableStorage:   false,
+	DisableStack:     false,
+	EnableMemory:     false,
+	EnableReturnData: false,
+	Tracer:           nil,
+}
+
 // DebugEndpoints is the debug jsonrpc endpoint
 type DebugEndpoints struct {
 	state types.StateInterface
@@ -22,11 +32,12 @@ type DebugEndpoints struct {
 }
 
 type traceConfig struct {
-	DisableStorage   bool    `json:"disableStorage"`
-	DisableStack     bool    `json:"disableStack"`
-	EnableMemory     bool    `json:"enableMemory"`
-	EnableReturnData bool    `json:"enableReturnData"`
-	Tracer           *string `json:"tracer"`
+	DisableStorage   bool            `json:"disableStorage"`
+	DisableStack     bool            `json:"disableStack"`
+	EnableMemory     bool            `json:"enableMemory"`
+	EnableReturnData bool            `json:"enableReturnData"`
+	Tracer           *string         `json:"tracer"`
+	TracerConfig     json.RawMessage `json:"tracerConfig"`
 }
 
 // StructLogRes represents the debug trace information for each opcode
@@ -125,36 +136,52 @@ func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*ethTypes.Tr
 }
 
 func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.Hash, cfg *traceConfig, dbTx pgx.Tx) (interface{}, types.Error) {
-	traceConfig := state.TraceConfig{}
-
-	if cfg != nil {
-		traceConfig.DisableStack = cfg.DisableStack
-		traceConfig.DisableStorage = cfg.DisableStorage
-		traceConfig.EnableMemory = cfg.EnableMemory
-		traceConfig.EnableReturnData = cfg.EnableReturnData
-		traceConfig.Tracer = cfg.Tracer
+	traceCfg := cfg
+	if traceCfg == nil {
+		traceCfg = defaultTraceConfig
 	}
 
-	result, err := d.state.DebugTransaction(ctx, hash, traceConfig, dbTx)
+	// check tracer
+	if traceCfg.Tracer != nil && *traceCfg.Tracer != "" && !isBuiltInTracer(*traceCfg.Tracer) && !isJSCustomTracer(*traceCfg.Tracer) {
+		return rpcErrorResponse(types.DefaultErrorCode, "invalid tracer", nil)
+	}
+
+	stateTraceConfig := state.TraceConfig{
+		DisableStack:     traceCfg.DisableStack,
+		DisableStorage:   traceCfg.DisableStorage,
+		EnableMemory:     traceCfg.EnableMemory,
+		EnableReturnData: traceCfg.EnableReturnData,
+		Tracer:           traceCfg.Tracer,
+		TracerConfig:     traceCfg.TracerConfig,
+	}
+	result, err := d.state.DebugTransaction(ctx, hash, stateTraceConfig, dbTx)
 	if errors.Is(err, state.ErrNotFound) {
 		return rpcErrorResponse(types.DefaultErrorCode, "transaction not found", nil)
 	} else if err != nil {
 		const errorMessage = "failed to get trace"
-		log.Infof("%v: %v", errorMessage, err)
+		log.Errorf("%v: %v", errorMessage, err)
 		return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
 	}
 
-	if traceConfig.Tracer != nil && *traceConfig.Tracer != "" && len(result.ExecutorTraceResult) > 0 {
+	// if a tracer was specified, then return the trace result
+	if stateTraceConfig.Tracer != nil && *stateTraceConfig.Tracer != "" && len(result.ExecutorTraceResult) > 0 {
 		return result.ExecutorTraceResult, nil
 	}
 
-	failed := result.Failed()
+	receipt, err := d.state.GetTransactionReceipt(ctx, hash, dbTx)
+	if err != nil {
+		const errorMessage = "failed to tx receipt"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
+	}
+
+	failed := receipt.Status == ethTypes.ReceiptStatusFailed
 	var returnValue interface{}
-	if traceConfig.EnableReturnData {
+	if stateTraceConfig.EnableReturnData {
 		returnValue = common.Bytes2Hex(result.ReturnValue)
 	}
 
-	structLogs := d.buildStructLogs(result.StructLogs, cfg)
+	structLogs := d.buildStructLogs(result.StructLogs, *traceCfg)
 
 	resp := traceTransactionResponse{
 		Gas:         result.GasUsed,
@@ -166,7 +193,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 	return resp, nil
 }
 
-func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.StructLog, cfg *traceConfig) []StructLogRes {
+func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.StructLog, cfg traceConfig) []StructLogRes {
 	structLogs := make([]StructLogRes, 0, len(stateStructLogs))
 	for _, structLog := range stateStructLogs {
 		errRes := ""
@@ -224,4 +251,23 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 		structLogs = append(structLogs, structLogRes)
 	}
 	return structLogs
+}
+
+// isBuiltInTracer checks if the tracer is one of the
+// built-in tracers
+func isBuiltInTracer(tracer string) bool {
+	// built-in tracers
+	switch tracer {
+	case "callTracer", "4byteTracer", "prestateTracer", "noopTracer":
+		return true
+	default:
+		return false
+	}
+}
+
+// isJSCustomTracer checks if the tracer contains the
+// functions result and fault which are required for a custom tracer
+// https://geth.ethereum.org/docs/developers/evm-tracing/custom-tracer
+func isJSCustomTracer(tracer string) bool {
+	return strings.Contains(tracer, "result") && strings.Contains(tracer, "fault")
 }

@@ -179,11 +179,15 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		}
 	}
 
+	// CLAIM CHECK
 	if poolTx.IsClaims {
 		isFreeTx := poolTx.GasPrice().Cmp(big.NewInt(0)) <= 0
+		// if the tx is free and it was reverted in the pre execution
+		// the transaction gets rejected
 		if isFreeTx && preExecutionResponse.isReverted {
 			return fmt.Errorf("free claim reverted")
-		} else {
+		} else { // otherwise
+			// DEPOSIT COUNT CHECK
 			depositCount, err := p.extractDepositCountFromClaimTx(poolTx)
 			if err != nil {
 				return err
@@ -192,10 +196,30 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			if err != nil && !errors.Is(err, ErrNotFound) {
 				return err
 			}
+			// if the claim deposit count already exist in the pool,
+			// the transaction gets rejected
 			if exists {
 				return fmt.Errorf("deposit count already exists")
 			}
 
+			// CURRENT NONCE CHECK
+			from, err := state.GetSender(poolTx.Transaction)
+			if err != nil {
+				return ErrInvalidSender
+			}
+			lastL2Block, err := p.state.GetLastL2Block(ctx, nil)
+			if err != nil {
+				return err
+			}
+			nonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
+			if err != nil {
+				return err
+			}
+			// if the nonce is different from the current nonce for the
+			// account sending the claim, the transaction gets rejected
+			if poolTx.Nonce() != nonce {
+				return fmt.Errorf("invalid nonce")
+			}
 			poolTx.DepositCount = depositCount
 		}
 	}
@@ -276,8 +300,13 @@ func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]
 
 // UpdateTxStatus updates a transaction state accordingly to the
 // provided state and hash
-func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus, isWIP bool) error {
-	return p.storage.UpdateTxStatus(ctx, hash, newStatus, isWIP)
+func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus, isWIP bool, failedReason *string) error {
+	return p.storage.UpdateTxStatus(ctx, TxStatusUpdateInfo{
+		Hash:         hash,
+		NewStatus:    newStatus,
+		IsWIP:        isWIP,
+		FailedReason: failedReason,
+	})
 }
 
 // SetGasPrice allows an external component to define the gas price

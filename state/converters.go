@@ -285,9 +285,10 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrument
 		step.Contract = convertToInstrumentationContract(response.Contract)
 		step.GasCost = fmt.Sprint(response.GasCost)
 		step.Stack = response.Stack
-		step.Memory = convertByteArrayToStringArray(response.Memory)
-		step.ReturnData = string(response.ReturnData)
-
+		step.Memory = make([]byte, len(response.Memory))
+		copy(step.Memory, response.Memory)
+		step.ReturnData = make([]byte, len(response.ReturnData))
+		copy(step.ReturnData, response.ReturnData)
 		results = append(results, *step)
 	}
 	return results
@@ -301,14 +302,6 @@ func convertToInstrumentationContract(response *pb.Contract) instrumentation.Con
 		Input:   string(response.Data),
 		Gas:     fmt.Sprint(response.Gas),
 	}
-}
-
-func convertByteArrayToStringArray(responses []byte) []string {
-	results := make([]string, 0, len(responses))
-	for _, response := range responses {
-		results = append(results, string(response))
-	}
-	return results
 }
 
 func convertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {

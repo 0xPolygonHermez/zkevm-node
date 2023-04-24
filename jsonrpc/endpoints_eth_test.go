@@ -626,7 +626,7 @@ func TestEstimateGas(t *testing.T) {
 					Once()
 				m.State.
 					On("EstimateGas", txMatchBy, *txArgs.From, nilUint64, m.DbTx).
-					Return(*testCase.expectedResult, nil).
+					Return(*testCase.expectedResult, nil, nil).
 					Once()
 			},
 		},
@@ -667,7 +667,7 @@ func TestEstimateGas(t *testing.T) {
 
 				m.State.
 					On("EstimateGas", txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilUint64, m.DbTx).
-					Return(*testCase.expectedResult, nil).
+					Return(*testCase.expectedResult, nil, nil).
 					Once()
 			},
 		},
