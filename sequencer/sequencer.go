@@ -10,8 +10,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -223,7 +224,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 			GlobalExitRoot: processingCtx.GlobalExitRoot,
 			Coinbase:       processingCtx.Coinbase,
 			Timestamp:      timestamp,
-			Caller:         metrics.SequencerCallerLabel,
+			Caller:         stateMetrics.SequencerCallerLabel,
 		}
 		currBatch = &WipBatch{
 			globalExitRoot:     processingCtx.GlobalExitRoot,
