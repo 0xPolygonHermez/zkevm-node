@@ -20,14 +20,15 @@ MaxTxDataBytesSize=30000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
-	[Pool.DB]
-	User = "pool_user"
-	Password = "pool_password"
-	Name = "pool_db"
-	Host = "zkevm-pool-db"
-	Port = "5432"
-	EnableLog = false
-	MaxConns = 200
+
+[Pool.DB]
+User = "pool_user"
+Password = "pool_password"
+Name = "pool_db"
+Host = "zkevm-pool-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
 
 [Etherman]
 URL = "http://your.L1node.url"
@@ -36,8 +37,9 @@ PoEAddr = "0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"
 MaticAddr = "0x1319D23c2F7034F52Eb07399702B040bA278Ca49"
 GlobalExitRootManagerAddr = "0x4d9427DCA0406358445bC0a8F88C26b704004f74"
 MultiGasProvider = false
-	[Etherman.Etherscan]
-		ApiKey = ""
+
+[Etherman.Etherscan]
+ApiKey = ""
 
 [RPC]
 Host = "0.0.0.0"
@@ -48,9 +50,10 @@ MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://rpc.public.zkevm-test.net/"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 EnableL2SuggestedGasPricePolling = false
-	[RPC.WebSockets]
-		Enabled = true
-		Port = 8546
+
+[RPC.WebSockets]
+Enabled = true
+Port = 8546
 
 [Synchronizer]
 SyncInterval = "2s"

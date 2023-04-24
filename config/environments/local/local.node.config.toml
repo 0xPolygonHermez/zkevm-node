@@ -22,14 +22,15 @@ MaxTxDataBytesSize=30000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
-	[Pool.DB]
-	User = "pool_user"
-	Password = "pool_password"
-	Name = "pool_db"
-	Host = "zkevm-pool-db"
-	Port = "5432"
-	EnableLog = false
-	MaxConns = 200
+
+[Pool.DB]
+User = "pool_user"
+Password = "pool_password"
+Name = "pool_db"
+Host = "zkevm-pool-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
 
 [Etherman]
 URL = "http://your.L1node.url"
@@ -38,8 +39,9 @@ PoEAddr = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 GlobalExitRootManagerAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 MultiGasProvider = false
-	[Etherman.Etherscan]
-		ApiKey = ""
+
+[Etherman.Etherscan]
+ApiKey = ""
 
 [RPC]
 Host = "0.0.0.0"
@@ -50,9 +52,10 @@ MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://internal.zkevm-test.net:2083/"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 EnableL2SuggestedGasPricePolling = true
-	[RPC.WebSockets]
-		Enabled = true
-		Port = 8546
+
+[RPC.WebSockets]
+Enabled = true
+Port = 8546
 
 [Synchronizer]
 SyncInterval = "1s"
@@ -88,24 +91,27 @@ WeightSteps = 1
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 MaxTxSizeForL1 = 131072
-	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "5s"
-		ForcedBatchDeadlineTimeoutInSec = "60s"
-		SleepDurationInMs = "100ms"
-		ResourcePercentageToCloseBatch = 10
-		GERFinalityNumberOfBlocks = 0
-		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
-		ClosingSignalsManagerWaitForCheckingGER = "10s"
-		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
-		ForcedBatchesFinalityNumberOfBlocks = 64
-		TimestampResolution = "15s"
-		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
-	[Sequencer.DBManager]
-		PoolRetrievalInterval = "500ms"
-		L2ReorgRetrievalInterval = "5s"
-	[Sequencer.Worker]
-		ResourceCostMultiplier = 1000
+
+[Sequencer.Finalizer]
+GERDeadlineTimeoutInSec = "5s"
+ForcedBatchDeadlineTimeoutInSec = "60s"
+SleepDurationInMs = "100ms"
+ResourcePercentageToCloseBatch = 10
+GERFinalityNumberOfBlocks = 0
+ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
+ClosingSignalsManagerWaitForCheckingGER = "10s"
+ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
+ForcedBatchesFinalityNumberOfBlocks = 64
+TimestampResolution = "15s"
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+
+[Sequencer.DBManager]
+PoolRetrievalInterval = "500ms"
+L2ReorgRetrievalInterval = "5s"
+
+[Sequencer.Worker]
+ResourceCostMultiplier = 1000
 
 [Aggregator]
 Host = "0.0.0.0"
