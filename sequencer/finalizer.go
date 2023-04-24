@@ -412,6 +412,7 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
 	f.storeProcessedTx(ctx, oldStateRoot, tx, result)
+	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, 1)
 
 	return nil
 }
@@ -439,6 +440,8 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 		err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
 		if err != nil {
 			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
+		} else {
+			metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 		}
 	}
 	metrics.WorkerProcessingTime(time.Since(start))
@@ -465,6 +468,8 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
+			} else {
+				metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
 			}
 		}()
 	} else if (executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode)) && !tx.IsClaim {
@@ -484,6 +489,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			txToDelete := txToDelete
 			go func() {
 				err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, &failedReason)
+				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 				if err != nil {
 					log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
 				}
@@ -501,6 +507,8 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
+			} else {
+				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 			}
 		}()
 	}
