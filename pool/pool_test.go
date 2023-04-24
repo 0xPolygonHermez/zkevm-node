@@ -50,7 +50,7 @@ var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 	genesis    = state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -181,7 +181,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -242,7 +242,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -846,7 +846,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	initialBalance, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
 	initialBalance = initialBalance.Add(initialBalance, initialBalance)
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: operations.DefaultSequencerAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1182,7 +1182,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 				ReceivedAt:  time.Now(),
 			}
 			genesis := state.Genesis{
-				Actions: []*state.GenesisAction{
+				GenesisActions: []*state.GenesisAction{
 					{
 						Address: senderAddress,
 						Type:    int(merkletree.LeafTypeBalance),
@@ -1322,7 +1322,7 @@ func Test_BlockedAddress(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: auth.From.String(),
 				Type:    int(merkletree.LeafTypeBalance),

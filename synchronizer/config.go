@@ -10,8 +10,6 @@ type Config struct {
 	SyncInterval types.Duration `mapstructure:"SyncInterval"`
 	// SyncChunkSize is the number of blocks to sync on each chunk
 	SyncChunkSize uint64 `mapstructure:"SyncChunkSize"`
-	// GenBlockNumber is the block number where the polygonZKEVM smc was deployed
-	GenBlockNumber uint64 `mapstructure:"GenBlockNumber"`
 	// TrustedSequencerURL is the rpc url to connect and sync the trusted state
 	TrustedSequencerURL string `mapstructure:"TrustedSequencerURL"`
 }

@@ -17,8 +17,10 @@ import (
 
 // Genesis contains the information to populate state on creation
 type Genesis struct {
-	Root    common.Hash
-	Actions []*GenesisAction
+	// GenesisBlockNum is the block number where the polygonZKEVM smc was deployed
+	GenesisBlockNum uint64
+	Root            common.Hash
+	GenesisActions  []*GenesisAction
 }
 
 // GenesisAction represents one of the values set on the SMT during genesis.
@@ -46,7 +48,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		return newRoot, ErrStateTreeNil
 	}
 
-	for _, action := range genesis.Actions {
+	for _, action := range genesis.GenesisActions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
 		case int(merkletree.LeafTypeBalance):

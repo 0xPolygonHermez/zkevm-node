@@ -87,7 +87,7 @@ func genesisCase(t *testing.T, tv genesisTestVectorReader) {
 	require.NoError(t, err)
 	actions := genesisparser.GenesisTest2Actions(tv.GenesisAccountTest())
 	genesis := state.Genesis{
-		Actions: actions,
+		GenesisActions: actions,
 	}
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
