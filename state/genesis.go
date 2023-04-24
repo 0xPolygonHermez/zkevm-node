@@ -48,7 +48,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		return newRoot, ErrStateTreeNil
 	}
 
-	for _, action := range genesis.Actions {
+	for _, action := range genesis.GenesisActions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
 		case int(merkletree.LeafTypeBalance):
