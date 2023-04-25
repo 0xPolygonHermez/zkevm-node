@@ -36,7 +36,6 @@ type Transaction struct {
 	PreprocessedStateRoot common.Hash
 	IsWIP                 bool
 	IP                    string
-	DepositCount          *uint64
 }
 
 // NewTransaction creates a new transaction

@@ -74,10 +74,9 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			from_address,
 			is_wip,
 			ip,
-			deposit_count
 		) 
 		VALUES 
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 			ON CONFLICT (hash) DO UPDATE SET 
 			encoded = $2,
 			decoded = $3,
@@ -96,7 +95,6 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			from_address = $16,
 			is_wip = $17,
 			ip = $18,
-			deposit_count = $19
 	`
 
 	// Get FromAddress from the JSON data
@@ -124,8 +122,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		tx.ReceivedAt,
 		fromAddress,
 		tx.IsWIP,
-		tx.IP,
-		tx.DepositCount); err != nil {
+		tx.IP); err != nil {
 		return err
 	}
 	return nil
@@ -141,10 +138,10 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 		sql  string
 	)
 	if limit == 0 {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, deposit_count FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
+		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, deposit_count, failed_reason FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC LIMIT $2"
+		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC LIMIT $2"
 		rows, err = p.db.Query(ctx, sql, status.String(), limit)
 	}
 	if err != nil {
@@ -174,10 +171,10 @@ func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status p
 		sql  string
 	)
 	if limit == 0 {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, deposit_count FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC"
+		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, deposit_count, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC LIMIT $2"
+		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC LIMIT $2"
 		rows, err = p.db.Query(ctx, sql, status.String(), limit)
 	}
 	if err != nil {
@@ -456,7 +453,7 @@ func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash)
 
 // GetTxsByFromAndNonce get all the transactions from the pool with the same from and nonce
 func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]pool.Transaction, error) {
-	sql := `SELECT encoded, status, received_at, is_wip, ip, deposit_count
+	sql := `SELECT encoded, status, received_at, is_wip, ip
 	          FROM pool.transaction
 			 WHERE from_address = $1
 			   AND nonce = $2`
@@ -578,10 +575,9 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 		encoded, status, ip string
 		receivedAt          time.Time
 		isWIP               bool
-		depositCount        *uint64
 	)
 
-	if err := rows.Scan(&encoded, &status, &receivedAt, &isWIP, &ip, &depositCount); err != nil {
+	if err := rows.Scan(&encoded, &status, &receivedAt, &isWIP, &ip); err != nil {
 		return nil, err
 	}
 
@@ -600,7 +596,6 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	tx.ReceivedAt = receivedAt
 	tx.IsWIP = isWIP
 	tx.IP = ip
-	tx.DepositCount = depositCount
 
 	return tx, nil
 }
@@ -676,21 +671,4 @@ func (p *PostgresPoolStorage) GetAllAddressesBlocked(ctx context.Context) ([]com
 	}
 
 	return addrs, nil
-}
-
-// DepositCountExists checks if already exists a `pending` or `selected` transaction
-// in the pool with the provided deposit count
-func (p *PostgresPoolStorage) DepositCountExists(ctx context.Context, depositCount uint64) (bool, error) {
-	var exists bool
-	req := `
-        SELECT EXISTS (SELECT 1
-                         FROM pool.transaction
-                        WHERE deposit_count = $1
-                          AND status IN ($2, $3))`
-	err := p.db.QueryRow(ctx, req, depositCount, pool.TxStatusPending, pool.TxStatusSelected).Scan(&exists)
-	if err != nil && err != sql.ErrNoRows {
-		return false, err
-	}
-
-	return exists, nil
 }

@@ -385,7 +385,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hash, f.processRequest.GlobalExitRoot.String())
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
 	if err != nil {
-		log.Errorf("failed to process transaction:err: %s", err)
+		log.Errorf("failed to process transaction: %s", err)
 		return err
 	}
 
