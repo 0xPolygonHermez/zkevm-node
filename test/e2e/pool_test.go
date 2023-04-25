@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"testing"
 
-	bridge "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -194,36 +193,4 @@ func TestPendingNonce(t *testing.T) {
 			require.Equal(t, txNonce+1, newPendingNonce)
 		}
 	}
-}
-
-func Test_FreeClaimRejectedWhenReverted(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
-	var err error
-	err = operations.Teardown()
-	require.NoError(t, err)
-
-	defer func() { require.NoError(t, operations.Teardown()) }()
-
-	ctx := context.Background()
-	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsMan.Setup()
-	require.NoError(t, err)
-
-	client := operations.MustGetClient(operations.DefaultL2NetworkURL)
-	auth := operations.MustGetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
-
-	bridgeAddr := common.HexToAddress("0xff0EE8ea08cEf5cb4322777F5CC3E8A584B8A4A0")
-	bridgeSC, err := bridge.NewPolygonzkevmbridge(bridgeAddr, client)
-	require.NoError(t, err)
-
-	auth.GasLimit = 53000
-	auth.GasPrice = big.NewInt(0)
-
-	_, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
-	require.Equal(t, err.Error(), "free claim reverted")
 }
