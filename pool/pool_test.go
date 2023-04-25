@@ -1117,11 +1117,6 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 	auth.GasPrice = big.NewInt(0)
 	auth.Nonce = big.NewInt(0)
 
-	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
-	require.NoError(t, err)
-
-	claimData := signedTx.Data()
-
 	require.NoError(t, err)
 	testCases := []struct {
 		name          string
@@ -1140,14 +1135,6 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			gasPrice:      big.NewInt(0).SetUint64(gasPrice.Uint64() - uint64(1)),
 			data:          []byte{},
 			expectedError: pool.ErrGasPrice,
-		},
-		{
-			name:          "NoGasPriceTooLowErr_ForClaims",
-			nonce:         0,
-			to:            &l2BridgeAddr,
-			gasPrice:      big.NewInt(0),
-			data:          claimData,
-			expectedError: nil,
 		},
 	}
 
@@ -1407,80 +1394,4 @@ func setupPool(t *testing.T, cfg pool.Config, s *pgpoolstorage.PostgresPoolStora
 	require.NoError(t, err)
 	p.StartPollingMinSuggestedGasPrice(ctx)
 	return p
-}
-
-func Test_AvoidDuplicatedClaims(t *testing.T) {
-	initOrResetDB(t)
-
-	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	require.NoError(t, err)
-	defer stateSqlDB.Close() //nolint:gosec,errcheck
-
-	eventStorage, err := nileventstorage.NewNilEventStorage()
-	if err != nil {
-		log.Fatal(err)
-	}
-	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-
-	st := newState(stateSqlDB, eventLog)
-
-	genesisBlock := state.Block{
-		BlockNumber: 0,
-		BlockHash:   state.ZeroHash,
-		ParentHash:  state.ZeroHash,
-		ReceivedAt:  time.Now(),
-	}
-
-	ctx := context.Background()
-	dbTx, err := st.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
-	require.NoError(t, err)
-	require.NoError(t, dbTx.Commit(ctx))
-
-	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-
-	require.NoError(t, err)
-	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
-
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
-	require.NoError(t, err)
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
-	require.NoError(t, err)
-
-	// insert transaction
-	bridgeSC, err := bridge.NewPolygonzkevmbridge(l2BridgeAddr, nil)
-	require.NoError(t, err)
-
-	auth.NoSend = true
-	auth.GasLimit = 53000
-	auth.GasPrice = big.NewInt(0)
-	auth.Nonce = big.NewInt(0)
-
-	depositCount := uint32(123456789)
-	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, depositCount, [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
-	require.NoError(t, err)
-
-	// add claim
-	err = p.AddTx(ctx, *signedTx, "")
-	require.NoError(t, err)
-
-	auth.GasLimit++
-	signedTx, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, depositCount, [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
-	require.NoError(t, err)
-
-	// add claim with same deposit count
-	err = p.AddTx(ctx, *signedTx, "")
-	require.Equal(t, err.Error(), "deposit count already exists")
-
-	auth.Nonce = big.NewInt(1)
-	depositCount = uint32(12345678)
-	signedTx, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, depositCount, [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
-	require.NoError(t, err)
-
-	// add claim with wrong nonce
-	err = p.AddTx(ctx, *signedTx, "")
-	require.Equal(t, err.Error(), "invalid nonce")
 }

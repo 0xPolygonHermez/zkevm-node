@@ -274,7 +274,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		return ErrOversizedData
 	}
 
-	// Reject transactions with a gas price lower than the minimum gas price if not a claim (claims are free)
+	// Reject transactions with a gas price lower than the minimum gas price
 	p.minSuggestedGasPriceMux.RLock()
 	gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
 	p.minSuggestedGasPriceMux.RUnlock()
