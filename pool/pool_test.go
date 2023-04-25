@@ -59,7 +59,6 @@ var (
 		},
 	}
 	cfg = pool.Config{
-		FreeClaimGasLimit:                 150000,
 		MaxTxBytesSize:                    30132,
 		MaxTxDataBytesSize:                30000,
 		MinAllowedGasPriceInterval:        cfgTypes.NewDuration(5 * time.Minute),
@@ -355,7 +354,7 @@ func Test_GetPendingTxs(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	txs, err := p.GetPendingTxs(ctx, false, limit)
+	txs, err := p.GetPendingTxs(ctx, limit)
 	require.NoError(t, err)
 
 	assert.Equal(t, limit, len(txs))
@@ -415,7 +414,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	txs, err := p.GetPendingTxs(ctx, false, limit)
+	txs, err := p.GetPendingTxs(ctx, limit)
 	require.NoError(t, err)
 
 	assert.Equal(t, txsCount, len(txs))
@@ -474,7 +473,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	txs, err := p.GetTxs(ctx, pool.TxStatusPending, false, 1, 10)
+	txs, err := p.GetTxs(ctx, pool.TxStatusPending, 1, 10)
 	require.NoError(t, err)
 	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
 	assert.Equal(t, txs[0].Transaction.Nonce(), uint64(0))
@@ -1062,7 +1061,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
 
-	txs, err := p.GetPendingTxs(ctx, false, 0)
+	txs, err := p.GetPendingTxs(ctx, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(txs))
 
@@ -1114,7 +1113,6 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			name:          "NoGasPriceTooLowErr_ForClaims",
 			nonce:         0,
 			to:            &l2BridgeAddr,
-			gasLimit:      cfg.FreeClaimGasLimit,
 			gasPrice:      big.NewInt(0),
 			data:          claimData,
 			expectedError: nil,
@@ -1251,7 +1249,7 @@ func Test_AddRevertedTx(t *testing.T) {
 	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
 
-	txs, err := p.GetPendingTxs(ctx, false, 0)
+	txs, err := p.GetPendingTxs(ctx, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(txs))
 
@@ -1311,7 +1309,6 @@ func Test_BlockedAddress(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := pool.Config{
-		FreeClaimGasLimit:                 150000,
 		MaxTxBytesSize:                    30132,
 		MaxTxDataBytesSize:                30000,
 		MinAllowedGasPriceInterval:        cfgTypes.NewDuration(5 * time.Minute),

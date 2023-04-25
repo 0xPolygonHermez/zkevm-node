@@ -1,7 +1,6 @@
 package sequencer
 
 import (
-	"math"
 	"math/big"
 	"time"
 
@@ -22,7 +21,6 @@ type TxTracker struct {
 	GasPrice       *big.Int
 	Cost           *big.Int       // Cost = Amount + Benefit
 	Benefit        *big.Int       // GasLimit * GasPrice
-	IsClaim        bool           // Needed to calculate efficiency
 	BatchResources batchResources // To check if it fits into a batch
 	Efficiency     float64
 	RawTx          []byte
@@ -31,7 +29,7 @@ type TxTracker struct {
 }
 
 // newTxTracker creates and inits a TxTracker
-func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, constraints batchConstraints, weights batchResourceWeights, ip string) (*TxTracker, error) {
+func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints batchConstraints, weights batchResourceWeights, ip string) (*TxTracker, error) {
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err
@@ -48,7 +46,6 @@ func newTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters,
 		IP:         ip,
 	}
 
-	txTracker.IsClaim = isClaim
 	txTracker.BatchResources.zKCounters = counters
 	txTracker.BatchResources.bytes = tx.Size()
 	txTracker.HashStr = txTracker.Hash.String()
@@ -90,13 +87,10 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraints, weights b
 
 	resourceCost = resourceCost * perThousand
 	var eff *big.Float
-	if tx.IsClaim {
-		eff = big.NewFloat(math.MaxFloat64)
-	} else {
-		ben := big.NewFloat(0).SetInt(tx.Benefit)
-		rc := big.NewFloat(0).SetFloat64(resourceCost)
-		eff = big.NewFloat(0).Quo(ben, rc)
-	}
+
+	ben := big.NewFloat(0).SetInt(tx.Benefit)
+	rc := big.NewFloat(0).SetFloat64(resourceCost)
+	eff = big.NewFloat(0).Quo(ben, rc)
 
 	var accuracy big.Accuracy
 	tx.Efficiency, accuracy = eff.Float64()
