@@ -129,10 +129,10 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
-			name:                "BlockNumber Negative Number <= -4",
-			bn:                  bnPtr(BlockNumber(int64(-4))),
+			name:                "BlockNumber Negative Number <= -6",
+			bn:                  bnPtr(BlockNumber(int64(-6))),
 			expectedBlockNumber: 0,
-			expectedError:       NewRPCError(InvalidParamsErrorCode, "invalid block number: -4"),
+			expectedError:       NewRPCError(InvalidParamsErrorCode, "invalid block number: -6"),
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 	}
