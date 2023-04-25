@@ -94,7 +94,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			received_at = $15,
 			from_address = $16,
 			is_wip = $17,
-			ip = $18,
+			ip = $18
 	`
 
 	// Get FromAddress from the JSON data
