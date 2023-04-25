@@ -44,7 +44,6 @@ type Transaction struct {
 	PreprocessedStateRoot common.Hash
 	IsWIP                 bool
 	IP                    string
-	DepositCount          *uint64
 	FailedReason          *string
 }
 
