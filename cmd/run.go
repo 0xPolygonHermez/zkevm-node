@@ -288,7 +288,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool) {
 	var trustedSequencerURL string
 	var err error
-	if !cfg.IsTrustedSequencer {
+	if !cfg.TrustedSequencer.IsTrustedSequencer {
 		if cfg.Synchronizer.TrustedSequencerURL != "" {
 			trustedSequencerURL = cfg.Synchronizer.TrustedSequencerURL
 		} else {
@@ -303,7 +303,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 	zkEVMClient := client.NewClient(trustedSequencerURL)
 
 	sy, err := synchronizer.NewSynchronizer(
-		cfg.IsTrustedSequencer, etherman, st, pool, ethTxManager,
+		etherman, st, pool, ethTxManager,
 		zkEVMClient, cfg.NetworkConfig.Genesis, cfg.Synchronizer,
 	)
 	if err != nil {

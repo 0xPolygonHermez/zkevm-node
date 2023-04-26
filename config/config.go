@@ -54,7 +54,7 @@ const (
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	IsTrustedSequencer  bool `mapstructure:"IsTrustedSequencer"`
+	TrustedSequencer    TrustedSequencerConfig
 	Log                 log.Config
 	Etherman            etherman.Config
 	EthTxManager        ethtxmanager.Config
@@ -132,5 +132,16 @@ func Load(ctx *cli.Context) (*Config, error) {
 	}
 	// Load genesis parameters
 	cfg.loadNetworkConfig(ctx)
+
+	cfg.feedNestedConfigs()
+
 	return cfg, nil
+}
+
+func (cfg *Config) feedNestedConfigs() {
+	// feed RPC config
+	cfg.RPC.TrustedSequencerURL = cfg.TrustedSequencer.TrustedSequencerURL
+	// feed Synchronizer config
+	cfg.Synchronizer.TrustedSequencerURL = cfg.TrustedSequencer.TrustedSequencerURL
+	cfg.Synchronizer.IsTrustedSequencer = cfg.TrustedSequencer.IsTrustedSequencer
 }

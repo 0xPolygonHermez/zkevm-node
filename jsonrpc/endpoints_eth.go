@@ -176,7 +176,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 // GasPrice returns the average gas price based on the last x blocks
 func (e *EthEndpoints) GasPrice() (interface{}, types.Error) {
 	ctx := context.Background()
-	if e.cfg.SequencerNodeURI != "" {
+	if e.cfg.TrustedSequencerURL != "" {
 		return e.getPriceFromSequencerNode()
 	}
 	gasPrice, err := e.pool.GetGasPrice(ctx)
@@ -187,7 +187,7 @@ func (e *EthEndpoints) GasPrice() (interface{}, types.Error) {
 }
 
 func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {
-	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_gasPrice")
+	res, err := client.JSONRPCCall(e.cfg.TrustedSequencerURL, "eth_gasPrice")
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to get gas price from sequencer node", err)
 	}
@@ -556,7 +556,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 		}
 
 		// if the tx does not exist in the state, look for it in the pool
-		if e.cfg.SequencerNodeURI != "" {
+		if e.cfg.TrustedSequencerURL != "" {
 			return e.getTransactionByHashFromSequencerNode(hash.Hash())
 		}
 		poolTx, err := e.pool.GetTxByHash(ctx, hash.Hash())
@@ -572,7 +572,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 }
 
 func (e *EthEndpoints) getTransactionByHashFromSequencerNode(hash common.Hash) (interface{}, types.Error) {
-	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_getTransactionByHash", hash.String())
+	res, err := client.JSONRPCCall(e.cfg.TrustedSequencerURL, "eth_getTransactionByHash", hash.String())
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx from sequencer node", err)
 	}
@@ -606,7 +606,7 @@ func (e *EthEndpoints) GetTransactionCount(address types.ArgAddress, blockArg *t
 		if blockArg != nil {
 			blockNumArg := blockArg.Number()
 			if blockNumArg != nil && *blockNumArg == types.PendingBlockNumber {
-				if e.cfg.SequencerNodeURI != "" {
+				if e.cfg.TrustedSequencerURL != "" {
 					return e.getTransactionCountFromSequencerNode(address.Address(), blockArg.Number())
 				}
 				pendingNonce, err = e.pool.GetNonce(ctx, address.Address())
@@ -633,7 +633,7 @@ func (e *EthEndpoints) GetTransactionCount(address types.ArgAddress, blockArg *t
 }
 
 func (e *EthEndpoints) getTransactionCountFromSequencerNode(address common.Address, number *types.BlockNumber) (interface{}, types.Error) {
-	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_getTransactionCount", address.String(), number.StringOrHex())
+	res, err := client.JSONRPCCall(e.cfg.TrustedSequencerURL, "eth_getTransactionCount", address.String(), number.StringOrHex())
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to get nonce from sequencer node", err)
 	}
@@ -668,7 +668,7 @@ func (e *EthEndpoints) GetBlockTransactionCountByHash(hash types.ArgHash) (inter
 func (e *EthEndpoints) GetBlockTransactionCountByNumber(number *types.BlockNumber) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		if number != nil && *number == types.PendingBlockNumber {
-			if e.cfg.SequencerNodeURI != "" {
+			if e.cfg.TrustedSequencerURL != "" {
 				return e.getBlockTransactionCountByNumberFromSequencerNode(number)
 			}
 			c, err := e.pool.CountPendingTransactions(ctx)
@@ -694,7 +694,7 @@ func (e *EthEndpoints) GetBlockTransactionCountByNumber(number *types.BlockNumbe
 }
 
 func (e *EthEndpoints) getBlockTransactionCountByNumberFromSequencerNode(number *types.BlockNumber) (interface{}, types.Error) {
-	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_getBlockTransactionCountByNumber", number.StringOrHex())
+	res, err := client.JSONRPCCall(e.cfg.TrustedSequencerURL, "eth_getBlockTransactionCountByNumber", number.StringOrHex())
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx count by block number from sequencer node", err)
 	}
@@ -795,7 +795,7 @@ func (e *EthEndpoints) newPendingTransactionFilter(wsConn *websocket.Conn) (inte
 // - for Sequencer nodes it tries to add the tx to the pool
 // - for Non-Sequencer nodes it relays the Tx to the Sequencer node
 func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input string) (interface{}, types.Error) {
-	if e.cfg.SequencerNodeURI != "" {
+	if e.cfg.TrustedSequencerURL != "" {
 		return e.relayTxToSequencerNode(input)
 	} else {
 		ip := ""
@@ -810,7 +810,7 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 }
 
 func (e *EthEndpoints) relayTxToSequencerNode(input string) (interface{}, types.Error) {
-	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_sendRawTransaction", input)
+	res, err := client.JSONRPCCall(e.cfg.TrustedSequencerURL, "eth_sendRawTransaction", input)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to relay tx to the sequencer node", err)
 	}

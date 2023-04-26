@@ -350,8 +350,11 @@ func TestForcedBatch(t *testing.T) {
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize: 10,
+
+		SyncInterval:       cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:      10,
+		GenBlockNumber:     uint64(123456),
+		IsTrustedSequencer: false,
 	}
 
 	m := mocks{
@@ -362,7 +365,7 @@ func TestForcedBatch(t *testing.T) {
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 
-	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
+	sync, err := NewSynchronizer(m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -590,8 +593,11 @@ func TestSequenceForcedBatch(t *testing.T) {
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize: 10,
+
+		SyncInterval:       cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:      10,
+		GenBlockNumber:     uint64(123456),
+		IsTrustedSequencer: true,
 	}
 
 	m := mocks{
@@ -602,7 +608,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
+	sync, err := NewSynchronizer(m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation

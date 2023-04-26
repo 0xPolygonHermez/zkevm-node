@@ -2,6 +2,7 @@ package config
 
 // DefaultValues is the default configuration
 const DefaultValues = `
+TrustedSequencerURL = ""
 IsTrustedSequencer = false
 
 [Log]
@@ -51,7 +52,6 @@ Port = 8545
 ReadTimeout = "60s"
 WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 500
-SequencerNodeURI = ""
 EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
 		Enabled = true
@@ -61,7 +61,6 @@ EnableL2SuggestedGasPricePolling = true
 [Synchronizer]
 SyncInterval = "1s"
 SyncChunkSize = 100
-TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"

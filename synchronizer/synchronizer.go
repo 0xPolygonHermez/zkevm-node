@@ -26,21 +26,19 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	isTrustedSequencer bool
-	etherMan           ethermanInterface
-	state              stateInterface
-	pool               poolInterface
-	ethTxManager       ethTxManager
-	zkEVMClient        zkEVMClientInterface
-	ctx                context.Context
-	cancelCtx          context.CancelFunc
-	genesis            state.Genesis
-	cfg                Config
+	etherMan     ethermanInterface
+	state        stateInterface
+	pool         poolInterface
+	ethTxManager ethTxManager
+	zkEVMClient  zkEVMClientInterface
+	ctx          context.Context
+	cancelCtx    context.CancelFunc
+	genesis      state.Genesis
+	cfg          Config
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(
-	isTrustedSequencer bool,
 	ethMan ethermanInterface,
 	st stateInterface,
 	pool poolInterface,
@@ -51,16 +49,15 @@ func NewSynchronizer(
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &ClientSynchronizer{
-		isTrustedSequencer: isTrustedSequencer,
-		state:              st,
-		etherMan:           ethMan,
-		pool:               pool,
-		ctx:                ctx,
-		cancelCtx:          cancel,
-		ethTxManager:       ethTxManager,
-		zkEVMClient:        zkEVMClient,
-		genesis:            genesis,
-		cfg:                cfg,
+		state:        st,
+		etherMan:     ethMan,
+		pool:         pool,
+		ctx:          ctx,
+		cancelCtx:    cancel,
+		ethTxManager: ethTxManager,
+		zkEVMClient:  zkEVMClient,
+		genesis:      genesis,
+		cfg:          cfg,
 	}, nil
 }
 
@@ -327,7 +324,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 // related to the trusted state when the node has all the information from
 // l1 synchronized
 func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
-	if s.isTrustedSequencer {
+	if s.cfg.IsTrustedSequencer {
 		return nil
 	}
 
@@ -597,7 +594,7 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 	if reorgReasons.Len() > 0 {
 		reason := reorgReasons.String()
 		log.Warnf("Trusted Reorg detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
-		if s.isTrustedSequencer {
+		if s.cfg.IsTrustedSequencer {
 			for {
 				log.Error("TRUSTED REORG DETECTED! Batch: ", batch.BatchNumber)
 				time.Sleep(5 * time.Second) //nolint:gomnd

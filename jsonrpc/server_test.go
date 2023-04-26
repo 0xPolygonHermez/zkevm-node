@@ -150,7 +150,7 @@ func newSequencerMockedServer(t *testing.T) (*mockedServer, *mocksWrapper, *ethc
 func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mockedServer, *mocksWrapper, *ethclient.Client) {
 	cfg := getDefaultConfig()
 	cfg.Port = 9124
-	cfg.SequencerNodeURI = sequencerNodeURI
+	cfg.TrustedSequencerURL = sequencerNodeURI
 	return newMockedServer(t, cfg)
 }
 

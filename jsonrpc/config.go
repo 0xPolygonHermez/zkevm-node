@@ -22,10 +22,6 @@ type Config struct {
 	// send within a single second
 	MaxRequestsPerIPAndSecond float64 `mapstructure:"MaxRequestsPerIPAndSecond"`
 
-	// SequencerNodeURI is used allow Non-Sequencer nodes
-	// to relay transactions to the Sequencer node
-	SequencerNodeURI string `mapstructure:"SequencerNodeURI"`
-
 	// MaxCumulativeGasUsed is the max gas allowed per batch
 	MaxCumulativeGasUsed uint64
 
@@ -34,6 +30,10 @@ type Config struct {
 
 	// EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.
 	EnableL2SuggestedGasPricePolling bool `mapstructure:"EnableL2SuggestedGasPricePolling"`
+
+	// TrustedSequencerURL is used allow Non-Sequencer nodes
+	// to relay transactions to the Sequencer node
+	TrustedSequencerURL string `mapstructure:"-"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support

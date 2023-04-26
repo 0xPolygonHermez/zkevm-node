@@ -22,9 +22,9 @@ This will syncronize with the Trusted Sequencer (run by Polygon).
 Use the default [public config file](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.node.config.toml), and make sure the following values are set to:
 
 ```toml
-[RPC]
+[TrustedSequencer]
 ...
-SequencerNodeURI = "https://public.zkevm-test.net:2083"
+TrustedSequencerURL = "https://public.zkevm-test.net:2083"
 ```
 
 Same goes for the Prover Config ([prover-config.json](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.prover.config.json)):
