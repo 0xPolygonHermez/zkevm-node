@@ -29,6 +29,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
+	"github.com/0xPolygonHermez/zkevm-node/sequencesender"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	executorpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
@@ -146,6 +147,8 @@ func start(cliCtx *cli.Context) error {
 		EventID:    event.EventID_NodeComponentStarted,
 	}
 
+	var poolInstance *pool.Pool
+
 	for _, component := range components {
 		switch component {
 		case AGGREGATOR:
@@ -163,9 +166,26 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			if poolInstance == nil {
+				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			}
 			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st, eventLog)
 			go seq.Start(ctx)
+		case SEQUENCE_SENDER:
+			ev.Component = event.Component_Sequence_Sender
+			ev.Description = "Running sequence sender"
+			err := eventLog.LogEvent(ctx, ev)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if poolInstance == nil {
+				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			}
+			sequenceSender, err := sequencesender.New(c.SequenceSender, poolInstance, st, etherman, etm, eventLog)
+			if err != nil {
+				log.Fatal(err)
+			}
+			go sequenceSender.Start(ctx)
 		case RPC:
 			ev.Component = event.Component_RPC
 			ev.Description = "Running JSON-RPC server"
@@ -173,7 +193,9 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			if poolInstance == nil {
+				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			}
 			if c.RPC.EnableL2SuggestedGasPricePolling {
 				// Needed for rejecting transactions with too low gas price
 				poolInstance.StartPollingMinSuggestedGasPrice(ctx)
@@ -190,7 +212,9 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			if poolInstance == nil {
+				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			}
 			go runSynchronizer(*c, etherman, etm, st, poolInstance)
 		case ETHTXMANAGER:
 			ev.Component = event.Component_EthTxManager
@@ -208,7 +232,9 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			if poolInstance == nil {
+				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			}
 			go runL2GasPriceSuggester(c.L2GasPriceSuggester, st, poolInstance, etherman)
 		}
 	}
