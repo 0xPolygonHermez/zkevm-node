@@ -11,7 +11,7 @@ require (
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/google/uuid v1.3.0
 	github.com/hermeznetwork/tracerr v0.3.2
-	github.com/iden3/go-iden3-crypto v0.0.14
+	github.com/iden3/go-iden3-crypto v0.0.15
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/mitchellh/mapstructure v1.5.0
