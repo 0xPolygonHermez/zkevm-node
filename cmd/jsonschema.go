@@ -29,7 +29,7 @@ func genJSONSchema(cli *cli.Context) error {
 		return err
 	}
 	output := cli.String(config.FlagOutputFile)
-	err = os.WriteFile(output, file, 0600)
+	err = os.WriteFile(output, file, 0600) //nolint:gomnd
 	if err != nil {
 		return err
 	}
