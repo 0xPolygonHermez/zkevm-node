@@ -385,7 +385,7 @@ func TestForcedBatch(t *testing.T) {
 				On("GetLastBatchNumber", ctx, m.DbTx).
 				Return(uint64(10), nil).
 				Once()
-			
+
 			m.State.
 				On("SetInitSyncBatch", ctx, uint64(10), m.DbTx).
 				Return(nil).
@@ -395,7 +395,7 @@ func TestForcedBatch(t *testing.T) {
 				On("Commit", ctx).
 				Return(nil).
 				Once()
-			
+
 			m.Etherman.
 				On("GetLatestBatchNumber").
 				Return(uint64(10), nil).
@@ -406,7 +406,7 @@ func TestForcedBatch(t *testing.T) {
 				On("GetLastBatchNumber", ctx, nilDbTx).
 				Return(uint64(10), nil).
 				Once()
-			
+
 			m.State.
 				On("SetLastBatchNumberSeenOnEthereum", ctx, uint64(10), nilDbTx).
 				Return(nil).
@@ -651,7 +651,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 				On("GetLastBatchNumber", ctx, nilDbTx).
 				Return(uint64(10), nil).
 				Once()
-			
+
 			m.State.
 				On("SetLastBatchNumberSeenOnEthereum", ctx, uint64(10), nilDbTx).
 				Return(nil).
