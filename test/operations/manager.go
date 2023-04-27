@@ -74,6 +74,7 @@ type SequenceSenderConfig struct {
 	LastBatchVirtualizationTimeMaxWaitPeriod string
 	MaxTxSizeForL1                           uint64
 	SenderAddress                            string
+	PrivateKey                               string
 }
 
 // Config is the main Manager configuration.
@@ -561,10 +562,12 @@ func GetDefaultOperationsConfig() *Config {
 	return &Config{
 		State:     &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
 		Sequencer: &SequencerConfig{PrivateKey: DefaultSequencerPrivateKey},
-		SequenceSender: &SequenceSenderConfig{WaitPeriodSendSequence: DefaultWaitPeriodSendSequence,
+		SequenceSender: &SequenceSenderConfig{
+			WaitPeriodSendSequence:                   DefaultWaitPeriodSendSequence,
 			LastBatchVirtualizationTimeMaxWaitPeriod: DefaultWaitPeriodSendSequence,
 			MaxTxSizeForL1:                           DefaultMaxTxSizeForL1,
-			SenderAddress:                            DefaultSequencerAddress},
+			SenderAddress:                            DefaultSequencerAddress,
+			PrivateKey:                               DefaultSequencerPrivateKey},
 	}
 }
 

@@ -181,11 +181,8 @@ func start(cliCtx *cli.Context) error {
 			if poolInstance == nil {
 				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
 			}
-			sequenceSender, err := sequencesender.New(c.SequenceSender, poolInstance, st, etherman, etm, eventLog)
-			if err != nil {
-				log.Fatal(err)
-			}
-			go sequenceSender.Start(ctx)
+			seqSender := createSequenceSender(*c, poolInstance, ethTxManagerStorage, st, eventLog)
+			go seqSender.Start(ctx)
 		case RPC:
 			ev.Component = event.Component_RPC
 			ev.Description = "Running JSON-RPC server"
@@ -344,6 +341,29 @@ func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanage
 		log.Fatal(err)
 	}
 	return seq
+}
+
+func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencesender.SequenceSender {
+	etherman, err := newEtherman(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, privateKey := range cfg.SequenceSender.PrivateKeys {
+		_, err := etherman.LoadAuthFromKeyStore(privateKey.Path, privateKey.Password)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
+
+	seqSender, err := sequencesender.New(cfg.SequenceSender, pool, st, etherman, ethTxManager, eventLog)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return seqSender
 }
 
 func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {

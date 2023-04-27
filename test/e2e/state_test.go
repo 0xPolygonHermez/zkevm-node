@@ -47,6 +47,7 @@ func TestStateTransition(t *testing.T) {
 					LastBatchVirtualizationTimeMaxWaitPeriod: "5s",
 					WaitPeriodSendSequence:                   "5s",
 					MaxTxSizeForL1:                           131072,
+					PrivateKey:                               testCase.SequencerPrivateKey,
 				},
 			}
 			opsman, err := operations.NewManager(ctx, opsCfg)

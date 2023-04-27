@@ -46,6 +46,7 @@ func TestUniswap(t *testing.T) {
 			LastBatchVirtualizationTimeMaxWaitPeriod: "5s",
 			WaitPeriodSendSequence:                   "5s",
 			MaxTxSizeForL1:                           131072,
+			PrivateKey:                               "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
 		},
 	}
 	opsman, err := operations.NewManager(ctx, opsCfg)

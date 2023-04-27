@@ -198,6 +198,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: float64(1000),
 		},
 		{
+			path:          "SequenceSender.WaitPeriodSendSequence",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
 			path:          "SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
