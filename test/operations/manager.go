@@ -63,11 +63,6 @@ var (
 	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )
 
-// SequencerConfig is the configuration for the sequencer operations.
-type SequencerConfig struct {
-	PrivateKey string
-}
-
 // SequenceSenderConfig is the configuration for the sequence sender operations
 type SequenceSenderConfig struct {
 	WaitPeriodSendSequence                   string
@@ -80,7 +75,6 @@ type SequenceSenderConfig struct {
 // Config is the main Manager configuration.
 type Config struct {
 	State          *state.Config
-	Sequencer      *SequencerConfig
 	SequenceSender *SequenceSenderConfig
 }
 
@@ -560,8 +554,7 @@ func RunMakeTarget(target string) error {
 // GetDefaultOperationsConfig provides a default configuration to run the environment
 func GetDefaultOperationsConfig() *Config {
 	return &Config{
-		State:     &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
-		Sequencer: &SequencerConfig{PrivateKey: DefaultSequencerPrivateKey},
+		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
 		SequenceSender: &SequenceSenderConfig{
 			WaitPeriodSendSequence:                   DefaultWaitPeriodSendSequence,
 			LastBatchVirtualizationTimeMaxWaitPeriod: DefaultWaitPeriodSendSequence,

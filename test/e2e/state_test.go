@@ -39,9 +39,6 @@ func TestStateTransition(t *testing.T) {
 				State: &state.Config{
 					MaxCumulativeGasUsed: 800000,
 				},
-				Sequencer: &operations.SequencerConfig{
-					PrivateKey: testCase.SequencerPrivateKey,
-				},
 				SequenceSender: &operations.SequenceSenderConfig{
 					SenderAddress:                            testCase.SequencerAddress,
 					LastBatchVirtualizationTimeMaxWaitPeriod: "5s",

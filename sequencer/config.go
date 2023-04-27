@@ -121,10 +121,6 @@ type FinalizerCfg struct {
 
 	// TimestampResolution is the resolution of the timestamp used to close a batch
 	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
-
-	// PrivateKeys defines all the key store files that are going
-	// to be read in order to provide the private keys to sign the L1 txs
-	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
 }
 
 // WorkerCfg contains the Worker's configuration properties

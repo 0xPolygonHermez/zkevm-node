@@ -327,13 +327,6 @@ func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanage
 		log.Fatal(err)
 	}
 
-	for _, privateKey := range cfg.Sequencer.Finalizer.PrivateKeys {
-		_, err := etherman.LoadAuthFromKeyStore(privateKey.Path, privateKey.Password)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
 	seq, err := sequencer.New(cfg.Sequencer, pool, st, etherman, ethTxManager, eventLog)

@@ -56,7 +56,6 @@ services:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
     volumes:
-      - ./sequencer.keystore:/pk/sequencer.keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
     command:
