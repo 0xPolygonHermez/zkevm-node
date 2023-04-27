@@ -591,6 +591,48 @@ func (_m *stateMock) SetGenesis(ctx context.Context, block state.Block, genesis 
 	return r0, r1
 }
 
+// SetInitSyncBatch provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) SetInitSyncBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetLastBatchNumberSeenOnEthereum provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetLastBatchNumberVerifiedOnEthereum provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) SetLastBatchNumberVerifiedOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // StoreTransactions provides a mock function with given fields: ctx, batchNum, processedTxs, dbTx
 func (_m *stateMock) StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*state.ProcessTransactionResponse, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNum, processedTxs, dbTx)
