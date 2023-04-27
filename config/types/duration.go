@@ -26,6 +26,7 @@ func NewDuration(duration time.Duration) Duration {
 	return Duration{time.Duration(duration)}
 }
 
+// JSONSchema returns a custom schema to be used for the JSON Schema generation of this type
 func (Duration) JSONSchema() *jsonschema.Schema {
 	return &jsonschema.Schema{
 		Type:        "string",

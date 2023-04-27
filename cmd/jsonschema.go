@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"strings"
 
@@ -29,7 +29,7 @@ func genJSONSchema(cli *cli.Context) error {
 		return err
 	}
 	output := cli.String(config.FlagOutputFile)
-	err = ioutil.WriteFile(output, file, 0644)
+	err = os.WriteFile(output, file, 0600)
 	if err != nil {
 		return err
 	}
