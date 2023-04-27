@@ -1,0 +1,14 @@
+{
+  "measureGas_10.json": {
+    "path": "BlockchainTests/GeneralStateTests/stBadOpcode/measureGas.json",
+    "index": 10
+  },
+  "performanceTester_1.json": {
+    "path": "BlockchainTests/GeneralStateTests/VMTests/vmPerformance/performanceTester.json",
+    "index": 1
+  },
+  "CallEcrecoverInvalidSignature.json": {
+    "path": "BlockchainTests/GeneralStateTests/stPreCompiledContracts2/CallEcrecoverInvalidSignature.json",
+    "index": 0
+  }
+}

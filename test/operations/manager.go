@@ -127,8 +127,22 @@ func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
 	// return m.checkRoot(root, expectedRoot)
 }
 
-// SetGenesis creates the genesis block in the state.
-func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
+// SetGenesisAccountsBalance creates the genesis block in the state.
+func (m *Manager) SetGenesisAccountsBalance(genesisAccounts map[string]big.Int) error {
+	var genesisActions []*state.GenesisAction
+	for address, balanceValue := range genesisAccounts {
+		action := &state.GenesisAction{
+			Address: address,
+			Type:    int(merkletree.LeafTypeBalance),
+			Value:   balanceValue.String(),
+		}
+		genesisActions = append(genesisActions, action)
+	}
+
+	return m.SetGenesis(genesisActions)
+}
+
+func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
 	genesisBlock := state.Block{
 		BlockNumber: 0,
 		BlockHash:   state.ZeroHash,
@@ -136,15 +150,7 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{},
-	}
-	for address, balanceValue := range genesisAccounts {
-		action := &state.GenesisAction{
-			Address: address,
-			Type:    int(merkletree.LeafTypeBalance),
-			Value:   balanceValue.String(),
-		}
-		genesis.GenesisActions = append(genesis.GenesisActions, action)
+		GenesisActions: genesisActions,
 	}
 
 	dbTx, err := m.st.BeginStateTransaction(m.ctx)
@@ -153,6 +159,11 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 	}
 
 	_, err = m.st.SetGenesis(m.ctx, genesisBlock, genesis, dbTx)
+
+	err = dbTx.Commit(m.ctx)
+	if err != nil {
+		return err
+	}
 
 	return err
 }

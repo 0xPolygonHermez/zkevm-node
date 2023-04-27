@@ -1,0 +1,50 @@
+{
+  "expectedOldStateRoot": "0x4a9bfcb163ec91c5beb22e6aca41592433092c8c7821b01d37fd0de483f9265d",
+  "expectedNewStateRoot": "0xfc4e250d0e80ede5afe793c236e7b9a4c0dffb108e460c6c6ed825d7c9c96789",
+  "batchL2Data": "0xdc80843b9aca008398968080808a60fe60005360016000f38203e8808089992b3a3e8cf7ac21bb5b079e9fea3c2abdbce3891aa2e6625a5d98b60e4cff72e370e382da7b0056947023a42c68723386144f54a642d28d55d9f3728a0e0d1c",
+  "genesis": [
+    {
+      "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+      "nonce": "0",
+      "balance": "100000000000000000000",
+      "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+      "isSmartContract": false
+    },
+    {
+      "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+      "nonce": "0",
+      "balance": "200000000000000000000",
+      "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+      "isSmartContract": false
+    }
+  ],
+  "expectedNewLeafs": [
+    {
+      "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+      "nonce": "0",
+      "balance": "100000053354000000000",
+      "storage": null,
+      "isSmartContract": false,
+      "hashBytecode": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "bytecodeLength": 0
+    },
+    {
+      "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+      "nonce": "1",
+      "balance": "199999946646000000000",
+      "storage": null,
+      "isSmartContract": false,
+      "hashBytecode": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "bytecodeLength": 0
+    },
+    {
+      "address": "0xA72217948Ea7D968A64c77F83908cea136bBF964",
+      "nonce": "1",
+      "balance": "0",
+      "storage": {},
+      "isSmartContract": true,
+      "hashBytecode": "0xd15878a5ba149d561dbcb74a385388fa6b1f77a1b75af2d95136f8c747edb9c3",
+      "bytecodeLength": 1
+    }
+  ]
+}

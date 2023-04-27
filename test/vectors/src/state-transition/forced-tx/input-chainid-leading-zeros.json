@@ -1,0 +1,29 @@
+{
+  "expectedOldStateRoot": "0x76b362a9afd679ea13a456ab103786492c65946be653589c1fd627841d0c6fdd",
+  "expectedNewStateRoot": "0xce88385239ce22bad2064e12f9b9f835aa0c65a9282e893053170e06ea678aa4",
+  "batchL2Data": "0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a00008084000003e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731bef80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff893635c9adc5dea00000808203e880800d7790e34c262fc9bca95e5c9f8f7ae1625e1338580eb0a0e707dcb76fef0b64385c32f57ec5f520129252ed65f226c6cb50fa16fc07f1e45a9054797f1b462b1c",
+  "genesis": [
+    {
+      "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+      "nonce": "0",
+      "balance": "100000000000000000000",
+      "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+      "isSmartContract": false
+    },
+    {
+      "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+      "nonce": "0",
+      "balance": "200000000000000000000",
+      "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+      "isSmartContract": false
+    },
+    {
+      "address": "0xeB17ce701E9D92724AA2ABAdA7E4B28830597Dd9",
+      "nonce": "0",
+      "balance": "100000000000000000000",
+      "pvtKey": "0x1d0722aff4b29780e9a78e0bf28d5e127fb276cfbb0c3eb6a0e1728401777f17",
+      "isSmartContract": false
+    }
+  ],
+  "expectedNewLeafs": []
+}

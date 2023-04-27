@@ -1,0 +1,50 @@
+{
+  "batchL2Data": "0xd880843b9aca00839896808080865f6003015f558203e8808003e35489ccb33cfbca8a334ff7b067e30b3b5614fb11a978da2e0e4f7f66d50e689ca74747f2c18c70fbc59f5791a84dcefffe692a6ece50db199ca07780e6b61b",
+  "genesis": [
+    {
+      "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+      "nonce": "0",
+      "balance": "100000000000000000000",
+      "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+      "isSmartContract": false
+    },
+    {
+      "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+      "nonce": "0",
+      "balance": "200000000000000000000",
+      "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+      "isSmartContract": false
+    }
+  ],
+  "expectedNewLeafs": [
+    {
+      "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+      "nonce": "0",
+      "balance": "100000075206000000000",
+      "storage": null,
+      "isSmartContract": false,
+      "hashBytecode": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "bytecodeLength": 0
+    },
+    {
+      "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+      "nonce": "1",
+      "balance": "199999924794000000000",
+      "storage": null,
+      "isSmartContract": false,
+      "hashBytecode": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "bytecodeLength": 0
+    },
+    {
+      "address": "0xA72217948Ea7D968A64c77F83908cea136bBF964",
+      "nonce": "1",
+      "balance": "0",
+      "storage": {
+        "0x0000000000000000000000000000000000000000000000000000000000000000": "0x03"
+      },
+      "isSmartContract": false,
+      "hashBytecode": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "bytecodeLength": 0
+    }
+  ]
+}

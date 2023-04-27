@@ -1,0 +1,135 @@
+{
+  "expectedOldStateRoot": "0xe6028b995d203f3f3b77f16f203012d9c286e3e744f6cb066a5baa418a61cbf8",
+  "expectedNewStateRoot": "0x062daa849fb2ad496a8302e0c1acbaf0cfc54839736bf0e2664386f021d2ad00",
+  "batchL2Data": "0xf900ab80843b9aca00830c3500941275fbb540c8efc58b812ba83b0d0b8b9917ae9880b8845b8e995900000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000350505000000000000000000000000000000000000000000000000000000000008203e8808081b52f7454a2ad0724819382c2fd5f92826cf673c1cb91329e1bfee96d0c5c3e128091f2a0e68e855f1dc8bfc5f7940c8fdcaa475c166f8c3276b2d915033fa21b",
+  "genesis": [
+    {
+      "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+      "nonce": "0",
+      "balance": "100000000000000000000",
+      "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+      "isSmartContract": false
+    },
+    {
+      "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+      "nonce": "0",
+      "balance": "200000000000000000000",
+      "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+      "isSmartContract": false
+    },
+    {
+      "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+      "nonce": "1",
+      "balance": "0",
+      "storage": {},
+      "isSmartContract": true,
+      "bytecode": "0x60806040526004361061004a5760003560e01c806327c845dc1461004f5780633c77eba3146100595780635b8e995914610089578063b88c4aa9146100c6578063e3306a25146100f6575b600080fd5b610057610133565b005b610073600480360381019061006e9190610232565b610141565b604051610080919061029d565b60405180910390f35b34801561009557600080fd5b506100b060048036038101906100ab9190610232565b61015b565b6040516100bd919061029d565b60405180910390f35b6100e060048036038101906100db9190610232565b610174565b6040516100ed919061029d565b60405180910390f35b34801561010257600080fd5b5061011d60048036038101906101189190610232565b610192565b60405161012a919061029d565b60405180910390f35b600034810190508060015550565b6000808260a06101f4f09050806000558091505092915050565b6000808260a06000f09050806000558091505092915050565b600080620555558360a061012cf59050806000558091505092915050565b60008060028360a06000f59050806000558091505092915050565b60006101c06101bb846102dd565b6102b8565b9050828152602081018484840111156101dc576101db6103be565b5b6101e784828561034a565b509392505050565b600082601f830112610204576102036103b9565b5b81356102148482602086016101ad565b91505092915050565b60008135905061022c816103de565b92915050565b60008060408385031215610249576102486103c8565b5b600083013567ffffffffffffffff811115610267576102666103c3565b5b610273858286016101ef565b92505060206102848582860161021d565b9150509250929050565b6102978161030e565b82525050565b60006020820190506102b2600083018461028e565b92915050565b60006102c26102d3565b90506102ce8282610359565b919050565b6000604051905090565b600067ffffffffffffffff8211156102f8576102f761038a565b5b610301826103cd565b9050602081019050919050565b600061031982610320565b9050919050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b82818337600083830152505050565b610362826103cd565b810181811067ffffffffffffffff821117156103815761038061038a565b5b80604052505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600080fd5b600080fd5b600080fd5b600080fd5b6000601f19601f8301169050919050565b6103e781610340565b81146103f257600080fd5b5056fea26469706673582212206d555c5cfdbc6e6298827b91813af1f15ae6cc068514956d5d4f1a0fa20d58c164736f6c63430008070033",
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "bytes",
+              "name": "bytecode",
+              "type": "bytes"
+            },
+            {
+              "internalType": "uint256",
+              "name": "length",
+              "type": "uint256"
+            }
+          ],
+          "name": "opCreate",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes",
+              "name": "bytecode",
+              "type": "bytes"
+            },
+            {
+              "internalType": "uint256",
+              "name": "length",
+              "type": "uint256"
+            }
+          ],
+          "name": "opCreate2",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes",
+              "name": "bytecode",
+              "type": "bytes"
+            },
+            {
+              "internalType": "uint256",
+              "name": "length",
+              "type": "uint256"
+            }
+          ],
+          "name": "opCreate2Value",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "payable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "bytes",
+              "name": "bytecode",
+              "type": "bytes"
+            },
+            {
+              "internalType": "uint256",
+              "name": "length",
+              "type": "uint256"
+            }
+          ],
+          "name": "opCreateValue",
+          "outputs": [
+            {
+              "internalType": "address",
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "payable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "sendValue",
+          "outputs": [],
+          "stateMutability": "payable",
+          "type": "function"
+        }
+      ]
+    }
+  ],
+  "expectedNewLeafs": []
+}

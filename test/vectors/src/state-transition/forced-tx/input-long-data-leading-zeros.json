@@ -1,0 +1,29 @@
+{
+  "expectedOldStateRoot": "0x9e88ad623662912afd2dba0c9c407409b4c6a7806de1234ff5000e950a5c2d63",
+  "expectedNewStateRoot": "0xcf2dde4d365b0f1342993387c80148ea64701d9c847e3425ad161e0938c9c561",
+  "batchL2Data": "0xe3800a8401c9c38094100000000000000000000000000000000000000080bA0001ab8203e88080fb5f36a0c33e896d5005a171e3587685546a2cc2d8f839d6ca60e0892487662416efdaf0fb5f9cf814e9a722ff5ed0a16a94e0ef88bae4951c9d64c6fa47d2da1c",
+  "genesis": [
+    {
+      "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+      "nonce": "0",
+      "balance": "100000000000000000000",
+      "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+      "isSmartContract": false
+    },
+    {
+      "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+      "nonce": "0",
+      "balance": "200000000000000000000",
+      "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+      "isSmartContract": false
+    },
+    {
+      "address": "0x1000000000000000000000000000000000000000",
+      "nonce": "1",
+      "balance": "0",
+      "isSmartContract": true,
+      "bytecode": "0x4660015500"
+    }
+  ],
+  "expectedNewLeafs": []
+}
