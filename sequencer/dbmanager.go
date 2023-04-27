@@ -124,34 +124,22 @@ func (d *dbManager) loadFromPool() {
 	for {
 		time.Sleep(d.cfg.PoolRetrievalInterval.Duration)
 
-		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, false, 0)
+		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, 0)
 		if err != nil && err != pool.ErrNotFound {
 			log.Errorf("load tx from pool: %v", err)
 		}
 
 		for _, tx := range poolTransactions {
-			err := d.addTxToWorker(tx, false)
+			err := d.addTxToWorker(tx)
 			if err != nil {
 				log.Errorf("error adding transaction to worker: %v", err)
-			}
-		}
-
-		poolClaims, err := d.txPool.GetNonWIPPendingTxs(d.ctx, true, 0)
-		if err != nil && err != pool.ErrNotFound {
-			log.Errorf("load claims from pool: %v", err)
-		}
-
-		for _, tx := range poolClaims {
-			err := d.addTxToWorker(tx, true)
-			if err != nil {
-				log.Errorf("error adding claim to worker: %v", err)
 			}
 		}
 	}
 }
 
-func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
-	txTracker, err := d.worker.NewTxTracker(tx.Transaction, isClaim, tx.ZKCounters, tx.IP)
+func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
+	txTracker, err := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP)
 	if err != nil {
 		return err
 	}

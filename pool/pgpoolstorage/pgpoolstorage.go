@@ -62,7 +62,6 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			status,
 			gas_price,
 			nonce,
-			is_claims,
 			cumulative_gas_used,
 			used_keccak_hashes,
 			used_poseidon_hashes,
@@ -74,31 +73,28 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			received_at,
 			from_address,
 			is_wip,
-			ip,
-			deposit_count
+			ip
 		) 
 		VALUES 
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 			ON CONFLICT (hash) DO UPDATE SET 
 			encoded = $2,
 			decoded = $3,
 			status = $4,
 			gas_price = $5,
 			nonce = $6,
-			is_claims = $7,
-			cumulative_gas_used = $8,
-			used_keccak_hashes = $9, 
-			used_poseidon_hashes = $10,
-			used_poseidon_paddings = $11,
-			used_mem_aligns = $12,
-			used_arithmetics = $13,
-			used_binaries = $14,
-			used_steps = $15,
-			received_at = $16,
-			from_address = $17,
-			is_wip = $18,
-			ip = $19,
-			deposit_count = $20
+			cumulative_gas_used = $7,
+			used_keccak_hashes = $8, 
+			used_poseidon_hashes = $9,
+			used_poseidon_paddings = $10,
+			used_mem_aligns = $11,
+			used_arithmetics = $12,
+			used_binaries = $13,
+			used_steps = $14,
+			received_at = $15,
+			from_address = $16,
+			is_wip = $17,
+			ip = $18
 	`
 
 	// Get FromAddress from the JSON data
@@ -115,7 +111,6 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		tx.Status,
 		gasPrice,
 		nonce,
-		tx.IsClaims,
 		tx.CumulativeGasUsed,
 		tx.UsedKeccakHashes,
 		tx.UsedPoseidonHashes,
@@ -127,8 +122,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		tx.ReceivedAt,
 		fromAddress,
 		tx.IsWIP,
-		tx.IP,
-		tx.DepositCount); err != nil {
+		tx.IP); err != nil {
 		return err
 	}
 	return nil
@@ -137,18 +131,18 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 // GetTxsByStatus returns an array of transactions filtered by status
 // limit parameter is used to limit amount txs from the db,
 // if limit = 0, then there is no limit
-func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.TxStatus, isClaims bool, limit uint64) ([]pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.TxStatus, limit uint64) ([]pool.Transaction, error) {
 	var (
 		rows pgx.Rows
 		err  error
 		sql  string
 	)
 	if limit == 0 {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, deposit_count FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
+		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, deposit_count FROM pool.transaction WHERE status = $1 AND is_claims = $2 ORDER BY gas_price DESC LIMIT $3"
-		rows, err = p.db.Query(ctx, sql, status.String(), isClaims, limit)
+		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC LIMIT $2"
+		rows, err = p.db.Query(ctx, sql, status.String(), limit)
 	}
 	if err != nil {
 		return nil, err
@@ -170,18 +164,18 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 // GetNonWIPTxsByStatus returns an array of transactions filtered by status
 // limit parameter is used to limit amount txs from the db,
 // if limit = 0, then there is no limit
-func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status pool.TxStatus, isClaims bool, limit uint64) ([]pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status pool.TxStatus, limit uint64) ([]pool.Transaction, error) {
 	var (
 		rows pgx.Rows
 		err  error
 		sql  string
 	)
 	if limit == 0 {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, deposit_count FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC"
+		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, deposit_count FROM pool.transaction WHERE is_wip IS FALSE and status = $1 AND is_claims = $2 ORDER BY gas_price DESC LIMIT $3"
-		rows, err = p.db.Query(ctx, sql, status.String(), isClaims, limit)
+		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC LIMIT $2"
+		rows, err = p.db.Query(ctx, sql, status.String(), limit)
 	}
 	if err != nil {
 		return nil, err
@@ -222,7 +216,7 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 }
 
 // GetTxs gets txs with the lowest nonce
-func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, minGasPrice, limit uint64) ([]*pool.Transaction, error) {
 	query := `
 		SELECT
 			encoded,
@@ -243,11 +237,10 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			pool.transaction p1
 		WHERE 
 			status = $1 AND
-			gas_price >= $2 AND
-			is_claims = $3
+			gas_price >= $2
 		ORDER BY 
 			nonce ASC
-		LIMIT $4
+		LIMIT $3
 	`
 
 	if filterStatus == pool.TxStatusFailed {
@@ -272,11 +265,10 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				pool.transaction p1
 			WHERE
 				status = $1 AND
-				gas_price >= $2 AND 
-				is_claims = $3
+				gas_price >= $2 
 			ORDER BY 
 				nonce ASC
-			LIMIT $4
+			LIMIT $3
 			) as tmp
 		ORDER BY nonce ASC
 		`
@@ -293,7 +285,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		isWIP bool
 	)
 
-	args := []interface{}{filterStatus, minGasPrice, isClaims, limit}
+	args := []interface{}{filterStatus, minGasPrice, limit}
 
 	rows, err := p.db.Query(ctx, query, args...)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -461,7 +453,7 @@ func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash)
 
 // GetTxsByFromAndNonce get all the transactions from the pool with the same from and nonce
 func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]pool.Transaction, error) {
-	sql := `SELECT encoded, status, received_at, is_wip, ip, deposit_count
+	sql := `SELECT encoded, status, received_at, is_wip, ip
 	          FROM pool.transaction
 			 WHERE from_address = $1
 			   AND nonce = $2`
@@ -583,10 +575,9 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 		encoded, status, ip string
 		receivedAt          time.Time
 		isWIP               bool
-		depositCount        *uint64
 	)
 
-	if err := rows.Scan(&encoded, &status, &receivedAt, &isWIP, &ip, &depositCount); err != nil {
+	if err := rows.Scan(&encoded, &status, &receivedAt, &isWIP, &ip); err != nil {
 		return nil, err
 	}
 
@@ -605,7 +596,6 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	tx.ReceivedAt = receivedAt
 	tx.IsWIP = isWIP
 	tx.IP = ip
-	tx.DepositCount = depositCount
 
 	return tx, nil
 }
@@ -681,21 +671,4 @@ func (p *PostgresPoolStorage) GetAllAddressesBlocked(ctx context.Context) ([]com
 	}
 
 	return addrs, nil
-}
-
-// DepositCountExists checks if already exists a `pending` or `selected` transaction
-// in the pool with the provided deposit count
-func (p *PostgresPoolStorage) DepositCountExists(ctx context.Context, depositCount uint64) (bool, error) {
-	var exists bool
-	req := `
-        SELECT EXISTS (SELECT 1
-                         FROM pool.transaction
-                        WHERE deposit_count = $1
-                          AND status IN ($2, $3))`
-	err := p.db.QueryRow(ctx, req, depositCount, pool.TxStatusPending, pool.TxStatusSelected).Scan(&exists)
-	if err != nil && err != sql.ErrNoRows {
-		return false, err
-	}
-
-	return exists, nil
 }

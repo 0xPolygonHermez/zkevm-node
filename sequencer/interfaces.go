@@ -22,7 +22,7 @@ type txPool interface {
 	DeleteTransactionsByHashes(ctx context.Context, hashes []common.Hash) error
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
-	GetNonWIPPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
+	GetNonWIPPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
@@ -85,7 +85,7 @@ type workerInterface interface {
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker
 	DeleteTx(txHash common.Hash, from common.Address)
 	HandleL2Reorg(txHashes []common.Hash)
-	NewTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, ip string) (*TxTracker, error)
+	NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error)
 }
 
 // The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.

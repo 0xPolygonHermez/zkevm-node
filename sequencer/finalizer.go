@@ -385,7 +385,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hash, f.processRequest.GlobalExitRoot.String())
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
 	if err != nil {
-		log.Errorf("failed to process transaction, isClaim: %v, err: %s", tx.IsClaim, err)
+		log.Errorf("failed to process transaction: %s", err)
 		return err
 	}
 
@@ -473,7 +473,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
 			}
 		}()
-	} else if (executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode)) && !tx.IsClaim {
+	} else if executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode) {
 		var (
 			nonce   *uint64
 			balance *big.Int
@@ -495,7 +495,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 	} else {
 		// Delete the transaction from the efficiency list
 		f.worker.DeleteTx(tx.Hash, tx.From)
-		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex(), "isClaim", tx.IsClaim)
+		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
 
 		// Update the status of the transaction to failed
 		err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false)
