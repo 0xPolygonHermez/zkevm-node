@@ -73,6 +73,11 @@ var (
 		Usage:    "Blocks the migrations in stateDB to not run them",
 		Required: false,
 	}
+	outputFileFlag = cli.StringFlag{
+		Name:     config.FlagOutputFile,
+		Usage:    "Indicate the output file",
+		Required: true,
+	}
 )
 
 func main() {
@@ -140,6 +145,12 @@ func main() {
 			Usage:   "Dumps the state in a JSON file, for debug purposes",
 			Action:  dumpState,
 			Flags:   dumpStateFlags,
+		},
+		{
+			Name:   "generate-json-schema",
+			Usage:  "Generate the json-schema for the configuration file, and store it on docs/schema.json",
+			Action: genJSONSchema,
+			Flags:  []cli.Flag{&outputFileFlag},
 		},
 	}
 
