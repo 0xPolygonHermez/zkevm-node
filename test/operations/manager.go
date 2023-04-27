@@ -48,8 +48,8 @@ const (
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 
-	DefaultWaitPeriodSendSequence                          = "5s"
-	DefaultLastBatchVirtualizationTimeMaxWaitPeriod        = "5s"
+	DefaultWaitPeriodSendSequence                          = "15s"
+	DefaultLastBatchVirtualizationTimeMaxWaitPeriod        = "10s"
 	DefaultMaxTxSizeForL1                           uint64 = 131072
 )
 
