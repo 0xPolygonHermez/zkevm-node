@@ -55,7 +55,6 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	s, err := pgpoolstorage.NewPostgresPoolStorage(params.PoolDbConfig)
 	require.NoError(b, err)
 	config := pool.Config{
-		FreeClaimGasLimit:              1000000, //nolint:gomnd
 		DB:                             params.PoolDbConfig,
 		MinAllowedGasPriceInterval:     types.NewDuration(minAllowedGasPriceIntervalMinutes * time.Minute),
 		PollMinAllowedGasPriceInterval: types.NewDuration(pollMinAllowedGasPriceIntervalSeconds * time.Second),

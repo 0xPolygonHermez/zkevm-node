@@ -14,7 +14,6 @@ import (
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
-	bridge "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -50,7 +49,7 @@ var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 	genesis    = state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -59,7 +58,6 @@ var (
 		},
 	}
 	cfg = pool.Config{
-		FreeClaimGasLimit:                 150000,
 		MaxTxBytesSize:                    30132,
 		MaxTxDataBytesSize:                30000,
 		MinAllowedGasPriceInterval:        cfgTypes.NewDuration(5 * time.Minute),
@@ -181,7 +179,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -242,7 +240,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -355,7 +353,7 @@ func Test_GetPendingTxs(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	txs, err := p.GetPendingTxs(ctx, false, limit)
+	txs, err := p.GetPendingTxs(ctx, limit)
 	require.NoError(t, err)
 
 	assert.Equal(t, limit, len(txs))
@@ -415,7 +413,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	txs, err := p.GetPendingTxs(ctx, false, limit)
+	txs, err := p.GetPendingTxs(ctx, limit)
 	require.NoError(t, err)
 
 	assert.Equal(t, txsCount, len(txs))
@@ -474,7 +472,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	txs, err := p.GetTxs(ctx, pool.TxStatusPending, false, 1, 10)
+	txs, err := p.GetTxs(ctx, pool.TxStatusPending, 1, 10)
 	require.NoError(t, err)
 	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
 	assert.Equal(t, txs[0].Transaction.Nonce(), uint64(0))
@@ -846,7 +844,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	initialBalance, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
 	initialBalance = initialBalance.Add(initialBalance, initialBalance)
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: operations.DefaultSequencerAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1094,7 +1092,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
 
-	txs, err := p.GetPendingTxs(ctx, false, 0)
+	txs, err := p.GetPendingTxs(ctx, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(txs))
 
@@ -1110,18 +1108,10 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
-	bridgeSC, err := bridge.NewPolygonzkevmbridge(l2BridgeAddr, nil)
-	require.NoError(t, err)
-
 	auth.NoSend = true
 	auth.GasLimit = 53000
 	auth.GasPrice = big.NewInt(0)
 	auth.Nonce = big.NewInt(0)
-
-	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
-	require.NoError(t, err)
-
-	claimData := signedTx.Data()
 
 	require.NoError(t, err)
 	testCases := []struct {
@@ -1141,15 +1131,6 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			gasPrice:      big.NewInt(0).SetUint64(gasPrice.Uint64() - uint64(1)),
 			data:          []byte{},
 			expectedError: pool.ErrGasPrice,
-		},
-		{
-			name:          "NoGasPriceTooLowErr_ForClaims",
-			nonce:         1,
-			to:            &l2BridgeAddr,
-			gasLimit:      cfg.FreeClaimGasLimit,
-			gasPrice:      big.NewInt(0),
-			data:          claimData,
-			expectedError: nil,
 		},
 	}
 
@@ -1182,7 +1163,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 				ReceivedAt:  time.Now(),
 			}
 			genesis := state.Genesis{
-				Actions: []*state.GenesisAction{
+				GenesisActions: []*state.GenesisAction{
 					{
 						Address: senderAddress,
 						Type:    int(merkletree.LeafTypeBalance),
@@ -1283,7 +1264,7 @@ func Test_AddRevertedTx(t *testing.T) {
 	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
 
-	txs, err := p.GetPendingTxs(ctx, false, 0)
+	txs, err := p.GetPendingTxs(ctx, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(txs))
 
@@ -1322,7 +1303,7 @@ func Test_BlockedAddress(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: auth.From.String(),
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1343,7 +1324,6 @@ func Test_BlockedAddress(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := pool.Config{
-		FreeClaimGasLimit:                 150000,
 		MaxTxBytesSize:                    30132,
 		MaxTxDataBytesSize:                30000,
 		MinAllowedGasPriceInterval:        cfgTypes.NewDuration(5 * time.Minute),
@@ -1410,68 +1390,4 @@ func setupPool(t *testing.T, cfg pool.Config, s *pgpoolstorage.PostgresPoolStora
 	require.NoError(t, err)
 	p.StartPollingMinSuggestedGasPrice(ctx)
 	return p
-}
-
-func Test_AvoidDuplicatedClaims(t *testing.T) {
-	initOrResetDB(t)
-
-	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
-	require.NoError(t, err)
-	defer stateSqlDB.Close() //nolint:gosec,errcheck
-
-	eventStorage, err := nileventstorage.NewNilEventStorage()
-	if err != nil {
-		log.Fatal(err)
-	}
-	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-
-	st := newState(stateSqlDB, eventLog)
-
-	genesisBlock := state.Block{
-		BlockNumber: 0,
-		BlockHash:   state.ZeroHash,
-		ParentHash:  state.ZeroHash,
-		ReceivedAt:  time.Now(),
-	}
-
-	ctx := context.Background()
-	dbTx, err := st.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
-	require.NoError(t, err)
-	require.NoError(t, dbTx.Commit(ctx))
-
-	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
-
-	require.NoError(t, err)
-	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
-
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
-	require.NoError(t, err)
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
-	require.NoError(t, err)
-
-	// insert transaction
-	bridgeSC, err := bridge.NewPolygonzkevmbridge(l2BridgeAddr, nil)
-	require.NoError(t, err)
-
-	auth.NoSend = true
-	auth.GasLimit = 53000
-	auth.GasPrice = big.NewInt(0)
-	auth.Nonce = big.NewInt(0)
-
-	signedTx, err := bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
-	require.NoError(t, err)
-
-	err = p.AddTx(ctx, *signedTx, "")
-	require.NoError(t, err)
-
-	auth.Nonce = big.NewInt(1)
-	signedTx, err = bridgeSC.ClaimAsset(auth, [32][32]byte{}, uint32(123456789), [32]byte{}, [32]byte{}, 69, common.Address{}, uint32(20), common.Address{}, big.NewInt(0), []byte{})
-	require.NoError(t, err)
-
-	err = p.AddTx(ctx, *signedTx, "")
-	require.Equal(t, err.Error(), "deposit count already exists")
 }

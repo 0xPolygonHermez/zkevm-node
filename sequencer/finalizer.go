@@ -62,8 +62,9 @@ type WipBatch struct {
 	localExitRoot      common.Hash
 	timestamp          time.Time
 	globalExitRoot     common.Hash // 0x000...0 (ZeroHash) means to not update
-	remainingResources batchResources
+	remainingResources state.BatchResources
 	countOfTxs         int
+	closingReason      state.ClosingReason
 }
 
 func (w *WipBatch) isEmpty() bool {
@@ -230,6 +231,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 func (f *finalizer) isBatchFull() bool {
 	if f.batch.countOfTxs >= int(f.batchConstraints.MaxTxsPerBatch) {
 		log.Infof("Closing batch: %d, because it's full.", f.batch.batchNumber)
+		f.batch.closingReason = state.BatchFullClosingReason
 		return true
 	}
 	return false
@@ -373,7 +375,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hash, f.processRequest.GlobalExitRoot.String())
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
 	if err != nil {
-		log.Errorf("failed to process transaction, isClaim: %v, err: %s", tx.IsClaim, err)
+		log.Errorf("failed to process transaction: %s", err)
 		return err
 	}
 
@@ -403,13 +405,14 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 	}
 
 	// Check remaining resources
-	err := f.checkRemainingResources(ctx, result, tx)
+	err := f.checkRemainingResources(result, tx)
 	if err != nil {
 		return err
 	}
 
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
 	f.storeProcessedTx(ctx, oldStateRoot, tx, result)
+	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, 1)
 
 	return nil
 }
@@ -437,6 +440,8 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 		err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
 		if err != nil {
 			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
+		} else {
+			metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 		}
 	}
 	metrics.WorkerProcessingTime(time.Since(start))
@@ -463,9 +468,11 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
+			} else {
+				metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
 			}
 		}()
-	} else if (executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode)) && !tx.IsClaim {
+	} else if executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode) {
 		var (
 			nonce   *uint64
 			balance *big.Int
@@ -482,6 +489,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			txToDelete := txToDelete
 			go func() {
 				err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, &failedReason)
+				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 				if err != nil {
 					log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
 				}
@@ -491,7 +499,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 	} else {
 		// Delete the transaction from the efficiency list
 		f.worker.DeleteTx(tx.Hash, tx.From)
-		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex(), "isClaim", tx.IsClaim)
+		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
 
 		wg.Add(1)
 		go func() {
@@ -499,6 +507,8 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
+			} else {
+				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 			}
 		}()
 	}
@@ -685,11 +695,14 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 	for i, tx := range transactions {
 		log.Infof("closeBatch: BatchNum: %d, Tx position: %d, txHash: %s", f.batch.batchNumber, i, tx.Hash().String())
 	}
+	usedResources := getUsedBatchResources(f.batchConstraints, f.batch.remainingResources)
 	receipt := ClosingBatchParameters{
-		BatchNumber:   f.batch.batchNumber,
-		StateRoot:     f.batch.stateRoot,
-		LocalExitRoot: f.batch.localExitRoot,
-		Txs:           transactions,
+		BatchNumber:    f.batch.batchNumber,
+		StateRoot:      f.batch.stateRoot,
+		LocalExitRoot:  f.batch.localExitRoot,
+		Txs:            transactions,
+		BatchResources: usedResources,
+		ClosingReason:  f.batch.closingReason,
 	}
 	return f.dbManager.CloseBatch(ctx, receipt)
 }
@@ -808,28 +821,30 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	// Global Exit Root deadline
 	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
 		log.Infof("Closing batch: %d, Global Exit Root deadline encountered.", f.batch.batchNumber)
+		f.batch.closingReason = state.GlobalExitRootDeadlineClosingReason
 		return true
 	}
 	// Timestamp resolution deadline
 	if !f.batch.isEmpty() && f.batch.timestamp.Add(f.cfg.TimestampResolution.Duration).Before(time.Now()) {
 		log.Infof("Closing batch: %d, because of timestamp resolution.", f.batch.batchNumber)
+		f.batch.closingReason = state.TimeoutResolutionDeadlineClosingReason
 		return true
 	}
 	return false
 }
 
 // checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
-func (f *finalizer) checkRemainingResources(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) error {
-	usedResources := batchResources{
-		zKCounters: result.UsedZkCounters,
-		bytes:      uint64(len(tx.RawTx)),
+func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker) error {
+	usedResources := state.BatchResources{
+		ZKCounters: result.UsedZkCounters,
+		Bytes:      uint64(len(tx.RawTx)),
 	}
 
-	err := f.batch.remainingResources.sub(usedResources)
+	err := f.batch.remainingResources.Sub(usedResources)
 	if err != nil {
 		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
 		start := time.Now()
-		f.worker.UpdateTx(result.Responses[0].TxHash, tx.From, usedResources.zKCounters)
+		f.worker.UpdateTx(result.Responses[0].TxHash, tx.From, usedResources.ZKCounters)
 		metrics.WorkerProcessingTime(time.Since(start))
 		return err
 	}
@@ -840,32 +855,31 @@ func (f *finalizer) checkRemainingResources(ctx context.Context, result *state.P
 // isBatchAlmostFull checks if the current batch remaining resources are under the constraints threshold for most efficient moment to close a batch
 func (f *finalizer) isBatchAlmostFull() bool {
 	resources := f.batch.remainingResources
-	zkCounters := resources.zKCounters
-	if resources.bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
-		return true
+	zkCounters := resources.ZKCounters
+	result := false
+	if resources.Bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
+		result = true
+	} else if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
+		result = true
+	} else if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
+		result = true
+	} else if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
+		result = true
+	} else if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
+		result = true
+	} else if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
+		result = true
+	} else if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
+		result = true
+	} else if zkCounters.CumulativeGasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
+		result = true
 	}
-	if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
-		return true
+
+	if result {
+		f.batch.closingReason = state.BatchAlmostFullClosingReason
 	}
-	if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
-		return true
-	}
-	if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
-		return true
-	}
-	if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
-		return true
-	}
-	if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
-		return true
-	}
-	if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
-		return true
-	}
-	if zkCounters.CumulativeGasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
-		return true
-	}
-	return false
+
+	return result
 }
 
 func (f *finalizer) setNextForcedBatchDeadline() {
@@ -882,4 +896,20 @@ func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
 
 func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / oneHundred
+}
+
+func getUsedBatchResources(constraints batchConstraints, remainingResources state.BatchResources) state.BatchResources {
+	return state.BatchResources{
+		ZKCounters: state.ZKCounters{
+			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.CumulativeGasUsed,
+			UsedKeccakHashes:     constraints.MaxKeccakHashes - remainingResources.ZKCounters.UsedKeccakHashes,
+			UsedPoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.ZKCounters.UsedPoseidonHashes,
+			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.ZKCounters.UsedPoseidonPaddings,
+			UsedMemAligns:        constraints.MaxMemAligns - remainingResources.ZKCounters.UsedMemAligns,
+			UsedArithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.UsedArithmetics,
+			UsedBinaries:         constraints.MaxBinaries - remainingResources.ZKCounters.UsedBinaries,
+			UsedSteps:            constraints.MaxSteps - remainingResources.ZKCounters.UsedSteps,
+		},
+		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
+	}
 }

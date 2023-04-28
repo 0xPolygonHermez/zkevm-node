@@ -136,7 +136,7 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{},
+		GenesisActions: []*state.GenesisAction{},
 	}
 	for address, balanceValue := range genesisAccounts {
 		action := &state.GenesisAction{
@@ -144,7 +144,7 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 			Type:    int(merkletree.LeafTypeBalance),
 			Value:   balanceValue.String(),
 		}
-		genesis.Actions = append(genesis.Actions, action)
+		genesis.GenesisActions = append(genesis.GenesisActions, action)
 	}
 
 	dbTx, err := m.st.BeginStateTransaction(m.ctx)

@@ -253,7 +253,7 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	etherman, err := etherman.NewClient(c.Etherman)
+	etherman, err := etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,10 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 	}
 	zkEVMClient := client.NewClient(trustedSequencerURL)
 
-	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, pool, ethTxManager, zkEVMClient, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
+	sy, err := synchronizer.NewSynchronizer(
+		cfg.IsTrustedSequencer, etherman, st, pool, ethTxManager,
+		zkEVMClient, cfg.NetworkConfig.Genesis, cfg.Synchronizer,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

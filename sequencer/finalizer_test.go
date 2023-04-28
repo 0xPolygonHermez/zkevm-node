@@ -577,11 +577,13 @@ func TestFinalizer_closeBatch(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
 	txs := make([]types.Transaction, 0)
+	usedResources := getUsedBatchResources(f.batchConstraints, f.batch.remainingResources)
 	receipt := ClosingBatchParameters{
-		BatchNumber:   f.batch.batchNumber,
-		StateRoot:     f.batch.stateRoot,
-		LocalExitRoot: f.processRequest.GlobalExitRoot,
-		Txs:           txs,
+		BatchNumber:    f.batch.batchNumber,
+		StateRoot:      f.batch.stateRoot,
+		LocalExitRoot:  f.processRequest.GlobalExitRoot,
+		BatchResources: usedResources,
+		Txs:            txs,
 	}
 	managerErr := fmt.Errorf("some error")
 	testCases := []struct {
@@ -860,14 +862,14 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 		UsedZkCounters: state.ZKCounters{CumulativeGasUsed: 1000},
 		Responses:      []*state.ProcessTransactionResponse{txResponse},
 	}
-	remainingResources := batchResources{
-		zKCounters: state.ZKCounters{CumulativeGasUsed: 9000},
-		bytes:      10000,
+	remainingResources := state.BatchResources{
+		ZKCounters: state.ZKCounters{CumulativeGasUsed: 9000},
+		Bytes:      10000,
 	}
 	f.batch.remainingResources = remainingResources
 	testCases := []struct {
 		name                 string
-		remaining            batchResources
+		remaining            state.BatchResources
 		expectedErr          error
 		expectedWorkerUpdate bool
 		expectedTxTracker    *TxTracker
@@ -881,19 +883,19 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 		},
 		{
 			name: "Bytes Resource Exceeded",
-			remaining: batchResources{
-				bytes: 0,
+			remaining: state.BatchResources{
+				Bytes: 0,
 			},
-			expectedErr:          ErrBatchResourceBytesUnderflow,
+			expectedErr:          state.ErrBatchResourceBytesUnderflow,
 			expectedWorkerUpdate: true,
 			expectedTxTracker:    &TxTracker{RawTx: []byte("test")},
 		},
 		{
 			name: "ZkCounter Resource Exceeded",
-			remaining: batchResources{
-				zKCounters: state.ZKCounters{CumulativeGasUsed: 0},
+			remaining: state.BatchResources{
+				ZKCounters: state.ZKCounters{CumulativeGasUsed: 0},
 			},
-			expectedErr:          NewBatchRemainingResourcesUnderflowError(cumulativeGasErr, cumulativeGasErr.Error()),
+			expectedErr:          state.NewBatchRemainingResourcesUnderflowError(cumulativeGasErr, cumulativeGasErr.Error()),
 			expectedWorkerUpdate: true,
 			expectedTxTracker:    &TxTracker{RawTx: make([]byte, 0)},
 		},
@@ -909,7 +911,7 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			}
 
 			// act
-			err := f.checkRemainingResources(ctx, result, tc.expectedTxTracker)
+			err := f.checkRemainingResources(result, tc.expectedTxTracker)
 
 			// assert
 			if tc.expectedErr != nil {
@@ -949,7 +951,7 @@ func TestFinalizer_isBatchReadyToClose(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			maxRemainingResource.zKCounters.CumulativeGasUsed = tc.cumulativeGasUsed
+			maxRemainingResource.ZKCounters.CumulativeGasUsed = tc.cumulativeGasUsed
 			f.batch.remainingResources = maxRemainingResource
 			// act
 			result := f.isBatchAlmostFull()
@@ -1023,15 +1025,15 @@ func TestFinalizer_getRemainingResources(t *testing.T) {
 	remainingResources := getMaxRemainingResources(bc)
 
 	// assert
-	assert.Equal(t, remainingResources.zKCounters.CumulativeGasUsed, bc.MaxCumulativeGasUsed)
-	assert.Equal(t, remainingResources.zKCounters.UsedKeccakHashes, bc.MaxKeccakHashes)
-	assert.Equal(t, remainingResources.zKCounters.UsedPoseidonHashes, bc.MaxPoseidonHashes)
-	assert.Equal(t, remainingResources.zKCounters.UsedPoseidonPaddings, bc.MaxPoseidonPaddings)
-	assert.Equal(t, remainingResources.zKCounters.UsedMemAligns, bc.MaxMemAligns)
-	assert.Equal(t, remainingResources.zKCounters.UsedArithmetics, bc.MaxArithmetics)
-	assert.Equal(t, remainingResources.zKCounters.UsedBinaries, bc.MaxBinaries)
-	assert.Equal(t, remainingResources.zKCounters.UsedSteps, bc.MaxSteps)
-	assert.Equal(t, remainingResources.bytes, bc.MaxBatchBytesSize)
+	assert.Equal(t, remainingResources.ZKCounters.CumulativeGasUsed, bc.MaxCumulativeGasUsed)
+	assert.Equal(t, remainingResources.ZKCounters.UsedKeccakHashes, bc.MaxKeccakHashes)
+	assert.Equal(t, remainingResources.ZKCounters.UsedPoseidonHashes, bc.MaxPoseidonHashes)
+	assert.Equal(t, remainingResources.ZKCounters.UsedPoseidonPaddings, bc.MaxPoseidonPaddings)
+	assert.Equal(t, remainingResources.ZKCounters.UsedMemAligns, bc.MaxMemAligns)
+	assert.Equal(t, remainingResources.ZKCounters.UsedArithmetics, bc.MaxArithmetics)
+	assert.Equal(t, remainingResources.ZKCounters.UsedBinaries, bc.MaxBinaries)
+	assert.Equal(t, remainingResources.ZKCounters.UsedSteps, bc.MaxSteps)
+	assert.Equal(t, remainingResources.Bytes, bc.MaxBatchBytesSize)
 }
 
 func setupFinalizer(withWipBatch bool) *finalizer {

@@ -40,8 +40,8 @@ func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints
 }
 
 // NewTxTracker creates and inits a TxTracker
-func (w *Worker) NewTxTracker(tx types.Transaction, isClaim bool, counters state.ZKCounters, ip string) (*TxTracker, error) {
-	return newTxTracker(tx, isClaim, counters, w.batchConstraints, w.batchResourceWeights, w.cfg.ResourceCostMultiplier, ip)
+func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
+	return newTxTracker(tx, counters, w.batchConstraints, w.batchResourceWeights, w.cfg.ResourceCostMultiplier, ip)
 }
 
 // AddTxTracker adds a new Tx to the Worker
@@ -208,7 +208,7 @@ func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters stat
 	addrQueue, found := w.pool[addr.String()]
 
 	if found {
-		newReadyTx, prevReadyTx := addrQueue.UpdateTxZKCounters(txHash, counters)
+		newReadyTx, prevReadyTx := addrQueue.UpdateTxZKCounters(txHash, counters, w.batchConstraints, w.batchResourceWeights)
 
 		// Resort the newReadyTx in efficiencyList
 		if prevReadyTx != nil {
@@ -225,7 +225,7 @@ func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters stat
 }
 
 // GetBestFittingTx gets the most efficient tx that fits in the available batch resources
-func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
+func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
@@ -242,7 +242,7 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 
 	// Each go routine looks for a fitting tx
 	for i := 0; i < nGoRoutines; i++ {
-		go func(n int, bresources batchResources) {
+		go func(n int, bresources state.BatchResources) {
 			defer wg.Done()
 			for i := n; i < w.efficiencyList.len(); i += nGoRoutines {
 				foundMutex.RLock()
@@ -253,7 +253,7 @@ func (w *Worker) GetBestFittingTx(resources batchResources) *TxTracker {
 				foundMutex.RUnlock()
 
 				txCandidate := w.efficiencyList.getByIndex(i)
-				err := bresources.sub(txCandidate.BatchResources)
+				err := bresources.Sub(txCandidate.BatchResources)
 				if err != nil {
 					// We don't add this Tx
 					continue

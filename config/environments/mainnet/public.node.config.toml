@@ -13,7 +13,6 @@ EnableLog = false
 MaxConns = 200
 
 [Pool]
-FreeClaimGasLimit = 1500000
 MaxTxBytesSize=30132
 MaxTxDataBytesSize=30000
 DefaultMinGasPriceAllowed = 1000000000
@@ -30,10 +29,6 @@ PollMinAllowedGasPriceInterval = "15s"
 
 [Etherman]
 URL = "http://your.L1node.url"
-L1ChainID = 1
-PoEAddr = "0x5132A183E9F3CB7C848b0AAC5Ae0c4f0491B7aB2"
-MaticAddr = "0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0"
-GlobalExitRootManagerAddr = "0x580bda1e7A0CFAe92Fa7F6c20A3794F169CE3CFb"
 MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""
@@ -54,7 +49,6 @@ EnableL2SuggestedGasPricePolling = false
 [Synchronizer]
 SyncInterval = "2s"
 SyncChunkSize = 100
-GenBlockNumber = 16896721
 TrustedSequencerURL = ""
 
 [MTClient]

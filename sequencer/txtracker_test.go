@@ -31,16 +31,16 @@ func TestTxTrackerEfficiencyCalculation(t *testing.T) {
 	rcWeigth.WeightBatchBytesSize = 2
 
 	// Init ZKEVM resourceCostMax values
-	rcMax := batchConstraints{}
-	rcMax.MaxCumulativeGasUsed = 10
-	rcMax.MaxArithmetics = 10
-	rcMax.MaxBinaries = 10
-	rcMax.MaxKeccakHashes = 10
-	rcMax.MaxMemAligns = 10
-	rcMax.MaxPoseidonHashes = 10
-	rcMax.MaxPoseidonPaddings = 10
-	rcMax.MaxSteps = 10
-	rcMax.MaxBatchBytesSize = 10
+	rcMax := batchConstraintsFloat64{}
+	rcMax.maxCumulativeGasUsed = 10
+	rcMax.maxArithmetics = 10
+	rcMax.maxBinaries = 10
+	rcMax.maxKeccakHashes = 10
+	rcMax.maxMemAligns = 10
+	rcMax.maxPoseidonHashes = 10
+	rcMax.maxPoseidonPaddings = 10
+	rcMax.maxSteps = 10
+	rcMax.maxBatchBytesSize = 10
 
 	totalWeight := float64(rcWeigth.WeightArithmetics + rcWeigth.WeightBatchBytesSize + rcWeigth.WeightBinaries + rcWeigth.WeightCumulativeGasUsed +
 		rcWeigth.WeightKeccakHashes + rcWeigth.WeightMemAligns + rcWeigth.WeightPoseidonHashes + rcWeigth.WeightPoseidonPaddings + rcWeigth.WeightSteps)
@@ -87,11 +87,12 @@ func TestTxTrackerEfficiencyCalculation(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tx := TxTracker{}
 			tx.Benefit = new(big.Int).SetInt64(testCase.benefit)
-			tx.BatchResources.bytes = testCase.usedBytes
+
+			tx.BatchResources.Bytes = testCase.usedBytes
+			tx.updateZKCounters(testCase.counters, rcMax, rcWeigth)
 			tx.weightMultipliers = calculateWeightMultipliers(rcWeigth, totalWeight)
-			tx.constraints = convertBatchConstraintsToFloat64(rcMax)
 			tx.resourceCostMultiplier = 1000
-			tx.updateZKCounters(testCase.counters)
+			tx.updateZKCounters(testCase.counters, rcMax, rcWeigth)
 			t.Logf("%s=%s", testCase.Name, fmt.Sprintf("%.2f", tx.Efficiency))
 			assert.Equal(t, fmt.Sprintf("%.2f", testCase.expectedResult), fmt.Sprintf("%.2f", tx.Efficiency), "Efficiency calculation error. Expected=%s, Actual=%s", fmt.Sprintf("%.2f", testCase.expectedResult), fmt.Sprintf("%.2f", tx.Efficiency))
 		})

@@ -81,7 +81,7 @@ func (s *ClientSynchronizer) Sync() error {
 	if err != nil {
 		if errors.Is(err, state.ErrStateNotSynchronized) {
 			log.Info("State is empty, verifying genesis block")
-			valid, err := s.etherMan.VerifyGenBlockNumber(s.ctx, s.cfg.GenBlockNumber)
+			valid, err := s.etherMan.VerifyGenBlockNumber(s.ctx, s.genesis.GenesisBlockNum)
 			if err != nil {
 				log.Error("error checking genesis block number. Error: ", err)
 				return err
@@ -90,9 +90,9 @@ func (s *ClientSynchronizer) Sync() error {
 				return fmt.Errorf("genesis Block number configured is not valid. It is required the block number where the PolygonZkEVM smc was deployed")
 			}
 			log.Info("Setting genesis block")
-			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.cfg.GenBlockNumber))
+			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.genesis.GenesisBlockNum))
 			if err != nil {
-				log.Fatal("error getting l1 block header for block ", s.cfg.GenBlockNumber, " : ", err)
+				log.Fatal("error getting l1 block header for block ", s.genesis.GenesisBlockNum, " : ", err)
 			}
 			lastEthBlockSynced = &state.Block{
 				BlockNumber: header.Number.Uint64(),
@@ -129,17 +129,6 @@ func (s *ClientSynchronizer) Sync() error {
 		case <-s.ctx.Done():
 			return nil
 		case <-time.After(waitDuration):
-			//Sync L1Blocks
-			if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
-				log.Warn("error syncing blocks: ", err)
-				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
-				if err != nil {
-					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)
-				}
-				if s.ctx.Err() != nil {
-					continue
-				}
-			}
 			latestSequencedBatchNumber, err := s.etherMan.GetLatestBatchNumber()
 			if err != nil {
 				log.Warn("error getting latest sequenced batch in the rollup. Error: ", err)
@@ -150,6 +139,7 @@ func (s *ClientSynchronizer) Sync() error {
 				log.Warn("error getting latest batch synced. Error: ", err)
 				continue
 			}
+			// Sync trusted state
 			if latestSyncedBatch >= latestSequencedBatchNumber {
 				log.Info("L1 state fully synchronized")
 				err = s.syncTrustedState(latestSyncedBatch)
@@ -158,6 +148,17 @@ func (s *ClientSynchronizer) Sync() error {
 					continue
 				}
 				waitDuration = s.cfg.SyncInterval.Duration
+			}
+			//Sync L1Blocks
+			if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
+				log.Warn("error syncing blocks: ", err)
+				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
+				if err != nil {
+					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)
+				}
+				if s.ctx.Err() != nil {
+					continue
+				}
 			}
 		}
 	}
@@ -448,13 +449,13 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 			return nil, err
 		}
 		if block.NumberU64() != latestBlock.BlockNumber {
-			err = fmt.Errorf("Wrong ethereum block retrieved from blockchain. Block numbers don't match. BlockNumber stored: %d. BlockNumber retrieved: %d",
+			err = fmt.Errorf("wrong ethereum block retrieved from blockchain. Block numbers don't match. BlockNumber stored: %d. BlockNumber retrieved: %d",
 				latestBlock.BlockNumber, block.NumberU64())
 			log.Error("error: ", err)
 			return nil, err
 		}
 		// Compare hashes
-		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.cfg.GenBlockNumber {
+		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.genesis.GenesisBlockNum {
 			log.Debug("[checkReorg function] => latestBlockNumber: ", latestBlock.BlockNumber)
 			log.Debug("[checkReorg function] => latestBlockHash: ", latestBlock.BlockHash)
 			log.Debug("[checkReorg function] => latestBlockHashParent: ", latestBlock.ParentHash)

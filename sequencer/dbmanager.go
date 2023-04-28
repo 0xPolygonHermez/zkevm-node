@@ -32,11 +32,13 @@ func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, db
 
 // ClosingBatchParameters contains the necessary parameters to close a batch
 type ClosingBatchParameters struct {
-	BatchNumber   uint64
-	StateRoot     common.Hash
-	LocalExitRoot common.Hash
-	AccInputHash  common.Hash
-	Txs           []types.Transaction
+	BatchNumber    uint64
+	StateRoot      common.Hash
+	LocalExitRoot  common.Hash
+	AccInputHash   common.Hash
+	Txs            []types.Transaction
+	BatchResources state.BatchResources
+	ClosingReason  state.ClosingReason
 }
 
 func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
@@ -119,34 +121,22 @@ func (d *dbManager) loadFromPool() {
 	for {
 		time.Sleep(d.cfg.PoolRetrievalInterval.Duration)
 
-		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, false, 0)
+		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx, 0)
 		if err != nil && err != pool.ErrNotFound {
 			log.Errorf("load tx from pool: %v", err)
 		}
 
 		for _, tx := range poolTransactions {
-			err := d.addTxToWorker(tx, false)
+			err := d.addTxToWorker(tx)
 			if err != nil {
 				log.Errorf("error adding transaction to worker: %v", err)
-			}
-		}
-
-		poolClaims, err := d.txPool.GetNonWIPPendingTxs(d.ctx, true, 0)
-		if err != nil && err != pool.ErrNotFound {
-			log.Errorf("load claims from pool: %v", err)
-		}
-
-		for _, tx := range poolClaims {
-			err := d.addTxToWorker(tx, true)
-			if err != nil {
-				log.Errorf("error adding claim to worker: %v", err)
 			}
 		}
 	}
 }
 
-func (d *dbManager) addTxToWorker(tx pool.Transaction, isClaim bool) error {
-	txTracker, err := d.worker.NewTxTracker(tx.Transaction, isClaim, tx.ZKCounters, tx.IP)
+func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
+	txTracker, err := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP)
 	if err != nil {
 		return err
 	}
@@ -263,12 +253,26 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	lastBatch.Transactions = lastBatchTxs
 
-	lastStateRoot, err := d.state.GetLastStateRoot(ctx, dbTx)
-	if err != nil {
-		return nil, err
+	var prevLastBatchTxs []types.Transaction
+	if previousLastBatch != nil {
+		prevLastBatchTxs, _, err = state.DecodeTxs(previousLastBatch.BatchL2Data)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var lastStateRoot common.Hash
+	// If the last two batches have no txs, the stateRoot can not be retrieved from the l2block because there is no tx.
+	// In this case, the stateRoot must be gotten from the previousLastBatch
+	if len(lastBatchTxs) == 0 && previousLastBatch != nil && len(prevLastBatchTxs) == 0 {
+		lastStateRoot = previousLastBatch.StateRoot
+	} else {
+		lastStateRoot, err = d.state.GetLastStateRoot(ctx, dbTx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	wipBatch := &WipBatch{
@@ -360,7 +364,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		}
 	}
 
-	wipBatch.remainingResources = batchResources{zKCounters: batchZkCounters, bytes: totalBytes}
+	wipBatch.remainingResources = state.BatchResources{ZKCounters: batchZkCounters, Bytes: totalBytes}
 	return wipBatch, nil
 }
 
@@ -396,10 +400,12 @@ func (d *dbManager) GetLatestGer(ctx context.Context, gerFinalityNumberOfBlocks 
 // CloseBatch closes a batch in the state
 func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameters) error {
 	processingReceipt := state.ProcessingReceipt{
-		BatchNumber:   params.BatchNumber,
-		StateRoot:     params.StateRoot,
-		LocalExitRoot: params.LocalExitRoot,
-		AccInputHash:  params.AccInputHash,
+		BatchNumber:    params.BatchNumber,
+		StateRoot:      params.StateRoot,
+		LocalExitRoot:  params.LocalExitRoot,
+		AccInputHash:   params.AccInputHash,
+		BatchResources: params.BatchResources,
+		ClosingReason:  params.ClosingReason,
 	}
 
 	batchL2Data, err := state.EncodeTransactions(params.Txs)
@@ -480,12 +486,24 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	}
 
 	// Close Batch
+	txsBytes := uint64(0)
+	for _, resp := range processBatchResponse.Responses {
+		if !resp.IsProcessed {
+			continue
+		}
+		txsBytes += resp.Tx.Size()
+	}
 	processingReceipt := state.ProcessingReceipt{
 		BatchNumber:   request.BatchNumber,
 		StateRoot:     processBatchResponse.NewStateRoot,
 		LocalExitRoot: processBatchResponse.NewLocalExitRoot,
 		AccInputHash:  processBatchResponse.NewAccInputHash,
 		BatchL2Data:   forcedBatch.RawTxsData,
+		BatchResources: state.BatchResources{
+			ZKCounters: processBatchResponse.UsedZkCounters,
+			Bytes:      txsBytes,
+		},
+		ClosingReason: state.ForcedBatchClosingReason,
 	}
 
 	isClosed := false

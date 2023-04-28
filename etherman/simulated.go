@@ -111,7 +111,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	client.Commit()
 	c := &Client{
 		EthClient:             client,
-		PoE:                   poe,
+		ZkEVM:                 poe,
 		Matic:                 maticContract,
 		GlobalExitRootManager: globalExitRoot,
 		SCAddresses:           []common.Address{poeAddr, exitManagerAddr},

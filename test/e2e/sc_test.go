@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/FailureTest"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Read"
@@ -16,6 +17,54 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCounter(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() { require.NoError(t, operations.Teardown()) }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	for _, network := range networks {
+		log.Debugf(network.Name)
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+		_, scTx, sc, err := Counter.DeployCounter(auth, client)
+		require.NoError(t, err)
+
+		logTx(scTx)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		count, err := sc.GetCount(&bind.CallOpts{Pending: false})
+		require.NoError(t, err)
+
+		assert.Equal(t, 0, count.Cmp(big.NewInt(0)))
+
+		scCallTx, err := sc.Increment(auth)
+		require.NoError(t, err)
+
+		logTx(scCallTx)
+		err = operations.WaitTxToBeMined(ctx, client, scCallTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		count, err = sc.GetCount(&bind.CallOpts{Pending: false})
+		require.NoError(t, err)
+		assert.Equal(t, 0, count.Cmp(big.NewInt(1)))
+	}
+}
 
 func TestEmitLog2(t *testing.T) {
 	if testing.Short() {

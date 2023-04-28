@@ -57,8 +57,8 @@ func processWorkerAddTxTestCases(t *testing.T, worker *Worker, testCases []worke
 			tx.Nonce = testCase.nonce
 			tx.Benefit = new(big.Int).SetInt64(testCase.benefit)
 			tx.Cost = testCase.cost
-			tx.BatchResources.bytes = testCase.usedBytes
-			tx.updateZKCounters(testCase.counters)
+			tx.BatchResources.Bytes = testCase.usedBytes
+			tx.updateZKCounters(testCase.counters, worker.batchConstraints, worker.batchResourceWeights)
 			t.Logf("%s=%s", testCase.name, fmt.Sprintf("%.2f", tx.Efficiency))
 
 			err, _ := worker.AddTxTracker(ctx, &tx)
@@ -212,9 +212,9 @@ func TestWorkerGetBestTx(t *testing.T) {
 	rcMax.MaxSteps = 10
 	rcMax.MaxBatchBytesSize = 10
 
-	rc := batchResources{
-		zKCounters: state.ZKCounters{CumulativeGasUsed: 10, UsedKeccakHashes: 10, UsedPoseidonHashes: 10, UsedPoseidonPaddings: 10, UsedMemAligns: 10, UsedArithmetics: 10, UsedBinaries: 10, UsedSteps: 10},
-		bytes:      10,
+	rc := state.BatchResources{
+		ZKCounters: state.ZKCounters{CumulativeGasUsed: 10, UsedKeccakHashes: 10, UsedPoseidonHashes: 10, UsedPoseidonPaddings: 10, UsedMemAligns: 10, UsedArithmetics: 10, UsedBinaries: 10, UsedSteps: 10},
+		Bytes:      10,
 	}
 
 	stateMock := NewStateMock(t)
@@ -289,7 +289,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 			if tx.HashStr != string(expectedGetBestTx[ct].String()) {
 				t.Fatalf("Error GetBestFittingTx(%d). Expected=%s, Actual=%s", ct, expectedGetBestTx[ct].String(), tx.HashStr)
 			}
-			err := rc.sub(tx.BatchResources)
+			err := rc.Sub(tx.BatchResources)
 			assert.NoError(t, err)
 
 			touch := make(map[common.Address]*state.InfoReadWrite)

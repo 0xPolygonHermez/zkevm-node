@@ -19,7 +19,7 @@ type PoolInterface interface {
 	GetGasPrice(ctx context.Context) (uint64, error)
 	GetNonce(ctx context.Context, address common.Address) (uint64, error)
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
-	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
+	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
 	CountPendingTransactions(ctx context.Context) (uint64, error)
 	GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
 }
@@ -29,7 +29,7 @@ type StateInterface interface {
 	PrepareWebSocket()
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	DebugTransaction(ctx context.Context, transactionHash common.Hash, traceConfig state.TraceConfig, dbTx pgx.Tx) (*runtime.ExecutionResult, error)
-	EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error)
+	EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, []byte, error)
 	GetBalance(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
 	GetCode(ctx context.Context, address common.Address, root common.Hash) ([]byte, error)
 	GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Block, error)

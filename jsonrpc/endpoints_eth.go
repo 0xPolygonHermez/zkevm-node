@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/gorilla/websocket"
@@ -149,7 +150,14 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		gasEstimation, err := e.state.EstimateGas(tx, sender, blockToProcess, dbTx)
+		gasEstimation, returnValue, err := e.state.EstimateGas(tx, sender, blockToProcess, dbTx)
+		if errors.Is(err, runtime.ErrExecutionReverted) {
+			data := make([]byte, len(returnValue))
+			copy(data, returnValue)
+			return rpcErrorResponseWithData(types.RevertedErrorCode, err.Error(), &data, nil)
+		} else if err != nil {
+			return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
+		}
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 		}

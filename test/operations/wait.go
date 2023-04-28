@@ -30,7 +30,7 @@ const (
 	// DefaultInterval is a time interval
 	DefaultInterval = 2 * time.Millisecond
 	// DefaultDeadline is a time interval
-	DefaultDeadline = 30 * time.Second
+	DefaultDeadline = 2 * time.Minute
 	// DefaultTxMinedDeadline is a time interval
 	DefaultTxMinedDeadline = 5 * time.Second
 )

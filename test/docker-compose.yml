@@ -2,6 +2,7 @@ version: "3.5"
 networks:
   default:
     name: zkevm
+    
 services:
   grafana:
     container_name: grafana
@@ -62,7 +63,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components sequencer"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components sequencer"
 
   zkevm-json-rpc:
     container_name: zkevm-json-rpc
@@ -80,7 +81,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components rpc"
 
   zkevm-aggregator:
     container_name: zkevm-aggregator
@@ -97,7 +98,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components aggregator"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components aggregator"
 
   zkevm-sync:
     container_name: zkevm-sync
@@ -110,7 +111,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components synchronizer"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components synchronizer"
 
   zkevm-eth-tx-manager:
     container_name: zkevm-eth-tx-manager
@@ -127,7 +128,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components eth-tx-manager"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components eth-tx-manager"
 
   zkevm-l2gaspricer:
     container_name: zkevm-l2gaspricer
@@ -141,7 +142,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components l2gaspricer"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components l2gaspricer"
 
   zkevm-state-db:
     container_name: zkevm-state-db
@@ -278,7 +279,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc --http.api eth,net,debug,zkevm,txpool,web3"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components rpc --http.api eth,net,debug,zkevm,txpool,web3"
 
   zkevm-explorer-l2-db:
     container_name: zkevm-explorer-l2-db
@@ -321,7 +322,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:6d6e3aa
+    image: hermeznetwork/zkevm-prover:b6fe2db
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
@@ -351,10 +352,11 @@ services:
     volumes:
       - ./sequencer.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node approve --key-store-path /pk/keystore --pw testonly --am 115792089237316195423570985008687907853269984665640564039457584007913129639935 -y --cfg /app/config.toml"
+      - "/app/zkevm-node approve --network custom --custom-network-file /app/genesis.json --key-store-path /pk/keystore --pw testonly --am 115792089237316195423570985008687907853269984665640564039457584007913129639935 -y --cfg /app/config.toml"
 
   zkevm-permissionless-db:
     container_name: zkevm-permissionless-db
@@ -403,11 +405,11 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components \"rpc,synchronizer\""
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components \"rpc,synchronizer\""
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
-    image: hermeznetwork/zkevm-prover:6d6e3aa
+    image: hermeznetwork/zkevm-prover:b6fe2db
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover
