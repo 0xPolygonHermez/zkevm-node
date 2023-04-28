@@ -13,6 +13,7 @@ import (
 )
 
 func approveTokens(ctx *cli.Context) error {
+	const bitSize uint = 256
 	useMaxAmountArg := ctx.Bool(config.FlagMaxAmount)
 	var amount *big.Int
 	if !useMaxAmountArg {
@@ -23,7 +24,7 @@ func approveTokens(ctx *cli.Context) error {
 			return nil
 		}
 	} else {
-		amount = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 256), common.Big1)
+		amount = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, bitSize), common.Big1)
 	}
 
 	addrKeyStorePath := ctx.String(config.FlagKeyStorePath)
