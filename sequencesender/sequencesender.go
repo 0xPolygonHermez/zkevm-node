@@ -49,7 +49,9 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 // Start starts the sequence sender
 func (s *SequenceSender) Start(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
-	s.tryToSendSequence(ctx, ticker)
+	for {
+		s.tryToSendSequence(ctx, ticker)
+	}
 }
 
 func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
