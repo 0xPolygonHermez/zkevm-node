@@ -47,25 +47,25 @@ func (_m *PoolMock) DeleteTransactionsByHashes(ctx context.Context, hashes []com
 	return r0
 }
 
-// GetNonWIPPendingTxs provides a mock function with given fields: ctx, isClaims, limit
-func (_m *PoolMock) GetNonWIPPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error) {
-	ret := _m.Called(ctx, isClaims, limit)
+// GetNonWIPPendingTxs provides a mock function with given fields: ctx, limit
+func (_m *PoolMock) GetNonWIPPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error) {
+	ret := _m.Called(ctx, limit)
 
 	var r0 []pool.Transaction
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, bool, uint64) ([]pool.Transaction, error)); ok {
-		return rf(ctx, isClaims, limit)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) ([]pool.Transaction, error)); ok {
+		return rf(ctx, limit)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, bool, uint64) []pool.Transaction); ok {
-		r0 = rf(ctx, isClaims, limit)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) []pool.Transaction); ok {
+		r0 = rf(ctx, limit)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]pool.Transaction)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, bool, uint64) error); ok {
-		r1 = rf(ctx, isClaims, limit)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+		r1 = rf(ctx, limit)
 	} else {
 		r1 = ret.Error(1)
 	}
