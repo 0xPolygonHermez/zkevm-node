@@ -287,7 +287,6 @@ func isDataForEthTxTooBig(err error) bool {
 		errors.Is(err, ethman.ErrContentLengthTooLarge)
 }
 
-// TODO: This functions also exists in the sequencer. Move to a common package
 func waitTick(ctx context.Context, ticker *time.Ticker) {
 	select {
 	case <-ticker.C:
