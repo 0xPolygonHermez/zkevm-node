@@ -57,8 +57,8 @@ TrustedSequencerURL = ""
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "5s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+WaitPeriodSendSequence = "15s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
@@ -84,8 +84,8 @@ TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "1s"
-		ForcedBatchDeadlineTimeoutInSec = "60s"
+		GERDeadlineTimeoutInSec = "2s"
+		ForcedBatchDeadlineTimeoutInSec = "1s"
 		SleepDurationInMs = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 0
@@ -134,7 +134,7 @@ URI = "127.0.0.1:50071"
 
 [Metrics]
 Host = "0.0.0.0"
-Port = 9091
+Port = 9092
 Enabled = true
 ProfilingHost = "0.0.0.0"
 ProfilingPort = 6060

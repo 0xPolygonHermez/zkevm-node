@@ -39,9 +39,9 @@ func TestForcedBatchesVector(t *testing.T) {
 			return err
 		}
 		if !info.IsDir() && !strings.HasSuffix(info.Name(), "list.json") {
-			defer func() {
-				require.NoError(t, operations.Teardown())
-			}()
+			//defer func() {
+			//	require.NoError(t, operations.Teardown())
+			//}()
 
 			// Load test vectors
 			fmt.Println(path)
@@ -64,14 +64,16 @@ func TestForcedBatchesVector(t *testing.T) {
 			require.Equal(t, testCase.ExpectedOldStateRoot, actualOldStateRoot.Hex())
 			b, err := hex.DecodeHex(testCase.BatchL2Data)
 			require.NoError(t, err)
-			_, txsBytes, err := state.DecodeTxs(b)
+			txs, txsBytes, err := state.DecodeTxs(b)
 			require.NoError(t, err)
+			fmt.Println(txs[0].ChainId())
 
 			_, err = sendForcedBatchForVector(t, txsBytes, opsman)
 			require.NoError(t, err)
 
 			// Check new root
 			actualNewStateRoot, err := opsman.State().GetLastStateRoot(ctx, nil)
+
 			require.NoError(t, err)
 			require.Equal(t, testCase.ExpectedNewStateRoot, actualNewStateRoot.Hex())
 

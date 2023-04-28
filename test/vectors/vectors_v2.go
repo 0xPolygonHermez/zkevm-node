@@ -53,6 +53,7 @@ func GenerateGenesisActions(genesis []GenesisEntity) []*state.GenesisAction {
 			}
 			genesisActions = append(genesisActions, action)
 		}
+
 		if genesisEntity.Nonce != "" && genesisEntity.Nonce != "0" {
 			action := &state.GenesisAction{
 				Address: genesisEntity.Address,
@@ -61,7 +62,8 @@ func GenerateGenesisActions(genesis []GenesisEntity) []*state.GenesisAction {
 			}
 			genesisActions = append(genesisActions, action)
 		}
-		if genesisEntity.Bytecode != nil {
+
+		if genesisEntity.IsSmartContract && genesisEntity.Bytecode != nil && *genesisEntity.Bytecode != "0x" {
 			action := &state.GenesisAction{
 				Address:  genesisEntity.Address,
 				Type:     int(merkletree.LeafTypeCode),
@@ -69,7 +71,8 @@ func GenerateGenesisActions(genesis []GenesisEntity) []*state.GenesisAction {
 			}
 			genesisActions = append(genesisActions, action)
 		}
-		if len(genesisEntity.Storage) > 0 {
+		
+		if genesisEntity.IsSmartContract && len(genesisEntity.Storage) > 0 {
 			for storageKey, storageValue := range genesisEntity.Storage {
 				action := &state.GenesisAction{
 					Address:         genesisEntity.Address,
