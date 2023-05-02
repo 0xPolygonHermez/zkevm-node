@@ -431,6 +431,10 @@ deploy-uniswap: ## deploy the uniswap environment to the network
 run-db-scripts: ## Executes scripts on the db after it has been initialized, potentially using info from the environment
 	./scripts/postgres/run.sh
 
+.PHONY: install-mockery
+install-mockery: ## Installs mockery with the correct version to generate the mocks
+	go install github.com/vektra/mockery/v2@v2.22.1
+
 .PHONY: generate-mocks
 generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=storageInterface --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=storageMock --filename=mock_storage.go

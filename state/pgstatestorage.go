@@ -1457,10 +1457,37 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	return nil
 }
 
+// GetLastVirtualizedL2BlockNumber gets the last l2 block verified
+func (p *PostgresStorage) GetLastVirtualizedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	var lastVirtualizedBlockNumber uint64
+	const getLastVirtualizedBlockNumberSQL = `
+    SELECT b.block_num
+      FROM state.l2block b
+     INNER JOIN state.virtual_batch vb
+        ON vb.batch_num = b.batch_num
+     ORDER BY b.block_num DESC LIMIT 1`
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getLastVirtualizedBlockNumberSQL).Scan(&lastVirtualizedBlockNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return lastVirtualizedBlockNumber, nil
+}
+
 // GetLastConsolidatedL2BlockNumber gets the last l2 block verified
 func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var lastConsolidatedBlockNumber uint64
-	const getLastConsolidatedBlockNumberSQL = "SELECT b.block_num FROM state.l2block b INNER JOIN state.verified_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
+	const getLastConsolidatedBlockNumberSQL = `
+    SELECT b.block_num
+      FROM state.l2block b
+     INNER JOIN state.verified_batch vb
+        ON vb.batch_num = b.batch_num
+     ORDER BY b.block_num DESC LIMIT 1`
 
 	q := p.getExecQuerier(dbTx)
 	err := q.QueryRow(ctx, getLastConsolidatedBlockNumberSQL).Scan(&lastConsolidatedBlockNumber)
