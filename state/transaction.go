@@ -243,19 +243,29 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	traceConfigRequest := &pb.TraceConfig{
 		TxHashToGenerateCallTrace:    transactionHash.Bytes(),
 		TxHashToGenerateExecuteTrace: transactionHash.Bytes(),
+		// set the defaults to the maximum information we can have.
+		// this is needed to process custom tracers later
+		DisableStorage:   cFalse,
+		DisableStack:     cFalse,
+		EnableMemory:     cTrue,
+		EnableReturnData: cTrue,
 	}
 
-	if traceConfig.DisableStorage {
-		traceConfigRequest.DisableStorage = cTrue
-	}
-	if traceConfig.DisableStack {
-		traceConfigRequest.DisableStack = cTrue
-	}
-	if traceConfig.EnableMemory {
-		traceConfigRequest.EnableMemory = cTrue
-	}
-	if traceConfig.EnableReturnData {
-		traceConfigRequest.EnableReturnData = cTrue
+	// if the default tracer is used, then we review the information
+	// we want to have in the trace related to the parameters we received.
+	if traceConfig.IsDefaultTracer() {
+		if traceConfig.DisableStorage {
+			traceConfigRequest.DisableStorage = cTrue
+		}
+		if traceConfig.DisableStack {
+			traceConfigRequest.DisableStack = cTrue
+		}
+		if traceConfig.EnableMemory {
+			traceConfigRequest.EnableMemory = cTrue
+		}
+		if traceConfig.EnableReturnData {
+			traceConfigRequest.EnableReturnData = cTrue
+		}
 	}
 
 	oldStateRoot := previousBlock.Root()
