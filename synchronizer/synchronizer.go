@@ -194,23 +194,18 @@ func (s *ClientSynchronizer) Sync() error {
 				log.Warn("error getting latest batch synced in the db. Error: ", err)
 				continue
 			}
-			err = s.state.SetLastBatchNumberSeenOnEthereum(s.ctx, latestSequencedBatchNumber, nil)
-			if err != nil {
-				log.Warn("error setting latest batch into db. Error: ", err)
-				continue
-			}
-
 			// Check the latest verified Batch number in the smc
 			lastVerifiedBatchNumber, err := s.etherMan.GetLatestVerifiedBatchNum()
 			if err != nil {
 				log.Warn("error getting last verified batch in the rollup. Error: ", err)
 				continue
 			}
-			err = s.state.SetLastBatchNumberVerifiedOnEthereum(s.ctx, lastVerifiedBatchNumber, nil)
+			err = s.state.SetLastBatchInfoSeenOnEthereum(s.ctx, latestSequencedBatchNumber, lastVerifiedBatchNumber, nil)
 			if err != nil {
-				log.Warn("error setting latest consolidated batch into db. Error: ", err)
+				log.Warn("error setting latest batch info into db. Error: ", err)
 				continue
 			}
+
 			// Sync trusted state
 			if latestSyncedBatch >= latestSequencedBatchNumber {
 				log.Info("L1 state fully synchronized")

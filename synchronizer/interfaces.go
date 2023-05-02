@@ -57,10 +57,8 @@ type stateInterface interface {
 	ResetForkID(ctx context.Context, batchNumber, forkID uint64, version string, dbTx pgx.Tx) error
 	GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error)
 	UpdateForkIDIntervals(intervals []state.ForkIDInterval)
-	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-	SetLastBatchNumberVerifiedOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+	SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBatchNumberSeen, lastBatchNumberVerified uint64, dbTx pgx.Tx) error
 	SetInitSyncBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }
 

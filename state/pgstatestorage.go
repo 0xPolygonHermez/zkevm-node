@@ -542,23 +542,17 @@ func (p *PostgresStorage) GetLatestVirtualBatchTimestamp(ctx context.Context, db
 	return timestamp, nil
 }
 
-// SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
-// the roll-up in order to allow the components to know if the state
-// is synchronized or not
-func (p *PostgresStorage) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	const updateLastBatchSeenSQL = "UPDATE state.sync_info SET last_batch_num_seen = $1"
+// SetLastBatchInfoSeenOnEthereum sets the last batch number that affected
+// the roll-up and the last batch number that was consolidated on ethereum
+// in order to allow the components to know if the state is synchronized or not
+func (p *PostgresStorage) SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBatchNumberSeen, lastBatchNumberVerified uint64, dbTx pgx.Tx) error {
+	const query = `
+    UPDATE state.sync_info
+       SET last_batch_num_seen = $1
+         , last_batch_num_consolidated = $2`
 
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, updateLastBatchSeenSQL, batchNumber)
-	return err
-}
-
-// SetLastBatchNumberVerifiedOnEthereum sets the last batch number that was consolidated on ethereum
-func (p *PostgresStorage) SetLastBatchNumberVerifiedOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	updateLastBatchConsolidatedSQL := "UPDATE state.sync_info SET last_batch_num_consolidated = $1"
-
-	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, updateLastBatchConsolidatedSQL, batchNumber)
+	_, err := e.Exec(ctx, query, lastBatchNumberSeen, lastBatchNumberVerified)
 	return err
 }
 

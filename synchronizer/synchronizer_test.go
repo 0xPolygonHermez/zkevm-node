@@ -407,18 +407,13 @@ func TestForcedBatch(t *testing.T) {
 				Return(uint64(10), nil).
 				Once()
 
-			m.State.
-				On("SetLastBatchNumberSeenOnEthereum", ctx, uint64(10), nilDbTx).
-				Return(nil).
-				Once()
-
 			m.Etherman.
 				On("GetLatestVerifiedBatchNum").
 				Return(uint64(10), nil).
 				Once()
 
 			m.State.
-				On("SetLastBatchNumberVerifiedOnEthereum", ctx, uint64(10), nilDbTx).
+				On("SetLastBatchInfoSeenOnEthereum", ctx, uint64(10), uint64(10), nilDbTx).
 				Return(nil).
 				Once()
 
@@ -652,18 +647,13 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Return(uint64(10), nil).
 				Once()
 
-			m.State.
-				On("SetLastBatchNumberSeenOnEthereum", ctx, uint64(10), nilDbTx).
-				Return(nil).
-				Once()
-
 			m.Etherman.
 				On("GetLatestVerifiedBatchNum").
 				Return(uint64(10), nil).
 				Once()
 
 			m.State.
-				On("SetLastBatchNumberVerifiedOnEthereum", ctx, uint64(10), nilDbTx).
+				On("SetLastBatchInfoSeenOnEthereum", ctx, uint64(10), uint64(10), nilDbTx).
 				Return(nil).
 				Once()
 

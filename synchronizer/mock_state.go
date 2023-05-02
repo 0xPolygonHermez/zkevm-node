@@ -605,27 +605,13 @@ func (_m *stateMock) SetInitSyncBatch(ctx context.Context, batchNumber uint64, d
 	return r0
 }
 
-// SetLastBatchNumberSeenOnEthereum provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *stateMock) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, dbTx)
+// SetLastBatchInfoSeenOnEthereum provides a mock function with given fields: ctx, lastBatchNumberSeen, lastBatchNumberVerified, dbTx
+func (_m *stateMock) SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBatchNumberSeen uint64, lastBatchNumberVerified uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, lastBatchNumberSeen, lastBatchNumberVerified, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// SetLastBatchNumberVerifiedOnEthereum provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *stateMock) SetLastBatchNumberVerifiedOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, lastBatchNumberSeen, lastBatchNumberVerified, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
