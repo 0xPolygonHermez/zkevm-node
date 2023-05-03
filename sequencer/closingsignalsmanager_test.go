@@ -31,7 +31,7 @@ var (
 	localTestDbManager                           *dbManager
 	localCtx                                     context.Context
 	localMtDBCancel, localExecutorCancel         context.CancelFunc
-	localMtDBServiceClient                       mtDBclientpb.StateDBServiceClient
+	localMtDBServiceClient                       mtDBclientpb.HashDBServiceClient
 	localMtDBClientConn, localExecutorClientConn *grpc.ClientConn
 	localState                                   *state.State
 	localExecutorClient                          executorclientpb.ExecutorServiceClient

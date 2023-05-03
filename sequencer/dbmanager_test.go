@@ -38,7 +38,7 @@ var (
 	}
 	dbManagerCfg      = DBManagerCfg{PoolRetrievalInterval: types.NewDuration(500 * time.Millisecond)}
 	executorClient    executorclientpb.ExecutorServiceClient
-	mtDBServiceClient mtDBclientpb.StateDBServiceClient
+	mtDBServiceClient mtDBclientpb.HashDBServiceClient
 	mtDBClientConn    *grpc.ClientConn
 	testDbManager     *dbManager
 )

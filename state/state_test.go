@@ -67,7 +67,7 @@ var (
 	}
 	forkID                             uint64 = 2
 	executorClient                     executorclientpb.ExecutorServiceClient
-	mtDBServiceClient                  mtDBclientpb.StateDBServiceClient
+	mtDBServiceClient                  mtDBclientpb.HashDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
 	batchResources                     = state.BatchResources{
 		ZKCounters: state.ZKCounters{
