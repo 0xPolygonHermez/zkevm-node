@@ -87,7 +87,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.104.156")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -881,6 +881,9 @@ func TestGenesis(t *testing.T) {
 			require.Equal(t, new(big.Int).SetBytes(common.Hex2Bytes(action.Value)), st)
 		}
 	}
+
+	err = testState.GetTree().Flush(ctx)
+	require.NoError(t, err)
 }
 
 func TestExecutor(t *testing.T) {
