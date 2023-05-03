@@ -916,6 +916,161 @@ func TestDebugTraceBlock(t *testing.T) {
 	}
 }
 
+func TestDebugTraceBlockCallTracer(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	const l2NetworkURL = "http://localhost:8124"
+	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	// defer func() {
+	// 	require.NoError(t, operations.Teardown())
+	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	// }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+	require.NoError(t, err)
+
+	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
+
+	networks := []struct {
+		Name         string
+		URL          string
+		WebSocketURL string
+		ChainID      uint64
+		PrivateKey   string
+	}{
+		{
+			Name:       l1NetworkName,
+			URL:        operations.DefaultL1NetworkURL,
+			ChainID:    operations.DefaultL1ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+		{
+			Name:       l2NetworkName,
+			URL:        l2NetworkURL,
+			ChainID:    operations.DefaultL2ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+	}
+
+	results := map[string]json.RawMessage{}
+
+	type testCase struct {
+		name              string
+		blockNumberOrHash string
+		prepare           func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
+		createSignedTx    func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error)
+	}
+	testCases := []testCase{
+		// successful transactions
+		{name: "eth transfer by number", blockNumberOrHash: "number", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment by number", blockNumberOrHash: "number", createSignedTx: createScDeploySignedTx},
+		{name: "sc call by number", blockNumberOrHash: "number", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer by number", blockNumberOrHash: "number", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+
+		{name: "eth transfer by hash", blockNumberOrHash: "hash", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment by hash", blockNumberOrHash: "hash", createSignedTx: createScDeploySignedTx},
+		{name: "sc call by hash", blockNumberOrHash: "hash", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer by hash", blockNumberOrHash: "hash", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		// failed transactions
+		{name: "sc deployment reverted by number", blockNumberOrHash: "number", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted by number", blockNumberOrHash: "number", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted by number", blockNumberOrHash: "number", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+
+		{name: "sc deployment reverted by hash", blockNumberOrHash: "hash", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted by hash", blockNumberOrHash: "hash", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted by hash", blockNumberOrHash: "hash", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			log.Debug("************************ ", tc.name, " ************************")
+
+			for _, network := range networks {
+				log.Debug("------------------------ ", network.Name, " ------------------------")
+				ethereumClient := operations.MustGetClient(network.URL)
+				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+				var customData map[string]interface{}
+				if tc.prepare != nil {
+					customData, err = tc.prepare(t, ctx, auth, ethereumClient)
+					require.NoError(t, err)
+				}
+
+				signedTx, err := tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
+				require.NoError(t, err)
+
+				err = ethereumClient.SendTransaction(ctx, signedTx)
+				require.NoError(t, err)
+
+				log.Debugf("tx sent: %v", signedTx.Hash().String())
+
+				err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+					require.NoError(t, err)
+				}
+
+				receipt, err := ethereumClient.TransactionReceipt(ctx, signedTx.Hash())
+				require.NoError(t, err)
+
+				debugOptions := map[string]interface{}{
+					"tracer": "callTracer",
+					"tracerConfig": map[string]interface{}{
+						"onlyTopCall": false,
+						"withLog":     true,
+					},
+				}
+
+				var response types.Response
+				if tc.blockNumberOrHash == "number" {
+					response, err = client.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(receipt.BlockNumber), debugOptions)
+				} else {
+					response, err = client.JSONRPCCall(network.URL, "debug_traceBlockByHash", receipt.BlockHash.String(), debugOptions)
+				}
+				require.NoError(t, err)
+				require.Nil(t, response.Error)
+				require.NotNil(t, response.Result)
+
+				results[network.Name] = response.Result
+			}
+
+			referenceTransactions := []interface{}{}
+			err = json.Unmarshal(results[l1NetworkName], &referenceTransactions)
+			require.NoError(t, err)
+
+			for networkName, result := range results {
+				if networkName == l1NetworkName {
+					continue
+				}
+
+				resultTransactions := []interface{}{}
+				err = json.Unmarshal(result, &resultTransactions)
+				require.NoError(t, err)
+
+				for transactionIndex := range referenceTransactions {
+					referenceTransactionMap := referenceTransactions[transactionIndex].(map[string]interface{})
+					resultTransactionMap := resultTransactions[transactionIndex].(map[string]interface{})
+
+					compareCallFrame(t, referenceTransactionMap, resultTransactionMap, networkName)
+				}
+			}
+		})
+	}
+}
+
 func createEthTransferSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
