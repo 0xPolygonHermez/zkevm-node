@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
+
 package executor.v1;
 
 option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb";
@@ -7,6 +9,7 @@ option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executo
 service ExecutorService {
     /// Processes a batch
     rpc ProcessBatch(ProcessBatchRequest) returns (ProcessBatchResponse) {}
+    rpc GetFlushStatus (google.protobuf.Empty) returns (GetFlushStatusResponse) {}
 }
 
 message ProcessBatchRequest {
@@ -46,6 +49,20 @@ message ProcessBatchResponse {
     repeated ProcessTransactionResponse responses = 13;
     ExecutorError error = 14;
     map<string, InfoReadWrite> read_write_addresses = 15;
+    uint64 flush_id = 16;
+    uint64 last_sent_flush_id = 17;
+}
+
+/**
+ * @dev GetFlushStatusResponse
+ * @param {last_sent_flush_id} - id of the last flush data sent to database
+ * @param {sending_flush_id} - id of the flush data being sent now to database
+ * @param {last_flush_id} - id assigned to the last call to flush
+ */
+message GetFlushStatusResponse {
+    uint64 last_sent_flush_id = 1;
+    uint64 sending_flush_id = 2;
+    uint64 last_flush_id = 3;
 }
 
 // Trace configuration request params
