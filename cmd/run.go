@@ -165,7 +165,7 @@ func start(cliCtx *cli.Context) error {
 			}
 			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
 			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st, eventLog)
-			go seq.Start(ctx)
+			go seq.Start(ctx, time.Now)
 		case RPC:
 			ev.Component = event.Component_RPC
 			ev.Description = "Running JSON-RPC server"

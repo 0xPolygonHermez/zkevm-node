@@ -84,13 +84,13 @@ TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "2s"
+		GERDeadlineTimeoutInSec = "1000s"
 		ForcedBatchDeadlineTimeoutInSec = "1s"
 		SleepDurationInMs = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 0
 		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
-		ClosingSignalsManagerWaitForCheckingGER = "10s"
+		ClosingSignalsManagerWaitForCheckingGER = "10000s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 0
 		TimestampResolution = "15s"

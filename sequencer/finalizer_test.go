@@ -117,9 +117,9 @@ func TestNewFinalizer(t *testing.T) {
 //func TestFinalizer_newWIPBatch(t *testing.T) {
 //	// arrange
 //	f = setupFinalizer(true)
-//	now = testNow
+//	nowFuncForBatches = testNow
 //	defer func() {
-//		now = time.Now
+//		nowFuncForBatches = time.Now
 //	}()
 //
 //	txs := make([]types.Transaction, 0)
@@ -132,7 +132,7 @@ func TestNewFinalizer(t *testing.T) {
 //		coinbase:           f.sequencerAddress,
 //		initialStateRoot:   newHash,
 //		stateRoot:          newHash,
-//		timestamp:          uint64(now().Unix()),
+//		timestamp:          uint64(nowFuncForBatches().Unix()),
 //		remainingResources: getMaxRemainingResources(f.batchConstraints),
 //	}
 //	closeBatchParams := ClosingBatchParameters{
@@ -687,9 +687,9 @@ func TestFinalizer_openBatch(t *testing.T) {
 // TestFinalizer_reprocessBatch is a test for reprocessBatch which tests all possible cases of reprocessBatch
 func TestFinalizer_reprocessBatch(t *testing.T) {
 	// arrange
-	now = testNow
+	nowFuncForBatches = testNow
 	defer func() {
-		now = time.Now
+		nowFuncForBatches = time.Now
 	}()
 
 	f = setupFinalizer(true)

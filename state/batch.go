@@ -169,8 +169,9 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 	}
 
 	forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, request.BatchNumber)
+
 	// Create Batch
-	processBatchRequest := &pb.ProcessBatchRequest{
+	var processBatchRequest = &pb.ProcessBatchRequest{
 		OldBatchNum:      request.BatchNumber - 1,
 		Coinbase:         request.Coinbase.String(),
 		BatchL2Data:      request.Transactions,
@@ -264,6 +265,10 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 	return processBatchResponse, err
 }
 
+func uint32ToBool(value uint32) bool {
+	return value != 0
+}
+
 func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
@@ -299,6 +304,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		return nil, ErrInvalidBatchNumber
 	}
 	forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
+
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber - 1,
@@ -313,9 +319,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		ForkId:           forkID,
 	}
 
-	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, caller)
-
-	return res, err
+	return s.sendBatchRequestToExecutor(ctx, processBatchRequest, caller)
 }
 
 func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequest *pb.ProcessBatchRequest, caller metrics.CallerLabel) (*pb.ProcessBatchResponse, error) {

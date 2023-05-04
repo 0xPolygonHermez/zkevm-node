@@ -103,7 +103,7 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 }
 
 // Start starts the sequencer
-func (s *Sequencer) Start(ctx context.Context) {
+func (s *Sequencer) Start(ctx context.Context, nowFuncForBatches func() time.Time) {
 	for !s.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
 		time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
@@ -154,7 +154,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints, s.eventLog)
+	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints, s.eventLog, nowFuncForBatches)
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 

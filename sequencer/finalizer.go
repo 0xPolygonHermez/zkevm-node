@@ -51,6 +51,7 @@ type finalizer struct {
 	nextForcedBatchesMux    *sync.RWMutex
 	handlingL2Reorg         bool
 	eventLog                *event.EventLog
+	nowFuncForBatches       func() time.Time
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -72,18 +73,7 @@ func (w *WipBatch) isEmpty() bool {
 }
 
 // newFinalizer returns a new instance of Finalizer.
-func newFinalizer(
-	cfg FinalizerCfg,
-	worker workerInterface,
-	dbManager dbManagerInterface,
-	executor stateInterface,
-	sequencerAddr common.Address,
-	isSynced func(ctx context.Context) bool,
-	closingSignalCh ClosingSignalCh,
-	txsStore TxsStore,
-	batchConstraints batchConstraints,
-	eventLog *event.EventLog,
-) *finalizer {
+func newFinalizer(cfg FinalizerCfg, worker workerInterface, dbManager dbManagerInterface, executor stateInterface, sequencerAddr common.Address, isSynced func(ctx context.Context) bool, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints, eventLog *event.EventLog, nowFuncForBatches func() time.Time) *finalizer {
 	return &finalizer{
 		cfg:                cfg,
 		txsStore:           txsStore,
@@ -106,6 +96,7 @@ func newFinalizer(
 		nextForcedBatchDeadline: 0,
 		nextForcedBatchesMux:    new(sync.RWMutex),
 		eventLog:                eventLog,
+		nowFuncForBatches:       nowFuncForBatches,
 	}
 }
 
@@ -189,13 +180,13 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 func (f *finalizer) finalizeBatches(ctx context.Context) {
 	for {
 		start := now()
-		log.Debug("finalizer init loop")
+		//log.Debug("finalizer init loop")
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			// Timestamp resolution
 			if f.batch.isEmpty() {
-				f.batch.timestamp = now()
+				f.batch.timestamp = f.nowFuncForBatches()
 			}
 
 			f.sharedResourcesMux.Lock()
@@ -207,7 +198,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
-			log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDurationInMs.Duration)
+			//log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDurationInMs.Duration)
 			if f.cfg.SleepDurationInMs.Duration > 0 {
 				time.Sleep(f.cfg.SleepDurationInMs.Duration)
 			}
@@ -630,7 +621,7 @@ func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot 
 		GlobalExitRoot: forcedBatch.GlobalExitRoot,
 		Transactions:   forcedBatch.RawTxsData,
 		Coinbase:       f.sequencerAddress,
-		Timestamp:      now(),
+		Timestamp:      f.nowFuncForBatches(),
 		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, request)
@@ -718,7 +709,7 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    num,
 		Coinbase:       f.sequencerAddress,
-		Timestamp:      now(),
+		Timestamp:      f.nowFuncForBatches(),
 		GlobalExitRoot: ger,
 	}
 	err := f.dbManager.OpenBatch(ctx, processingCtx, dbTx)

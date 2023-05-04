@@ -66,8 +66,9 @@ type SequencerConfig struct {
 
 // Config is the main Manager configuration.
 type Config struct {
-	State     *state.Config
-	Sequencer *SequencerConfig
+	State            *state.Config
+	Sequencer        *SequencerConfig
+	WithoutSequencer bool
 }
 
 // Manager controls operations and has knowledge about how to set up and tear
@@ -468,7 +469,15 @@ func stopNetwork() error {
 
 // StartNode starts the node container
 func (m *Manager) StartNode() error {
-	return StartComponent("node", nodeUpCondition)
+	var err error
+
+	if m.cfg.WithoutSequencer {
+		err = StartComponent("node-no-seq", nodeUpCondition)
+	} else {
+		err = StartComponent("node", nodeUpCondition)
+	}
+
+	return err
 }
 
 // StartTrustedAndPermissionlessNode starts the node container
@@ -547,8 +556,9 @@ func RunMakeTarget(target string) error {
 // GetDefaultOperationsConfig provides a default configuration to run the environment
 func GetDefaultOperationsConfig() *Config {
 	return &Config{
-		State:     &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
-		Sequencer: &SequencerConfig{Address: DefaultSequencerAddress, PrivateKey: DefaultSequencerPrivateKey},
+		State:            &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
+		Sequencer:        &SequencerConfig{Address: DefaultSequencerAddress, PrivateKey: DefaultSequencerPrivateKey},
+		WithoutSequencer: false,
 	}
 }
 

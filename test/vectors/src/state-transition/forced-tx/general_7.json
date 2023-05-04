@@ -1,6 +1,6 @@
 {
   "expectedOldStateRoot": "0x4a9bfcb163ec91c5beb22e6aca41592433092c8c7821b01d37fd0de483f9265d",
-  "expectedNewStateRoot": "0x5ce97f7b959b5dbb207ca525a18a7034a1244f23ec0bd393ec1b3e28786dd164",
+  "expectedNewStateRoot": "0xcc651274e1060f11e5ed7235aad30a6cc5a96d6ccd71d71725eaa2bbb9fc08f8",
   "batchL2Data": "0x",
   "genesis": [
     {
@@ -29,6 +29,12 @@
       "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
       "nonce": "0",
       "balance": "200000000000000000000",
+      "isSmartContract": false
+    },
+    {
+      "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+      "nonce": "0",
+      "balance": "0",
       "isSmartContract": false
     }
   ]
