@@ -15,10 +15,6 @@ import (
 
 // Consumer interfaces required by the package.
 
-// txPool contains the methods required to interact with the tx pool.
-type txPool interface {
-}
-
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
 	BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence) (to *common.Address, data []byte, err error)

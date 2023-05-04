@@ -14,7 +14,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/txpool"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
@@ -24,10 +23,16 @@ const (
 	monitoredIDFormat = "sequence-from-%v-to-%v"
 )
 
+var (
+	// ErrOversizedData is returned if the input data of a transaction is greater
+	// than some meaningful limit a user might use. This is not a consensus error
+	// making the transaction invalid, rather a DOS protection.
+	ErrOversizedData = errors.New("oversized data")
+)
+
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg          Config
-	pool         txPool
 	state        stateInterface
 	ethTxManager ethTxManager
 	etherman     etherman
@@ -35,10 +40,9 @@ type SequenceSender struct {
 }
 
 // New inits sequence sender
-func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*SequenceSender, error) {
+func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*SequenceSender, error) {
 	return &SequenceSender{
 		cfg:          cfg,
-		pool:         txPool,
 		state:        state,
 		etherman:     etherman,
 		ethTxManager: manager,
@@ -174,7 +178,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 		if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
 			metrics.SequencesOvesizedDataError()
 			log.Infof("oversized Data on TX oldHash %s (txSize %d > 128KB)", tx.Hash(), tx.Size())
-			err = txpool.ErrOversizedData
+			err = ErrOversizedData
 		}
 		if err != nil {
 			log.Infof("Handling estimage gas send sequence error: %v", err)
@@ -283,7 +287,7 @@ func (s *SequenceSender) handleEstimateGasSendSequenceErr(
 
 func isDataForEthTxTooBig(err error) bool {
 	return errors.Is(err, ethman.ErrGasRequiredExceedsAllowance) ||
-		errors.Is(err, txpool.ErrOversizedData) ||
+		errors.Is(err, ErrOversizedData) ||
 		errors.Is(err, ethman.ErrContentLengthTooLarge)
 }
 

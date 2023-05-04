@@ -351,7 +351,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
-	seqSender, err := sequencesender.New(cfg.SequenceSender, pool, st, etherman, ethTxManager, eventLog)
+	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog)
 	if err != nil {
 		log.Fatal(err)
 	}
