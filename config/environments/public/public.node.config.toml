@@ -30,10 +30,6 @@ PollMinAllowedGasPriceInterval = "15s"
 
 [Etherman]
 URL = "http://your.L1node.url"
-L1ChainID = 5
-PoEAddr = "0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"
-MaticAddr = "0x1319D23c2F7034F52Eb07399702B040bA278Ca49"
-GlobalExitRootManagerAddr = "0x4d9427DCA0406358445bC0a8F88C26b704004f74"
 MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""
@@ -41,8 +37,8 @@ MultiGasProvider = false
 [RPC]
 Host = "0.0.0.0"
 Port = 8545
-ReadTimeoutInSec = 60
-WriteTimeoutInSec = 60
+ReadTimeout = "60s"
+WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://rpc.public.zkevm-test.net/"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
@@ -54,7 +50,6 @@ EnableL2SuggestedGasPricePolling = false
 [Synchronizer]
 SyncInterval = "2s"
 SyncChunkSize = 100
-GenBlockNumber = 8572998
 
 [MTClient]
 URI = "zkevm-prover:50061"

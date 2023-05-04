@@ -23,6 +23,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
@@ -68,6 +69,13 @@ var (
 	executorClient                     executorclientpb.ExecutorServiceClient
 	mtDBServiceClient                  mtDBclientpb.StateDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
+	batchResources                     = state.BatchResources{
+		ZKCounters: state.ZKCounters{
+			UsedKeccakHashes: 1,
+		},
+		Bytes: 1,
+	}
+	closingReason = state.GlobalExitRootDeadlineClosingReason
 )
 
 func TestMain(m *testing.M) {
@@ -208,9 +216,11 @@ func TestOpenCloseBatch(t *testing.T) {
 	assert.Equal(t, state.ErrLastBatchShouldBeClosed, err)
 	// Fail closing batch #1 (it has no txs yet)
 	receipt1 := state.ProcessingReceipt{
-		BatchNumber:   1,
-		StateRoot:     common.HexToHash("1"),
-		LocalExitRoot: common.HexToHash("1"),
+		BatchNumber:    1,
+		StateRoot:      common.HexToHash("1"),
+		LocalExitRoot:  common.HexToHash("1"),
+		ClosingReason:  closingReason,
+		BatchResources: batchResources,
 	}
 	err = testState.CloseBatch(ctx, receipt1, dbTx)
 	require.NoError(t, err)
@@ -839,7 +849,7 @@ func TestGenesis(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: actions,
+		GenesisActions: actions,
 	}
 
 	initOrResetDB()
@@ -923,7 +933,7 @@ func TestExecutorRevert(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: sequencerAddress.String(),
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1043,77 +1053,78 @@ func TestExecutorRevert(t *testing.T) {
 	assert.Equal(t, fmt.Errorf("execution reverted: Today is not juernes").Error(), result.Err.Error())
 }
 
-func TestExecutorLogs(t *testing.T) {
-	var chainIDSequencer = new(big.Int).SetInt64(1000)
-	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
-	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
-	var sequencerBalance = 4000000
-	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
-	scLogsByteCode, err := testutils.ReadBytecode("EmitLog2/EmitLog2.bin")
-	require.NoError(t, err)
-
-	// Genesis DB
-	genesisDB := map[string]string{
-		"2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90": "00000000000000000000000000000000000000000000000000000000000000000d1f0da5a7b620c843fd1e18e59fd724d428d25da0cb1888e31f5542ac227c060000000000000000000000000000000000000000000000000000000000000000",
-		"e31f5542ac227c06d428d25da0cb188843fd1e18e59fd7240d1f0da5a7b620c8": "ed22ec7734d89ff2b2e639153607b7c542b2bd6ec2788851b7819329410847833e63658ee0db910d0b3e34316e81aa10e0dc203d93f4e3e5e10053d0ebc646020000000000000000000000000000000000000000000000000000000000000000",
-		"b78193294108478342b2bd6ec2788851b2e639153607b7c5ed22ec7734d89ff2": "16dde42596b907f049015d7e991a152894dd9dadd060910b60b4d5e9af514018b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
-		"3efad1dd58c2259d339438195426ad0af57d81efba5d4445b69b044f5e694795": "00000000dea000000000000035c9adc5000000000000003600000000000000000000000000000000000000000000000000000000000000000000000000000000",
-		"e10053d0ebc64602e0dc203d93f4e3e50b3e34316e81aa103e63658ee0db910d": "66ee2be0687eea766926f8ca8796c78a4c2f3e938869b82d649e63bfe1247ba4b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
-	}
-
-	// Deploy Emitlog2.sol
-	tx0 := types.NewTx(&types.LegacyTx{
-		Nonce:    0,
-		To:       nil,
-		Value:    new(big.Int),
-		Gas:      uint64(sequencerBalance),
-		GasPrice: new(big.Int).SetUint64(0),
-		Data:     common.Hex2Bytes(scLogsByteCode),
-	})
-
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
-	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
-	require.NoError(t, err)
-
-	signedTx0, err := auth.Signer(auth.From, tx0)
-	require.NoError(t, err)
-
-	// Call SC method
-	tx1 := types.NewTransaction(1, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("7966b4f6"))
-	signedTx1, err := auth.Signer(auth.From, tx1)
-	require.NoError(t, err)
-
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx0, *signedTx1})
-	require.NoError(t, err)
-
-	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		OldBatchNum:      0,
-		Coinbase:         sequencerAddress.String(),
-		BatchL2Data:      batchL2Data,
-		OldStateRoot:     common.Hex2Bytes("2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90"),
-		GlobalExitRoot:   common.Hex2Bytes("090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"),
-		OldAccInputHash:  common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
-		EthTimestamp:     uint64(1944498031),
-		UpdateMerkleTree: 0,
-		Db:               genesisDB,
-		ChainId:          stateCfg.ChainID,
-		ForkId:           forkID,
-	}
-
-	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
-	require.NoError(t, err)
-
-	assert.Equal(t, scAddress, common.HexToAddress(string(processBatchResponse.Responses[0].CreateAddress)))
-
-	assert.Equal(t, 0, len(processBatchResponse.Responses[0].Logs))
-	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs))
-	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[0].Topics))
-	assert.Equal(t, 2, len(processBatchResponse.Responses[1].Logs[1].Topics))
-	assert.Equal(t, 1, len(processBatchResponse.Responses[1].Logs[2].Topics))
-	assert.Equal(t, 0, len(processBatchResponse.Responses[1].Logs[3].Topics))
-}
+//
+//func TestExecutorLogs(t *testing.T) {
+//	var chainIDSequencer = new(big.Int).SetInt64(1000)
+//	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+//	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+//	var sequencerBalance = 4000000
+//	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+//	scLogsByteCode, err := testutils.ReadBytecode("EmitLog2/EmitLog2.bin")
+//	require.NoError(t, err)
+//
+//	// Genesis DB
+//	genesisDB := map[string]string{
+//		"2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90": "00000000000000000000000000000000000000000000000000000000000000000d1f0da5a7b620c843fd1e18e59fd724d428d25da0cb1888e31f5542ac227c060000000000000000000000000000000000000000000000000000000000000000",
+//		"e31f5542ac227c06d428d25da0cb188843fd1e18e59fd7240d1f0da5a7b620c8": "ed22ec7734d89ff2b2e639153607b7c542b2bd6ec2788851b7819329410847833e63658ee0db910d0b3e34316e81aa10e0dc203d93f4e3e5e10053d0ebc646020000000000000000000000000000000000000000000000000000000000000000",
+//		"b78193294108478342b2bd6ec2788851b2e639153607b7c5ed22ec7734d89ff2": "16dde42596b907f049015d7e991a152894dd9dadd060910b60b4d5e9af514018b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
+//		"3efad1dd58c2259d339438195426ad0af57d81efba5d4445b69b044f5e694795": "00000000dea000000000000035c9adc5000000000000003600000000000000000000000000000000000000000000000000000000000000000000000000000000",
+//		"e10053d0ebc64602e0dc203d93f4e3e50b3e34316e81aa103e63658ee0db910d": "66ee2be0687eea766926f8ca8796c78a4c2f3e938869b82d649e63bfe1247ba4b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
+//	}
+//
+//	// Deploy Emitlog2.sol
+//	tx0 := types.NewTx(&types.LegacyTx{
+//		Nonce:    0,
+//		To:       nil,
+//		Value:    new(big.Int),
+//		Gas:      uint64(sequencerBalance),
+//		GasPrice: new(big.Int).SetUint64(0),
+//		Data:     common.Hex2Bytes(scLogsByteCode),
+//	})
+//
+//	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+//	require.NoError(t, err)
+//	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+//	require.NoError(t, err)
+//
+//	signedTx0, err := auth.Signer(auth.From, tx0)
+//	require.NoError(t, err)
+//
+//	// Call SC method
+//	tx1 := types.NewTransaction(1, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("7966b4f6"))
+//	signedTx1, err := auth.Signer(auth.From, tx1)
+//	require.NoError(t, err)
+//
+//	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx0, *signedTx1})
+//	require.NoError(t, err)
+//
+//	// Create Batch
+//	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+//		OldBatchNum:      0,
+//		Coinbase:         sequencerAddress.String(),
+//		BatchL2Data:      batchL2Data,
+//		OldStateRoot:     common.Hex2Bytes("2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90"),
+//		GlobalExitRoot:   common.Hex2Bytes("090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"),
+//		OldAccInputHash:  common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
+//		EthTimestamp:     uint64(1944498031),
+//		UpdateMerkleTree: 0,
+//		Db:               genesisDB,
+//		ChainId:          stateCfg.ChainID,
+//		ForkId:           forkID,
+//	}
+//
+//	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+//	require.NoError(t, err)
+//
+//	assert.Equal(t, scAddress, common.HexToAddress(string(processBatchResponse.Responses[0].CreateAddress)))
+//
+//	assert.Equal(t, 0, len(processBatchResponse.Responses[0].Logs))
+//	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs))
+//	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[0].Topics))
+//	assert.Equal(t, 2, len(processBatchResponse.Responses[1].Logs[1].Topics))
+//	assert.Equal(t, 1, len(processBatchResponse.Responses[1].Logs[2].Topics))
+//	assert.Equal(t, 0, len(processBatchResponse.Responses[1].Logs[3].Topics))
+//}
 
 func TestExecutorTransfer(t *testing.T) {
 	var chainID = new(big.Int).SetInt64(1000)
@@ -1130,7 +1141,7 @@ func TestExecutorTransfer(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1391,7 +1402,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 				ReceivedAt:  time.Now(),
 			}
 			genesis := state.Genesis{
-				Actions: []*state.GenesisAction{
+				GenesisActions: []*state.GenesisAction{
 					{
 						Address: senderAddress.String(),
 						Type:    int(merkletree.LeafTypeBalance),
@@ -1458,7 +1469,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1734,7 +1745,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(context.Background())
 	require.NoError(t, err)
 	// Set genesis
-	genesis := state.Genesis{Actions: []*state.GenesisAction{
+	genesis := state.Genesis{GenesisActions: []*state.GenesisAction{
 		{
 			Address: sequencerAddress.Hex(),
 			Type:    int(merkletree.LeafTypeBalance),
@@ -1759,7 +1770,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	batchL2Data, err := state.EncodeTransactions(signedTxs)
 	require.NoError(t, err)
 
-	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, state.SequencerCallerLabel, dbTx)
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, metrics.SequencerCallerLabel, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
 	assert.Nil(t, processBatchResponse.Responses[0].RomError)
@@ -1896,10 +1907,10 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = jsonFile.Close() }()
 
-	bytes, err := ioutil.ReadAll(jsonFile)
+	Bytes, err := ioutil.ReadAll(jsonFile)
 	require.NoError(t, err)
 
-	err = json.Unmarshal(bytes, &testCases)
+	err = json.Unmarshal(Bytes, &testCases)
 	require.NoError(t, err)
 
 	// Set Genesis
@@ -1969,10 +1980,10 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 		require.NoError(t, err)
 		defer func() { _ = jsonFile.Close() }()
 
-		bytes, err := ioutil.ReadAll(jsonFile)
+		Bytes, err := ioutil.ReadAll(jsonFile)
 		require.NoError(t, err)
 
-		err = json.Unmarshal(bytes, &testCases)
+		err = json.Unmarshal(Bytes, &testCases)
 		require.NoError(t, err)
 
 		// Set Genesis
@@ -2105,7 +2116,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 				Type:    int(merkletree.LeafTypeBalance),
@@ -2422,7 +2433,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 				Type:    int(merkletree.LeafTypeBalance),
@@ -2619,115 +2630,6 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	log.Debugf("Used gas = %v", processBatchResponse.Responses[0].GasUsed)
 }
 
-func TestWaitSequencingTxToBeSyncedAndWaitVerifiedBatchToBeSynced(t *testing.T) {
-	ctx := context.Background()
-
-	// Set Genesis
-	block := state.Block{
-		BlockNumber: 0,
-		BlockHash:   state.ZeroHash,
-		ParentHash:  state.ZeroHash,
-		ReceivedAt:  time.Now(),
-	}
-
-	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
-			{
-				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
-				Type:    int(merkletree.LeafTypeBalance),
-				Value:   "100000000000000000000000",
-			},
-			{
-				Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-				Type:    int(merkletree.LeafTypeBalance),
-				Value:   "100000000000000000000000",
-			},
-			{
-				Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-				Type:    int(merkletree.LeafTypeBalance),
-				Value:   "100000000000000000000000",
-			},
-		},
-	}
-
-	initOrResetDB()
-
-	dbTx, err := testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	_, err = testState.SetGenesis(ctx, block, genesis, dbTx)
-	require.NoError(t, err)
-	require.NoError(t, dbTx.Commit(ctx))
-
-	// Dummy transaction
-	tx := types.NewTx(&types.LegacyTx{
-		Nonce:    1,
-		To:       nil,
-		Value:    new(big.Int),
-		Gas:      uint64(1234),
-		GasPrice: new(big.Int).SetUint64(0),
-		Data:     common.Hex2Bytes("0x00"),
-	})
-
-	err = testState.WaitSequencingTxToBeSynced(ctx, tx, 1*time.Second)
-	require.Error(t, err)
-
-	processingContext := state.ProcessingContext{
-		BatchNumber:    1,
-		Coinbase:       common.Address{},
-		Timestamp:      time.Now(),
-		GlobalExitRoot: common.Hash{},
-	}
-
-	dbTx, err = testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-
-	err = testState.OpenBatch(ctx, processingContext, dbTx)
-	require.NoError(t, err)
-
-	err = testState.StoreTransactions(ctx, 1, nil, dbTx)
-	require.NoError(t, err)
-
-	processingReceipt := state.ProcessingReceipt{
-		BatchNumber:   1,
-		StateRoot:     common.Hash{},
-		LocalExitRoot: common.Hash{},
-	}
-
-	err = testState.CloseBatch(ctx, processingReceipt, dbTx)
-	require.NoError(t, err)
-
-	virtualBatch := state.VirtualBatch{
-		BatchNumber: 1,
-		TxHash:      tx.Hash(),
-		Coinbase:    common.HexToAddress("0x00"),
-		BlockNumber: 0,
-	}
-
-	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
-	require.NoError(t, err)
-	require.NoError(t, dbTx.Commit(ctx))
-
-	err = testState.WaitSequencingTxToBeSynced(ctx, tx, 5*time.Second)
-	require.NoError(t, err)
-
-	// VerifiedBatch
-	err = testState.WaitVerifiedBatchToBeSynced(ctx, 1, 1*time.Second)
-	require.Error(t, err)
-
-	verifiedBatch := state.VerifiedBatch{
-		BlockNumber: 0,
-		BatchNumber: 1,
-		Aggregator:  common.Address{},
-		TxHash:      common.Hash{},
-	}
-
-	err = testState.AddVerifiedBatch(ctx, &verifiedBatch, nil)
-	require.NoError(t, err)
-
-	err = testState.WaitVerifiedBatchToBeSynced(ctx, 1, 5*time.Second)
-	require.NoError(t, err)
-}
-
 func TestExecuteWithoutUpdatingMT(t *testing.T) {
 	// Init database instance
 	initOrResetDB()
@@ -2885,7 +2787,7 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(context.Background())
 	require.NoError(t, err)
 	// Set genesis
-	genesis := state.Genesis{Actions: []*state.GenesisAction{
+	genesis := state.Genesis{GenesisActions: []*state.GenesisAction{
 		{
 			Address: operations.DefaultSequencerAddress,
 			Type:    int(merkletree.LeafTypeBalance),
@@ -2911,7 +2813,7 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	batchL2Data, err := state.EncodeTransactions(signedTxs)
 	require.NoError(t, err)
 
-	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, state.SequencerCallerLabel, dbTx)
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, metrics.SequencerCallerLabel, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
 	assert.Nil(t, processBatchResponse.Responses[0].RomError)

@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
@@ -18,55 +18,70 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 		description      string
 		inputConfigStr   string
 		expectedConfig   NetworkConfig
-		expectedError    bool
 		expectedErrorMsg string
 	}{
 		{
 			description: "happy path",
 			inputConfigStr: `{
-
-  "genesis": [
-    {
-      "balance": "0",
-      "nonce": "2",
-      "address": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
-     },
-    {
-      "balance": "0",
-      "nonce": "1",
-      "address": "0xae4bb80be56b819606589de61d5ec3b522eeb032",
-      "bytecode": "0xbeef1",
-      "storage": {
-        "0x0000000000000000000000000000000000000000000000000000000000000002": "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"
-      },
-      "contractName": "PolygonZkEVMGlobalExitRootL2 proxy"
-    },
-    {
-      "balance": "100000000000000000000000",
-      "nonce": "2",
-      "address": "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
-      "bytecode": "0xbeef2",
-      "storage": {
-        "0x0000000000000000000000000000000000000000000000000000000000000000": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
-      },
-      "contractName": "PolygonZkEVMBridge proxy"
-    },
-    {
-      "balance": "0",
-      "nonce": "1",
-      "address": "0x61ba0248b0986c2480181c6e76b6adeeaa962483",
-      "bytecode": "0xbeef3",
-      "storage": {
-        "0x0000000000000000000000000000000000000000000000000000000000000000": "0x01"
-      }
-    }
-  ],
-  "maxCumulativeGasUsed": 300000
-}`,
+				"root": "0xBEEF",
+				"genesisBlockNumber": 69,
+				"l1Config" : {
+					"chainId": 420,
+					"polygonZkEVMAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
+					"maticTokenAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
+					"polygonZkEVMGlobalExitRootAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
+				},
+				"genesis": [
+					{
+						"balance": "0",
+						"nonce": "2",
+						"address": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
+					},
+					{
+						"balance": "0",
+						"nonce": "1",
+						"address": "0xae4bb80be56b819606589de61d5ec3b522eeb032",
+						"bytecode": "0xbeef1",
+						"storage": {
+							"0x0000000000000000000000000000000000000000000000000000000000000002": "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"
+						},
+						"contractName": "PolygonZkEVMGlobalExitRootL2 proxy"
+					},
+					{
+						"balance": "100000000000000000000000",
+						"nonce": "2",
+						"address": "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+						"bytecode": "0xbeef2",
+						"storage": {
+							"0x0000000000000000000000000000000000000000000000000000000000000000": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
+						},
+						"contractName": "PolygonZkEVMBridge proxy"
+					},
+					{
+						"balance": "0",
+						"nonce": "1",
+						"address": "0x61ba0248b0986c2480181c6e76b6adeeaa962483",
+						"bytecode": "0xbeef3",
+						"storage": {
+							"0x0000000000000000000000000000000000000000000000000000000000000000": "0x01"
+						}
+					}
+				],
+				"maxCumulativeGasUsed": 300000
+			}`,
 			expectedConfig: NetworkConfig{
 				L2GlobalExitRootManagerAddr: common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
+				L2BridgeAddr:                common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"),
+				L1Config: etherman.L1Config{
+					L1ChainID:                 420,
+					ZkEVMAddr:                 common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+					MaticAddr:                 common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+					GlobalExitRootManagerAddr: common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+				},
 				Genesis: state.Genesis{
-					Actions: []*state.GenesisAction{
+					Root:            common.HexToHash("0xBEEF"),
+					GenesisBlockNum: 69,
+					GenesisActions: []*state.GenesisAction{
 						{
 							Address: "0xc949254d682d8c9ad5682521675b8f43b102aec4",
 							Type:    int(merkletree.LeafTypeNonce),
@@ -150,7 +165,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 }`,
 			expectedConfig: NetworkConfig{
 				Genesis: state.Genesis{
-					Actions: []*state.GenesisAction{
+					GenesisActions: []*state.GenesisAction{
 						{
 							Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
 							Type:    int(merkletree.LeafTypeBalance),
@@ -173,13 +188,11 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 		{
 			description:      "not valid JSON gives error",
 			inputConfigStr:   "not a valid json",
-			expectedError:    true,
-			expectedErrorMsg: "invalid character",
+			expectedErrorMsg: "failed to load genesis configuration from file. Error: invalid character 'o' in literal null (expecting 'u')",
 		},
 		{
 			description:      "empty JSON gives error",
-			expectedError:    true,
-			expectedErrorMsg: "unexpected end of JSON input",
+			expectedErrorMsg: "failed to load genesis configuration from file. Error: unexpected end of JSON input",
 		},
 	}
 
@@ -194,14 +207,21 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 			require.NoError(t, os.WriteFile(file.Name(), []byte(tc.inputConfigStr), 0600))
 
 			flagSet := flag.NewFlagSet("test", flag.ExitOnError)
-			flagSet.String(FlagGenesisFile, file.Name(), "")
+			flagSet.String(FlagNetwork, string(custom), "")
+			flagSet.String(FlagCustomNetwork, file.Name(), "")
 			ctx := cli.NewContext(nil, flagSet, nil)
 
-			actualConfig, err := loadGenesisFileConfig(ctx)
-			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
-
-			require.Equal(t, tc.expectedConfig.L2GlobalExitRootManagerAddr, actualConfig.L2GlobalExitRootManagerAddr)
-			require.Equal(t, tc.expectedConfig.Genesis.Actions, actualConfig.Genesis.Actions)
+			c := &Config{}
+			if tc.expectedErrorMsg != "" {
+				panicFunc := func() {
+					c.loadNetworkConfig(ctx)
+				}
+				require.PanicsWithError(t, tc.expectedErrorMsg, panicFunc)
+				// require.Panics(t, panicFunc)
+			} else {
+				c.loadNetworkConfig(ctx)
+				require.Equal(t, tc.expectedConfig, c.NetworkConfig)
+			}
 		})
 	}
 }

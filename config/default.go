@@ -6,14 +6,14 @@ IsTrustedSequencer = false
 
 [Log]
 Environment = "development" # "production" or "development"
-Level = "debug"
+Level = "info"
 Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
 Password = "state_password"
 Name = "state_db"
-Host = "localhost"
+Host = "zkevm-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200
@@ -29,17 +29,13 @@ PollMinAllowedGasPriceInterval = "15s"
 	User = "pool_user"
 	Password = "pool_password"
 	Name = "pool_db"
-	Host = "localhost"
+	Host = "zkevm-pool-db"
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
 
 [Etherman]
 URL = "http://localhost:8545"
-L1ChainID = 1337
-PoEAddr = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
-MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-GlobalExitRootManagerAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 MultiGasProvider = true
 	[Etherman.Etherscan]
 		ApiKey = ""
@@ -52,20 +48,19 @@ ForcedGas = 0
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
-ReadTimeoutInSec = 60
-WriteTimeoutInSec = 60
+ReadTimeout = "60s"
+WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
-		Enabled = false
-		Port = 8133
+		Enabled = true
+		Port = 8124
 
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
-GenBlockNumber = 74
 TrustedSequencerURL = ""
 
 [Sequencer]
@@ -97,20 +92,23 @@ TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "5s"
-		ForcedBatchDeadlineTimeoutInSec = "60s"
-		SendingToL1DeadlineTimeoutInSec = "20s"
-		SleepDurationInMs = "100ms"
+		GERDeadlineTimeout = "5s"
+		ForcedBatchDeadlineTimeout = "60s"
+		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 64
 		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
+		TimestampResolution = "15s"
 		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
+		L2ReorgRetrievalInterval = "5s"
+	[Sequencer.Worker]
+		ResourceCostMultiplier = 1000
 
 [PriceGetter]
 Type = "default"
@@ -129,17 +127,19 @@ CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 
 [L2GasPriceSuggester]
-Type = "default"
-DefaultGasPriceWei = 1000000000
+Type = "follower"
+UpdatePeriod = "10s"
+Factor = 0.15
+DefaultGasPriceWei = 2000000000
 
 [Prover]
 ProverURI = "0.0.0.0:50051"
 
 [MTClient]
-URI = "127.0.0.1:50061"
+URI = "zkevm-prover:50061"
 
 [Executor]
-URI = "127.0.0.1:50071"
+URI = "zkevm-prover:50071"
 
 [Metrics]
 Host = "0.0.0.0"

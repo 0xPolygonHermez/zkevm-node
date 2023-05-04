@@ -27,6 +27,14 @@ func (s TxStatus) String() string {
 	return string(s)
 }
 
+// TxStatusUpdateInfo represents the information needed to update the status of a tx
+type TxStatusUpdateInfo struct {
+	Hash         common.Hash
+	NewStatus    TxStatus
+	IsWIP        bool
+	FailedReason *string
+}
+
 // Transaction represents a pool tx
 type Transaction struct {
 	types.Transaction
@@ -36,6 +44,7 @@ type Transaction struct {
 	PreprocessedStateRoot common.Hash
 	IsWIP                 bool
 	IP                    string
+	FailedReason          *string
 }
 
 // NewTransaction creates a new transaction

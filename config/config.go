@@ -30,8 +30,10 @@ const (
 	FlagYes = "yes"
 	// FlagCfg is the flag for cfg.
 	FlagCfg = "cfg"
-	// FlagGenesisFile is the flag for genesis file.
-	FlagGenesisFile = "genesis"
+	// FlagNetwork is the flag for the network name. Valid values: ["testnet", "mainnet", "custom"].
+	FlagNetwork = "network"
+	// FlagCustomNetwork is the flag for the custom network file. This is required if --network=custom
+	FlagCustomNetwork = "custom-network-file"
 	// FlagAmount is the flag for amount.
 	FlagAmount = "amount"
 	// FlagRemoteMT is the flag for remote-merkletree.
@@ -46,6 +48,8 @@ const (
 	FlagPassword = "password"
 	// FlagMigrations is the flag for migrations.
 	FlagMigrations = "migrations"
+	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
+	FlagMaxAmount = "max-amount"
 )
 
 // Config represents the configuration of the entire Hermez Node
@@ -128,12 +132,5 @@ func Load(ctx *cli.Context) (*Config, error) {
 	}
 	// Load genesis parameters
 	cfg.loadNetworkConfig(ctx)
-	/*
-		cfgJSON, err := json.MarshalIndent(cfg, "", "  ")
-		if err != nil {
-			return nil, err
-		}
-		log.Debugf("Configuration loaded: \n%s\n", string(cfgJSON))
-	*/
 	return cfg, nil
 }

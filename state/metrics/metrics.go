@@ -7,6 +7,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// CallerLabel is used to point which entity is the caller of a given function
+type CallerLabel string
+
 const (
 	// Prefix for the metrics of the state package.
 	Prefix = "state_"
@@ -14,6 +17,13 @@ const (
 	ExecutorProcessingTimeName = Prefix + "executor_processing_time"
 	// CallerLabelName is the name of the label for the caller.
 	CallerLabelName = "caller"
+
+	// SequencerCallerLabel is used when sequencer is calling the function
+	SequencerCallerLabel CallerLabel = "sequencer"
+	// SynchronizerCallerLabel is used when synchronizer is calling the function
+	SynchronizerCallerLabel CallerLabel = "synchronizer"
+	// DiscardCallerLabel is used we want to skip measuring the execution time
+	DiscardCallerLabel CallerLabel = "discard"
 )
 
 // Register the metrics for the sequencer package.

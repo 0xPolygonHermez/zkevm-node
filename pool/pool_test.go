@@ -49,7 +49,7 @@ var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 	genesis    = state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -179,7 +179,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -240,7 +240,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -533,12 +533,39 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	err = p.AddTx(ctx, *signedTx2, "")
 	require.NoError(t, err)
 
-	err = p.UpdateTxsStatus(ctx, []string{signedTx1.Hash().String(), signedTx2.Hash().String()}, pool.TxStatusInvalid)
-	require.NoError(t, err)
+	expectedFailedReason := "failed"
+	newStatus := pool.TxStatusInvalid
+	err = p.UpdateTxsStatus(ctx, []pool.TxStatusUpdateInfo{
+		{
+			Hash:         signedTx1.Hash(),
+			NewStatus:    newStatus,
+			IsWIP:        false,
+			FailedReason: &expectedFailedReason,
+		},
+		{
+			Hash:         signedTx2.Hash(),
+			NewStatus:    newStatus,
+			IsWIP:        false,
+			FailedReason: &expectedFailedReason,
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
 
 	var count int
-	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.transaction WHERE status = $1", pool.TxStatusInvalid).Scan(&count)
-	require.NoError(t, err)
+	rows, err := poolSqlDB.Query(ctx, "SELECT status, failed_reason FROM pool.transaction WHERE hash = ANY($1)", []string{signedTx1.Hash().String(), signedTx2.Hash().String()})
+	defer rows.Close() // nolint:staticcheck
+	if err != nil {
+		t.Error(err)
+	}
+	var state, failedReason string
+	for rows.Next() {
+		count++
+		if err := rows.Scan(&state, &failedReason); err != nil {
+			t.Error(err)
+		}
+	}
 	assert.Equal(t, 2, count)
 }
 
@@ -587,22 +614,27 @@ func Test_UpdateTxStatus(t *testing.T) {
 	tx := ethTypes.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx, "")
+	if err := p.AddTx(ctx, *signedTx, ""); err != nil {
+		t.Error(err)
+	}
+	expectedFailedReason := "failed"
+	err = p.UpdateTxStatus(ctx, signedTx.Hash(), pool.TxStatusInvalid, false, &expectedFailedReason)
+	if err != nil {
+		t.Error(err)
+	}
+
+	rows, err := poolSqlDB.Query(ctx, "SELECT status, failed_reason FROM pool.transaction WHERE hash = $1", signedTx.Hash().Hex())
 	require.NoError(t, err)
 
-	err = p.UpdateTxStatus(ctx, signedTx.Hash(), pool.TxStatusInvalid, false)
-	require.NoError(t, err)
-
-	rows, err := poolSqlDB.Query(ctx, "SELECT status FROM pool.transaction WHERE hash = $1", signedTx.Hash().Hex())
-	require.NoError(t, err)
 	defer rows.Close() // nolint:staticcheck
-
-	var state string
+	var state, failedReason string
 	rows.Next()
-	err = rows.Scan(&state)
-	require.NoError(t, err)
+	if err := rows.Scan(&state, &failedReason); err != nil {
+		t.Error(err)
+	}
 
 	assert.Equal(t, pool.TxStatusInvalid, pool.TxStatus(state))
+	assert.Equal(t, expectedFailedReason, failedReason)
 }
 
 func Test_SetAndGetGasPrice(t *testing.T) {
@@ -812,7 +844,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	initialBalance, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
 	initialBalance = initialBalance.Add(initialBalance, initialBalance)
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: operations.DefaultSequencerAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1131,7 +1163,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 				ReceivedAt:  time.Now(),
 			}
 			genesis := state.Genesis{
-				Actions: []*state.GenesisAction{
+				GenesisActions: []*state.GenesisAction{
 					{
 						Address: senderAddress,
 						Type:    int(merkletree.LeafTypeBalance),
@@ -1271,7 +1303,7 @@ func Test_BlockedAddress(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{
+		GenesisActions: []*state.GenesisAction{
 			{
 				Address: auth.From.String(),
 				Type:    int(merkletree.LeafTypeBalance),

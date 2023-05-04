@@ -46,14 +46,19 @@ var (
 	// ErrInsufficientFunds is returned if the total cost of executing a transaction
 	// is higher than the balance of the user's account.
 	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
-
-	zkCounterErrPrefix = "ZKCounter: "
+	// ErrExecutorNil indicates that the method requires an executor that is not nil
+	ErrExecutorNil = errors.New("the method requires an executor that is not nil")
+	// ErrStateTreeNil indicates that the method requires a state tree that is not nil
+	ErrStateTreeNil = errors.New("the method requires a state tree that is not nil")
 	// ErrUnsupportedDuration is returned if the provided unit for a time
 	// interval is not supported by our conversion mechanism.
 	ErrUnsupportedDuration = errors.New("unsupported time duration")
+	// ErrInvalidData is the error when the raw txs is unexpected
+	ErrInvalidData = errors.New("invalid data")
+	// ErrBatchResourceBytesUnderflow happens when the batch runs out of Bytes
+	ErrBatchResourceBytesUnderflow = NewBatchRemainingResourcesUnderflowError(nil, "Bytes")
 
-	// InvalidData is the error when the raw txs is unexpected
-	InvalidData = errors.New("invalid data")
+	zkCounterErrPrefix = "ZKCounter: "
 )
 
 func constructErrorFromRevert(err error, returnValue []byte) error {
@@ -68,4 +73,31 @@ func constructErrorFromRevert(err error, returnValue []byte) error {
 // GetZKCounterError returns the error associated with the zkCounter
 func GetZKCounterError(name string) error {
 	return errors.New(zkCounterErrPrefix + name)
+}
+
+// BatchRemainingResourcesUnderflowError happens when the execution of a batch runs out of counters
+type BatchRemainingResourcesUnderflowError struct {
+	Message      string
+	Code         int
+	Err          error
+	ResourceName string
+}
+
+// Error returns the error message
+func (b BatchRemainingResourcesUnderflowError) Error() string {
+	return constructErrorMsg(b.ResourceName)
+}
+
+// NewBatchRemainingResourcesUnderflowError creates a new BatchRemainingResourcesUnderflowError
+func NewBatchRemainingResourcesUnderflowError(err error, resourceName string) error {
+	return &BatchRemainingResourcesUnderflowError{
+		Message:      constructErrorMsg(resourceName),
+		Code:         1,
+		Err:          err,
+		ResourceName: resourceName,
+	}
+}
+
+func constructErrorMsg(resourceName string) string {
+	return fmt.Sprintf("underflow of remaining resources for current batch. Resource %s", resourceName)
 }

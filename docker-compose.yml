@@ -27,11 +27,10 @@ services:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
       - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.node.config.toml:/app/config.toml
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.genesis.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc"
+      - "/app/zkevm-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components rpc"
 
   zkevm-sync:
     container_name: zkevm-sync
@@ -50,11 +49,10 @@ services:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
       - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.node.config.toml:/app/config.toml
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.genesis.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components synchronizer"
+      - "/app/zkevm-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components synchronizer"
 
   zkevm-state-db:
     container_name: zkevm-state-db

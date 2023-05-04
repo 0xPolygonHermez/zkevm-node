@@ -35,11 +35,17 @@ var (
 		Usage:    "Configuration `FILE`",
 		Required: false,
 	}
-	genesisFlag = cli.StringFlag{
-		Name:     config.FlagGenesisFile,
-		Aliases:  []string{"gen"},
-		Usage:    "Loads the genesis `FILE`",
+	networkFlag = cli.StringFlag{
+		Name:     config.FlagNetwork,
+		Aliases:  []string{"net"},
+		Usage:    "Load default network configuration. Supported values: [`mainnet`, `testnet`, `custom`]",
 		Required: true,
+	}
+	customNetworkFlag = cli.StringFlag{
+		Name:     config.FlagCustomNetwork,
+		Aliases:  []string{"net-file"},
+		Usage:    "Load the network configuration file if --network=custom",
+		Required: false,
 	}
 	yesFlag = cli.BoolFlag{
 		Name:     config.FlagYes,
@@ -91,7 +97,7 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Run the zkevm-node",
 			Action:  start,
-			Flags:   append(flags, &genesisFlag, &migrationsFlag),
+			Flags:   append(flags, &networkFlag, &customNetworkFlag, &migrationsFlag),
 		},
 		{
 			Name:    "approve",
@@ -115,8 +121,16 @@ func main() {
 					Name:     config.FlagAmount,
 					Aliases:  []string{"am"},
 					Usage:    "Amount that is gonna be approved",
-					Required: true,
+					Required: false,
 				},
+				&cli.StringFlag{
+					Name:     config.FlagMaxAmount,
+					Aliases:  []string{"mam"},
+					Usage:    "Maximum amount is gonna be approved",
+					Required: false,
+				},
+				&networkFlag,
+				&customNetworkFlag,
 			),
 		},
 		{

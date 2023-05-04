@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -19,8 +21,8 @@ type ProcessRequest struct {
 	OldAccInputHash common.Hash
 	Transactions    []byte
 	Coinbase        common.Address
-	Timestamp       uint64
-	Caller          CallerLabel
+	Timestamp       time.Time
+	Caller          metrics.CallerLabel
 }
 
 // ProcessBatchResponse represents the response of a batch process.
@@ -131,6 +133,29 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 	z.UsedSteps -= other.UsedSteps
 
 	return nil
+}
+
+// BatchResources is a struct that contains the ZKEVM resources used by a batch/tx
+type BatchResources struct {
+	ZKCounters ZKCounters
+	Bytes      uint64
+}
+
+// Sub subtracts the batch resources from other
+func (r *BatchResources) Sub(other BatchResources) error {
+	// Bytes
+	if other.Bytes > r.Bytes {
+		return ErrBatchResourceBytesUnderflow
+	}
+	bytesBackup := r.Bytes
+	r.Bytes -= other.Bytes
+	err := r.ZKCounters.Sub(other.ZKCounters)
+	if err != nil {
+		r.Bytes = bytesBackup
+		return NewBatchRemainingResourcesUnderflowError(err, err.Error())
+	}
+
+	return err
 }
 
 // InfoReadWrite has information about modified addresses during the execution

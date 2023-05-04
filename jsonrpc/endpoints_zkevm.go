@@ -20,7 +20,7 @@ type ZKEVMEndpoints struct {
 	txMan  dbTxManager
 }
 
-// ConsolidatedBlockNumber returns current block number for consolidated blocks
+// ConsolidatedBlockNumber returns last block number related to the last verified batch
 func (z *ZKEVMEndpoints) ConsolidatedBlockNumber() (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		lastBlockNumber, err := z.state.GetLastConsolidatedL2BlockNumber(ctx, dbTx)

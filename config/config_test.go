@@ -31,7 +31,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Log.Level",
-			expectedValue: "debug",
+			expectedValue: "info",
 		},
 		{
 			path:          "Log.Outputs",
@@ -118,19 +118,51 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(131072),
 		},
 		{
-			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
+			path:          "Sequencer.WeightBatchBytesSize",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightCumulativeGasUsed",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightKeccakHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightPoseidonHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightPoseidonPaddings",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightMemAligns",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightArithmetics",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightBinaries",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.WeightSteps",
+			expectedValue: 1,
+		},
+		{
+			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeoutInSec",
+			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeout",
 			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.SendingToL1DeadlineTimeoutInSec",
-			expectedValue: types.NewDuration(20 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.SleepDurationInMs",
+			path:          "Sequencer.Finalizer.SleepDuration",
 			expectedValue: types.NewDuration(100 * time.Millisecond),
 		},
 		{
@@ -158,28 +190,40 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
+			path:          "Sequencer.Finalizer.TimestampResolution",
+			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
+		},
+		{
+			path:          "Sequencer.DBManager.L2ReorgRetrievalInterval",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "Sequencer.Worker.ResourceCostMultiplier",
+			expectedValue: float64(1000),
 		},
 		{
 			path:          "Etherman.URL",
 			expectedValue: "http://localhost:8545",
 		},
 		{
-			path:          "Etherman.L1ChainID",
-			expectedValue: uint64(1337),
+			path:          "NetworkConfig.L1Config.L1ChainID",
+			expectedValue: uint64(5),
 		},
 		{
-			path:          "Etherman.PoEAddr",
-			expectedValue: common.HexToAddress("0x610178dA211FEF7D417bC0e6FeD39F05609AD788"),
+			path:          "NetworkConfig.L1Config.ZkEVMAddr",
+			expectedValue: common.HexToAddress("0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"),
 		},
 		{
-			path:          "Etherman.MaticAddr",
-			expectedValue: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+			path:          "NetworkConfig.L1Config.MaticAddr",
+			expectedValue: common.HexToAddress("0x1319D23c2F7034F52Eb07399702B040bA278Ca49"),
 		},
 		{
-			path:          "Etherman.GlobalExitRootManagerAddr",
-			expectedValue: common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
+			path:          "NetworkConfig.L1Config.GlobalExitRootManagerAddr",
+			expectedValue: common.HexToAddress("0x4d9427DCA0406358445bC0a8F88C26b704004f74"),
 		},
 		{
 			path:          "Etherman.MultiGasProvider",
@@ -211,11 +255,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "L2GasPriceSuggester.DefaultGasPriceWei",
-			expectedValue: uint64(1000000000),
+			expectedValue: uint64(2000000000),
 		},
 		{
 			path:          "MTClient.URI",
-			expectedValue: "127.0.0.1:50061",
+			expectedValue: "zkevm-prover:50061",
 		},
 		{
 			path:          "StateDB.User",
@@ -231,7 +275,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "StateDB.Host",
-			expectedValue: "localhost",
+			expectedValue: "zkevm-state-db",
 		},
 		{
 			path:          "StateDB.Port",
@@ -280,7 +324,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Pool.DB.Host",
-			expectedValue: "localhost",
+			expectedValue: "zkevm-pool-db",
 		},
 		{
 			path:          "Pool.DB.Port",
@@ -303,12 +347,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: int(8123),
 		},
 		{
-			path:          "RPC.ReadTimeoutInSec",
-			expectedValue: time.Duration(60),
+			path:          "RPC.ReadTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
-			path:          "RPC.WriteTimeoutInSec",
-			expectedValue: time.Duration(60),
+			path:          "RPC.WriteTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
 			path:          "RPC.SequencerNodeURI",
@@ -324,7 +368,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.WebSockets.Enabled",
-			expectedValue: false,
+			expectedValue: true,
 		},
 
 		{
@@ -333,11 +377,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.WebSockets.Port",
-			expectedValue: 8133,
+			expectedValue: 8124,
 		},
 		{
 			path:          "Executor.URI",
-			expectedValue: "127.0.0.1:50071",
+			expectedValue: "zkevm-prover:50071",
 		},
 		{
 			path:          "Metrics.Host",
@@ -396,7 +440,7 @@ func Test_Defaults(t *testing.T) {
 	require.NoError(t, os.WriteFile(file.Name(), []byte("{}"), 0600))
 
 	flagSet := flag.NewFlagSet("", flag.PanicOnError)
-	flagSet.String(config.FlagGenesisFile, file.Name(), "")
+	flagSet.String(config.FlagNetwork, "testnet", "")
 	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
 	cfg, err := config.Load(ctx)
 	if err != nil {
@@ -434,7 +478,7 @@ func TestEnvVarArrayDecoding(t *testing.T) {
 	}()
 	require.NoError(t, os.WriteFile(file.Name(), []byte("{}"), 0600))
 	flagSet := flag.NewFlagSet("", flag.PanicOnError)
-	flagSet.String(config.FlagGenesisFile, file.Name(), "")
+	flagSet.String(config.FlagNetwork, "testnet", "")
 	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
 
 	os.Setenv("ZKEVM_NODE_LOG_OUTPUTS", "a,b,c")

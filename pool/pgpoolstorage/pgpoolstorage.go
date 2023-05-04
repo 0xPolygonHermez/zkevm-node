@@ -138,10 +138,10 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 		sql  string
 	)
 	if limit == 0 {
-		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
+		sql = "SELECT encoded, status, received_at, is_wip, ip, failed_reason FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
-		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC LIMIT $2"
+		sql = "SELECT encoded, status, received_at, is_wip, ip, failed_reason FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC LIMIT $2"
 		rows, err = p.db.Query(ctx, sql, status.String(), limit)
 	}
 	if err != nil {
@@ -171,10 +171,10 @@ func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status p
 		sql  string
 	)
 	if limit == 0 {
-		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC"
+		sql = "SELECT encoded, status, received_at, is_wip, ip, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
-		sql = "SELECT encoded, status, received_at, is_wip, ip FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC LIMIT $2"
+		sql = "SELECT encoded, status, received_at, is_wip, ip, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC LIMIT $2"
 		rows, err = p.db.Query(ctx, sql, status.String(), limit)
 	}
 	if err != nil {
@@ -360,19 +360,33 @@ func (p *PostgresPoolStorage) CountTransactionsByStatus(ctx context.Context, sta
 
 // UpdateTxStatus updates a transaction status accordingly to the
 // provided status and hash
-func (p *PostgresPoolStorage) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool) error {
-	sql := "UPDATE pool.transaction SET status = $1, is_wip = $2 WHERE hash = $3"
-	if _, err := p.db.Exec(ctx, sql, newStatus, isWIP, hash.Hex()); err != nil {
+func (p *PostgresPoolStorage) UpdateTxStatus(ctx context.Context, updateInfo pool.TxStatusUpdateInfo) error {
+	sql := "UPDATE pool.transaction SET status = $1, is_wip = $2"
+	args := []interface{}{updateInfo.NewStatus, updateInfo.IsWIP}
+
+	if updateInfo.FailedReason != nil {
+		sql += ", failed_reason = $3"
+		args = append(args, *updateInfo.FailedReason)
+		sql += " WHERE hash = $4"
+	} else {
+		sql += " WHERE hash = $3"
+	}
+
+	args = append(args, updateInfo.Hash.Hex())
+
+	if _, err := p.db.Exec(ctx, sql, args...); err != nil {
 		return err
 	}
+
 	return nil
 }
 
 // UpdateTxsStatus updates transactions status accordingly to the provided status and hashes
-func (p *PostgresPoolStorage) UpdateTxsStatus(ctx context.Context, hashes []string, newStatus pool.TxStatus) error {
-	sql := "UPDATE pool.transaction SET status = $1 WHERE hash = ANY ($2)"
-	if _, err := p.db.Exec(ctx, sql, newStatus, hashes); err != nil {
-		return err
+func (p *PostgresPoolStorage) UpdateTxsStatus(ctx context.Context, updateInfos []pool.TxStatusUpdateInfo) error {
+	for _, updateInfo := range updateInfos {
+		if err := p.UpdateTxStatus(ctx, updateInfo); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -453,7 +467,7 @@ func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash)
 
 // GetTxsByFromAndNonce get all the transactions from the pool with the same from and nonce
 func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]pool.Transaction, error) {
-	sql := `SELECT encoded, status, received_at, is_wip, ip
+	sql := `SELECT encoded, status, received_at, is_wip, ip, failed_reason
 	          FROM pool.transaction
 			 WHERE from_address = $1
 			   AND nonce = $2`
@@ -575,9 +589,10 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 		encoded, status, ip string
 		receivedAt          time.Time
 		isWIP               bool
+		failedReason        *string
 	)
 
-	if err := rows.Scan(&encoded, &status, &receivedAt, &isWIP, &ip); err != nil {
+	if err := rows.Scan(&encoded, &status, &receivedAt, &isWIP, &ip, &failedReason); err != nil {
 		return nil, err
 	}
 
@@ -596,6 +611,7 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	tx.ReceivedAt = receivedAt
 	tx.IsWIP = isWIP
 	tx.IP = ip
+	tx.FailedReason = failedReason
 
 	return tx, nil
 }

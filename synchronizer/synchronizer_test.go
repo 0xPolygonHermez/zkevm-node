@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -210,7 +211,7 @@ type mocks struct {
 // 				}
 
 // 				m.State.
-// 					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
+// 					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
 // 					Return(trustedBatch.StateRoot, nil).
 // 					Once()
 
@@ -345,11 +346,12 @@ type mocks struct {
 // }
 
 func TestForcedBatch(t *testing.T) {
-	genesis := state.Genesis{}
+	genesis := state.Genesis{
+		GenesisBlockNum: uint64(123456),
+	}
 	cfg := Config{
-		SyncInterval:   cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize:  10,
-		GenBlockNumber: uint64(123456),
+		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize: 10,
 	}
 
 	m := mocks{
@@ -379,8 +381,39 @@ func TestForcedBatch(t *testing.T) {
 				Return(lastBlock, nil).
 				Once()
 
+			m.State.
+				On("GetLastBatchNumber", ctx, m.DbTx).
+				Return(uint64(10), nil).
+				Once()
+
+			m.State.
+				On("SetInitSyncBatch", ctx, uint64(10), m.DbTx).
+				Return(nil).
+				Once()
+
 			m.DbTx.
 				On("Commit", ctx).
+				Return(nil).
+				Once()
+
+			m.Etherman.
+				On("GetLatestBatchNumber").
+				Return(uint64(10), nil).
+				Once()
+
+			var nilDbTx pgx.Tx
+			m.State.
+				On("GetLastBatchNumber", ctx, nilDbTx).
+				Return(uint64(10), nil).
+				Once()
+
+			m.Etherman.
+				On("GetLatestVerifiedBatchNum").
+				Return(uint64(10), nil).
+				Once()
+
+			m.State.
+				On("SetLastBatchInfoSeenOnEthereum", ctx, uint64(10), uint64(10), nilDbTx).
 				Return(nil).
 				Once()
 
@@ -544,17 +577,6 @@ func TestForcedBatch(t *testing.T) {
 				Run(func(args mock.Arguments) { sync.Stop() }).
 				Return(nil).
 				Once()
-
-			m.Etherman.
-				On("GetLatestBatchNumber").
-				Return(uint64(10), nil).
-				Once()
-
-			var nilDbTx pgx.Tx
-			m.State.
-				On("GetLastBatchNumber", ctx, nilDbTx).
-				Return(uint64(10), nil).
-				Once()
 		}).
 		Return(m.DbTx, nil).
 		Once()
@@ -564,11 +586,12 @@ func TestForcedBatch(t *testing.T) {
 }
 
 func TestSequenceForcedBatch(t *testing.T) {
-	genesis := state.Genesis{}
+	genesis := state.Genesis{
+		GenesisBlockNum: uint64(123456),
+	}
 	cfg := Config{
-		SyncInterval:   cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize:  10,
-		GenBlockNumber: uint64(123456),
+		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize: 10,
 	}
 
 	m := mocks{
@@ -598,8 +621,39 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Return(lastBlock, nil).
 				Once()
 
+			m.State.
+				On("GetLastBatchNumber", ctx, m.DbTx).
+				Return(uint64(10), nil).
+				Once()
+
+			m.State.
+				On("SetInitSyncBatch", ctx, uint64(10), m.DbTx).
+				Return(nil).
+				Once()
+
 			m.DbTx.
 				On("Commit", ctx).
+				Return(nil).
+				Once()
+
+			m.Etherman.
+				On("GetLatestBatchNumber").
+				Return(uint64(10), nil).
+				Once()
+
+			var nilDbTx pgx.Tx
+			m.State.
+				On("GetLastBatchNumber", ctx, nilDbTx).
+				Return(uint64(10), nil).
+				Once()
+
+			m.Etherman.
+				On("GetLatestVerifiedBatchNum").
+				Return(uint64(10), nil).
+				Once()
+
+			m.State.
+				On("SetLastBatchInfoSeenOnEthereum", ctx, uint64(10), uint64(10), nilDbTx).
 				Return(nil).
 				Once()
 
@@ -717,7 +771,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 			}
 
 			m.State.
-				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
+				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
 				Return(common.Hash{}, nil).
 				Once()
 
@@ -747,17 +801,6 @@ func TestSequenceForcedBatch(t *testing.T) {
 				On("Commit", ctx).
 				Run(func(args mock.Arguments) { sync.Stop() }).
 				Return(nil).
-				Once()
-
-			m.Etherman.
-				On("GetLatestBatchNumber").
-				Return(uint64(10), nil).
-				Once()
-
-			var nilDbTx pgx.Tx
-			m.State.
-				On("GetLastBatchNumber", ctx, nilDbTx).
-				Return(uint64(10), nil).
 				Once()
 		}).
 		Return(m.DbTx, nil).

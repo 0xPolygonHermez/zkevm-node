@@ -15,7 +15,6 @@ DOCKERCOMPOSEEXPLORERL2 := zkevm-explorer-l2
 DOCKERCOMPOSEEXPLORERL2DB := zkevm-explorer-l2-db
 DOCKERCOMPOSEEXPLORERRPC := zkevm-explorer-json-rpc
 DOCKERCOMPOSEZKPROVER := zkevm-prover
-DOCKERCOMPOSEZKPROVERMOCK := zkprover-mock
 DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
 DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
 DOCKERCOMPOSEPERMISSIONLESSZKPROVER := zkevm-permissionless-prover
@@ -41,7 +40,6 @@ RUNEXPLORERL2 := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL2)
 RUNEXPLORERL2DB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL2DB)
 RUNEXPLORERJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERRPC)
 RUNZKPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVER)
-RUNZKPROVERMOCK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVERMOCK)
 
 RUNPERMISSIONLESSDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSDB)
 RUNPERMISSIONLESSNODE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSNODE)
@@ -71,7 +69,6 @@ STOPEXPLORERL2 := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL2) && $(DOCKERCO
 STOPEXPLORERL2DB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL2DB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL2DB)
 STOPEXPLORERJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERRPC)
 STOPZKPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVER)
-STOPZKPROVERMOCK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVERMOCK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVERMOCK)
 
 STOPPERMISSIONLESSDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSDB)
 STOPPERMISSIONLESSNODE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSNODE) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSNODE)
@@ -89,9 +86,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
 	$(RUNZKPROVER)
-	sleep 5
-	$(RUNZKPROVERMOCK)
-	sleep 2
+	sleep 7
 	$(RUNL1NETWORK)
 	sleep 15
 	docker logs $(DOCKERCOMPOSEZKPROVER)
@@ -270,14 +265,6 @@ run-zkprover: ## Runs zkprover
 stop-zkprover: ## Stops zkprover
 	$(STOPZKPROVER)
 
-.PHONY: run-zkprover-mock
-run-zkprover-mock: ## Runs zkprover-mock
-	$(RUNZKPROVERMOCK)
-
-.PHONY: stop-zkprover-mock
-stop-zkprover-mock: ## Stops zkprover-mock
-	$(STOPZKPROVERMOCK)
-
 .PHONY: run-l1-explorer
 run-l1-explorer: ## Runs L1 blockscan explorer 
 	$(RUNEXPLORERL1DB)
@@ -454,6 +441,10 @@ deploy-uniswap: ## deploy the uniswap environment to the network
 .PHONY: run-db-scripts
 run-db-scripts: ## Executes scripts on the db after it has been initialized, potentially using info from the environment
 	./scripts/postgres/run.sh
+
+.PHONY: install-mockery
+install-mockery: ## Installs mockery with the correct version to generate the mocks
+	go install github.com/vektra/mockery/v2@v2.22.1
 
 .PHONY: generate-mocks
 generate-mocks: ## Generates mocks for the tests, using mockery tool
