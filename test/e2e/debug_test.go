@@ -618,11 +618,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				}
 
 				debugOptions := map[string]interface{}{
-					"disableStorage":   false,
-					"disableStack":     false,
-					"enableMemory":     true,
-					"enableReturnData": true,
-					"tracer":           "callTracer",
+					"tracer": "callTracer",
 					"tracerConfig": map[string]interface{}{
 						"onlyTopCall": false,
 						"withLog":     true,

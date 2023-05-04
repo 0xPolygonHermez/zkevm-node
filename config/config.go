@@ -49,6 +49,8 @@ const (
 	FlagPassword = "password"
 	// FlagMigrations is the flag for migrations.
 	FlagMigrations = "migrations"
+	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
+	FlagMaxAmount = "max-amount"
 )
 
 // Config represents the configuration of the entire Hermez Node

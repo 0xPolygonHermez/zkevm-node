@@ -20,6 +20,8 @@ func TestBlockNumberMarshalJSON(t *testing.T) {
 		{"latest", int64(LatestBlockNumber), nil},
 		{"pending", int64(PendingBlockNumber), nil},
 		{"earliest", int64(EarliestBlockNumber), nil},
+		{"safe", int64(SafeBlockNumber), nil},
+		{"finalized", int64(FinalizedBlockNumber), nil},
 		{"", int64(LatestBlockNumber), nil},
 		{"0", int64(0), nil},
 		{"10", int64(10), nil},
@@ -96,6 +98,30 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
+			name:                "BlockNumber SafeBlockNumber",
+			bn:                  bnPtr(SafeBlockNumber),
+			expectedBlockNumber: 40,
+			expectedError:       nil,
+			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
+				s.
+					On("GetLastVirtualizedL2BlockNumber", context.Background(), d).
+					Return(uint64(40), nil).
+					Once()
+			},
+		},
+		{
+			name:                "BlockNumber FinalizedBlockNumber",
+			bn:                  bnPtr(FinalizedBlockNumber),
+			expectedBlockNumber: 50,
+			expectedError:       nil,
+			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
+				s.
+					On("GetLastConsolidatedL2BlockNumber", context.Background(), d).
+					Return(uint64(50), nil).
+					Once()
+			},
+		},
+		{
 			name:                "BlockNumber Positive Number",
 			bn:                  bnPtr(BlockNumber(int64(10))),
 			expectedBlockNumber: 10,
@@ -103,10 +129,10 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
-			name:                "BlockNumber Negative Number <= -4",
-			bn:                  bnPtr(BlockNumber(int64(-4))),
+			name:                "BlockNumber Negative Number <= -6",
+			bn:                  bnPtr(BlockNumber(int64(-6))),
 			expectedBlockNumber: 0,
-			expectedError:       NewRPCError(InvalidParamsErrorCode, "invalid block number: -4"),
+			expectedError:       NewRPCError(InvalidParamsErrorCode, "invalid block number: -6"),
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 	}

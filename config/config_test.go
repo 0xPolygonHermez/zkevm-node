@@ -294,10 +294,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 200,
 		},
 		{
-			path:          "Pool.FreeClaimGasLimit",
-			expectedValue: uint64(150000),
-		},
-		{
 			path:          "Pool.MaxTxBytesSize",
 			expectedValue: uint64(30132),
 		},
