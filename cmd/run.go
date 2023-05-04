@@ -118,7 +118,7 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 	// Read Fork ID FROM POE SC
-	forkIDIntervals, err := etherman.GetForks(cliCtx.Context)
+	forkIDIntervals, err := etherman.GetForks(cliCtx.Context, c.NetworkConfig.Genesis.GenesisBlockNum)
 	if err != nil || len(forkIDIntervals) == 0 {
 		log.Fatal("error getting forks: ", err)
 	}

@@ -48,25 +48,25 @@ func (_m *ethermanMock) EthBlockByNumber(ctx context.Context, blockNumber uint64
 	return r0, r1
 }
 
-// GetForks provides a mock function with given fields: ctx
-func (_m *ethermanMock) GetForks(ctx context.Context) ([]state.ForkIDInterval, error) {
-	ret := _m.Called(ctx)
+// GetForks provides a mock function with given fields: ctx, genBlockNumber
+func (_m *ethermanMock) GetForks(ctx context.Context, genBlockNumber uint64) ([]state.ForkIDInterval, error) {
+	ret := _m.Called(ctx, genBlockNumber)
 
 	var r0 []state.ForkIDInterval
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]state.ForkIDInterval, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) ([]state.ForkIDInterval, error)); ok {
+		return rf(ctx, genBlockNumber)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []state.ForkIDInterval); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) []state.ForkIDInterval); ok {
+		r0 = rf(ctx, genBlockNumber)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]state.ForkIDInterval)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+		r1 = rf(ctx, genBlockNumber)
 	} else {
 		r1 = ret.Error(1)
 	}

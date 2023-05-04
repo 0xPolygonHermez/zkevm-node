@@ -22,7 +22,7 @@ type ethermanInterface interface {
 	GetLatestBatchNumber() (uint64, error)
 	GetTrustedSequencerURL() (string, error)
 	VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error)
-	GetForks(ctx context.Context) ([]state.ForkIDInterval, error)
+	GetForks(ctx context.Context, genBlockNumber uint64) ([]state.ForkIDInterval, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.

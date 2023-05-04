@@ -220,10 +220,10 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 }
 
 // GetForks returns fork information
-func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, error) {
+func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64) ([]state.ForkIDInterval, error) {
 	// Filter query
 	query := ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(1),
+		FromBlock: new(big.Int).SetUint64(genBlockNumber),
 		Addresses: etherMan.SCAddresses,
 		Topics:    [][]common.Hash{{updateZkEVMVersionSignatureHash}},
 	}
