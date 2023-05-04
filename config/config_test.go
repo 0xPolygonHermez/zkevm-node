@@ -54,10 +54,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
-			path:          "Sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",
-			expectedValue: types.NewDuration(5 * time.Second),
-		},
-		{
 			path:          "Sequencer.MaxTxsPerBatch",
 			expectedValue: uint64(150),
 		},
@@ -112,10 +108,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.MaxTxLifetime",
 			expectedValue: types.NewDuration(3 * time.Hour),
-		},
-		{
-			path:          "Sequencer.MaxTxSizeForL1",
-			expectedValue: uint64(131072),
 		},
 		{
 			path:          "Sequencer.WeightBatchBytesSize",
@@ -204,6 +196,18 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.Worker.ResourceCostMultiplier",
 			expectedValue: float64(1000),
+		},
+		{
+			path:          "SequenceSender.WaitPeriodSendSequence",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "SequenceSender.MaxTxSizeForL1",
+			expectedValue: uint64(131072),
 		},
 		{
 			path:          "Etherman.URL",
