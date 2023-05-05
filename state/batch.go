@@ -265,9 +265,11 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 	return processBatchResponse, err
 }
 
+/*
 func uint32ToBool(value uint32) bool {
 	return value != 0
 }
+*/
 
 func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {

@@ -52,13 +52,13 @@ var (
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 	cfg = FinalizerCfg{
-		GERDeadlineTimeoutInSec: cfgTypes.Duration{
+		GERDeadlineTimeout: cfgTypes.Duration{
 			Duration: 60,
 		},
-		ForcedBatchDeadlineTimeoutInSec: cfgTypes.Duration{
+		ForcedBatchDeadlineTimeout: cfgTypes.Duration{
 			Duration: 60,
 		},
-		SleepDurationInMs: cfgTypes.Duration{
+		SleepDuration: cfgTypes.Duration{
 			Duration: 60,
 		},
 		ClosingSignalsManagerWaitForCheckingL1Timeout: cfgTypes.Duration{
@@ -99,7 +99,7 @@ func TestNewFinalizer(t *testing.T) {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	// arrange and act
-	f = newFinalizer(cfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, txsStore, bc, eventLog)
+	f = newFinalizer(cfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, txsStore, bc, eventLog, time.Now)
 
 	// assert
 	assert.NotNil(t, f)
@@ -969,7 +969,7 @@ func TestFinalizer_setNextForcedBatchDeadline(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-	expected := now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeoutInSec.Duration.Seconds())
+	expected := now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeout.Duration.Seconds())
 
 	// act
 	f.setNextForcedBatchDeadline()
@@ -985,7 +985,7 @@ func TestFinalizer_setNextGERDeadline(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-	expected := now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration.Seconds())
+	expected := now().Unix() + int64(f.cfg.GERDeadlineTimeout.Duration.Seconds())
 
 	// act
 	f.setNextGERDeadline()

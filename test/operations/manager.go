@@ -47,6 +47,10 @@ const (
 	DefaultL2ChainID             uint64 = 1001
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
+
+	DefaultWaitPeriodSendSequence                          = "15s"
+	DefaultLastBatchVirtualizationTimeMaxWaitPeriod        = "10s"
+	DefaultMaxTxSizeForL1                           uint64 = 131072
 )
 
 var (
@@ -59,9 +63,13 @@ var (
 	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )
 
-// SequencerConfig is the configuration for the sequencer operations.
-type SequencerConfig struct {
-	Address, PrivateKey string
+// SequenceSenderConfig is the configuration for the sequence sender operations
+type SequenceSenderConfig struct {
+	WaitPeriodSendSequence                   string
+	LastBatchVirtualizationTimeMaxWaitPeriod string
+	MaxTxSizeForL1                           uint64
+	SenderAddress                            string
+	PrivateKey                               string
 }
 
 // Config is the main Manager configuration.
@@ -69,6 +77,8 @@ type Config struct {
 	State            *state.Config
 	Sequencer        *SequencerConfig
 	WithoutSequencer bool
+	State            *state.Config
+	SequenceSender   *SequenceSenderConfig
 }
 
 // Manager controls operations and has knowledge about how to set up and tear
@@ -383,6 +393,16 @@ func (m *Manager) StopSequencer() error {
 	return StopComponent("seq")
 }
 
+// StartSequenceSender starts the sequence sender
+func (m *Manager) StartSequenceSender() error {
+	return StartComponent("seqsender")
+}
+
+// StopSequenceSender stops the sequence sender
+func (m *Manager) StopSequenceSender() error {
+	return StopComponent("seqsender")
+}
+
 // Teardown stops all the components.
 func Teardown() error {
 	err := stopNode()
@@ -556,8 +576,13 @@ func RunMakeTarget(target string) error {
 // GetDefaultOperationsConfig provides a default configuration to run the environment
 func GetDefaultOperationsConfig() *Config {
 	return &Config{
-		State:            &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
-		Sequencer:        &SequencerConfig{Address: DefaultSequencerAddress, PrivateKey: DefaultSequencerPrivateKey},
+		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
+		SequenceSender: &SequenceSenderConfig{
+			WaitPeriodSendSequence:                   DefaultWaitPeriodSendSequence,
+			LastBatchVirtualizationTimeMaxWaitPeriod: DefaultWaitPeriodSendSequence,
+			MaxTxSizeForL1:                           DefaultMaxTxSizeForL1,
+			SenderAddress:                            DefaultSequencerAddress,
+			PrivateKey:                               DefaultSequencerPrivateKey},
 		WithoutSequencer: false,
 	}
 }

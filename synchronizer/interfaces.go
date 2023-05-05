@@ -23,6 +23,7 @@ type ethermanInterface interface {
 	GetTrustedSequencerURL() (string, error)
 	VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error)
 	GetForks(ctx context.Context) ([]state.ForkIDInterval, error)
+	GetLatestVerifiedBatchNum() (uint64, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.
@@ -56,7 +57,8 @@ type stateInterface interface {
 	ResetForkID(ctx context.Context, batchNumber, forkID uint64, version string, dbTx pgx.Tx) error
 	GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error)
 	UpdateForkIDIntervals(intervals []state.ForkIDInterval)
-
+	SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBatchNumberSeen, lastBatchNumberVerified uint64, dbTx pgx.Tx) error
+	SetInitSyncBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }
 

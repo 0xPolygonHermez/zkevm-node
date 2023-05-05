@@ -381,8 +381,39 @@ func TestForcedBatch(t *testing.T) {
 				Return(lastBlock, nil).
 				Once()
 
+			m.State.
+				On("GetLastBatchNumber", ctx, m.DbTx).
+				Return(uint64(10), nil).
+				Once()
+
+			m.State.
+				On("SetInitSyncBatch", ctx, uint64(10), m.DbTx).
+				Return(nil).
+				Once()
+
 			m.DbTx.
 				On("Commit", ctx).
+				Return(nil).
+				Once()
+
+			m.Etherman.
+				On("GetLatestBatchNumber").
+				Return(uint64(10), nil).
+				Once()
+
+			var nilDbTx pgx.Tx
+			m.State.
+				On("GetLastBatchNumber", ctx, nilDbTx).
+				Return(uint64(10), nil).
+				Once()
+
+			m.Etherman.
+				On("GetLatestVerifiedBatchNum").
+				Return(uint64(10), nil).
+				Once()
+
+			m.State.
+				On("SetLastBatchInfoSeenOnEthereum", ctx, uint64(10), uint64(10), nilDbTx).
 				Return(nil).
 				Once()
 
@@ -546,17 +577,6 @@ func TestForcedBatch(t *testing.T) {
 				Run(func(args mock.Arguments) { sync.Stop() }).
 				Return(nil).
 				Once()
-
-			m.Etherman.
-				On("GetLatestBatchNumber").
-				Return(uint64(10), nil).
-				Once()
-
-			var nilDbTx pgx.Tx
-			m.State.
-				On("GetLastBatchNumber", ctx, nilDbTx).
-				Return(uint64(10), nil).
-				Once()
 		}).
 		Return(m.DbTx, nil).
 		Once()
@@ -601,8 +621,39 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Return(lastBlock, nil).
 				Once()
 
+			m.State.
+				On("GetLastBatchNumber", ctx, m.DbTx).
+				Return(uint64(10), nil).
+				Once()
+
+			m.State.
+				On("SetInitSyncBatch", ctx, uint64(10), m.DbTx).
+				Return(nil).
+				Once()
+
 			m.DbTx.
 				On("Commit", ctx).
+				Return(nil).
+				Once()
+
+			m.Etherman.
+				On("GetLatestBatchNumber").
+				Return(uint64(10), nil).
+				Once()
+
+			var nilDbTx pgx.Tx
+			m.State.
+				On("GetLastBatchNumber", ctx, nilDbTx).
+				Return(uint64(10), nil).
+				Once()
+
+			m.Etherman.
+				On("GetLatestVerifiedBatchNum").
+				Return(uint64(10), nil).
+				Once()
+
+			m.State.
+				On("SetLastBatchInfoSeenOnEthereum", ctx, uint64(10), uint64(10), nilDbTx).
 				Return(nil).
 				Once()
 
@@ -750,17 +801,6 @@ func TestSequenceForcedBatch(t *testing.T) {
 				On("Commit", ctx).
 				Run(func(args mock.Arguments) { sync.Stop() }).
 				Return(nil).
-				Once()
-
-			m.Etherman.
-				On("GetLatestBatchNumber").
-				Return(uint64(10), nil).
-				Once()
-
-			var nilDbTx pgx.Tx
-			m.State.
-				On("GetLastBatchNumber", ctx, nilDbTx).
-				Return(uint64(10), nil).
 				Once()
 		}).
 		Return(m.DbTx, nil).

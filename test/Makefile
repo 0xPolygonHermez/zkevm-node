@@ -1,5 +1,6 @@
 DOCKERCOMPOSE := docker-compose -f docker-compose.yml
 DOCKERCOMPOSEAPPSEQ := zkevm-sequencer
+DOCKERCOMPOSEAPPSEQSENDER := zkevm-sequence-sender
 DOCKERCOMPOSEAPPL2GASP := zkevm-l2gaspricer
 DOCKERCOMPOSEAPPAGG := zkevm-aggregator
 DOCKERCOMPOSEAPPRPC := zkevm-json-rpc
@@ -26,6 +27,7 @@ RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
 RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
 RUNEVENTDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEVENTDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
+RUNSEQUENCESENDER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQSENDER)
 RUNL2GASPRICER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPL2GASP)
 RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
@@ -55,6 +57,7 @@ STOPSTATEDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSESTATEDB) && $(DOCKERCOMPOSE)
 STOPPOOLDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPOOLDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPOOLDB)
 STOPEVENTDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEVENTDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEVENTDB)
 STOPSEQUENCER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
+STOPSEQUENCESENDER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQSENDER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQSENDER)
 STOPL2GASPRICER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPL2GASP) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPL2GASP)
 STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
 STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
@@ -169,6 +172,17 @@ test-e2e-group-7: stop ## Runs group 7 e2e tests checking race conditions
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group7/...
 
+.PHONY: test-e2e-group-8
+test-e2e-group-8: stop ## Runs group 8 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNEVENTDB)
+	sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group8/...
+
 .PHONY: benchmark-sequencer-eth-transfers
 benchmark-sequencer-eth-transfers: stop
 	$(RUNL1NETWORK)
@@ -225,6 +239,7 @@ run-node: ## Runs the node
 	$(RUNSYNC)
 	sleep 2
 	$(RUNSEQUENCER)
+	$(RUNSEQUENCESENDER)
 	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
@@ -232,6 +247,7 @@ run-node: ## Runs the node
 .PHONY: stop-node
 stop-node: ## Stops the node
 	$(STOPSEQUENCER)
+	$(STOPSEQUENCESENDER)
 	$(STOPJSONRPC)
 	$(STOPL2GASPRICER)
 	$(STOPAGGREGATOR)
@@ -301,6 +317,14 @@ run-seq: ## runs the sequencer
 .PHONY: stop-seq
 stop-seq: ## stops the sequencer
 	$(STOPSEQUENCER)
+
+.PHONY: run-seqsender
+run-seqsender: ## runs the sequencer sender
+	$(RUNSEQUENCESENDER)
+
+.PHONY: stop-seqsender
+stop-seqsender: ## stops the sequencer sender
+	$(STOPSEQUENCESENDER)
 	
 .PHONY: run-sync
 run-sync: ## runs the synchronizer
@@ -385,6 +409,7 @@ run: ## Runs a full node
 	sleep 2
 	$(RUNETHTXMANAGER)
 	$(RUNSEQUENCER)
+	$(RUNSEQUENCESENDER)
 	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
@@ -430,6 +455,10 @@ deploy-uniswap: ## deploy the uniswap environment to the network
 .PHONY: run-db-scripts
 run-db-scripts: ## Executes scripts on the db after it has been initialized, potentially using info from the environment
 	./scripts/postgres/run.sh
+
+.PHONY: install-mockery
+install-mockery: ## Installs mockery with the correct version to generate the mocks
+	go install github.com/vektra/mockery/v2@v2.22.1
 
 .PHONY: generate-mocks
 generate-mocks: ## Generates mocks for the tests, using mockery tool

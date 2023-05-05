@@ -14,18 +14,20 @@ import (
 const appName = "zkevm-node"
 
 const (
-	// AGGREGATOR is the aggregator component identifier.
+	// AGGREGATOR is the aggregator component identifier
 	AGGREGATOR = "aggregator"
-	// SEQUENCER is the sequencer component identifier.
+	// SEQUENCER is the sequencer component identifier
 	SEQUENCER = "sequencer"
-	// RPC is the RPC component identifier.
+	// RPC is the RPC component identifier
 	RPC = "rpc"
-	// SYNCHRONIZER is the synchronizer component identifier.
+	// SYNCHRONIZER is the synchronizer component identifier
 	SYNCHRONIZER = "synchronizer"
 	// ETHTXMANAGER is the service that manages the tx sent to L1
 	ETHTXMANAGER = "eth-tx-manager"
-	// L2GASPRICER is the l2 gas pricer component identifier.
+	// L2GASPRICER is the l2 gas pricer component identifier
 	L2GASPRICER = "l2gaspricer"
+	// SEQUENCE_SENDER is the sequence sender component identifier
+	SEQUENCE_SENDER = "sequence-sender"
 )
 
 var (
@@ -58,7 +60,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, ETHTXMANAGER, L2GASPRICER),
+		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, ETHTXMANAGER, L2GASPRICER, SEQUENCE_SENDER),
 	}
 	httpAPIFlag = cli.StringSliceFlag{
 		Name:     config.FlagHTTPAPI,
@@ -121,7 +123,13 @@ func main() {
 					Name:     config.FlagAmount,
 					Aliases:  []string{"am"},
 					Usage:    "Amount that is gonna be approved",
-					Required: true,
+					Required: false,
+				},
+				&cli.StringFlag{
+					Name:     config.FlagMaxAmount,
+					Aliases:  []string{"mam"},
+					Usage:    "Maximum amount is gonna be approved",
+					Required: false,
 				},
 				&networkFlag,
 				&customNetworkFlag,

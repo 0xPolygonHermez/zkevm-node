@@ -1,4 +1,4 @@
-package sequencer
+package sequencesender
 
 import (
 	"context"
@@ -9,11 +9,11 @@ import (
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/txpool"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
@@ -23,7 +23,42 @@ const (
 	monitoredIDFormat = "sequence-from-%v-to-%v"
 )
 
-func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+var (
+	// ErrOversizedData is returned if the input data of a transaction is greater
+	// than some meaningful limit a user might use. This is not a consensus error
+	// making the transaction invalid, rather a DOS protection.
+	ErrOversizedData = errors.New("oversized data")
+)
+
+// SequenceSender represents a sequence sender
+type SequenceSender struct {
+	cfg          Config
+	state        stateInterface
+	ethTxManager ethTxManager
+	etherman     etherman
+	eventLog     *event.EventLog
+}
+
+// New inits sequence sender
+func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*SequenceSender, error) {
+	return &SequenceSender{
+		cfg:          cfg,
+		state:        state,
+		etherman:     etherman,
+		ethTxManager: manager,
+		eventLog:     eventLog,
+	}, nil
+}
+
+// Start starts the sequence sender
+func (s *SequenceSender) Start(ctx context.Context) {
+	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
+	for {
+		s.tryToSendSequence(ctx, ticker)
+	}
+}
+
+func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
 	retry := false
 	// process monitored sequences before starting a next cycle
 	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
@@ -73,7 +108,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// add sequence to be monitored
-	sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
+	sender := common.HexToAddress(s.cfg.SenderAddress)
 	to, data, err := s.etherman.BuildSequenceBatchesTxData(sender, sequences)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
@@ -92,7 +127,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 // getSequencesToSend generates an array of sequences to be send to L1.
 // If the array is empty, it doesn't necessarily mean that there are no sequences to be sent,
 // it could be that it's not worth it to do so yet.
-func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, error) {
+func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequence, error) {
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
@@ -138,12 +173,12 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 
 		sequences = append(sequences, seq)
 		// Check if can be send
-		sender := common.HexToAddress(s.cfg.Finalizer.SenderAddress)
+		sender := common.HexToAddress(s.cfg.SenderAddress)
 		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
 		if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
 			metrics.SequencesOvesizedDataError()
 			log.Infof("oversized Data on TX oldHash %s (txSize %d > 128KB)", tx.Hash(), tx.Size())
-			err = txpool.ErrOversizedData
+			err = ErrOversizedData
 		}
 		if err != nil {
 			log.Infof("Handling estimage gas send sequence error: %v", err)
@@ -188,7 +223,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 // nil, error: impossible to handle gracefully
 // sequence, nil: handled gracefully. Potentially manipulating the sequences
 // nil, nil: a situation that requires waiting
-func (s *Sequencer) handleEstimateGasSendSequenceErr(
+func (s *SequenceSender) handleEstimateGasSendSequenceErr(
 	ctx context.Context,
 	sequences []types.Sequence,
 	currentBatchNumToSequence uint64,
@@ -252,6 +287,42 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 
 func isDataForEthTxTooBig(err error) bool {
 	return errors.Is(err, ethman.ErrGasRequiredExceedsAllowance) ||
-		errors.Is(err, txpool.ErrOversizedData) ||
+		errors.Is(err, ErrOversizedData) ||
 		errors.Is(err, ethman.ErrContentLengthTooLarge)
+}
+
+func waitTick(ctx context.Context, ticker *time.Ticker) {
+	select {
+	case <-ticker.C:
+		// nothing
+	case <-ctx.Done():
+		return
+	}
+}
+
+func (s *SequenceSender) isSynced(ctx context.Context) bool {
+	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Errorf("failed to get last isSynced batch, err: %v", err)
+		return false
+	}
+	lastBatchNum, err := s.state.GetLastBatchNumber(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Errorf("failed to get last batch num, err: %v", err)
+		return false
+	}
+	if lastBatchNum > lastSyncedBatchNum {
+		return true
+	}
+	lastEthBatchNum, err := s.etherman.GetLatestBatchNumber()
+	if err != nil {
+		log.Errorf("failed to get last eth batch, err: %v", err)
+		return false
+	}
+	if lastSyncedBatchNum < lastEthBatchNum {
+		log.Infof("waiting for the state to be isSynced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
+		return false
+	}
+
+	return true
 }
