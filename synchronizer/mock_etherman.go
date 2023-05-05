@@ -98,6 +98,30 @@ func (_m *ethermanMock) GetLatestBatchNumber() (uint64, error) {
 	return r0, r1
 }
 
+// GetLatestVerifiedBatchNum provides a mock function with given fields:
+func (_m *ethermanMock) GetLatestVerifiedBatchNum() (uint64, error) {
+	ret := _m.Called()
+
+	var r0 uint64
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (uint64, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() uint64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetRollupInfoByBlockRange provides a mock function with given fields: ctx, fromBlock, toBlock
 func (_m *ethermanMock) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error) {
 	ret := _m.Called(ctx, fromBlock, toBlock)

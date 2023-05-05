@@ -19,7 +19,7 @@ type PoolInterface interface {
 	GetGasPrice(ctx context.Context) (uint64, error)
 	GetNonce(ctx context.Context, address common.Address) (uint64, error)
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
-	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
+	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
 	CountPendingTransactions(ctx context.Context) (uint64, error)
 	GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
 }
@@ -39,6 +39,7 @@ type StateInterface interface {
 	GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error)
 	GetL2BlockTransactionCountByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (uint64, error)
 	GetL2BlockTransactionCountByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetLastVirtualizedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
 	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)

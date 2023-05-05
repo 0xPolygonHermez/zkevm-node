@@ -19,7 +19,6 @@ EnableLog = false
 MaxConns = 200
 
 [Pool]
-FreeClaimGasLimit = 150000
 IntervalToRefreshBlockedAddresses = "5m"
 MaxTxBytesSize=30132
 MaxTxDataBytesSize=30000
@@ -49,8 +48,8 @@ ForcedGas = 0
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
-ReadTimeoutInSec = 60
-WriteTimeoutInSec = 60
+ReadTimeout = "60s"
+WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
@@ -66,8 +65,7 @@ TrustedSequencerURL = ""
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "5s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
@@ -91,25 +89,30 @@ WeightBinaries = 1
 WeightSteps = 1
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
-MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "5s"
-		ForcedBatchDeadlineTimeoutInSec = "60s"
-		SleepDurationInMs = "100ms"
+		GERDeadlineTimeout = "5s"
+		ForcedBatchDeadlineTimeout = "60s"
+		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 64
 		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
-		TimestampResolution = "15s"
-		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+		TimestampResolution = "15s"	
 		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
+
+[SequenceSender]
+WaitPeriodSendSequence = "5s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+MaxTxSizeForL1 = 131072
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 
 [PriceGetter]
 Type = "default"

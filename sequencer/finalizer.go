@@ -207,9 +207,9 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
-			log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDurationInMs.Duration)
-			if f.cfg.SleepDurationInMs.Duration > 0 {
-				time.Sleep(f.cfg.SleepDurationInMs.Duration)
+			log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDuration.Duration)
+			if f.cfg.SleepDuration.Duration > 0 {
+				time.Sleep(f.cfg.SleepDuration.Duration)
 			}
 		}
 
@@ -375,7 +375,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hash, f.processRequest.GlobalExitRoot.String())
 	result, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
 	if err != nil {
-		log.Errorf("failed to process transaction, isClaim: %v, err: %s", tx.IsClaim, err)
+		log.Errorf("failed to process transaction: %s", err)
 		return err
 	}
 
@@ -472,7 +472,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 				metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
 			}
 		}()
-	} else if (executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode)) && !tx.IsClaim {
+	} else if executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode) {
 		var (
 			nonce   *uint64
 			balance *big.Int
@@ -499,7 +499,7 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 	} else {
 		// Delete the transaction from the efficiency list
 		f.worker.DeleteTx(tx.Hash, tx.From)
-		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex(), "isClaim", tx.IsClaim)
+		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
 
 		wg.Add(1)
 		go func() {
@@ -883,11 +883,11 @@ func (f *finalizer) isBatchAlmostFull() bool {
 }
 
 func (f *finalizer) setNextForcedBatchDeadline() {
-	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeoutInSec.Duration.Seconds())
+	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeout.Duration.Seconds())
 }
 
 func (f *finalizer) setNextGERDeadline() {
-	f.nextGERDeadline = now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration.Seconds())
+	f.nextGERDeadline = now().Unix() + int64(f.cfg.GERDeadlineTimeout.Duration.Seconds())
 }
 
 func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {

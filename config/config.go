@@ -18,6 +18,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
+	"github.com/0xPolygonHermez/zkevm-node/sequencesender"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/mitchellh/mapstructure"
@@ -50,6 +51,8 @@ const (
 	FlagMigrations = "migrations"
 	// FlagOutputFile is the flag for the output file
 	FlagOutputFile = "output"
+	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
+	FlagMaxAmount = "max-amount"
 )
 
 // Config represents the configuration of the entire Hermez Node
@@ -62,6 +65,7 @@ type Config struct {
 	RPC                 jsonrpc.Config
 	Synchronizer        synchronizer.Config
 	Sequencer           sequencer.Config
+	SequenceSender      sequencesender.Config
 	PriceGetter         pricegetter.Config
 	Aggregator          aggregator.Config
 	NetworkConfig       NetworkConfig

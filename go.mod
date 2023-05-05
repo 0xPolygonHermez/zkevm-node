@@ -15,14 +15,14 @@ require (
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/prometheus/client_model v0.3.0
+	github.com/prometheus/client_model v0.4.0
 	github.com/prometheus/common v0.42.0
 	github.com/rubenv/sql-migrate v1.4.0
 	github.com/spf13/afero v1.9.5
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
 	github.com/umbracle/ethgo v0.1.3
-	github.com/urfave/cli/v2 v2.25.1
+	github.com/urfave/cli/v2 v2.25.3
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.8.0
 	golang.org/x/net v0.9.0
@@ -143,5 +143,5 @@ require (
 
 require (
 	github.com/imdario/mergo v0.3.13 // indirect
-	github.com/prometheus/client_golang v1.15.0
+	github.com/prometheus/client_golang v1.15.1
 )

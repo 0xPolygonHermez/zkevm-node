@@ -62,7 +62,7 @@ type traceTransactionResponse struct {
 }
 
 type traceBlockTransactionResponse struct {
-	Result traceTransactionResponse `json:"result"`
+	Result interface{} `json:"result"`
 }
 
 // TraceTransaction creates a response for debug_traceTransaction request.
@@ -127,7 +127,7 @@ func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*ethTypes.Tr
 			return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
 		}
 		traceBlockTransaction := traceBlockTransactionResponse{
-			Result: traceTransaction.(traceTransactionResponse),
+			Result: traceTransaction,
 		}
 		traces = append(traces, traceBlockTransaction)
 	}

@@ -8,15 +8,23 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/urfave/cli/v2"
 )
 
 func approveTokens(ctx *cli.Context) error {
-	amountArg := ctx.String(config.FlagAmount)
-	amount, _ := new(big.Int).SetString(amountArg, encoding.Base10)
-	if amount == nil {
-		fmt.Println("Please, introduce a valid amount in wei")
-		return nil
+	const bitSize uint = 256
+	useMaxAmountArg := ctx.Bool(config.FlagMaxAmount)
+	var amount *big.Int
+	if !useMaxAmountArg {
+		amountArg := ctx.String(config.FlagAmount)
+		amount, _ = new(big.Int).SetString(amountArg, encoding.Base10)
+		if amount == nil {
+			fmt.Println("Please, introduce a valid amount in wei")
+			return nil
+		}
+	} else {
+		amount = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, bitSize), common.Big1)
 	}
 
 	addrKeyStorePath := ctx.String(config.FlagKeyStorePath)

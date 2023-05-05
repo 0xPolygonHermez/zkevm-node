@@ -39,9 +39,12 @@ func TestStateTransition(t *testing.T) {
 				State: &state.Config{
 					MaxCumulativeGasUsed: 800000,
 				},
-				Sequencer: &operations.SequencerConfig{
-					Address:    testCase.SequencerAddress,
-					PrivateKey: testCase.SequencerPrivateKey,
+				SequenceSender: &operations.SequenceSenderConfig{
+					SenderAddress:                            testCase.SequencerAddress,
+					LastBatchVirtualizationTimeMaxWaitPeriod: "5s",
+					WaitPeriodSendSequence:                   "5s",
+					MaxTxSizeForL1:                           131072,
+					PrivateKey:                               testCase.SequencerPrivateKey,
 				},
 			}
 			opsman, err := operations.NewManager(ctx, opsCfg)

@@ -18,6 +18,10 @@ const (
 	LatestBlockNumber = BlockNumber(-2)
 	// EarliestBlockNumber represents the earliest block number
 	EarliestBlockNumber = BlockNumber(-1)
+	// SafeBlockNumber represents the last virtualized block number
+	SafeBlockNumber = BlockNumber(-4)
+	// FinalizedBlockNumber represents the last verified block number
+	FinalizedBlockNumber = BlockNumber(-5)
 
 	// LatestBatchNumber represents the latest batch number
 	LatestBatchNumber = BatchNumber(-2)
@@ -28,8 +32,12 @@ const (
 	Earliest = "earliest"
 	// Latest contains the string to represent the latest block known.
 	Latest = "latest"
-	// Pending contains the string to represent pending blocks.
+	// Pending contains the string to represent the pending block known.
 	Pending = "pending"
+	// Safe contains the string to represent the last virtualized block known.
+	Safe = "safe"
+	// Finalized contains the string to represent the last verified block known.
+	Finalized = "finalized"
 
 	// EIP-1898: https://eips.ethereum.org/EIPS/eip-1898 //
 
@@ -171,6 +179,22 @@ func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterfac
 	case EarliestBlockNumber:
 		return 0, nil
 
+	case SafeBlockNumber:
+		lastBlockNumber, err := s.GetLastVirtualizedL2BlockNumber(ctx, dbTx)
+		if err != nil {
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the last virtualized block number from state")
+		}
+
+		return lastBlockNumber, nil
+
+	case FinalizedBlockNumber:
+		lastBlockNumber, err := s.GetLastConsolidatedL2BlockNumber(ctx, dbTx)
+		if err != nil {
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the last verified block number from state")
+		}
+
+		return lastBlockNumber, nil
+
 	default:
 		if bValue < 0 {
 			return 0, NewRPCError(InvalidParamsErrorCode, "invalid block number: %v", bValue)
@@ -192,6 +216,10 @@ func (b *BlockNumber) StringOrHex() string {
 		return Pending
 	case LatestBlockNumber:
 		return Latest
+	case SafeBlockNumber:
+		return Safe
+	case FinalizedBlockNumber:
+		return Finalized
 	default:
 		return hex.EncodeUint64(uint64(*b))
 	}
@@ -207,6 +235,10 @@ func StringToBlockNumber(str string) (BlockNumber, error) {
 		return PendingBlockNumber, nil
 	case Latest, "":
 		return LatestBlockNumber, nil
+	case Safe:
+		return SafeBlockNumber, nil
+	case Finalized:
+		return FinalizedBlockNumber, nil
 	}
 
 	n, err := encoding.DecodeUint64orHex(&str)
