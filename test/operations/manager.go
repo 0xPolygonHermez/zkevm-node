@@ -75,9 +75,7 @@ type SequenceSenderConfig struct {
 // Config is the main Manager configuration.
 type Config struct {
 	State            *state.Config
-	Sequencer        *SequencerConfig
 	WithoutSequencer bool
-	State            *state.Config
 	SequenceSender   *SequenceSenderConfig
 }
 
