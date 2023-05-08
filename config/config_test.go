@@ -343,12 +343,8 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 200,
 		},
 		{
-			path:          "RPC.Host",
-			expectedValue: "0.0.0.0",
-		},
-		{
 			path:          "RPC.Port",
-			expectedValue: int(8123),
+			expectedValue: int(8545),
 		},
 		{
 			path:          "RPC.ReadTimeout",
@@ -367,21 +363,16 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: float64(50),
 		},
 		{
-			path:          "RPC.DefaultSenderAddress",
-			expectedValue: "0x1111111111111111111111111111111111111111",
-		},
-		{
-			path:          "RPC.WebSockets.Enabled",
-			expectedValue: true,
-		},
-
-		{
 			path:          "RPC.EnableL2SuggestedGasPricePolling",
 			expectedValue: true,
 		},
 		{
+			path:          "RPC.WebSockets.Enabled",
+			expectedValue: false,
+		},
+		{
 			path:          "RPC.WebSockets.Port",
-			expectedValue: 8124,
+			expectedValue: int(8546),
 		},
 		{
 			path:          "Executor.URI",

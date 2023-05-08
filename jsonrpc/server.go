@@ -19,6 +19,9 @@ import (
 )
 
 const (
+	// Host defines the server host to the default network adapter
+	Host = "0.0.0.0"
+
 	// APIEth represents the eth API prefix.
 	APIEth = "eth"
 	// APINet represents the net API prefix.
@@ -38,6 +41,7 @@ const (
 // Server is an API backend to handle RPC requests
 type Server struct {
 	config     Config
+	chainID    uint64
 	handler    *Handler
 	srv        *http.Server
 	wsSrv      *http.Server
@@ -47,6 +51,7 @@ type Server struct {
 // NewServer returns the JsonRPC server
 func NewServer(
 	cfg Config,
+	chainID uint64,
 	p types.PoolInterface,
 	s types.StateInterface,
 	storage storageInterface,
@@ -56,12 +61,12 @@ func NewServer(
 	handler := newJSONRpcHandler()
 
 	if _, ok := apis[APIEth]; ok {
-		ethEndpoints := newEthEndpoints(cfg, p, s, storage)
+		ethEndpoints := newEthEndpoints(cfg, chainID, p, s, storage)
 		handler.registerService(APIEth, ethEndpoints)
 	}
 
 	if _, ok := apis[APINet]; ok {
-		netEndpoints := &NetEndpoints{cfg: cfg}
+		netEndpoints := &NetEndpoints{cfg: cfg, chainID: chainID}
 		handler.registerService(APINet, netEndpoints)
 	}
 
@@ -88,6 +93,7 @@ func NewServer(
 	srv := &Server{
 		config:  cfg,
 		handler: handler,
+		chainID: chainID,
 	}
 	return srv
 }
@@ -109,7 +115,7 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("server already started")
 	}
 
-	address := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
+	address := fmt.Sprintf("%s:%d", Host, s.config.Port)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -149,7 +155,7 @@ func (s *Server) startWS() {
 		return
 	}
 
-	address := fmt.Sprintf("%s:%d", s.config.Host, s.config.WebSockets.Port)
+	address := fmt.Sprintf("%s:%d", Host, s.config.WebSockets.Port)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {

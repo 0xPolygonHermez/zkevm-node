@@ -377,7 +377,7 @@ func TestCall(t *testing.T) {
 				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -416,7 +416,7 @@ func TestCall(t *testing.T) {
 				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -566,7 +566,7 @@ func TestChainID(t *testing.T) {
 	chainID, err := c.ChainID(context.Background())
 	require.NoError(t, err)
 
-	assert.Equal(t, s.Config.ChainID, chainID.Uint64())
+	assert.Equal(t, s.ChainID(), chainID.Uint64())
 }
 
 func TestEstimateGas(t *testing.T) {
@@ -666,7 +666,7 @@ func TestEstimateGas(t *testing.T) {
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
-					On("EstimateGas", txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilUint64, m.DbTx).
+					On("EstimateGas", txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, m.DbTx).
 					Return(*testCase.expectedResult, nil, nil).
 					Once()
 			},
