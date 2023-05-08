@@ -343,6 +343,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 200,
 		},
 		{
+			path:          "RPC.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
 			path:          "RPC.Port",
 			expectedValue: int(8545),
 		},
@@ -369,6 +373,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.WebSockets.Enabled",
 			expectedValue: false,
+		},
+		{
+			path:          "RPC.WebSockets.Host",
+			expectedValue: "0.0.0.0",
 		},
 		{
 			path:          "RPC.WebSockets.Port",

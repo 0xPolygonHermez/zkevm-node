@@ -4,6 +4,9 @@ import "github.com/0xPolygonHermez/zkevm-node/config/types"
 
 // Config represents the configuration of the json rpc
 type Config struct {
+	// Host defines the network adapter that will be used to serve the HTTP requests
+	Host string `mapstructure:"Host"`
+
 	// Port defines the port to serve the endpoints via HTTP
 	Port int `mapstructure:"Port"`
 
@@ -35,6 +38,12 @@ type Config struct {
 
 // WebSocketsConfig has parameters to config the rpc websocket support
 type WebSocketsConfig struct {
+	// Enabled defines if the WebSocket requests are enabled or disabled
 	Enabled bool `mapstructure:"Enabled"`
-	Port    int  `mapstructure:"Port"`
+
+	// Host defines the network adapter that will be used to serve the WS requests
+	Host string `mapstructure:"Host"`
+
+	// Port defines the port to serve the endpoints via WS
+	Port int `mapstructure:"Port"`
 }

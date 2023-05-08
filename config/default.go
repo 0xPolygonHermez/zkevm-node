@@ -55,6 +55,7 @@ SequencerNodeURI = ""
 EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
 		Enabled = false
+		Host = "0.0.0.0"
 		Port = 8546
 
 [Synchronizer]

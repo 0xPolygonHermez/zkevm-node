@@ -60,7 +60,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 		}
 	}()
 
-	serverURL := fmt.Sprintf("http://%s:%d", Host, cfg.Port)
+	serverURL := fmt.Sprintf("http://%s:%d", cfg.Host, cfg.Port)
 	for {
 		fmt.Println("waiting server to get ready...") // fmt is used here to avoid race condition with logs
 		res, err := http.Get(serverURL)               //nolint:gosec
@@ -92,6 +92,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 
 func getDefaultConfig() Config {
 	cfg := Config{
+		Host:                      "0.0.0.0",
 		Port:                      9123,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
 		MaxCumulativeGasUsed:      300000,

@@ -19,9 +19,6 @@ import (
 )
 
 const (
-	// Host defines the server host to the default network adapter
-	Host = "0.0.0.0"
-
 	// APIEth represents the eth API prefix.
 	APIEth = "eth"
 	// APINet represents the net API prefix.
@@ -115,7 +112,7 @@ func (s *Server) startHTTP() error {
 		return fmt.Errorf("server already started")
 	}
 
-	address := fmt.Sprintf("%s:%d", Host, s.config.Port)
+	address := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -155,7 +152,7 @@ func (s *Server) startWS() {
 		return
 	}
 
-	address := fmt.Sprintf("%s:%d", Host, s.config.WebSockets.Port)
+	address := fmt.Sprintf("%s:%d", s.config.WebSockets.Host, s.config.WebSockets.Port)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
