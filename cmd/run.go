@@ -119,9 +119,12 @@ func start(cliCtx *cli.Context) error {
 	}
 	// Read Fork ID FROM POE SC
 	forkIDIntervals, err := etherman.GetForks(cliCtx.Context, c.NetworkConfig.Genesis.GenesisBlockNum)
-	if err != nil || len(forkIDIntervals) == 0 {
-		log.Fatal("error getting forks: ", err)
+	if err != nil {
+		log.Fatal("error getting forks. Please check the configuration. Error: ", err)
+	} else if len(forkIDIntervals) == 0 {
+		log.Fatal("error: no forkID received. It should receive at least one, please check the configuration...")
 	}
+
 	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
 
 	c.Aggregator.ChainID = l2ChainID

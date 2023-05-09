@@ -2,7 +2,6 @@ package etherman
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -192,35 +191,36 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 
 // VerifyGenBlockNumber verifies if the genesis Block Number is valid
 func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
-	genBlock := big.NewInt(0).SetUint64(genBlockNumber)
-	response, err := etherMan.EthClient.CodeAt(ctx, etherMan.l1Cfg.ZkEVMAddr, genBlock)
+	log.Info("Verifying genesis blockNumber: ", genBlockNumber)
+	// Filter query
+	genBlock := new(big.Int).SetUint64(genBlockNumber)
+	query := ethereum.FilterQuery{
+		FromBlock: genBlock,
+		ToBlock: genBlock,
+		Addresses: etherMan.SCAddresses,
+		Topics:    [][]common.Hash{{updateZkEVMVersionSignatureHash}},
+	}
+	logs, err := etherMan.EthClient.FilterLogs(ctx, query)
 	if err != nil {
-		log.Error("error getting smc code for gen block number. Error: ", err)
 		return false, err
 	}
-	responseString := hex.EncodeToString(response)
-	if responseString == "" {
-		return false, nil
+	if len(logs) == 0 {
+		return false, fmt.Errorf("the specified genBlockNumber in config file does not contain any forkID event. Please use the proper blockNumber.")
 	}
-	responsePrev, err := etherMan.EthClient.CodeAt(ctx, etherMan.l1Cfg.ZkEVMAddr, genBlock.Sub(genBlock, big.NewInt(1)))
+	zkevmVersion, err := etherMan.ZkEVM.ParseUpdateZkEVMVersion(logs[0])
 	if err != nil {
-		if parsedErr, ok := tryParseError(err); ok {
-			if errors.Is(parsedErr, ErrMissingTrieNode) {
-				return true, nil
-			}
-		}
-		log.Error("error getting smc code for gen block number. Error: ", err)
+		log.Error("error parsing the forkID event")
 		return false, err
 	}
-	responsePrevString := hex.EncodeToString(responsePrev)
-	if responsePrevString != "" {
-		return false, nil
+	if zkevmVersion.NumBatch != 0 {
+		return false, fmt.Errorf("the specified genBlockNumber in config file does not contain the initial forkID event (BatchNum: %d). Please use the proper blockNumber.", zkevmVersion.NumBatch)
 	}
 	return true, nil
 }
 
 // GetForks returns fork information
 func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64) ([]state.ForkIDInterval, error) {
+	log.Debug("Getting forkIDs from blockNumber: ", genBlockNumber)
 	// Filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(genBlockNumber),
