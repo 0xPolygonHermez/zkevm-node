@@ -67,7 +67,7 @@ If everything has gone as expected you should be able to run queries to the JSON
 ## Stop
 
 ```bash
-sudo docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml down
+docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml down
 ```
 
 ## Updating
