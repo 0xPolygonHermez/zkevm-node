@@ -235,8 +235,8 @@ func IsExecutorOutOfCountersError(error pb.ExecutorError) bool {
 	return int32(error) >= EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK && int32(error) <= ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
 }
 
-// IsExecutorUnespecifiedError indicates an unespecified error in the executor
-func IsExecutorUnespecifiedError(error pb.ExecutorError) bool {
+// IsExecutorUnspecifiedError indicates an unspecified error in the executor
+func IsExecutorUnspecifiedError(error pb.ExecutorError) bool {
 	return int32(error) == EXECUTOR_ERROR_UNSPECIFIED
 }
 
