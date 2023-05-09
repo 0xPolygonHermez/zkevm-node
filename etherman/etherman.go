@@ -196,7 +196,7 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 	genBlock := new(big.Int).SetUint64(genBlockNumber)
 	query := ethereum.FilterQuery{
 		FromBlock: genBlock,
-		ToBlock: genBlock,
+		ToBlock:   genBlock,
 		Addresses: etherMan.SCAddresses,
 		Topics:    [][]common.Hash{{updateZkEVMVersionSignatureHash}},
 	}
