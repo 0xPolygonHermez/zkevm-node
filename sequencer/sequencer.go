@@ -20,10 +20,9 @@ import (
 type Sequencer struct {
 	cfg Config
 
-	pool     txPool
-	state    stateInterface
-	eventLog *event.EventLog
-	// dbManager dbManagerInterface
+	pool         txPool
+	state        stateInterface
+	eventLog     *event.EventLog
 	ethTxManager ethTxManager
 	etherman     etherman
 
@@ -163,15 +162,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	go s.trackOldTxs(ctx)
 	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
-	tickerSendSequence := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
 	defer tickerProcessTxs.Stop()
-	defer tickerSendSequence.Stop()
-
-	go func() {
-		for {
-			s.tryToSendSequence(ctx, tickerSendSequence)
-		}
-	}()
 
 	// Expire too old txs in the worker
 	go func() {

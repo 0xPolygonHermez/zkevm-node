@@ -542,32 +542,27 @@ func (p *PostgresStorage) GetLatestVirtualBatchTimestamp(ctx context.Context, db
 	return timestamp, nil
 }
 
-// SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
-// the roll-up in order to allow the components to know if the state
-// is synchronized or not
-func (p *PostgresStorage) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	const updateLastBatchSeenSQL = "UPDATE state.sync_info SET last_batch_num_seen = $1"
+// SetLastBatchInfoSeenOnEthereum sets the last batch number that affected
+// the roll-up and the last batch number that was consolidated on ethereum
+// in order to allow the components to know if the state is synchronized or not
+func (p *PostgresStorage) SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBatchNumberSeen, lastBatchNumberVerified uint64, dbTx pgx.Tx) error {
+	const query = `
+    UPDATE state.sync_info
+       SET last_batch_num_seen = $1
+         , last_batch_num_consolidated = $2`
 
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, updateLastBatchSeenSQL, batchNumber)
+	_, err := e.Exec(ctx, query, lastBatchNumberSeen, lastBatchNumberVerified)
 	return err
 }
 
-// GetLastBatchNumberSeenOnEthereum returns the last batch number stored
-// in the state that represents the last batch number that affected the
-// roll-up in the Ethereum network.
-func (p *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	var batchNumber uint64
-	const getLastBatchSeenSQL = "SELECT last_batch_num_seen FROM state.sync_info LIMIT 1"
+// SetInitSyncBatch sets the initial batch number where the synchronization started
+func (p *PostgresStorage) SetInitSyncBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	updateInitBatchSQL := "UPDATE state.sync_info SET init_sync_batch = $1"
 
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getLastBatchSeenSQL).Scan(&batchNumber)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return batchNumber, nil
+	_, err := e.Exec(ctx, updateInitBatchSQL, batchNumber)
+	return err
 }
 
 // GetBatchByNumber returns the batch with the given number.
@@ -1573,18 +1568,6 @@ func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*typ
 	block := types.NewBlockWithHeader(header).WithBody(transactions, uncles)
 	block.ReceivedAt = receivedAt
 	return block, nil
-}
-
-// GetLastVerifiedBatchNumberSeenOnEthereum gets last verified batch number seen on ethereum
-func (p *PostgresStorage) GetLastVerifiedBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	const getLastVerifiedBatchSeenSQL = "SELECT last_batch_num_verified FROM state.sync_info LIMIT 1"
-	var batchNumber uint64
-	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getLastVerifiedBatchSeenSQL).Scan(&batchNumber)
-	if err != nil {
-		return 0, err
-	}
-	return batchNumber, nil
 }
 
 // GetLastVerifiedBatch gets last verified batch

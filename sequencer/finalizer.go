@@ -207,9 +207,9 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
-			log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDurationInMs.Duration)
-			if f.cfg.SleepDurationInMs.Duration > 0 {
-				time.Sleep(f.cfg.SleepDurationInMs.Duration)
+			log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDuration.Duration)
+			if f.cfg.SleepDuration.Duration > 0 {
+				time.Sleep(f.cfg.SleepDuration.Duration)
 			}
 		}
 
@@ -883,11 +883,11 @@ func (f *finalizer) isBatchAlmostFull() bool {
 }
 
 func (f *finalizer) setNextForcedBatchDeadline() {
-	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeoutInSec.Duration.Seconds())
+	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeout.Duration.Seconds())
 }
 
 func (f *finalizer) setNextGERDeadline() {
-	f.nextGERDeadline = now().Unix() + int64(f.cfg.GERDeadlineTimeoutInSec.Duration.Seconds())
+	f.nextGERDeadline = now().Unix() + int64(f.cfg.GERDeadlineTimeout.Duration.Seconds())
 }
 
 func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {

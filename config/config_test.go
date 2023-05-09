@@ -54,10 +54,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
-			path:          "Sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",
-			expectedValue: types.NewDuration(5 * time.Second),
-		},
-		{
 			path:          "Sequencer.MaxTxsPerBatch",
 			expectedValue: uint64(150),
 		},
@@ -114,10 +110,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(3 * time.Hour),
 		},
 		{
-			path:          "Sequencer.MaxTxSizeForL1",
-			expectedValue: uint64(131072),
-		},
-		{
 			path:          "Sequencer.WeightBatchBytesSize",
 			expectedValue: 1,
 		},
@@ -154,15 +146,15 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 1,
 		},
 		{
-			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
+			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeoutInSec",
+			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeout",
 			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.SleepDurationInMs",
+			path:          "Sequencer.Finalizer.SleepDuration",
 			expectedValue: types.NewDuration(100 * time.Millisecond),
 		},
 		{
@@ -204,6 +196,18 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.Worker.ResourceCostMultiplier",
 			expectedValue: float64(1000),
+		},
+		{
+			path:          "SequenceSender.WaitPeriodSendSequence",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "SequenceSender.MaxTxSizeForL1",
+			expectedValue: uint64(131072),
 		},
 		{
 			path:          "Etherman.URL",
@@ -347,12 +351,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: int(8123),
 		},
 		{
-			path:          "RPC.ReadTimeoutInSec",
-			expectedValue: time.Duration(60),
+			path:          "RPC.ReadTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
-			path:          "RPC.WriteTimeoutInSec",
-			expectedValue: time.Duration(60),
+			path:          "RPC.WriteTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
 			path:          "RPC.SequencerNodeURI",

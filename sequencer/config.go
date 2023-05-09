@@ -6,16 +6,9 @@ import (
 
 // Config represents the configuration of a sequencer
 type Config struct {
-	// WaitPeriodSendSequence is the time the sequencer waits until
-	// trying to send a sequence to L1
-	WaitPeriodSendSequence types.Duration `mapstructure:"WaitPeriodSendSequence"`
-
 	// WaitPeriodPoolIsEmpty is the time the sequencer waits until
 	// trying to add new txs to the state
 	WaitPeriodPoolIsEmpty types.Duration `mapstructure:"WaitPeriodPoolIsEmpty"`
-
-	// LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
-	LastBatchVirtualizationTimeMaxWaitPeriod types.Duration `mapstructure:"LastBatchVirtualizationTimeMaxWaitPeriod"`
 
 	// BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
 	BlocksAmountForTxsToBeDeleted uint64 `mapstructure:"BlocksAmountForTxsToBeDeleted"`
@@ -87,12 +80,6 @@ type Config struct {
 	// MaxTxLifetime is the time a tx can be in the sequencer memory
 	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
 
-	// MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
-	// non-trivial consequences: larger transactions than 128KB are significantly harder and
-	// more expensive to propagate; larger transactions also take more resources
-	// to validate whether they fit into the pool or not.
-	MaxTxSizeForL1 uint64 `mapstructure:"MaxTxSizeForL1"`
-
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
 
@@ -105,14 +92,14 @@ type Config struct {
 
 // FinalizerCfg contains the finalizer's configuration properties
 type FinalizerCfg struct {
-	// GERDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to update Global Exit Root
-	GERDeadlineTimeoutInSec types.Duration `mapstructure:"GERDeadlineTimeoutInSec"`
+	// GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root
+	GERDeadlineTimeout types.Duration `mapstructure:"GERDeadlineTimeout"`
 
-	// ForcedBatchDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to process Forced Batches
-	ForcedBatchDeadlineTimeoutInSec types.Duration `mapstructure:"ForcedBatchDeadlineTimeoutInSec"`
+	// ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
+	ForcedBatchDeadlineTimeout types.Duration `mapstructure:"ForcedBatchDeadlineTimeout"`
 
-	// SleepDurationInMs is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
-	SleepDurationInMs types.Duration `mapstructure:"SleepDurationInMs"`
+	// SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
+	SleepDuration types.Duration `mapstructure:"SleepDuration"`
 
 	// ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
 	ResourcePercentageToCloseBatch uint32 `mapstructure:"ResourcePercentageToCloseBatch"`
@@ -134,14 +121,6 @@ type FinalizerCfg struct {
 
 	// TimestampResolution is the resolution of the timestamp used to close a batch
 	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
-
-	// SenderAddress defines which private key the eth tx manager needs to use
-	// to sign the L1 txs
-	SenderAddress string `mapstructure:"SenderAddress"`
-
-	// PrivateKeys defines all the key store files that are going
-	// to be read in order to provide the private keys to sign the L1 txs
-	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
 }
 
 // WorkerCfg contains the Worker's configuration properties
