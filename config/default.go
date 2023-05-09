@@ -47,16 +47,16 @@ ForcedGas = 0
 
 [RPC]
 Host = "0.0.0.0"
-Port = 8123
+Port = 8545
 ReadTimeout = "60s"
 WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
-DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
-		Enabled = true
-		Port = 8124
+		Enabled = false
+		Host = "0.0.0.0"
+		Port = 8546
 
 [Synchronizer]
 SyncInterval = "0s"
@@ -65,7 +65,6 @@ TrustedSequencerURL = ""
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
-
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150

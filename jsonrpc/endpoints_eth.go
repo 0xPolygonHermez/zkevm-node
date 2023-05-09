@@ -22,9 +22,17 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const (
+	// DefaultSenderAddress is the address that jRPC will use
+	// to communicate with the state for eth_EstimateGas and eth_Call when
+	// the From field is not specified because it is optional
+	DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+)
+
 // EthEndpoints contains implementations for the "eth" RPC endpoints
 type EthEndpoints struct {
 	cfg     Config
+	chainID uint64
 	pool    types.PoolInterface
 	state   types.StateInterface
 	storage storageInterface
@@ -32,8 +40,8 @@ type EthEndpoints struct {
 }
 
 // newEthEndpoints creates an new instance of Eth
-func newEthEndpoints(cfg Config, p types.PoolInterface, s types.StateInterface, storage storageInterface) *EthEndpoints {
-	e := &EthEndpoints{cfg: cfg, pool: p, state: s, storage: storage}
+func newEthEndpoints(cfg Config, chainID uint64, p types.PoolInterface, s types.StateInterface, storage storageInterface) *EthEndpoints {
+	e := &EthEndpoints{cfg: cfg, chainID: chainID, pool: p, state: s, storage: storage}
 	s.RegisterNewL2BlockEventHandler(e.onNewL2Block)
 
 	return e
@@ -88,7 +96,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			arg.Gas = &gas
 		}
 
-		defaultSenderAddress := common.HexToAddress(e.cfg.DefaultSenderAddress)
+		defaultSenderAddress := common.HexToAddress(DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
@@ -113,7 +121,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 
 // ChainId returns the chain id of the client
 func (e *EthEndpoints) ChainId() (interface{}, types.Error) { //nolint:revive
-	return hex.EncodeUint64(e.cfg.ChainID), nil
+	return hex.EncodeUint64(e.chainID), nil
 }
 
 // EstimateGas generates and returns an estimate of how much gas is necessary to
@@ -144,7 +152,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			}
 		}
 
-		defaultSenderAddress := common.HexToAddress(e.cfg.DefaultSenderAddress)
+		defaultSenderAddress := common.HexToAddress(DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
