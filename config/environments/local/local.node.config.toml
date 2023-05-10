@@ -51,7 +51,7 @@ EnableL2SuggestedGasPricePolling = true
 [Synchronizer]
 SyncInterval = "1s"
 SyncChunkSize = 100
-TrustedSequencerURL = ""
+TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
@@ -123,7 +123,7 @@ PrivateKeys = [
 	{Path = "/pk/aggregator.keystore", Password = "testonly"}
 ]
 
-[GasPriceEstimator]
+[L2GasPriceSuggester]
 Type = "default"
 DefaultGasPriceWei = 1000000000
 
