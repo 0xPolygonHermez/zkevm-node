@@ -114,54 +114,67 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce
 // DecodeTxs extracts Transactions for its encoded form
 func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 	// Process coded txs
-	var pos int64
+	var pos uint64
 	var txs []types.Transaction
 	const (
-		headerByteLength = 1
-		sLength          = 32
-		rLength          = 32
-		vLength          = 1
-		c0               = 192 // 192 is c0. This value is defined by the rlp protocol
-		ff               = 255 // max value of rlp header
-		shortRlp         = 55  // length of the short rlp codification
-		f7               = 247 // 192 + 55 = c0 + shortRlp
+		headerByteLength uint64 = 1
+		sLength          uint64 = 32
+		rLength          uint64 = 32
+		vLength          uint64 = 1
+		c0               uint64 = 192 // 192 is c0. This value is defined by the rlp protocol
+		ff               uint64 = 255 // max value of rlp header
+		shortRlp         uint64 = 55  // length of the short rlp codification
+		f7               uint64 = 247 // 192 + 55 = c0 + shortRlp
 	)
-	txDataLength := len(txsData)
+	txDataLength := uint64(len(txsData))
 	if txDataLength == 0 {
 		return txs, txsData, nil
 	}
-	for pos < int64(txDataLength) {
-		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, hex.BitSize64)
+	for pos < txDataLength {
+		num, err := strconv.ParseUint(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, hex.BitSize64)
 		if err != nil {
 			log.Debug("error parsing header length: ", err)
 			return []types.Transaction{}, txsData, err
 		}
 		// First byte is the length and must be ignored
-		len := num - c0
-		if len > shortRlp { // If rlp is bigger than length 55
+		if num < c0 {
+			log.Debugf("error num < c0 : %d, %d", num, c0)
+			return []types.Transaction{}, txsData, ErrInvalidData
+		}
+		length := uint64(num - c0)
+		if length > shortRlp { // If rlp is bigger than length 55
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
-			if (pos + 1 + num - f7) > int64(txDataLength) {
+			if (pos + 1 + num - f7) > txDataLength {
 				log.Debug("error parsing length: ", err)
 				return []types.Transaction{}, txsData, err
 			}
-			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1:pos+1+num-f7]), hex.Base, hex.BitSize64) // +1 is the header. For example 0xf7
+			n, err := strconv.ParseUint(hex.EncodeToString(txsData[pos+1:pos+1+num-f7]), hex.Base, hex.BitSize64) // +1 is the header. For example 0xf7
 			if err != nil {
 				log.Debug("error parsing length: ", err)
 				return []types.Transaction{}, txsData, err
 			}
-			len = n + num - f7 // num - f7 is the header. For example 0xf7
+			if n+num < f7 {
+				log.Debug("error n + num < f7: ", err)
+				return []types.Transaction{}, txsData, ErrInvalidData
+			}
+			length = n + num - f7 // num - f7 is the header. For example 0xf7
 		}
-		if len > int64(txDataLength) || len < 0 {
+
+		endPos := pos + length + rLength + sLength + vLength + headerByteLength
+
+		if endPos > txDataLength {
+			err := fmt.Errorf("endPos %d is bigger than txDataLength %d", endPos, txDataLength)
+			log.Debug("error parsing header: ", err)
 			return []types.Transaction{}, txsData, ErrInvalidData
 		}
 
-		fullDataTx := txsData[pos : pos+len+rLength+sLength+vLength+headerByteLength]
-		txInfo := txsData[pos : pos+len+headerByteLength]
-		rData := txsData[pos+len+headerByteLength : pos+len+rLength+headerByteLength]
-		sData := txsData[pos+len+rLength+headerByteLength : pos+len+rLength+sLength+headerByteLength]
-		vData := txsData[pos+len+rLength+sLength+headerByteLength : pos+len+rLength+sLength+vLength+headerByteLength]
+		fullDataTx := txsData[pos:endPos]
+		txInfo := txsData[pos : pos+length+headerByteLength]
+		rData := txsData[pos+length+headerByteLength : pos+length+rLength+headerByteLength]
+		sData := txsData[pos+length+rLength+headerByteLength : pos+length+rLength+sLength+headerByteLength]
+		vData := txsData[pos+length+rLength+sLength+headerByteLength : endPos]
 
-		pos = pos + len + rLength + sLength + vLength + headerByteLength
+		pos = endPos
 
 		// Decode rlpFields
 		var rlpFields [][]byte
