@@ -74,9 +74,8 @@ type SequenceSenderConfig struct {
 
 // Config is the main Manager configuration.
 type Config struct {
-	State            *state.Config
-	WithoutSequencer bool
-	SequenceSender   *SequenceSenderConfig
+	State          *state.Config
+	SequenceSender *SequenceSenderConfig
 }
 
 // Manager controls operations and has knowledge about how to set up and tear
@@ -487,15 +486,7 @@ func stopNetwork() error {
 
 // StartNode starts the node container
 func (m *Manager) StartNode() error {
-	var err error
-
-	if m.cfg.WithoutSequencer {
-		err = StartComponent("node-no-seq", nodeUpCondition)
-	} else {
-		err = StartComponent("node", nodeUpCondition)
-	}
-
-	return err
+	return StartComponent("node", nodeUpCondition)
 }
 
 // StartTrustedAndPermissionlessNode starts the node container
@@ -581,7 +572,6 @@ func GetDefaultOperationsConfig() *Config {
 			MaxTxSizeForL1:                           DefaultMaxTxSizeForL1,
 			SenderAddress:                            DefaultSequencerAddress,
 			PrivateKey:                               DefaultSequencerPrivateKey},
-		WithoutSequencer: false,
 	}
 }
 

@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,18 +13,14 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
-)
-
-var (
-	forcedBatchSignatureHash = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
 )
 
 func TestForcedBatchesVectorFiles(t *testing.T) {
@@ -52,73 +49,77 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 				testCase, err := vectors.LoadStateTransitionTestCaseV2(path)
 				require.NoError(t, err)
 
-				// TODO: To be used to set the timestamp func of sequencer
-				//func() time.Time {
-				//	unixTimestamp := int64(1944498031)
-				//	return time.Unix(unixTimestamp, 0)0
-				//}
-
 				opsCfg := operations.GetDefaultOperationsConfig()
-				// TODO: uncomment when ready to start sequencer from here
-				//opsCfg.WithoutSequencer = true
 				opsCfg.State.MaxCumulativeGasUsed = 80000000000
 				opsman, err := operations.NewManager(ctx, opsCfg)
 				require.NoError(t, err)
 
 				// Setting Genesis
-				log.Info("[Setting Genesis]")
+				log.Info("###################")
+				log.Info("# Setting Genesis #")
+				log.Info("###################")
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
 				require.NoError(t, opsman.SetGenesis(genesisActions))
 				require.NoError(t, opsman.Setup())
-				merkleTree := opsman.State().GetTree()
 
 				// Check initial root
-				log.Info("[Checking initial root]")
+				log.Info("################################")
+				log.Info("# Verifying initial state root #")
+				log.Info("################################")
 				actualOldStateRoot, err := opsman.State().GetLastStateRoot(ctx, nil)
 				require.NoError(t, err)
 				require.Equal(t, testCase.ExpectedOldStateRoot, actualOldStateRoot.Hex())
-				b, err := hex.DecodeHex(testCase.BatchL2Data)
+				decodedData, err := hex.DecodeHex(testCase.BatchL2Data)
 				require.NoError(t, err)
-				_, txsBytes, err := state.DecodeTxs(b)
+				_, txBytes, err := state.DecodeTxs(decodedData)
+				forcedBatch, err := sendForcedBatchForVector(t, txBytes, opsman)
 				require.NoError(t, err)
-
-				forcedBatch, err := sendForcedBatchForVector(t, txsBytes, opsman)
-				require.NoError(t, err)
+				actualNewStateRoot := forcedBatch.StateRoot
 				isClosed, err := opsman.State().IsBatchClosed(ctx, forcedBatch.BatchNumber, nil)
 				require.NoError(t, err)
+
 				// wait until is closed
 				for !isClosed {
 					time.Sleep(1 * time.Second)
 					isClosed, err = opsman.State().IsBatchClosed(ctx, forcedBatch.BatchNumber, nil)
 					require.NoError(t, err)
-					if isClosed {
-						forcedBatch, err = sendForcedBatchForVector(t, txsBytes, opsman)
-						require.NoError(t, err)
-					}
 				}
 
-				// Check new root
-				log.Info("[Checking new root]")
-				actualNewStateRoot := forcedBatch.StateRoot
-				require.NoError(t, err)
-
-				require.Equal(t, testCase.ExpectedNewStateRoot, actualNewStateRoot.Hex())
-				log.Info("[Checking new leafs]")
+				log.Info("#######################")
+				log.Info("# Verifying new leafs #")
+				log.Info("#######################")
+				merkleTree := opsman.State().GetTree()
 				for _, expectedNewLeaf := range testCase.ExpectedNewLeafs {
 					if expectedNewLeaf.IsSmartContract {
 						log.Info("Smart Contract Address: ", expectedNewLeaf.Address)
 					} else {
 						log.Info("Account Address: ", expectedNewLeaf.Address)
 					}
+					log.Info("Verifying Balance...")
 					actualBalance, err := merkleTree.GetBalance(ctx, common.HexToAddress(expectedNewLeaf.Address), actualNewStateRoot.Bytes())
 					require.NoError(t, err)
 					require.Equal(t, expectedNewLeaf.Balance.String(), actualBalance.String())
 
+					log.Info("Verifying Nonce...")
 					actualNonce, err := merkleTree.GetNonce(ctx, common.HexToAddress(expectedNewLeaf.Address), actualNewStateRoot.Bytes())
 					require.NoError(t, err)
 					require.Equal(t, expectedNewLeaf.Nonce, actualNonce.String())
 					if expectedNewLeaf.IsSmartContract {
-						// TODO: Implement leaf properties for smart contracts
+						log.Info("Verifying Storage...")
+						for positionHex, expectedNewStorageHex := range expectedNewLeaf.Storage {
+							position, ok := big.NewInt(0).SetString(positionHex[2:], 16)
+							require.True(t, ok)
+							expectedNewStorage, ok := big.NewInt(0).SetString(expectedNewStorageHex[2:], 16)
+							require.True(t, ok)
+							actualStorage, err := merkleTree.GetStorageAt(ctx, common.HexToAddress(expectedNewLeaf.Address), position, actualNewStateRoot.Bytes())
+							require.NoError(t, err)
+							require.Equal(t, expectedNewStorage, actualStorage)
+						}
+
+						log.Info("Verifying HashBytecode...")
+						actualHashByteCode, err := merkleTree.GetCodeHash(ctx, common.HexToAddress(expectedNewLeaf.Address), actualNewStateRoot.Bytes())
+						require.NoError(t, err)
+						require.Equal(t, expectedNewLeaf.HashBytecode, common.BytesToHash(actualHashByteCode).String())
 					}
 				}
 				return
@@ -147,10 +148,8 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 	require.NoError(t, err)
 
 	log.Info("Using address: ", auth.From)
-
 	num, err := zkEvm.LastForceBatch(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
-
 	log.Info("Number of forceBatches in the smc: ", num)
 
 	// Get tip
@@ -166,11 +165,6 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 		require.NoError(t, err)
 	}
 
-	currentBlock, err := ethClient.BlockByNumber(ctx, nil)
-	require.NoError(t, err)
-
-	log.Debug("currentBlock.Time(): ", currentBlock.Time())
-
 	// Send forceBatch
 	tx, err := zkEvm.ForceBatch(auth, txs, tip)
 	require.NoError(t, err)
@@ -181,6 +175,10 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 	err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
 	require.NoError(t, err)
 
+	currentBlock, err := ethClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+	log.Debug("currentBlock.Time(): ", currentBlock.Time())
+
 	query := ethereum.FilterQuery{
 		FromBlock: currentBlock.Number(),
 		Addresses: []common.Address{zkEvmAddr},
@@ -190,7 +188,7 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 
 	var forcedBatch *state.Batch
 	for _, vLog := range logs {
-		if vLog.Topics[0] != forcedBatchSignatureHash {
+		if vLog.Topics[0] != constants.ForcedBatchSignatureHash {
 			logs, err = ethClient.FilterLogs(ctx, query)
 			require.NoError(t, err)
 			continue
@@ -217,8 +215,13 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 		require.NoError(t, err)
 		require.NotNil(t, forcedBatch)
 
-		//err = operations.WaitBatchToBeVirtualized(forcedBatch.BatchNumber, 4*time.Minute, st)
-		//require.NoError(t, err)
+		log.Info("Waiting Forced Batch to be virtualized ...")
+		err = operations.WaitBatchToBeVirtualized(forcedBatch.BatchNumber, 4*time.Minute, st)
+		require.NoError(t, err)
+
+		log.Info("Waiting Forced Batch to be consolidated ...")
+		err = operations.WaitBatchToBeConsolidated(forcedBatch.BatchNumber, 4*time.Minute, st)
+		require.NoError(t, err)
 	}
 
 	return forcedBatch, nil

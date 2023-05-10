@@ -51,7 +51,6 @@ type finalizer struct {
 	nextForcedBatchesMux    *sync.RWMutex
 	handlingL2Reorg         bool
 	eventLog                *event.EventLog
-	nowFuncForBatches       func() time.Time
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -73,7 +72,18 @@ func (w *WipBatch) isEmpty() bool {
 }
 
 // newFinalizer returns a new instance of Finalizer.
-func newFinalizer(cfg FinalizerCfg, worker workerInterface, dbManager dbManagerInterface, executor stateInterface, sequencerAddr common.Address, isSynced func(ctx context.Context) bool, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints, eventLog *event.EventLog, nowFuncForBatches func() time.Time) *finalizer {
+func newFinalizer(
+	cfg FinalizerCfg,
+	worker workerInterface,
+	dbManager dbManagerInterface,
+	executor stateInterface,
+	sequencerAddr common.Address,
+	isSynced func(ctx context.Context) bool,
+	closingSignalCh ClosingSignalCh,
+	txsStore TxsStore,
+	batchConstraints batchConstraints,
+	eventLog *event.EventLog,
+) *finalizer {
 	return &finalizer{
 		cfg:                cfg,
 		txsStore:           txsStore,
@@ -96,7 +106,6 @@ func newFinalizer(cfg FinalizerCfg, worker workerInterface, dbManager dbManagerI
 		nextForcedBatchDeadline: 0,
 		nextForcedBatchesMux:    new(sync.RWMutex),
 		eventLog:                eventLog,
-		nowFuncForBatches:       nowFuncForBatches,
 	}
 }
 
@@ -180,13 +189,13 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 func (f *finalizer) finalizeBatches(ctx context.Context) {
 	for {
 		start := now()
-		//log.Debug("finalizer init loop")
+		log.Debug("finalizer init loop")
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			// Timestamp resolution
 			if f.batch.isEmpty() {
-				f.batch.timestamp = f.nowFuncForBatches()
+				f.batch.timestamp = now()
 			}
 
 			f.sharedResourcesMux.Lock()
@@ -402,7 +411,8 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 	}
 
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
-	f.storeProcessedTx(f.batch.batchNumber, f.batch.coinbase, f.batch.timestamp, oldStateRoot, result.Responses[0])
+	f.storeProcessedTx(f.batch.batchNumber, f.batch.coinbase, f.batch.timestamp, oldStateRoot, result.Responses[0], false)
+	f.batch.countOfTxs++
 	f.updateWorkerAfterTxStored(ctx, tx, result)
 
 	return nil
@@ -423,13 +433,13 @@ func (f *finalizer) handleForcedBatchProcessResp(request state.ProcessRequest, r
 		}
 
 		// Store the processed transaction, add it to the batch and update status in the pool atomically
-		f.storeProcessedTx(request.BatchNumber, request.Coinbase, request.Timestamp, oldStateRoot, txResp)
+		f.storeProcessedTx(request.BatchNumber, request.Coinbase, request.Timestamp, oldStateRoot, txResp, true)
 	}
 
 	return nil
 }
 
-func (f *finalizer) storeProcessedTx(batchNum uint64, coinbase common.Address, timestamp time.Time, previousL2BlockStateRoot common.Hash, txResponse *state.ProcessTransactionResponse) {
+func (f *finalizer) storeProcessedTx(batchNum uint64, coinbase common.Address, timestamp time.Time, previousL2BlockStateRoot common.Hash, txResponse *state.ProcessTransactionResponse, isForcedBatch bool) {
 	log.Infof("storeProcessedTx: storing processed tx: %s", txResponse.TxHash.String())
 	f.txsStore.Wg.Wait()
 	f.txsStore.Wg.Add(1)
@@ -439,6 +449,7 @@ func (f *finalizer) storeProcessedTx(batchNum uint64, coinbase common.Address, t
 		coinbase:                 coinbase,
 		timestamp:                uint64(timestamp.Unix()),
 		previousL2BlockStateRoot: previousL2BlockStateRoot,
+		isForcedBatch:            isForcedBatch,
 	}
 	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, 1)
 }
@@ -642,7 +653,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		GlobalExitRoot: forcedBatch.GlobalExitRoot,
 		Transactions:   forcedBatch.RawTxsData,
 		Coinbase:       f.sequencerAddress,
-		Timestamp:      f.nowFuncForBatches(),
+		Timestamp:      now(),
 		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, request)
@@ -730,7 +741,7 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    num,
 		Coinbase:       f.sequencerAddress,
-		Timestamp:      f.nowFuncForBatches(),
+		Timestamp:      now(),
 		GlobalExitRoot: ger,
 	}
 	err := f.dbManager.OpenBatch(ctx, processingCtx, dbTx)

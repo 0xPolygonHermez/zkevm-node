@@ -203,9 +203,11 @@ func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
 		}
 		batch.BatchL2Data = append(batch.BatchL2Data, txData...)
 
-		err = d.state.UpdateBatchL2Data(d.ctx, txToStore.batchNumber, batch.BatchL2Data, dbTx)
-		if err != nil {
-			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
+		if !txToStore.isForcedBatch {
+			err = d.state.UpdateBatchL2Data(d.ctx, txToStore.batchNumber, batch.BatchL2Data, dbTx)
+			if err != nil {
+				log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
+			}
 		}
 
 		err = dbTx.Commit(d.ctx)

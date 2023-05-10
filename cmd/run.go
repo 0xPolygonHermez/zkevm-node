@@ -170,7 +170,7 @@ func start(cliCtx *cli.Context) error {
 				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
 			}
 			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st, eventLog)
-			go seq.Start(ctx, time.Now)
+			go seq.Start(ctx)
 		case SEQUENCE_SENDER:
 			ev.Component = event.Component_Sequence_Sender
 			ev.Description = "Running sequence sender"

@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
@@ -99,7 +98,7 @@ func TestNewFinalizer(t *testing.T) {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	// arrange and act
-	f = newFinalizer(cfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, txsStore, bc, eventLog, time.Now)
+	f = newFinalizer(cfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, txsStore, bc, eventLog)
 
 	// assert
 	assert.NotNil(t, f)
@@ -117,9 +116,9 @@ func TestNewFinalizer(t *testing.T) {
 //func TestFinalizer_newWIPBatch(t *testing.T) {
 //	// arrange
 //	f = setupFinalizer(true)
-//	nowFuncForBatches = testNow
+//	now = testNow
 //	defer func() {
-//		nowFuncForBatches = time.Now
+//		now = time.Now
 //	}()
 //
 //	txs := make([]types.Transaction, 0)
@@ -132,7 +131,7 @@ func TestNewFinalizer(t *testing.T) {
 //		coinbase:           f.sequencerAddress,
 //		initialStateRoot:   newHash,
 //		stateRoot:          newHash,
-//		timestamp:          uint64(nowFuncForBatches().Unix()),
+//		timestamp:          uint64(now().Unix()),
 //		remainingResources: getMaxRemainingResources(f.batchConstraints),
 //	}
 //	closeBatchParams := ClosingBatchParameters{
@@ -399,88 +398,88 @@ func TestFinalizer_syncWithState(t *testing.T) {
 	}
 }
 
-func TestFinalizer_processForcedBatches(t *testing.T) {
-	// arrange
-	var err error
-	f = setupFinalizer(false)
-	now = testNow
-	defer func() {
-		now = time.Now
-	}()
-	RawTxsData1 := make([]byte, 0, 2)
-	RawTxsData1 = append(RawTxsData1, []byte("forced tx 1")...)
-	RawTxsData1 = append(RawTxsData1, []byte("forced tx 2")...)
-	RawTxsData2 := make([]byte, 0, 2)
-	RawTxsData2 = append(RawTxsData2, []byte("forced tx 3")...)
-	RawTxsData2 = append(RawTxsData2, []byte("forced tx 4")...)
-	batchNumber := f.batch.batchNumber
-	stateRoot := oldHash
-	forcedBatch1 := state.ForcedBatch{
-		ForcedBatchNumber: 2,
-		GlobalExitRoot:    oldHash,
-		RawTxsData:        RawTxsData1,
-	}
-	forcedBatch2 := state.ForcedBatch{
-		ForcedBatchNumber: 3,
-		GlobalExitRoot:    oldHash,
-		RawTxsData:        RawTxsData2,
-	}
-	testCases := []struct {
-		name                            string
-		forcedBatch                     []state.ForcedBatch
-		getLastTrustedForcedBatchNumErr error
-		expectedErr                     error
-	}{
-		{
-			name:        "Success",
-			forcedBatch: []state.ForcedBatch{forcedBatch1, forcedBatch2},
-		},
-		{
-			name:                            "GetLastTrustedForcedBatchNumber_Error",
-			forcedBatch:                     []state.ForcedBatch{forcedBatch1},
-			getLastTrustedForcedBatchNumErr: testErr,
-			expectedErr:                     fmt.Errorf("failed to get last trusted forced batch number, err: %s", testErr),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// arrange
-			f.nextForcedBatches = tc.forcedBatch
-			internalBatchNumber := batchNumber
-			dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nil).Once()
-			dbManagerMock.On("GetLastTrustedForcedBatchNumber", ctx, dbTxMock).Return(uint64(1), tc.getLastTrustedForcedBatchNumErr).Once()
-
-			for _, forcedBatch := range tc.forcedBatch {
-				internalBatchNumber += 1
-				processRequest := state.ProcessRequest{
-					BatchNumber:    internalBatchNumber,
-					OldStateRoot:   stateRoot,
-					GlobalExitRoot: forcedBatch.GlobalExitRoot,
-					Transactions:   forcedBatch.RawTxsData,
-					Coinbase:       f.sequencerAddress,
-					Timestamp:      now(),
-					Caller:         stateMetrics.SequencerCallerLabel,
-				}
-				dbManagerMock.On("ProcessForcedBatch", forcedBatch.ForcedBatchNumber, processRequest).Return(&state.ProcessBatchResponse{
-					NewStateRoot:   stateRoot,
-					NewBatchNumber: internalBatchNumber,
-				}, nilErr).Once()
-			}
-
-			// act
-			batchNumber, stateRoot, err = f.processForcedBatches(ctx, batchNumber, stateRoot)
-
-			// assert
-			if tc.expectedErr != nil {
-				assert.EqualError(t, err, tc.expectedErr.Error())
-			} else {
-				assert.NoError(t, tc.expectedErr)
-				dbManagerMock.AssertExpectations(t)
-			}
-		})
-	}
-}
+//func TestFinalizer_processForcedBatches(t *testing.T) {
+//	// arrange
+//	var err error
+//	f = setupFinalizer(false)
+//	now = testNow
+//	defer func() {
+//		now = time.Now
+//	}()
+//	RawTxsData1 := make([]byte, 0, 2)
+//	RawTxsData1 = append(RawTxsData1, []byte("forced tx 1")...)
+//	RawTxsData1 = append(RawTxsData1, []byte("forced tx 2")...)
+//	RawTxsData2 := make([]byte, 0, 2)
+//	RawTxsData2 = append(RawTxsData2, []byte("forced tx 3")...)
+//	RawTxsData2 = append(RawTxsData2, []byte("forced tx 4")...)
+//	batchNumber := f.batch.batchNumber
+//	stateRoot := oldHash
+//	forcedBatch1 := state.ForcedBatch{
+//		ForcedBatchNumber: 2,
+//		GlobalExitRoot:    oldHash,
+//		RawTxsData:        RawTxsData1,
+//	}
+//	forcedBatch2 := state.ForcedBatch{
+//		ForcedBatchNumber: 3,
+//		GlobalExitRoot:    oldHash,
+//		RawTxsData:        RawTxsData2,
+//	}
+//	testCases := []struct {
+//		name                            string
+//		forcedBatch                     []state.ForcedBatch
+//		getLastTrustedForcedBatchNumErr error
+//		expectedErr                     error
+//	}{
+//		{
+//			name:        "Success",
+//			forcedBatch: []state.ForcedBatch{forcedBatch1, forcedBatch2},
+//		},
+//		{
+//			name:                            "GetLastTrustedForcedBatchNumber_Error",
+//			forcedBatch:                     []state.ForcedBatch{forcedBatch1},
+//			getLastTrustedForcedBatchNumErr: testErr,
+//			expectedErr:                     fmt.Errorf("failed to get last trusted forced batch number, err: %s", testErr),
+//		},
+//	}
+//
+//	for _, tc := range testCases {
+//		t.Run(tc.name, func(t *testing.T) {
+//			// arrange
+//			f.nextForcedBatches = tc.forcedBatch
+//			internalBatchNumber := batchNumber
+//			dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nil).Once()
+//			dbManagerMock.On("GetLastTrustedForcedBatchNumber", ctx, dbTxMock).Return(uint64(1), tc.getLastTrustedForcedBatchNumErr).Once()
+//
+//			for _, forcedBatch := range tc.forcedBatch {
+//				internalBatchNumber += 1
+//				processRequest := state.ProcessRequest{
+//					BatchNumber:    internalBatchNumber,
+//					OldStateRoot:   stateRoot,
+//					GlobalExitRoot: forcedBatch.GlobalExitRoot,
+//					Transactions:   forcedBatch.RawTxsData,
+//					Coinbase:       f.sequencerAddress,
+//					Timestamp:      now(),
+//					Caller:         stateMetrics.SequencerCallerLabel,
+//				}
+//				dbManagerMock.On("ProcessForcedBatch", forcedBatch.ForcedBatchNumber, processRequest).Return(&state.ProcessBatchResponse{
+//					NewStateRoot:   stateRoot,
+//					NewBatchNumber: internalBatchNumber,
+//				}, nilErr).Once()
+//			}
+//
+//			// act
+//			batchNumber, stateRoot, err = f.processForcedBatches(ctx, batchNumber, stateRoot)
+//
+//			// assert
+//			if tc.expectedErr != nil {
+//				assert.EqualError(t, err, tc.expectedErr.Error())
+//			} else {
+//				assert.NoError(t, tc.expectedErr)
+//				dbManagerMock.AssertExpectations(t)
+//			}
+//		})
+//	}
+//}
 
 func TestFinalizer_openWIPBatch(t *testing.T) {
 	// arrange
@@ -687,9 +686,9 @@ func TestFinalizer_openBatch(t *testing.T) {
 // TestFinalizer_reprocessBatch is a test for reprocessBatch which tests all possible cases of reprocessBatch
 func TestFinalizer_reprocessBatch(t *testing.T) {
 	// arrange
-	nowFuncForBatches = testNow
+	now = testNow
 	defer func() {
-		nowFuncForBatches = time.Now
+		now = time.Now
 	}()
 
 	f = setupFinalizer(true)

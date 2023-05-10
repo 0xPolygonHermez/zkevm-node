@@ -57,11 +57,6 @@ TrustedSequencerURL = ""
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
-<<<<<<< HEAD
-WaitPeriodSendSequence = "15s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
-=======
->>>>>>> develop
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
@@ -141,8 +136,8 @@ URI = "127.0.0.1:50071"
 
 [Metrics]
 Host = "0.0.0.0"
-Port = 9092
-Enabled = true
+Port = 9091
+Enabled = false
 ProfilingHost = "0.0.0.0"
 ProfilingPort = 6060
 ProfilingEnabled = false
