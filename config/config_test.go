@@ -295,11 +295,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Pool.MaxTxBytesSize",
-			expectedValue: uint64(30132),
+			expectedValue: uint64(100132),
 		},
 		{
 			path:          "Pool.MaxTxDataBytesSize",
-			expectedValue: 30000,
+			expectedValue: 100000,
 		},
 
 		{
