@@ -231,7 +231,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Etherman.MultiGasProvider",
-			expectedValue: true,
+			expectedValue: false,
 		},
 		{
 			path:          "EthTxManager.FrequencyToMonitorTxs",
@@ -364,7 +364,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.MaxRequestsPerIPAndSecond",
-			expectedValue: float64(50),
+			expectedValue: float64(500),
 		},
 		{
 			path:          "RPC.EnableL2SuggestedGasPricePolling",
@@ -372,7 +372,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.WebSockets.Enabled",
-			expectedValue: false,
+			expectedValue: true,
 		},
 		{
 			path:          "RPC.WebSockets.Host",
