@@ -38,6 +38,7 @@ const (
 // Server is an API backend to handle RPC requests
 type Server struct {
 	config     Config
+	chainID    uint64
 	handler    *Handler
 	srv        *http.Server
 	wsSrv      *http.Server
@@ -47,6 +48,7 @@ type Server struct {
 // NewServer returns the JsonRPC server
 func NewServer(
 	cfg Config,
+	chainID uint64,
 	p types.PoolInterface,
 	s types.StateInterface,
 	storage storageInterface,
@@ -56,12 +58,12 @@ func NewServer(
 	handler := newJSONRpcHandler()
 
 	if _, ok := apis[APIEth]; ok {
-		ethEndpoints := newEthEndpoints(cfg, p, s, storage)
+		ethEndpoints := newEthEndpoints(cfg, chainID, p, s, storage)
 		handler.registerService(APIEth, ethEndpoints)
 	}
 
 	if _, ok := apis[APINet]; ok {
-		netEndpoints := &NetEndpoints{cfg: cfg}
+		netEndpoints := &NetEndpoints{cfg: cfg, chainID: chainID}
 		handler.registerService(APINet, netEndpoints)
 	}
 
@@ -88,6 +90,7 @@ func NewServer(
 	srv := &Server{
 		config:  cfg,
 		handler: handler,
+		chainID: chainID,
 	}
 	return srv
 }
@@ -124,9 +127,9 @@ func (s *Server) startHTTP() error {
 
 	s.srv = &http.Server{
 		Handler:           mux,
-		ReadHeaderTimeout: s.config.ReadTimeoutInSec * time.Second,
-		ReadTimeout:       s.config.ReadTimeoutInSec * time.Second,
-		WriteTimeout:      s.config.WriteTimeoutInSec * time.Second,
+		ReadHeaderTimeout: s.config.ReadTimeout.Duration,
+		ReadTimeout:       s.config.ReadTimeout.Duration,
+		WriteTimeout:      s.config.WriteTimeout.Duration,
 	}
 	log.Infof("http server started: %s", address)
 	if err := s.srv.Serve(lis); err != nil {
@@ -149,7 +152,7 @@ func (s *Server) startWS() {
 		return
 	}
 
-	address := fmt.Sprintf("%s:%d", s.config.Host, s.config.WebSockets.Port)
+	address := fmt.Sprintf("%s:%d", s.config.WebSockets.Host, s.config.WebSockets.Port)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -162,9 +165,9 @@ func (s *Server) startWS() {
 
 	s.wsSrv = &http.Server{
 		Handler:           mux,
-		ReadHeaderTimeout: s.config.ReadTimeoutInSec * time.Second,
-		ReadTimeout:       s.config.ReadTimeoutInSec * time.Second,
-		WriteTimeout:      s.config.WriteTimeoutInSec * time.Second,
+		ReadHeaderTimeout: s.config.ReadTimeout.Duration,
+		ReadTimeout:       s.config.ReadTimeout.Duration,
+		WriteTimeout:      s.config.WriteTimeout.Duration,
 	}
 	s.wsUpgrader = websocket.Upgrader{
 		ReadBufferSize:  wsBufferSizeLimitInBytes,

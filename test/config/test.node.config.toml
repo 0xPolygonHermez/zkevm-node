@@ -17,8 +17,8 @@ MaxConns = 200
 [Pool]
 FreeClaimGasLimit = 1500000
 IntervalToRefreshBlockedAddresses = "5m"
-MaxTxBytesSize=30132
-MaxTxDataBytesSize=30000
+MaxTxBytesSize=100132
+MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
@@ -40,11 +40,10 @@ MultiGasProvider = false
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
-ReadTimeoutInSec = 60
-WriteTimeoutInSec = 60
+ReadTimeout = "60s"
+WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = ""
-DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
 		Enabled = true
@@ -53,11 +52,10 @@ EnableL2SuggestedGasPricePolling = true
 [Synchronizer]
 SyncInterval = "1s"
 SyncChunkSize = 100
-TrustedSequencerURL = ""
+TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc.
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
@@ -82,11 +80,10 @@ WeightBinaries = 1
 WeightSteps = 1
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
-MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "2s"
-		ForcedBatchDeadlineTimeoutInSec = "60s"
-		SleepDurationInMs = "100ms"
+		GERDeadlineTimeout = "2s"
+		ForcedBatchDeadlineTimeout = "5s"
+		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 0
 		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
@@ -94,20 +91,25 @@ MaxTxSizeForL1 = 131072
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 0
 		TimestampResolution = "15s"
-		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
 
+[SequenceSender]
+WaitPeriodSendSequence = "15s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
+MaxTxSizeForL1 = 131072
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
 ForkId = 2
 RetryTime = "5s"
-VerifyProofInterval = "30s"
+VerifyProofInterval = "10s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"

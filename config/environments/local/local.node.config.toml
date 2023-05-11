@@ -16,8 +16,8 @@ MaxConns = 200
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
-MaxTxBytesSize=30132
-MaxTxDataBytesSize=30000
+MaxTxBytesSize=100132
+MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
@@ -39,11 +39,10 @@ MultiGasProvider = false
 [RPC]
 Host = "0.0.0.0"
 Port = 8545
-ReadTimeoutInSec = 60
-WriteTimeoutInSec = 60
+ReadTimeout = "60s"
+WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://internal.zkevm-test.net:2083/"
-DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
 		Enabled = true
@@ -52,12 +51,10 @@ EnableL2SuggestedGasPricePolling = true
 [Synchronizer]
 SyncInterval = "1s"
 SyncChunkSize = 100
-TrustedSequencerURL = ""
+TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "5s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
@@ -81,11 +78,10 @@ WeightBinaries = 1
 WeightSteps = 1
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
-MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "5s"
-		ForcedBatchDeadlineTimeoutInSec = "60s"
-		SleepDurationInMs = "100ms"
+		GERDeadlineTimeout = "5s"
+		ForcedBatchDeadlineTimeout = "60s"
+		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 0
 		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
@@ -93,13 +89,18 @@ MaxTxSizeForL1 = 131072
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		TimestampResolution = "15s"
-		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
+
+[SequenceSender]
+WaitPeriodSendSequence = "5s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+MaxTxSizeForL1 = 131072
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 
 [Aggregator]
 Host = "0.0.0.0"
@@ -121,7 +122,7 @@ PrivateKeys = [
 	{Path = "/pk/aggregator.keystore", Password = "testonly"}
 ]
 
-[GasPriceEstimator]
+[L2GasPriceSuggester]
 Type = "default"
 DefaultGasPriceWei = 1000000000
 

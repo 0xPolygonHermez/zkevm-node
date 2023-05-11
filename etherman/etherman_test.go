@@ -398,7 +398,7 @@ func TestGetForks(t *testing.T) {
 	// Set up testing environment
 	etherman, _, _, _, _ := newTestingEnv()
 	ctx := context.Background()
-	forks, err := etherman.GetForks(ctx)
+	forks, err := etherman.GetForks(ctx, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(forks))
 	assert.Equal(t, uint64(1), forks[0].ForkId)

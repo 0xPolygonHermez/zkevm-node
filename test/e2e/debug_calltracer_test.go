@@ -1,0 +1,418 @@
+package e2e
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"math/big"
+	"strings"
+	"testing"
+
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/stretchr/testify/require"
+)
+
+func TestDebugTraceTransactionCallTracer(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	const l2NetworkURL = "http://localhost:8124"
+	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	}()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+	require.NoError(t, err)
+
+	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
+
+	networks := []struct {
+		Name         string
+		URL          string
+		WebSocketURL string
+		ChainID      uint64
+		PrivateKey   string
+	}{
+		{
+			Name:       l1NetworkName,
+			URL:        operations.DefaultL1NetworkURL,
+			ChainID:    operations.DefaultL1ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+		{
+			Name:       l2NetworkName,
+			URL:        l2NetworkURL,
+			ChainID:    operations.DefaultL2ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+	}
+
+	results := map[string]json.RawMessage{}
+
+	type testCase struct {
+		name           string
+		prepare        func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
+		createSignedTx func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error)
+	}
+	testCases := []testCase{
+		// successful transactions
+		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		{name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
+		{name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
+		// failed transactions
+		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+	}
+	privateKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	for _, network := range networks {
+		auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(network.ChainID))
+		require.NoError(t, err)
+
+		ethereumClient := operations.MustGetClient(network.URL)
+		sourceAuth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+		nonce, err := ethereumClient.NonceAt(ctx, sourceAuth.From, nil)
+		require.NoError(t, err)
+
+		balance, err := ethereumClient.BalanceAt(ctx, sourceAuth.From, nil)
+		require.NoError(t, err)
+
+		gasPrice, err := ethereumClient.SuggestGasPrice(ctx)
+		require.NoError(t, err)
+
+		value := big.NewInt(0).Quo(balance, big.NewInt(2))
+
+		gas, err := ethereumClient.EstimateGas(ctx, ethereum.CallMsg{
+			From:     sourceAuth.From,
+			To:       &auth.From,
+			GasPrice: gasPrice,
+			Value:    value,
+		})
+		require.NoError(t, err)
+
+		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+			To:       &auth.From,
+			Nonce:    nonce,
+			GasPrice: gasPrice,
+			Value:    value,
+			Gas:      gas,
+		})
+
+		signedTx, err := sourceAuth.Signer(sourceAuth.From, tx)
+		require.NoError(t, err)
+
+		err = ethereumClient.SendTransaction(ctx, signedTx)
+		require.NoError(t, err)
+
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			log.Debug("************************ ", tc.name, " ************************")
+
+			for _, network := range networks {
+				log.Debug("------------------------ ", network.Name, " ------------------------")
+				ethereumClient := operations.MustGetClient(network.URL)
+				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(network.ChainID))
+				require.NoError(t, err)
+
+				var customData map[string]interface{}
+				if tc.prepare != nil {
+					customData, err = tc.prepare(t, ctx, auth, ethereumClient)
+					require.NoError(t, err)
+				}
+
+				signedTx, err := tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
+				require.NoError(t, err)
+
+				err = ethereumClient.SendTransaction(ctx, signedTx)
+				require.NoError(t, err)
+
+				log.Debugf("tx sent: %v", signedTx.Hash().String())
+
+				err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+					require.NoError(t, err)
+				}
+
+				debugOptions := map[string]interface{}{
+					"tracer": "callTracer",
+					"tracerConfig": map[string]interface{}{
+						"onlyTopCall": false,
+						"withLog":     true,
+					},
+				}
+
+				response, err := client.JSONRPCCall(network.URL, "debug_traceTransaction", signedTx.Hash().String(), debugOptions)
+				require.NoError(t, err)
+				require.Nil(t, response.Error)
+				require.NotNil(t, response.Result)
+
+				results[network.Name] = response.Result
+				log.Debug(string(response.Result))
+
+				// save result in a file
+				// sanitizedNetworkName := strings.ReplaceAll(network.Name+"_"+tc.name, " ", "_")
+				// filePath := fmt.Sprintf("/home/tclemos/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
+				// b, _ := signedTx.MarshalBinary()
+				// fileContent := struct {
+				// 	Tx    *ethTypes.Transaction
+				// 	RLP   string
+				// 	Trace json.RawMessage
+				// }{
+				// 	Tx:    signedTx,
+				// 	RLP:   hex.EncodeToHex(b),
+				// 	Trace: response.Result,
+				// }
+				// c, err := json.MarshalIndent(fileContent, "", "    ")
+				// require.NoError(t, err)
+				// err = os.WriteFile(filePath, c, 0644)
+				// require.NoError(t, err)
+			}
+
+			referenceValueMap := map[string]interface{}{}
+			err = json.Unmarshal(results[l1NetworkName], &referenceValueMap)
+			require.NoError(t, err)
+
+			for networkName, result := range results {
+				if networkName == l1NetworkName {
+					continue
+				}
+
+				resultMap := map[string]interface{}{}
+				err = json.Unmarshal(result, &resultMap)
+				require.NoError(t, err)
+
+				compareCallFrame(t, referenceValueMap, resultMap, networkName)
+			}
+		})
+	}
+}
+
+func compareCallFrame(t *testing.T, referenceValueMap, resultMap map[string]interface{}, networkName string) {
+	require.Equal(t, referenceValueMap["from"], resultMap["from"], fmt.Sprintf("invalid `from` for network %s", networkName))
+	require.Equal(t, referenceValueMap["input"], resultMap["input"], fmt.Sprintf("invalid `input` for network %s", networkName))
+	require.Equal(t, referenceValueMap["output"], resultMap["output"], fmt.Sprintf("invalid `output` for network %s", networkName))
+	require.Equal(t, referenceValueMap["value"], resultMap["value"], fmt.Sprintf("invalid `value` for network %s", networkName))
+	require.Equal(t, referenceValueMap["type"], resultMap["type"], fmt.Sprintf("invalid `type` for network %s", networkName))
+	require.Equal(t, referenceValueMap["error"], resultMap["error"], fmt.Sprintf("invalid `error` for network %s", networkName))
+	require.Equal(t, referenceValueMap["revertReason"], resultMap["revertReason"], fmt.Sprintf("invalid `revertReason` for network %s", networkName))
+
+	referenceLogs, found := referenceValueMap["logs"].([]interface{})
+	if found {
+		resultLogs := resultMap["logs"].([]interface{})
+		require.Equal(t, len(referenceLogs), len(resultLogs), "logs size doesn't match")
+		for logIndex := range referenceLogs {
+			referenceLog := referenceLogs[logIndex].(map[string]interface{})
+			resultLog := resultLogs[logIndex].(map[string]interface{})
+
+			require.Equal(t, referenceLog["data"], resultLog["data"], fmt.Sprintf("log index %v data doesn't match", logIndex))
+			referenceTopics, found := referenceLog["topics"].([]interface{})
+			if found {
+				resultTopics := resultLog["topics"].([]interface{})
+				require.Equal(t, len(referenceTopics), len(resultTopics), "log index %v topics size doesn't match", logIndex)
+				for topicIndex := range referenceTopics {
+					require.Equal(t, referenceTopics[topicIndex], resultTopics[topicIndex], fmt.Sprintf("log index %v topic index %v doesn't match", logIndex, topicIndex))
+				}
+			}
+		}
+	}
+
+	referenceCalls, found := referenceValueMap["calls"].([]interface{})
+	if found {
+		resultCalls := resultMap["calls"].([]interface{})
+		require.Equal(t, len(referenceCalls), len(resultCalls), "logs size doesn't match")
+		for callIndex := range referenceCalls {
+			referenceCall := referenceCalls[callIndex].(map[string]interface{})
+			resultCall := resultCalls[callIndex].(map[string]interface{})
+
+			compareCallFrame(t, referenceCall, resultCall, networkName)
+		}
+	}
+}
+
+func TestDebugTraceBlockCallTracer(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	const l2NetworkURL = "http://localhost:8124"
+	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	// defer func() {
+	// 	require.NoError(t, operations.Teardown())
+	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	// }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+	require.NoError(t, err)
+
+	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
+
+	networks := []struct {
+		Name         string
+		URL          string
+		WebSocketURL string
+		ChainID      uint64
+		PrivateKey   string
+	}{
+		{
+			Name:       l1NetworkName,
+			URL:        operations.DefaultL1NetworkURL,
+			ChainID:    operations.DefaultL1ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+		{
+			Name:       l2NetworkName,
+			URL:        l2NetworkURL,
+			ChainID:    operations.DefaultL2ChainID,
+			PrivateKey: operations.DefaultSequencerPrivateKey,
+		},
+	}
+
+	results := map[string]json.RawMessage{}
+
+	type testCase struct {
+		name              string
+		blockNumberOrHash string
+		prepare           func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error)
+		createSignedTx    func(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error)
+	}
+	testCases := []testCase{
+		// successful transactions
+		{name: "eth transfer by number", blockNumberOrHash: "number", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment by number", blockNumberOrHash: "number", createSignedTx: createScDeploySignedTx},
+		{name: "sc call by number", blockNumberOrHash: "number", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer by number", blockNumberOrHash: "number", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+
+		{name: "eth transfer by hash", blockNumberOrHash: "hash", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment by hash", blockNumberOrHash: "hash", createSignedTx: createScDeploySignedTx},
+		{name: "sc call by hash", blockNumberOrHash: "hash", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer by hash", blockNumberOrHash: "hash", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		// failed transactions
+		{name: "sc deployment reverted by number", blockNumberOrHash: "number", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted by number", blockNumberOrHash: "number", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted by number", blockNumberOrHash: "number", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+
+		{name: "sc deployment reverted by hash", blockNumberOrHash: "hash", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted by hash", blockNumberOrHash: "hash", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted by hash", blockNumberOrHash: "hash", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			log.Debug("************************ ", tc.name, " ************************")
+
+			for _, network := range networks {
+				log.Debug("------------------------ ", network.Name, " ------------------------")
+				ethereumClient := operations.MustGetClient(network.URL)
+				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+				var customData map[string]interface{}
+				if tc.prepare != nil {
+					customData, err = tc.prepare(t, ctx, auth, ethereumClient)
+					require.NoError(t, err)
+				}
+
+				signedTx, err := tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
+				require.NoError(t, err)
+
+				err = ethereumClient.SendTransaction(ctx, signedTx)
+				require.NoError(t, err)
+
+				log.Debugf("tx sent: %v", signedTx.Hash().String())
+
+				err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+					require.NoError(t, err)
+				}
+
+				receipt, err := ethereumClient.TransactionReceipt(ctx, signedTx.Hash())
+				require.NoError(t, err)
+
+				debugOptions := map[string]interface{}{
+					"tracer": "callTracer",
+					"tracerConfig": map[string]interface{}{
+						"onlyTopCall": false,
+						"withLog":     true,
+					},
+				}
+
+				var response types.Response
+				if tc.blockNumberOrHash == "number" {
+					response, err = client.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(receipt.BlockNumber), debugOptions)
+				} else {
+					response, err = client.JSONRPCCall(network.URL, "debug_traceBlockByHash", receipt.BlockHash.String(), debugOptions)
+				}
+				require.NoError(t, err)
+				require.Nil(t, response.Error)
+				require.NotNil(t, response.Result)
+
+				results[network.Name] = response.Result
+			}
+
+			referenceTransactions := []interface{}{}
+			err = json.Unmarshal(results[l1NetworkName], &referenceTransactions)
+			require.NoError(t, err)
+
+			for networkName, result := range results {
+				if networkName == l1NetworkName {
+					continue
+				}
+
+				resultTransactions := []interface{}{}
+				err = json.Unmarshal(result, &resultTransactions)
+				require.NoError(t, err)
+
+				for transactionIndex := range referenceTransactions {
+					referenceTransactionMap := referenceTransactions[transactionIndex].(map[string]interface{})
+					resultTransactionMap := resultTransactions[transactionIndex].(map[string]interface{})
+
+					compareCallFrame(t, referenceTransactionMap, resultTransactionMap, networkName)
+				}
+			}
+		})
+	}
+}

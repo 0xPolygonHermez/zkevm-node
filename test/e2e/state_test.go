@@ -39,9 +39,12 @@ func TestStateTransition(t *testing.T) {
 				State: &state.Config{
 					MaxCumulativeGasUsed: 800000,
 				},
-				Sequencer: &operations.SequencerConfig{
-					Address:    testCase.SequencerAddress,
-					PrivateKey: testCase.SequencerPrivateKey,
+				SequenceSender: &operations.SequenceSenderConfig{
+					SenderAddress:                            testCase.SequencerAddress,
+					LastBatchVirtualizationTimeMaxWaitPeriod: "5s",
+					WaitPeriodSendSequence:                   "5s",
+					MaxTxSizeForL1:                           131072,
+					PrivateKey:                               testCase.SequencerPrivateKey,
 				},
 			}
 			opsman, err := operations.NewManager(ctx, opsCfg)
@@ -51,7 +54,7 @@ func TestStateTransition(t *testing.T) {
 			for _, gacc := range testCase.GenesisAccounts {
 				genesisAccounts[gacc.Address] = gacc.Balance.Int
 			}
-			require.NoError(t, opsman.SetGenesis(genesisAccounts))
+			require.NoError(t, opsman.SetGenesisAccountsBalance(genesisAccounts))
 
 			// Check initial root
 			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedOldRoot))

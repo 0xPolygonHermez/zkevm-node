@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	host                      = "localhost"
-	maxRequestsPerIPAndSecond = 1000
+	maxRequestsPerIPAndSecond        = 1000
+	chainID                   uint64 = 1000
 )
 
 type mockedServer struct {
@@ -51,7 +51,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	st.On("RegisterNewL2BlockEventHandler", mock.IsType(newL2BlockEventHandler)).Once()
 
 	st.On("PrepareWebSocket").Once()
-	server := NewServer(cfg, pool, st, storage, apis)
+	server := NewServer(cfg, chainID, pool, st, storage, apis)
 
 	go func() {
 		err := server.Start()
@@ -92,12 +92,10 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 
 func getDefaultConfig() Config {
 	cfg := Config{
-		Host:                      host,
+		Host:                      "0.0.0.0",
 		Port:                      9123,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
-		DefaultSenderAddress:      "0x1111111111111111111111111111111111111111",
 		MaxCumulativeGasUsed:      300000,
-		ChainID:                   1000,
 	}
 	return cfg
 }
@@ -123,4 +121,8 @@ func (s *mockedServer) Stop() {
 
 func (s *mockedServer) JSONRPCCall(method string, parameters ...interface{}) (types.Response, error) {
 	return client.JSONRPCCall(s.ServerURL, method, parameters...)
+}
+
+func (s *mockedServer) ChainID() uint64 {
+	return chainID
 }

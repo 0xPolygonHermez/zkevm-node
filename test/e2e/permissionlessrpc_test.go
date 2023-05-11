@@ -82,6 +82,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 	// - assert: pendingNonce works as expected (force a scenario where the pool needs to be taken into consideration)
 	nTxsStep2 := 10
 	require.NoError(t, opsman.StopSequencer())
+	require.NoError(t, opsman.StopSequenceSender())
 	txsStep2 := make([]*types.Transaction, 0, nTxsStep2)
 	for i := 0; i < nTxsStep2; i++ {
 		tx := types.NewTransaction(nonceToBeUsedForNextTx, toAddress, amount, gasLimit, gasPrice, nil)
@@ -99,6 +100,8 @@ func TestPermissionlessJRPC(t *testing.T) {
 	// - assert: all transactions get virtualized WITHOUT L2 reorgs
 	require.NoError(t, opsman.StartSequencer())
 	require.NoError(t, opsman.StartEthTxSender())
+	require.NoError(t, opsman.StartSequenceSender())
+
 	lastL2BlockNumberStep1 := l2BlockNumbersStep1[len(l2BlockNumbersStep1)-1]
 	lastL2BlockNumberStep2 := lastL2BlockNumberStep1.Add(
 		lastL2BlockNumberStep1,

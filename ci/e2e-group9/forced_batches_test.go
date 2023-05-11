@@ -3,25 +3,22 @@ package e2e
 import (
 	"context"
 	"math/big"
-	"sync"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	gerFinalityBlocks = uint64(1)
 )
 
 func TestForcedBatches(t *testing.T) {
@@ -29,9 +26,45 @@ func TestForcedBatches(t *testing.T) {
 		t.Skip()
 	}
 
+	defer func() {
+		require.NoError(t, operations.Teardown())
+	}()
+
+	var err error
 	nTxs := 10
 	ctx := context.Background()
-	//defer func() { require.NoError(t, operations.Teardown()) }()
+	opsman, auth, client, amount, gasLimit, gasPrice, nonce := setupEnvironment(ctx, t)
+
+	txs := make([]*types.Transaction, 0, nTxs)
+	for i := 0; i < nTxs; i++ {
+		tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
+		nonce = nonce + 1
+		txs = append(txs, tx)
+	}
+
+	var l2BlockNumbers []*big.Int
+	l2BlockNumbers, err = operations.ApplyL2Txs(ctx, txs, auth, client, operations.VerifiedConfirmationLevel)
+	require.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+	amount = big.NewInt(0).Add(amount, big.NewInt(10))
+	unsignedTx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
+	signedTx, err := auth.Signer(auth.From, unsignedTx)
+	require.NoError(t, err)
+	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx})
+	require.NoError(t, err)
+	forcedBatch, err := sendForcedBatch(t, encodedTxs, opsman)
+	require.NoError(t, err)
+
+	// Checking if all txs sent before the forced batch were processed within previous closed batch
+	for _, l2blockNum := range l2BlockNumbers {
+		batch, err := opsman.State().GetBatchByL2BlockNumber(ctx, l2blockNum.Uint64(), nil)
+		require.NoError(t, err)
+		require.Less(t, batch.BatchNumber, forcedBatch.BatchNumber)
+	}
+}
+
+func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *bind.TransactOpts, *ethclient.Client, *big.Int, uint64, *big.Int, uint64) {
 
 	err := operations.Teardown()
 	require.NoError(t, err)
@@ -68,36 +101,10 @@ func TestForcedBatches(t *testing.T) {
 
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
-
-	txs := make([]*types.Transaction, 0, nTxs)
-	for i := 0; i < nTxs; i++ {
-		tx := types.NewTransaction(nonce+uint64(i), toAddress, amount, gasLimit, gasPrice, nil)
-		txs = append(txs, tx)
-	}
-
-	wgNormalL2Transfers := new(sync.WaitGroup)
-	wgNormalL2Transfers.Add(1)
-	var l2BlockNumbers []*big.Int
-	go func() {
-		defer wgNormalL2Transfers.Done()
-		l2BlockNumbers, err = operations.ApplyL2Txs(ctx, txs, auth, client, operations.VerifiedConfirmationLevel)
-		require.NoError(t, err)
-	}()
-
-	time.Sleep(2 * time.Second)
-	forcedBatch, err := sendForcedBatch(t, opsman)
-	require.NoError(t, err)
-	wgNormalL2Transfers.Wait()
-
-	// Checking if all txs sent before the forced batch were processed within previous closed batch
-	for _, l2blockNum := range l2BlockNumbers {
-		batch, err := opsman.State().GetBatchByL2BlockNumber(ctx, l2blockNum.Uint64(), nil)
-		require.NoError(t, err)
-		require.Less(t, batch.BatchNumber, forcedBatch.BatchNumber)
-	}
+	return opsman, auth, client, amount, gasLimit, gasPrice, nonce
 }
 
-func sendForcedBatch(t *testing.T, opsman *operations.Manager) (*state.Batch, error) {
+func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*state.Batch, error) {
 	ctx := context.Background()
 	st := opsman.State()
 	// Connect to ethereum node
@@ -122,13 +129,8 @@ func sendForcedBatch(t *testing.T, opsman *operations.Manager) (*state.Batch, er
 
 	log.Info("Number of forceBatches in the smc: ", num)
 
-	currentBlock, err := ethClient.BlockByNumber(ctx, nil)
-	require.NoError(t, err)
-
-	log.Debug("currentBlock.Time(): ", currentBlock.Time())
-
 	// Get tip
-	tip, err := zkEvm.BatchFee(&bind.CallOpts{Pending: false})
+	tip, err := zkEvm.GetForcedBatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 
 	managerAddress, err := zkEvm.GlobalExitRootManager(&bind.CallOpts{Pending: false})
@@ -141,12 +143,25 @@ func sendForcedBatch(t *testing.T, opsman *operations.Manager) (*state.Batch, er
 	require.NoError(t, err)
 	rootInContractHash := common.BytesToHash(rootInContract[:])
 
+	disallowed, err := zkEvm.IsForcedBatchDisallowed(&bind.CallOpts{Pending: false})
+	require.NoError(t, err)
+	if disallowed {
+		tx, err := zkEvm.ActivateForceBatches(auth)
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+	}
+
+	currentBlock, err := ethClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+
+	log.Debug("currentBlock.Time(): ", currentBlock.Time())
+
 	// Send forceBatch
-	tx, err := zkEvm.ForceBatch(auth, []byte{}, tip)
+	tx, err := zkEvm.ForceBatch(auth, txs, tip)
 	require.NoError(t, err)
 
 	log.Info("TxHash: ", tx.Hash())
-
 	time.Sleep(1 * time.Second)
 
 	err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
@@ -161,9 +176,14 @@ func sendForcedBatch(t *testing.T, opsman *operations.Manager) (*state.Batch, er
 
 	var forcedBatch *state.Batch
 	for _, vLog := range logs {
+		if vLog.Topics[0] != constants.ForcedBatchSignatureHash {
+			logs, err = ethClient.FilterLogs(ctx, query)
+			require.NoError(t, err)
+			continue
+		}
 		fb, err := zkEvm.ParseForceBatch(vLog)
 		if err != nil {
-			log.Fatal("failed to parse force batch log event, err: ", err)
+			log.Errorf("failed to parse force batch log event, err: ", err)
 		}
 		log.Debugf("log decoded: %+v", fb)
 		ger := fb.LastGlobalExitRoot
@@ -180,12 +200,15 @@ func sendForcedBatch(t *testing.T, opsman *operations.Manager) (*state.Batch, er
 			time.Sleep(1 * time.Second)
 			forcedBatch, err = st.GetBatchByForcedBatchNum(ctx, fb.ForceBatchNum, nil)
 		}
+		log.Info("ForcedBatchNum: ", forcedBatch.BatchNumber)
 		require.NoError(t, err)
 		require.NotNil(t, forcedBatch)
 
+		log.Info("Waiting for batch to be virtualized...")
 		err = operations.WaitBatchToBeVirtualized(forcedBatch.BatchNumber, 4*time.Minute, st)
 		require.NoError(t, err)
 
+		log.Info("Waiting for batch to be consolidated...")
 		err = operations.WaitBatchToBeConsolidated(forcedBatch.BatchNumber, 4*time.Minute, st)
 		require.NoError(t, err)
 

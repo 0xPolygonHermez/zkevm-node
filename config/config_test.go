@@ -54,10 +54,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
-			path:          "Sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",
-			expectedValue: types.NewDuration(5 * time.Second),
-		},
-		{
 			path:          "Sequencer.MaxTxsPerBatch",
 			expectedValue: uint64(150),
 		},
@@ -114,10 +110,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(3 * time.Hour),
 		},
 		{
-			path:          "Sequencer.MaxTxSizeForL1",
-			expectedValue: uint64(131072),
-		},
-		{
 			path:          "Sequencer.WeightBatchBytesSize",
 			expectedValue: 1,
 		},
@@ -154,15 +146,15 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 1,
 		},
 		{
-			path:          "Sequencer.Finalizer.GERDeadlineTimeoutInSec",
+			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeoutInSec",
+			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeout",
 			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.SleepDurationInMs",
+			path:          "Sequencer.Finalizer.SleepDuration",
 			expectedValue: types.NewDuration(100 * time.Millisecond),
 		},
 		{
@@ -206,6 +198,18 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: float64(1000),
 		},
 		{
+			path:          "SequenceSender.WaitPeriodSendSequence",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "SequenceSender.MaxTxSizeForL1",
+			expectedValue: uint64(131072),
+		},
+		{
 			path:          "Etherman.URL",
 			expectedValue: "http://localhost:8545",
 		},
@@ -227,7 +231,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Etherman.MultiGasProvider",
-			expectedValue: true,
+			expectedValue: false,
 		},
 		{
 			path:          "EthTxManager.FrequencyToMonitorTxs",
@@ -291,11 +295,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Pool.MaxTxBytesSize",
-			expectedValue: uint64(30132),
+			expectedValue: uint64(100132),
 		},
 		{
 			path:          "Pool.MaxTxDataBytesSize",
-			expectedValue: 30000,
+			expectedValue: 100000,
 		},
 
 		{
@@ -344,15 +348,15 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.Port",
-			expectedValue: int(8123),
+			expectedValue: int(8545),
 		},
 		{
-			path:          "RPC.ReadTimeoutInSec",
-			expectedValue: time.Duration(60),
+			path:          "RPC.ReadTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
-			path:          "RPC.WriteTimeoutInSec",
-			expectedValue: time.Duration(60),
+			path:          "RPC.WriteTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
 			path:          "RPC.SequencerNodeURI",
@@ -360,24 +364,23 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.MaxRequestsPerIPAndSecond",
-			expectedValue: float64(50),
+			expectedValue: float64(500),
 		},
-		{
-			path:          "RPC.DefaultSenderAddress",
-			expectedValue: "0x1111111111111111111111111111111111111111",
-		},
-		{
-			path:          "RPC.WebSockets.Enabled",
-			expectedValue: true,
-		},
-
 		{
 			path:          "RPC.EnableL2SuggestedGasPricePolling",
 			expectedValue: true,
 		},
 		{
+			path:          "RPC.WebSockets.Enabled",
+			expectedValue: true,
+		},
+		{
+			path:          "RPC.WebSockets.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
 			path:          "RPC.WebSockets.Port",
-			expectedValue: 8124,
+			expectedValue: int(8546),
 		},
 		{
 			path:          "Executor.URI",

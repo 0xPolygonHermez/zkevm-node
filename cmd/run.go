@@ -29,6 +29,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
+	"github.com/0xPolygonHermez/zkevm-node/sequencesender"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	executorpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
@@ -118,15 +119,17 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 	// Read Fork ID FROM POE SC
-	forkIDIntervals, err := etherman.GetForks(cliCtx.Context)
-	if err != nil || len(forkIDIntervals) == 0 {
-		log.Fatal("error getting forks: ", err)
+	forkIDIntervals, err := etherman.GetForks(cliCtx.Context, c.NetworkConfig.Genesis.GenesisBlockNum)
+	if err != nil {
+		log.Fatal("error getting forks. Please check the configuration. Error: ", err)
+	} else if len(forkIDIntervals) == 0 {
+		log.Fatal("error: no forkID received. It should receive at least one, please check the configuration...")
 	}
+
 	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
 
 	c.Aggregator.ChainID = l2ChainID
 	c.Aggregator.ForkId = currentForkID
-	c.RPC.ChainID = l2ChainID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
@@ -146,6 +149,8 @@ func start(cliCtx *cli.Context) error {
 		EventID:    event.EventID_NodeComponentStarted,
 	}
 
+	var poolInstance *pool.Pool
+
 	for _, component := range components {
 		switch component {
 		case AGGREGATOR:
@@ -163,9 +168,23 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			if poolInstance == nil {
+				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			}
 			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st, eventLog)
 			go seq.Start(ctx)
+		case SEQUENCE_SENDER:
+			ev.Component = event.Component_Sequence_Sender
+			ev.Description = "Running sequence sender"
+			err := eventLog.LogEvent(ctx, ev)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if poolInstance == nil {
+				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			}
+			seqSender := createSequenceSender(*c, poolInstance, ethTxManagerStorage, st, eventLog)
+			go seqSender.Start(ctx)
 		case RPC:
 			ev.Component = event.Component_RPC
 			ev.Description = "Running JSON-RPC server"
@@ -173,7 +192,9 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			if poolInstance == nil {
+				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			}
 			if c.RPC.EnableL2SuggestedGasPricePolling {
 				// Needed for rejecting transactions with too low gas price
 				poolInstance.StartPollingMinSuggestedGasPrice(ctx)
@@ -182,7 +203,7 @@ func start(cliCtx *cli.Context) error {
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
 			}
-			go runJSONRPCServer(*c, poolInstance, st, apis)
+			go runJSONRPCServer(*c, l2ChainID, poolInstance, st, apis)
 		case SYNCHRONIZER:
 			ev.Component = event.Component_Synchronizer
 			ev.Description = "Running synchronizer"
@@ -190,7 +211,9 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			if poolInstance == nil {
+				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			}
 			go runSynchronizer(*c, etherman, etm, st, poolInstance)
 		case ETHTXMANAGER:
 			ev.Component = event.Component_EthTxManager
@@ -208,7 +231,9 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			poolInstance := createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			if poolInstance == nil {
+				poolInstance = createPool(c.Pool, c.NetworkConfig.L2BridgeAddr, l2ChainID, st, eventLog)
+			}
 			go runL2GasPriceSuggester(c.L2GasPriceSuggester, st, poolInstance, etherman)
 		}
 	}
@@ -289,11 +314,11 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 	}
 }
 
-func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, apis map[string]bool) {
+func runJSONRPCServer(c config.Config, chainID uint64, pool *pool.Pool, st *state.State, apis map[string]bool) {
 	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
 
-	if err := jsonrpc.NewServer(c.RPC, pool, st, storage, apis).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, chainID, pool, st, storage, apis).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -304,7 +329,22 @@ func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanage
 		log.Fatal(err)
 	}
 
-	for _, privateKey := range cfg.Sequencer.Finalizer.PrivateKeys {
+	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
+
+	seq, err := sequencer.New(cfg.Sequencer, pool, st, etherman, ethTxManager, eventLog)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return seq
+}
+
+func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencesender.SequenceSender {
+	etherman, err := newEtherman(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, privateKey := range cfg.SequenceSender.PrivateKeys {
 		_, err := etherman.LoadAuthFromKeyStore(privateKey.Path, privateKey.Password)
 		if err != nil {
 			log.Fatal(err)
@@ -313,11 +353,12 @@ func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanage
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
-	seq, err := sequencer.New(cfg.Sequencer, pool, st, etherman, ethTxManager, eventLog)
+	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return seq
+
+	return seqSender
 }
 
 func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
