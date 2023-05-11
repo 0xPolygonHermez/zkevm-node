@@ -54,7 +54,7 @@ func TestStateTransition(t *testing.T) {
 			for _, gacc := range testCase.GenesisAccounts {
 				genesisAccounts[gacc.Address] = gacc.Balance.Int
 			}
-			require.NoError(t, opsman.SetGenesis(genesisAccounts))
+			require.NoError(t, opsman.SetGenesisAccountsBalance(genesisAccounts))
 
 			// Check initial root
 			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedOldRoot))

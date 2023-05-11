@@ -81,7 +81,7 @@ TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 	[Sequencer.Finalizer]
 		GERDeadlineTimeout = "1s"
-		ForcedBatchDeadlineTimeout = "60s"
+		ForcedBatchDeadlineTimeout = "1s"
 		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 0

@@ -110,6 +110,27 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 		log.Error("error getting tip. Error: ", err)
 		return err
 	}
+
+	// Allow forced batches in smart contract if disallowed
+	disallowed, err := poe.IsForcedBatchDisallowed(&bind.CallOpts{Pending: false})
+	if err != nil {
+		log.Error("error getting isForcedBatchDisallowed. Error: ", err)
+		return err
+	}
+	if disallowed {
+		tx, err := poe.ActivateForceBatches(auth)
+		if err != nil {
+			log.Error("error sending activateForceBatches. Error: ", err)
+			return err
+		}
+		err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
+		if err != nil {
+
+			log.Error("error waiting tx to be mined. Error: ", err)
+			return err
+		}
+	}
+
 	// Send forceBatch
 	tx, err := poe.ForceBatch(auth, []byte{}, tip)
 	if err != nil {

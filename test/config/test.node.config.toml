@@ -82,7 +82,7 @@ TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 	[Sequencer.Finalizer]
 		GERDeadlineTimeout = "2s"
-		ForcedBatchDeadlineTimeout = "60s"
+		ForcedBatchDeadlineTimeout = "5s"
 		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 0
@@ -109,7 +109,7 @@ Host = "0.0.0.0"
 Port = 50081
 ForkId = 2
 RetryTime = "5s"
-VerifyProofInterval = "30s"
+VerifyProofInterval = "10s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"

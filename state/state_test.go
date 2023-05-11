@@ -1604,7 +1604,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 // 			storage[address][storageKey] = storageValue
 
 // 			// Currently the test vector includes storage values in base10 format,
-// 			// our SetGenesis requires base16 values.
+// 			// our SetGenesisAccountsBalance requires base16 values.
 // 			item.Value = hex.EncodeBig(storageValue)
 // 		}
 // 	}
@@ -1624,7 +1624,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 
 // 	dbTx, err := testState.BeginStateTransaction(ctx)
 // 	require.NoError(t, err)
-// 	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+// 	stateRoot, err := testState.SetGenesisAccountsBalance(ctx, block, genesis, dbTx)
 // 	require.NoError(t, err)
 // 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1940,7 +1940,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	stateRoot, err := testState.SetGenesisAccountsBalance(ctx, block, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -2013,7 +2013,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 
 		dbTx, err := testState.BeginStateTransaction(ctx)
 		require.NoError(t, err)
-		stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+		stateRoot, err := testState.SetGenesisAccountsBalance(ctx, block, genesis, dbTx)
 		require.NoError(t, err)
 		require.NoError(t, dbTx.Commit(ctx))
 
@@ -2292,7 +2292,7 @@ func TestExecutorGasRefund(t *testing.T) {
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	stateRoot, err := testState.SetGenesisAccountsBalance(ctx, block, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 

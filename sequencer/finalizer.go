@@ -396,7 +396,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	return nil
 }
 
-// handleTxProcessResp handles the response of a successful transaction processing.
+// handleTxProcessResp handles the response of transaction processing.
 func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) error {
 	// Handle Transaction Error
 	if result.Responses[0].RomError != nil && !errors.Is(result.Responses[0].RomError, runtime.ErrExecutionReverted) {
@@ -411,25 +411,50 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 	}
 
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
-	f.storeProcessedTx(ctx, oldStateRoot, tx, result)
-	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, 1)
+	f.storeProcessedTx(f.batch.batchNumber, f.batch.coinbase, f.batch.timestamp, oldStateRoot, result.Responses[0], false)
+	f.batch.countOfTxs++
+	f.updateWorkerAfterTxStored(ctx, tx, result)
 
 	return nil
 }
 
-func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRoot common.Hash, tx *TxTracker, result *state.ProcessBatchResponse) {
-	log.Infof("storeProcessedTx: storing processed tx: %s", tx.Hash.String())
-	f.txsStore.Wg.Wait()
-	txResponse := result.Responses[0]
-	f.txsStore.Wg.Add(1)
-	f.txsStore.Ch <- &txToStore{
-		batchNumber:              f.batch.batchNumber,
-		txResponse:               txResponse,
-		coinbase:                 f.batch.coinbase,
-		timestamp:                uint64(f.batch.timestamp.Unix()),
-		previousL2BlockStateRoot: previousL2BlockStateRoot,
+// handleForcedBatchProcessResp handles the response of forced transaction processing.
+func (f *finalizer) handleForcedBatchProcessResp(request state.ProcessRequest, result *state.ProcessBatchResponse, oldStateRoot common.Hash) error {
+	log.Infof("handleForcedBatchProcessResp: batchNumber: %d, oldStateRoot: %s, newStateRoot: %s", request.BatchNumber, oldStateRoot.String(), result.NewStateRoot.String())
+	for _, txResp := range result.Responses {
+		// Handle Transaction Error
+		if txResp.RomError != nil && !errors.Is(txResp.RomError, runtime.ErrExecutionReverted) {
+			errorCode := executor.RomErrorCode(txResp.RomError)
+			if executor.IsROMOutOfCountersError(errorCode) {
+				log.Warnf("handleForcedBatchProcessResp: ROM out of counters error: %s", txResp.RomError)
+				return txResp.RomError
+			}
+			continue
+		}
+
+		// Store the processed transaction, add it to the batch and update status in the pool atomically
+		f.storeProcessedTx(request.BatchNumber, request.Coinbase, request.Timestamp, oldStateRoot, txResp, true)
 	}
 
+	return nil
+}
+
+func (f *finalizer) storeProcessedTx(batchNum uint64, coinbase common.Address, timestamp time.Time, previousL2BlockStateRoot common.Hash, txResponse *state.ProcessTransactionResponse, isForcedBatch bool) {
+	log.Infof("storeProcessedTx: storing processed tx: %s", txResponse.TxHash.String())
+	f.txsStore.Wg.Wait()
+	f.txsStore.Wg.Add(1)
+	f.txsStore.Ch <- &txToStore{
+		batchNumber:              batchNum,
+		txResponse:               txResponse,
+		coinbase:                 coinbase,
+		timestamp:                uint64(timestamp.Unix()),
+		previousL2BlockStateRoot: previousL2BlockStateRoot,
+		isForcedBatch:            isForcedBatch,
+	}
+	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, 1)
+}
+
+func (f *finalizer) updateWorkerAfterTxStored(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) {
 	// Delete the transaction from the efficiency list
 	f.worker.DeleteTx(tx.Hash, tx.From)
 	log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
@@ -445,7 +470,6 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, previousL2BlockStateRo
 		}
 	}
 	metrics.WorkerProcessingTime(time.Since(start))
-	f.batch.countOfTxs += 1
 }
 
 // handleTransactionError handles the error of a transaction
@@ -610,11 +634,11 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInS
 		}
 		// Process in-between unprocessed forced batches
 		for forcedBatch.ForcedBatchNumber > nextForcedBatchNum {
-			lastBatchNumberInState, stateRoot = f.processForcedBatch(lastBatchNumberInState, stateRoot, forcedBatch)
+			lastBatchNumberInState, stateRoot = f.processForcedBatch(ctx, lastBatchNumberInState, stateRoot, forcedBatch)
 			nextForcedBatchNum += 1
 		}
 		// Process the current forced batch from the channel queue
-		lastBatchNumberInState, stateRoot = f.processForcedBatch(lastBatchNumberInState, stateRoot, forcedBatch)
+		lastBatchNumberInState, stateRoot = f.processForcedBatch(ctx, lastBatchNumberInState, stateRoot, forcedBatch)
 		nextForcedBatchNum += 1
 	}
 	f.nextForcedBatches = make([]state.ForcedBatch, 0)
@@ -622,8 +646,8 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInS
 	return lastBatchNumberInState, stateRoot, nil
 }
 
-func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot common.Hash, forcedBatch state.ForcedBatch) (uint64, common.Hash) {
-	processRequest := state.ProcessRequest{
+func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInState uint64, stateRoot common.Hash, forcedBatch state.ForcedBatch) (uint64, common.Hash) {
+	request := state.ProcessRequest{
 		BatchNumber:    lastBatchNumberInState + 1,
 		OldStateRoot:   stateRoot,
 		GlobalExitRoot: forcedBatch.GlobalExitRoot,
@@ -632,17 +656,22 @@ func (f *finalizer) processForcedBatch(lastBatchNumberInState uint64, stateRoot 
 		Timestamp:      now(),
 		Caller:         stateMetrics.SequencerCallerLabel,
 	}
-	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, processRequest)
-	if err != nil {
-		log.Warnf("failed to process forced batch, err: %s", err)
+	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, request)
+	if err != nil || !response.IsBatchProcessed {
+		f.halt(ctx, fmt.Errorf("failed to process forced batch, Executor err: %w", err))
+		return lastBatchNumberInState, stateRoot
 	}
 
+	stateRoot = response.NewStateRoot
+	lastBatchNumberInState += 1
 	f.nextGERMux.Lock()
 	f.lastGERHash = forcedBatch.GlobalExitRoot
 	f.nextGERMux.Unlock()
 
-	stateRoot = response.NewStateRoot
-	lastBatchNumberInState += 1
+	err = f.handleForcedBatchProcessResp(request, response, stateRoot)
+	if err != nil {
+		return lastBatchNumberInState, stateRoot
+	}
 
 	return lastBatchNumberInState, stateRoot
 }

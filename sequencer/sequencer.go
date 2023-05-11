@@ -81,6 +81,7 @@ type txToStore struct {
 	coinbase                 common.Address
 	timestamp                uint64
 	previousL2BlockStateRoot common.Hash
+	isForcedBatch            bool
 }
 
 // New init sequencer
