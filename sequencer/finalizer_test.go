@@ -97,6 +97,8 @@ func TestNewFinalizer(t *testing.T) {
 	require.NoError(t, err)
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
+	dbManagerMock.On("GetLatestFlushID", context.Background()).Return(uint64(0), nil)
+
 	// arrange and act
 	f = newFinalizer(cfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, txsStore, bc, eventLog)
 
