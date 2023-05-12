@@ -311,11 +311,13 @@ func (f *finalizer) storeProcessedTransactions(ctx context.Context) {
 				}
 
 				txsToSaveCount = len(f.processedTransactions)
-				if txsToSaveCount > 0 {
-					f.processedTransactionsMux.Lock()
+				f.processedTransactionsMux.Lock()
+				if txsToSaveCount > 1 {
 					f.processedTransactions = f.processedTransactions[1:]
-					f.processedTransactionsMux.Unlock()
+				} else {
+					f.processedTransactions = []processedTransaction{}
 				}
+				f.processedTransactionsMux.Unlock()
 			}
 
 			if txsToSaveCount > 0 {
