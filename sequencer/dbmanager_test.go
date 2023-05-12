@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -74,12 +73,6 @@ func setupDBManager() {
 		GERCh:         make(chan common.Hash),
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
-
-	txsStore := TxsStore{
-		Ch: make(chan *txToStore),
-		Wg: new(sync.WaitGroup),
-	}
-
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       150,
 		MaxBatchBytesSize:    129848,
@@ -93,7 +86,7 @@ func setupDBManager() {
 		MaxSteps:             8388608,
 	}
 
-	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
+	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, batchConstraints)
 }
 
 func initOrResetDB() {

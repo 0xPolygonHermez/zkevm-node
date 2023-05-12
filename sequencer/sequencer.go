@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
@@ -68,12 +67,6 @@ type ClosingSignalCh struct {
 	L2ReorgCh     chan L2ReorgEvent
 }
 
-// TxsStore is a struct that contains the channel and the wait group for the txs to be stored in order
-type TxsStore struct {
-	Ch chan *txToStore
-	Wg *sync.WaitGroup
-}
-
 // txToStore represents a transaction to store.
 type txToStore struct {
 	txResponse               *state.ProcessTransactionResponse
@@ -116,11 +109,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 
-	txsStore := TxsStore{
-		Ch: make(chan *txToStore),
-		Wg: new(sync.WaitGroup),
-	}
-
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       s.cfg.MaxTxsPerBatch,
 		MaxBatchBytesSize:    s.cfg.MaxBatchBytesSize,
@@ -151,10 +139,10 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights)
-	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
+	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, batchConstraints)
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints, s.eventLog)
+	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, batchConstraints, s.eventLog)
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 

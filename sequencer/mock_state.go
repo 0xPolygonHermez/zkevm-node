@@ -442,6 +442,30 @@ func (_m *StateMock) GetLastNBatches(ctx context.Context, numBatches uint, dbTx 
 	return r0, r1
 }
 
+// GetLastSentFlushID provides a mock function with given fields: ctx
+func (_m *StateMock) GetLastSentFlushID(ctx context.Context) (uint64, error) {
+	ret := _m.Called(ctx)
+
+	var r0 uint64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (uint64, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLastStateRoot provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -509,30 +533,6 @@ func (_m *StateMock) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (u
 
 	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
 		r1 = rf(ctx, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetLatestFlushID provides a mock function with given fields: ctx
-func (_m *StateMock) GetLatestFlushID(ctx context.Context) (uint64, error) {
-	ret := _m.Called(ctx)
-
-	var r0 uint64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (uint64, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Get(0).(uint64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -41,10 +41,6 @@ var (
 		MaxBinaries:          262144,
 		MaxSteps:             8388608,
 	}
-	txsStore = TxsStore{
-		Ch: make(chan *txToStore, 1),
-		Wg: new(sync.WaitGroup),
-	}
 	closingSignalCh = ClosingSignalCh{
 		ForcedBatchCh: make(chan state.ForcedBatch),
 		GERCh:         make(chan common.Hash),
@@ -97,10 +93,10 @@ func TestNewFinalizer(t *testing.T) {
 	require.NoError(t, err)
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	dbManagerMock.On("GetLatestFlushID", context.Background()).Return(uint64(0), nil)
+	dbManagerMock.On("GetLastSentFlushID", context.Background()).Return(uint64(0), nil)
 
 	// arrange and act
-	f = newFinalizer(cfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, txsStore, bc, eventLog)
+	f = newFinalizer(cfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, bc, eventLog)
 
 	// assert
 	assert.NotNil(t, f)
@@ -110,7 +106,6 @@ func TestNewFinalizer(t *testing.T) {
 	assert.Equal(t, f.executor, executorMock)
 	assert.Equal(t, f.sequencerAddress, seqAddr)
 	assert.Equal(t, f.closingSignalCh, closingSignalCh)
-	assert.Equal(t, f.txsStore, txsStore)
 	assert.Equal(t, f.batchConstraints, bc)
 }
 
@@ -1056,7 +1051,6 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 	}
 	return &finalizer{
 		cfg:                cfg,
-		txsStore:           txsStore,
 		closingSignalCh:    closingSignalCh,
 		isSynced:           isSynced,
 		sequencerAddress:   seqAddr,

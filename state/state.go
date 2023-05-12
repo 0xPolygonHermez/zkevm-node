@@ -142,8 +142,8 @@ func (s *State) FlushMerkleTree(ctx context.Context) error {
 	return s.tree.Flush(ctx)
 }
 
-// GetLatestFlushID returns the last flush ID
-func (s *State) GetLatestFlushID(ctx context.Context) (uint64, error) {
+// GetLastSentFlushID returns the last flush ID
+func (s *State) GetLastSentFlushID(ctx context.Context) (uint64, error) {
 	if s.executorClient == nil {
 		return 0, ErrExecutorNil
 	}

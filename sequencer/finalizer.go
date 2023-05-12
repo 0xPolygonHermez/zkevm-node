@@ -30,7 +30,6 @@ var (
 // finalizer represents the finalizer component of the sequencer.
 type finalizer struct {
 	cfg                FinalizerCfg
-	txsStore           TxsStore
 	closingSignalCh    ClosingSignalCh
 	isSynced           func(ctx context.Context) bool
 	sequencerAddress   common.Address
@@ -52,12 +51,12 @@ type finalizer struct {
 	handlingL2Reorg         bool
 	eventLog                *event.EventLog
 	// Processed txs
-	processedTransactions    []processedTransaction
-	processedTransactionsMux *sync.RWMutex
-	latestFlushID            uint64
+	pendingTransactionsToStore    []transactionToStore
+	pendingTransactionsToStoreMux *sync.RWMutex
+	latestFlushIDSent             uint64
 }
 
-type processedTransaction struct {
+type transactionToStore struct {
 	txTracker     *TxTracker
 	response      *state.ProcessTransactionResponse
 	batchResponse *state.ProcessBatchResponse
@@ -96,18 +95,11 @@ func newFinalizer(
 	sequencerAddr common.Address,
 	isSynced func(ctx context.Context) bool,
 	closingSignalCh ClosingSignalCh,
-	txsStore TxsStore,
 	batchConstraints batchConstraints,
 	eventLog *event.EventLog,
 ) *finalizer {
-	latestFlushID, err := dbManager.GetLatestFlushID(context.Background())
-	if err != nil {
-		log.Errorf("failed to get latest flush id, Err: %v", err)
-	}
-
 	return &finalizer{
 		cfg:                cfg,
-		txsStore:           txsStore,
 		closingSignalCh:    closingSignalCh,
 		isSynced:           isSynced,
 		sequencerAddress:   sequencerAddr,
@@ -120,16 +112,15 @@ func newFinalizer(
 		sharedResourcesMux: new(sync.RWMutex),
 		lastGERHash:        state.ZeroHash,
 		// closing signals
-		nextGER:                  common.Hash{},
-		nextGERDeadline:          0,
-		nextGERMux:               new(sync.RWMutex),
-		nextForcedBatches:        make([]state.ForcedBatch, 0),
-		nextForcedBatchDeadline:  0,
-		nextForcedBatchesMux:     new(sync.RWMutex),
-		eventLog:                 eventLog,
-		processedTransactions:    make([]processedTransaction, 0),
-		processedTransactionsMux: new(sync.RWMutex),
-		latestFlushID:            latestFlushID,
+		nextGER:                       common.Hash{},
+		nextGERDeadline:               0,
+		nextGERMux:                    new(sync.RWMutex),
+		nextForcedBatches:             make([]state.ForcedBatch, 0),
+		nextForcedBatchDeadline:       0,
+		nextForcedBatchesMux:          new(sync.RWMutex),
+		eventLog:                      eventLog,
+		pendingTransactionsToStore:    make([]transactionToStore, 0),
+		pendingTransactionsToStoreMux: new(sync.RWMutex),
 	}
 }
 
@@ -154,8 +145,8 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 	// Closing signals receiver
 	go f.listenForClosingSignals(ctx)
 
-	// Store Processed transactions
-	go f.storeProcessedTransactions(ctx)
+	// Store Pending transactions
+	go f.storePendingTransactions(ctx)
 
 	// Processing transactions and finalizing batches
 	f.finalizeBatches(ctx)
@@ -270,7 +261,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 	defer func() {
 		metrics.ProcessingTime(time.Since(start))
 	}()
-	f.txsStore.Wg.Wait()
+
 	var err error
 	f.batch, err = f.newWIPBatch(ctx)
 	for err != nil {
@@ -301,38 +292,45 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 	}
 }
 
-func (f *finalizer) storeProcessedTransactions(ctx context.Context) {
+func (f *finalizer) storePendingTransactions(ctx context.Context) {
+	latestFlushID, err := f.dbManager.GetLastSentFlushID(ctx)
+	if err != nil {
+		log.Errorf("failed to get latest flush id, Err: %v", err)
+	} else {
+		f.latestFlushIDSent = latestFlushID
+	}
 	for {
-		txsToSaveCount := len(f.processedTransactions)
+		txsToStoreCount := len(f.pendingTransactionsToStore)
 		// Save CPU cycles if there is nothing to save
-		if txsToSaveCount == 0 {
+		if txsToStoreCount == 0 {
 			time.Sleep(100 * time.Millisecond) //nolint:gomnd
 		} else {
-			for txsToSaveCount > 0 && f.processedTransactions[0].flushId <= f.latestFlushID {
-				tx := f.processedTransactions[0]
-				f.storeProcessedTx(tx.batchNumber, tx.coinbase, tx.timestamp, tx.oldStateRoot, tx.response, tx.isForcedBatch)
+			for txsToStoreCount > 0 && f.pendingTransactionsToStore[0].flushId <= f.latestFlushIDSent {
+				tx := f.pendingTransactionsToStore[0]
+				f.storeProcessedTx(ctx, tx.batchNumber, tx.coinbase, tx.timestamp, tx.oldStateRoot, tx.response, tx.isForcedBatch)
 
 				if tx.txTracker != nil {
 					f.updateWorkerAfterTxStored(ctx, tx.txTracker, tx.batchResponse)
 				}
 
-				txsToSaveCount = len(f.processedTransactions)
-				f.processedTransactionsMux.Lock()
-				if txsToSaveCount > 1 {
-					f.processedTransactions = f.processedTransactions[1:]
+				f.pendingTransactionsToStoreMux.Lock()
+				txsToStoreCount = len(f.pendingTransactionsToStore)
+				if txsToStoreCount > 1 {
+					f.pendingTransactionsToStore = f.pendingTransactionsToStore[1:]
 				} else {
-					txsToSaveCount = 0
-					f.processedTransactions = []processedTransaction{}
+					f.pendingTransactionsToStore = []transactionToStore{}
 				}
-				f.processedTransactionsMux.Unlock()
+				f.pendingTransactionsToStoreMux.Unlock()
+				txsToStoreCount = txsToStoreCount - 1
 			}
 
-			if txsToSaveCount > 0 {
-				latestFlushID, err := f.dbManager.GetLatestFlushID(ctx)
+			if txsToStoreCount > 0 {
+				time.Sleep(100 * time.Millisecond) //nolint:gomnd
+				latestFlushID, err := f.dbManager.GetLastSentFlushID(ctx)
 				if err != nil {
 					log.Errorf("failed to get latest flush id, Err: %v", err)
 				} else {
-					f.latestFlushID = latestFlushID
+					f.latestFlushIDSent = latestFlushID
 				}
 			}
 		}
@@ -345,7 +343,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	defer f.sharedResourcesMux.Unlock()
 
 	// Wait until all processed transactions are saved
-	for len(f.processedTransactions) > 0 {
+	for len(f.pendingTransactionsToStore) > 0 {
 		log.Debug("waiting for processed transactions to be saved...")
 		time.Sleep(100 * time.Millisecond) //nolint:gomnd
 	}
@@ -451,7 +449,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	}
 
 	// Update latestFlushID
-	f.latestFlushID = result.LastSentFlushID
+	f.latestFlushIDSent = result.LastSentFlushID
 
 	oldStateRoot := f.batch.stateRoot
 	if len(result.Responses) > 0 && tx != nil {
@@ -484,7 +482,7 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 		return err
 	}
 
-	processedTransaction := processedTransaction{
+	processedTransaction := transactionToStore{
 		txTracker:     tx,
 		response:      result.Responses[0],
 		batchResponse: result,
@@ -495,9 +493,9 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 		isForcedBatch: false,
 		flushId:       result.FlushID,
 	}
-	f.processedTransactionsMux.Lock()
-	f.processedTransactions = append(f.processedTransactions, processedTransaction)
-	f.processedTransactionsMux.Unlock()
+	f.pendingTransactionsToStoreMux.Lock()
+	f.pendingTransactionsToStore = append(f.pendingTransactionsToStore, processedTransaction)
+	f.pendingTransactionsToStoreMux.Unlock()
 
 	f.batch.countOfTxs++
 
@@ -522,7 +520,7 @@ func (f *finalizer) handleForcedBatchProcessResp(request state.ProcessRequest, r
 			continue
 		}
 
-		processedTransaction := processedTransaction{
+		processedTransaction := transactionToStore{
 			txTracker:     nil,
 			response:      txResp,
 			batchResponse: nil,
@@ -533,25 +531,27 @@ func (f *finalizer) handleForcedBatchProcessResp(request state.ProcessRequest, r
 			isForcedBatch: true,
 			flushId:       result.FlushID,
 		}
-		f.processedTransactionsMux.Lock()
-		f.processedTransactions = append(f.processedTransactions, processedTransaction)
-		f.processedTransactionsMux.Unlock()
+		f.pendingTransactionsToStoreMux.Lock()
+		f.pendingTransactionsToStore = append(f.pendingTransactionsToStore, processedTransaction)
+		f.pendingTransactionsToStoreMux.Unlock()
 	}
 
 	return nil
 }
 
-func (f *finalizer) storeProcessedTx(batchNum uint64, coinbase common.Address, timestamp time.Time, previousL2BlockStateRoot common.Hash, txResponse *state.ProcessTransactionResponse, isForcedBatch bool) {
+func (f *finalizer) storeProcessedTx(ctx context.Context, batchNum uint64, coinbase common.Address, timestamp time.Time, previousL2BlockStateRoot common.Hash, txResponse *state.ProcessTransactionResponse, isForcedBatch bool) {
 	log.Infof("storeProcessedTx: storing processed tx: %s", txResponse.TxHash.String())
-	f.txsStore.Wg.Wait()
-	f.txsStore.Wg.Add(1)
-	f.txsStore.Ch <- &txToStore{
+	txToStore := &txToStore{
 		batchNumber:              batchNum,
 		txResponse:               txResponse,
 		coinbase:                 coinbase,
 		timestamp:                uint64(timestamp.Unix()),
 		previousL2BlockStateRoot: previousL2BlockStateRoot,
 		isForcedBatch:            isForcedBatch,
+	}
+	err := f.dbManager.StoreProcessedTxAndDeleteFromPool(ctx, txToStore)
+	if err != nil {
+		log.Fatalf("StoreProcessedTxAndDeleteFromPool: failed to store processed tx: %s", err)
 	}
 	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, 1)
 }
@@ -642,7 +642,6 @@ func (f *finalizer) handleTransactionError(ctx context.Context, result *state.Pr
 func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) error {
 	f.sharedResourcesMux.Lock()
 	defer f.sharedResourcesMux.Unlock()
-	f.txsStore.Wg.Wait()
 
 	var lastBatch *state.Batch
 	var err error
@@ -760,7 +759,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		return lastBatchNumberInState, stateRoot
 	}
 
-	f.latestFlushID = response.LastSentFlushID
+	f.latestFlushIDSent = response.LastSentFlushID
 
 	stateRoot = response.NewStateRoot
 	lastBatchNumberInState += 1
