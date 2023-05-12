@@ -303,19 +303,26 @@ func (f *finalizer) storeProcessedTransactions(ctx context.Context) {
 			time.Sleep(100 * time.Millisecond) //nolint:gomnd
 		} else {
 			f.processedTransactionsMux.Lock()
-			for txsToSaveCount > 0 {
-				for i := 0; i < txsToSaveCount && f.processedTransactions[i].flushId <= f.latestFlushID; {
-					tx := f.processedTransactions[i]
-					f.storeProcessedTx(tx.batchNumber, tx.coinbase, tx.timestamp, tx.oldStateRoot, tx.response, tx.isForcedBatch)
+			for i := 0; i < txsToSaveCount && f.processedTransactions[i].flushId <= f.latestFlushID; {
+				tx := f.processedTransactions[i]
+				f.storeProcessedTx(tx.batchNumber, tx.coinbase, tx.timestamp, tx.oldStateRoot, tx.response, tx.isForcedBatch)
 
-					if tx.txTracker != nil {
-						f.updateWorkerAfterTxStored(ctx, tx.txTracker, tx.batchResponse)
-					}
+				if tx.txTracker != nil {
+					f.updateWorkerAfterTxStored(ctx, tx.txTracker, tx.batchResponse)
+				}
 
-					txsToSaveCount--
-					if txsToSaveCount > 0 {
-						f.processedTransactions = f.processedTransactions[i+1:]
-					}
+				txsToSaveCount--
+				if txsToSaveCount > 0 {
+					f.processedTransactions = f.processedTransactions[i+1:]
+				}
+			}
+
+			if txsToSaveCount > 0 {
+				latestFlushID, err := f.dbManager.GetLatestFlushID(ctx)
+				if err != nil {
+					log.Errorf("failed to get latest flush id, Err: %v", err)
+				} else {
+					f.latestFlushID = latestFlushID
 				}
 			}
 			f.processedTransactionsMux.Unlock()
@@ -331,13 +338,8 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// Wait until all processed transactions are saved
 	txsToSaveCount := len(f.processedTransactions)
 	for txsToSaveCount > 0 {
-		latestFlushID, err := f.dbManager.GetLatestFlushID(ctx)
-		if err != nil {
-			return nil, err
-		}
-		f.processedTransactionsMux.Lock()
-		f.latestFlushID = latestFlushID
-		f.processedTransactionsMux.Unlock()
+		log.Debug("waiting for processed transactions to be saved...")
+		time.Sleep(100 * time.Millisecond) //nolint:gomnd
 		txsToSaveCount = len(f.processedTransactions)
 	}
 
