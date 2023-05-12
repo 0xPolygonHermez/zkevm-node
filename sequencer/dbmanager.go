@@ -574,3 +574,8 @@ func (d *dbManager) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error
 func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
 	return d.state.FlushMerkleTree(ctx)
 }
+
+// GetForcedBatch gets a forced batch by number
+func (d *dbManager) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error) {
+	return d.state.GetForcedBatch(ctx, forcedBatchNumber, dbTx)
+}
