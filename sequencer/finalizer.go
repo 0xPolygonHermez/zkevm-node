@@ -100,6 +100,12 @@ func newFinalizer(
 	batchConstraints batchConstraints,
 	eventLog *event.EventLog,
 ) *finalizer {
+
+	latestFlushID, err := dbManager.GetLatestFlushID(context.Background())
+	if err != nil {
+		log.Errorf("failed to get latest flush id, Err: %v", err)
+	}
+
 	return &finalizer{
 		cfg:                cfg,
 		txsStore:           txsStore,
@@ -124,6 +130,7 @@ func newFinalizer(
 		eventLog:                 eventLog,
 		processedTransactions:    make([]processedTransaction, 0),
 		processedTransactionsMux: new(sync.RWMutex),
+		latestFlushID:            latestFlushID,
 	}
 }
 
