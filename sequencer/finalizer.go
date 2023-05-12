@@ -442,9 +442,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	}
 
 	// Update latestFlushID
-	f.processedTransactionsMux.Lock()
 	f.latestFlushID = result.LastSentFlushID
-	f.processedTransactionsMux.Unlock()
 
 	oldStateRoot := f.batch.stateRoot
 	if len(result.Responses) > 0 && tx != nil {
@@ -764,9 +762,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		return lastBatchNumberInState, stateRoot
 	}
 
-	f.processedTransactionsMux.Lock()
 	f.latestFlushID = response.LastSentFlushID
-	f.processedTransactionsMux.Unlock()
 
 	stateRoot = response.NewStateRoot
 	lastBatchNumberInState += 1
