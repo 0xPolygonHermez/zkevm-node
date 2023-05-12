@@ -110,9 +110,9 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 		if result.Reverted() {
 			data := make([]byte, len(result.ReturnValue))
 			copy(data, result.ReturnValue)
-			return rpcErrorResponseWithData(types.RevertedErrorCode, result.Err.Error(), &data, nil)
+			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, result.Err.Error(), &data)
 		} else if result.Failed() {
-			return rpcErrorResponse(types.DefaultErrorCode, result.Err.Error(), nil)
+			return nil, types.NewRPCErrorWithData(types.DefaultErrorCode, result.Err.Error(), nil)
 		}
 
 		return types.ArgBytesPtr(result.ReturnValue), nil
@@ -162,9 +162,9 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 		if errors.Is(err, runtime.ErrExecutionReverted) {
 			data := make([]byte, len(returnValue))
 			copy(data, returnValue)
-			return rpcErrorResponseWithData(types.RevertedErrorCode, err.Error(), &data, nil)
+			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), &data)
 		} else if err != nil {
-			return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
+			return nil, types.NewRPCErrorWithData(types.DefaultErrorCode, err.Error(), nil)
 		}
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
