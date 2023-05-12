@@ -303,8 +303,8 @@ func (f *finalizer) storeProcessedTransactions(ctx context.Context) {
 			time.Sleep(100 * time.Millisecond) //nolint:gomnd
 		} else {
 			f.processedTransactionsMux.Lock()
-			for i := 0; i < txsToSaveCount && f.processedTransactions[i].flushId <= f.latestFlushID; {
-				tx := f.processedTransactions[i]
+			for txsToSaveCount > 0 && f.processedTransactions[0].flushId <= f.latestFlushID {
+				tx := f.processedTransactions[0]
 				f.storeProcessedTx(tx.batchNumber, tx.coinbase, tx.timestamp, tx.oldStateRoot, tx.response, tx.isForcedBatch)
 
 				if tx.txTracker != nil {
@@ -313,7 +313,7 @@ func (f *finalizer) storeProcessedTransactions(ctx context.Context) {
 
 				txsToSaveCount--
 				if txsToSaveCount > 0 {
-					f.processedTransactions = f.processedTransactions[i+1:]
+					f.processedTransactions = f.processedTransactions[1:]
 				}
 			}
 
