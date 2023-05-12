@@ -336,11 +336,9 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	defer f.sharedResourcesMux.Unlock()
 
 	// Wait until all processed transactions are saved
-	txsToSaveCount := len(f.processedTransactions)
-	for txsToSaveCount > 0 {
+	for len(f.processedTransactions) > 0 {
 		log.Debug("waiting for processed transactions to be saved...")
 		time.Sleep(100 * time.Millisecond) //nolint:gomnd
-		txsToSaveCount = len(f.processedTransactions)
 	}
 
 	var err error
