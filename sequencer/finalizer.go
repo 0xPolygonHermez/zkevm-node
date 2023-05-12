@@ -322,6 +322,7 @@ func (f *finalizer) storeProcessedTransactions(ctx context.Context) {
 				if txsToSaveCount > 1 {
 					f.processedTransactions = f.processedTransactions[1:]
 				} else {
+					txsToSaveCount = 0
 					f.processedTransactions = []processedTransaction{}
 				}
 				f.processedTransactionsMux.Unlock()
@@ -484,10 +485,6 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 		return err
 	}
 
-	// TODO: Delete this
-	// Store the processed transaction, add it to the batch and update status in the pool atomically
-	// f.storeProcessedTx(f.batch.batchNumber, f.batch.coinbase, f.batch.timestamp, oldStateRoot, result.Responses[0], false)
-
 	processedTransaction := processedTransaction{
 		txTracker:     tx,
 		response:      result.Responses[0],
@@ -504,9 +501,6 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 	f.processedTransactionsMux.Unlock()
 
 	f.batch.countOfTxs++
-
-	// TODO: Delete this
-	// f.updateWorkerAfterTxStored(ctx, tx, result)
 
 	// Delete the transaction from the efficiency list
 	f.worker.DeleteTx(tx.Hash, tx.From)
@@ -528,10 +522,6 @@ func (f *finalizer) handleForcedBatchProcessResp(request state.ProcessRequest, r
 			}
 			continue
 		}
-
-		// TODO: delete this
-		// Store the processed transaction, add it to the batch and update status in the pool atomically
-		// f.storeProcessedTx(request.BatchNumber, request.Coinbase, request.Timestamp, oldStateRoot, txResp, true)
 
 		processedTransaction := processedTransaction{
 			txTracker:     nil,
