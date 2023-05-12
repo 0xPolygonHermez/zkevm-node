@@ -100,7 +100,6 @@ func newFinalizer(
 	batchConstraints batchConstraints,
 	eventLog *event.EventLog,
 ) *finalizer {
-
 	latestFlushID, err := dbManager.GetLatestFlushID(context.Background())
 	if err != nil {
 		log.Errorf("failed to get latest flush id, Err: %v", err)
