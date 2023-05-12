@@ -65,6 +65,8 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 		ExecutorError:      executor.ExecutorErr(response.Error),
 		IsBatchProcessed:   isBatchProcessed,
 		ReadWriteAddresses: readWriteAddresses,
+		FlushID:            response.FlushId,
+		LastSentFlushID:    response.LastSentFlushId,
 	}, nil
 }
 

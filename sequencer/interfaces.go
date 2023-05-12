@@ -76,6 +76,7 @@ type stateInterface interface {
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
 	FlushMerkleTree(ctx context.Context) error
+	GetLatestFlushID(ctx context.Context) (uint64, error)
 }
 
 type workerInterface interface {
@@ -117,6 +118,7 @@ type dbManagerInterface interface {
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	FlushMerkleTree(ctx context.Context) error
+	GetLatestFlushID(ctx context.Context) (uint64, error)
 }
 
 type ethTxManager interface {

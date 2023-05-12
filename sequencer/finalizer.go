@@ -51,6 +51,22 @@ type finalizer struct {
 	nextForcedBatchesMux    *sync.RWMutex
 	handlingL2Reorg         bool
 	eventLog                *event.EventLog
+	// Processed txs
+	processedTransactions    []processedTransaction
+	processedTransactionsMux *sync.RWMutex
+	latestFlushID            uint64
+}
+
+type processedTransaction struct {
+	txTracker     *TxTracker
+	response      *state.ProcessTransactionResponse
+	batchResponse *state.ProcessBatchResponse
+	batchNumber   uint64
+	timestamp     time.Time
+	coinbase      common.Address
+	oldStateRoot  common.Hash
+	isForcedBatch bool
+	flushId       uint64
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -99,13 +115,15 @@ func newFinalizer(
 		sharedResourcesMux: new(sync.RWMutex),
 		lastGERHash:        state.ZeroHash,
 		// closing signals
-		nextGER:                 common.Hash{},
-		nextGERDeadline:         0,
-		nextGERMux:              new(sync.RWMutex),
-		nextForcedBatches:       make([]state.ForcedBatch, 0),
-		nextForcedBatchDeadline: 0,
-		nextForcedBatchesMux:    new(sync.RWMutex),
-		eventLog:                eventLog,
+		nextGER:                  common.Hash{},
+		nextGERDeadline:          0,
+		nextGERMux:               new(sync.RWMutex),
+		nextForcedBatches:        make([]state.ForcedBatch, 0),
+		nextForcedBatchDeadline:  0,
+		nextForcedBatchesMux:     new(sync.RWMutex),
+		eventLog:                 eventLog,
+		processedTransactions:    make([]processedTransaction, 0),
+		processedTransactionsMux: new(sync.RWMutex),
 	}
 }
 
@@ -129,6 +147,9 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 
 	// Closing signals receiver
 	go f.listenForClosingSignals(ctx)
+
+	// Store Processed transactions
+	go f.storeProcessedTransactions(ctx)
 
 	// Processing transactions and finalizing batches
 	f.finalizeBatches(ctx)
@@ -274,10 +295,51 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 	}
 }
 
+func (f *finalizer) storeProcessedTransactions(ctx context.Context) {
+	for {
+		txsToSaveCount := len(f.processedTransactions)
+		// Save CPU cycles if there is nothing to save
+		if txsToSaveCount == 0 {
+			time.Sleep(100 * time.Millisecond) //nolint:gomnd
+		} else {
+			f.processedTransactionsMux.Lock()
+			for txsToSaveCount > 0 {
+				for i := 0; i < txsToSaveCount && f.processedTransactions[i].flushId <= f.latestFlushID; {
+					tx := f.processedTransactions[i]
+					f.storeProcessedTx(tx.batchNumber, tx.coinbase, tx.timestamp, tx.oldStateRoot, tx.response, tx.isForcedBatch)
+
+					if tx.txTracker != nil {
+						f.updateWorkerAfterTxStored(ctx, tx.txTracker, tx.batchResponse)
+					}
+
+					txsToSaveCount--
+					if txsToSaveCount > 0 {
+						f.processedTransactions = f.processedTransactions[i+1:]
+					}
+				}
+			}
+			f.processedTransactionsMux.Unlock()
+		}
+	}
+}
+
 // newWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	f.sharedResourcesMux.Lock()
 	defer f.sharedResourcesMux.Unlock()
+
+	// Wait until all processed transactions are saved
+	txsToSaveCount := len(f.processedTransactions)
+	for txsToSaveCount > 0 {
+		latestFlushID, err := f.dbManager.GetLatestFlushID(ctx)
+		if err != nil {
+			return nil, err
+		}
+		f.processedTransactionsMux.Lock()
+		f.latestFlushID = latestFlushID
+		f.processedTransactionsMux.Unlock()
+		txsToSaveCount = len(f.processedTransactions)
+	}
 
 	var err error
 	if f.batch.stateRoot.String() == "" || f.batch.localExitRoot.String() == "" {
@@ -379,6 +441,11 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 		return err
 	}
 
+	// Update latestFlushID
+	f.processedTransactionsMux.Lock()
+	f.latestFlushID = result.LastSentFlushID
+	f.processedTransactionsMux.Unlock()
+
 	oldStateRoot := f.batch.stateRoot
 	if len(result.Responses) > 0 && tx != nil {
 		err = f.handleTxProcessResp(ctx, tx, result, oldStateRoot)
@@ -410,10 +477,33 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 		return err
 	}
 
+	// TODO: Delete this
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
-	f.storeProcessedTx(f.batch.batchNumber, f.batch.coinbase, f.batch.timestamp, oldStateRoot, result.Responses[0], false)
+	// f.storeProcessedTx(f.batch.batchNumber, f.batch.coinbase, f.batch.timestamp, oldStateRoot, result.Responses[0], false)
+
+	processedTransaction := processedTransaction{
+		txTracker:     tx,
+		response:      result.Responses[0],
+		batchResponse: result,
+		batchNumber:   f.batch.batchNumber,
+		timestamp:     f.batch.timestamp,
+		coinbase:      f.batch.coinbase,
+		oldStateRoot:  oldStateRoot,
+		isForcedBatch: false,
+		flushId:       result.FlushID,
+	}
+	f.processedTransactionsMux.Lock()
+	f.processedTransactions = append(f.processedTransactions, processedTransaction)
+	f.processedTransactionsMux.Unlock()
+
 	f.batch.countOfTxs++
-	f.updateWorkerAfterTxStored(ctx, tx, result)
+
+	// TODO: Delete this
+	// f.updateWorkerAfterTxStored(ctx, tx, result)
+
+	// Delete the transaction from the efficiency list
+	f.worker.DeleteTx(tx.Hash, tx.From)
+	log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
 
 	return nil
 }
@@ -432,8 +522,24 @@ func (f *finalizer) handleForcedBatchProcessResp(request state.ProcessRequest, r
 			continue
 		}
 
+		// TODO: delete this
 		// Store the processed transaction, add it to the batch and update status in the pool atomically
-		f.storeProcessedTx(request.BatchNumber, request.Coinbase, request.Timestamp, oldStateRoot, txResp, true)
+		// f.storeProcessedTx(request.BatchNumber, request.Coinbase, request.Timestamp, oldStateRoot, txResp, true)
+
+		processedTransaction := processedTransaction{
+			txTracker:     nil,
+			response:      txResp,
+			batchResponse: nil,
+			batchNumber:   request.BatchNumber,
+			timestamp:     request.Timestamp,
+			coinbase:      request.Coinbase,
+			oldStateRoot:  oldStateRoot,
+			isForcedBatch: true,
+			flushId:       result.FlushID,
+		}
+		f.processedTransactionsMux.Lock()
+		f.processedTransactions = append(f.processedTransactions, processedTransaction)
+		f.processedTransactionsMux.Unlock()
 	}
 
 	return nil
@@ -455,10 +561,6 @@ func (f *finalizer) storeProcessedTx(batchNum uint64, coinbase common.Address, t
 }
 
 func (f *finalizer) updateWorkerAfterTxStored(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) {
-	// Delete the transaction from the efficiency list
-	f.worker.DeleteTx(tx.Hash, tx.From)
-	log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
-
 	start := time.Now()
 	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
 	for _, txToDelete := range txsToDelete {
@@ -661,6 +763,10 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		f.halt(ctx, fmt.Errorf("failed to process forced batch, Executor err: %w", err))
 		return lastBatchNumberInState, stateRoot
 	}
+
+	f.processedTransactionsMux.Lock()
+	f.latestFlushID = response.LastSentFlushID
+	f.processedTransactionsMux.Unlock()
 
 	stateRoot = response.NewStateRoot
 	lastBatchNumberInState += 1

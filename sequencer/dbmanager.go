@@ -573,3 +573,8 @@ func (d *dbManager) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error
 func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
 	return d.state.FlushMerkleTree(ctx)
 }
+
+// GetLastestFlushID returns the last flush ID
+func (d *dbManager) GetLatestFlushID(ctx context.Context) (uint64, error) {
+	return d.state.GetLatestFlushID(ctx)
+}
