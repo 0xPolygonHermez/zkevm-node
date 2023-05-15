@@ -50,7 +50,8 @@ message ProcessBatchResponse {
     ExecutorError error = 14;
     map<string, InfoReadWrite> read_write_addresses = 15;
     uint64 flush_id = 16;
-    uint64 last_sent_flush_id = 17;
+    uint64 stored_flush_id = 17;
+    string prover_id = 18;
 }
 
 /**
@@ -58,11 +59,21 @@ message ProcessBatchResponse {
  * @param {last_sent_flush_id} - id of the last flush data sent to database
  * @param {sending_flush_id} - id of the flush data being sent now to database
  * @param {last_flush_id} - id assigned to the last call to flush
+ * @param {pending_to_flush_nodes} - number of SMT nodes pending to flush
+ * @param {pending_to_flush_program} - number of SC programs pending to flush
+ * @param {storing_nodes} - number of SMT nodes being stored in the hash database
+ * @param {storing_program} - number of SC programs being stored in the hash database
+ * @param {prover_id} - id assigned to this instance of the prover process
  */
 message GetFlushStatusResponse {
-    uint64 last_sent_flush_id = 1;
-    uint64 sending_flush_id = 2;
+    uint64 stored_flush_id = 1;
+    uint64 storing_flush_id = 2;
     uint64 last_flush_id = 3;
+    uint64 pending_to_flush_nodes = 4;
+    uint64 pending_to_flush_program = 5;
+    uint64 storing_nodes = 6;
+    uint64 storing_program = 7;
+    string prover_id = 8;
 }
 
 // Trace configuration request params

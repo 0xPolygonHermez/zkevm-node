@@ -29,6 +29,7 @@ service HashDBService {
     rpc LoadProgramDB(LoadProgramDBRequest) returns (google.protobuf.Empty) {}
     rpc Flush (google.protobuf.Empty) returns (FlushResponse) {}
     rpc GetFlushStatus (google.protobuf.Empty) returns (GetFlushStatusResponse) {}
+    rpc GetFlushData (GetFlushDataRequest) returns (GetFlushDataResponse) {}
 }
 
 ///////////////////
@@ -105,6 +106,14 @@ message LoadDBRequest {
 message LoadProgramDBRequest {
     map<string, bytes> input_program_db = 1;
     bool persistent = 2;
+}
+
+/**
+ * @dev GetFlushDataRequest
+ * @param {last_got_flush_id} - last flush ID got using this method, or 0 if it never was called before
+ */
+message GetFlushDataRequest {
+    uint64 last_got_flush_id = 1;
 }
 
 /////////////////////
@@ -204,11 +213,41 @@ message FlushResponse {
  * @param {last_sent_flush_id} - id of the last flush data sent to database
  * @param {sending_flush_id} - id of the flush data being sent now to database
  * @param {last_flush_id} - id assigned to the last call to flush
+ * @param {pending_to_flush_nodes} - number of SMT nodes pending to flush
+ * @param {pending_to_flush_program} - number of SC programs pending to flush
+ * @param {storing_nodes} - number of SMT nodes being stored in the hash database
+ * @param {storing_program} - number of SC programs being stored in the hash database
+ * @param {prover_id} - id assigned to this instance of the prover process
  */
 message GetFlushStatusResponse {
-    uint64 last_sent_flush_id = 1;
-    uint64 sending_flush_id = 2;
+    uint64 stored_flush_id = 1;
+    uint64 storing_flush_id = 2;
     uint64 last_flush_id = 3;
+    uint64 pending_to_flush_nodes = 4;
+    uint64 pending_to_flush_program = 5;
+    uint64 storing_nodes = 6;
+    uint64 storing_program = 7;
+    string prover_id = 8;
+}
+
+/**
+ * @dev GetFlushDataResponse
+ * @param {last_sent_flush_id} - id of the last flush data sent to database
+ * @param {nodes} - data to insert in the nodes table
+ * @param {nodes_update} - data to update in the nodes table
+ * @param {program} - data to insert in the program table
+ * @param {program_update} - data to update in the program table
+ * @param {nodes_state_root} - nodes state root to update in the nodes table
+ * @param {result} - result code
+ */
+message GetFlushDataResponse {
+    uint64 last_sent_flush_id = 1;
+    repeated FlushData nodes = 2;
+    repeated FlushData nodes_update = 3;
+    repeated FlushData program = 4;
+    repeated FlushData program_update = 5;
+    string nodes_state_root = 6;
+    ResultCode result = 7;
 }
 
 /**
@@ -239,6 +278,16 @@ message FeList {
 */
 message SiblingList {
     repeated uint64 sibling = 1;
+}
+
+/**
+ * @dev Flush Data
+ * @param {key} - hash key
+ * @param {value} - string value
+*/
+message FlushData {
+    string key = 1;
+    string value = 2;
 }
 
 /**

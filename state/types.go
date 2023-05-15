@@ -37,7 +37,8 @@ type ProcessBatchResponse struct {
 	IsBatchProcessed   bool
 	ReadWriteAddresses map[common.Address]*InfoReadWrite
 	FlushID            uint64
-	LastSentFlushID    uint64
+	StoredFlushID      uint64
+	ProverID           string
 }
 
 // ProcessTransactionResponse represents the response of a tx process.

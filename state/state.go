@@ -142,15 +142,15 @@ func (s *State) FlushMerkleTree(ctx context.Context) error {
 	return s.tree.Flush(ctx)
 }
 
-// GetLastSentFlushID returns the last flush ID
-func (s *State) GetLastSentFlushID(ctx context.Context) (uint64, error) {
+// GetStoredFlushID returns the stored flush ID and Prover ID
+func (s *State) GetStoredFlushID(ctx context.Context) (uint64, string, error) {
 	if s.executorClient == nil {
-		return 0, ErrExecutorNil
+		return 0, "", ErrExecutorNil
 	}
 	res, err := s.executorClient.GetFlushStatus(ctx, &emptypb.Empty{})
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 
-	return res.LastSentFlushId, nil
+	return res.StoredFlushId, res.ProverId, nil
 }

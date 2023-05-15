@@ -558,7 +558,7 @@ func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
 	return d.state.FlushMerkleTree(ctx)
 }
 
-// GetLastSentFlushID returns the last flush ID
-func (d *dbManager) GetLastSentFlushID(ctx context.Context) (uint64, error) {
-	return d.state.GetLastSentFlushID(ctx)
+// GetStoredFlushID returns the stored flush ID and prover ID
+func (d *dbManager) GetStoredFlushID(ctx context.Context) (uint64, string, error) {
+	return d.state.GetStoredFlushID(ctx)
 }

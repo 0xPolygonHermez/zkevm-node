@@ -28,6 +28,7 @@ const (
 	HashDBService_LoadProgramDB_FullMethodName  = "/hashdb.v1.HashDBService/LoadProgramDB"
 	HashDBService_Flush_FullMethodName          = "/hashdb.v1.HashDBService/Flush"
 	HashDBService_GetFlushStatus_FullMethodName = "/hashdb.v1.HashDBService/GetFlushStatus"
+	HashDBService_GetFlushData_FullMethodName   = "/hashdb.v1.HashDBService/GetFlushData"
 )
 
 // HashDBServiceClient is the client API for HashDBService service.
@@ -42,6 +43,7 @@ type HashDBServiceClient interface {
 	LoadProgramDB(ctx context.Context, in *LoadProgramDBRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Flush(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*FlushResponse, error)
 	GetFlushStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetFlushStatusResponse, error)
+	GetFlushData(ctx context.Context, in *GetFlushDataRequest, opts ...grpc.CallOption) (*GetFlushDataResponse, error)
 }
 
 type hashDBServiceClient struct {
@@ -124,6 +126,15 @@ func (c *hashDBServiceClient) GetFlushStatus(ctx context.Context, in *emptypb.Em
 	return out, nil
 }
 
+func (c *hashDBServiceClient) GetFlushData(ctx context.Context, in *GetFlushDataRequest, opts ...grpc.CallOption) (*GetFlushDataResponse, error) {
+	out := new(GetFlushDataResponse)
+	err := c.cc.Invoke(ctx, HashDBService_GetFlushData_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HashDBServiceServer is the server API for HashDBService service.
 // All implementations must embed UnimplementedHashDBServiceServer
 // for forward compatibility
@@ -136,6 +147,7 @@ type HashDBServiceServer interface {
 	LoadProgramDB(context.Context, *LoadProgramDBRequest) (*emptypb.Empty, error)
 	Flush(context.Context, *emptypb.Empty) (*FlushResponse, error)
 	GetFlushStatus(context.Context, *emptypb.Empty) (*GetFlushStatusResponse, error)
+	GetFlushData(context.Context, *GetFlushDataRequest) (*GetFlushDataResponse, error)
 	mustEmbedUnimplementedHashDBServiceServer()
 }
 
@@ -166,6 +178,9 @@ func (UnimplementedHashDBServiceServer) Flush(context.Context, *emptypb.Empty) (
 }
 func (UnimplementedHashDBServiceServer) GetFlushStatus(context.Context, *emptypb.Empty) (*GetFlushStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFlushStatus not implemented")
+}
+func (UnimplementedHashDBServiceServer) GetFlushData(context.Context, *GetFlushDataRequest) (*GetFlushDataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFlushData not implemented")
 }
 func (UnimplementedHashDBServiceServer) mustEmbedUnimplementedHashDBServiceServer() {}
 
@@ -324,6 +339,24 @@ func _HashDBService_GetFlushStatus_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HashDBService_GetFlushData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFlushDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HashDBServiceServer).GetFlushData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HashDBService_GetFlushData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HashDBServiceServer).GetFlushData(ctx, req.(*GetFlushDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // HashDBService_ServiceDesc is the grpc.ServiceDesc for HashDBService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -362,6 +395,10 @@ var HashDBService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFlushStatus",
 			Handler:    _HashDBService_GetFlushStatus_Handler,
+		},
+		{
+			MethodName: "GetFlushData",
+			Handler:    _HashDBService_GetFlushData_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -21,7 +21,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-const oneHundred = 100
+const (
+	oneHundred = 100
+	noProverID = "NO_PROVER_ID"
+)
 
 var (
 	now = time.Now
@@ -53,7 +56,8 @@ type finalizer struct {
 	// Processed txs
 	pendingTransactionsToStore    []transactionToStore
 	pendingTransactionsToStoreMux *sync.RWMutex
-	latestFlushIDSent             uint64
+	storedFlushID                 uint64
+	proverID                      string
 }
 
 type transactionToStore struct {
@@ -121,6 +125,7 @@ func newFinalizer(
 		eventLog:                      eventLog,
 		pendingTransactionsToStore:    make([]transactionToStore, 0),
 		pendingTransactionsToStoreMux: new(sync.RWMutex),
+		proverID:                      noProverID,
 	}
 }
 
@@ -205,6 +210,10 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
 func (f *finalizer) finalizeBatches(ctx context.Context) {
+	for f.proverID == noProverID {
+		log.Info("waiting for proverID")
+		time.Sleep(100 * time.Millisecond) // nolint:gomnd
+	}
 	for {
 		start := now()
 		log.Debug("finalizer init loop")
@@ -292,12 +301,21 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 	}
 }
 
+func (f *finalizer) checkProverIDAndUpdateStoredFlushID(storedFlushID uint64, proverID string) {
+	if f.proverID != proverID {
+		log.Infof("proverID changed from %s to %s", f.proverID, proverID)
+		log.Fatal("restarting sequencer to discard current WIP batch and work with new executor")
+	}
+	f.storedFlushID = storedFlushID
+}
+
 func (f *finalizer) storePendingTransactions(ctx context.Context) {
-	latestFlushID, err := f.dbManager.GetLastSentFlushID(ctx)
+	storedFlushID, proverID, err := f.dbManager.GetStoredFlushID(ctx)
 	if err != nil {
-		log.Errorf("failed to get latest flush id, Err: %v", err)
+		log.Errorf("failed to get stored flush id, Err: %v", err)
 	} else {
-		f.latestFlushIDSent = latestFlushID
+		f.storedFlushID = storedFlushID
+		f.proverID = proverID
 	}
 	for {
 		txsToStoreCount := len(f.pendingTransactionsToStore)
@@ -305,7 +323,7 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 		if txsToStoreCount == 0 {
 			time.Sleep(100 * time.Millisecond) //nolint:gomnd
 		} else {
-			for txsToStoreCount > 0 && f.pendingTransactionsToStore[0].flushId <= f.latestFlushIDSent {
+			for txsToStoreCount > 0 && f.pendingTransactionsToStore[0].flushId <= f.storedFlushID {
 				tx := f.pendingTransactionsToStore[0]
 				f.storeProcessedTx(ctx, tx.batchNumber, tx.coinbase, tx.timestamp, tx.oldStateRoot, tx.response, tx.isForcedBatch)
 
@@ -326,11 +344,11 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 
 			if txsToStoreCount > 0 {
 				time.Sleep(100 * time.Millisecond) //nolint:gomnd
-				latestFlushID, err := f.dbManager.GetLastSentFlushID(ctx)
+				storedFlushID, proverID, err := f.dbManager.GetStoredFlushID(ctx)
 				if err != nil {
-					log.Errorf("failed to get latest flush id, Err: %v", err)
+					log.Errorf("failed to get stored flush id, Err: %v", err)
 				} else {
-					f.latestFlushIDSent = latestFlushID
+					f.checkProverIDAndUpdateStoredFlushID(storedFlushID, proverID)
 				}
 			}
 		}
@@ -449,7 +467,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	}
 
 	// Update latestFlushID
-	f.latestFlushIDSent = result.LastSentFlushID
+	f.checkProverIDAndUpdateStoredFlushID(result.StoredFlushID, result.ProverID)
 
 	oldStateRoot := f.batch.stateRoot
 	if len(result.Responses) > 0 && tx != nil {
@@ -759,7 +777,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		return lastBatchNumberInState, stateRoot
 	}
 
-	f.latestFlushIDSent = response.LastSentFlushID
+	f.checkProverIDAndUpdateStoredFlushID(response.StoredFlushID, response.ProverID)
 
 	stateRoot = response.NewStateRoot
 	lastBatchNumberInState += 1
