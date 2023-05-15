@@ -110,10 +110,10 @@ message LoadProgramDBRequest {
 
 /**
  * @dev GetFlushDataRequest
- * @param {last_got_flush_id} - last flush ID got using this method, or 0 if it never was called before
+ * @param {flush_id} - last stored flush ID got using this method, or 0 if it never was called before
  */
 message GetFlushDataRequest {
-    uint64 last_got_flush_id = 1;
+    uint64 flush_id = 1;
 }
 
 /////////////////////
@@ -199,18 +199,18 @@ message GetProgramResponse {
 /**
  * @dev FlushResponse
  * @param {flush_id} - id assigned to this flush data
- * @param {last_sent_flush_id} - id of the last flush data sent to database
+ * @param {stored_flush_id} - id of the last flush data sent to database
  * @param {result} - result code
  */
 message FlushResponse {
     uint64 flush_id = 1;
-    uint64 last_sent_flush_id = 2;
+    uint64 stored_flush_id = 2;
     ResultCode result = 3;
 }
 
 /**
  * @dev GetFlushStatusResponse
- * @param {last_sent_flush_id} - id of the last flush data sent to database
+ * @param {stored_flush_id} - id of the last flush data sent to database
  * @param {sending_flush_id} - id of the flush data being sent now to database
  * @param {last_flush_id} - id assigned to the last call to flush
  * @param {pending_to_flush_nodes} - number of SMT nodes pending to flush
@@ -232,7 +232,7 @@ message GetFlushStatusResponse {
 
 /**
  * @dev GetFlushDataResponse
- * @param {last_sent_flush_id} - id of the last flush data sent to database
+ * @param {stored_flush_id} - id of the last flush data sent to database
  * @param {nodes} - data to insert in the nodes table
  * @param {nodes_update} - data to update in the nodes table
  * @param {program} - data to insert in the program table
@@ -241,7 +241,7 @@ message GetFlushStatusResponse {
  * @param {result} - result code
  */
 message GetFlushDataResponse {
-    uint64 last_sent_flush_id = 1;
+    uint64 stored_flush_id = 1;
     repeated FlushData nodes = 2;
     repeated FlushData nodes_update = 3;
     repeated FlushData program = 4;
