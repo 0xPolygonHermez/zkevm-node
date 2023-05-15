@@ -93,6 +93,13 @@ const (
 	EXECUTOR_ERROR_TOS32 = 11
 )
 
+var (
+	// ErrUnspecified indicates an unspecified executor error
+	ErrUnspecified = fmt.Errorf("unspecified executor error")
+	// ErrUnknown indicates an unknown executor error
+	ErrUnknown = fmt.Errorf("unknown error")
+)
+
 // RomErr returns an instance of error related to the ExecutorError
 func RomErr(errorCode pb.RomError) error {
 	e := int32(errorCode)
@@ -146,7 +153,7 @@ func RomErr(errorCode pb.RomError) error {
 	case ROM_ERROR_INTRINSIC_INVALID_BALANCE:
 		return runtime.ErrIntrinsicInvalidBalance
 	case ROM_ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT:
-		return runtime.ErrIntrinsicInvalidGasLimit
+		return runtime.ErrIntrinsicInvalidBatchGasLimit
 	case ROM_ERROR_INTRINSIC_INVALID_SENDER_CODE:
 		return runtime.ErrIntrinsicInvalidSenderCode
 	case ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW:
@@ -206,7 +213,7 @@ func RomErrorCode(err error) pb.RomError {
 		return pb.RomError(ROM_ERROR_INTRINSIC_INVALID_GAS_LIMIT)
 	case runtime.ErrIntrinsicInvalidBalance:
 		return pb.RomError(ROM_ERROR_INTRINSIC_INVALID_BALANCE)
-	case runtime.ErrIntrinsicInvalidGasLimit:
+	case runtime.ErrIntrinsicInvalidBatchGasLimit:
 		return pb.RomError(ROM_ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT)
 	case runtime.ErrIntrinsicInvalidSenderCode:
 		return pb.RomError(ROM_ERROR_INTRINSIC_INVALID_SENDER_CODE)
@@ -260,7 +267,7 @@ func ExecutorErr(errorCode pb.ExecutorError) error {
 	e := int32(errorCode)
 	switch e {
 	case EXECUTOR_ERROR_UNSPECIFIED:
-		return fmt.Errorf("unspecified executor error")
+		return ErrUnspecified
 	case EXECUTOR_ERROR_NO_ERROR:
 		return nil
 	case EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK:
@@ -284,7 +291,7 @@ func ExecutorErr(errorCode pb.ExecutorError) error {
 	case EXECUTOR_ERROR_TOS32:
 		return runtime.ErrTos32
 	}
-	return fmt.Errorf("unknown error")
+	return ErrUnknown
 }
 
 // ExecutorErrorCode returns the error code for a given error
