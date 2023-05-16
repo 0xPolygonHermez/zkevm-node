@@ -669,11 +669,8 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 	f.nextGERMux.Lock()
 	f.lastGERHash = forcedBatch.GlobalExitRoot
 	f.nextGERMux.Unlock()
-	if len(response.Responses) > 0 {
-		romErr := executor.RomErrorCode(response.Responses[len(response.Responses)-1].RomError)
-		if !executor.IsROMOutOfCountersError(romErr) {
-			f.handleForcedTxsProcessResp(request, response, stateRoot)
-		}
+	if len(response.Responses) > 0 && !response.RomOOC {
+		f.handleForcedTxsProcessResp(request, response, stateRoot)
 	}
 
 	return lastBatchNumberInState, stateRoot
