@@ -32,6 +32,8 @@ const (
 	EventID_ExecutorRLPError EventID = "EXECUTOR RLP ERROR"
 	// EventID_FinalizerHalt is triggered when the finalizer halts
 	EventID_FinalizerHalt EventID = "FINALIZER HALT"
+	// EventID_FinalizerRestart is triggered when the finalizer restarts
+	EventID_FinzalizerRestart EventID = "FINALIZER RESTART"
 
 	// Source_Node is the source of the event
 	Source_Node Source = "node"
