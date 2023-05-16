@@ -303,7 +303,20 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 
 func (f *finalizer) checkProverIDAndUpdateStoredFlushID(storedFlushID uint64, proverID string) {
 	if f.proverID != proverID {
-		log.Infof("proverID changed from %s to %s", f.proverID, proverID)
+		event := &event.Event{
+			ReceivedAt:  time.Now(),
+			Source:      event.Source_Node,
+			Component:   event.Component_Sequencer,
+			Level:       event.Level_Critical,
+			EventID:     event.EventID_FinzalizerRestart,
+			Description: fmt.Sprintf("proverID changed from %s to %s, restarting sequencer to discard current WIP batch and work with new executor", f.proverID, proverID),
+		}
+
+		err := f.eventLog.LogEvent(context.Background(), event)
+		if err != nil {
+			log.Errorf("error storing payload: %v", err)
+		}
+
 		log.Fatal("restarting sequencer to discard current WIP batch and work with new executor")
 	}
 	f.storedFlushID = storedFlushID
