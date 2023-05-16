@@ -308,7 +308,7 @@ func (f *finalizer) checkProverIDAndUpdateStoredFlushID(storedFlushID uint64, pr
 			Source:      event.Source_Node,
 			Component:   event.Component_Sequencer,
 			Level:       event.Level_Critical,
-			EventID:     event.EventID_FinzalizerRestart,
+			EventID:     event.EventID_FinalizerRestart,
 			Description: fmt.Sprintf("proverID changed from %s to %s, restarting sequencer to discard current WIP batch and work with new executor", f.proverID, proverID),
 		}
 
