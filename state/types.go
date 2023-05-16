@@ -63,8 +63,8 @@ type ProcessTransactionResponse struct {
 	StateRoot common.Hash
 	// Logs emitted by LOG opcode
 	Logs []*types.Log
-	// IsProcessed indicates if this tx didn't fit into the batch
-	IsProcessed bool
+	// ChangesStateRoot indicates if this tx affects the state
+	ChangesStateRoot bool
 	// Tx is the whole transaction object
 	Tx types.Transaction
 	// ExecutionTrace contains the traces produced in the execution

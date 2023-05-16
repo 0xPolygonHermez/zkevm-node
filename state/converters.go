@@ -82,6 +82,10 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 	}, nil
 }
 
+func txChangesStateRoot(err pb.RomError) bool {
+	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
+}
+
 func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) (map[common.Address]*InfoReadWrite, error) {
 	results := make(map[common.Address]*InfoReadWrite, len(addresses))
 
@@ -135,7 +139,7 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.IsProcessed = !executor.IsIntrinsicError(response.Error) && !executor.IsROMOutOfCountersError(response.Error)
+		result.ChangesStateRoot = txChangesStateRoot(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]
@@ -168,7 +172,7 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
 		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
 		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
-		log.Debugf("ProcessTransactionResponse[IsProcessed]: %v", result.IsProcessed)
+		log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
 	}
 
 	return results, nil

@@ -490,7 +490,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	// Close Batch
 	txsBytes := uint64(0)
 	for _, resp := range processBatchResponse.Responses {
-		if !resp.IsProcessed {
+		if !resp.ChangesStateRoot {
 			continue
 		}
 		txsBytes += resp.Tx.Size()
