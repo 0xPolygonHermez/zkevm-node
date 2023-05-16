@@ -294,7 +294,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	// Reprocess full batch as sanity check
 	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
-	if err != nil || !processBatchResponse.IsBatchProcessed {
+	if err != nil || processBatchResponse.RomOOC {
 		log.Info("halting the finalizer because of a reprocessing error")
 		if err != nil {
 			f.halt(ctx, fmt.Errorf("failed to reprocess batch, err: %v", err))
@@ -400,7 +400,7 @@ func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, resu
 	// Handle Transaction Error
 
 	errorCode := executor.RomErrorCode(result.Responses[0].RomError)
-	if !result.IsBatchProcessed || executor.IsIntrinsicError(errorCode) {
+	if result.RomOOC || executor.IsIntrinsicError(errorCode) {
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		f.handleTransactionError(ctx, result, tx)
 		return result.Responses[0].RomError
@@ -784,7 +784,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 		return nil, err
 	}
 
-	if !result.IsBatchProcessed {
+	if result.RomOOC {
 		log.Errorf("failed to process batch %v because OutOfCounters", batch.BatchNumber)
 		payload, err := json.Marshal(processRequest)
 		if err != nil {

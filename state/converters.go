@@ -48,11 +48,11 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 		return nil, err
 	}
 
-	isBatchProcessed := response.Error == executor.EXECUTOR_ERROR_NO_ERROR
-	if isBatchProcessed && len(response.Responses) > 0 {
+	romOOC := response.Error != executor.EXECUTOR_ERROR_NO_ERROR
+	if romOOC && len(response.Responses) > 0 {
 		// Check out of counters
 		errorToCheck := response.Responses[len(response.Responses)-1].Error
-		isBatchProcessed = !executor.IsROMOutOfCountersError(errorToCheck)
+		romOOC = executor.IsROMOutOfCountersError(errorToCheck)
 	}
 
 	return &ProcessBatchResponse{
@@ -63,7 +63,7 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 		UsedZkCounters:     convertToCounters(response),
 		Responses:          responses,
 		ExecutorError:      executor.ExecutorErr(response.Error),
-		IsBatchProcessed:   isBatchProcessed,
+		RomOOC:             romOOC,
 		ReadWriteAddresses: readWriteAddresses,
 	}, nil
 }
