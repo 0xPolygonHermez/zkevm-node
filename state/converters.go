@@ -49,7 +49,7 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 	}
 
 	romOOC := response.Error != executor.EXECUTOR_ERROR_NO_ERROR
-	if romOOC && len(response.Responses) > 0 {
+	if !romOOC && len(response.Responses) > 0 {
 		// Check out of counters
 		errorToCheck := response.Responses[len(response.Responses)-1].Error
 		romOOC = executor.IsROMOutOfCountersError(errorToCheck)
