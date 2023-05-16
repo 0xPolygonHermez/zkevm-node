@@ -74,7 +74,7 @@
     "dbProgramTableName": "state.program",
     "dbMultiWrite": true,
     "dbFlushInParallel": false,
-    "dbMTCacheSize": 1024,
+    "dbMTCacheSize": 2048,
     "dbProgramCacheSize": 1024,
     "dbNumberOfPoolConnections": 30,
     "cleanerPollingPeriod": 600,
