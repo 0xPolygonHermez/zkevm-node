@@ -168,7 +168,7 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
 		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
 		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
-		// log.Debugf("ProcessTransactionResponse[IsProcessed]: %v", result.IsProcessed)
+		log.Debugf("ProcessTransactionResponse[IsProcessed]: %v", result.IsProcessed)
 	}
 
 	return results, nil
