@@ -294,7 +294,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	// Reprocess full batch as sanity check
 	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
-	if err != nil || processBatchResponse.RomOOC {
+	if err != nil || processBatchResponse.IsRomOOCError {
 		log.Info("halting the finalizer because of a reprocessing error")
 		if err != nil {
 			f.halt(ctx, fmt.Errorf("failed to reprocess batch, err: %v", err))
@@ -398,9 +398,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 // handleTxProcessResp handles the response of transaction processing.
 func (f *finalizer) handleTxProcessResp(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) error {
 	// Handle Transaction Error
-
 	errorCode := executor.RomErrorCode(result.Responses[0].RomError)
-	if result.RomOOC || executor.IsIntrinsicError(errorCode) {
+	if result.IsRomOOCError || executor.IsIntrinsicError(errorCode) {
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		f.handleTransactionError(ctx, result, tx)
 		return result.Responses[0].RomError
@@ -669,7 +668,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 	f.nextGERMux.Lock()
 	f.lastGERHash = forcedBatch.GlobalExitRoot
 	f.nextGERMux.Unlock()
-	if len(response.Responses) > 0 && !response.RomOOC {
+	if len(response.Responses) > 0 && !response.IsRomOOCError {
 		f.handleForcedTxsProcessResp(request, response, stateRoot)
 	}
 
@@ -783,7 +782,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 		return nil, err
 	}
 
-	if result.RomOOC {
+	if result.IsRomOOCError {
 		log.Errorf("failed to process batch %v because OutOfCounters", batch.BatchNumber)
 		payload, err := json.Marshal(processRequest)
 		if err != nil {

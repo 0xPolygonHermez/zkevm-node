@@ -27,15 +27,17 @@ type ProcessRequest struct {
 
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot       common.Hash
-	NewAccInputHash    common.Hash
-	NewLocalExitRoot   common.Hash
-	NewBatchNumber     uint64
-	UsedZkCounters     ZKCounters
-	Responses          []*ProcessTransactionResponse
-	ExecutorError      error
-	RomOOC             bool
-	ReadWriteAddresses map[common.Address]*InfoReadWrite
+	NewStateRoot         common.Hash
+	NewAccInputHash      common.Hash
+	NewLocalExitRoot     common.Hash
+	NewBatchNumber       uint64
+	UsedZkCounters       ZKCounters
+	Responses            []*ProcessTransactionResponse
+	ExecutorError        error
+	IsRomLevelError      bool
+	IsExecutorLevelError bool
+	IsRomOOCError        bool
+	ReadWriteAddresses   map[common.Address]*InfoReadWrite
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
