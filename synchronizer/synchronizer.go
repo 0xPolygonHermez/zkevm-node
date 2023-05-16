@@ -457,7 +457,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 
 // This function allows reset the state until an specific ethereum block
 func (s *ClientSynchronizer) resetState(blockNumber uint64) error {
-	log.Debug("Reverting synchronization to block: ", blockNumber)
+	log.Info("Reverting synchronization to block: ", blockNumber)
 	dbTx, err := s.state.BeginStateTransaction(s.ctx)
 	if err != nil {
 		log.Error("error starting a db transaction to reset the state. Error: ", err)
@@ -560,7 +560,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 		}
 	}
 	if latestEthBlockSynced.BlockHash != latestBlock.BlockHash {
-		log.Debug("Reorg detected in block: ", latestEthBlockSynced.BlockNumber)
+		log.Info("Reorg detected in block: ", latestEthBlockSynced.BlockNumber)
 		return latestBlock, nil
 	}
 	return nil, nil
