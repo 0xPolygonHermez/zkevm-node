@@ -34,7 +34,7 @@ type ProcessBatchResponse struct {
 	UsedZkCounters     ZKCounters
 	Responses          []*ProcessTransactionResponse
 	ExecutorError      error
-	IsBatchProcessed   bool
+	RomOOC             bool
 	ReadWriteAddresses map[common.Address]*InfoReadWrite
 }
 
