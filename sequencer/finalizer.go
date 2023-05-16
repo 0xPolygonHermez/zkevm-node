@@ -186,9 +186,9 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
 func (f *finalizer) finalizeBatches(ctx context.Context) {
+	log.Debug("finalizer init loop")
 	for {
 		start := now()
-		log.Debug("finalizer init loop")
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
@@ -669,9 +669,11 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 	f.nextGERMux.Lock()
 	f.lastGERHash = forcedBatch.GlobalExitRoot
 	f.nextGERMux.Unlock()
-	romErr := executor.RomErrorCode(response.Responses[len(response.Responses)-1].RomError)
-	if !executor.IsROMOutOfCountersError(romErr) {
-		f.handleForcedTxsProcessResp(request, response, stateRoot)
+	if len(response.Responses) > 0 {
+		romErr := executor.RomErrorCode(response.Responses[len(response.Responses)-1].RomError)
+		if !executor.IsROMOutOfCountersError(romErr) {
+			f.handleForcedTxsProcessResp(request, response, stateRoot)
+		}
 	}
 
 	return lastBatchNumberInState, stateRoot
