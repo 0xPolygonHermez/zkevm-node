@@ -397,7 +397,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) error {
 	// Handle Transaction Error
 	errorCode := executor.RomErrorCode(result.Responses[0].RomError)
-	if !state.TxChangesStateRoot(errorCode) {
+	if !state.IsStateRootChanged(errorCode) {
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		f.handleProcessTransactionError(ctx, result, tx)
 		return result.Responses[0].RomError

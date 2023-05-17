@@ -82,8 +82,8 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 	}, nil
 }
 
-// TxChangesStateRoot returns true if the transaction changes the state root
-func TxChangesStateRoot(err pb.RomError) bool {
+// IsStateRootChanged returns true if the transaction changes the state root
+func IsStateRootChanged(err pb.RomError) bool {
 	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
 }
 
@@ -140,7 +140,7 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.ChangesStateRoot = TxChangesStateRoot(response.Error)
+		result.ChangesStateRoot = IsStateRootChanged(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]
