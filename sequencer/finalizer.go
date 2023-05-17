@@ -294,12 +294,14 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	// Reprocess full batch as sanity check
 	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
-	if err != nil || processBatchResponse.IsRomOOCError {
+	if err != nil || processBatchResponse.IsRomOOCError || processBatchResponse.ExecutorError != nil {
 		log.Info("halting the finalizer because of a reprocessing error")
 		if err != nil {
 			f.halt(ctx, fmt.Errorf("failed to reprocess batch, err: %v", err))
-		} else {
+		} else if processBatchResponse.IsRomOOCError {
 			f.halt(ctx, fmt.Errorf("out of counters during reprocessFullBath"))
+		} else {
+			f.halt(ctx, fmt.Errorf("executor error during reprocessFullBath: %v", processBatchResponse.ExecutorError))
 		}
 	}
 
@@ -486,7 +488,6 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 
 		wg.Add(1)
 		go func() {
-			defer wg.Done()
 			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
@@ -510,7 +511,6 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			wg.Add(1)
 			txToDelete := txToDelete
 			go func() {
-				defer wg.Done()
 				err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, &failedReason)
 				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 				if err != nil {
@@ -526,7 +526,6 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 
 		wg.Add(1)
 		go func() {
-			defer wg.Done()
 			// Update the status of the transaction to failed
 			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false, &failedReason)
 			if err != nil {
