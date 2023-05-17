@@ -488,6 +488,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
