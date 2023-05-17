@@ -216,27 +216,27 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 			RefundCounter: structLog.RefundCounter,
 		}
 
-		stack := make([]types.ArgBig, 0, len(structLog.Stack))
-		if !cfg.DisableStack && len(structLog.Stack) > 0 {
+		if !cfg.DisableStack {
+			stack := make([]types.ArgBig, 0, len(structLog.Stack))
 			for _, stackItem := range structLog.Stack {
 				if stackItem != nil {
 					stack = append(stack, types.ArgBig(*stackItem))
 				}
 			}
+			structLogRes.Stack = &stack
 		}
-		structLogRes.Stack = &stack
 
-		const memoryChunkSize = 32
-		memory := make([]string, 0, len(structLog.Memory))
 		if cfg.EnableMemory {
+			const memoryChunkSize = 32
+			memory := make([]string, 0, len(structLog.Memory))
 			for i := 0; i < len(structLog.Memory); i = i + memoryChunkSize {
 				slice32Bytes := make([]byte, memoryChunkSize)
 				copy(slice32Bytes, structLog.Memory[i:i+memoryChunkSize])
 				memoryStringItem := hex.EncodeToString(slice32Bytes)
 				memory = append(memory, memoryStringItem)
 			}
+			structLogRes.Memory = &memory
 		}
-		structLogRes.Memory = &memory
 
 		if !cfg.DisableStorage && len(structLog.Storage) > 0 {
 			storage := make(map[string]string, len(structLog.Storage))

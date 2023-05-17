@@ -8,6 +8,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Creates"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/DelegateCallCalled"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/DelegateCallCaller"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
@@ -248,6 +250,48 @@ func createCreate2SignedTx(t *testing.T, ctx context.Context, auth *bind.Transac
 	byteCode := hex.DecodeBig(Counter.CounterBin).Bytes()
 
 	tx, err := sc.OpCreate2(&opts, byteCode, big.NewInt(0).SetInt64(int64(len(byteCode))))
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func prepareDelegateCall(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	scAddr, tx, _, err := DelegateCallCalled.DeployDelegateCallCalled(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	_, tx, sc, err := DelegateCallCaller.DeployDelegateCallCaller(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	return map[string]interface{}{
+		"sc":            sc,
+		"calledAddress": scAddr,
+	}, nil
+}
+
+func createDelegateCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*DelegateCallCaller.DelegateCallCaller)
+
+	calledAddressInterface := customData["calledAddress"]
+	calledAddress := calledAddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(2509)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = uint64(100000)
+
+	tx, err := sc.SetVars(&opts, calledAddress, big.NewInt(1984))
 	require.NoError(t, err)
 
 	return tx, nil

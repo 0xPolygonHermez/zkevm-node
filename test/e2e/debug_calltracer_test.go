@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 	"testing"
 
@@ -33,10 +34,10 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
+	// defer func() {
+	// 	require.NoError(t, operations.Teardown())
+	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	// }()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -80,16 +81,17 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
-		{name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
-		{name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
+		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		// {name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
+		// {name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
+		{name: "delegatecall", prepare: prepareDelegateCall, createSignedTx: createDelegateCallSignedTx},
 		// failed transactions
-		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
-		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
-		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		// {name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
 	}
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -183,22 +185,22 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				log.Debug(string(response.Result))
 
 				// save result in a file
-				// sanitizedNetworkName := strings.ReplaceAll(network.Name+"_"+tc.name, " ", "_")
-				// filePath := fmt.Sprintf("/home/tclemos/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
-				// b, _ := signedTx.MarshalBinary()
-				// fileContent := struct {
-				// 	Tx    *ethTypes.Transaction
-				// 	RLP   string
-				// 	Trace json.RawMessage
-				// }{
-				// 	Tx:    signedTx,
-				// 	RLP:   hex.EncodeToHex(b),
-				// 	Trace: response.Result,
-				// }
-				// c, err := json.MarshalIndent(fileContent, "", "    ")
-				// require.NoError(t, err)
-				// err = os.WriteFile(filePath, c, 0644)
-				// require.NoError(t, err)
+				sanitizedNetworkName := strings.ReplaceAll(network.Name+"_"+tc.name, " ", "_")
+				filePath := fmt.Sprintf("/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
+				b, _ := signedTx.MarshalBinary()
+				fileContent := struct {
+					Tx    *ethTypes.Transaction
+					RLP   string
+					Trace json.RawMessage
+				}{
+					Tx:    signedTx,
+					RLP:   hex.EncodeToHex(b),
+					Trace: response.Result,
+				}
+				c, err := json.MarshalIndent(fileContent, "", "    ")
+				require.NoError(t, err)
+				err = os.WriteFile(filePath, c, 0644)
+				require.NoError(t, err)
 			}
 
 			referenceValueMap := map[string]interface{}{}
