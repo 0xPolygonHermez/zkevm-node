@@ -478,7 +478,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 	log.Infof("handleTransactionError: error in tx: %s, errorCode: %d", tx.Hash.String(), errorCode)
 	wg := new(sync.WaitGroup)
 	failedReason := executor.RomErr(errorCode).Error()
-	if result.IsRomOOCError {
+	if executor.IsROMOutOfCountersError(errorCode) {
 		log.Errorf("ROM out of counters error, marking tx with Hash: %s as INVALID, errorCode: %s", tx.Hash.String(), errorCode.String())
 		start := time.Now()
 		f.worker.DeleteTx(tx.Hash, tx.From)
