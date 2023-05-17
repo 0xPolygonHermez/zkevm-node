@@ -533,25 +533,25 @@ func (_m *DbManagerMock) OpenBatch(ctx context.Context, processingContext state.
 	return r0
 }
 
-// ProcessForcedBatch provides a mock function with given fields: forcedBatch, request
-func (_m *DbManagerMock) ProcessForcedBatch(forcedBatch state.ForcedBatch, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
-	ret := _m.Called(forcedBatch, request)
+// ProcessForcedBatch provides a mock function with given fields: ForcedBatchNumber, request
+func (_m *DbManagerMock) ProcessForcedBatch(ForcedBatchNumber uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ForcedBatchNumber, request)
 
 	var r0 *state.ProcessBatchResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(state.ForcedBatch, state.ProcessRequest) (*state.ProcessBatchResponse, error)); ok {
-		return rf(forcedBatch, request)
+	if rf, ok := ret.Get(0).(func(uint64, state.ProcessRequest) (*state.ProcessBatchResponse, error)); ok {
+		return rf(ForcedBatchNumber, request)
 	}
-	if rf, ok := ret.Get(0).(func(state.ForcedBatch, state.ProcessRequest) *state.ProcessBatchResponse); ok {
-		r0 = rf(forcedBatch, request)
+	if rf, ok := ret.Get(0).(func(uint64, state.ProcessRequest) *state.ProcessBatchResponse); ok {
+		r0 = rf(ForcedBatchNumber, request)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.ProcessBatchResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(state.ForcedBatch, state.ProcessRequest) error); ok {
-		r1 = rf(forcedBatch, request)
+	if rf, ok := ret.Get(1).(func(uint64, state.ProcessRequest) error); ok {
+		r1 = rf(ForcedBatchNumber, request)
 	} else {
 		r1 = ret.Error(1)
 	}

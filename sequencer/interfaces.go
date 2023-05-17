@@ -107,7 +107,7 @@ type dbManagerInterface interface {
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
 	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
-	ProcessForcedBatch(forcedBatch state.ForcedBatch, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
+	ProcessForcedBatch(ForcedBatchNumber uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
 	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)

@@ -512,6 +512,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			wg.Add(1)
 			txToDelete := txToDelete
 			go func() {
+				defer wg.Done()
 				err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, &failedReason)
 				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 				if err != nil {
@@ -527,6 +528,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			// Update the status of the transaction to failed
 			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false, &failedReason)
 			if err != nil {
@@ -652,7 +654,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		Timestamp:      now(),
 		Caller:         stateMetrics.SequencerCallerLabel,
 	}
-	response, err := f.dbManager.ProcessForcedBatch(forcedBatch, request)
+	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, request)
 	if err != nil {
 		// If there is EXECUTOR (Batch level) error, halt the finalizer.
 		f.halt(ctx, fmt.Errorf("failed to process forced batch, Executor err: %w", err))
