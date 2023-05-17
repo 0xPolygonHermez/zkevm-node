@@ -425,14 +425,14 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 }
 
 // ProcessForcedBatch process a forced batch
-func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
+func (d *dbManager) ProcessForcedBatch(ForcedBatchNumber uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
 	// Open Batch
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    request.BatchNumber,
 		Coinbase:       request.Coinbase,
 		Timestamp:      request.Timestamp,
 		GlobalExitRoot: request.GlobalExitRoot,
-		ForcedBatchNum: &forcedBatchNum,
+		ForcedBatchNum: &ForcedBatchNumber,
 	}
 	dbTx, err := d.state.BeginStateTransaction(d.ctx)
 	if err != nil {
@@ -453,7 +453,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	}
 
 	// Fetch Forced Batch
-	forcedBatch, err := d.state.GetForcedBatch(d.ctx, forcedBatchNum, dbTx)
+	forcedBatch, err := d.state.GetForcedBatch(d.ctx, ForcedBatchNumber, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
 			log.Errorf(
@@ -474,7 +474,7 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 	// Close Batch
 	txsBytes := uint64(0)
 	for _, resp := range processBatchResponse.Responses {
-		if !resp.IsProcessed {
+		if !resp.ChangesStateRoot {
 			continue
 		}
 		txsBytes += resp.Tx.Size()

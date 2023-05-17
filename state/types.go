@@ -27,18 +27,21 @@ type ProcessRequest struct {
 
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot       common.Hash
-	NewAccInputHash    common.Hash
-	NewLocalExitRoot   common.Hash
-	NewBatchNumber     uint64
-	UsedZkCounters     ZKCounters
-	Responses          []*ProcessTransactionResponse
-	ExecutorError      error
-	IsBatchProcessed   bool
-	ReadWriteAddresses map[common.Address]*InfoReadWrite
-	FlushID            uint64
-	StoredFlushID      uint64
-	ProverID           string
+	NewStateRoot         common.Hash
+	NewAccInputHash      common.Hash
+	NewLocalExitRoot     common.Hash
+	NewBatchNumber       uint64
+	UsedZkCounters       ZKCounters
+	Responses            []*ProcessTransactionResponse
+	ExecutorError        error
+	IsBatchProcessed     bool
+	ReadWriteAddresses   map[common.Address]*InfoReadWrite
+	IsRomLevelError      bool
+	IsExecutorLevelError bool
+	IsRomOOCError        bool
+	FlushID              uint64
+	StoredFlushID        uint64
+	ProverID             string
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
@@ -64,8 +67,8 @@ type ProcessTransactionResponse struct {
 	StateRoot common.Hash
 	// Logs emitted by LOG opcode
 	Logs []*types.Log
-	// IsProcessed indicates if this tx didn't fit into the batch
-	IsProcessed bool
+	// ChangesStateRoot indicates if this tx affects the state
+	ChangesStateRoot bool
 	// Tx is the whole transaction object
 	Tx types.Transaction
 	// ExecutionTrace contains the traces produced in the execution

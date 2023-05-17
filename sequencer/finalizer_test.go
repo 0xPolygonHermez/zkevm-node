@@ -1119,7 +1119,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 			}
 
 			// act
-			wg := f.handleTransactionError(ctx, result, tx)
+			wg := f.handleProcessTransactionError(ctx, result, tx)
 			if wg != nil {
 				wg.Wait()
 			}

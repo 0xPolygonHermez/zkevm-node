@@ -48,30 +48,45 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 		return nil, err
 	}
 
-	isBatchProcessed := response.Error == executor.EXECUTOR_ERROR_NO_ERROR
-	if isBatchProcessed && len(response.Responses) > 0 {
-		// Check out of counters
-		errorToCheck := response.Responses[len(response.Responses)-1].Error
-		isBatchProcessed = !executor.IsROMOutOfCountersError(errorToCheck)
+	isExecutorLevelError := (response.Error != executor.EXECUTOR_ERROR_NO_ERROR)
+	isRomLevelError := false
+	isRomOOCError := false
+
+	if response.Responses != nil {
+		for _, resp := range response.Responses {
+			if resp.Error != pb.RomError_ROM_ERROR_NO_ERROR {
+				isRomLevelError = true
+				break
+			}
+		}
+
+		if len(response.Responses) > 0 {
+			// Check out of counters
+			errorToCheck := response.Responses[len(response.Responses)-1].Error
+			isRomOOCError = executor.IsROMOutOfCountersError(errorToCheck)
+		}
 	}
 
 	return &ProcessBatchResponse{
-		NewStateRoot:       common.BytesToHash(response.NewStateRoot),
-		NewAccInputHash:    common.BytesToHash(response.NewAccInputHash),
-		NewLocalExitRoot:   common.BytesToHash(response.NewLocalExitRoot),
-		NewBatchNumber:     response.NewBatchNum,
-		UsedZkCounters:     convertToCounters(response),
-		Responses:          responses,
-		ExecutorError:      executor.ExecutorErr(response.Error),
-		IsBatchProcessed:   isBatchProcessed,
-		ReadWriteAddresses: readWriteAddresses,
-		FlushID:            response.FlushId,
-		StoredFlushID:      response.StoredFlushId,
-		ProverID:           response.ProverId,
+		NewStateRoot:         common.BytesToHash(response.NewStateRoot),
+		NewAccInputHash:      common.BytesToHash(response.NewAccInputHash),
+		NewLocalExitRoot:     common.BytesToHash(response.NewLocalExitRoot),
+		NewBatchNumber:       response.NewBatchNum,
+		UsedZkCounters:       convertToCounters(response),
+		Responses:            responses,
+		ExecutorError:        executor.ExecutorErr(response.Error),
+		ReadWriteAddresses:   readWriteAddresses,
+		FlushID:              response.FlushId,
+		StoredFlushID:        response.StoredFlushId,
+		ProverID:             response.ProverId,
+		IsExecutorLevelError: isExecutorLevelError,
+		IsRomLevelError:      isRomLevelError,
+		IsRomOOCError:        isRomOOCError,
 	}, nil
 }
 
-func isProcessed(err pb.RomError) bool {
+// IsStateRootChanged returns true if the transaction changes the state root
+func IsStateRootChanged(err pb.RomError) bool {
 	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
 }
 
@@ -128,7 +143,7 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.IsProcessed = isProcessed(response.Error)
+		result.ChangesStateRoot = IsStateRootChanged(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]
@@ -161,7 +176,7 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
 		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
 		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
-		log.Debugf("ProcessTransactionResponse[IsProcessed]: %v", result.IsProcessed)
+		log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
 	}
 
 	return results, nil
