@@ -441,14 +441,14 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 }
 
 // ProcessForcedBatch process a forced batch
-func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
+func (d *dbManager) ProcessForcedBatch(forcedBatch state.ForcedBatch, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
 	// Open Batch
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    request.BatchNumber,
 		Coinbase:       request.Coinbase,
 		Timestamp:      request.Timestamp,
 		GlobalExitRoot: request.GlobalExitRoot,
-		ForcedBatchNum: &forcedBatchNum,
+		ForcedBatchNum: &forcedBatch.ForcedBatchNumber,
 	}
 	dbTx, err := d.state.BeginStateTransaction(d.ctx)
 	if err != nil {
@@ -465,19 +465,6 @@ func (d *dbManager) ProcessForcedBatch(forcedBatchNum uint64, request state.Proc
 			)
 		}
 		log.Errorf("failed to open a batch, err: %v", err)
-		return nil, err
-	}
-
-	// Fetch Forced Batch
-	forcedBatch, err := d.state.GetForcedBatch(d.ctx, forcedBatchNum, dbTx)
-	if err != nil {
-		if rollbackErr := dbTx.Rollback(d.ctx); rollbackErr != nil {
-			log.Errorf(
-				"failed to rollback dbTx when getting forced batch err: %v. Rollback err: %v",
-				rollbackErr, err,
-			)
-		}
-		log.Errorf("failed to get a forced batch, err: %v", err)
 		return nil, err
 	}
 
