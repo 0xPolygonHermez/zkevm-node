@@ -2,9 +2,12 @@ package main
 
 import (
 	"strconv"
+	"fmt"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node"
 	pg "github.com/habx/pg-commands"
 	"github.com/urfave/cli/v2"
 )
@@ -39,13 +42,14 @@ func snapshot(ctx *cli.Context) error {
 		return err
 	}
 
+	dump.SetFileName(fmt.Sprintf(`%v_%v_%v_%v.sql.tar.gz`, dump.DB, time.Now().Unix(), zkevm.Version, zkevm.GitRev))
 	dumpExec := dump.Exec(pg.ExecOptions{StreamPrint: false})
 	if dumpExec.Error != nil {
 		log.Error("error dumping db. Error: ", dumpExec.Error.Err)
 		log.Debug("dumpExec.Output: ", dumpExec.Output)
 		return err
-
 	}
-	log.Info("Snapshot success")
+
+	log.Info("Snapshot success. Saved in ", dumpExec.File)
 	return nil
 }

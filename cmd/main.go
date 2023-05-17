@@ -156,6 +156,13 @@ func main() {
 			Action:  snapshot,
 			Flags:   snapshotFlags,
 		},
+		{
+			Name:    "restore",
+			Aliases: []string{},
+			Usage:   "Restore snapshot of the state db",
+			Action:  restore,
+			Flags:   restoreFlags,
+		},
 	}
 
 	err := app.Run(os.Args)
