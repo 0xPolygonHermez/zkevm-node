@@ -738,49 +738,12 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 	return tx.To() == nil && len(tx.Data()) > 0
 }
 
-// DetermineProcessedTransactions splits the given tx process responses
-// returning a slice with only processed and a map unprocessed txs
-// respectively.
-func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
-	[]*ProcessTransactionResponse, []string, map[string]*ProcessTransactionResponse, []string) {
-	processedTxResponses := []*ProcessTransactionResponse{}
-	processedTxsHashes := []string{}
-	unprocessedTxResponses := map[string]*ProcessTransactionResponse{}
-	unprocessedTxsHashes := []string{}
-	for _, response := range responses {
-		if response.IsProcessed {
-			processedTxResponses = append(processedTxResponses, response)
-			processedTxsHashes = append(processedTxsHashes, response.TxHash.String())
-		} else {
-			log.Infof("Tx %s has not been processed", response.TxHash)
-			unprocessedTxResponses[response.TxHash.String()] = response
-			unprocessedTxsHashes = append(unprocessedTxsHashes, response.TxHash.String())
-		}
-	}
-	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
-}
-
 // StoreTransaction is used by the sequencer to add process a transaction
 func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
 
-	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
-	/*
-			isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
-			if err != nil {
-				return err
-			}
-			if isBatchClosed {
-				return ErrBatchAlreadyClosed
-			}
-
-		processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
-		if err != nil {
-			return err
-		}
-	*/
 	// if the transaction has an intrinsic invalid tx error it means
 	// the transaction has not changed the state, so we don't store it
 	if executor.IsIntrinsicError(executor.RomErrorCode(processedTx.RomError)) {
