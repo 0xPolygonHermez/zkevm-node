@@ -121,7 +121,7 @@ func RomErr(errorCode pb.RomError) error {
 	case ROM_ERROR_EXECUTION_REVERTED:
 		return runtime.ErrExecutionReverted
 	case ROM_ERROR_OUT_OF_COUNTERS_STEP:
-		return runtime.ErrOutOfCountersKeccak
+		return runtime.ErrOutOfCountersStep
 	case ROM_ERROR_OUT_OF_COUNTERS_KECCAK:
 		return runtime.ErrOutOfCountersKeccak
 	case ROM_ERROR_OUT_OF_COUNTERS_BINARY:
@@ -183,6 +183,8 @@ func RomErrorCode(err error) pb.RomError {
 		return pb.RomError(ROM_ERROR_CONTRACT_ADDRESS_COLLISION)
 	case runtime.ErrExecutionReverted:
 		return pb.RomError(ROM_ERROR_EXECUTION_REVERTED)
+	case runtime.ErrOutOfCountersStep:
+		return pb.RomError(ROM_ERROR_OUT_OF_COUNTERS_STEP)
 	case runtime.ErrOutOfCountersKeccak:
 		return pb.RomError(ROM_ERROR_OUT_OF_COUNTERS_KECCAK)
 	case runtime.ErrOutOfCountersBinary:
