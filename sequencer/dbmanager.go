@@ -485,6 +485,7 @@ func (d *dbManager) ProcessForcedBatch(ForcedBatchNumber uint64, request state.P
 	processBatchResponse, err := d.state.ProcessSequencerBatch(d.ctx, request.BatchNumber, forcedBatch.RawTxsData, request.Caller, dbTx)
 	if err != nil {
 		log.Errorf("failed to process a forced batch, err: %v", err)
+		return nil, err
 	}
 
 	// Close Batch

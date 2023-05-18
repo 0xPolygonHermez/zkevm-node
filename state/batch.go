@@ -145,10 +145,15 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 		return nil, err
 	}
 
-	txs, _, err := DecodeTxs(batchL2Data)
-	if err != nil && !errors.Is(err, ErrInvalidData) {
-		return nil, err
+	txs := []types.Transaction{}
+
+	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
+		txs, _, err = DecodeTxs(batchL2Data)
+		if err != nil && !errors.Is(err, ErrInvalidData) {
+			return nil, err
+		}
 	}
+
 	result, err := s.convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
