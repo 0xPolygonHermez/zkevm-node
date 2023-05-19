@@ -540,11 +540,11 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 
 		// when a sub call or create is detected, the next step contains the contract updated
 		if previousOpcode == "CREATE" || previousOpcode == "CREATE2" || previousOpcode == "DELEGATECALL" ||
-			previousOpcode == "CALL" || previousOpcode == "CALLCODE" || previousOpcode == "STATICCALL" {
+			previousOpcode == "CALL" || previousOpcode == "CALLCODE" {
 			tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
 		}
 
-		if step.OpCode == "SELFDESTRUCT" {
+		if step.OpCode == "STATICCALL" || step.OpCode == "SELFDESTRUCT" {
 			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), gas.Uint64(), value)
 			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
 		}
