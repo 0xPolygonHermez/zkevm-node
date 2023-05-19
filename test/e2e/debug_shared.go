@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Called"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Caller"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Creates"
-	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/DelegateCallCalled"
-	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/DelegateCallCaller"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
@@ -255,14 +255,14 @@ func createCreate2SignedTx(t *testing.T, ctx context.Context, auth *bind.Transac
 	return tx, nil
 }
 
-func prepareDelegateCall(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
-	scAddr, tx, _, err := DelegateCallCalled.DeployDelegateCallCalled(auth, client)
+func prepareCalls(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	scAddr, tx, _, err := Called.DeployCalled(auth, client)
 	require.NoError(t, err)
 
 	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 	require.NoError(t, err)
 
-	_, tx, sc, err := DelegateCallCaller.DeployDelegateCallCaller(auth, client)
+	_, tx, sc, err := Caller.DeployCaller(auth, client)
 	require.NoError(t, err)
 
 	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
@@ -274,9 +274,9 @@ func prepareDelegateCall(t *testing.T, ctx context.Context, auth *bind.TransactO
 	}, nil
 }
 
-func createDelegateCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+func createCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	scInterface := customData["sc"]
-	sc := scInterface.(*DelegateCallCaller.DelegateCallCaller)
+	sc := scInterface.(*Caller.Caller)
 
 	calledAddressInterface := customData["calledAddress"]
 	calledAddress := calledAddressInterface.(common.Address)
@@ -289,9 +289,9 @@ func createDelegateCallSignedTx(t *testing.T, ctx context.Context, auth *bind.Tr
 	require.NoError(t, err)
 
 	opts.GasPrice = gasPrice
-	opts.GasLimit = uint64(100000)
+	opts.GasLimit = uint64(300000)
 
-	tx, err := sc.SetVars(&opts, calledAddress, big.NewInt(1984))
+	tx, err := sc.ExecCall(&opts, calledAddress, big.NewInt(1984))
 	require.NoError(t, err)
 
 	return tx, nil

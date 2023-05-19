@@ -283,7 +283,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		// {name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
 		// {name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
-		{name: "delegatecall", prepare: prepareDelegateCall, createSignedTx: createDelegateCallSignedTx},
+		{name: "call", prepare: prepareCalls, createSignedTx: createCallSignedTx},
 		// failed transactions
 		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
 		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
@@ -371,10 +371,10 @@ func TestDebugTraceTransaction(t *testing.T) {
 				}
 
 				debugOptions := map[string]interface{}{
-					"disableStorage":   true,
-					"disableStack":     true,
-					"enableMemory":     false,
-					"enableReturnData": false,
+					"disableStorage":   false,
+					"disableStack":     false,
+					"enableMemory":     true,
+					"enableReturnData": true,
 				}
 
 				response, err := client.JSONRPCCall(network.URL, "debug_traceTransaction", signedTx.Hash().String(), debugOptions)
@@ -538,7 +538,6 @@ func TestDebugTraceBlock(t *testing.T) {
 		{name: "erc20 transfer by number", blockNumberOrHash: "number", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		{name: "create by number", blockNumberOrHash: "number", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
 		{name: "create2 by number", blockNumberOrHash: "number", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
-		{name: "delegatecall by number", blockNumberOrHash: "number", prepare: prepareDelegateCall, createSignedTx: createDelegateCallSignedTx},
 		// by block hash
 		{name: "eth transfer by hash", blockNumberOrHash: "hash", createSignedTx: createEthTransferSignedTx},
 		{name: "sc deployment by hash", blockNumberOrHash: "hash", createSignedTx: createScDeploySignedTx},
@@ -546,7 +545,6 @@ func TestDebugTraceBlock(t *testing.T) {
 		{name: "erc20 transfer by hash", blockNumberOrHash: "hash", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		{name: "create by hash", blockNumberOrHash: "hash", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
 		{name: "create2 by hash", blockNumberOrHash: "hash", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
-		{name: "delegatecall by hash", blockNumberOrHash: "hash", prepare: prepareDelegateCall, createSignedTx: createDelegateCallSignedTx},
 
 		// failed transactions
 		{name: "sc deployment reverted by number", blockNumberOrHash: "number", createSignedTx: createScDeployRevertedSignedTx},

@@ -87,7 +87,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		// {name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
 		// {name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
-		{name: "delegatecall", prepare: prepareDelegateCall, createSignedTx: createDelegateCallSignedTx},
+		{name: "call", prepare: prepareCalls, createSignedTx: createCallSignedTx},
 		// failed transactions
 		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
 		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
