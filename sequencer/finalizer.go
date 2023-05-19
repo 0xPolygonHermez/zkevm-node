@@ -55,6 +55,7 @@ type finalizer struct {
 	// Processed txs
 	pendingTransactionsToStore    []transactionToStore
 	pendingTransactionsToStoreMux *sync.RWMutex
+	pendingTransactionsToStoreWG  sync.WaitGroup
 	storedFlushID                 uint64
 	proverID                      string
 }
@@ -352,6 +353,7 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 				}
 				f.pendingTransactionsToStoreMux.Unlock()
 				txsToStoreCount = txsToStoreCount - 1
+				f.pendingTransactionsToStoreWG.Done()
 			}
 
 			if txsToStoreCount > 0 {
@@ -373,10 +375,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	defer f.sharedResourcesMux.Unlock()
 
 	// Wait until all processed transactions are saved
-	for len(f.pendingTransactionsToStore) > 0 {
-		log.Debug("waiting for processed transactions to be saved...")
-		time.Sleep(100 * time.Millisecond) //nolint:gomnd
-	}
+	f.pendingTransactionsToStoreWG.Wait()
 
 	var err error
 	if f.batch.stateRoot.String() == "" || f.batch.localExitRoot.String() == "" {
@@ -526,6 +525,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		flushId:       result.FlushID,
 	}
 	f.pendingTransactionsToStoreMux.Lock()
+	f.pendingTransactionsToStoreWG.Add(1)
 	f.pendingTransactionsToStore = append(f.pendingTransactionsToStore, processedTransaction)
 	f.pendingTransactionsToStoreMux.Unlock()
 
@@ -564,6 +564,7 @@ func (f *finalizer) handleForcedTxsProcessResp(request state.ProcessRequest, res
 			flushId:       result.FlushID,
 		}
 		f.pendingTransactionsToStoreMux.Lock()
+		f.pendingTransactionsToStoreWG.Add(1)
 		f.pendingTransactionsToStore = append(f.pendingTransactionsToStore, processedTransaction)
 		f.pendingTransactionsToStoreMux.Unlock()
 	}
