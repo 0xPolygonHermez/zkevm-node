@@ -34,10 +34,10 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	// defer func() {
-	// 	require.NoError(t, operations.Teardown())
-	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	// }()
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	}()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -81,17 +81,21 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
-		// {name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
-		// {name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
+		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		{name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
+		{name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
 		{name: "call", prepare: prepareCalls, createSignedTx: createCallSignedTx},
+		{name: "delegate call", prepare: prepareCalls, createSignedTx: createDelegateCallSignedTx},
+		{name: "multi call", prepare: prepareCalls, createSignedTx: createMultiCallSignedTx},
+		{name: "chain call", prepare: prepareChainCalls, createSignedTx: createChainCallSignedTx},
+
 		// failed transactions
-		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
-		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
-		// {name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
 	}
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -276,10 +280,10 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	// defer func() {
-	// 	require.NoError(t, operations.Teardown())
-	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	// }()
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	}()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -324,20 +328,23 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
+		// by block number
 		{name: "eth transfer by number", blockNumberOrHash: "number", createSignedTx: createEthTransferSignedTx},
 		{name: "sc deployment by number", blockNumberOrHash: "number", createSignedTx: createScDeploySignedTx},
 		{name: "sc call by number", blockNumberOrHash: "number", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
 		{name: "erc20 transfer by number", blockNumberOrHash: "number", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
-
+		// by block hash
 		{name: "eth transfer by hash", blockNumberOrHash: "hash", createSignedTx: createEthTransferSignedTx},
 		{name: "sc deployment by hash", blockNumberOrHash: "hash", createSignedTx: createScDeploySignedTx},
 		{name: "sc call by hash", blockNumberOrHash: "hash", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
 		{name: "erc20 transfer by hash", blockNumberOrHash: "hash", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+
 		// failed transactions
+		// by block number
 		{name: "sc deployment reverted by number", blockNumberOrHash: "number", createSignedTx: createScDeployRevertedSignedTx},
 		{name: "sc call reverted by number", blockNumberOrHash: "number", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
 		{name: "erc20 transfer reverted by number", blockNumberOrHash: "number", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
-
+		// by block hash
 		{name: "sc deployment reverted by hash", blockNumberOrHash: "hash", createSignedTx: createScDeployRevertedSignedTx},
 		{name: "sc call reverted by hash", blockNumberOrHash: "hash", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
 		{name: "erc20 transfer reverted by hash", blockNumberOrHash: "hash", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},

@@ -8,6 +8,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Called"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Caller"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ChainCallLevel1"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ChainCallLevel2"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ChainCallLevel3"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ChainCallLevel4"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Creates"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
@@ -291,7 +295,115 @@ func createCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOp
 	opts.GasPrice = gasPrice
 	opts.GasLimit = uint64(300000)
 
-	tx, err := sc.ExecCall(&opts, calledAddress, big.NewInt(1984))
+	tx, err := sc.Call(&opts, calledAddress, big.NewInt(1984))
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func createDelegateCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Caller.Caller)
+
+	calledAddressInterface := customData["calledAddress"]
+	calledAddress := calledAddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(2509)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = uint64(300000)
+
+	tx, err := sc.DelegateCall(&opts, calledAddress, big.NewInt(1984))
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func createMultiCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Caller.Caller)
+
+	calledAddressInterface := customData["calledAddress"]
+	calledAddress := calledAddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(2509)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = uint64(300000)
+
+	tx, err := sc.MultiCall(&opts, calledAddress, big.NewInt(1984))
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func prepareChainCalls(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	scAddrLevel4, tx, _, err := ChainCallLevel4.DeployChainCallLevel4(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	scAddrLevel3, tx, _, err := ChainCallLevel3.DeployChainCallLevel3(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	scAddrLevel2, tx, _, err := ChainCallLevel2.DeployChainCallLevel2(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	_, tx, sc, err := ChainCallLevel1.DeployChainCallLevel1(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	return map[string]interface{}{
+		"sc":            sc,
+		"level2Address": scAddrLevel2,
+		"level3Address": scAddrLevel3,
+		"level4Address": scAddrLevel4,
+	}, nil
+}
+
+func createChainCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*ChainCallLevel1.ChainCallLevel1)
+
+	level2AddressInterface := customData["level2Address"]
+	level2Address := level2AddressInterface.(common.Address)
+
+	level3AddressInterface := customData["level3Address"]
+	level3Address := level3AddressInterface.(common.Address)
+
+	level4AddressInterface := customData["level4Address"]
+	level4Address := level4AddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(2509)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = uint64(300000)
+
+	tx, err := sc.Exec(&opts, level2Address, level3Address, level4Address)
 	require.NoError(t, err)
 
 	return tx, nil

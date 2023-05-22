@@ -452,7 +452,12 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 	}
 
 	tracer.CaptureTxStart(contextGas.Uint64())
-	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
+	decodedInput, err := hex.DecodeHex(trace.Context.Input)
+	if err != nil {
+		log.Debugf("error while decoding context input from hex to bytes")
+		return nil, fmt.Errorf("%w %w", err, ErrParsingExecutorTrace)
+	}
+	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", decodedInput, contextGas.Uint64(), value)
 
 	bigStateRoot, ok := new(big.Int).SetString(trace.Context.OldStateRoot, 0)
 	if !ok {
@@ -538,15 +543,24 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			}
 		}
 
-		// when a sub call or create is detected, the next step contains the contract updated
-		if previousOpcode == "CREATE" || previousOpcode == "CREATE2" || previousOpcode == "DELEGATECALL" ||
-			previousOpcode == "CALL" || previousOpcode == "CALLCODE" {
-			tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
-		}
+		previousOpCodeCanBeSubCall := previousOpcode == "CREATE" ||
+			previousOpcode == "CREATE2" ||
+			previousOpcode == "DELEGATECALL" ||
+			previousOpcode == "CALL" ||
+			previousOpcode == "STATICCALL" ||
+			// deprecated ones
+			previousOpcode == "CALLCODE" ||
+			previousOpcode == "SELFDESTRUCT"
 
-		if step.OpCode == "STATICCALL" || step.OpCode == "SELFDESTRUCT" {
-			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), gas.Uint64(), value)
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+		// when a sub call or create is detected, the next step contains the contract updated
+		if previousOpCodeCanBeSubCall {
+			// shadowing "value" to override its value without compromising the external code
+			value := value
+			// value is not carried over when the capture enter handles STATIC CALL
+			if previousOpcode == "STATICCALL" {
+				value = nil
+			}
+			tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
 		}
 
 		// returning from a call or create
