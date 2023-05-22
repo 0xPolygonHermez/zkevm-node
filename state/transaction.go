@@ -454,8 +454,8 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 	tracer.CaptureTxStart(contextGas.Uint64())
 	decodedInput, err := hex.DecodeHex(trace.Context.Input)
 	if err != nil {
-		log.Debugf("error while decoding context input from hex to bytes")
-		return nil, fmt.Errorf("%w %w", err, ErrParsingExecutorTrace)
+		log.Errorf("error while decoding context input from hex to bytes:, %v", err)
+		return nil, ErrParsingExecutorTrace
 	}
 	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", decodedInput, contextGas.Uint64(), value)
 
