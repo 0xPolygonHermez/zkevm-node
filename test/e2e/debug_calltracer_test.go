@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"os"
 	"strings"
 	"testing"
 
@@ -189,22 +188,22 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				log.Debug(string(response.Result))
 
 				// save result in a file
-				sanitizedNetworkName := strings.ReplaceAll(network.Name+"_"+tc.name, " ", "_")
-				filePath := fmt.Sprintf("/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
-				b, _ := signedTx.MarshalBinary()
-				fileContent := struct {
-					Tx    *ethTypes.Transaction
-					RLP   string
-					Trace json.RawMessage
-				}{
-					Tx:    signedTx,
-					RLP:   hex.EncodeToHex(b),
-					Trace: response.Result,
-				}
-				c, err := json.MarshalIndent(fileContent, "", "    ")
-				require.NoError(t, err)
-				err = os.WriteFile(filePath, c, 0644)
-				require.NoError(t, err)
+				// sanitizedNetworkName := strings.ReplaceAll(network.Name+"_"+tc.name, " ", "_")
+				// filePath := fmt.Sprintf("/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
+				// b, _ := signedTx.MarshalBinary()
+				// fileContent := struct {
+				// 	Tx    *ethTypes.Transaction
+				// 	RLP   string
+				// 	Trace json.RawMessage
+				// }{
+				// 	Tx:    signedTx,
+				// 	RLP:   hex.EncodeToHex(b),
+				// 	Trace: response.Result,
+				// }
+				// c, err := json.MarshalIndent(fileContent, "", "    ")
+				// require.NoError(t, err)
+				// err = os.WriteFile(filePath, c, 0644)
+				// require.NoError(t, err)
 			}
 
 			referenceValueMap := map[string]interface{}{}
