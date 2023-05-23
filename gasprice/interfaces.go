@@ -14,6 +14,7 @@ import (
 type pool interface {
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	GetGasPrice(ctx context.Context) (uint64, error)
+	DeleteGasPricesHistory(ctx context.Context) error
 }
 
 // stateInterface gathers the methods required to interact with the state.

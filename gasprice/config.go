@@ -28,5 +28,6 @@ type Config struct {
 	CheckBlocks        int            `mapstructure:"CheckBlocks"`
 	Percentile         int            `mapstructure:"Percentile"`
 	UpdatePeriod       types.Duration `mapstructure:"UpdatePeriod"`
+	CleanHistoryPeriod types.Duration `mapstructure:"CleanHistoryPeriod"`
 	Factor             float64        `mapstructure:"Factor"`
 }

@@ -232,6 +232,11 @@ func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus T
 	})
 }
 
+// DeleteGasPricesHistory delete old gas price except the most recent one
+func (p *Pool) DeleteGasPricesHistory(ctx context.Context) error {
+	return p.storage.DeleteGasPricesHistory(ctx)
+}
+
 // SetGasPrice allows an external component to define the gas price
 func (p *Pool) SetGasPrice(ctx context.Context, gasPrice uint64) error {
 	return p.storage.SetGasPrice(ctx, gasPrice)

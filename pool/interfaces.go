@@ -23,6 +23,7 @@ type storage interface {
 	GetNonWIPTxsByStatus(ctx context.Context, status TxStatus, limit uint64) ([]Transaction, error)
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
+	DeleteGasPricesHistory(ctx context.Context) error
 	UpdateTxsStatus(ctx context.Context, updateInfo []TxStatusUpdateInfo) error
 	UpdateTxStatus(ctx context.Context, updateInfo TxStatusUpdateInfo) error
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error

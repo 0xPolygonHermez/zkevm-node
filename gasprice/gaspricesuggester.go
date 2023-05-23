@@ -31,13 +31,27 @@ func NewL2GasPriceSuggester(ctx context.Context, cfg Config, pool pool, ethMan *
 		log.Fatal("unknown l2 gas price suggester type ", cfg.Type, ". Please specify a valid one: 'lastnbatches', 'follower' or 'default'")
 	}
 
+	updateTimer := time.NewTimer(cfg.UpdatePeriod.Duration)
+	cleanTimer := time.NewTimer(cfg.CleanHistoryPeriod.Duration)
 	for {
 		select {
 		case <-ctx.Done():
 			log.Info("Finishing l2 gas price suggester...")
 			return
-		case <-time.After(cfg.UpdatePeriod.Duration):
+		case <-updateTimer.C:
 			gpricer.UpdateGasPriceAvg()
+			updateTimer.Reset(cfg.UpdatePeriod.Duration)
+		case <-cleanTimer.C:
+			cleanGasPriceHistory(pool)
+			cleanTimer.Reset(cfg.CleanHistoryPeriod.Duration)
 		}
+	}
+}
+
+func cleanGasPriceHistory(pool pool) {
+	ctx := context.Background()
+	err := pool.DeleteGasPricesHistory(ctx)
+	if err != nil {
+		log.Errorf("failed to delete pool gas price history: %v", err)
 	}
 }
