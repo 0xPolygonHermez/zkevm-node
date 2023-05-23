@@ -45,16 +45,18 @@ type Transaction struct {
 	IsWIP                 bool
 	IP                    string
 	FailedReason          *string
+	BreakEvenGasPrice     uint64
 }
 
 // NewTransaction creates a new transaction
-func NewTransaction(tx types.Transaction, ip string, isWIP bool, p *Pool) *Transaction {
+func NewTransaction(tx types.Transaction, ip string, isWIP bool, breakEvenGasPrice uint64) *Transaction {
 	poolTx := Transaction{
-		Transaction: tx,
-		Status:      TxStatusPending,
-		ReceivedAt:  time.Now(),
-		IsWIP:       isWIP,
-		IP:          ip,
+		Transaction:       tx,
+		Status:            TxStatusPending,
+		ReceivedAt:        time.Now(),
+		IsWIP:             isWIP,
+		IP:                ip,
+		BreakEvenGasPrice: breakEvenGasPrice,
 	}
 
 	return &poolTx

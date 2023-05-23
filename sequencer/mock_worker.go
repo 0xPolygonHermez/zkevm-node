@@ -87,7 +87,7 @@ func (_m *WorkerMock) MoveTxToNotReady(txHash common.Hash, from common.Address, 
 }
 
 // NewTxTracker provides a mock function with given fields: tx, counters, ip
-func (_m *WorkerMock) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
+func (_m *WorkerMock) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, price uint64) (*TxTracker, error) {
 	ret := _m.Called(tx, counters, ip)
 
 	var r0 *TxTracker

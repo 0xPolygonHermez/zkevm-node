@@ -86,7 +86,7 @@ type workerInterface interface {
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker
 	DeleteTx(txHash common.Hash, from common.Address)
 	HandleL2Reorg(txHashes []common.Hash)
-	NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error)
+	NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, breakEvenGasPrice uint64) (*TxTracker, error)
 }
 
 // The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.

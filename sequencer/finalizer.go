@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"sync"
 	"time"
@@ -20,7 +21,9 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-const oneHundred = 100
+const (
+	oneHundred = 100
+)
 
 var (
 	now = time.Now
@@ -49,7 +52,11 @@ type finalizer struct {
 	nextForcedBatchDeadline int64
 	nextForcedBatchesMux    *sync.RWMutex
 	handlingL2Reorg         bool
-	eventLog                *event.EventLog
+	// event log
+	eventLog *event.EventLog
+	// gas price calculation
+	effectivePercentageTable        map[uint8]uint64
+	effectiveGasPricePercentageUnit uint64
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -83,6 +90,7 @@ func newFinalizer(
 	batchConstraints batchConstraints,
 	eventLog *event.EventLog,
 ) *finalizer {
+	effectivePercentageTableByIndex, effectivePercentageUnit := calcGasPriceEffectivePercentageTables()
 	return &finalizer{
 		cfg:                cfg,
 		txsStore:           txsStore,
@@ -104,7 +112,11 @@ func newFinalizer(
 		nextForcedBatches:       make([]state.ForcedBatch, 0),
 		nextForcedBatchDeadline: 0,
 		nextForcedBatchesMux:    new(sync.RWMutex),
-		eventLog:                eventLog,
+		// event log
+		eventLog: eventLog,
+		// gas price calculations
+		effectivePercentageTable:        effectivePercentageTableByIndex,
+		effectiveGasPricePercentageUnit: effectivePercentageUnit,
 	}
 }
 
@@ -367,11 +379,13 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
-	hash := "nil"
+	hashStr := "nil"
 	if tx != nil {
-		hash = tx.HashStr
+		hashStr = tx.HashStr
 	}
-	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hash, f.processRequest.GlobalExitRoot.String())
+	effectiveGasPrice := f.computeEffectiveGasPrice(tx.GasPrice.Uint64(), tx.breakEvenGasPrice)
+	f.processRequest.EffectiveGasPrice = effectiveGasPrice
+	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hashStr, f.processRequest.GlobalExitRoot.String())
 	processBatchResponse, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
 	if err != nil {
 		log.Errorf("failed to process transaction: %s", err)
@@ -393,6 +407,17 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	log.Infof("processTransaction: data loaded in memory. batch.batchNumber: %d, batchNumber: %d, result.NewStateRoot: %s, result.NewLocalExitRoot: %s, oldStateRoot: %s", f.batch.batchNumber, f.processRequest.BatchNumber, processBatchResponse.NewStateRoot.String(), processBatchResponse.NewLocalExitRoot.String(), oldStateRoot.String())
 
 	return nil
+}
+
+func (f *finalizer) computeEffectiveGasPrice(gasPrice, breakEvenGasPrice uint64) uint64 {
+	if gasPrice <= breakEvenGasPrice {
+		return gasPrice
+	}
+	percentage := uint64(breakEvenGasPrice/gasPrice) * 100
+	index := calcEffectiveGasPriceIndex(percentage, f.effectiveGasPricePercentageUnit)
+	effectivePercentage := f.effectivePercentageTable[index]
+
+	return (breakEvenGasPrice * effectivePercentage) / 100
 }
 
 // handleProcessTransactionResponse handles the response of transaction processing.
@@ -948,4 +973,26 @@ func getUsedBatchResources(constraints batchConstraints, remainingResources stat
 		},
 		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
 	}
+}
+
+func calcGasPriceEffectivePercentageTables() (map[uint8]uint64, uint64) {
+	effectivePercentageTableByIndex := make(map[uint8]uint64)
+	firstUnit := uint64(0)
+	for i := 0; i < 256; i++ {
+		percentage := uint64(math.Floor(float64(i+1)/256)) * 100
+		effectivePercentageTableByIndex[uint8(i)] = percentage
+		if firstUnit == 0 {
+			firstUnit = percentage
+		}
+	}
+	return effectivePercentageTableByIndex, firstUnit
+}
+
+func calcEffectiveGasPriceIndex(percentage, effectiveGasPricePercentageUnit uint64) uint8 {
+	// Calculate index based on percentage
+	index := float64(percentage) / float64(effectiveGasPricePercentageUnit)
+
+	// Round index to nearest integer
+	roundedIndex := uint8(math.Round(index))
+	return roundedIndex
 }

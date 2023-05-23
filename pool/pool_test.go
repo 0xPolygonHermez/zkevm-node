@@ -198,7 +198,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	require.NoError(t, err)
 
 	const chainID = 2576980377
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID, eventLog)
+	p := pool.NewPool(cfg, s, st, chainID, eventLog)
 
 	b := make([]byte, cfg.MaxTxBytesSize+1)
 	to := common.HexToAddress(operations.DefaultSequencerAddress)
@@ -647,7 +647,7 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	require.NoError(t, err)
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	p := pool.NewPool(cfg, s, nil, common.Address{}, chainID.Uint64(), eventLog)
+	p := pool.NewPool(cfg, s, nil, chainID.Uint64(), eventLog)
 
 	nBig, err := rand.Int(rand.Reader, big.NewInt(0).SetUint64(math.MaxUint64))
 	require.NoError(t, err)
@@ -1384,7 +1384,7 @@ func Test_BlockedAddress(t *testing.T) {
 }
 
 func setupPool(t *testing.T, cfg pool.Config, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {
-	p := pool.NewPool(cfg, s, st, l2BridgeAddr, chainID, eventLog)
+	p := pool.NewPool(cfg, s, st, chainID, eventLog)
 
 	err := p.SetGasPrice(ctx, gasPrice.Uint64())
 	require.NoError(t, err)

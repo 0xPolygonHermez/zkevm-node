@@ -15,7 +15,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
@@ -64,7 +63,7 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	require.NoError(b, err)
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	pl := pool.NewPool(config, s, st, common.Address{}, params.ChainID, eventLog)
+	pl := pool.NewPool(config, s, st, params.ChainID, eventLog)
 
 	// Print Info before send
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)

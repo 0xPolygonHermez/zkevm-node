@@ -31,6 +31,12 @@ var (
 	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
 )
 
+const (
+	signatureBytesLength           = 65
+	effectivePercentageBytesLength = 1
+	txDataBytesLength              = signatureBytesLength + effectivePercentageBytesLength
+)
+
 // Pool is an implementation of the Pool interface
 // that uses a postgres database to store the data
 type Pool struct {
@@ -42,6 +48,7 @@ type Pool struct {
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
 	eventLog                *event.EventLog
+	totalBytesGasCost       uint64
 }
 
 type preExecutionResponse struct {
@@ -49,10 +56,11 @@ type preExecutionResponse struct {
 	isOOC          bool
 	isOOG          bool
 	isReverted     bool
+	txResponse     *state.ProcessTransactionResponse
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64, eventLog *event.EventLog) *Pool {
+func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
 	p := &Pool{
 		cfg:                     cfg,
 		storage:                 s,
@@ -61,6 +69,7 @@ func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Addre
 		blockedAddresses:        sync.Map{},
 		minSuggestedGasPriceMux: new(sync.RWMutex),
 		eventLog:                eventLog,
+		totalBytesGasCost:       txDataBytesLength * cfg.GasPriceEstimationCfg.ByteGasCost,
 	}
 
 	p.refreshBlockedAddresses()
@@ -121,8 +130,7 @@ func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
 
 // AddTx adds a transaction to the pool with the pending state
 func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
-	poolTx := NewTransaction(tx, ip, false, p)
-	if err := p.validateTx(ctx, *poolTx); err != nil {
+	if err := p.validateTx(ctx, tx); err != nil {
 		return err
 	}
 
@@ -131,11 +139,10 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 
 // StoreTx adds a transaction to the pool with the pending state
 func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
-	poolTx := NewTransaction(tx, ip, isWIP, p)
 	// Execute transaction to calculate its zkCounters
-	preExecutionResponse, err := p.PreExecuteTx(ctx, tx)
+	preExecutionResponse, err := p.preExecuteTx(ctx, tx)
 	if err != nil {
-		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
+		log.Debugf("preExecuteTx error (this can be ignored): %v", err)
 	}
 
 	if preExecutionResponse.isOOC {
@@ -172,15 +179,23 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		}
 	}
 
+	breakEvenGasPrice, err := p.estimateTxBreakEvenGasPrice(ctx, preExecutionResponse)
+	if err != nil {
+		err = fmt.Errorf("error estimating break even gas price. err: %w", err)
+		log.Error(err)
+		return err
+	}
+	poolTx := NewTransaction(tx, ip, isWIP, breakEvenGasPrice)
 	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, *poolTx)
 }
 
-// PreExecuteTx executes a transaction to calculate its zkCounters
-func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preExecutionResponse, error) {
+// preExecuteTx executes a transaction to calculate its zkCounters
+func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecutionResponse, error) {
 	response := preExecutionResponse{usedZkCounters: state.ZKCounters{}, isOOC: false, isOOG: false, isReverted: false}
 
+	// TODO: Add effectivePercentage = 0xFF to the request (factor of 1) when gRPC message is updated
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
 		return response, err
@@ -192,6 +207,7 @@ func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 		response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
 		response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
 		response.usedZkCounters = processBatchResponse.UsedZkCounters
+		response.txResponse = processBatchResponse.Responses[0]
 	}
 
 	return response, nil
@@ -253,7 +269,7 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 	return p.storage.IsTxPending(ctx, hash)
 }
 
-func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
+func (p *Pool) validateTx(ctx context.Context, poolTx types.Transaction) error {
 	// check chain id
 	txChainID := poolTx.ChainId().Uint64()
 	if txChainID != p.chainID && txChainID != 0 {
@@ -284,10 +300,10 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		return ErrNegativeValue
 	}
 	// Make sure the transaction is signed properly.
-	if err := state.CheckSignature(poolTx.Transaction); err != nil {
+	if err := state.CheckSignature(poolTx); err != nil {
 		return ErrInvalidSender
 	}
-	from, err := state.GetSender(poolTx.Transaction)
+	from, err := state.GetSender(poolTx)
 	if err != nil {
 		return ErrInvalidSender
 	}
@@ -324,7 +340,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	// Ensure the transaction has more gas than the basic poolTx fee.
-	intrGas, err := IntrinsicGas(poolTx.Transaction)
+	intrGas, err := IntrinsicGas(poolTx)
 	if err != nil {
 		return err
 	}
@@ -362,7 +378,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	// Executor field size requirements check
-	if err := p.checkTxFieldCompatibilityWithExecutor(ctx, poolTx.Transaction); err != nil {
+	if err := p.checkTxFieldCompatibilityWithExecutor(ctx, poolTx); err != nil {
 		return err
 	}
 
@@ -438,6 +454,40 @@ func (p *Pool) DeleteReorgedTransactions(ctx context.Context, transactions []*ty
 // provided WIP status and hash
 func (p *Pool) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error {
 	return p.storage.UpdateTxWIPStatus(ctx, hash, isWIP)
+}
+
+func (p *Pool) estimateTxBreakEvenGasPrice(ctx context.Context, preExecutionResp preExecutionResponse) (uint64, error) {
+	gasUsed := preExecutionResp.txResponse.GasUsed
+	l1GasPrice, l2MinGasPrice, err := p.getL1GasPriceAndL2MinGasPrice(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if l1GasPrice == 0 || l2MinGasPrice == 0 {
+		return 0, fmt.Errorf("failed to get L1 Gas Price and L2 Min Gas Price")
+
+	}
+	totalTxPrice := (gasUsed * l2MinGasPrice) + (p.totalBytesGasCost * l1GasPrice)
+	breakEvenGasPrice := ((totalTxPrice / gasUsed) * p.cfg.GasPriceEstimationCfg.MarginFactorPercentage) / 100
+
+	return breakEvenGasPrice, nil
+}
+
+func (p *Pool) getL1GasPriceAndL2MinGasPrice(ctx context.Context) (l1GasPrice uint64, l2MinGasPrice uint64, err error) {
+	// Get L1 Gas Price
+	l1GasPrice, err = p.GetGasPrice(ctx)
+	if err != nil {
+		log.Warn(fmt.Sprintf("Failed to get L1 gas price: %v", err))
+		return 0, 0, err
+	}
+	if l1GasPrice == 0 {
+		log.Warn("Received L1 gas price 0. Skipping estimation...")
+		return 0, 0, errors.New("received L1 gas price 0")
+	}
+
+	// Calculate L2 Min Gas Price
+	l2MinGasPrice = (l1GasPrice * p.cfg.GasPriceEstimationCfg.L1GasPricePercentageForL2MinPrice) / 100
+
+	return l1GasPrice, l2MinGasPrice, nil
 }
 
 const (

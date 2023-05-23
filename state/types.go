@@ -15,14 +15,15 @@ import (
 
 // ProcessRequest represents the request of a batch process.
 type ProcessRequest struct {
-	BatchNumber     uint64
-	GlobalExitRoot  common.Hash
-	OldStateRoot    common.Hash
-	OldAccInputHash common.Hash
-	Transactions    []byte
-	Coinbase        common.Address
-	Timestamp       time.Time
-	Caller          metrics.CallerLabel
+	BatchNumber       uint64
+	GlobalExitRoot    common.Hash
+	OldStateRoot      common.Hash
+	OldAccInputHash   common.Hash
+	Transactions      []byte
+	Coinbase          common.Address
+	Timestamp         time.Time
+	Caller            metrics.CallerLabel
+	EffectiveGasPrice uint64
 }
 
 // ProcessBatchResponse represents the response of a batch process.
