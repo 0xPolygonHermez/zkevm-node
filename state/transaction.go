@@ -610,16 +610,24 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 func (s *State) getPreCompiledCallAddressAndInput(step instrumentation.Step) (common.Address, []byte) {
 	if step.OpCode == "DELEGATECALL" || step.OpCode == "CALL" || step.OpCode == "STATICCALL" || step.OpCode == "CALLCODE" {
 		addrPos := len(step.Stack) - 1 - 1
+		argsOffsetPos := addrPos - 1
+		argsSizePos := argsOffsetPos - 1
+
+		// if the stack has the tx value, we skip it
+		stackHasValue := step.OpCode == "CALL" || step.OpCode == "CALLCODE"
+		if stackHasValue {
+			argsOffsetPos--
+			argsSizePos--
+		}
+
 		addrEncoded := step.Stack[addrPos]
 		addr := common.HexToAddress("0x" + addrEncoded)
 
-		argsOffsetPos := addrPos - 1
 		argsOffsetEncoded := step.Stack[argsOffsetPos]
 		argsOffset := hex.DecodeUint64(argsOffsetEncoded)
 
-		argsSizePos := argsOffsetPos - 1
-		argsSizeEnoded := step.Stack[argsSizePos]
-		argsSize := hex.DecodeUint64(argsSizeEnoded)
+		argsSizeEncoded := step.Stack[argsSizePos]
+		argsSize := hex.DecodeUint64(argsSizeEncoded)
 		input := make([]byte, argsSize)
 		copy(input[0:argsSize], step.Memory[argsOffset:argsOffset+argsSize])
 		return addr, input
