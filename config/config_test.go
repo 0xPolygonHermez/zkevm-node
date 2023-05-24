@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,14 +39,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Synchronizer.SyncChunkSize",
 			expectedValue: uint64(100),
-		},
-		{
-			path:          "PriceGetter.Type",
-			expectedValue: pricegetter.DefaultType,
-		},
-		{
-			path:          "PriceGetter.DefaultPrice",
-			expectedValue: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
 		},
 		{
 			path:          "Sequencer.WaitPeriodPoolIsEmpty",
@@ -248,14 +239,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "EthTxManager.ForcedGas",
 			expectedValue: uint64(0),
-		},
-		{
-			path:          "PriceGetter.Type",
-			expectedValue: pricegetter.DefaultType,
-		},
-		{
-			path:          "PriceGetter.DefaultPrice",
-			expectedValue: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
 		},
 		{
 			path:          "L2GasPriceSuggester.DefaultGasPriceWei",
