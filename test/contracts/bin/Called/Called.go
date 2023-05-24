@@ -31,8 +31,8 @@ var (
 
 // CalledMetaData contains all meta data concerning the Called contract.
 var CalledMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"getVars\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_num\",\"type\":\"uint256\"}],\"name\":\"setVars\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
-	Bin: "0x608060405234801561001057600080fd5b5060dc8061001f6000396000f3fe60806040526004361060265760003560e01c80636466414b14602b578063813d8a37146053575b600080fd5b60516036366004608e565b600055600180546001600160a01b0319163317905534600255565b005b348015605e57600080fd5b50600054600154600254604080519384526001600160a01b03909216602084015282820152519081900360600190f35b600060208284031215609f57600080fd5b503591905056fea2646970667358221220282f48ec25a26f0a54f25502d08412d8e6a92bf6840b69b4a56f797808c4864e64736f6c634300080c0033",
+	ABI: "[{\"inputs\":[],\"name\":\"getVars\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_num\",\"type\":\"uint256\"}],\"name\":\"getVarsAndVariable\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_num\",\"type\":\"uint256\"}],\"name\":\"setVars\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_num\",\"type\":\"uint256\"}],\"name\":\"setVarsViaCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b5061027f806100206000396000f3fe60806040526004361061003f5760003560e01c8063175df23c146100445780636466414b146100a6578063813d8a37146100d1578063f4bdc7341461010a575b600080fd5b34801561005057600080fd5b5061007961005f3660046101f5565b60005460015460025491936001600160a01b039091169290565b604080519485526001600160a01b0390931660208501529183015260608201526080015b60405180910390f35b6100cf6100b43660046101f5565b600055600180546001600160a01b0319163317905534600255565b005b3480156100dd57600080fd5b50600054600154600254604080519384526001600160a01b0390921660208401529082015260600161009d565b6100cf6101183660046101f5565b60405160248101829052600090309060440160408051601f198184030181529181526020820180516001600160e01b0316636466414b60e01b1790525161015f919061020e565b6000604051808303816000865af19150503d806000811461019c576040519150601f19603f3d011682016040523d82523d6000602084013e6101a1565b606091505b505080915050806101f15760405162461bcd60e51b815260206004820152601660248201527519985a5b1959081d1bc81c195c999bdc9b4818d85b1b60521b604482015260640160405180910390fd5b5050565b60006020828403121561020757600080fd5b5035919050565b6000825160005b8181101561022f5760208186018101518583015201610215565b8181111561023e576000828501525b50919091019291505056fea26469706673582212209d0d58578c55d453a185e4abef4bae0e18e22fd1b4c4e3d2072d42cbf3ccd4d864736f6c634300080c0033",
 }
 
 // CalledABI is the input ABI used to generate the binding from.
@@ -235,6 +235,40 @@ func (_Called *CalledCallerSession) GetVars() (*big.Int, common.Address, *big.In
 	return _Called.Contract.GetVars(&_Called.CallOpts)
 }
 
+// GetVarsAndVariable is a free data retrieval call binding the contract method 0x175df23c.
+//
+// Solidity: function getVarsAndVariable(uint256 _num) view returns(uint256, address, uint256, uint256)
+func (_Called *CalledCaller) GetVarsAndVariable(opts *bind.CallOpts, _num *big.Int) (*big.Int, common.Address, *big.Int, *big.Int, error) {
+	var out []interface{}
+	err := _Called.contract.Call(opts, &out, "getVarsAndVariable", _num)
+
+	if err != nil {
+		return *new(*big.Int), *new(common.Address), *new(*big.Int), *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	out1 := *abi.ConvertType(out[1], new(common.Address)).(*common.Address)
+	out2 := *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
+	out3 := *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
+
+	return out0, out1, out2, out3, err
+
+}
+
+// GetVarsAndVariable is a free data retrieval call binding the contract method 0x175df23c.
+//
+// Solidity: function getVarsAndVariable(uint256 _num) view returns(uint256, address, uint256, uint256)
+func (_Called *CalledSession) GetVarsAndVariable(_num *big.Int) (*big.Int, common.Address, *big.Int, *big.Int, error) {
+	return _Called.Contract.GetVarsAndVariable(&_Called.CallOpts, _num)
+}
+
+// GetVarsAndVariable is a free data retrieval call binding the contract method 0x175df23c.
+//
+// Solidity: function getVarsAndVariable(uint256 _num) view returns(uint256, address, uint256, uint256)
+func (_Called *CalledCallerSession) GetVarsAndVariable(_num *big.Int) (*big.Int, common.Address, *big.Int, *big.Int, error) {
+	return _Called.Contract.GetVarsAndVariable(&_Called.CallOpts, _num)
+}
+
 // SetVars is a paid mutator transaction binding the contract method 0x6466414b.
 //
 // Solidity: function setVars(uint256 _num) payable returns()
@@ -254,4 +288,25 @@ func (_Called *CalledSession) SetVars(_num *big.Int) (*types.Transaction, error)
 // Solidity: function setVars(uint256 _num) payable returns()
 func (_Called *CalledTransactorSession) SetVars(_num *big.Int) (*types.Transaction, error) {
 	return _Called.Contract.SetVars(&_Called.TransactOpts, _num)
+}
+
+// SetVarsViaCall is a paid mutator transaction binding the contract method 0xf4bdc734.
+//
+// Solidity: function setVarsViaCall(uint256 _num) payable returns()
+func (_Called *CalledTransactor) SetVarsViaCall(opts *bind.TransactOpts, _num *big.Int) (*types.Transaction, error) {
+	return _Called.contract.Transact(opts, "setVarsViaCall", _num)
+}
+
+// SetVarsViaCall is a paid mutator transaction binding the contract method 0xf4bdc734.
+//
+// Solidity: function setVarsViaCall(uint256 _num) payable returns()
+func (_Called *CalledSession) SetVarsViaCall(_num *big.Int) (*types.Transaction, error) {
+	return _Called.Contract.SetVarsViaCall(&_Called.TransactOpts, _num)
+}
+
+// SetVarsViaCall is a paid mutator transaction binding the contract method 0xf4bdc734.
+//
+// Solidity: function setVarsViaCall(uint256 _num) payable returns()
+func (_Called *CalledTransactorSession) SetVarsViaCall(_num *big.Int) (*types.Transaction, error) {
+	return _Called.Contract.SetVarsViaCall(&_Called.TransactOpts, _num)
 }

@@ -2,7 +2,11 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"math/big"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -347,6 +351,94 @@ func createMultiCallSignedTx(t *testing.T, ctx context.Context, auth *bind.Trans
 	return tx, nil
 }
 
+func createInvalidStaticCallLessParametersSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Caller.Caller)
+
+	calledAddressInterface := customData["calledAddress"]
+	calledAddress := calledAddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(2509)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = uint64(300000)
+
+	tx, err := sc.InvalidStaticCallLessParameters(&opts, calledAddress)
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func createInvalidStaticCallMoreParametersSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Caller.Caller)
+
+	calledAddressInterface := customData["calledAddress"]
+	calledAddress := calledAddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(2509)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = uint64(300000)
+
+	tx, err := sc.InvalidStaticCallMoreParameters(&opts, calledAddress)
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func createInvalidStaticCallWithInnerCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Caller.Caller)
+
+	calledAddressInterface := customData["calledAddress"]
+	calledAddress := calledAddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(2509)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = uint64(300000)
+
+	tx, err := sc.InvalidStaticCallWithInnerCall(&opts, calledAddress)
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func createPreEcrecover0SignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Caller.Caller)
+
+	opts := *auth
+	opts.NoSend = true
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = uint64(300000)
+
+	tx, err := sc.PreEcrecover0(&opts)
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
 func prepareChainCalls(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
 	scAddrLevel4, tx, _, err := ChainCallLevel4.DeployChainCallLevel4(auth, client)
 	require.NoError(t, err)
@@ -407,4 +499,27 @@ func createChainCallSignedTx(t *testing.T, ctx context.Context, auth *bind.Trans
 	require.NoError(t, err)
 
 	return tx, nil
+}
+
+func saveTraceResultToFile(t *testing.T, name, network string, signedTx *ethTypes.Transaction, trace json.RawMessage, skip bool) {
+	if skip {
+		return
+	}
+	const path = "/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json"
+	sanitizedNetworkName := strings.ReplaceAll(name+network+"_", " ", "_")
+	filePath := fmt.Sprintf(path, sanitizedNetworkName)
+	b, _ := signedTx.MarshalBinary()
+	fileContent := struct {
+		Tx    *ethTypes.Transaction
+		RLP   string
+		Trace json.RawMessage
+	}{
+		Tx:    signedTx,
+		RLP:   hex.EncodeToHex(b),
+		Trace: trace,
+	}
+	c, err := json.MarshalIndent(fileContent, "", "    ")
+	require.NoError(t, err)
+	err = os.WriteFile(filePath, c, 0644)
+	require.NoError(t, err)
 }

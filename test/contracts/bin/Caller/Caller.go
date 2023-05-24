@@ -31,8 +31,8 @@ var (
 
 // CallerMetaData contains all meta data concerning the Caller contract.
 var CallerMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_num\",\"type\":\"uint256\"}],\"name\":\"call\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_num\",\"type\":\"uint256\"}],\"name\":\"delegateCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_num\",\"type\":\"uint256\"}],\"name\":\"multiCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"name\":\"staticCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
-	Bin: "0x608060405234801561001057600080fd5b50610493806100206000396000f3fe60806040526004361061003f5760003560e01c80630f6be00d146100445780633bd9ef281461005957806387b1d6ad1461006c578063c6c211e91461007f575b600080fd5b610057610052366004610399565b610092565b005b610057610067366004610399565b610183565b61005761007a3660046103c5565b610265565b61005761008d366004610399565b610360565b6000826001600160a01b0316826040516024016100b191815260200190565b60408051601f198184030181529181526020820180516001600160e01b0316636466414b60e01b179052516100e691906103e9565b600060405180830381855af49150503d8060008114610121576040519150601f19603f3d011682016040523d82523d6000602084013e610126565b606091505b5050809150508061017e5760405162461bcd60e51b815260206004820152601f60248201527f6661696c656420746f20706572666f726d2064656c65676174652063616c6c0060448201526064015b60405180910390fd5b505050565b6000826001600160a01b0316826040516024016101a291815260200190565b60408051601f198184030181529181526020820180516001600160e01b0316636466414b60e01b179052516101d791906103e9565b6000604051808303816000865af19150503d8060008114610214576040519150601f19603f3d011682016040523d82523d6000602084013e610219565b606091505b5050809150508061017e5760405162461bcd60e51b815260206004820152601660248201527519985a5b1959081d1bc81c195c999bdc9b4818d85b1b60521b6044820152606401610175565b60408051600481526024810182526020810180516001600160e01b031663813d8a3760e01b17905290516000916060916001600160a01b038516916102a9916103e9565b600060405180830381855afa9150503d80600081146102e4576040519150601f19603f3d011682016040523d82523d6000602084013e6102e9565b606091505b5090925090508161033c5760405162461bcd60e51b815260206004820152601d60248201527f6661696c656420746f20706572666f726d207374617469632063616c6c0000006044820152606401610175565b6000806000838060200190518101906103559190610424565b505050505050505050565b61036a8282610183565b6103748282610092565b61037d82610265565b5050565b6001600160a01b038116811461039657600080fd5b50565b600080604083850312156103ac57600080fd5b82356103b781610381565b946020939093013593505050565b6000602082840312156103d757600080fd5b81356103e281610381565b9392505050565b6000825160005b8181101561040a57602081860181015185830152016103f0565b81811115610419576000828501525b509190910192915050565b60008060006060848603121561043957600080fd5b83519250602084015161044b81610381565b8092505060408401519050925092509256fea26469706673582212207c864726dd059eb16f2efd3e6e7c97283b977c6501d217b22a8dddc40488364c64736f6c634300080c0033",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_num\",\"type\":\"uint256\"}],\"name\":\"call\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_num\",\"type\":\"uint256\"}],\"name\":\"delegateCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"name\":\"invalidStaticCallLessParameters\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"name\":\"invalidStaticCallMoreParameters\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"name\":\"invalidStaticCallWithInnerCall\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_num\",\"type\":\"uint256\"}],\"name\":\"multiCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"preEcrecover_0\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_contract\",\"type\":\"address\"}],\"name\":\"staticCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b506107e2806100206000396000f3fe60806040526004361061007b5760003560e01c806387b1d6ad1161004e57806387b1d6ad146100c8578063b3e554d0146100db578063c6c211e9146100fb578063fff0972f1461010e57600080fd5b80630f6be00d14610080578063351f14c5146100955780633bd9ef28146100b557806369c2b58f14610095575b600080fd5b61009361008e3660046106e8565b610123565b005b3480156100a157600080fd5b506100936100b0366004610714565b610214565b6100936100c33660046106e8565b61030b565b6100936100d6366004610714565b6103ed565b3480156100e757600080fd5b506100936100f6366004610714565b6104e8565b6100936101093660046106e8565b6105f0565b34801561011a57600080fd5b5061009361060d565b6000826001600160a01b03168260405160240161014291815260200190565b60408051601f198184030181529181526020820180516001600160e01b0316636466414b60e01b179052516101779190610738565b600060405180830381855af49150503d80600081146101b2576040519150601f19603f3d011682016040523d82523d6000602084013e6101b7565b606091505b5050809150508061020f5760405162461bcd60e51b815260206004820152601f60248201527f6661696c656420746f20706572666f726d2064656c65676174652063616c6c0060448201526064015b60405180910390fd5b505050565b60408051600481526024810182526020810180516001600160e01b03166305d77c8f60e21b17905290516000916001600160a01b038416916102569190610738565b600060405180830381855afa9150503d8060008114610291576040519150601f19603f3d011682016040523d82523d6000602084013e610296565b606091505b509091505080156103075760405162461bcd60e51b815260206004820152603560248201527f7374617469632063616c6c2077617320737570706f73656420746f206661696c6044820152742077697468206c65737320706172616d657465727360581b6064820152608401610206565b5050565b6000826001600160a01b03168260405160240161032a91815260200190565b60408051601f198184030181529181526020820180516001600160e01b0316636466414b60e01b1790525161035f9190610738565b6000604051808303816000865af19150503d806000811461039c576040519150601f19603f3d011682016040523d82523d6000602084013e6103a1565b606091505b5050809150508061020f5760405162461bcd60e51b815260206004820152601660248201527519985a5b1959081d1bc81c195c999bdc9b4818d85b1b60521b6044820152606401610206565b60408051600481526024810182526020810180516001600160e01b031663813d8a3760e01b17905290516000916060916001600160a01b0385169161043191610738565b600060405180830381855afa9150503d806000811461046c576040519150601f19603f3d011682016040523d82523d6000602084013e610471565b606091505b509092509050816104c45760405162461bcd60e51b815260206004820152601d60248201527f6661696c656420746f20706572666f726d207374617469632063616c6c0000006044820152606401610206565b6000806000838060200190518101906104dd9190610773565b505050505050505050565b60405160016024820152600260448201526000906001600160a01b0383169060640160408051601f198184030181529181526020820180516001600160e01b03166305d77c8f60e21b1790525161053f9190610738565b600060405180830381855afa9150503d806000811461057a576040519150601f19603f3d011682016040523d82523d6000602084013e61057f565b606091505b509091505080156103075760405162461bcd60e51b815260206004820152603560248201527f7374617469632063616c6c2077617320737570706f73656420746f206661696c6044820152742077697468206d6f726520706172616d657465727360581b6064820152608401610206565b6105fa828261030b565b6106048282610123565b610307826103ed565b6040805160008152602081018083527f456e9aea5e197a1f1af7a3e85a3212fa4049a3ba34c2289b4c860fc0b0c64ef390819052601c9282018390527f9242685bf161793cc25603c231bc2f568eb630ea16aa137d2664ac8038825608606083018190527f4f8ae3bd7535248d0bd448298cc2e2071e56992d0774dc340c368ae950852ada6080840181905291939290919060019060a0016020604051602081039080840390855afa1580156106c7573d6000803e3d6000fd5b50505050505050565b6001600160a01b03811681146106e557600080fd5b50565b600080604083850312156106fb57600080fd5b8235610706816106d0565b946020939093013593505050565b60006020828403121561072657600080fd5b8135610731816106d0565b9392505050565b6000825160005b81811015610759576020818601810151858301520161073f565b81811115610768576000828501525b509190910192915050565b60008060006060848603121561078857600080fd5b83519250602084015161079a816106d0565b8092505060408401519050925092509256fea2646970667358221220a82281d9696e9c0b1485742fdc267f1a20789436e6606892338b4fa4f6f1e43e64736f6c634300080c0033",
 }
 
 // CallerABI is the input ABI used to generate the binding from.
@@ -244,6 +244,69 @@ func (_Caller *CallerTransactorSession) DelegateCall(_contract common.Address, _
 	return _Caller.Contract.DelegateCall(&_Caller.TransactOpts, _contract, _num)
 }
 
+// InvalidStaticCallLessParameters is a paid mutator transaction binding the contract method 0x69c2b58f.
+//
+// Solidity: function invalidStaticCallLessParameters(address _contract) returns()
+func (_Caller *CallerTransactor) InvalidStaticCallLessParameters(opts *bind.TransactOpts, _contract common.Address) (*types.Transaction, error) {
+	return _Caller.contract.Transact(opts, "invalidStaticCallLessParameters", _contract)
+}
+
+// InvalidStaticCallLessParameters is a paid mutator transaction binding the contract method 0x69c2b58f.
+//
+// Solidity: function invalidStaticCallLessParameters(address _contract) returns()
+func (_Caller *CallerSession) InvalidStaticCallLessParameters(_contract common.Address) (*types.Transaction, error) {
+	return _Caller.Contract.InvalidStaticCallLessParameters(&_Caller.TransactOpts, _contract)
+}
+
+// InvalidStaticCallLessParameters is a paid mutator transaction binding the contract method 0x69c2b58f.
+//
+// Solidity: function invalidStaticCallLessParameters(address _contract) returns()
+func (_Caller *CallerTransactorSession) InvalidStaticCallLessParameters(_contract common.Address) (*types.Transaction, error) {
+	return _Caller.Contract.InvalidStaticCallLessParameters(&_Caller.TransactOpts, _contract)
+}
+
+// InvalidStaticCallMoreParameters is a paid mutator transaction binding the contract method 0xb3e554d0.
+//
+// Solidity: function invalidStaticCallMoreParameters(address _contract) returns()
+func (_Caller *CallerTransactor) InvalidStaticCallMoreParameters(opts *bind.TransactOpts, _contract common.Address) (*types.Transaction, error) {
+	return _Caller.contract.Transact(opts, "invalidStaticCallMoreParameters", _contract)
+}
+
+// InvalidStaticCallMoreParameters is a paid mutator transaction binding the contract method 0xb3e554d0.
+//
+// Solidity: function invalidStaticCallMoreParameters(address _contract) returns()
+func (_Caller *CallerSession) InvalidStaticCallMoreParameters(_contract common.Address) (*types.Transaction, error) {
+	return _Caller.Contract.InvalidStaticCallMoreParameters(&_Caller.TransactOpts, _contract)
+}
+
+// InvalidStaticCallMoreParameters is a paid mutator transaction binding the contract method 0xb3e554d0.
+//
+// Solidity: function invalidStaticCallMoreParameters(address _contract) returns()
+func (_Caller *CallerTransactorSession) InvalidStaticCallMoreParameters(_contract common.Address) (*types.Transaction, error) {
+	return _Caller.Contract.InvalidStaticCallMoreParameters(&_Caller.TransactOpts, _contract)
+}
+
+// InvalidStaticCallWithInnerCall is a paid mutator transaction binding the contract method 0x351f14c5.
+//
+// Solidity: function invalidStaticCallWithInnerCall(address _contract) returns()
+func (_Caller *CallerTransactor) InvalidStaticCallWithInnerCall(opts *bind.TransactOpts, _contract common.Address) (*types.Transaction, error) {
+	return _Caller.contract.Transact(opts, "invalidStaticCallWithInnerCall", _contract)
+}
+
+// InvalidStaticCallWithInnerCall is a paid mutator transaction binding the contract method 0x351f14c5.
+//
+// Solidity: function invalidStaticCallWithInnerCall(address _contract) returns()
+func (_Caller *CallerSession) InvalidStaticCallWithInnerCall(_contract common.Address) (*types.Transaction, error) {
+	return _Caller.Contract.InvalidStaticCallWithInnerCall(&_Caller.TransactOpts, _contract)
+}
+
+// InvalidStaticCallWithInnerCall is a paid mutator transaction binding the contract method 0x351f14c5.
+//
+// Solidity: function invalidStaticCallWithInnerCall(address _contract) returns()
+func (_Caller *CallerTransactorSession) InvalidStaticCallWithInnerCall(_contract common.Address) (*types.Transaction, error) {
+	return _Caller.Contract.InvalidStaticCallWithInnerCall(&_Caller.TransactOpts, _contract)
+}
+
 // MultiCall is a paid mutator transaction binding the contract method 0xc6c211e9.
 //
 // Solidity: function multiCall(address _contract, uint256 _num) payable returns()
@@ -263,6 +326,27 @@ func (_Caller *CallerSession) MultiCall(_contract common.Address, _num *big.Int)
 // Solidity: function multiCall(address _contract, uint256 _num) payable returns()
 func (_Caller *CallerTransactorSession) MultiCall(_contract common.Address, _num *big.Int) (*types.Transaction, error) {
 	return _Caller.Contract.MultiCall(&_Caller.TransactOpts, _contract, _num)
+}
+
+// PreEcrecover0 is a paid mutator transaction binding the contract method 0xfff0972f.
+//
+// Solidity: function preEcrecover_0() returns()
+func (_Caller *CallerTransactor) PreEcrecover0(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Caller.contract.Transact(opts, "preEcrecover_0")
+}
+
+// PreEcrecover0 is a paid mutator transaction binding the contract method 0xfff0972f.
+//
+// Solidity: function preEcrecover_0() returns()
+func (_Caller *CallerSession) PreEcrecover0() (*types.Transaction, error) {
+	return _Caller.Contract.PreEcrecover0(&_Caller.TransactOpts)
+}
+
+// PreEcrecover0 is a paid mutator transaction binding the contract method 0xfff0972f.
+//
+// Solidity: function preEcrecover_0() returns()
+func (_Caller *CallerTransactorSession) PreEcrecover0() (*types.Transaction, error) {
+	return _Caller.Contract.PreEcrecover0(&_Caller.TransactOpts)
 }
 
 // StaticCall is a paid mutator transaction binding the contract method 0x87b1d6ad.

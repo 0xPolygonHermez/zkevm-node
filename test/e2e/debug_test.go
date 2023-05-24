@@ -285,6 +285,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 		{name: "call", prepare: prepareCalls, createSignedTx: createCallSignedTx},
 		{name: "delegate call", prepare: prepareCalls, createSignedTx: createDelegateCallSignedTx},
 		{name: "multi call", prepare: prepareCalls, createSignedTx: createMultiCallSignedTx},
+		{name: "pre ecrecover 0", prepare: prepareCalls, createSignedTx: createPreEcrecover0SignedTx},
 		{name: "chain call", prepare: prepareChainCalls, createSignedTx: createChainCallSignedTx},
 
 		// failed transactions
@@ -387,23 +388,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 
 				results[network.Name] = response.Result
 
-				// save result in a file
-				// sanitizedNetworkName := strings.ReplaceAll(network.Name+"_"+tc.name, " ", "_")
-				// filePath := fmt.Sprintf("/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
-				// b, _ := signedTx.MarshalBinary()
-				// fileContent := struct {
-				// 	Tx    *ethTypes.Transaction
-				// 	RLP   string
-				// 	Trace json.RawMessage
-				// }{
-				// 	Tx:    signedTx,
-				// 	RLP:   hex.EncodeToHex(b),
-				// 	Trace: response.Result,
-				// }
-				// c, err := json.MarshalIndent(fileContent, "", "    ")
-				// require.NoError(t, err)
-				// err = os.WriteFile(filePath, c, 0644)
-				// require.NoError(t, err)
+				saveTraceResultToFile(t, tc.name, network.Name, signedTx, response.Result, true)
 			}
 
 			referenceValueMap := map[string]interface{}{}

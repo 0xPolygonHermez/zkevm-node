@@ -89,12 +89,16 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		{name: "call", prepare: prepareCalls, createSignedTx: createCallSignedTx},
 		{name: "delegate call", prepare: prepareCalls, createSignedTx: createDelegateCallSignedTx},
 		{name: "multi call", prepare: prepareCalls, createSignedTx: createMultiCallSignedTx},
+		{name: "pre ecrecover 0", prepare: prepareCalls, createSignedTx: createPreEcrecover0SignedTx},
 		{name: "chain call", prepare: prepareChainCalls, createSignedTx: createChainCallSignedTx},
 
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
 		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
 		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		{name: "invalid static call less parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallLessParametersSignedTx},
+		{name: "invalid static call more parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallMoreParametersSignedTx},
+		{name: "invalid static call with inner call", prepare: prepareCalls, createSignedTx: createInvalidStaticCallWithInnerCallSignedTx},
 	}
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -187,23 +191,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				results[network.Name] = response.Result
 				log.Debug(string(response.Result))
 
-				// save result in a file
-				// sanitizedNetworkName := strings.ReplaceAll(network.Name+"_"+tc.name, " ", "_")
-				// filePath := fmt.Sprintf("/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
-				// b, _ := signedTx.MarshalBinary()
-				// fileContent := struct {
-				// 	Tx    *ethTypes.Transaction
-				// 	RLP   string
-				// 	Trace json.RawMessage
-				// }{
-				// 	Tx:    signedTx,
-				// 	RLP:   hex.EncodeToHex(b),
-				// 	Trace: response.Result,
-				// }
-				// c, err := json.MarshalIndent(fileContent, "", "    ")
-				// require.NoError(t, err)
-				// err = os.WriteFile(filePath, c, 0644)
-				// require.NoError(t, err)
+				saveTraceResultToFile(t, tc.name, network.Name, signedTx, response.Result, true)
 			}
 
 			referenceValueMap := map[string]interface{}{}

@@ -435,9 +435,9 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
 func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
-	var previousDepth int
+	var previousStep instrumentation.Step
 	var previousOp, previousGas *big.Int
-	var previousOpcode string
+	var previousError error
 	var stateRoot []byte
 
 	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, encoding.Base10)
@@ -531,7 +531,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			break
 		}
 
-		if previousOpcode == "CALL" && step.Pc != 0 {
+		if previousStep.OpCode == "CALL" && step.Pc != 0 {
 			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
 		}
 
@@ -543,28 +543,43 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			}
 		}
 
-		previousOpCodeCanBeSubCall := previousOpcode == "CREATE" ||
-			previousOpcode == "CREATE2" ||
-			previousOpcode == "DELEGATECALL" ||
-			previousOpcode == "CALL" ||
-			previousOpcode == "STATICCALL" ||
+		previousOpCodeCanBeSubCall := previousStep.OpCode == "CREATE" ||
+			previousStep.OpCode == "CREATE2" ||
+			previousStep.OpCode == "DELEGATECALL" ||
+			previousStep.OpCode == "CALL" ||
+			previousStep.OpCode == "STATICCALL" ||
 			// deprecated ones
-			previousOpcode == "CALLCODE" ||
-			previousOpcode == "SELFDESTRUCT"
+			previousStep.OpCode == "CALLCODE" ||
+			previousStep.OpCode == "SELFDESTRUCT"
 
 		// when a sub call or create is detected, the next step contains the contract updated
 		if previousOpCodeCanBeSubCall {
 			// shadowing "value" to override its value without compromising the external code
 			value := value
 			// value is not carried over when the capture enter handles STATIC CALL
-			if previousOpcode == "STATICCALL" {
+			if previousStep.OpCode == "STATICCALL" {
 				value = nil
 			}
-			tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
+
+			// if the previous depth is the same as the current one, this means
+			// the sub call did not executed any other step and the
+			// context is back to the same level. This can happen with pre compiled executions.
+			if previousStep.Depth == step.Depth {
+				addr, input := s.getPreCompiledCallAddressAndInput(previousStep)
+				tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(previousStep.Contract.Address), addr, input, previousGas.Uint64(), value)
+				previousStepGasCost, ok := new(big.Int).SetString(step.GasCost, encoding.Base10)
+				if !ok {
+					log.Debugf("error while parsing previous step gasCost")
+					return nil, ErrParsingExecutorTrace
+				}
+				tracer.CaptureExit(step.ReturnData, previousStepGasCost.Uint64(), previousError)
+			} else {
+				tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
+			}
 		}
 
 		// returning from a call or create
-		if previousDepth > step.Depth {
+		if previousStep.Depth > step.Depth {
 			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
 		}
 
@@ -573,10 +588,10 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		evm.StateDB.SetStateRoot(stateRoot)
 
 		// set previous step values
-		previousDepth = step.Depth
+		previousStep = step
 		previousOp = op
 		previousGas = gas
-		previousOpcode = step.OpCode
+		previousError = stepError
 	}
 
 	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, encoding.Base10)
@@ -590,6 +605,27 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 	tracer.CaptureEnd(output, gasUsed.Uint64(), stepError)
 
 	return tracer.GetResult()
+}
+
+func (s *State) getPreCompiledCallAddressAndInput(step instrumentation.Step) (common.Address, []byte) {
+	if step.OpCode == "DELEGATECALL" || step.OpCode == "CALL" || step.OpCode == "STATICCALL" || step.OpCode == "CALLCODE" {
+		addrPos := len(step.Stack) - 1 - 1
+		addrEncoded := step.Stack[addrPos]
+		addr := common.HexToAddress("0x" + addrEncoded)
+
+		argsOffsetPos := addrPos - 1
+		argsOffsetEncoded := step.Stack[argsOffsetPos]
+		argsOffset := hex.DecodeUint64(argsOffsetEncoded)
+
+		argsSizePos := argsOffsetPos - 1
+		argsSizeEnoded := step.Stack[argsSizePos]
+		argsSize := hex.DecodeUint64(argsSizeEnoded)
+		input := make([]byte, argsSize)
+		copy(input[0:argsSize], step.Memory[argsOffset:argsOffset+argsSize])
+		return addr, input
+	} else {
+		return common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input)
+	}
 }
 
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
