@@ -6,32 +6,37 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/gorilla/websocket"
+)
+
+const (
+	// FilterTypeLog represents a filter of type log.
+	FilterTypeLog = "log"
+	// FilterTypeBlock represents a filter of type block.
+	FilterTypeBlock = "block"
+	// FilterTypePendingTx represent a filter of type pending Tx.
+	FilterTypePendingTx = "pendingTx"
 )
 
 // Filter represents a filter.
 type Filter struct {
-	ID         uint64
-	Type       string
-	Parameters string
+	ID         string
+	Type       FilterType
+	Parameters interface{}
 	LastPoll   time.Time
+	WsConn     *websocket.Conn
 }
 
-// LogFilterRequest represents a log filter request.
-type LogFilterRequest struct {
-	BlockHash *common.Hash  `json:"blockHash,omitempty"`
-	FromBlock string        `json:"fromBlock,omitempty"`
-	ToBlock   string        `json:"toBlock,omitempty"`
-	Address   interface{}   `json:"address,omitempty"`
-	Topics    []interface{} `json:"topics,omitempty"`
-}
+// FilterType express the type of the filter, block, logs, pending transactions
+type FilterType string
 
 // LogFilter is a filter for logs
 type LogFilter struct {
 	BlockHash *common.Hash
-	FromBlock BlockNumber
-	ToBlock   BlockNumber
+	FromBlock *types.BlockNumber
+	ToBlock   *types.BlockNumber
 	Addresses []common.Address
 	Topics    [][]common.Hash
 	Since     *time.Time
@@ -78,20 +83,24 @@ func (f *LogFilter) addAddress(raw string) error {
 
 // MarshalJSON allows to customize the JSON representation.
 func (f *LogFilter) MarshalJSON() ([]byte, error) {
-	var obj LogFilterRequest
+	var obj types.LogFilterRequest
 
 	obj.BlockHash = f.BlockHash
 
-	if f.FromBlock == LatestBlockNumber {
-		obj.FromBlock = ""
-	} else {
-		obj.FromBlock = hex.EncodeUint64(uint64(f.FromBlock))
+	if f.FromBlock != nil && (*f.FromBlock == types.LatestBlockNumber) {
+		fromblock := ""
+		obj.FromBlock = &fromblock
+	} else if f.FromBlock != nil {
+		fromblock := hex.EncodeUint64(uint64(*f.FromBlock))
+		obj.FromBlock = &fromblock
 	}
 
-	if f.ToBlock == LatestBlockNumber {
-		obj.ToBlock = ""
-	} else {
-		obj.ToBlock = hex.EncodeUint64(uint64(f.ToBlock))
+	if f.ToBlock != nil && (*f.ToBlock == types.LatestBlockNumber) {
+		toblock := ""
+		obj.ToBlock = &toblock
+	} else if f.ToBlock != nil {
+		toblock := hex.EncodeUint64(uint64(*f.ToBlock))
+		obj.ToBlock = &toblock
 	}
 
 	if f.Addresses != nil {
@@ -118,7 +127,7 @@ func (f *LogFilter) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes a json object
 func (f *LogFilter) UnmarshalJSON(data []byte) error {
-	var obj LogFilterRequest
+	var obj types.LogFilterRequest
 
 	err := json.Unmarshal(data, &obj)
 
@@ -127,21 +136,26 @@ func (f *LogFilter) UnmarshalJSON(data []byte) error {
 	}
 
 	f.BlockHash = obj.BlockHash
+	lbb := types.LatestBlockNumber
 
-	if obj.FromBlock == "" {
-		f.FromBlock = LatestBlockNumber
-	} else {
-		if f.FromBlock, err = stringToBlockNumber(obj.FromBlock); err != nil {
+	if obj.FromBlock != nil && *obj.FromBlock == "" {
+		f.FromBlock = &lbb
+	} else if obj.FromBlock != nil {
+		bn, err := types.StringToBlockNumber(*obj.FromBlock)
+		if err != nil {
 			return err
 		}
+		f.FromBlock = &bn
 	}
 
-	if obj.ToBlock == "" {
-		f.ToBlock = LatestBlockNumber
-	} else {
-		if f.ToBlock, err = stringToBlockNumber(obj.ToBlock); err != nil {
+	if obj.ToBlock != nil && *obj.ToBlock == "" {
+		f.ToBlock = &lbb
+	} else if obj.ToBlock != nil {
+		bn, err := types.StringToBlockNumber(*obj.ToBlock)
+		if err != nil {
 			return err
 		}
+		f.ToBlock = &bn
 	}
 
 	if obj.Address != nil {

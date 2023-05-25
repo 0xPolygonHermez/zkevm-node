@@ -5,16 +5,19 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-const ether155V = 27
+const (
+	double       = 2
+	ether155V    = 27
+	etherPre155V = 35
+)
 
-// EncodeTransactions RLP encodes the given transactions.
+// EncodeTransactions RLP encodes the given transactions
 func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	var batchL2Data []byte
 
@@ -25,16 +28,22 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 		nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
 		log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID)
 
-		txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+		rlpFieldsToEncode := []interface{}{
 			nonce,
 			gasPrice,
 			gas,
 			to,
 			value,
 			data,
-			chainID, uint(0), uint(0),
-		})
+		}
 
+		if tx.ChainId().Uint64() > 0 {
+			rlpFieldsToEncode = append(rlpFieldsToEncode, chainID)
+			rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
+			rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
+		}
+
+		txCodedRlp, err := rlp.EncodeToBytes(rlpFieldsToEncode)
 		if err != nil {
 			return nil, err
 		}
@@ -54,8 +63,14 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	return batchL2Data, nil
 }
 
+// EncodeTransaction RLP encodes the given transaction
+func EncodeTransaction(tx types.Transaction) ([]byte, error) {
+	transactions := []types.Transaction{tx}
+	return EncodeTransactions(transactions)
+}
+
 // EncodeUnsignedTransaction RLP encodes the given unsigned transaction
-func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64) ([]byte, error) {
+func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce *uint64) ([]byte, error) {
 	v, _ := new(big.Int).SetString("0x1c", 0)
 	r, _ := new(big.Int).SetString("0xa54492cfacf71aef702421b7fbc70636537a7b2fbe5718c5ed970a001bb7756b", 0)
 	s, _ := new(big.Int).SetString("0x2e9fb27acc75955b898f0b12ec52aa34bf08f01db654374484b80bf12f0d841e", 0)
@@ -64,6 +79,11 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64) ([]byte, er
 
 	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), chainID //nolint:gomnd
 	log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID)
+
+	if forcedNonce != nil {
+		nonce = *forcedNonce
+		log.Debug("Forced nonce: ", nonce)
+	}
 
 	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
 		nonce,
@@ -91,67 +111,87 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64) ([]byte, er
 	return txData, nil
 }
 
-// DecodeTxs extracts Tansactions for its encoded form
+// DecodeTxs extracts Transactions for its encoded form
 func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 	// Process coded txs
-	var pos int64
+	var pos uint64
 	var txs []types.Transaction
 	const (
-		headerByteLength = 1
-		sLength          = 32
-		rLength          = 32
-		vLength          = 1
-		c0               = 192 // 192 is c0. This value is defined by the rlp protocol
-		ff               = 255 // max value of rlp header
-		shortRlp         = 55  // length of the short rlp codification
-		f7               = 247 // 192 + 55 = c0 + shortRlp
-		etherNewV        = 35
-		mul2             = 2
+		headerByteLength uint64 = 1
+		sLength          uint64 = 32
+		rLength          uint64 = 32
+		vLength          uint64 = 1
+		c0               uint64 = 192 // 192 is c0. This value is defined by the rlp protocol
+		ff               uint64 = 255 // max value of rlp header
+		shortRlp         uint64 = 55  // length of the short rlp codification
+		f7               uint64 = 247 // 192 + 55 = c0 + shortRlp
 	)
-	txDataLength := len(txsData)
+	txDataLength := uint64(len(txsData))
 	if txDataLength == 0 {
 		return txs, txsData, nil
 	}
-	for pos < int64(txDataLength) {
-		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
+	for pos < txDataLength {
+		num, err := strconv.ParseUint(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, hex.BitSize64)
 		if err != nil {
 			log.Debug("error parsing header length: ", err)
-			return []types.Transaction{}, []byte{}, err
+			return []types.Transaction{}, txsData, err
 		}
 		// First byte is the length and must be ignored
-		len := num - c0
-		if len > shortRlp { // If rlp is bigger than length 55
+		if num < c0 {
+			log.Debugf("error num < c0 : %d, %d", num, c0)
+			return []types.Transaction{}, txsData, ErrInvalidData
+		}
+		length := uint64(num - c0)
+		if length > shortRlp { // If rlp is bigger than length 55
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
-			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1:pos+1+num-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
+			if (pos + 1 + num - f7) > txDataLength {
+				log.Debug("error parsing length: ", err)
+				return []types.Transaction{}, txsData, err
+			}
+			n, err := strconv.ParseUint(hex.EncodeToString(txsData[pos+1:pos+1+num-f7]), hex.Base, hex.BitSize64) // +1 is the header. For example 0xf7
 			if err != nil {
 				log.Debug("error parsing length: ", err)
-				return []types.Transaction{}, []byte{}, err
+				return []types.Transaction{}, txsData, err
 			}
-			len = n + num - f7 // num - f7 is the header. For example 0xf7
+			if n+num < f7 {
+				log.Debug("error n + num < f7: ", err)
+				return []types.Transaction{}, txsData, ErrInvalidData
+			}
+			length = n + num - f7 // num - f7 is the header. For example 0xf7
 		}
 
-		fullDataTx := txsData[pos : pos+len+rLength+sLength+vLength+headerByteLength]
-		txInfo := txsData[pos : pos+len+headerByteLength]
-		r := txsData[pos+len+headerByteLength : pos+len+rLength+headerByteLength]
-		s := txsData[pos+len+rLength+headerByteLength : pos+len+rLength+sLength+headerByteLength]
-		v := txsData[pos+len+rLength+sLength+headerByteLength : pos+len+rLength+sLength+vLength+headerByteLength]
+		endPos := pos + length + rLength + sLength + vLength + headerByteLength
 
-		pos = pos + len + rLength + sLength + vLength + headerByteLength
+		if endPos > txDataLength {
+			err := fmt.Errorf("endPos %d is bigger than txDataLength %d", endPos, txDataLength)
+			log.Debug("error parsing header: ", err)
+			return []types.Transaction{}, txsData, ErrInvalidData
+		}
 
-		// Decode tx
-		var tx types.LegacyTx
-		err = rlp.DecodeBytes(txInfo, &tx)
+		fullDataTx := txsData[pos:endPos]
+		txInfo := txsData[pos : pos+length+headerByteLength]
+		rData := txsData[pos+length+headerByteLength : pos+length+rLength+headerByteLength]
+		sData := txsData[pos+length+rLength+headerByteLength : pos+length+rLength+sLength+headerByteLength]
+		vData := txsData[pos+length+rLength+sLength+headerByteLength : endPos]
+
+		pos = endPos
+
+		// Decode rlpFields
+		var rlpFields [][]byte
+		err = rlp.DecodeBytes(txInfo, &rlpFields)
 		if err != nil {
-			log.Debug("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
-			return []types.Transaction{}, []byte{}, err
+			log.Error("error decoding tx Bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+			return []types.Transaction{}, txsData, ErrInvalidData
 		}
 
-		//tx.V = v-27+chainId*2+35
-		tx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(v), big.NewInt(ether155V)), new(big.Int).Add(new(big.Int).Mul(tx.V, big.NewInt(mul2)), big.NewInt(etherNewV)))
-		tx.R = new(big.Int).SetBytes(r)
-		tx.S = new(big.Int).SetBytes(s)
+		legacyTx, err := RlpFieldsToLegacyTx(rlpFields, vData, rData, sData)
+		if err != nil {
+			log.Debug("error creating tx from rlp fields: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+			return []types.Transaction{}, txsData, err
+		}
 
-		txs = append(txs, *types.NewTx(&tx))
+		tx := types.NewTx(legacyTx)
+		txs = append(txs, *tx)
 	}
 	return txs, txsData, nil
 }
@@ -192,11 +232,34 @@ func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 	for i := 0; i < len(receipt.Logs); i++ {
 		receipt.Logs[i].TxHash = processedTx.Tx.Hash()
 	}
-	if processedTx.Error == nil {
+	if processedTx.RomError == nil {
 		receipt.Status = types.ReceiptStatusSuccessful
 	} else {
 		receipt.Status = types.ReceiptStatusFailed
 	}
 
 	return receipt
+}
+
+func toPostgresInterval(duration string) (string, error) {
+	unit := duration[len(duration)-1]
+	var pgUnit string
+
+	switch unit {
+	case 's':
+		pgUnit = "second"
+	case 'm':
+		pgUnit = "minute"
+	case 'h':
+		pgUnit = "hour"
+	default:
+		return "", ErrUnsupportedDuration
+	}
+
+	isMoreThanOne := duration[0] != '1' || len(duration) > 2 //nolint:gomnd
+	if isMoreThanOne {
+		pgUnit = pgUnit + "s"
+	}
+
+	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
 }

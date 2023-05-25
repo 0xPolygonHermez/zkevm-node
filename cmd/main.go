@@ -4,34 +4,30 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/urfave/cli/v2"
 )
 
-const (
-	// App name
-	appName = "zkevm-node"
-	// version represents the program based on the git tag
-	version = "v0.1.0"
-	// commit represents the program based on the git commit
-	commit = "dev"
-	// date represents the date of application was built
-	date = ""
-)
+const appName = "zkevm-node"
 
 const (
-	// AGGREGATOR is the aggregator component identifier.
+	// AGGREGATOR is the aggregator component identifier
 	AGGREGATOR = "aggregator"
-	// SEQUENCER is the sequencer component identifier.
+	// SEQUENCER is the sequencer component identifier
 	SEQUENCER = "sequencer"
-	// RPC is the RPC component identifier.
+	// RPC is the RPC component identifier
 	RPC = "rpc"
-	// SYNCHRONIZER is the synchronizer component identifier.
+	// SYNCHRONIZER is the synchronizer component identifier
 	SYNCHRONIZER = "synchronizer"
-	// BROADCAST is the broadcast component identifier.
-	BROADCAST = "broadcast-trusted-state"
+	// ETHTXMANAGER is the service that manages the tx sent to L1
+	ETHTXMANAGER = "eth-tx-manager"
+	// L2GASPRICER is the l2 gas pricer component identifier
+	L2GASPRICER = "l2gaspricer"
+	// SEQUENCE_SENDER is the sequence sender component identifier
+	SEQUENCE_SENDER = "sequence-sender"
 )
 
 var (
@@ -43,20 +39,14 @@ var (
 	}
 	networkFlag = cli.StringFlag{
 		Name:     config.FlagNetwork,
-		Aliases:  []string{"n"},
-		Usage:    "Network: mainnet, testnet, internaltestnet, local, custom, merge. By default it uses mainnet",
-		Required: false,
+		Aliases:  []string{"net"},
+		Usage:    "Load default network configuration. Supported values: [`mainnet`, `testnet`, `custom`]",
+		Required: true,
 	}
 	customNetworkFlag = cli.StringFlag{
-		Name:    config.FlagNetworkCfg,
-		Aliases: []string{"nc"},
-		Usage:   "Custom network configuration `FILE` when using --network custom parameter",
-	}
-	baseNetworkFlag = cli.StringFlag{
-		Name:     config.FlagNetworkBase,
-		Aliases:  []string{"nb"},
-		Usage:    "Base existing network configuration to be merged with the custom configuration passed with --network-cfg, by default it uses internaltestnet",
-		Value:    "internaltestnet",
+		Name:     config.FlagCustomNetwork,
+		Aliases:  []string{"net-file"},
+		Usage:    "Load the network configuration file if --network=custom",
 		Required: false,
 	}
 	yesFlag = cli.BoolFlag{
@@ -70,7 +60,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER),
+		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, ETHTXMANAGER, L2GASPRICER, SEQUENCE_SENDER),
 	}
 	httpAPIFlag = cli.StringSliceFlag{
 		Name:     config.FlagHTTPAPI,
@@ -79,17 +69,20 @@ var (
 		Required: false,
 		Value:    cli.NewStringSlice(jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIZKEVM, jsonrpc.APITxPool, jsonrpc.APIWeb3),
 	}
+	migrationsFlag = cli.BoolFlag{
+		Name:     config.FlagMigrations,
+		Aliases:  []string{"mig"},
+		Usage:    "Blocks the migrations in stateDB to not run them",
+		Required: false,
+	}
 )
 
 func main() {
 	app := cli.NewApp()
 	app.Name = appName
-	app.Version = version
+	app.Version = zkevm.Version
 	flags := []cli.Flag{
 		&configFileFlag,
-		&networkFlag,
-		&customNetworkFlag,
-		&baseNetworkFlag,
 		&yesFlag,
 		&componentsFlag,
 		&httpAPIFlag,
@@ -106,19 +99,40 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Run the zkevm-node",
 			Action:  start,
-			Flags:   flags,
+			Flags:   append(flags, &networkFlag, &customNetworkFlag, &migrationsFlag),
 		},
 		{
 			Name:    "approve",
 			Aliases: []string{"ap"},
 			Usage:   "Approve tokens to be spent by the smart contract",
 			Action:  approveTokens,
-			Flags: append(flags, &cli.StringFlag{
-				Name:     config.FlagAmount,
-				Aliases:  []string{"am"},
-				Usage:    "Amount that is gonna be approved",
-				Required: true,
-			},
+			Flags: append(flags,
+				&cli.StringFlag{
+					Name:     config.FlagKeyStorePath,
+					Aliases:  []string{""},
+					Usage:    "the path of the key store file containing the private key of the account going to sign and approve the tokens",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     config.FlagPassword,
+					Aliases:  []string{"pw"},
+					Usage:    "the password do decrypt the key store file",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     config.FlagAmount,
+					Aliases:  []string{"am"},
+					Usage:    "Amount that is gonna be approved",
+					Required: false,
+				},
+				&cli.StringFlag{
+					Name:     config.FlagMaxAmount,
+					Aliases:  []string{"mam"},
+					Usage:    "Maximum amount is gonna be approved",
+					Required: false,
+				},
+				&networkFlag,
+				&customNetworkFlag,
 			),
 		},
 		{

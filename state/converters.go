@@ -1,9 +1,13 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"math/big"
+	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -14,44 +18,110 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// TestConvertToProcessBatchResponse for test purposes
-func TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	return convertToProcessBatchResponse(txs, response)
+// ConvertToCounters extracts ZKCounters from a ProcessBatchResponse
+func ConvertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
+	return ZKCounters{
+		CumulativeGasUsed:    resp.CumulativeGasUsed,
+		UsedKeccakHashes:     resp.CntKeccakHashes,
+		UsedPoseidonHashes:   resp.CntPoseidonHashes,
+		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
+		UsedMemAligns:        resp.CntMemAligns,
+		UsedArithmetics:      resp.CntArithmetics,
+		UsedBinaries:         resp.CntBinaries,
+		UsedSteps:            resp.CntSteps,
+	}
 }
 
-func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	responses, err := convertToProcessTransactionResponse(txs, response.Responses)
+// TestConvertToProcessBatchResponse for test purposes
+func (s *State) TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	return s.convertToProcessBatchResponse(txs, response)
+}
+
+func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	responses, err := s.convertToProcessTransactionResponse(txs, response.Responses)
 	if err != nil {
 		return nil, err
 	}
 
-	isBatchProcessed := true
-	if len(response.Responses) > 0 {
-		// Check out of counters
-		isBatchProcessed = !(response.Responses[len(response.Responses)-1].Error == pb.Error_ERROR_OUT_OF_COUNTERS)
+	readWriteAddresses, err := convertToReadWriteAddresses(response.ReadWriteAddresses)
+	if err != nil {
+		return nil, err
+	}
+
+	isExecutorLevelError := (response.Error != executor.EXECUTOR_ERROR_NO_ERROR)
+	isRomLevelError := false
+	isRomOOCError := false
+
+	if response.Responses != nil {
+		for _, resp := range response.Responses {
+			if resp.Error != pb.RomError_ROM_ERROR_NO_ERROR {
+				isRomLevelError = true
+				break
+			}
+		}
+
+		if len(response.Responses) > 0 {
+			// Check out of counters
+			errorToCheck := response.Responses[len(response.Responses)-1].Error
+			isRomOOCError = executor.IsROMOutOfCountersError(errorToCheck)
+		}
 	}
 
 	return &ProcessBatchResponse{
-		CumulativeGasUsed:   response.CumulativeGasUsed,
-		IsBatchProcessed:    isBatchProcessed,
-		Responses:           responses,
-		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
-		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
-		CntKeccakHashes:     response.CntKeccakHashes,
-		CntPoseidonHashes:   response.CntPoseidonHashes,
-		CntPoseidonPaddings: response.CntPoseidonPaddings,
-		CntMemAligns:        response.CntMemAligns,
-		CntArithmetics:      response.CntArithmetics,
-		CntBinaries:         response.CntBinaries,
-		CntSteps:            response.CntSteps,
+		NewStateRoot:         common.BytesToHash(response.NewStateRoot),
+		NewAccInputHash:      common.BytesToHash(response.NewAccInputHash),
+		NewLocalExitRoot:     common.BytesToHash(response.NewLocalExitRoot),
+		NewBatchNumber:       response.NewBatchNum,
+		UsedZkCounters:       convertToCounters(response),
+		Responses:            responses,
+		ExecutorError:        executor.ExecutorErr(response.Error),
+		IsExecutorLevelError: isExecutorLevelError,
+		IsRomLevelError:      isRomLevelError,
+		IsRomOOCError:        isRomOOCError,
+		ReadWriteAddresses:   readWriteAddresses,
 	}, nil
 }
 
-func isProcessed(err pb.Error) bool {
-	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX && err != pb.Error_ERROR_OUT_OF_COUNTERS
+// IsStateRootChanged returns true if the transaction changes the state root
+func IsStateRootChanged(err pb.RomError) bool {
+	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
 }
 
-func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
+func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) (map[common.Address]*InfoReadWrite, error) {
+	results := make(map[common.Address]*InfoReadWrite, len(addresses))
+
+	for addr, addrInfo := range addresses {
+		var nonce *uint64 = nil
+		var balance *big.Int = nil
+		var ok bool
+
+		address := common.HexToAddress(addr)
+
+		if addrInfo.Nonce != "" {
+			bigNonce, ok := new(big.Int).SetString(addrInfo.Nonce, encoding.Base10)
+			if !ok {
+				log.Debugf("received nonce as string: %v", addrInfo.Nonce)
+				return nil, fmt.Errorf("error while parsing address nonce")
+			}
+			nonceNp := bigNonce.Uint64()
+			nonce = &nonceNp
+		}
+
+		if addrInfo.Balance != "" {
+			balance, ok = new(big.Int).SetString(addrInfo.Balance, encoding.Base10)
+			if !ok {
+				log.Debugf("received balance as string: %v", addrInfo.Balance)
+				return nil, fmt.Errorf("error while parsing address balance")
+			}
+		}
+
+		results[address] = &InfoReadWrite{Address: address, Nonce: nonce, Balance: balance}
+	}
+
+	return results, nil
+}
+
+func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for i, response := range responses {
 		trace, err := convertToStructLogArray(response.ExecutionTrace)
@@ -66,24 +136,44 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.GasLeft = response.GasLeft
 		result.GasUsed = response.GasUsed
 		result.GasRefunded = response.GasRefunded
-		result.Error = executor.Err(response.Error)
+		result.RomError = executor.RomErr(response.Error)
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.IsProcessed = isProcessed(response.Error)
+		result.ChangesStateRoot = IsStateRootChanged(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]
+
+		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
+		if err != nil {
+			timestamp := time.Now()
+			log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
+
+			event := &event.Event{
+				ReceivedAt: timestamp,
+				Source:     event.Source_Node,
+				Level:      event.Level_Error,
+				EventID:    event.EventID_ExecutorRLPError,
+				Json:       string(response.GetRlpTx()),
+			}
+
+			err = s.eventLog.LogEvent(context.Background(), event)
+			if err != nil {
+				log.Errorf("error storing payload: %v", err)
+			}
+		}
+
 		results = append(results, result)
 
-		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
-		log.Debugf("ProcessTransactionResponse[Nonce]: %v", txs[i].Nonce())
+		log.Debugf("ProcessTransactionResponse[TxHash]: %v", result.TxHash)
+		log.Debugf("ProcessTransactionResponse[Nonce]: %v", result.Tx.Nonce())
 		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
-		log.Debugf("ProcessTransactionResponse[Error]: %v", result.Error)
+		log.Debugf("ProcessTransactionResponse[Error]: %v", result.RomError)
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
 		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
 		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
-		log.Debugf("ProcessTransactionResponse[IsProcessed]: %v", result.IsProcessed)
+		log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
 	}
 
 	return results, nil
@@ -137,7 +227,7 @@ func convertToStructLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumenta
 		result.Storage = convertToProperMap(response.Storage)
 		result.Depth = int(response.Depth)
 		result.RefundCounter = response.GasRefund
-		result.Err = executor.Err(response.Error)
+		result.Err = executor.RomErr(response.Error)
 
 		results = append(results, *result)
 	}
@@ -152,7 +242,7 @@ func convertToBigIntArray(responses []string) ([]*big.Int, error) {
 		if ok {
 			results = append(results, result)
 		} else {
-			return nil, fmt.Errorf("String %s is not valid", response)
+			return nil, fmt.Errorf("string %s is not valid", response)
 		}
 	}
 	return results, nil
@@ -203,16 +293,17 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrument
 		step.OpCode = fakevm.OpCode(response.Op).String()
 		step.Refund = fmt.Sprint(response.GasRefund)
 		step.Op = fmt.Sprint(response.Op)
-		err := executor.Err(response.Error)
+		err := executor.RomErr(response.Error)
 		if err != nil {
 			step.Error = err.Error()
 		}
 		step.Contract = convertToInstrumentationContract(response.Contract)
 		step.GasCost = fmt.Sprint(response.GasCost)
 		step.Stack = response.Stack
-		step.Memory = convertByteArrayToStringArray(response.Memory)
-		step.ReturnData = string(response.ReturnData)
-
+		step.Memory = make([]byte, len(response.Memory))
+		copy(step.Memory, response.Memory)
+		step.ReturnData = make([]byte, len(response.ReturnData))
+		copy(step.ReturnData, response.ReturnData)
 		results = append(results, *step)
 	}
 	return results
@@ -228,10 +319,15 @@ func convertToInstrumentationContract(response *pb.Contract) instrumentation.Con
 	}
 }
 
-func convertByteArrayToStringArray(responses []byte) []string {
-	results := make([]string, 0, len(responses))
-	for _, response := range responses {
-		results = append(results, string(response))
+func convertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
+	return ZKCounters{
+		CumulativeGasUsed:    resp.CumulativeGasUsed,
+		UsedKeccakHashes:     resp.CntKeccakHashes,
+		UsedPoseidonHashes:   resp.CntPoseidonHashes,
+		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
+		UsedMemAligns:        resp.CntMemAligns,
+		UsedArithmetics:      resp.CntArithmetics,
+		UsedBinaries:         resp.CntBinaries,
+		UsedSteps:            resp.CntSteps,
 	}
-	return results
 }

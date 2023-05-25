@@ -11,16 +11,9 @@ import (
 const (
 	// Base represents the hexadecimal base, which is 16
 	Base = 16
-)
 
-// TODO Remove
-var (
-	ErrSyntax        = &DecError{"invalid hex string"}
-	ErrMissingPrefix = &DecError{"hex string without 0x prefix"}
-	ErrEmptyNumber   = &DecError{"hex string \"0x\""}
-	ErrLeadingZero   = &DecError{"hex number with leading zero digits"}
-	ErrUint64Range   = &DecError{"hex number > 64 bits"}
-	ErrBig256Range   = &DecError{"hex number > 256 bits"}
+	// BitSize64 64 bits
+	BitSize64 = 64
 )
 
 // DecError represents an error when decoding a hex value
@@ -60,6 +53,12 @@ func MustDecodeHex(str string) []byte {
 	return buf
 }
 
+// DecodeUint64 type-checks and converts a hex string to a uint64
+func DecodeUint64(str string) uint64 {
+	i := DecodeBig(str)
+	return i.Uint64()
+}
+
 // EncodeUint64 encodes a number as a hex string with 0x prefix.
 func EncodeUint64(i uint64) string {
 	enc := make([]byte, 2, 10) //nolint:gomnd
@@ -95,10 +94,22 @@ func EncodeBig(bigint *big.Int) string {
 	return fmt.Sprintf("%#x", bigint)
 }
 
-// DecodeHexToBig converts a hex number to a big.Int value
-func DecodeHexToBig(hexNum string) *big.Int {
+// DecodeBig converts a hex number to a big.Int value
+func DecodeBig(hexNum string) *big.Int {
+	str := strings.TrimPrefix(hexNum, "0x")
 	createdNum := new(big.Int)
-	createdNum.SetString(hexNum, Base)
+	createdNum.SetString(str, Base)
 
 	return createdNum
+}
+
+// IsValid checks if the provided string is a valid hexadecimal value
+func IsValid(s string) bool {
+	str := strings.TrimPrefix(s, "0x")
+	for _, b := range []byte(str) {
+		if !(b >= '0' && b <= '9' || b >= 'a' && b <= 'f' || b >= 'A' && b <= 'F') {
+			return false
+		}
+	}
+	return true
 }

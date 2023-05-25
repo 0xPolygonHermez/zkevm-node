@@ -6,66 +6,76 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
-	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 const (
-	executorURI   = "127.0.0.1:50071"
-	merkletreeURI = "127.0.0.1:50061"
-
-	poeAddress        = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
-	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
-
-	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	cmdFolder = "test"
 )
 
-// Public constants
+// Public shared
 const (
-	DefaultSequencerAddress     = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	DefaultSequencerPrivateKey  = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	DefaultSequencerBalance     = 400000
-	DefaultMaxCumulativeGasUsed = 800000
+	DefaultSequencerAddress             = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	DefaultSequencerPrivateKey          = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	DefaultSequencerBalance             = 400000
+	DefaultMaxCumulativeGasUsed         = 800000
+	DefaultL1ZkEVMSmartContract         = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
+	DefaultL1NetworkURL                 = "http://localhost:8545"
+	DefaultL1NetworkWebSocketURL        = "ws://localhost:8546"
+	DefaultL1ChainID             uint64 = 1337
 
-	DefaultL1NetworkURL        = "http://localhost:8545"
-	DefaultL1ChainID    uint64 = 1337
-	DefaultL2NetworkURL        = "http://localhost:8123"
-	DefaultL2ChainID    uint64 = 1001
+	DefaultL2NetworkURL                 = "http://localhost:8123"
+	PermissionlessL2NetworkURL          = "http://localhost:8125"
+	DefaultL2NetworkWebSocketURL        = "ws://localhost:8133"
+	DefaultL2ChainID             uint64 = 1001
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
+
+	DefaultWaitPeriodSendSequence                          = "15s"
+	DefaultLastBatchVirtualizationTimeMaxWaitPeriod        = "10s"
+	DefaultMaxTxSizeForL1                           uint64 = 131072
 )
 
 var (
-	stateDBCfg       = dbutils.NewStateConfigFromEnv()
-	poolDBCfg        = dbutils.NewPoolConfigFromEnv()
-	rpcDBCfg         = dbutils.NewRPCConfigFromEnv()
+	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
+
+	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
+	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
 	executorConfig   = executor.Config{URI: executorURI}
-	merkletreeConfig = merkletree.Config{URI: merkletreeURI}
+	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )
 
-// SequencerConfig is the configuration for the sequencer operations.
-type SequencerConfig struct {
-	Address, PrivateKey string
+// SequenceSenderConfig is the configuration for the sequence sender operations
+type SequenceSenderConfig struct {
+	WaitPeriodSendSequence                   string
+	LastBatchVirtualizationTimeMaxWaitPeriod string
+	MaxTxSizeForL1                           uint64
+	SenderAddress                            string
+	PrivateKey                               string
 }
 
 // Config is the main Manager configuration.
 type Config struct {
-	State     *state.Config
-	Sequencer *SequencerConfig
+	State          *state.Config
+	SequenceSender *SequenceSenderConfig
 }
 
 // Manager controls operations and has knowledge about how to set up and tear
@@ -125,8 +135,22 @@ func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
 	// return m.checkRoot(root, expectedRoot)
 }
 
-// SetGenesis creates the genesis block in the state.
-func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
+// SetGenesisAccountsBalance creates the genesis block in the state.
+func (m *Manager) SetGenesisAccountsBalance(genesisAccounts map[string]big.Int) error {
+	var genesisActions []*state.GenesisAction
+	for address, balanceValue := range genesisAccounts {
+		action := &state.GenesisAction{
+			Address: address,
+			Type:    int(merkletree.LeafTypeBalance),
+			Value:   balanceValue.String(),
+		}
+		genesisActions = append(genesisActions, action)
+	}
+
+	return m.SetGenesis(genesisActions)
+}
+
+func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
 	genesisBlock := state.Block{
 		BlockNumber: 0,
 		BlockHash:   state.ZeroHash,
@@ -134,15 +158,7 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		Actions: []*state.GenesisAction{},
-	}
-	for address, balanceValue := range genesisAccounts {
-		action := &state.GenesisAction{
-			Address: address,
-			Type:    int(merkletree.LeafTypeBalance),
-			Value:   balanceValue.String(),
-		}
-		genesis.Actions = append(genesis.Actions, action)
+		GenesisActions: genesisActions,
 	}
 
 	dbTx, err := m.st.BeginStateTransaction(m.ctx)
@@ -152,79 +168,139 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 
 	_, err = m.st.SetGenesis(m.ctx, genesisBlock, genesis, dbTx)
 
+	err = dbTx.Commit(m.ctx)
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 
-// ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
-// the final state.
-func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globalExitRoot string) error {
-	panic("not implemented yet")
-	// // store current batch number to check later when the state is updated
-	// currentBatchNumber, err := m.st.GetLastBatchNumberSeenOnEthereum(m.ctx, nil)
-	// if err != nil {
-	// 	return err
-	// }
+// ApplyL1Txs sends the given L1 txs, waits for them to be consolidated and
+// checks the final state.
+func ApplyL1Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
+	_, err := applyTxs(ctx, txs, auth, client, true)
+	return err
+}
 
-	// var txs []*types.Transaction
-	// for _, vectorTx := range vectorTxs {
-	// 	if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
-	// 		var tx types.LegacyTx
-	// 		bytes, err := hex.DecodeHex(vectorTx.RawTx)
-	// 		if err != nil {
-	// 			return err
-	// 		}
+// ConfirmationLevel type used to describe the confirmation level of a transaction
+type ConfirmationLevel int
 
-	// 		err = rlp.DecodeBytes(bytes, &tx)
-	// 		if err == nil {
-	// 			txs = append(txs, types.NewTx(&tx))
-	// 		}
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	}
-	// }
-	// // Create Batch
-	// batch := &state.Batch{
-	// 	BlockNumber:        uint64(0),
-	// 	Sequencer:          common.HexToAddress(m.cfg.Sequencer.Address),
-	// 	Aggregator:         common.HexToAddress(aggregatorAddress),
-	// 	ConsolidatedTxHash: common.Hash{},
-	// 	Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
-	// 	Uncles:             nil,
-	// 	Transactions:       txs,
-	// 	RawTxsData:         nil,
-	// 	MaticCollateral:    big.NewInt(1),
-	// 	ChainID:            big.NewInt(int64(m.cfg.NetworkConfig.ChainID)),
-	// 	GlobalExitRoot:     common.HexToHash(globalExitRoot),
-	// }
+// PoolConfirmationLevel indicates that transaction is added into the pool
+const PoolConfirmationLevel ConfirmationLevel = 0
 
-	// // Create Batch Processor
-	// bp, err := m.st.NewBatchProcessor(m.ctx, common.HexToAddress(m.cfg.Sequencer.Address), common.Hex2Bytes(strings.TrimPrefix(initialRoot, "0x")), "")
-	// if err != nil {
-	// 	return err
-	// }
+// TrustedConfirmationLevel indicates that transaction is  added into the trusted state
+const TrustedConfirmationLevel ConfirmationLevel = 1
 
-	// err = bp.ProcessBatch(m.ctx, batch)
-	// if err != nil {
-	// 	return err
-	// }
+// VirtualConfirmationLevel indicates that transaction is  added into the virtual state
+const VirtualConfirmationLevel ConfirmationLevel = 2
 
-	// // Wait for sequencer to select txs from pool and propose a new batch
-	// // Wait for the synchronizer to update state
-	// err = Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
-	// 	// using a closure here to capture st and currentBatchNumber
-	// 	latestBatchNumber, err := m.st.GetLastBatchNumberConsolidatedOnEthereum(m.ctx, "")
-	// 	if err != nil {
-	// 		return false, err
-	// 	}
-	// 	done := latestBatchNumber > currentBatchNumber
-	// 	return done, nil
-	// })
-	// // if the state is not expected to change waitPoll can timeout
-	// if initialRoot != "" && finalRoot != "" && initialRoot != finalRoot && err != nil {
-	// 	return err
-	// }
-	// return nil
+// VerifiedConfirmationLevel indicates that transaction is  added into the verified state
+const VerifiedConfirmationLevel ConfirmationLevel = 3
+
+// ApplyL2Txs sends the given L2 txs, waits for them to be consolidated and
+// checks the final state.
+func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client, confirmationLevel ConfirmationLevel) ([]*big.Int, error) {
+	var err error
+	if auth == nil {
+		auth, err = GetAuth(DefaultSequencerPrivateKey, DefaultL2ChainID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if client == nil {
+		client, err = ethclient.Dial(DefaultL2NetworkURL)
+		if err != nil {
+			return nil, err
+		}
+	}
+	waitToBeMined := confirmationLevel != PoolConfirmationLevel
+	sentTxs, err := applyTxs(ctx, txs, auth, client, waitToBeMined)
+	if err != nil {
+		return nil, err
+	}
+	if confirmationLevel == PoolConfirmationLevel {
+		return nil, nil
+	}
+
+	l2BlockNumbers := make([]*big.Int, 0, len(sentTxs))
+	for _, tx := range sentTxs {
+		// check transaction nonce against transaction reported L2 block number
+		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		if err != nil {
+			return nil, err
+		}
+
+		// get L2 block number
+		l2BlockNumbers = append(l2BlockNumbers, receipt.BlockNumber)
+		expectedNonce := receipt.BlockNumber.Uint64() - 1 + 8 //nolint:gomnd
+		if tx.Nonce() != expectedNonce {
+			return nil, fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
+		}
+		if confirmationLevel == TrustedConfirmationLevel {
+			continue
+		}
+
+		// wait for l2 block to be virtualized
+		log.Infof("waiting for the block number %v to be virtualized", receipt.BlockNumber.String())
+		err = WaitL2BlockToBeVirtualized(receipt.BlockNumber, 4*time.Minute) //nolint:gomnd
+		if err != nil {
+			return nil, err
+		}
+		if confirmationLevel == VirtualConfirmationLevel {
+			continue
+		}
+
+		// wait for l2 block number to be consolidated
+		log.Infof("waiting for the block number %v to be consolidated", receipt.BlockNumber.String())
+		err = WaitL2BlockToBeConsolidated(receipt.BlockNumber, 4*time.Minute) //nolint:gomnd
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return l2BlockNumbers, nil
+}
+
+func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client, waitToBeMined bool) ([]*types.Transaction, error) {
+	var sentTxs []*types.Transaction
+
+	for i := 0; i < len(txs); i++ {
+		signedTx, err := auth.Signer(auth.From, txs[i])
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
+		err = client.SendTransaction(context.Background(), signedTx)
+		if err != nil {
+			return nil, err
+		}
+
+		sentTxs = append(sentTxs, signedTx)
+	}
+	if !waitToBeMined {
+		return nil, nil
+	}
+
+	// wait for TX to be mined
+	timeout := 180 * time.Second //nolint:gomnd
+	for _, tx := range sentTxs {
+		log.Infof("Waiting Tx %s to be mined", tx.Hash())
+		err := WaitTxToBeMined(ctx, client, tx, timeout)
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("Tx %s mined successfully", tx.Hash())
+	}
+	nTxs := len(txs)
+	if nTxs > 1 {
+		log.Infof("%d transactions added into the trusted state successfully.", nTxs)
+	} else {
+		log.Info("transaction added into the trusted state successfully.")
+	}
+
+	return sentTxs, nil
 }
 
 // GetAuth configures and returns an auth object.
@@ -256,23 +332,92 @@ func (m *Manager) Setup() error {
 	}
 
 	// Approve matic
-	err = approveMatic()
-	if err != nil {
-		return err
-	}
-
-	err = m.SetUpSequencer()
+	err = ApproveMatic()
 	if err != nil {
 		return err
 	}
 
 	// Run node container
-	return m.StartNode()
+	err = m.StartNode()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetupWithPermissionless creates all the required components for both trusted and permissionless nodes
+// and initializes them according to the manager config.
+func (m *Manager) SetupWithPermissionless() error {
+	// Run network container
+	err := m.StartNetwork()
+	if err != nil {
+		return err
+	}
+
+	// Approve matic
+	err = ApproveMatic()
+	if err != nil {
+		return err
+	}
+
+	err = m.StartTrustedAndPermissionlessNode()
+	if err != nil {
+		return err
+	}
+
+	// Run node container
+	return nil
+}
+
+// StartEthTxSender stops the eth tx sender service
+func (m *Manager) StartEthTxSender() error {
+	return StartComponent("eth-tx-manager")
+}
+
+// StopEthTxSender stops the eth tx sender service
+func (m *Manager) StopEthTxSender() error {
+	return StopComponent("eth-tx-manager")
+}
+
+// StartSequencer starts the sequencer
+func (m *Manager) StartSequencer() error {
+	return StartComponent("seq")
+}
+
+// StopSequencer stops the sequencer
+func (m *Manager) StopSequencer() error {
+	return StopComponent("seq")
+}
+
+// StartSequenceSender starts the sequence sender
+func (m *Manager) StartSequenceSender() error {
+	return StartComponent("seqsender")
+}
+
+// StopSequenceSender stops the sequence sender
+func (m *Manager) StopSequenceSender() error {
+	return StopComponent("seqsender")
 }
 
 // Teardown stops all the components.
 func Teardown() error {
 	err := stopNode()
+	if err != nil {
+		return err
+	}
+
+	err = stopNetwork()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// TeardownPermissionless stops all the components.
+func TeardownPermissionless() error {
+	err := stopPermissionlessNode()
 	if err != nil {
 		return err
 	}
@@ -294,130 +439,21 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 	ctx := context.Background()
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
-	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletreeConfig)
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkleTreeConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: maxCumulativeGasUsed,
 	}
 
-	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		return nil, err
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)
 	return st, nil
-}
-
-// func (m *Manager) checkRoot(root []byte, expectedRoot string) error {
-// 	actualRoot := hex.EncodeToHex(root)
-
-// 	if expectedRoot != actualRoot {
-// 		return fmt.Errorf("Invalid root, want %q, got %q", expectedRoot, actualRoot)
-// 	}
-// 	return nil
-// }
-
-// SetUpSequencer provide ETH, Matic to and register the sequencer
-func (m *Manager) SetUpSequencer() error {
-	// Eth client
-	client, err := ethclient.Dial(DefaultL1NetworkURL)
-	if err != nil {
-		return err
-	}
-
-	// Get network chain id
-	chainID, err := client.NetworkID(context.Background())
-	if err != nil {
-		return err
-	}
-
-	auth, err := GetAuth(l1AccHexPrivateKey, chainID.Uint64())
-	if err != nil {
-		return err
-	}
-
-	// Getting l1 info
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	if err != nil {
-		return err
-	}
-
-	// Send some Ether from l1Acc to sequencer acc
-	fromAddress := common.HexToAddress(l1AccHexAddress)
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		return err
-	}
-
-	const (
-		gasLimit = 21000
-		OneEther = 1000000000000000000
-	)
-	toAddress := common.HexToAddress(m.cfg.Sequencer.Address)
-	tx := types.NewTransaction(nonce, toAddress, big.NewInt(OneEther), uint64(gasLimit), gasPrice, nil)
-	signedTx, err := auth.Signer(auth.From, tx)
-	if err != nil {
-		return err
-	}
-
-	err = client.SendTransaction(context.Background(), signedTx)
-	if err != nil {
-		return err
-	}
-
-	// Wait eth transfer to be mined
-	err = WaitTxToBeMined(client, signedTx.Hash(), DefaultTxMinedDeadline)
-	if err != nil {
-		return err
-	}
-
-	// Create matic maticTokenSC sc instance
-	maticTokenSC, err := NewToken(common.HexToAddress(maticTokenAddress), client)
-	if err != nil {
-		return err
-	}
-
-	// Send matic to sequencer
-	maticAmount, ok := big.NewInt(0).SetString("100000000000000000000000", encoding.Base10)
-	if !ok {
-		return fmt.Errorf("Error setting matic amount")
-	}
-
-	tx, err = maticTokenSC.Transfer(auth, toAddress, maticAmount)
-	if err != nil {
-		return err
-	}
-
-	// wait matic transfer to be mined
-	err = WaitTxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
-	if err != nil {
-		return err
-	}
-
-	// Check matic balance
-	b, err := maticTokenSC.BalanceOf(&bind.CallOpts{}, toAddress)
-	if err != nil {
-		return err
-	}
-
-	if b.Cmp(maticAmount) < 0 {
-		return fmt.Errorf("Minimum amount is: %v but found: %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10))
-	}
-
-	// Create sequencer auth
-	auth, err = GetAuth(m.cfg.Sequencer.PrivateKey, chainID.Uint64())
-	if err != nil {
-		return err
-	}
-
-	// approve tokens to be used by PoE SC on behalf of the sequencer
-	tx, err = maticTokenSC.Approve(auth, common.HexToAddress(poeAddress), maticAmount)
-	if err != nil {
-		return err
-	}
-
-	err = WaitTxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // StartNetwork starts the L1 network container
@@ -453,7 +489,13 @@ func (m *Manager) StartNode() error {
 	return StartComponent("node", nodeUpCondition)
 }
 
-func approveMatic() error {
+// StartTrustedAndPermissionlessNode starts the node container
+func (m *Manager) StartTrustedAndPermissionlessNode() error {
+	return StartComponent("permissionless", nodeUpCondition)
+}
+
+// ApproveMatic runs the approving matic command
+func ApproveMatic() error {
 	return StartComponent("approve-matic")
 }
 
@@ -461,8 +503,28 @@ func stopNode() error {
 	return StopComponent("node")
 }
 
+func stopPermissionlessNode() error {
+	return StopComponent("permissionless")
+}
+
 func runCmd(c *exec.Cmd) error {
-	c.Dir = "../.."
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("failed to get current work directory: %v", err)
+	}
+
+	if strings.Contains(dir, cmdFolder) {
+		// Making the change dir to work in any nesting directory level inside cmd folder
+		base := filepath.Base(dir)
+		for base != cmdFolder {
+			dir = filepath.Dir(dir)
+			base = filepath.Base(dir)
+		}
+	} else {
+		dir = fmt.Sprintf("../../%s", cmdFolder)
+	}
+	c.Dir = dir
+
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()
@@ -503,8 +565,13 @@ func RunMakeTarget(target string) error {
 // GetDefaultOperationsConfig provides a default configuration to run the environment
 func GetDefaultOperationsConfig() *Config {
 	return &Config{
-		State:     &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
-		Sequencer: &SequencerConfig{Address: DefaultSequencerAddress, PrivateKey: DefaultSequencerPrivateKey},
+		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
+		SequenceSender: &SequenceSenderConfig{
+			WaitPeriodSendSequence:                   DefaultWaitPeriodSendSequence,
+			LastBatchVirtualizationTimeMaxWaitPeriod: DefaultWaitPeriodSendSequence,
+			MaxTxSizeForL1:                           DefaultMaxTxSizeForL1,
+			SenderAddress:                            DefaultSequencerAddress,
+			PrivateKey:                               DefaultSequencerPrivateKey},
 	}
 }
 
@@ -531,9 +598,6 @@ func initOrResetDB() {
 		panic(err)
 	}
 	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
-		panic(err)
-	}
-	if err := dbutils.InitOrResetRPC(rpcDBCfg); err != nil {
 		panic(err)
 	}
 }

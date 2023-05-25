@@ -12,6 +12,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,9 +39,12 @@ func TestStateTransition(t *testing.T) {
 				State: &state.Config{
 					MaxCumulativeGasUsed: 800000,
 				},
-				Sequencer: &operations.SequencerConfig{
-					Address:    testCase.SequencerAddress,
-					PrivateKey: testCase.SequencerPrivateKey,
+				SequenceSender: &operations.SequenceSenderConfig{
+					SenderAddress:                            testCase.SequencerAddress,
+					LastBatchVirtualizationTimeMaxWaitPeriod: "5s",
+					WaitPeriodSendSequence:                   "5s",
+					MaxTxSizeForL1:                           131072,
+					PrivateKey:                               testCase.SequencerPrivateKey,
 				},
 			}
 			opsman, err := operations.NewManager(ctx, opsCfg)
@@ -49,28 +54,40 @@ func TestStateTransition(t *testing.T) {
 			for _, gacc := range testCase.GenesisAccounts {
 				genesisAccounts[gacc.Address] = gacc.Balance.Int
 			}
-			require.NoError(t, opsman.SetGenesis(genesisAccounts))
+			require.NoError(t, opsman.SetGenesisAccountsBalance(genesisAccounts))
 
 			// Check initial root
 			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedOldRoot))
 
 			require.NoError(t, opsman.Setup())
 
-			require.NoError(t, opsman.ApplyTxs(testCase.Txs, testCase.ExpectedOldRoot, testCase.ExpectedNewRoot, testCase.GlobalExitRoot))
+			// convert vector txs
+			txs := make([]*types.Transaction, 0, len(testCase.Txs))
+			for i := 0; i < len(testCase.Txs); i++ {
+				vecTx := testCase.Txs[i]
+				var tx types.Transaction
+				err := rlp.DecodeBytes([]byte(vecTx.RawTx), &tx)
+				require.NoError(t, err)
+				txs = append(txs, &tx)
+			}
+
+			// send transactions
+			_, err = operations.ApplyL2Txs(ctx, txs, nil, nil, operations.VerifiedConfirmationLevel)
+			require.NoError(t, err)
 
 			st := opsman.State()
 
 			// Check leafs
-			l2BlockNumber, err := st.GetLastL2BlockNumber(ctx, nil)
+			l2Block, err := st.GetLastL2Block(ctx, nil)
 			require.NoError(t, err)
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {
 				addr := common.HexToAddress(addrStr)
 
-				actualBalance, err := st.GetBalance(ctx, addr, l2BlockNumber, nil)
+				actualBalance, err := st.GetBalance(ctx, addr, l2Block.Root())
 				require.NoError(t, err)
 				require.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("addr: %s expected: %s found: %s", addr.Hex(), leaf.Balance.Text(encoding.Base10), actualBalance.Text(encoding.Base10)))
 
-				actualNonce, err := st.GetNonce(ctx, addr, l2BlockNumber, nil)
+				actualNonce, err := st.GetNonce(ctx, addr, l2Block.Root())
 				require.NoError(t, err)
 				require.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}

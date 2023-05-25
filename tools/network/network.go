@@ -64,7 +64,7 @@ package network
 // 	L1Deployer L1Deployer
 // 	// Sequencer address, comes from the keystore passed to node
 // 	// on config
-// 	SequencerAddress, SequencerPrivateKey string
+// 	sequencerAddress, SequencerPrivateKey string
 // 	TxTimeout                             time.Duration
 // }
 
@@ -136,11 +136,11 @@ package network
 // 		return err
 // 	}
 
-// 	sequencerAddress := common.HexToAddress(nc.SequencerAddress)
+// 	sequencerAddress := common.HexToAddress(nc.sequencerAddress)
 // 	if nc.L1Deployer.L1ETHAmountToSequencer != "" {
 // 		// Send some Ether from L1 deployer to sequencer acc
 // 		ethAmount, _ := big.NewInt(0).SetString(nc.L1Deployer.L1ETHAmountToSequencer, encoding.Base10)
-// 		log.Infof("Transferring %s L1 ETH to sequencer %q from L1 deployer %q", nc.L1Deployer.L1ETHAmountToSequencer, nc.SequencerAddress, nc.L1Deployer.Address)
+// 		log.Infof("Transferring %s L1 ETH to sequencer %q from L1 deployer %q", nc.L1Deployer.L1ETHAmountToSequencer, nc.sequencerAddress, nc.L1Deployer.Address)
 // 		fromAddress := common.HexToAddress(nc.L1Deployer.Address)
 // 		nonce, err := clientL1.PendingNonceAt(ctx, fromAddress)
 // 		if err != nil {
@@ -173,7 +173,7 @@ package network
 // 		}
 // 		// Send matic to sequencer
 // 		maticAmount, _ := big.NewInt(0).SetString(nc.L1Deployer.L1MaticAmountToSequencer, encoding.Base10)
-// 		log.Infof("Transferring %s L1 MATIC tokens to sequencer %q from L1 deployer %q", nc.L1Deployer.L1MaticAmountToSequencer, nc.SequencerAddress, nc.L1Deployer.Address)
+// 		log.Infof("Transferring %s L1 MATIC tokens to sequencer %q from L1 deployer %q", nc.L1Deployer.L1MaticAmountToSequencer, nc.sequencerAddress, nc.L1Deployer.Address)
 // 		tx, err := maticTokenSC.Transfer(authDeployer, sequencerAddress, maticAmount)
 // 		if err != nil {
 // 			return err
@@ -186,7 +186,7 @@ package network
 // 		}
 
 // 		// approve tokens to be used by PoE SC on behalf of the sequencer
-// 		log.Infof("Approving %s L1 MATIC tokens to be used by PoE on behalf of the sequencer %q", maticAmount.String(), nc.SequencerAddress)
+// 		log.Infof("Approving %s L1 MATIC tokens to be used by PoE on behalf of the sequencer %q", maticAmount.String(), nc.sequencerAddress)
 // 		tx, err = maticTokenSC.Approve(authSequencer, cfg.NetworkConfig.PoEAddr, maticAmount)
 // 		if err != nil {
 // 			return err

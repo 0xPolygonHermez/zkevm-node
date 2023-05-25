@@ -1,0 +1,389 @@
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "target": {
+            "limit": 100,
+            "matchAny": false,
+            "tags": [],
+            "type": "dashboard"
+          },
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 2,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+      {
+        "datasource": {
+          "type": "postgres",
+          "uid": "P51543FE1D179F612"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "__systemRef": "hideSeriesFrom",
+              "matcher": {
+                "id": "byNames",
+                "options": {
+                  "mode": "exclude",
+                  "names": [
+                    "count"
+                  ],
+                  "prefix": "All except:",
+                  "readOnly": true
+                }
+              },
+              "properties": [
+                {
+                  "id": "custom.hideFrom",
+                  "value": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": true
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "id": 2,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P51543FE1D179F612"
+            },
+            "format": "time_series",
+            "group": [],
+            "hide": false,
+            "metricColumn": "none",
+            "rawQuery": true,
+            "rawSql": "SELECT\n  \"time\" AS \"time\",\n  count - lag(count) OVER (ORDER BY \"time\") AS count\nFROM jsonrpc_request_duration\nWHERE\n  $__timeFilter(\"time\")\nORDER BY 1",
+            "refId": "A",
+            "select": [
+              [
+                {
+                  "params": [
+                    "sum"
+                  ],
+                  "type": "column"
+                }
+              ],
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "column"
+                }
+              ]
+            ],
+            "table": "jsonrpc_request_duration",
+            "timeColumn": "\"time\"",
+            "timeColumnType": "timestamp",
+            "where": [
+              {
+                "name": "$__timeFilter",
+                "params": [],
+                "type": "macro"
+              }
+            ]
+          }
+        ],
+        "title": "jsonrpc_request_count",
+        "transformations": [],
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "postgres",
+          "uid": "P51543FE1D179F612"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "__systemRef": "hideSeriesFrom",
+              "matcher": {
+                "id": "byNames",
+                "options": {
+                  "mode": "exclude",
+                  "names": [
+                    "C"
+                  ],
+                  "prefix": "All except:",
+                  "readOnly": true
+                }
+              },
+              "properties": [
+                {
+                  "id": "custom.hideFrom",
+                  "value": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": true
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "id": 3,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P51543FE1D179F612"
+            },
+            "format": "time_series",
+            "group": [],
+            "hide": true,
+            "metricColumn": "none",
+            "rawQuery": true,
+            "rawSql": "SELECT\n  \"time\" AS \"time\",\n  count - lag(count) OVER (ORDER BY \"time\") AS count\nFROM jsonrpc_request_duration\nWHERE\n  $__timeFilter(\"time\")\nORDER BY 1",
+            "refId": "A",
+            "select": [
+              [
+                {
+                  "params": [
+                    "sum"
+                  ],
+                  "type": "column"
+                }
+              ],
+              [
+                {
+                  "params": [
+                    "count"
+                  ],
+                  "type": "column"
+                }
+              ]
+            ],
+            "table": "jsonrpc_request_duration",
+            "timeColumn": "\"time\"",
+            "timeColumnType": "timestamp",
+            "where": [
+              {
+                "name": "$__timeFilter",
+                "params": [],
+                "type": "macro"
+              }
+            ]
+          },
+          {
+            "datasource": {
+              "type": "postgres",
+              "uid": "P51543FE1D179F612"
+            },
+            "format": "time_series",
+            "group": [],
+            "hide": true,
+            "metricColumn": "none",
+            "rawQuery": true,
+            "rawSql": "SELECT\n  \"time\" AS \"time\",\n  sum - lag(sum) OVER (ORDER BY \"time\") AS sum\nFROM jsonrpc_request_duration\nWHERE\n  $__timeFilter(\"time\")\nORDER BY 1",
+            "refId": "B",
+            "select": [
+              [
+                {
+                  "params": [
+                    "usage_percent"
+                  ],
+                  "type": "column"
+                }
+              ]
+            ],
+            "table": "docker_container_cpu",
+            "timeColumn": "\"time\"",
+            "timeColumnType": "timestamp",
+            "where": [
+              {
+                "name": "$__timeFilter",
+                "params": [],
+                "type": "macro"
+              }
+            ]
+          },
+          {
+            "datasource": {
+              "name": "Expression",
+              "type": "__expr__",
+              "uid": "__expr__"
+            },
+            "expression": "$B/$A",
+            "hide": false,
+            "refId": "C",
+            "type": "math"
+          }
+        ],
+        "title": "jsonrpc_request_duration",
+        "transformations": [],
+        "type": "timeseries"
+      }
+    ],
+    "refresh": false,
+    "schemaVersion": 37,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-12h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Node metrics",
+    "uid": "g3kco8d4k",
+    "version": 2,
+    "weekStart": ""
+  }

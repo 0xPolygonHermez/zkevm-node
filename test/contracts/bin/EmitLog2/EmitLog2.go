@@ -26,12 +26,13 @@ var (
 	_ = common.Big1
 	_ = types.BloomLookup
 	_ = event.NewSubscription
+	_ = abi.ConvertType
 )
 
 // EmitLog2MetaData contains all meta data concerning the EmitLog2 contract.
 var EmitLog2MetaData = &bind.MetaData{
 	ABI: "[{\"anonymous\":false,\"inputs\":[],\"name\":\"Log\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"a\",\"type\":\"uint256\"}],\"name\":\"LogA\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"a\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"b\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"c\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"d\",\"type\":\"uint256\"}],\"name\":\"LogABCD\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"emitLogs\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
-	Bin: "0x608060405234801561001057600080fd5b50610101806100206000396000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c80637966b4f614602d575b600080fd5b60336035565b005b6040517f5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a90600090a16040516001907f977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac6290600090a26003600260017fe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a64600460405160c191815260200190565b60405180910390a456fea2646970667358221220a898ac615afab4fe6bf2c6b3f55f66eff9c2a50b0605c64082f0020f9fb56a4464736f6c634300080c0033",
+	Bin: "0x608060405234801561001057600080fd5b50610106806100206000396000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c80637966b4f614602d575b600080fd5b60336035565b005b60206000a06040517f5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a90600090a16040516001907f977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac6290600090a26003600260017fe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a64600460405160c691815260200190565b60405180910390a456fea2646970667358221220c82511092869da72fde6f1cec9478f4be47e0e13870c8d5af848ffddfeae937764736f6c634300080c0033",
 }
 
 // EmitLog2ABI is the input ABI used to generate the binding from.
@@ -156,11 +157,11 @@ func NewEmitLog2Filterer(address common.Address, filterer bind.ContractFilterer)
 
 // bindEmitLog2 binds a generic wrapper to an already deployed contract.
 func bindEmitLog2(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := abi.JSON(strings.NewReader(EmitLog2ABI))
+	parsed, err := EmitLog2MetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
-	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
+	return bind.NewBoundContract(address, *parsed, caller, transactor, filterer), nil
 }
 
 // Call invokes the (constant) contract method with params as input values and

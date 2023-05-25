@@ -7,4 +7,7 @@ type Config struct {
 
 	// ChainID is the L2 ChainID provided by the Network Config
 	ChainID uint64
+
+	// ForkIdIntervals is the list of fork id intervals
+	ForkIDIntervals []ForkIDInterval
 }

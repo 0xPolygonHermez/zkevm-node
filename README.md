@@ -4,7 +4,7 @@ zkEVM Node is a Go implementation of a node that operates the Polygon zkEVM Netw
 
 ## About the Polygon zkEVM network
 
-Since this is an implementation of a protocol it's fundamental to understand it, [here](https://docs.hermez.io/) you can find the specification of the protocol.
+Since this is an implementation of a protocol it's fundamental to understand it, [here](https://zkevm.polygon.technology/docs/zknode/zknode-overview) you can find the specification of the protocol.
 
 Glossary:
 
@@ -34,11 +34,10 @@ The diagram represents the main components of the software and how they interact
 
 - (JSON) RPC: an interface that allows users (metamask, etherscan, ...) to interact with the node. Fully compatible with Ethereum RPC + some extra endpoints specifics of the network. It interacts with the `state` to get data and process transactions and with the `pool` to store transactions
 - Pool: DB that stores transactions by the `RPC` to be selected/discarded by the `sequencer` later on
-- Trusted Sequencer: get transactions from the `pool`, check if they are valid by processing them using the `state`, and create sequences. Once transactions are added into the state, they are immediately available to the `broadcast` service. Sequences are sent to L1 using the `etherman`
-- Broadcast: API used by the `synchronizer` of nodes that are not the `trusted sequencer` to synchronize the trusted state
+- Trusted Sequencer: get transactions from the `pool`, check if they are valid by processing them using the `state`, and create sequences. Once transactions are added into the state, they are immediately available through the `rpc`. Sequences are sent to L1 using the `etherman`
 - Permissionless Sequencer: *coming soon*
 - Etherman: abstraction that implements the needed methods to interact with the Ethereum network and the relevant smart contracts.
-- Synchronizer: Updates the `state` by fetching data from Ethereum through the `etherman`. If the node is not a `trusted sequencer` it also updates the state with the data fetched from the `broadcast` of the `trusted sequencer`. It also detects and handles reorgs that can happen if the `trusted sequencer` sends different data in the broadcast vs the sequences sent to L1 (trusted vs virtual state)
+- Synchronizer: Updates the `state` by fetching data from Ethereum through the `etherman`. If the node is not a `trusted sequencer` it also updates the state with the data fetched from the `rpc` of the `trusted sequencer`. It also detects and handles reorgs that can happen if the `trusted sequencer` sends different data in the rpc vs the sequences sent to L1 (trusted vs virtual state)
 - State: Responsible for managing the state data (batches, blocks, transactions, ...) that is stored on the `state SB`. It also handles the integration with the `executor` and the `Merkletree` service
 - State DB: persistence layer for the state data (except the Merkletree that is handled by the `Merkletree` service)
 - Aggregator: consolidates batches by generating ZKPs (Zero Knowledge proofs). To do so it gathers the necessary data that the `prover` needs as input through the `state` and sends a request to it. Once the proof is generated it's sent to Ethereum through the `etherman`
@@ -64,6 +63,9 @@ Required services and components:
 
 There must be only one synchronizer, and it's recommended that it has exclusive access to an executor instance, although it's not necessary. This role can perfectly be run in a single instance, however, the JSON RPC and executor services can benefit from running in multiple instances, if the performance decreases due to the number of requests received
 
+- [`zkEVM RPC endpoints`](./docs/json-rpc-endpoints.md)
+- [`zkEVM RPC Custom endpoints documentation`](./docs/zkEVM-custom-endpoints.md)
+
 ### Trusted sequencer
 
 This role can only be performed by a single entity. This is enforced in the smart contract, as the related methods of the trusted sequencer can only be performed by the owner of a particular private key.
@@ -73,7 +75,6 @@ Required services and components:
 - JSON RPC: can run in a separated instance, and can have multiple instances
 - Sequencer & Synchronizer: single instance that needs to run together
 - Executor & Merkletree: service that can run on a separate instance
-- Broadcast: can run on a separate instance
 - Pool DB: Postgres SQL that can be run in a separate instance
 - State DB: Postgres SQL that can be run in a separate instance
 
@@ -104,12 +105,12 @@ It's recommended to use `make` for building, and testing the code, ... Run `make
 
 ## Running the node
 
-- [Running localy](docs/running_local.md)
+- [Running locally](docs/running_local.md)
 - [Running on production](docs/production-setup.md)
 
 ### Requirements
 
-- Go 1.17
+- Go 1.19
 - Docker
 - Docker Compose
 - Make
@@ -119,6 +120,4 @@ It's recommended to use `make` for building, and testing the code, ... Run `make
 
 Before opening a pull request, please read this [guide](CONTRIBUTING.md)
 
-## Disclaimer
 
-This code has not yet been audited, and should not be used in any production systems.

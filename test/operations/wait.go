@@ -4,18 +4,22 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -26,7 +30,7 @@ const (
 	// DefaultInterval is a time interval
 	DefaultInterval = 2 * time.Millisecond
 	// DefaultDeadline is a time interval
-	DefaultDeadline = 30 * time.Second
+	DefaultDeadline = 2 * time.Minute
 	// DefaultTxMinedDeadline is a time interval
 	DefaultTxMinedDeadline = 5 * time.Second
 )
@@ -70,14 +74,66 @@ func Poll(interval, deadline time.Duration, condition ConditionFunc) error {
 type ethClienter interface {
 	ethereum.TransactionReader
 	ethereum.ContractCaller
+	bind.DeployBackend
 }
 
 // WaitTxToBeMined waits until a tx has been mined or the given timeout expires.
-func WaitTxToBeMined(client ethClienter, hash common.Hash, timeout time.Duration) error {
-	ctx := context.Background()
-	return Poll(DefaultInterval, timeout, func() (bool, error) {
-		return txMinedCondition(ctx, client, hash)
-	})
+func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Transaction, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+	receipt, err := bind.WaitMined(ctx, client, tx)
+	if errors.Is(err, context.DeadlineExceeded) {
+		return err
+	} else if err != nil {
+		log.Errorf("error waiting tx %s to be mined: %w", tx.Hash(), err)
+		return err
+	}
+	if receipt.Status == types.ReceiptStatusFailed {
+		// Get revert reason
+		reason, reasonErr := RevertReason(ctx, client, tx, receipt.BlockNumber)
+		if reasonErr != nil {
+			reason = reasonErr.Error()
+		}
+		return fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v, gas: %v", reason, receipt, tx, tx.Gas())
+	}
+	log.Debug("Transaction successfully mined: ", tx.Hash())
+	return nil
+}
+
+// RevertReason returns the revert reason for a tx that has a receipt with failed status
+func RevertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blockNumber *big.Int) (string, error) {
+	if tx == nil {
+		return "", nil
+	}
+
+	from, err := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
+	if err != nil {
+		signer := types.LatestSignerForChainID(tx.ChainId())
+		from, err = types.Sender(signer, tx)
+		if err != nil {
+			return "", err
+		}
+	}
+	msg := ethereum.CallMsg{
+		From: from,
+		To:   tx.To(),
+		Gas:  tx.Gas(),
+
+		Value: tx.Value(),
+		Data:  tx.Data(),
+	}
+	hex, err := c.CallContract(ctx, msg, blockNumber)
+	if err != nil {
+		return "", err
+	}
+
+	unpackedMsg, err := abi.UnpackRevert(hex)
+	if err != nil {
+		log.Warnf("failed to get the revert message for tx %v: %v", tx.Hash(), err)
+		return "", errors.New("execution reverted")
+	}
+
+	return unpackedMsg, nil
 }
 
 // WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
@@ -97,8 +153,32 @@ func WaitL2BlockToBeConsolidated(l2Block *big.Int, timeout time.Duration) error 
 
 // WaitL2BlockToBeVirtualized waits until a L2 Block has been virtualized or the given timeout expires.
 func WaitL2BlockToBeVirtualized(l2Block *big.Int, timeout time.Duration) error {
+	l2NetworkURL := "http://localhost:8123"
 	return Poll(DefaultInterval, timeout, func() (bool, error) {
-		return l2BlockVirtualizationCondition(l2Block)
+		return l2BlockVirtualizationCondition(l2Block, l2NetworkURL)
+	})
+}
+
+// WaitL2BlockToBeVirtualizedCustomRPC waits until a L2 Block has been virtualized or the given timeout expires.
+func WaitL2BlockToBeVirtualizedCustomRPC(l2Block *big.Int, timeout time.Duration, l2NetworkURL string) error {
+	return Poll(DefaultInterval, timeout, func() (bool, error) {
+		return l2BlockVirtualizationCondition(l2Block, l2NetworkURL)
+	})
+}
+
+// WaitBatchToBeVirtualized waits until a Batch has been virtualized or the given timeout expires.
+func WaitBatchToBeVirtualized(batchNum uint64, timeout time.Duration, state *state.State) error {
+	ctx := context.Background()
+	return Poll(DefaultInterval, timeout, func() (bool, error) {
+		return state.IsBatchVirtualized(ctx, batchNum, nil)
+	})
+}
+
+// WaitBatchToBeConsolidated waits until a Batch has been consolidated/verified or the given timeout expires.
+func WaitBatchToBeConsolidated(batchNum uint64, timeout time.Duration, state *state.State) error {
+	ctx := context.Background()
+	return Poll(DefaultInterval, timeout, func() (bool, error) {
+		return state.IsBatchConsolidated(ctx, batchNum, nil)
 	})
 }
 
@@ -127,7 +207,7 @@ func NodeUpCondition(target string) (bool, error) {
 		}()
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 
 	if err != nil {
 		return false, err
@@ -135,7 +215,9 @@ func NodeUpCondition(target string) (bool, error) {
 
 	r := struct {
 		Result bool
-	}{}
+	}{
+		Result: true,
+	}
 	err = json.Unmarshal(body, &r)
 	if err != nil {
 		return false, err
@@ -184,63 +266,10 @@ func grpcHealthyCondition(address string) (bool, error) {
 	return done, nil
 }
 
-// txMinedCondition
-func txMinedCondition(ctx context.Context, client ethClienter, hash common.Hash) (bool, error) {
-	// Get tx status
-	tx, isPending, err := client.TransactionByHash(ctx, hash)
-	if err == ethereum.NotFound || isPending {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	// Check if tx has failed
-	receipt, err := client.TransactionReceipt(ctx, hash)
-	if err != nil {
-		return false, err
-	}
-	if receipt.Status == types.ReceiptStatusFailed {
-		// Get revert reason
-		reason, reasonErr := revertReason(ctx, client, tx, receipt.BlockNumber)
-		if reasonErr != nil {
-			reason = reasonErr.Error()
-		}
-		return false, fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v, gas: %v", reason, receipt, tx, tx.Gas())
-	}
-	return true, nil
-}
-
-func revertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blockNumber *big.Int) (string, error) {
-	from, err := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
-	if err != nil {
-		signer := types.LatestSignerForChainID(tx.ChainId())
-		from, err = types.Sender(signer, tx)
-		if err != nil {
-			return "", err
-		}
-	}
-	msg := ethereum.CallMsg{
-		From: from,
-		To:   tx.To(),
-		Gas:  tx.Gas(),
-
-		Value: tx.Value(),
-		Data:  tx.Data(),
-	}
-	hex, err := c.CallContract(ctx, msg, blockNumber)
-	if err != nil {
-		return "", err
-	}
-
-	reasonOffset := new(big.Int).SetBytes(hex[4 : 4+32])
-	reason := string(hex[4+32+int(reasonOffset.Uint64()):])
-	return reason, nil
-}
-
 // l2BlockConsolidationCondition
 func l2BlockConsolidationCondition(l2Block *big.Int) (bool, error) {
 	l2NetworkURL := "http://localhost:8123"
-	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockConsolidated", l2Block.Uint64())
+	response, err := client.JSONRPCCall(l2NetworkURL, "zkevm_isBlockConsolidated", hex.EncodeBig(l2Block))
 	if err != nil {
 		return false, err
 	}
@@ -256,9 +285,8 @@ func l2BlockConsolidationCondition(l2Block *big.Int) (bool, error) {
 }
 
 // l2BlockVirtualizationCondition
-func l2BlockVirtualizationCondition(l2Block *big.Int) (bool, error) {
-	l2NetworkURL := "http://localhost:8123"
-	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockVirtualized", l2Block.Uint64())
+func l2BlockVirtualizationCondition(l2Block *big.Int, l2NetworkURL string) (bool, error) {
+	response, err := client.JSONRPCCall(l2NetworkURL, "zkevm_isBlockVirtualized", hex.EncodeBig(l2Block))
 	if err != nil {
 		return false, err
 	}

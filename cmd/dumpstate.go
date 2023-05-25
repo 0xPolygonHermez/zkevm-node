@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
@@ -34,9 +34,6 @@ var dumpStateFlags = []cli.Flag{
 		Required: true,
 	},
 	&configFileFlag,
-	&networkFlag,
-	&customNetworkFlag,
-	&baseNetworkFlag,
 }
 
 type dumpedState struct {
@@ -48,7 +45,7 @@ type dumpedState struct {
 type genesis state.Genesis
 
 func (g genesis) MarshalJSON() ([]byte, error) {
-	for _, action := range g.Actions {
+	for _, action := range g.GenesisActions {
 		if !strings.HasPrefix(action.Value, "0x") {
 			action.Value = fmt.Sprintf("0x%s", action.Value)
 		}
@@ -67,7 +64,7 @@ func (g genesis) MarshalJSON() ([]byte, error) {
 		Actions []*state.GenesisAction
 	}{
 		Alias:   (Alias)(g),
-		Actions: g.Actions,
+		Actions: g.GenesisActions,
 	})
 }
 
@@ -107,7 +104,7 @@ func dumpState(ctx *cli.Context) error {
 	description := ctx.String(dumpStateFlagDescription)
 	outputFile := ctx.String(dumpStateFlagOutput)
 	if !strings.Contains(outputFile, ".json") {
-		return errors.New("Output file must end in .json")
+		return errors.New("output file must end in .json")
 	}
 
 	// Connect to SQL
@@ -161,5 +158,5 @@ func dumpState(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(outputFile, file, 0600) //nolint:gomnd
+	return os.WriteFile(outputFile, file, 0600) //nolint:gomnd
 }

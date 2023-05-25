@@ -1,6 +1,11 @@
 ---
 run:
   timeout: 5m
+  skip-dirs:
+    - state/runtime/fakevm
+    - state/runtime/instrumentation
+    - test
+    - ci
 
 linters:
   enable:

@@ -10,7 +10,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - ../../config/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../../db/scripts/init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       # In order to update this values, you may need to run: docker rm -f -v postgres
       - POSTGRES_USER=test_user

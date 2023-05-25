@@ -6,13 +6,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/mocks"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	host                      = "localhost"
-	maxRequestsPerIPAndSecond = 1000
+	maxRequestsPerIPAndSecond        = 1000
+	chainID                   uint64 = 1000
 )
 
 type mockedServer struct {
@@ -21,20 +26,18 @@ type mockedServer struct {
 	ServerURL string
 }
 
-type mocks struct {
-	Pool              *poolMock
-	State             *stateMock
-	GasPriceEstimator *gasPriceEstimatorMock
-	Storage           *storageMock
-	DbTx              *dbTxMock
+type mocksWrapper struct {
+	Pool    *mocks.PoolMock
+	State   *mocks.StateMock
+	Storage *storageMock
+	DbTx    *mocks.DBTxMock
 }
 
-func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclient.Client) {
-	pool := newPoolMock(t)
-	state := newStateMock(t)
-	gasPriceEstimator := newGasPriceEstimatorMock(t)
+func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *ethclient.Client) {
+	pool := mocks.NewPoolMock(t)
+	st := mocks.NewStateMock(t)
 	storage := newStorageMock(t)
-	dbTx := newDbTxMock(t)
+	dbTx := mocks.NewDBTxMock(t)
 	apis := map[string]bool{
 		APIEth:    true,
 		APINet:    true,
@@ -44,7 +47,11 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 		APIWeb3:   true,
 	}
 
-	server := NewServer(cfg, pool, state, gasPriceEstimator, storage, apis)
+	var newL2BlockEventHandler state.NewL2BlockEventHandler = func(e state.NewL2BlockEvent) {}
+	st.On("RegisterNewL2BlockEventHandler", mock.IsType(newL2BlockEventHandler)).Once()
+
+	st.On("PrepareWebSocket").Once()
+	server := NewServer(cfg, chainID, pool, st, storage, apis)
 
 	go func() {
 		err := server.Start()
@@ -73,12 +80,11 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 		ServerURL: serverURL,
 	}
 
-	mks := &mocks{
-		Pool:              pool,
-		State:             state,
-		GasPriceEstimator: gasPriceEstimator,
-		Storage:           storage,
-		DbTx:              dbTx,
+	mks := &mocksWrapper{
+		Pool:    pool,
+		State:   st,
+		Storage: storage,
+		DbTx:    dbTx,
 	}
 
 	return msv, mks, ethClient
@@ -86,24 +92,22 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 
 func getDefaultConfig() Config {
 	cfg := Config{
-		Host:                      host,
-		Port:                      8123,
+		Host:                      "0.0.0.0",
+		Port:                      9123,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
-		DefaultSenderAddress:      "0x1111111111111111111111111111111111111111",
 		MaxCumulativeGasUsed:      300000,
-		ChainID:                   1000,
 	}
 	return cfg
 }
 
-func newSequencerMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
+func newSequencerMockedServer(t *testing.T) (*mockedServer, *mocksWrapper, *ethclient.Client) {
 	cfg := getDefaultConfig()
 	return newMockedServer(t, cfg)
 }
 
-func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mockedServer, *mocks, *ethclient.Client) {
+func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mockedServer, *mocksWrapper, *ethclient.Client) {
 	cfg := getDefaultConfig()
-	cfg.Port = 8124
+	cfg.Port = 9124
 	cfg.SequencerNodeURI = sequencerNodeURI
 	return newMockedServer(t, cfg)
 }
@@ -115,6 +119,10 @@ func (s *mockedServer) Stop() {
 	}
 }
 
-func (s *mockedServer) JSONRPCCall(method string, parameters ...interface{}) (Response, error) {
-	return JSONRPCCall(s.ServerURL, method, parameters...)
+func (s *mockedServer) JSONRPCCall(method string, parameters ...interface{}) (types.Response, error) {
+	return client.JSONRPCCall(s.ServerURL, method, parameters...)
+}
+
+func (s *mockedServer) ChainID() uint64 {
+	return chainID
 }

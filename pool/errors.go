@@ -27,6 +27,9 @@ var (
 	// ErrInvalidSender is returned if the transaction contains an invalid signature.
 	ErrInvalidSender = errors.New("invalid sender")
 
+	// ErrBlockedSender is returned if the transaction is sent by a blocked account.
+	ErrBlockedSender = errors.New("blocked sender")
+
 	// ErrNonceTooLow is returned if the nonce of a transaction is lower than the
 	// one present in the local chain.
 	ErrNonceTooLow = errors.New("nonce too low")
@@ -34,4 +37,14 @@ var (
 	// ErrInsufficientFunds is returned if the total cost of executing a transaction
 	// is higher than the balance of the user's account.
 	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
+
+	// ErrIntrinsicGas is returned if the transaction is specified to use less gas
+	// than required to start the invocation.
+	ErrIntrinsicGas = errors.New("intrinsic gas too low")
+
+	// ErrGasUintOverflow is returned when calculating gas usage.
+	ErrGasUintOverflow = errors.New("gas uint64 overflow")
+
+	// ErrGasPrice is returned if the transaction has specified lower gas price than the minimum allowed.
+	ErrGasPrice = errors.New("gas price too low")
 )

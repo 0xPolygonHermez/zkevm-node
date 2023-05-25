@@ -2,49 +2,52 @@ package gasprice
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"sort"
 	"sync"
+
+	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
 const sampleNumber = 3 // Number of transactions sampled in a batch.
 
-// LastNL2Blocks struct for gas price estimator last n l2 blocks.
-type LastNL2Blocks struct {
+// LastNL2BlocksGasPrice struct for gas price estimator last n l2 blocks.
+type LastNL2BlocksGasPrice struct {
 	lastL2BlockNumber uint64
 	lastPrice         *big.Int
 
 	cfg Config
+	ctx context.Context
 
 	cacheLock sync.RWMutex
 	fetchLock sync.Mutex
 
 	state stateInterface
+	pool  pool
 }
 
-// UpdateGasPriceAvg for last n bathes strategy is not needed to implement this function.
-func (g *LastNL2Blocks) UpdateGasPriceAvg(newValue *big.Int) {}
-
-// NewEstimatorLastNL2Blocks init gas price estimator for last n l2 blocks strategy.
-func NewEstimatorLastNL2Blocks(cfg Config, state stateInterface) *LastNL2Blocks {
-	return &LastNL2Blocks{
+// newLastNL2BlocksGasPriceSuggester init gas price suggester for last n l2 blocks strategy.
+func newLastNL2BlocksGasPriceSuggester(ctx context.Context, cfg Config, state stateInterface, pool pool) *LastNL2BlocksGasPrice {
+	return &LastNL2BlocksGasPrice{
 		cfg:   cfg,
+		ctx:   ctx,
 		state: state,
+		pool:  pool,
 	}
 }
 
-// GetAvgGasPrice calculate avg gas price from last n l2 blocks.
-func (g *LastNL2Blocks) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
-	l2BlockNumber, err := g.state.GetLastL2BlockNumber(ctx, nil)
+// UpdateGasPriceAvg for last n bathes strategy is not needed to implement this function.
+func (g *LastNL2BlocksGasPrice) UpdateGasPriceAvg() {
+	l2BlockNumber, err := g.state.GetLastL2BlockNumber(g.ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last l2 block number, err: %v", err)
+		log.Errorf("failed to get last l2 block number, err: %v", err)
 	}
 	g.cacheLock.RLock()
 	lastL2BlockNumber, lastPrice := g.lastL2BlockNumber, g.lastPrice
 	g.cacheLock.RUnlock()
 	if l2BlockNumber == lastL2BlockNumber {
-		return lastPrice, nil
+		log.Debug("Block is still the same, no need to update the gas price at the moment")
+		return
 	}
 
 	g.fetchLock.Lock()
@@ -59,7 +62,7 @@ func (g *LastNL2Blocks) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
 	)
 
 	for sent < g.cfg.CheckBlocks && number > 0 {
-		go g.getL2BlockTxsTips(ctx, number, sampleNumber, g.cfg.IgnorePrice, result, quit)
+		go g.getL2BlockTxsTips(g.ctx, number, sampleNumber, g.cfg.IgnorePrice, result, quit)
 		sent++
 		exp++
 		number--
@@ -69,7 +72,7 @@ func (g *LastNL2Blocks) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
 		res := <-result
 		if res.err != nil {
 			close(quit)
-			return lastPrice, res.err
+			return
 		}
 		exp--
 
@@ -93,11 +96,15 @@ func (g *LastNL2Blocks) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
 	g.lastL2BlockNumber = l2BlockNumber
 	g.cacheLock.Unlock()
 
-	return price, nil
+	// Store gasPrice
+	err = g.pool.SetGasPrice(g.ctx, g.lastPrice.Uint64())
+	if err != nil {
+		log.Errorf("failed to update gas price in poolDB, err: %v", err)
+	}
 }
 
 // getL2BlockTxsTips calculates l2 block transaction gas fees.
-func (g *LastNL2Blocks) getL2BlockTxsTips(ctx context.Context, l2BlockNumber uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
+func (g *LastNL2BlocksGasPrice) getL2BlockTxsTips(ctx context.Context, l2BlockNumber uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
 	txs, err := g.state.GetTxsByBlockNumber(ctx, l2BlockNumber, nil)
 	if txs == nil {
 		select {

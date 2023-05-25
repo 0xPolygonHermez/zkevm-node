@@ -69,7 +69,7 @@ func TestRepeatedNonce(t *testing.T) {
 		require.Equal(t, "replacement transaction underpriced", err.Error())
 
 		log.Debug("waiting correct nonce tx to be mined")
-		err = operations.WaitTxToBeMined(client, correctNonceSignedTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, correctNonceSignedTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 	}
 }
@@ -126,7 +126,7 @@ func TestRepeatedTx(t *testing.T) {
 		require.Equal(t, "already known", err.Error())
 
 		log.Debug("waiting correct nonce tx to be mined")
-		err = operations.WaitTxToBeMined(client, signedTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, signedTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 	}
 }

@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"os/exec"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -20,15 +21,34 @@ func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient,
 		grpc.WithBlock(),
 	}
 	const maxWaitSeconds = 120
+	const maxRetries = 5
 	ctx, cancel := context.WithTimeout(ctx, maxWaitSeconds*time.Second)
 
-	log.Infof("trying to connect to executor: %v", c.URI)
-	executorConn, err := grpc.DialContext(ctx, c.URI, opts...)
-	if err != nil {
+	connectionRetries := 0
+
+	var executorConn *grpc.ClientConn
+	var err error
+	delay := 2
+	for connectionRetries < maxRetries {
+		log.Infof("trying to connect to executor: %v", c.URI)
+		executorConn, err = grpc.DialContext(ctx, c.URI, opts...)
+		if err != nil {
+			log.Infof("Retrying connection to executor #%d", connectionRetries)
+			time.Sleep(time.Duration(delay) * time.Second)
+			connectionRetries = connectionRetries + 1
+			out, err := exec.Command("docker", []string{"logs", "zkevm-prover"}...).Output()
+			if err == nil {
+				log.Infof("Prover logs:\n%s\n", out)
+			}
+		} else {
+			log.Infof("connected to executor")
+			break
+		}
+	}
+
+	if connectionRetries == maxRetries {
 		log.Fatalf("fail to dial: %v", err)
 	}
-	log.Infof("connected to executor")
-
 	executorClient := pb.NewExecutorServiceClient(executorConn)
 	return executorClient, executorConn, cancel
 }

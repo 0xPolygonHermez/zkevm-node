@@ -1,0 +1,296 @@
+syntax = "proto3";
+
+package aggregator.v1;
+
+option go_package = "github.com/0xPolygonHermez/zkevm-node/aggregator/pb";
+
+message Version {
+    string v0_0_1 = 1;
+}
+
+// timestamps are represented in unix time in seconds
+
+/**
+ * Define all methods implementes by the gRPC
+ * Channel: prover receives aggregator messages and returns prover messages with the same id
+ */
+service AggregatorService {
+    rpc Channel(stream ProverMessage) returns (stream AggregatorMessage) {}
+}
+
+message AggregatorMessage
+{
+    string id = 1;
+    oneof request
+    {
+        GetStatusRequest get_status_request = 2;
+        GenBatchProofRequest gen_batch_proof_request = 3;
+        GenAggregatedProofRequest gen_aggregated_proof_request = 4;
+        GenFinalProofRequest gen_final_proof_request = 5;
+        CancelRequest cancel_request = 6;
+        GetProofRequest get_proof_request = 7;
+    }
+}
+
+message ProverMessage
+{
+    string id = 1;
+    oneof response
+    {
+        GetStatusResponse get_status_response = 2;
+        GenBatchProofResponse gen_batch_proof_response = 3;
+        GenAggregatedProofResponse gen_aggregated_proof_response = 4;
+        GenFinalProofResponse gen_final_proof_response = 5;
+        CancelResponse cancel_response = 6;
+        GetProofResponse get_proof_response = 7;
+    }
+}
+
+///////////////////
+// Request messages
+///////////////////
+
+/**
+ * @dev GetStatusRequest
+ */
+message GetStatusRequest {}
+
+/**
+ * @dev GenBatchProofRequest
+ * @param {input} - input prover
+ */
+message GenBatchProofRequest {
+    InputProver input = 1;
+}
+
+/**
+ * @dev GenAggregatedProofRequest
+ * @param {recursive_proof_1} - proof json of the first batch to aggregate
+ * @param {recursive_proof_2} - proof json of the second batch to aggregate
+ */
+message GenAggregatedProofRequest {
+    string recursive_proof_1 = 1;
+    string recursive_proof_2 = 2;
+}
+
+/**
+ * @dev GenFinalProofRequest
+ * @param {recursive_proof} - proof json of the batch or aggregated proof to finalise
+ * @param {aggregator_addr} - address of the aggregator
+ */
+message GenFinalProofRequest {
+    string recursive_proof = 1;
+    string aggregator_addr = 2;
+}
+
+/**
+ * @dev CancelRequest
+ * @param {id} - identifier of the proof request to cancel
+ */
+ message CancelRequest {
+    string id = 1;
+}
+
+/**
+ * @dev Request GetProof
+ * @param {id} - proof identifier of the proof request
+ * @param {timeout} - time to wait until the service responds
+ */
+message GetProofRequest {
+    string id = 1;
+    uint64 timeout = 2;
+}
+
+/////////////////////
+// Responses messages
+/////////////////////
+
+/**
+ * @dev Response GetStatus
+ * @param {status} - server status
+ * - BOOTING: being ready to compute proofs
+ * - COMPUTING: busy computing a proof
+ * - IDLE: waiting for a proof to compute
+ * - HALT: stop
+ * @param {last_computed_request_id} - last proof identifier that has been computed
+ * @param {last_computed_end_time} - last proof timestamp when it was finished
+ * @param {current_computing_request_id} - id of the proof that is being computed
+ * @param {current_computing_start_time} - timestamp when the proof that is being computed started
+ * @param {version_proto} - .proto verion
+ * @param {version_server} - server version
+ * @param {pending_request_queue_ids} - list of identifierss of proof requests that are in the pending queue
+ * @param {prover_name} - id of this prover server, normally specified via config.json, or UNSPECIFIED otherwise; it does not change if prover reboots
+ * @param {prover_id} - id of this prover instance or reboot; it changes if prover reboots; it is a UUID, automatically generated during the initialization
+ * @param {number_of_cores} - number of cores in the system where the prover is running
+ * @param {total_memory} - total memory in the system where the prover is running
+ * @param {free_memory} - free memory in the system where the prover is running
+ */
+message GetStatusResponse {
+    enum Status {
+        STATUS_UNSPECIFIED = 0;
+        STATUS_BOOTING = 1;
+        STATUS_COMPUTING = 2;
+        STATUS_IDLE = 3;
+        STATUS_HALT = 4;
+    }
+    Status status = 1;
+    string last_computed_request_id = 2;
+    uint64 last_computed_end_time = 3;
+    string current_computing_request_id = 4;
+    uint64 current_computing_start_time = 5;
+    string version_proto = 6;
+    string version_server = 7;
+    repeated string pending_request_queue_ids = 8;
+    string prover_name = 9;
+    string prover_id = 10;
+    uint64 number_of_cores = 11;
+    uint64 total_memory = 12;
+    uint64 free_memory = 13;
+    uint64 fork_id = 14;
+}
+
+/**
+ * @dev Result
+ *  - OK: succesfully completed
+ *  - ERROR: request is not correct, i.e. input data is wrong
+ *  - INTERNAL_ERROR: internal server error when delivering the response
+ */
+enum Result {
+    RESULT_UNSPECIFIED = 0;
+    RESULT_OK = 1;
+    RESULT_ERROR = 2;
+    RESULT_INTERNAL_ERROR = 3;
+}
+
+/**
+ * @dev GenBatchProofResponse
+ * @param {id} - proof identifier, to be used in GetProofRequest()
+ * @param {result} - request result
+ */
+message GenBatchProofResponse {
+    string id = 1;
+    Result result = 2;
+}
+
+/**
+ * @dev GenAggregatedProofResponse
+ * @param {id} - proof identifier, to be used in GetProofRequest()
+ * @param {result} - request result
+ */
+message GenAggregatedProofResponse {
+    string id = 1;
+    Result result = 2;
+}
+
+/**
+ * @dev Response GenFinalProof
+ * @param {id} - proof identifier, to be used in GetProofRequest()
+ * @param {result} - request result
+ */
+message GenFinalProofResponse {
+    string id = 1;
+    Result result = 2;
+}
+
+/**
+ * @dev CancelResponse
+ * @param {result} - request result
+ */
+message CancelResponse {
+    Result result = 1;
+}
+
+/**
+ * @dev GetProofResponse
+ * @param {id} - proof identifier
+ * @param {final_proof} - groth16 proof + public circuit inputs
+ * @param {recursive_proof} - recursive proof json
+ * @param {result} - proof result
+ *  - COMPLETED_OK: proof has been computed successfully and it is valid
+ *  - ERROR: request error
+ *  - COMPLETED_ERROR: proof has been computed successfully and it is not valid
+ *  - PENDING: proof is being computed
+ *  - INTERNAL_ERROR: server error during proof computation
+ *  - CANCEL: proof has been cancelled
+ * @param {result_string} - extends result information
+ */
+message GetProofResponse {
+    enum Result {
+        RESULT_UNSPECIFIED = 0;
+        RESULT_COMPLETED_OK = 1;
+        RESULT_ERROR = 2;
+        RESULT_COMPLETED_ERROR = 3;
+        RESULT_PENDING = 4;
+        RESULT_INTERNAL_ERROR = 5;
+        RESULT_CANCEL = 6;
+    }
+    string id = 1;
+    oneof proof {
+        FinalProof final_proof = 2;
+        string recursive_proof =3;
+    }
+    Result result = 4;
+    string result_string = 5;
+}
+
+/*
+ * @dev FinalProof
+ * @param {proof} - groth16 proof
+ * @param {public} - public circuit inputs
+*/
+message FinalProof {
+    string proof = 1;
+    PublicInputsExtended public = 2;
+}
+
+/*
+ * @dev PublicInputs
+ * @param {old_state_root}
+ * @param {old_acc_input_hash}
+ * @param {old_batch_num}
+ * @param {chain_id}
+ * @param {batch_l2_data}
+ * @param {global_exit_root}
+ * @param {sequencer_addr}
+ * @param {aggregator_addr}
+ */
+message PublicInputs {
+    bytes old_state_root = 1;
+    bytes old_acc_input_hash = 2;
+    uint64 old_batch_num = 3;
+    uint64 chain_id = 4;
+    uint64 fork_id = 5;
+    bytes batch_l2_data = 6;
+    bytes global_exit_root = 7;
+    uint64 eth_timestamp = 8;
+    string sequencer_addr = 9;
+    string aggregator_addr = 10;
+}
+
+/**
+ * @dev InputProver
+ * @param {public_inputs} - public inputs
+ * @param {db} - database containing all key-values in smt matching the old state root
+ * @param {contracts_bytecode} - key is the hash(contractBytecode), value is the bytecode itself
+ */
+message InputProver {
+    PublicInputs public_inputs = 1;
+    map<string, string> db = 4; // For debug/testing purpposes only. Don't fill this on production
+    map<string, string> contracts_bytecode = 5; // For debug/testing purpposes only. Don't fill this on production
+}
+
+/**
+ * @dev PublicInputsExtended
+ * @param {public_inputs} - public inputs
+ * @param {new_state_root} - final state root. Used as a sanity check.
+ * @param {new_acc_input_hash} - final accumulate input hash. Used as a sanity check.
+ * @param {new_local_exit_root} - new local exit root. Used as a sanity check.
+ * @param {new_batch_num} - final num batch. Used as a sanity check.
+ */
+message PublicInputsExtended {
+    PublicInputs public_inputs = 1;
+    bytes new_state_root = 2;
+    bytes new_acc_input_hash = 3;
+    bytes new_local_exit_root = 4;
+    uint64 new_batch_num = 5;
+}

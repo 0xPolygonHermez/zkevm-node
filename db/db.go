@@ -17,14 +17,11 @@ const (
 	StateMigrationName = "zkevm-state-db"
 	// PoolMigrationName is the name of the migration used by packr to pack the migration file
 	PoolMigrationName = "zkevm-pool-db"
-	// RPCMigrationName is the name of the migration used by packr to pack the migration file
-	RPCMigrationName = "zkevm-rpc-db"
 )
 
 var packrMigrations = map[string]*packr.Box{
 	StateMigrationName: packr.New(StateMigrationName, "./migrations/state"),
 	PoolMigrationName:  packr.New(PoolMigrationName, "./migrations/pool"),
-	RPCMigrationName:   packr.New(RPCMigrationName, "./migrations/rpc"),
 }
 
 // NewSQLDB creates a new SQL DB
@@ -47,11 +44,18 @@ func NewSQLDB(cfg Config) (*pgxpool.Pool, error) {
 
 // RunMigrationsUp runs migrate-up for the given config.
 func RunMigrationsUp(cfg Config, name string) error {
+	log.Info("running migrations up")
 	return runMigrations(cfg, name, migrate.Up)
+}
+
+// CheckMigrations runs migrate-up for the given config.
+func CheckMigrations(cfg Config, name string) error {
+	return checkMigrations(cfg, name, migrate.Up)
 }
 
 // RunMigrationsDown runs migrate-down for the given config.
 func RunMigrationsDown(cfg Config, name string) error {
+	log.Info("running migrations down")
 	return runMigrations(cfg, name, migrate.Down)
 }
 
@@ -77,5 +81,46 @@ func runMigrations(cfg Config, packrName string, direction migrate.MigrationDire
 	}
 
 	log.Info("successfully ran ", nMigrations, " migrations")
+	return nil
+}
+
+func checkMigrations(cfg Config, packrName string, direction migrate.MigrationDirection) error {
+	c, err := pgx.ParseConfig(fmt.Sprintf("postgres://%s:%s@%s:%s/%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name))
+	if err != nil {
+		return err
+	}
+	db := stdlib.OpenDB(*c)
+
+	box, ok := packrMigrations[packrName]
+	if !ok {
+		return fmt.Errorf("packr box not found with name: %v", packrName)
+	}
+
+	migrationSource := &migrate.PackrMigrationSource{Box: box}
+	migrations, err := migrationSource.FindMigrations()
+	if err != nil {
+		log.Errorf("error getting migrations from source: %v", err)
+		return err
+	}
+
+	var expected int
+	for _, migration := range migrations {
+		if len(migration.Up) != 0 {
+			expected++
+		}
+	}
+
+	var actual int
+	query := `SELECT COUNT(1) FROM public.gorp_migrations`
+	err = db.QueryRow(query).Scan(&actual)
+	if err != nil {
+		log.Error("error getting migrations count: ", err)
+		return err
+	}
+	if expected == actual {
+		log.Infof("Found %d migrations as expected", actual)
+	} else {
+		return fmt.Errorf("error the component needs to run %d migrations before starting. DB only contains %d migrations", expected, actual)
+	}
 	return nil
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -42,13 +42,13 @@ func main() {
 	time.Sleep(time.Second * waitForDBSeconds)
 	cmd = exec.Command("docker-compose", "up", "-d", "executor-tool-prover")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		log.Errorf("Failed to star prover: %w. %v", err, out)
+		log.Errorf("Failed to star prover: %v. %v", err, out)
 		return
 	}
 	log.Info("DONE starting DB and prover")
 
 	// Load vector file names
-	files, err := ioutil.ReadDir(vectorDir)
+	files, err := os.ReadDir(vectorDir)
 	if err != nil {
 		log.Errorf("Error reading directory: %v", err)
 		return
@@ -116,7 +116,7 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 		if err != nil {
 			return err
 		}
-		log.Infof("**********              BATCH %d              **********", tc.Requests[i].BatchNum)
+		log.Infof("**********              BATCH %d              **********", tc.Requests[i].OldBatchNum)
 		txs, _, err := state.DecodeTxs(tc.Requests[i].BatchL2Data)
 		if err != nil {
 			log.Warnf("Txs are not correctly encoded")
@@ -133,7 +133,7 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 		log.Infof("CntBinaries: %v", res.CntBinaries)
 		log.Infof("CntSteps: %v", res.CntSteps)
 		for i, txRes := range res.Responses {
-			log.Infof("======> TX #%d", i)
+			log.Infof("=====> TX #%d", i)
 			if "0x"+hex.EncodeToString(txRes.TxHash) != txs[i].Hash().Hex() {
 				log.Warnf("TxHash missmatch:\nexecutor: %s\ndecoded: %s", "0x"+hex.EncodeToString(txRes.TxHash), txs[i].Hash().Hex())
 			} else {
@@ -173,7 +173,7 @@ func loadCase(vectorFileName string) ([]genesisItem, testCase, error) {
 	tc := testCase{}
 	gen := []genesisItem{}
 	// Load and parse test case
-	f, err := ioutil.ReadFile(vectorFileName)
+	f, err := os.ReadFile(vectorFileName)
 	if err != nil {
 		return gen, tc, err
 	}
@@ -182,7 +182,7 @@ func loadCase(vectorFileName string) ([]genesisItem, testCase, error) {
 		return gen, tc, err
 	}
 	// Load and parse genesis
-	f, err = ioutil.ReadFile(genesisDir + tc.GenesisFile)
+	f, err = os.ReadFile(genesisDir + tc.GenesisFile)
 	if err != nil {
 		return gen, tc, err
 	}
@@ -233,13 +233,13 @@ type executorRequest pb.ProcessBatchRequest
 
 func (er *executorRequest) UnmarshalJSON(data []byte) error {
 	type jExecutorRequeststruct struct {
-		BatchL2Data      string `json:"batchL2Data"`
-		GlobalExitRoot   string `json:"globalExitRoot"`
-		BatchNum         uint64 `json:"batchNum"`
-		OldLocalExitRoot string `json:"oldLocalExitRoot"`
-		OldStateRoot     string `json:"oldStateRoot"`
-		SequencerAddr    string `json:"sequencerAddr"`
-		Timestamp        uint64 `json:"timestamp"`
+		BatchL2Data     string `json:"batchL2Data"`
+		GlobalExitRoot  string `json:"globalExitRoot"`
+		OldBatchNum     uint64 `json:"oldBatchNum"`
+		OldAccInputHash string `json:"oldAccInputHash"`
+		OldStateRoot    string `json:"oldStateRoot"`
+		SequencerAddr   string `json:"sequencerAddr"`
+		Timestamp       uint64 `json:"timestamp"`
 	}
 	jer := jExecutorRequeststruct{}
 	if err := json.Unmarshal(data, &jer); err != nil {
@@ -253,7 +253,7 @@ func (er *executorRequest) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	oldLocalExitRoot, err := hex.DecodeString(strings.TrimPrefix(jer.OldLocalExitRoot, "0x"))
+	oldAccInputHash, err := hex.DecodeString(strings.TrimPrefix(jer.OldAccInputHash, "0x"))
 	if err != nil {
 		return err
 	}
@@ -263,13 +263,13 @@ func (er *executorRequest) UnmarshalJSON(data []byte) error {
 	}
 
 	req := pb.ProcessBatchRequest{
-		BatchL2Data:      batchL2Data,
-		GlobalExitRoot:   globalExitRoot,
-		BatchNum:         jer.BatchNum,
-		OldLocalExitRoot: oldLocalExitRoot,
-		OldStateRoot:     oldStateRoot,
-		Coinbase:         jer.SequencerAddr,
-		EthTimestamp:     jer.Timestamp,
+		BatchL2Data:     batchL2Data,
+		GlobalExitRoot:  globalExitRoot,
+		OldBatchNum:     jer.OldBatchNum,
+		OldAccInputHash: oldAccInputHash,
+		OldStateRoot:    oldStateRoot,
+		Coinbase:        jer.SequencerAddr,
+		EthTimestamp:    jer.Timestamp,
 	}
 	*er = executorRequest(req) //nolint
 	return nil

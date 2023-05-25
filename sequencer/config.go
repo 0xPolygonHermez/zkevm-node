@@ -1,31 +1,14 @@
 package sequencer
 
 import (
-	"fmt"
-	"math/big"
-
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
-	base "github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 )
 
 // Config represents the configuration of a sequencer
 type Config struct {
-	// WaitPeriodSendSequence is the time the sequencer waits until
-	// trying to send a sequence to L1
-	WaitPeriodSendSequence types.Duration `mapstructure:"WaitPeriodSendSequence"`
 	// WaitPeriodPoolIsEmpty is the time the sequencer waits until
 	// trying to add new txs to the state
 	WaitPeriodPoolIsEmpty types.Duration `mapstructure:"WaitPeriodPoolIsEmpty"`
-
-	// LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
-	LastBatchVirtualizationTimeMaxWaitPeriod types.Duration `mapstructure:"LastBatchVirtualizationTimeMaxWaitPeriod"`
-
-	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
-	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`
-
-	// MaxTimeForBatchToBeOpen is time after which new batch should be closed
-	MaxTimeForBatchToBeOpen types.Duration `mapstructure:"MaxTimeForBatchToBeOpen"`
 
 	// BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
 	BlocksAmountForTxsToBeDeleted uint64 `mapstructure:"BlocksAmountForTxsToBeDeleted"`
@@ -33,49 +16,121 @@ type Config struct {
 	// FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
 	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
 
+	// MaxTxsPerBatch is the maximum amount of transactions in the batch
+	MaxTxsPerBatch uint64 `mapstructure:"MaxTxsPerBatch"`
+
+	// MaxBatchBytesSize is the maximum batch size in bytes
+	// (subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)
+	MaxBatchBytesSize uint64 `mapstructure:"MaxBatchBytesSize"`
+
 	// MaxCumulativeGasUsed is max gas amount used by batch
 	MaxCumulativeGasUsed uint64 `mapstructure:"MaxCumulativeGasUsed"`
 
 	// MaxKeccakHashes is max keccak hashes used by batch
-	MaxKeccakHashes int32 `mapstructure:"MaxKeccakHashes"`
+	MaxKeccakHashes uint32 `mapstructure:"MaxKeccakHashes"`
 
 	// MaxPoseidonHashes is max poseidon hashes batch can handle
-	MaxPoseidonHashes int32 `mapstructure:"MaxPoseidonHashes"`
+	MaxPoseidonHashes uint32 `mapstructure:"MaxPoseidonHashes"`
 
 	// MaxPoseidonPaddings is max poseidon paddings batch can handle
-	MaxPoseidonPaddings int32 `mapstructure:"MaxPoseidonPaddings"`
+	MaxPoseidonPaddings uint32 `mapstructure:"MaxPoseidonPaddings"`
 
 	// MaxMemAligns is max mem aligns batch can handle
-	MaxMemAligns int32 `mapstructure:"MaxMemAligns"`
+	MaxMemAligns uint32 `mapstructure:"MaxMemAligns"`
 
 	// MaxArithmetics is max arithmetics batch can handle
-	MaxArithmetics int32 `mapstructure:"MaxArithmetics"`
+	MaxArithmetics uint32 `mapstructure:"MaxArithmetics"`
 
 	// MaxBinaries is max binaries batch can handle
-	MaxBinaries int32 `mapstructure:"MaxBinaries"`
+	MaxBinaries uint32 `mapstructure:"MaxBinaries"`
 
 	// MaxSteps is max steps batch can handle
-	MaxSteps int32 `mapstructure:"MaxSteps"`
+	MaxSteps uint32 `mapstructure:"MaxSteps"`
 
-	// ProfitabilityChecker configuration
-	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`
+	// WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
+	WeightBatchBytesSize int `mapstructure:"WeightBatchBytesSize"`
 
-	// Maximum size, in gas size, a sequence can reach
-	MaxSequenceSize MaxSequenceSize `mapstructure:"MaxSequenceSize"`
+	// WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource
+	WeightCumulativeGasUsed int `mapstructure:"WeightCumulativeGasUsed"`
+
+	// WeightKeccakHashes is the cost weight for the KeccakHashes batch resource
+	WeightKeccakHashes int `mapstructure:"WeightKeccakHashes"`
+
+	// WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource
+	WeightPoseidonHashes int `mapstructure:"WeightPoseidonHashes"`
+
+	// WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource
+	WeightPoseidonPaddings int `mapstructure:"WeightPoseidonPaddings"`
+
+	// WeightMemAligns is the cost weight for the MemAligns batch resource
+	WeightMemAligns int `mapstructure:"WeightMemAligns"`
+
+	// WeightArithmetics is the cost weight for the Arithmetics batch resource
+	WeightArithmetics int `mapstructure:"WeightArithmetics"`
+
+	// WeightBinaries is the cost weight for the Binaries batch resource
+	WeightBinaries int `mapstructure:"WeightBinaries"`
+
+	// WeightSteps is the cost weight for the Steps batch resource
+	WeightSteps int `mapstructure:"WeightSteps"`
+
+	// TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
+	TxLifetimeCheckTimeout types.Duration `mapstructure:"TxLifetimeCheckTimeout"`
+
+	// MaxTxLifetime is the time a tx can be in the sequencer memory
+	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
+
+	// Finalizer's specific config properties
+	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
+
+	// DBManager's specific config properties
+	DBManager DBManagerCfg `mapstructure:"DBManager"`
+
+	// Worker's specific config properties
+	Worker WorkerCfg `mapstructure:"Worker"`
 }
 
-// MaxSequenceSize is a wrapper type that parses token amount to big int
-type MaxSequenceSize struct {
-	*big.Int `validate:"required"`
+// FinalizerCfg contains the finalizer's configuration properties
+type FinalizerCfg struct {
+	// GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root
+	GERDeadlineTimeout types.Duration `mapstructure:"GERDeadlineTimeout"`
+
+	// ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
+	ForcedBatchDeadlineTimeout types.Duration `mapstructure:"ForcedBatchDeadlineTimeout"`
+
+	// SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
+	SleepDuration types.Duration `mapstructure:"SleepDuration"`
+
+	// ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
+	ResourcePercentageToCloseBatch uint32 `mapstructure:"ResourcePercentageToCloseBatch"`
+
+	// GERFinalityNumberOfBlocks is number of blocks to consider GER final
+	GERFinalityNumberOfBlocks uint64 `mapstructure:"GERFinalityNumberOfBlocks"`
+
+	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForCheckingL1Timeout types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingL1Timeout"`
+
+	// ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForCheckingGER types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingGER"`
+
+	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
+	ClosingSignalsManagerWaitForCheckingForcedBatches types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingForcedBatches"`
+
+	// ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
+	ForcedBatchesFinalityNumberOfBlocks uint64 `mapstructure:"ForcedBatchesFinalityNumberOfBlocks"`
+
+	// TimestampResolution is the resolution of the timestamp used to close a batch
+	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
 }
 
-// UnmarshalText unmarshal token amount from float string to big int
-func (m *MaxSequenceSize) UnmarshalText(data []byte) error {
-	amount, ok := new(big.Int).SetString(string(data), base.Base10)
-	if !ok {
-		return fmt.Errorf("failed to unmarshal string to float")
-	}
-	m.Int = amount
+// WorkerCfg contains the Worker's configuration properties
+type WorkerCfg struct {
+	// ResourceCostMultiplier is the multiplier for the resource cost
+	ResourceCostMultiplier float64 `mapstructure:"ResourceCostMultiplier"`
+}
 
-	return nil
+// DBManagerCfg contains the DBManager's configuration properties
+type DBManagerCfg struct {
+	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
+	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
 }

@@ -10,7 +10,7 @@ We have 3 different github actions workflows:
 * `test-e2e`, which uses a matrix strategy to run the e2e tests, currently using
 3 groups.
 
-The e2e CI groups are defined in the `./ci/e2e-group{1,3}` directories. In each
+The e2e CI groups are defined in the `./ci/e2e-group{1,N}` directories. In each
 directory we have symlinks that point to the actual e2e test to be executed (these
 tests are defined under `./test/e2e`). The goal of these symlinks is keeping the
 same code organization we have now while being able to run the costly e2e tests
@@ -37,7 +37,7 @@ for each of the jobs looks like this:
 ```
 strategy:
   matrix:
-    go-version: [ 1.17.x ]
+    go-version: [ 1.19.x ]
     goarch: [ "amd64" ]
     e2e-group: [ 1, 2, 3 ]
 ```
@@ -46,6 +46,7 @@ and looks like this:
 ```
 - name: Test
   run: make test-e2e-group-${{ matrix.e2e-group }}
+  working-directory: test
 ```
 If you want to disable a group, we just need to remove it from the `e2e-group`
 array in the matrix strategy. Given the configuration above, if we want to disable
@@ -53,7 +54,7 @@ groups 1 and 3, the matrix strategy config should look like:
 ```
 strategy:
   matrix:
-    go-version: [ 1.17.x ]
+    go-version: [ 1.19.x ]
     goarch: [ "amd64" ]
     e2e-group: [ 2 ]
 ```
@@ -61,7 +62,7 @@ If we want to re-add group 1:
 ```
 strategy:
   matrix:
-    go-version: [ 1.17.x ]
+    go-version: [ 1.19.x ]
     goarch: [ "amd64" ]
     e2e-group: [ 1, 2 ]
 ```

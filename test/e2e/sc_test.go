@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/FailureTest"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Read"
@@ -16,6 +17,54 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCounter(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() { require.NoError(t, operations.Teardown()) }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	for _, network := range networks {
+		log.Debugf(network.Name)
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+		_, scTx, sc, err := Counter.DeployCounter(auth, client)
+		require.NoError(t, err)
+
+		logTx(scTx)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		count, err := sc.GetCount(&bind.CallOpts{Pending: false})
+		require.NoError(t, err)
+
+		assert.Equal(t, 0, count.Cmp(big.NewInt(0)))
+
+		scCallTx, err := sc.Increment(auth)
+		require.NoError(t, err)
+
+		logTx(scCallTx)
+		err = operations.WaitTxToBeMined(ctx, client, scCallTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		count, err = sc.GetCount(&bind.CallOpts{Pending: false})
+		require.NoError(t, err)
+		assert.Equal(t, 0, count.Cmp(big.NewInt(1)))
+	}
+}
 
 func TestEmitLog2(t *testing.T) {
 	if testing.Short() {
@@ -44,14 +93,14 @@ func TestEmitLog2(t *testing.T) {
 		require.NoError(t, err)
 
 		logTx(scTx)
-		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		scCallTx, err := sc.EmitLogs(auth)
 		require.NoError(t, err)
 
 		logTx(scCallTx)
-		err = operations.WaitTxToBeMined(client, scCallTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scCallTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		scCallTxReceipt, err := client.TransactionReceipt(ctx, scCallTx.Hash())
@@ -63,14 +112,19 @@ func TestEmitLog2(t *testing.T) {
 			Addresses: []common.Address{scAddr},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, 3, len(logs))
+		assert.Equal(t, 4, len(logs))
 
-		_, err = sc.ParseLog(logs[0])
+		log0 := logs[0]
+		assert.Equal(t, 0, len(log0.Topics))
+
+		_, err = sc.ParseLog(logs[1])
 		require.NoError(t, err)
-		logA, err := sc.ParseLogA(logs[1])
+
+		logA, err := sc.ParseLogA(logs[2])
 		require.NoError(t, err)
 		assert.Equal(t, big.NewInt(1), logA.A)
-		logABCD, err := sc.ParseLogABCD(logs[2])
+
+		logABCD, err := sc.ParseLogABCD(logs[3])
 		require.NoError(t, err)
 		assert.Equal(t, big.NewInt(1), logABCD.A)
 		assert.Equal(t, big.NewInt(2), logABCD.B)
@@ -107,7 +161,7 @@ func TestFailureTest(t *testing.T) {
 		require.NoError(t, err)
 
 		logTx(scTx)
-		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		log.Debug("storing value")
@@ -115,7 +169,7 @@ func TestFailureTest(t *testing.T) {
 		require.NoError(t, err)
 
 		logTx(scCallTx)
-		err = operations.WaitTxToBeMined(client, scCallTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scCallTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		log.Debug("storing value with revert")
@@ -155,7 +209,7 @@ func TestRead(t *testing.T) {
 		require.NoError(t, err)
 
 		logTx(scTx)
-		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		log.Debug("read string public variable directly")
@@ -184,14 +238,14 @@ func TestRead(t *testing.T) {
 		tx, err := sc.PublicAddToken(auth, tA)
 		require.NoError(t, err)
 		logTx(tx)
-		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		log.Debug("external add token")
 		tx, err = sc.ExternalAddToken(auth, tB)
 		require.NoError(t, err)
 		logTx(tx)
-		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		log.Debug("read mapping public variable directly")
