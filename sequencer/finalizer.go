@@ -22,7 +22,6 @@ import (
 
 const (
 	oneHundred = 100
-	noProverID = "NO_PROVER_ID"
 )
 
 var (
@@ -125,7 +124,7 @@ func newFinalizer(
 		eventLog:                      eventLog,
 		pendingTransactionsToStore:    make([]transactionToStore, 0),
 		pendingTransactionsToStoreMux: new(sync.RWMutex),
-		proverID:                      noProverID,
+		proverID:                      "",
 	}
 }
 
@@ -210,10 +209,6 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
 func (f *finalizer) finalizeBatches(ctx context.Context) {
-	for f.proverID == noProverID {
-		log.Info("waiting for proverID")
-		time.Sleep(100 * time.Millisecond) // nolint:gomnd
-	}
 	log.Debug("finalizer init loop")
 	for {
 		start := now()
@@ -302,7 +297,7 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 }
 
 func (f *finalizer) checkProverIDAndUpdateStoredFlushID(storedFlushID uint64, proverID string) {
-	if f.proverID != proverID {
+	if f.proverID != "" && f.proverID != proverID {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
 			Source:      event.Source_Node,
