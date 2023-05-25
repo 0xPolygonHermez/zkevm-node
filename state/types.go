@@ -72,6 +72,10 @@ type ProcessTransactionResponse struct {
 	ExecutionTrace []instrumentation.StructLog
 	// CallTrace contains the call trace.
 	CallTrace instrumentation.ExecutorTrace
+	// EffectiveGasPrice effective gas price used for the tx
+	EffectiveGasPrice uint64
+	//EffectivePercentage effective percentage used for the tx
+	EffectivePercentage uint32
 }
 
 // ZKCounters counters for the tx
