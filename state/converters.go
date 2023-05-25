@@ -143,6 +143,8 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		result.ChangesStateRoot = IsStateRootChanged(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
+		result.EffectiveGasPrice = response.EffectiveGasPrice
+		result.EffectivePercentage = response.EffectivePercentage
 		result.Tx = txs[i]
 
 		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))

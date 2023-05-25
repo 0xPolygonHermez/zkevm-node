@@ -27,6 +27,7 @@ type txPool interface {
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, failedReason *string) error
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
+	CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error)
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -86,7 +87,7 @@ type workerInterface interface {
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker
 	DeleteTx(txHash common.Hash, from common.Address)
 	HandleL2Reorg(txHashes []common.Hash)
-	NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, breakEvenGasPrice uint64) (*TxTracker, error)
+	NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, breakEvenGasPrice *big.Int) (*TxTracker, error)
 }
 
 // The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.
@@ -117,6 +118,7 @@ type dbManagerInterface interface {
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	FlushMerkleTree(ctx context.Context) error
+	CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error)
 }
 
 type ethTxManager interface {

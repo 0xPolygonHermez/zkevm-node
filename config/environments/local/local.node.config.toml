@@ -22,13 +22,17 @@ DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
 	[Pool.DB]
-	User = "pool_user"
-	Password = "pool_password"
-	Name = "pool_db"
-	Host = "zkevm-pool-db"
-	Port = "5432"
-	EnableLog = false
-	MaxConns = 200
+		User = "pool_user"
+		Password = "pool_password"
+		Name = "pool_db"
+		Host = "zkevm-pool-db"
+		Port = "5432"
+		EnableLog = false
+		MaxConns = 200
+	[Pool.EffectiveGasPrice]
+		L1GasPricePercentageForL2MinPrice = 10
+		ByteGasCost = 16
+		MarginFactorPercentage = 10
 
 [Etherman]
 URL = "http://your.L1node.url"
@@ -89,6 +93,9 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		TimestampResolution = "15s"
+		[Sequencer.Finalizer.EffectiveGasPrice]
+			BreakEvenGasPriceGuaranteedPeriod = "30s"
+			MaxBreakEvenGasPriceDeviationPercentage = 10
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"

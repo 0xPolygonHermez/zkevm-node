@@ -121,6 +121,9 @@ type FinalizerCfg struct {
 
 	// TimestampResolution is the resolution of the timestamp used to close a batch
 	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
+
+	// EffectiveGasPrice is the config for the gas price
+	EffectiveGasPrice EffectiveGasPrice `mapstructure:"EffectiveGasPrice"`
 }
 
 // WorkerCfg contains the Worker's configuration properties
@@ -133,4 +136,13 @@ type WorkerCfg struct {
 type DBManagerCfg struct {
 	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
 	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
+}
+
+// EffectiveGasPrice contains the configuration properties for the effective gas price
+type EffectiveGasPrice struct {
+	// BreakEvenGasPriceGuaranteedPeriod is the period of time for which the break even gas price is guaranteed
+	BreakEvenGasPriceGuaranteedPeriod types.Duration `mapstructure:"BreakEvenGasPriceGuaranteedPeriod"`
+
+	// MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
+	MaxBreakEvenGasPriceDeviationPercentage uint64 `mapstructure:"MaxBreakEvenGasPriceDeviationPercentage"`
 }

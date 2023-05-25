@@ -186,6 +186,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
+			path:          "Sequencer.Finalizer.EffectiveGasPrice.BreakEvenGasPriceGuaranteedPeriod",
+			expectedValue: types.NewDuration(30 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
+			expectedValue: uint64(10),
+		},
+		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
@@ -341,6 +349,18 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.DB.MaxConns",
 			expectedValue: 200,
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.L1GasPricePercentageForL2MinPrice",
+			expectedValue: uint64(10),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.ByteGasCost",
+			expectedValue: uint64(16),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.MarginFactorPercentage",
+			expectedValue: uint64(10),
 		},
 		{
 			path:          "RPC.Host",

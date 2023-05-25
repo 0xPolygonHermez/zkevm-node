@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"sync"
 	"time"
@@ -54,9 +53,8 @@ type finalizer struct {
 	handlingL2Reorg         bool
 	// event log
 	eventLog *event.EventLog
-	// gas price calculation
-	effectivePercentageTable        map[uint8]uint64
-	effectiveGasPricePercentageUnit uint64
+	// effective gas price calculation
+	maxBreakEvenGasPriceDeviationPercentage *big.Int
 }
 
 // WipBatch represents a work-in-progress batch.
@@ -90,7 +88,6 @@ func newFinalizer(
 	batchConstraints batchConstraints,
 	eventLog *event.EventLog,
 ) *finalizer {
-	effectivePercentageTableByIndex, effectivePercentageUnit := calcGasPriceEffectivePercentageTables()
 	return &finalizer{
 		cfg:                cfg,
 		txsStore:           txsStore,
@@ -113,10 +110,8 @@ func newFinalizer(
 		nextForcedBatchDeadline: 0,
 		nextForcedBatchesMux:    new(sync.RWMutex),
 		// event log
-		eventLog: eventLog,
-		// gas price calculations
-		effectivePercentageTable:        effectivePercentageTableByIndex,
-		effectiveGasPricePercentageUnit: effectivePercentageUnit,
+		eventLog:                                eventLog,
+		maxBreakEvenGasPriceDeviationPercentage: new(big.Int).SetUint64(cfg.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage),
 	}
 }
 
@@ -358,7 +353,10 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 // processTransaction processes a single transaction.
 func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error {
-	var txHash string
+	var (
+		txHash string
+		err    error
+	)
 	if tx != nil {
 		txHash = tx.Hash.String()
 	}
@@ -383,23 +381,46 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	if tx != nil {
 		hashStr = tx.HashStr
 	}
-	effectiveGasPrice := f.computeEffectiveGasPrice(tx.GasPrice.Uint64(), tx.breakEvenGasPrice)
-	f.processRequest.EffectiveGasPrice = effectiveGasPrice
-	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hashStr, f.processRequest.GlobalExitRoot.String())
-	processBatchResponse, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
-	if err != nil {
-		log.Errorf("failed to process transaction: %s", err)
-		return err
-	}
-
-	oldStateRoot := f.batch.stateRoot
-	if len(processBatchResponse.Responses) > 0 && tx != nil {
-		err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
+	// Check if the guaranteed period for the break even gas price has passed
+	guaranteedPeriodDeadline := tx.ReceivedAt.Add(f.cfg.EffectiveGasPrice.BreakEvenGasPriceGuaranteedPeriod.Duration)
+	hasGuaranteedPeriodPassed := guaranteedPeriodDeadline.After(now())
+	breakEvenGasPrice := tx.breakEvenGasPrice
+	if hasGuaranteedPeriodPassed {
+		// Calculate the new breakEvenPrice
+		breakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.ZKCounters.CumulativeGasUsed)
 		if err != nil {
 			return err
 		}
 	}
 
+	// If the tx gas price is lower than the break even gas price, we set the effective percentage to 255 (100%)
+	effectivePercentage, err := CalcGasPriceEffectivePercentage(tx.GasPrice, breakEvenGasPrice)
+	if err != nil {
+		log.Errorf("failed to calculate effective percentage: %s", err)
+		return err
+	}
+
+	effectivePercentageAsHex := fmt.Sprintf("%x", effectivePercentage)
+
+	f.processRequest.Transactions = append(f.processRequest.Transactions, []byte(effectivePercentageAsHex)...)
+	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hashStr, f.processRequest.GlobalExitRoot.String())
+	processBatchResponse, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
+	if err != nil {
+		log.Errorf("failed to process transaction: %s", err)
+		return err
+	} else if tx != nil && err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.Responses) == 0 {
+		err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
+		f.halt(ctx, err)
+		return err
+	}
+
+	oldStateRoot := f.batch.stateRoot
+	if tx != nil && len(processBatchResponse.Responses) > 0 {
+		_, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
+		if err != nil {
+			return err
+		}
+	}
 	// Update in-memory batch and processRequest
 	f.processRequest.OldStateRoot = processBatchResponse.NewStateRoot
 	f.batch.stateRoot = processBatchResponse.NewStateRoot
@@ -409,39 +430,36 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) error
 	return nil
 }
 
-func (f *finalizer) computeEffectiveGasPrice(gasPrice, breakEvenGasPrice uint64) uint64 {
-	if gasPrice <= breakEvenGasPrice {
-		return gasPrice
-	}
-	percentage := uint64(breakEvenGasPrice/gasPrice) * 100
-	index := calcEffectiveGasPriceIndex(percentage, f.effectiveGasPricePercentageUnit)
-	effectivePercentage := f.effectivePercentageTable[index]
-
-	return (breakEvenGasPrice * effectivePercentage) / 100
-}
-
 // handleProcessTransactionResponse handles the response of transaction processing.
-func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) error {
+func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) (deviationCheckWg *sync.WaitGroup, err error) {
 	// Handle Transaction Error
 	errorCode := executor.RomErrorCode(result.Responses[0].RomError)
 	if !state.IsStateRootChanged(errorCode) {
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		f.handleProcessTransactionError(ctx, result, tx)
-		return result.Responses[0].RomError
+		return nil, result.Responses[0].RomError
 	}
 
 	// Check remaining resources
-	err := f.checkRemainingResources(result, tx)
+	err = f.checkRemainingResources(result, tx)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	// Check if the break even gas price has changed with too big deviation
+	deviationCheckWg = new(sync.WaitGroup)
+	deviationCheckWg.Add(1)
+	go func() {
+		defer deviationCheckWg.Done()
+		f.checkBreakEvenGasPriceDeviation(ctx, tx, result)
+	}()
 
 	// Store the processed transaction, add it to the batch and update status in the pool atomically
 	f.storeProcessedTx(f.batch.batchNumber, f.batch.coinbase, f.batch.timestamp, oldStateRoot, result.Responses[0], false)
 	f.batch.countOfTxs++
 	f.updateWorkerAfterTxStored(ctx, tx, result)
 
-	return nil
+	return deviationCheckWg, nil
 }
 
 // handleForcedTxsProcessResp handles the transactions responses for the processed forced batch.
@@ -829,8 +847,8 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 	}
 
 	if result.NewStateRoot != expectedStateRoot {
-		log.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", batch.BatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
-		return nil, fmt.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", batch.BatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
+		log.Errorf("batchNumber: %d, reprocessed batch has different state root, expectedPercentage: %s, got: %s", batch.BatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
+		return nil, fmt.Errorf("batchNumber: %d, reprocessed batch has different state root, expectedPercentage: %s, got: %s", batch.BatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
 	}
 
 	return result, nil
@@ -975,24 +993,44 @@ func getUsedBatchResources(constraints batchConstraints, remainingResources stat
 	}
 }
 
-func calcGasPriceEffectivePercentageTables() (map[uint8]uint64, uint64) {
-	effectivePercentageTableByIndex := make(map[uint8]uint64)
-	firstUnit := uint64(0)
-	for i := 0; i < 256; i++ {
-		percentage := uint64(math.Floor(float64(i+1)/256)) * 100
-		effectivePercentageTableByIndex[uint8(i)] = percentage
-		if firstUnit == 0 {
-			firstUnit = percentage
+func (f *finalizer) checkBreakEvenGasPriceDeviation(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) {
+	// Calculate the breakEvenPrice with the actual gasUsed
+	actualBreakEvenPrice, err := f.dbManager.CalculateTxBreakEvenGasPrice(ctx, result.Responses[0].GasUsed)
+	if err != nil {
+		log.Errorf("failed to calculate breakEvenPrice with actual gasUsed: %s", err.Error())
+		return
+	}
+
+	// Compute the difference
+	diff := new(big.Int).Abs(new(big.Int).Sub(actualBreakEvenPrice, tx.breakEvenGasPrice))
+
+	// Compute deviation of breakEvenPrice
+	deviation := new(big.Int).Div(new(big.Int).Mul(tx.breakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100))
+
+	// Compare the difference with max deviation of breakEvenPrice
+	if diff.Cmp(deviation) == 1 {
+		ev := &event.Event{
+			ReceivedAt:  time.Now(),
+			Source:      event.Source_Node,
+			Component:   event.Component_Sequencer,
+			Level:       event.Level_Critical,
+			EventID:     event.EventID_FinalizerBreakEvenGasPriceBigDifference,
+			Description: fmt.Sprintf("The difference: %s between the breakEvenPrice and the actualBreakEvenPrice is more than %d %%", diff.String(), f.cfg.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage),
+			Json: struct {
+				preExecutionBreakEvenGasPrice string
+				actualBreakEvenGasPrice       string
+				diff                          string
+				deviation                     string
+			}{
+				preExecutionBreakEvenGasPrice: tx.breakEvenGasPrice.String(),
+				actualBreakEvenGasPrice:       actualBreakEvenPrice.String(),
+				diff:                          diff.String(),
+				deviation:                     deviation.String(),
+			},
+		}
+		err = f.eventLog.LogEvent(ctx, ev)
+		if err != nil {
+			log.Errorf("failed to log event: %s", err.Error())
 		}
 	}
-	return effectivePercentageTableByIndex, firstUnit
-}
-
-func calcEffectiveGasPriceIndex(percentage, effectiveGasPricePercentageUnit uint64) uint8 {
-	// Calculate index based on percentage
-	index := float64(percentage) / float64(effectiveGasPricePercentageUnit)
-
-	// Round index to nearest integer
-	roundedIndex := uint8(math.Round(index))
-	return roundedIndex
 }

@@ -64,6 +64,11 @@ var (
 		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Minute),
+		EffectiveGasPrice: pool.EffectiveGasPrice{
+			L1GasPricePercentageForL2MinPrice: 10,
+			ByteGasCost:                       16,
+			MarginFactorPercentage:            10,
+		},
 	}
 	gasPrice = big.NewInt(1000000000)
 	gasLimit = uint64(21000)
@@ -1330,7 +1335,13 @@ func Test_BlockedAddress(t *testing.T) {
 		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
+		EffectiveGasPrice: pool.EffectiveGasPrice{
+			L1GasPricePercentageForL2MinPrice: 10,
+			ByteGasCost:                       16,
+			MarginFactorPercentage:            10,
+		},
 	}
+
 	p := setupPool(t, cfg, s, st, chainID, ctx, eventLog)
 
 	gasPrice, err := p.GetGasPrice(ctx)
@@ -1381,6 +1392,111 @@ func Test_BlockedAddress(t *testing.T) {
 	// allowed to add tx again
 	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
+}
+
+func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
+	normalCfg := pool.Config{
+		EffectiveGasPrice: pool.EffectiveGasPrice{
+			ByteGasCost:                       16,
+			L1GasPricePercentageForL2MinPrice: 10,
+			MarginFactorPercentage:            10,
+		},
+	}
+	l1MinGasPricePercentageZeroCfg := normalCfg
+	l1MinGasPricePercentageZeroCfg.EffectiveGasPrice.L1GasPricePercentageForL2MinPrice = 0
+	testCases := []struct {
+		desc                      string
+		gasUsed                   uint64
+		l1GasPrice                *big.Int
+		expectedBreakEvenGasPrice *big.Int
+		expectError               bool
+		cfg                       pool.Config
+	}{
+		{
+			desc:                      "Normal scenario",
+			gasUsed:                   5000,
+			expectedBreakEvenGasPrice: big.NewInt(31120000),
+			cfg:                       normalCfg,
+		},
+		{
+			desc:        "L1 gas price is zero",
+			gasUsed:     5000,
+			l1GasPrice:  big.NewInt(0),
+			expectError: true,
+			cfg:         normalCfg,
+		},
+		{
+			desc:        "L2 gas price is zero",
+			gasUsed:     5000,
+			expectError: true,
+			cfg:         l1MinGasPricePercentageZeroCfg,
+		},
+		{
+			desc:        "L1 gas price and L2 gas price are zero",
+			gasUsed:     5000,
+			expectError: true,
+			cfg:         l1MinGasPricePercentageZeroCfg,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if tc.l1GasPrice != nil {
+				oldGasPrice := gasPrice
+				gasPrice = tc.l1GasPrice
+				defer func() {
+					gasPrice = oldGasPrice
+				}()
+			}
+
+			ctx := context.Background()
+			initOrResetDB(t)
+
+			stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+			require.NoError(t, err)
+			defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+			poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+			require.NoError(t, err)
+
+			defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+			eventStorage, err := nileventstorage.NewNilEventStorage()
+			if err != nil {
+				t.Fatal(err)
+			}
+			eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+			st := newState(stateSqlDB, eventLog)
+
+			genesisBlock := state.Block{
+				BlockNumber: 0,
+				BlockHash:   state.ZeroHash,
+				ParentHash:  state.ZeroHash,
+				ReceivedAt:  time.Now(),
+			}
+			dbTx, err := st.BeginStateTransaction(ctx)
+			require.NoError(t, err)
+			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			require.NoError(t, err)
+			require.NoError(t, dbTx.Commit(ctx))
+
+			s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+			require.NoError(t, err)
+
+			const chainID = 2576980377
+			p := setupPool(t, tc.cfg, s, st, chainID, ctx, eventLog)
+
+			breakEvenGasPrice, err := p.CalculateTxBreakEvenGasPrice(ctx, tc.gasUsed)
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedBreakEvenGasPrice, breakEvenGasPrice)
+			}
+
+		})
+	}
 }
 
 func setupPool(t *testing.T, cfg pool.Config, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {

@@ -31,7 +31,7 @@ type TxTracker struct {
 	weightMultipliers      batchResourceWeightMultipliers
 	resourceCostMultiplier float64
 	totalWeight            float64
-	breakEvenGasPrice      uint64
+	breakEvenGasPrice      *big.Int
 }
 
 // batchResourceWeightMultipliers is a struct that contains the weight multipliers for each resource
@@ -62,7 +62,7 @@ type batchConstraintsFloat64 struct {
 }
 
 // newTxTracker creates and inti a TxTracker
-func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints batchConstraintsFloat64, weights batchResourceWeights, resourceCostMultiplier float64, ip string, breakEvenGasPrice uint64) (*TxTracker, error) {
+func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints batchConstraintsFloat64, weights batchResourceWeights, resourceCostMultiplier float64, ip string, breakEvenGasPrice *big.Int) (*TxTracker, error) {
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err

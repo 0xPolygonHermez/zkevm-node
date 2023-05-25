@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
@@ -125,7 +126,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		fromAddress,
 		tx.IsWIP,
 		tx.IP,
-		tx.BreakEvenGasPrice); err != nil {
+		tx.BreakEvenGasPrice.String()); err != nil {
 		return err
 	}
 	return nil
@@ -141,10 +142,10 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 		sql  string
 	)
 	if limit == 0 {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, failed_reason FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
+		sql = "SELECT encoded, status, received_at, is_wip, ip, failed_reason, break_even_gas_price FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, failed_reason FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC LIMIT $2"
+		sql = "SELECT encoded, status, received_at, is_wip, ip, failed_reason, break_even_gas_price FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC LIMIT $2"
 		rows, err = p.db.Query(ctx, sql, status.String(), limit)
 	}
 	if err != nil {
@@ -169,15 +170,37 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 // if limit = 0, then there is no limit
 func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status pool.TxStatus, limit uint64) ([]pool.Transaction, error) {
 	var (
-		rows pgx.Rows
-		err  error
-		sql  string
+		rows                                pgx.Rows
+		err                                 error
+		sql                                 string
+		encoded, ip, breakEvenGasPriceAsStr string
+		failedReason                        *string
+		cumulativeGasUsed                   uint64
+		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
+		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
+		receivedAt time.Time
+		isWIP, ok  bool
 	)
+	sql = `SELECT 
+    				encoded,
+					cumulative_gas_used,
+					used_keccak_hashes,
+					used_poseidon_hashes,
+					used_poseidon_paddings,
+					used_mem_aligns,
+					used_arithmetics,
+					used_binaries,
+					used_steps,
+       				received_at,
+       				is_wip,
+       				ip,
+       				failed_reason,
+       				break_even_gas_price
+				FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC`
 	if limit == 0 {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
-		sql = "SELECT encoded, status, received_at, is_wip, ip, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC LIMIT $2"
+		sql += " LIMIT $2"
 		rows, err = p.db.Query(ctx, sql, status.String(), limit)
 	}
 	if err != nil {
@@ -187,11 +210,56 @@ func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status p
 
 	txs := make([]pool.Transaction, 0, len(rows.RawValues()))
 	for rows.Next() {
-		tx, err := scanTx(rows)
+		err := rows.Scan(
+			&encoded,
+			&cumulativeGasUsed,
+			&usedKeccakHashes,
+			&usedPoseidonHashes,
+			&usedPoseidonPaddings,
+			&usedMemAligns,
+			&usedArithmetics,
+			&usedBinaries,
+			&usedSteps,
+			&receivedAt,
+			&isWIP,
+			&ip,
+			&failedReason,
+			&breakEvenGasPriceAsStr,
+		)
+
 		if err != nil {
 			return nil, err
 		}
-		txs = append(txs, *tx)
+		tx := pool.Transaction{}
+		b, err := hex.DecodeHex(encoded)
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.UnmarshalBinary(b); err != nil {
+			return nil, err
+		}
+
+		tx.Status = status
+		tx.ZKCounters = state.ZKCounters{
+			CumulativeGasUsed:    cumulativeGasUsed,
+			UsedKeccakHashes:     usedKeccakHashes,
+			UsedPoseidonHashes:   usedPoseidonHashes,
+			UsedPoseidonPaddings: usedPoseidonPaddings,
+			UsedMemAligns:        usedMemAligns,
+			UsedArithmetics:      usedArithmetics,
+			UsedBinaries:         usedBinaries,
+			UsedSteps:            usedSteps,
+		}
+		tx.ReceivedAt = receivedAt
+		tx.IsWIP = isWIP
+		tx.IP = ip
+		tx.FailedReason = failedReason
+		tx.BreakEvenGasPrice, ok = new(big.Int).SetString(breakEvenGasPriceAsStr, 10)
+		if !ok {
+			return nil, errors.New("invalid break even gas price")
+		}
+
+		txs = append(txs, tx)
 	}
 
 	return txs, nil
@@ -235,7 +303,8 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			received_at,
 			nonce,
 			is_wip,
-			ip
+			ip,
+			break_even_gas_price
 		FROM
 			pool.transaction p1
 		WHERE 
@@ -263,7 +332,8 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				received_at,
 				nonce,
 				is_wip,
-				ip
+				ip,
+				break_even_gas_price
 			FROM
 				pool.transaction p1
 			WHERE
@@ -278,14 +348,13 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 	}
 
 	var (
-		encoded, status, ip string
-		receivedAt          time.Time
-		cumulativeGasUsed   uint64
-
+		encoded, status, ip, breakEvenGasPriceAsStr string
+		receivedAt                                  time.Time
+		cumulativeGasUsed                           uint64
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
 		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
-		nonce uint64
-		isWIP bool
+		nonce     uint64
+		isWIP, ok bool
 	)
 
 	args := []interface{}{filterStatus, minGasPrice, limit}
@@ -314,6 +383,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			&nonce,
 			&isWIP,
 			&ip,
+			&breakEvenGasPriceAsStr,
 		)
 
 		if err != nil {
@@ -342,6 +412,10 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		}
 		tx.IsWIP = isWIP
 		tx.IP = ip
+		tx.BreakEvenGasPrice, ok = new(big.Int).SetString(breakEvenGasPriceAsStr, 10)
+		if !ok {
+			return nil, errors.New("invalid break even gas price")
+		}
 
 		txs = append(txs, tx)
 	}

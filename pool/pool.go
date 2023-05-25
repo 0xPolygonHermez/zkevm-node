@@ -32,6 +32,7 @@ var (
 )
 
 const (
+	// constants used in calculation of BreakEvenGasPrice
 	signatureBytesLength           = 65
 	effectivePercentageBytesLength = 1
 	txDataBytesLength              = signatureBytesLength + effectivePercentageBytesLength
@@ -69,7 +70,7 @@ func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog 
 		blockedAddresses:        sync.Map{},
 		minSuggestedGasPriceMux: new(sync.RWMutex),
 		eventLog:                eventLog,
-		totalBytesGasCost:       txDataBytesLength * cfg.GasPriceEstimationCfg.ByteGasCost,
+		totalBytesGasCost:       txDataBytesLength * cfg.EffectiveGasPrice.ByteGasCost,
 	}
 
 	p.refreshBlockedAddresses()
@@ -179,7 +180,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		}
 	}
 
-	breakEvenGasPrice, err := p.estimateTxBreakEvenGasPrice(ctx, preExecutionResponse)
+	breakEvenGasPrice, err := p.CalculateTxBreakEvenGasPrice(ctx, preExecutionResponse.txResponse.GasUsed)
 	if err != nil {
 		err = fmt.Errorf("error estimating break even gas price. err: %w", err)
 		log.Error(err)
@@ -456,38 +457,34 @@ func (p *Pool) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bo
 	return p.storage.UpdateTxWIPStatus(ctx, hash, isWIP)
 }
 
-func (p *Pool) estimateTxBreakEvenGasPrice(ctx context.Context, preExecutionResp preExecutionResponse) (uint64, error) {
-	gasUsed := preExecutionResp.txResponse.GasUsed
-	l1GasPrice, l2MinGasPrice, err := p.getL1GasPriceAndL2MinGasPrice(ctx)
-	if err != nil {
-		return 0, err
-	}
-	if l1GasPrice == 0 || l2MinGasPrice == 0 {
-		return 0, fmt.Errorf("failed to get L1 Gas Price and L2 Min Gas Price")
-
-	}
-	totalTxPrice := (gasUsed * l2MinGasPrice) + (p.totalBytesGasCost * l1GasPrice)
-	breakEvenGasPrice := ((totalTxPrice / gasUsed) * p.cfg.GasPriceEstimationCfg.MarginFactorPercentage) / 100
-
-	return breakEvenGasPrice, nil
-}
-
-func (p *Pool) getL1GasPriceAndL2MinGasPrice(ctx context.Context) (l1GasPrice uint64, l2MinGasPrice uint64, err error) {
+// CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
+func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error) {
 	// Get L1 Gas Price
-	l1GasPrice, err = p.GetGasPrice(ctx)
+	l1GasPrice, err := p.GetGasPrice(ctx)
 	if err != nil {
 		log.Warn(fmt.Sprintf("Failed to get L1 gas price: %v", err))
-		return 0, 0, err
+		return nil, err
 	}
 	if l1GasPrice == 0 {
 		log.Warn("Received L1 gas price 0. Skipping estimation...")
-		return 0, 0, errors.New("received L1 gas price 0")
+		return nil, errors.New("received L1 gas price 0")
 	}
 
-	// Calculate L2 Min Gas Price
-	l2MinGasPrice = (l1GasPrice * p.cfg.GasPriceEstimationCfg.L1GasPricePercentageForL2MinPrice) / 100
+	// Get L2 Min Gas Price
+	l2MinGasPrice := (l1GasPrice * p.cfg.EffectiveGasPrice.L1GasPricePercentageForL2MinPrice) / 100
+	if err != nil {
+		return nil, err
+	}
+	if l1GasPrice == 0 || l2MinGasPrice == 0 {
+		return nil, fmt.Errorf("failed to get L1 Gas Price and L2 Min Gas Price")
 
-	return l1GasPrice, l2MinGasPrice, nil
+	}
+
+	// Calculate break even gas price
+	totalTxPrice := (gasUsed * l2MinGasPrice) + (p.totalBytesGasCost * l1GasPrice)
+	breakEvenGasPrice := ((totalTxPrice / gasUsed) * p.cfg.EffectiveGasPrice.MarginFactorPercentage) / 100
+
+	return big.NewInt(0).SetUint64(breakEvenGasPrice), nil
 }
 
 const (

@@ -574,3 +574,8 @@ func (d *dbManager) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error
 func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
 	return d.state.FlushMerkleTree(ctx)
 }
+
+// CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
+func (d *dbManager) CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error) {
+	return d.txPool.CalculateTxBreakEvenGasPrice(ctx, gasUsed)
+}

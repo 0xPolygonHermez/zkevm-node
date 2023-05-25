@@ -15,15 +15,14 @@ import (
 
 // ProcessRequest represents the request of a batch process.
 type ProcessRequest struct {
-	BatchNumber       uint64
-	GlobalExitRoot    common.Hash
-	OldStateRoot      common.Hash
-	OldAccInputHash   common.Hash
-	Transactions      []byte
-	Coinbase          common.Address
-	Timestamp         time.Time
-	Caller            metrics.CallerLabel
-	EffectiveGasPrice uint64
+	BatchNumber     uint64
+	GlobalExitRoot  common.Hash
+	OldStateRoot    common.Hash
+	OldAccInputHash common.Hash
+	Transactions    []byte
+	Coinbase        common.Address
+	Timestamp       time.Time
+	Caller          metrics.CallerLabel
 }
 
 // ProcessBatchResponse represents the response of a batch process.
@@ -72,6 +71,10 @@ type ProcessTransactionResponse struct {
 	ExecutionTrace []instrumentation.StructLog
 	// CallTrace contains the call trace.
 	CallTrace instrumentation.ExecutorTrace
+	// EffectiveGasPrice effective gas price used for the tx
+	EffectiveGasPrice string
+	//EffectivePercentage effective percentage used for the tx
+	EffectivePercentage uint32
 }
 
 // ZKCounters counters for the tx

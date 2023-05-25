@@ -28,6 +28,7 @@ message ProcessBatchRequest {
     map<string, string> db = 13;
     map<string, string> contracts_bytecode = 14; // For debug/testing purpposes only. Don't fill this on production
     TraceConfig trace_config = 15;
+    string external_request_id = 16;
 }
 
 message ProcessBatchResponse {
@@ -164,6 +165,9 @@ message ProcessTransactionResponse {
     // Trace
     repeated ExecutionTraceStep execution_trace = 13;
     CallTrace call_trace = 14;
+     // Efective Gas Price
+    string effective_gas_price = 15;
+    uint32 effective_percentage = 16;
 }
 
 message Log {

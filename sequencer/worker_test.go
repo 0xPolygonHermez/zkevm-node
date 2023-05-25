@@ -284,7 +284,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 		tx := worker.GetBestFittingTx(rc)
 		if tx != nil {
 			if ct >= len(expectedGetBestTx) {
-				t.Fatalf("Error getting more best tx than expected. Expected=%d, Actual=%d", len(expectedGetBestTx), ct+1)
+				t.Fatalf("Error getting more best tx than expectedPercentage. Expected=%d, Actual=%d", len(expectedGetBestTx), ct+1)
 			}
 			if tx.HashStr != string(expectedGetBestTx[ct].String()) {
 				t.Fatalf("Error GetBestFittingTx(%d). Expected=%s, Actual=%s", ct, expectedGetBestTx[ct].String(), tx.HashStr)

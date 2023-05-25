@@ -89,7 +89,7 @@ func TestAddrQueue(t *testing.T) {
 			},
 		},
 		{
-			name: "Replace tx with nonce 4 for tx 0x44 with best GasPrice", hash: common.Hash{0x44}, nonce: 4, gasPrice: new(big.Int).SetInt64(3), cost: new(big.Int).SetInt64(5),
+			name: "Replace tx with nonce 4 for tx 0x44 with best EffectiveGasPrice", hash: common.Hash{0x44}, nonce: 4, gasPrice: new(big.Int).SetInt64(3), cost: new(big.Int).SetInt64(5),
 			expectedReadyTx: common.Hash{1},
 			expectedNotReadyTx: []notReadyTx{
 				{nonce: 2, hash: common.Hash{0x2}},

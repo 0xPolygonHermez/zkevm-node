@@ -86,25 +86,25 @@ func (_m *WorkerMock) MoveTxToNotReady(txHash common.Hash, from common.Address, 
 	return r0
 }
 
-// NewTxTracker provides a mock function with given fields: tx, counters, ip
-func (_m *WorkerMock) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, price uint64) (*TxTracker, error) {
-	ret := _m.Called(tx, counters, ip)
+// NewTxTracker provides a mock function with given fields: tx, counters, ip, breakEvenGasPrice
+func (_m *WorkerMock) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, breakEvenGasPrice *big.Int) (*TxTracker, error) {
+	ret := _m.Called(tx, counters, ip, breakEvenGasPrice)
 
 	var r0 *TxTracker
 	var r1 error
-	if rf, ok := ret.Get(0).(func(types.Transaction, state.ZKCounters, string) (*TxTracker, error)); ok {
-		return rf(tx, counters, ip)
+	if rf, ok := ret.Get(0).(func(types.Transaction, state.ZKCounters, string, *big.Int) (*TxTracker, error)); ok {
+		return rf(tx, counters, ip, breakEvenGasPrice)
 	}
-	if rf, ok := ret.Get(0).(func(types.Transaction, state.ZKCounters, string) *TxTracker); ok {
-		r0 = rf(tx, counters, ip)
+	if rf, ok := ret.Get(0).(func(types.Transaction, state.ZKCounters, string, *big.Int) *TxTracker); ok {
+		r0 = rf(tx, counters, ip, breakEvenGasPrice)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*TxTracker)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(types.Transaction, state.ZKCounters, string) error); ok {
-		r1 = rf(tx, counters, ip)
+	if rf, ok := ret.Get(1).(func(types.Transaction, state.ZKCounters, string, *big.Int) error); ok {
+		r1 = rf(tx, counters, ip, breakEvenGasPrice)
 	} else {
 		r1 = ret.Error(1)
 	}
