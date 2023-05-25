@@ -375,7 +375,11 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	defer f.sharedResourcesMux.Unlock()
 
 	// Wait until all processed transactions are saved
+	startWait := time.Now()
 	f.pendingTransactionsToStoreWG.Wait()
+	endWait := time.Now()
+
+	log.Info("waiting for pending transactions to be stored took: ", endWait.Sub(startWait).String())
 
 	var err error
 	if f.batch.stateRoot.String() == "" || f.batch.localExitRoot.String() == "" {
