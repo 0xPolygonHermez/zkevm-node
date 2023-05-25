@@ -13,10 +13,9 @@ import (
 
 // Prover struct
 type Prover struct {
-	URI     string
-	Client  proverclientpb.ZKProverServiceClient
-	Conn    *grpc.ClientConn
-	Working bool
+	URI    string
+	Client proverclientpb.ZKProverServiceClient
+	Conn   *grpc.ClientConn
 }
 
 // NewProver creates a new Prover
@@ -35,7 +34,6 @@ func NewProver(proverURI string) *Prover {
 
 	proverClient := proverclientpb.NewZKProverServiceClient(proverConn)
 	prover := &Prover{URI: proverURI, Client: proverClient, Conn: proverConn}
-	prover.Working = false
 
 	go func() {
 		waitTick(ctx, tickerCheckConnection)
@@ -52,7 +50,6 @@ func (p *Prover) checkConnection(ctx context.Context, ticker *time.Ticker) {
 	log.Debugf("Checking connection to prover %v. State: %v", p.URI, state)
 
 	if state != connectivity.Ready {
-		p.Working = false
 		log.Infof("Connection to prover %v seems broken. Trying to reconnect...", p.URI)
 		if err := p.Conn.Close(); err != nil {
 			log.Errorf("Could not properly close gRPC connection: %v", err)
@@ -70,8 +67,6 @@ func (p *Prover) checkConnection(ctx context.Context, ticker *time.Ticker) {
 
 		p.Client = proverclientpb.NewZKProverServiceClient(proverConn)
 		p.Conn = proverConn
-	} else {
-		p.Working = true
 	}
 
 	waitTick(ctx, ticker)

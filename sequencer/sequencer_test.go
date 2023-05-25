@@ -121,12 +121,8 @@ func TestSequenceTooBig(t *testing.T) {
 	require.NoError(t, err)
 	//	eth_man, _, _, _, err := ethman.NewSimulatedEtherman(ethman.Config{}, auth)
 	eth_man, err := ethman.NewClient(ethman.Config{
-		URL:                       CONFIG_ETH_URL,
-		L1ChainID:                 CONFIG_CHAIN_ID,
-		PoEAddr:                   CONFIG_ADDRESSES[CONFIG_NAME_POE],
-		MaticAddr:                 CONFIG_ADDRESSES[CONFIG_NAME_MATIC],
-		GlobalExitRootManagerAddr: CONFIG_ADDRESSES[CONFIG_NAME_GER],
-	}, auth)
+		URL: CONFIG_ETH_URL,
+	}, auth, CONFIG_ADDRESSES[CONFIG_NAME_POE], CONFIG_ADDRESSES[CONFIG_NAME_MATIC], CONFIG_ADDRESSES[CONFIG_NAME_GER])
 
 	require.NoError(t, err)
 
@@ -173,7 +169,7 @@ func TestSequenceTooBig(t *testing.T) {
 	state := st.NewState(stateCfg, stateDb, executorClient, stateTree)
 
 	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER], big.NewInt(CONFIG_CHAIN_ID).Uint64())
-	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man, state)
+	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man)
 	gpe := gasprice.NewDefaultEstimator(gasprice.Config{
 		Type:               gasprice.DefaultType,
 		DefaultGasPriceWei: 1000000000,

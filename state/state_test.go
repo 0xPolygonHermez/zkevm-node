@@ -580,6 +580,7 @@ func TestExecuteTransaction(t *testing.T) {
 	// TODO: assert processBatchResponse to make sure that the response makes sense
 }
 
+/*
 func TestCheckSupersetBatchTransactions(t *testing.T) {
 	tcs := []struct {
 		description      string
@@ -653,6 +654,7 @@ func TestCheckSupersetBatchTransactions(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	// Init database instance

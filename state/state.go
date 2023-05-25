@@ -655,24 +655,6 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 		}
 		txs = append(txs, *tx)
 	}
-
-	// todo: temporary check, remove if don't face this error anymore https://github.com/0xPolygonHermez/zkevm-node/issues/1303
-	// check the order of the txs
-	if len(receipt.Txs) != len(txs) {
-		log.Warnf("when closing a batch amount of txs in memory: %d is differs from amount in db: %d",
-			len(receipt.Txs), len(txs))
-	}
-	var isOrderNotCorrect bool
-	for i, tx := range receipt.Txs {
-		if tx.Hash().Hex() != txs[i].Hash().Hex() {
-			isOrderNotCorrect = true
-		}
-	}
-	if isOrderNotCorrect {
-		log.Warnf("order in memory of the sequence and order in data from request database is different," +
-			" change to the order in memory")
-		txs = receipt.Txs
-	}
 	batchL2Data, err := EncodeTransactions(txs)
 	if err != nil {
 		return err
@@ -703,21 +685,14 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	}
 
 	// Sanity check
-	/*
-		if len(decodedTransactions) != len(processed.Responses) {
-			return fmt.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
-		}
-	*/
+	if len(decodedTransactions) != len(processed.Responses) {
+		return fmt.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
+	}
 
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
 		if !isProcessed(processed.Responses[i].Error) {
-			if isOOC(processed.Responses[i].Error) {
-				processed.Responses = []*pb.ProcessTransactionResponse{}
-				break
-			}
-
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
@@ -734,13 +709,10 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if err != nil {
 		return err
 	}
-
-	if len(processedBatch.Responses) > 0 {
-		// Store processed txs into the batch
-		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
-		if err != nil {
-			return err
-		}
+	// Store processed txs into the batch
+	err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
+	if err != nil {
+		return err
 	}
 
 	// Close batch
@@ -1285,7 +1257,7 @@ func CheckSupersetBatchTransactions(existingTxHashes []common.Hash, processedTxs
 		return ErrExistingTxGreaterThanProcessedTx
 	}
 	for i, existingTxHash := range existingTxHashes {
-		if existingTxHash != processedTxs[i].TxHash {
+		if existingTxHash != processedTxs[i].Tx.Hash() {
 			return ErrOutOfOrderProcessedTx
 		}
 	}
@@ -1317,52 +1289,4 @@ func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
 		}
 	}
 	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
-}
-
-// WaitSequencingTxToBeSynced waits for a sequencing transaction to be synced into the state
-func (s *State) WaitSequencingTxToBeSynced(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(parentCtx, timeout)
-	defer cancel()
-
-	for {
-		virtualized, err := s.IsSequencingTXSynced(ctx, tx.Hash(), nil)
-		if err != nil && err != ErrNotFound {
-			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
-			return err
-		} else if ctx.Err() != nil {
-			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
-			return ctx.Err()
-		} else if virtualized {
-			break
-		}
-
-		time.Sleep(time.Second)
-	}
-
-	log.Debug("Sequencing txh successfully synced: ", tx.Hash().String())
-	return nil
-}
-
-// WaitVerifiedBatchToBeSynced waits for a sequenced batch to be synced into the state
-func (s *State) WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumber uint64, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(parentCtx, timeout)
-	defer cancel()
-
-	for {
-		batch, err := s.GetVerifiedBatch(ctx, batchNumber, nil)
-		if err != nil && err != ErrNotFound {
-			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
-			return err
-		} else if ctx.Err() != nil {
-			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
-			return ctx.Err()
-		} else if batch != nil {
-			break
-		}
-
-		time.Sleep(time.Second)
-	}
-
-	log.Debug("Verified batch successfully synced: ", batchNumber)
-	return nil
 }

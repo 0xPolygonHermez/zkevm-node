@@ -41,11 +41,23 @@ var (
 		Usage:    "Configuration `FILE`",
 		Required: false,
 	}
-	genesisFlag = cli.StringFlag{
-		Name:     config.FlagGenesisFile,
-		Aliases:  []string{"gen"},
-		Usage:    "Loads the genesis `FILE`",
-		Required: true,
+	networkFlag = cli.StringFlag{
+		Name:     config.FlagNetwork,
+		Aliases:  []string{"n"},
+		Usage:    "Network: mainnet, testnet, internaltestnet, local, custom, merge. By default it uses mainnet",
+		Required: false,
+	}
+	customNetworkFlag = cli.StringFlag{
+		Name:    config.FlagNetworkCfg,
+		Aliases: []string{"nc"},
+		Usage:   "Custom network configuration `FILE` when using --network custom parameter",
+	}
+	baseNetworkFlag = cli.StringFlag{
+		Name:     config.FlagNetworkBase,
+		Aliases:  []string{"nb"},
+		Usage:    "Base existing network configuration to be merged with the custom configuration passed with --network-cfg, by default it uses internaltestnet",
+		Value:    "internaltestnet",
+		Required: false,
 	}
 	yesFlag = cli.BoolFlag{
 		Name:     config.FlagYes,
@@ -75,6 +87,9 @@ func main() {
 	app.Version = version
 	flags := []cli.Flag{
 		&configFileFlag,
+		&networkFlag,
+		&customNetworkFlag,
+		&baseNetworkFlag,
 		&yesFlag,
 		&componentsFlag,
 		&httpAPIFlag,
@@ -91,7 +106,7 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Run the zkevm-node",
 			Action:  start,
-			Flags:   append(flags, &genesisFlag),
+			Flags:   flags,
 		},
 		{
 			Name:    "approve",
