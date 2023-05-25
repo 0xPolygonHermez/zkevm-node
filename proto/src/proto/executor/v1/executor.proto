@@ -166,7 +166,7 @@ message ProcessTransactionResponse {
     repeated ExecutionTraceStep execution_trace = 13;
     CallTrace call_trace = 14;
      // Efective Gas Price
-    uint64 effective_gas_price = 15;
+    string effective_gas_price = 15;
     uint32 effective_percentage = 16;
 }
 
