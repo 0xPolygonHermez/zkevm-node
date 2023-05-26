@@ -329,7 +329,7 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 		txsToStoreCount := len(f.pendingTransactionsToStore)
 		// Save CPU cycles if there is nothing to save
 		if txsToStoreCount == 0 {
-			time.Sleep(100 * time.Millisecond) //nolint:gomnd
+			time.Sleep(oneHundred * time.Millisecond)
 		} else {
 			for txsToStoreCount > 0 && f.pendingTransactionsToStore[0].flushId <= f.storedFlushID {
 				tx := f.pendingTransactionsToStore[0]
@@ -352,7 +352,7 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 			}
 
 			if txsToStoreCount > 0 {
-				time.Sleep(100 * time.Millisecond) //nolint:gomnd
+				time.Sleep(oneHundred * time.Millisecond)
 				storedFlushID, proverID, err := f.dbManager.GetStoredFlushID(ctx)
 				if err != nil {
 					log.Errorf("failed to get stored flush id, Err: %v", err)
@@ -374,7 +374,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	f.pendingTransactionsToStoreWG.Wait()
 	endWait := time.Now()
 
-	log.Info("waiting for pending transactions to be stored took: ", endWait.Sub(startWait).String())
+	log.Info("waiting for pending transactions to be stored took: ", endWait.Sub(startWait).String(), "milliseconds")
 
 	var err error
 	if f.batch.stateRoot.String() == "" || f.batch.localExitRoot.String() == "" {
