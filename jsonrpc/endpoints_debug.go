@@ -31,6 +31,7 @@ type DebugEndpoints struct {
 	txMan DBTxManager
 }
 
+// NewDebugEndpoints returns DebugEndpoints
 func NewDebugEndpoints(state types.StateInterface) *DebugEndpoints {
 	return &DebugEndpoints{
 		state: state,

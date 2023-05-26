@@ -12,6 +12,7 @@ type NetEndpoints struct {
 	chainID uint64
 }
 
+// NewNetEndpoints returns NetEndpoints
 func NewNetEndpoints(chainID uint64) *NetEndpoints {
 	return &NetEndpoints{
 		chainID: chainID,

@@ -7,14 +7,18 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+// DBTxManager allows to do scopped DB txs
 type DBTxManager struct{}
 
+// DBTxScopedFn function to do scopped DB txs
 type DBTxScopedFn func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error)
 
+// DBTxer interface to begin DB txs
 type DBTxer interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }
 
+// NewDbTxScope function to initiate DB scopped txs
 func (f *DBTxManager) NewDbTxScope(db DBTxer, scopedFn DBTxScopedFn) (interface{}, types.Error) {
 	ctx := context.Background()
 	dbTx, err := db.BeginStateTransaction(ctx)

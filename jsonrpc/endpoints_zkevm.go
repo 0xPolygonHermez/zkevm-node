@@ -19,6 +19,7 @@ type ZKEVMEndpoints struct {
 	txMan DBTxManager
 }
 
+// NewZKEVMEndpoints returns ZKEVMEndpoints
 func NewZKEVMEndpoints(state types.StateInterface) *ZKEVMEndpoints {
 	return &ZKEVMEndpoints{
 		state: state,

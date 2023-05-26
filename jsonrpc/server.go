@@ -45,6 +45,7 @@ type Server struct {
 	wsUpgrader websocket.Upgrader
 }
 
+// Service implementation of a service an it's name
 type Service struct {
 	Name    string
 	Service interface{}
@@ -381,10 +382,12 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 }
 
+// RPCErrorResponse formats error to be returned through RPC
 func RPCErrorResponse(code int, message string, err error) (interface{}, types.Error) {
 	return RPCErrorResponseWithData(code, message, nil, err)
 }
 
+// RPCErrorResponseWithData formats error to be returned through RPC
 func RPCErrorResponseWithData(code int, message string, data *[]byte, err error) (interface{}, types.Error) {
 	if err != nil {
 		log.Errorf("%v:%v", message, err.Error())
