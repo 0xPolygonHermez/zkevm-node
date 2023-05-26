@@ -325,10 +325,11 @@ func (b *BlockNumberOrHash) UnmarshalJSON(buffer []byte) error {
 				return err
 			}
 			err = json.Unmarshal(input, &number)
-			if err == nil {
-				b.SetNumber(number)
-				return nil
+			if err != nil {
+				return fmt.Errorf("invalid %v", BlockNumberKey)
 			}
+			b.SetNumber(number)
+			return nil
 		} else if v, ok := m[BlockHashKey]; ok {
 			vStr, ok := v.(string)
 			if !ok {
@@ -339,20 +340,21 @@ func (b *BlockNumberOrHash) UnmarshalJSON(buffer []byte) error {
 				return err
 			}
 			err = json.Unmarshal(input, &hash)
-			if err == nil {
-				requireCanonical, ok := m[RequireCanonicalKey]
-				if ok {
-					switch v := requireCanonical.(type) {
-					case bool:
-						b.SetHash(hash, v)
-					default:
-						return fmt.Errorf("invalid %v", RequireCanonicalKey)
-					}
-				} else {
-					b.SetHash(hash, false)
-				}
-				return nil
+			if err != nil {
+				return fmt.Errorf("invalid %v", BlockHashKey)
 			}
+			requireCanonical, ok := m[RequireCanonicalKey]
+			if ok {
+				switch v := requireCanonical.(type) {
+				case bool:
+					b.SetHash(hash, v)
+				default:
+					return fmt.Errorf("invalid %v", RequireCanonicalKey)
+				}
+			} else {
+				b.SetHash(hash, false)
+			}
+			return nil
 		} else {
 			return fmt.Errorf("invalid block or hash")
 		}
