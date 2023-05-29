@@ -239,6 +239,10 @@ func nodeUpCondition() (done bool, err error) {
 	return NodeUpCondition(DefaultL2NetworkURL)
 }
 
+func permissionlessNodeUpCondition() (done bool, err error) {
+	return NodeUpCondition(PermissionlessL2NetworkURL)
+}
+
 func grpcHealthyCondition(address string) (bool, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

@@ -491,7 +491,7 @@ func (m *Manager) StartNode() error {
 
 // StartTrustedAndPermissionlessNode starts the node container
 func (m *Manager) StartTrustedAndPermissionlessNode() error {
-	return StartComponent("permissionless", nodeUpCondition)
+	return StartComponent("permissionless", permissionlessNodeUpCondition)
 }
 
 // ApproveMatic runs the approving matic command

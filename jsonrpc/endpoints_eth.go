@@ -589,6 +589,24 @@ func (e *EthEndpoints) getTransactionByHashFromSequencerNode(hash common.Hash) (
 	return tx, nil
 }
 
+func (e *EthEndpoints) getTransactionReceiptFromSequencerNode(hash common.Hash) (interface{}, types.Error) {
+	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_getTransactionReceipt", hash.String())
+	if err != nil {
+		return rpcErrorResponse(types.DefaultErrorCode, "failed to get tx receipt from sequencer node", err)
+	}
+
+	if res.Error != nil {
+		return rpcErrorResponse(res.Error.Code, res.Error.Message, nil)
+	}
+
+	var receipt *types.Receipt
+	err = json.Unmarshal(res.Result, &receipt)
+	if err != nil {
+		return rpcErrorResponse(types.DefaultErrorCode, "failed to read tx receipt from sequencer node", err)
+	}
+	return receipt, nil
+}
+
 // GetTransactionCount returns account nonce
 func (e *EthEndpoints) GetTransactionCount(address types.ArgAddress, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
@@ -716,18 +734,32 @@ func (e *EthEndpoints) GetTransactionReceipt(hash types.ArgHash) (interface{}, t
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		tx, err := e.state.GetTransactionByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
-			return nil, nil
+			if e.cfg.SequencerNodeURI != "" {
+				trustedSequencerTx, rpcErr := e.getTransactionByHashFromSequencerNode(hash.Hash())
+				if trustedSequencerTx == nil && rpcErr == nil {
+					return nil, nil
+				} else if rpcErr != nil {
+					return nil, rpcErr
+				}
+				rpcTx := trustedSequencerTx.(*types.Transaction)
+				tx = rpcTx.CoreTx()
+			} else {
+				return nil, nil
+			}
 		} else if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to get tx from state", err)
 		}
 
 		r, err := e.state.GetTransactionReceipt(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
+			if e.cfg.SequencerNodeURI != "" {
+				trustedSequencerReceipt, rpcErr := e.getTransactionReceiptFromSequencerNode(hash.Hash())
+				return trustedSequencerReceipt, rpcErr
+			}
 			return nil, nil
 		} else if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to get tx receipt from state", err)
 		}
-
 		receipt, err := types.NewReceipt(*tx, r)
 		if err != nil {
 			return rpcErrorResponse(types.DefaultErrorCode, "failed to build the receipt response", err)
