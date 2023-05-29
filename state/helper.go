@@ -168,6 +168,12 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 			return []types.Transaction{}, txsData, ErrInvalidData
 		}
 
+		if endPos < pos {
+			err := fmt.Errorf("endPos %d is smaller than pos %d", endPos, pos)
+			log.Debug("error parsing header: ", err)
+			return []types.Transaction{}, txsData, ErrInvalidData
+		}
+
 		fullDataTx := txsData[pos:endPos]
 		txInfo := txsData[pos : pos+length+headerByteLength]
 		rData := txsData[pos+length+headerByteLength : pos+length+rLength+headerByteLength]
