@@ -707,7 +707,6 @@ func TestDeleteGasPricesHistoryOlderThan(t *testing.T) {
 	min, err = p.MinGasPriceSince(ctx, date)
 	require.NoError(t, err)
 	require.Equal(t, expectedGasPrice2, min)
-
 }
 
 func TestGetPendingTxSince(t *testing.T) {

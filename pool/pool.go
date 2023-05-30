@@ -232,7 +232,7 @@ func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus T
 	})
 }
 
-// DeleteGasPricesHistory delete old gas price except the most recent one
+// DeleteGasPricesHistoryOlderThan deletes gas prices older than a given date except the most recent one
 func (p *Pool) DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error {
 	return p.storage.DeleteGasPricesHistoryOlderThan(ctx, date)
 }
