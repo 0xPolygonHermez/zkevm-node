@@ -644,7 +644,7 @@ func (s *State) getPreCompiledCallAddressAndInput(step instrumentation.Step) (co
 		} else if argsOffset+argsSize > uint64(len(step.Memory)) {
 			// when partial bytes are found in the memory
 			// copy just the bytes we have in memory and complement the rest with zeroes
-			copy(input[0:argsSize], step.Memory[argsOffset:argsOffset+uint64(len(step.Memory))-argsOffset])
+			copy(input[0:argsSize], step.Memory[argsOffset:uint64(len(step.Memory))])
 		} else {
 			// when all the bytes are found in the memory
 			// read the bytes from memory
