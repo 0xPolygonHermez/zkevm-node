@@ -42,15 +42,15 @@ func NewL2GasPriceSuggester(ctx context.Context, cfg Config, pool pool, ethMan *
 			gpricer.UpdateGasPriceAvg()
 			updateTimer.Reset(cfg.UpdatePeriod.Duration)
 		case <-cleanTimer.C:
-			cleanGasPriceHistory(pool)
+			cleanGasPriceHistory(pool, cfg.CleanHistoryTimeRetention.Duration)
 			cleanTimer.Reset(cfg.CleanHistoryPeriod.Duration)
 		}
 	}
 }
 
-func cleanGasPriceHistory(pool pool) {
+func cleanGasPriceHistory(pool pool, timeRetention time.Duration) {
 	ctx := context.Background()
-	err := pool.DeleteGasPricesHistory(ctx)
+	err := pool.DeleteGasPricesHistoryOlderThan(ctx, time.Now().UTC().Add(-timeRetention))
 	if err != nil {
 		log.Errorf("failed to delete pool gas price history: %v", err)
 	}

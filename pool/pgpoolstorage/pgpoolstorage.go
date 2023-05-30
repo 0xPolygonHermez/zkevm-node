@@ -415,15 +415,15 @@ func (p *PostgresPoolStorage) SetGasPrice(ctx context.Context, gasPrice uint64) 
 }
 
 // DeleteGasPricesHistory deletes all gas prices except the last one
-func (p *PostgresPoolStorage) DeleteGasPricesHistory(ctx context.Context) error {
+func (p *PostgresPoolStorage) DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error {
 	sql := `DELETE FROM pool.gas_price
-		WHERE item_id NOT IN (
+		WHERE timestamp < $1 AND item_id NOT IN (
 			SELECT item_id
 			FROM pool.gas_price
 			ORDER BY item_id DESC
 			LIMIT 1
 		)`
-	if _, err := p.db.Exec(ctx, sql); err != nil {
+	if _, err := p.db.Exec(ctx, sql, date); err != nil {
 		return err
 	}
 	return nil
