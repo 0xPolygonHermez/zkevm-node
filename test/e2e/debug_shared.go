@@ -558,3 +558,61 @@ func createMemorySignedTx(t *testing.T, ctx context.Context, auth *bind.Transact
 
 	return tx, nil
 }
+
+func createChainCallRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*ChainCallLevel1.ChainCallLevel1)
+
+	level2AddressInterface := customData["level2Address"]
+	level2Address := level2AddressInterface.(common.Address)
+
+	level3AddressInterface := customData["level3Address"]
+	level3Address := level3AddressInterface.(common.Address)
+
+	level4AddressInterface := customData["level4Address"]
+	level4Address := level4AddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(0).SetUint64(txValue)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = fixedTxGasLimit
+
+	tx, err := sc.CallRevert(&opts, level2Address, level3Address, level4Address)
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func createChainDelegateCallRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*ChainCallLevel1.ChainCallLevel1)
+
+	level2AddressInterface := customData["level2Address"]
+	level2Address := level2AddressInterface.(common.Address)
+
+	level3AddressInterface := customData["level3Address"]
+	level3Address := level3AddressInterface.(common.Address)
+
+	level4AddressInterface := customData["level4Address"]
+	level4Address := level4AddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(0).SetUint64(txValue)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = fixedTxGasLimit
+
+	tx, err := sc.DelegateCallRevert(&opts, level2Address, level3Address, level4Address)
+	require.NoError(t, err)
+
+	return tx, nil
+}
