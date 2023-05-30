@@ -287,11 +287,15 @@ func TestDebugTraceTransaction(t *testing.T) {
 		{name: "multi call", prepare: prepareCalls, createSignedTx: createMultiCallSignedTx},
 		{name: "pre ecrecover 0", prepare: prepareCalls, createSignedTx: createPreEcrecover0SignedTx},
 		{name: "chain call", prepare: prepareChainCalls, createSignedTx: createChainCallSignedTx},
+		{name: "memory", prepare: prepareMemory, createSignedTx: createMemorySignedTx},
 
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
 		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
 		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		{name: "invalid static call less parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallLessParametersSignedTx},
+		{name: "invalid static call more parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallMoreParametersSignedTx},
+		{name: "invalid static call with inner call", prepare: prepareCalls, createSignedTx: createInvalidStaticCallWithInnerCallSignedTx},
 	}
 
 	privateKey, err := crypto.GenerateKey()

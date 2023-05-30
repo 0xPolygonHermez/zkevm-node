@@ -628,8 +628,21 @@ func (s *State) getPreCompiledCallAddressAndInput(step instrumentation.Step) (co
 
 		argsSizeEncoded := step.Stack[argsSizePos]
 		argsSize := hex.DecodeUint64(argsSizeEncoded)
+
 		input := make([]byte, argsSize)
-		copy(input[0:argsSize], step.Memory[argsOffset:argsOffset+argsSize])
+
+		if argsOffset > uint64(len(step.Memory)) {
+			// when none of the bytes can be found in the memory
+			// do nothing to keep input as zeroes
+		} else if argsOffset+argsSize > uint64(len(step.Memory)) {
+			// when partial bytes are found in the memory
+			// copy just the bytes we have in memory and complement the rest with zeroes
+			copy(input[0:argsSize], step.Memory[argsOffset:argsOffset+uint64(len(step.Memory))-argsOffset])
+		} else {
+			// when all the bytes are found in the memory
+			// read the bytes from memory
+			copy(input[0:argsSize], step.Memory[argsOffset:argsOffset+argsSize])
+		}
 		return addr, input
 	} else {
 		return common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input)
