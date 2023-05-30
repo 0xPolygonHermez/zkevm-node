@@ -194,7 +194,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				results[network.Name] = response.Result
 				log.Debug(string(response.Result))
 
-				saveTraceResultToFile(t, tc.name, network.Name, signedTx, response.Result, true)
+				saveTraceResultToFile(t, "callTracer", tc.name, network.Name, signedTx, response.Result, true)
 			}
 
 			referenceValueMap := map[string]interface{}{}

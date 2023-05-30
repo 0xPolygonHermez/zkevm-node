@@ -505,13 +505,13 @@ func createChainCallSignedTx(t *testing.T, ctx context.Context, auth *bind.Trans
 	return tx, nil
 }
 
-func saveTraceResultToFile(t *testing.T, name, network string, signedTx *ethTypes.Transaction, trace json.RawMessage, skip bool) {
+func saveTraceResultToFile(t *testing.T, testName, testCaseName, network string, signedTx *ethTypes.Transaction, trace json.RawMessage, skip bool) {
 	if skip {
 		return
 	}
 	const path = "/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json"
-	sanitizedNetworkName := strings.ReplaceAll(name+network+"_", " ", "_")
-	filePath := fmt.Sprintf(path, sanitizedNetworkName)
+	sanitizedFileName := strings.ReplaceAll(testName+"_"+testCaseName+"_"+network, " ", "_")
+	filePath := fmt.Sprintf(path, sanitizedFileName)
 	b, _ := signedTx.MarshalBinary()
 	fileContent := struct {
 		Tx    *ethTypes.Transaction
