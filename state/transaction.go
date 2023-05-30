@@ -528,6 +528,12 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		// when a revert is detected, we stop the execution
 		if step.OpCode == "REVERT" {
 			stepError = fakevm.ErrExecutionReverted
+			// exit all contexts
+			if step.Depth > 1 {
+				for i := step.Depth; i > 1; i-- {
+					tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+				}
+			}
 			break
 		}
 
@@ -610,6 +616,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 func (s *State) getPreCompiledCallAddressAndInput(step instrumentation.Step) (common.Address, []byte) {
 	if step.OpCode == "DELEGATECALL" || step.OpCode == "CALL" || step.OpCode == "STATICCALL" || step.OpCode == "CALLCODE" {
 		addrPos := len(step.Stack) - 1 - 1
+
 		argsOffsetPos := addrPos - 1
 		argsSizePos := argsOffsetPos - 1
 
