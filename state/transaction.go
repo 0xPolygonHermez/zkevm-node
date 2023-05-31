@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
@@ -328,6 +326,15 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, fmt.Errorf("tx hash not found in executor response")
 	}
 
+	// const path = "/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json"
+	// filePath := fmt.Sprintf(path, "EXECUTOR_execution_trace")
+	// c, _ := json.MarshalIndent(response.ExecutionTrace, "", "    ")
+	// os.WriteFile(filePath, c, 0644)
+
+	// filePath = fmt.Sprintf(path, "EXECUTOR_call_trace")
+	// c, _ = json.MarshalIndent(response.CallTrace, "", "    ")
+	// os.WriteFile(filePath, c, 0644)
+
 	result := &runtime.ExecutionResult{
 		CreateAddress: response.CreateAddress,
 		GasLeft:       response.GasLeft,
@@ -350,14 +357,14 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	context := instrumentation.Context{
 		From:         senderAddress.String(),
-		Input:        hex.EncodeToHex(tx.Data()),
-		Gas:          strconv.FormatUint(tx.Gas(), encoding.Base10),
-		Value:        tx.Value().String(),
-		Output:       hex.EncodeToHex(result.ReturnValue),
+		Input:        tx.Data(),
+		Gas:          tx.Gas(),
+		Value:        tx.Value(),
+		Output:       result.ReturnValue,
 		GasPrice:     tx.GasPrice().String(),
-		OldStateRoot: oldStateRoot.String(),
+		OldStateRoot: oldStateRoot,
 		Time:         uint64(endTime.Sub(startTime)),
-		GasUsed:      strconv.FormatUint(result.GasUsed, encoding.Base10),
+		GasUsed:      result.GasUsed,
 	}
 
 	// Fill trace context
@@ -440,70 +447,19 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 	var previousError error
 	var stateRoot []byte
 
-	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, encoding.Base10)
-	if !ok {
-		log.Debugf("error while parsing contextGas")
-		return nil, ErrParsingExecutorTrace
-	}
-	value, ok := new(big.Int).SetString(trace.Context.Value, encoding.Base10)
-	if !ok {
-		log.Debugf("error while parsing value")
-		return nil, ErrParsingExecutorTrace
-	}
+	tracer.CaptureTxStart(trace.Context.Gas)
+	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", trace.Context.Input, trace.Context.Gas, trace.Context.Value)
 
-	tracer.CaptureTxStart(contextGas.Uint64())
-	decodedInput, err := hex.DecodeHex(trace.Context.Input)
-	if err != nil {
-		log.Errorf("error while decoding context input from hex to bytes:, %v", err)
-		return nil, ErrParsingExecutorTrace
-	}
-	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", decodedInput, contextGas.Uint64(), value)
-
-	bigStateRoot, ok := new(big.Int).SetString(trace.Context.OldStateRoot, 0)
-	if !ok {
-		log.Debugf("error while parsing context oldStateRoot")
-		return nil, ErrParsingExecutorTrace
-	}
-	stateRoot = bigStateRoot.Bytes()
+	stateRoot = trace.Context.OldStateRoot.Bytes()
 	evm.StateDB.SetStateRoot(stateRoot)
-
-	output := common.FromHex(trace.Context.Output)
 
 	var stepError error
 	for i, step := range trace.Steps {
-		stepError = nil
-		stepErrorMsg := strings.TrimSpace(step.Error)
-		if stepErrorMsg != "" {
-			stepError = fmt.Errorf(stepErrorMsg)
-		}
-
-		gas, ok := new(big.Int).SetString(step.Gas, encoding.Base10)
-		if !ok {
-			log.Debugf("error while parsing step gas")
-			return nil, ErrParsingExecutorTrace
-		}
-
-		gasCost, ok := new(big.Int).SetString(step.GasCost, encoding.Base10)
-		if !ok {
-			log.Debugf("error while parsing step gasCost")
-			return nil, ErrParsingExecutorTrace
-		}
-
-		op, ok := new(big.Int).SetString(step.Op, 0)
-		if !ok {
-			log.Debugf("error while parsing step op")
-			return nil, ErrParsingExecutorTrace
-		}
-
+		stepError = step.Error
 		// set Stack
 		stack := fakevm.NewStack()
-		for _, stackContent := range step.Stack {
-			valueBigInt, ok := new(big.Int).SetString(stackContent, hex.Base)
-			if !ok {
-				log.Debugf("error while parsing stack valueBigInt")
-				return nil, ErrParsingExecutorTrace
-			}
-			value, _ := uint256.FromBig(valueBigInt)
+		for _, stackItem := range step.Stack {
+			value, _ := uint256.FromBig(stackItem)
 			stack.Push(value)
 		}
 
@@ -516,19 +472,21 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			memory = fakevm.NewMemory()
 		}
 
+		contract := fakevm.NewContract(
+			fakevm.NewAccount(step.Contract.Caller),
+			fakevm.NewAccount(step.Contract.Address),
+			step.Contract.Value, step.Gas)
+		contract.CodeAddr = &step.Contract.Address
 		scope := &fakevm.ScopeContext{
-			Contract: fakevm.NewContract(fakevm.NewAccount(common.HexToAddress(step.Contract.Caller)), fakevm.NewAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
+			Contract: contract,
 			Memory:   memory,
 			Stack:    stack,
 		}
 
-		codeAddr := common.HexToAddress(step.Contract.Address)
-		scope.Contract.CodeAddr = &codeAddr
-
 		// if the revert happens on an internal tx, we exit
 		if previousStep.OpCode == "REVERT" && previousStep.Depth > 1 {
 			stepError = fakevm.ErrExecutionReverted
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+			tracer.CaptureExit(step.ReturnData, step.GasCost, stepError)
 		}
 
 		// if the revert happens on top level, we break
@@ -538,14 +496,14 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		}
 
 		if previousStep.OpCode == "CALL" && step.Pc != 0 {
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+			tracer.CaptureExit(step.ReturnData, step.GasCost, stepError)
 		}
 
 		if step.OpCode != "CALL" || trace.Steps[i+1].Pc == 0 {
 			if stepError != nil {
-				tracer.CaptureFault(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, stepError)
+				tracer.CaptureFault(step.Pc, fakevm.OpCode(step.Op), step.Gas, step.GasCost, scope, step.Depth, stepError)
 			} else {
-				tracer.CaptureState(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.ReturnData, step.Depth, nil)
+				tracer.CaptureState(step.Pc, fakevm.OpCode(step.Op), step.Gas, step.GasCost, scope, step.ReturnData, step.Depth, nil)
 			}
 		}
 
@@ -565,47 +523,33 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			// context is back to the same level. This can happen with pre compiled executions.
 			if previousStep.Depth == step.Depth {
 				addr, value, input := s.getInternalTxMemoryValues(previousStep)
-				tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(previousStep.Contract.Address), addr, input, previousGas.Uint64(), value)
-				previousStepGasCost, ok := new(big.Int).SetString(step.GasCost, encoding.Base10)
-				if !ok {
-					log.Debugf("error while parsing previous step gasCost")
-					return nil, ErrParsingExecutorTrace
-				}
-				tracer.CaptureExit(step.ReturnData, previousStepGasCost.Uint64(), previousError)
+				tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), previousStep.Contract.Address, addr, input, previousGas.Uint64(), value)
+				tracer.CaptureExit(step.ReturnData, previousStep.GasCost, previousError)
 			} else {
-				value := hex.DecodeBig(step.Contract.Value)
+				value := step.Contract.Value
 				if previousStep.OpCode == "STATICCALL" {
 					value = nil
 				}
-				tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
+				tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), step.Contract.Caller, step.Contract.Address, step.Contract.Input, previousGas.Uint64(), value)
 			}
 		}
 
 		// returning from a call or create
 		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+			tracer.CaptureExit(step.ReturnData, step.GasCost, stepError)
 		}
 
 		// set StateRoot
-		stateRoot = []byte(step.StateRoot)
+		stateRoot = step.StateRoot.Bytes()
 		evm.StateDB.SetStateRoot(stateRoot)
 
 		// set previous step values
 		previousStep = step
-		previousOp = op
-		previousGas = gas
-		previousError = stepError
 	}
 
-	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, encoding.Base10)
-	if !ok {
-		log.Debugf("error while parsing gasUsed")
-		return nil, ErrParsingExecutorTrace
-	}
-
-	restGas := contextGas.Uint64() - gasUsed.Uint64()
+	restGas := trace.Context.Gas - trace.Context.GasUsed
 	tracer.CaptureTxEnd(restGas)
-	tracer.CaptureEnd(output, gasUsed.Uint64(), stepError)
+	tracer.CaptureEnd(trace.Context.Output, trace.Context.GasUsed, stepError)
 
 	return tracer.GetResult()
 }
@@ -625,20 +569,15 @@ func (s *State) getInternalTxMemoryValues(step instrumentation.Step) (common.Add
 			valuePos := addrPos - 1
 			// valueEncoded := step.Stack[valuePos]
 			// value = hex.DecodeBig(valueEncoded)
-			value = hex.DecodeBig(step.Contract.Value)
+			value = step.Contract.Value
 
 			argsOffsetPos = valuePos - 1
 			argsSizePos = argsOffsetPos - 1
 		}
 
-		addrEncoded := step.Stack[addrPos]
-		addr := common.HexToAddress("0x" + addrEncoded)
-
-		argsOffsetEncoded := step.Stack[argsOffsetPos]
-		argsOffset := hex.DecodeUint64(argsOffsetEncoded)
-
-		argsSizeEncoded := step.Stack[argsSizePos]
-		argsSize := hex.DecodeUint64(argsSizeEncoded)
+		addr := common.BytesToAddress(step.Stack[addrPos].Bytes())
+		argsOffset := step.Stack[argsOffsetPos].Uint64()
+		argsSize := step.Stack[argsSizePos].Uint64()
 
 		input := make([]byte, argsSize)
 
@@ -656,7 +595,7 @@ func (s *State) getInternalTxMemoryValues(step instrumentation.Step) (common.Add
 		}
 		return addr, value, input
 	} else {
-		return common.HexToAddress(step.Contract.Address), hex.DecodeBig(step.Contract.Value), []byte(step.Contract.Input)
+		return step.Contract.Address, step.Contract.Value, step.Contract.Input
 	}
 }
 
