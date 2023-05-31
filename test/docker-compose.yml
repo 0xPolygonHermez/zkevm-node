@@ -336,7 +336,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:v1.1.3-RC2-fork.4
+    image: hermeznetwork/zkevm-prover:v1.1.3-fork.4
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
@@ -423,7 +423,7 @@ services:
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
-    image: hermeznetwork/zkevm-prover:v1.1.3-RC2-fork.4
+    image: hermeznetwork/zkevm-prover:v1.1.3-fork.4
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover
