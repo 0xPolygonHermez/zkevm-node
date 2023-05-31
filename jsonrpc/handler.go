@@ -195,10 +195,10 @@ func (h *Handler) RemoveFilterByWsConn(wsConn *websocket.Conn) {
 	}
 }
 
-func (h *Handler) registerService(service Service) {
-	st := reflect.TypeOf(service.Service)
+func (h *Handler) registerService(serviceName string, service interface{}) {
+	st := reflect.TypeOf(service)
 	if st.Kind() == reflect.Struct {
-		panic(fmt.Sprintf("jsonrpc: service '%s' must be a pointer to struct", service.Name))
+		panic(fmt.Sprintf("jsonrpc: service '%s' must be a pointer to struct", serviceName))
 	}
 
 	funcMap := make(map[string]*funcData)
@@ -210,7 +210,7 @@ func (h *Handler) registerService(service Service) {
 		}
 
 		name := lowerCaseFirst(mv.Name)
-		funcName := service.Name + "_" + name
+		funcName := serviceName + "_" + name
 		fd := &funcData{
 			fv: mv.Func,
 		}
@@ -228,8 +228,8 @@ func (h *Handler) registerService(service Service) {
 		funcMap[name] = fd
 	}
 
-	h.serviceMap[service.Name] = &serviceData{
-		sv:      reflect.ValueOf(service.Service),
+	h.serviceMap[serviceName] = &serviceData{
+		sv:      reflect.ValueOf(service),
 		funcMap: funcMap,
 	}
 }

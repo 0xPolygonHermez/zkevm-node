@@ -28,14 +28,7 @@ var defaultTraceConfig = &traceConfig{
 // DebugEndpoints is the debug jsonrpc endpoint
 type DebugEndpoints struct {
 	state types.StateInterface
-	txMan DBTxManager
-}
-
-// NewDebugEndpoints returns DebugEndpoints
-func NewDebugEndpoints(state types.StateInterface) *DebugEndpoints {
-	return &DebugEndpoints{
-		state: state,
-	}
+	txMan dbTxManager
 }
 
 type traceConfig struct {
@@ -93,7 +86,7 @@ func (d *DebugEndpoints) TraceBlockByNumber(number types.BlockNumber, cfg *trace
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("block #%d not found", blockNumber))
 		} else if err == state.ErrNotFound {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by number", err)
+			return rpcErrorResponse(types.DefaultErrorCode, "failed to get block by number", err)
 		}
 
 		traces, rpcErr := d.buildTraceBlock(ctx, block.Transactions(), cfg, dbTx)
@@ -113,7 +106,7 @@ func (d *DebugEndpoints) TraceBlockByHash(hash types.ArgHash, cfg *traceConfig) 
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("block %s not found", hash.Hash().String()))
 		} else if err == state.ErrNotFound {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash", err)
+			return rpcErrorResponse(types.DefaultErrorCode, "failed to get block by hash", err)
 		}
 
 		traces, rpcErr := d.buildTraceBlock(ctx, block.Transactions(), cfg, dbTx)
@@ -131,7 +124,7 @@ func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*ethTypes.Tr
 		traceTransaction, err := d.buildTraceTransaction(ctx, tx.Hash(), cfg, dbTx)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to get trace for transaction %v", tx.Hash().String())
-			return RPCErrorResponse(types.DefaultErrorCode, errMsg, err)
+			return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
 		}
 		traceBlockTransaction := traceBlockTransactionResponse{
 			Result: traceTransaction,
@@ -150,7 +143,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 
 	// check tracer
 	if traceCfg.Tracer != nil && *traceCfg.Tracer != "" && !isBuiltInTracer(*traceCfg.Tracer) && !isJSCustomTracer(*traceCfg.Tracer) {
-		return RPCErrorResponse(types.DefaultErrorCode, "invalid tracer", nil)
+		return rpcErrorResponse(types.DefaultErrorCode, "invalid tracer", nil)
 	}
 
 	stateTraceConfig := state.TraceConfig{
@@ -163,7 +156,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 	}
 	result, err := d.state.DebugTransaction(ctx, hash, stateTraceConfig, dbTx)
 	if errors.Is(err, state.ErrNotFound) {
-		return RPCErrorResponse(types.DefaultErrorCode, "transaction not found", nil)
+		return rpcErrorResponse(types.DefaultErrorCode, "transaction not found", nil)
 	} else if err != nil {
 		const errorMessage = "failed to get trace"
 		log.Errorf("%v: %v", errorMessage, err)

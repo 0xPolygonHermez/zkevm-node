@@ -45,12 +45,6 @@ type Server struct {
 	wsUpgrader websocket.Upgrader
 }
 
-// Service implementation of a service an it's name
-type Service struct {
-	Name    string
-	Service interface{}
-}
-
 // NewServer returns the JsonRPC server
 func NewServer(
 	cfg Config,
@@ -58,13 +52,39 @@ func NewServer(
 	p types.PoolInterface,
 	s types.StateInterface,
 	storage storageInterface,
-	services []Service,
+	apis map[string]bool,
 ) *Server {
 	s.PrepareWebSocket()
 	handler := newJSONRpcHandler()
 
-	for _, service := range services {
-		handler.registerService(service)
+	if _, ok := apis[APIEth]; ok {
+		ethEndpoints := newEthEndpoints(cfg, chainID, p, s, storage)
+		handler.registerService(APIEth, ethEndpoints)
+	}
+
+	if _, ok := apis[APINet]; ok {
+		netEndpoints := &NetEndpoints{cfg: cfg, chainID: chainID}
+		handler.registerService(APINet, netEndpoints)
+	}
+
+	if _, ok := apis[APIZKEVM]; ok {
+		zkEVMEndpoints := &ZKEVMEndpoints{state: s, config: cfg}
+		handler.registerService(APIZKEVM, zkEVMEndpoints)
+	}
+
+	if _, ok := apis[APITxPool]; ok {
+		txPoolEndpoints := &TxPoolEndpoints{}
+		handler.registerService(APITxPool, txPoolEndpoints)
+	}
+
+	if _, ok := apis[APIDebug]; ok {
+		debugEndpoints := &DebugEndpoints{state: s}
+		handler.registerService(APIDebug, debugEndpoints)
+	}
+
+	if _, ok := apis[APIWeb3]; ok {
+		web3Endpoints := &Web3Endpoints{}
+		handler.registerService(APIWeb3, web3Endpoints)
 	}
 
 	srv := &Server{
@@ -382,13 +402,11 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 }
 
-// RPCErrorResponse formats error to be returned through RPC
-func RPCErrorResponse(code int, message string, err error) (interface{}, types.Error) {
-	return RPCErrorResponseWithData(code, message, nil, err)
+func rpcErrorResponse(code int, message string, err error) (interface{}, types.Error) {
+	return rpcErrorResponseWithData(code, message, nil, err)
 }
 
-// RPCErrorResponseWithData formats error to be returned through RPC
-func RPCErrorResponseWithData(code int, message string, data *[]byte, err error) (interface{}, types.Error) {
+func rpcErrorResponseWithData(code int, message string, data *[]byte, err error) (interface{}, types.Error) {
 	if err != nil {
 		log.Errorf("%v:%v", message, err.Error())
 	} else {

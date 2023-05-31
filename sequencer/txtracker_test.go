@@ -94,7 +94,7 @@ func TestTxTrackerEfficiencyCalculation(t *testing.T) {
 			tx.resourceCostMultiplier = 1000
 			tx.updateZKCounters(testCase.counters, rcMax, rcWeigth)
 			t.Logf("%s=%s", testCase.Name, fmt.Sprintf("%.2f", tx.Efficiency))
-			assert.Equal(t, fmt.Sprintf("%.2f", testCase.expectedResult), fmt.Sprintf("%.2f", tx.Efficiency), "Efficiency calculation err. Expected=%s, Actual=%s", fmt.Sprintf("%.2f", testCase.expectedResult), fmt.Sprintf("%.2f", tx.Efficiency))
+			assert.Equal(t, fmt.Sprintf("%.2f", testCase.expectedResult), fmt.Sprintf("%.2f", tx.Efficiency), "Efficiency calculation error. Expected=%s, Actual=%s", fmt.Sprintf("%.2f", testCase.expectedResult), fmt.Sprintf("%.2f", tx.Efficiency))
 		})
 	}
 }

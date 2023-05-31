@@ -49,51 +49,9 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 
 	var newL2BlockEventHandler state.NewL2BlockEventHandler = func(e state.NewL2BlockEvent) {}
 	st.On("RegisterNewL2BlockEventHandler", mock.IsType(newL2BlockEventHandler)).Once()
+
 	st.On("PrepareWebSocket").Once()
-
-	services := []Service{}
-	if _, ok := apis[APIEth]; ok {
-		services = append(services, Service{
-			Name:    APIEth,
-			Service: NewEthEndpoints(cfg, chainID, pool, st, storage),
-		})
-	}
-
-	if _, ok := apis[APINet]; ok {
-		services = append(services, Service{
-			Name:    APINet,
-			Service: NewNetEndpoints(chainID),
-		})
-	}
-
-	if _, ok := apis[APIZKEVM]; ok {
-		services = append(services, Service{
-			Name:    APIZKEVM,
-			Service: NewZKEVMEndpoints(st),
-		})
-	}
-
-	if _, ok := apis[APITxPool]; ok {
-		services = append(services, Service{
-			Name:    APITxPool,
-			Service: &TxPoolEndpoints{},
-		})
-	}
-
-	if _, ok := apis[APIDebug]; ok {
-		services = append(services, Service{
-			Name:    APIDebug,
-			Service: NewDebugEndpoints(st),
-		})
-	}
-
-	if _, ok := apis[APIWeb3]; ok {
-		services = append(services, Service{
-			Name:    APIWeb3,
-			Service: &Web3Endpoints{},
-		})
-	}
-	server := NewServer(cfg, chainID, pool, st, storage, services)
+	server := NewServer(cfg, chainID, pool, st, storage, apis)
 
 	go func() {
 		err := server.Start()

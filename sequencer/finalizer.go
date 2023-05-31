@@ -400,7 +400,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	// Handle Transaction Error
 
 	errorCode := executor.RomErrorCode(result.Responses[0].RomError)
-	if result.IsRomOOCError || executor.IsIntrinsicError(errorCode) {
+	if !state.IsStateRootChanged(errorCode) {
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		errWg = f.handleProcessTransactionError(ctx, result, tx)
 		return errWg, result.Responses[0].RomError

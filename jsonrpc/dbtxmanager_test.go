@@ -14,7 +14,7 @@ import (
 func TestNewDbTxScope(t *testing.T) {
 	type testCase struct {
 		Name           string
-		Fn             DBTxScopedFn
+		Fn             dbTxScopedFn
 		ExpectedResult interface{}
 		ExpectedError  types.Error
 		SetupMocks     func(s *mocks.StateMock, d *mocks.DBTxMock)
@@ -82,7 +82,7 @@ func TestNewDbTxScope(t *testing.T) {
 		},
 	}
 
-	dbTxManager := DBTxManager{}
+	dbTxManager := dbTxManager{}
 	s := mocks.NewStateMock(t)
 	d := mocks.NewDBTxMock(t)
 
