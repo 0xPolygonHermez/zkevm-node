@@ -1137,7 +1137,7 @@ func (s *ClientSynchronizer) processTrustedVerifyBatches(lastVerifiedBatch ether
 
 func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx pgx.Tx) error {
 	log.Debugf("processing trusted batch: %v", trustedBatch.Number)
-	trustedBatchL2Data := trustedBatch.RawTransactionsData
+	trustedBatchL2Data := trustedBatch.BatchL2Data
 
 	batch, err := s.state.GetBatchByNumber(s.ctx, uint64(trustedBatch.Number), nil)
 	if err != nil && err != state.ErrStateNotSynchronized {

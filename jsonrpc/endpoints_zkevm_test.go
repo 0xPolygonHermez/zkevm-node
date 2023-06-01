@@ -757,9 +757,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
 					Return(batchTxs, nil).
 					Once()
-				encodedTxs, err := state.EncodeTransactions(batchTxs)
+				batchL2Data, err := state.EncodeTransactions(batchTxs)
 				require.NoError(t, err)
-				tc.ExpectedResult.RawTransactionsData = encodedTxs
+				tc.ExpectedResult.BatchL2Data = batchL2Data
 			},
 		},
 		{
@@ -864,9 +864,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
 					Return(batchTxs, nil).
 					Once()
-				encodedTxs, err := state.EncodeTransactions(batchTxs)
+				batchL2Data, err := state.EncodeTransactions(batchTxs)
 				require.NoError(t, err)
-				tc.ExpectedResult.RawTransactionsData = encodedTxs
+				tc.ExpectedResult.BatchL2Data = batchL2Data
 			},
 		},
 		{
@@ -996,9 +996,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					On("GetTransactionsByBatchNumber", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
 					Return(batchTxs, nil).
 					Once()
-				encodedTxs, err := state.EncodeTransactions(batchTxs)
+				batchL2Data, err := state.EncodeTransactions(batchTxs)
 				require.NoError(t, err)
-				tc.ExpectedResult.RawTransactionsData = encodedTxs
+				tc.ExpectedResult.BatchL2Data = batchL2Data
 			},
 		},
 		{
@@ -1108,8 +1108,8 @@ func TestGetBatchByNumber(t *testing.T) {
 							assert.Equal(t, tx.Type.Hex(), batchTxOrHash["type"].(string))
 						}
 					}
-					expectedRawTxsHex := "0x" + common.Bytes2Hex(testCase.ExpectedResult.RawTransactionsData)
-					assert.Equal(t, expectedRawTxsHex, batch["rawTransactionsData"].(string))
+					expectedBatchL2DataHex := "0x" + common.Bytes2Hex(testCase.ExpectedResult.BatchL2Data)
+					assert.Equal(t, expectedBatchL2DataHex, batch["batchL2Data"].(string))
 				}
 			}
 
