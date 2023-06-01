@@ -49,6 +49,8 @@ type ProcessingContext struct {
 type ClosingReason string
 
 const (
+	// EmptyClosingReason is the closing reason used when a batch is not closed
+	EmptyClosingReason ClosingReason = ""
 	// BatchFullClosingReason  is the closing reason used when a batch is closed when it is full
 	BatchFullClosingReason ClosingReason = "Batch is full"
 	// ForcedBatchClosingReason  is the closing reason used when a batch is closed because it is forced

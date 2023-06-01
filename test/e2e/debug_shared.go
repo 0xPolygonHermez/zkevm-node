@@ -20,6 +20,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Creates"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Memory"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -31,7 +32,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const fixedTxGasLimit uint64 = 100000
+const (
+	fixedTxGasLimit uint64 = 300000
+	txValue         uint64 = 2509
+)
 
 func createEthTransferSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
@@ -291,13 +295,13 @@ func createCallSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOp
 
 	opts := *auth
 	opts.NoSend = true
-	opts.Value = big.NewInt(2509)
+	opts.Value = big.NewInt(0).SetUint64(txValue)
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 
 	opts.GasPrice = gasPrice
-	opts.GasLimit = uint64(300000)
+	opts.GasLimit = fixedTxGasLimit
 
 	tx, err := sc.Call(&opts, calledAddress, big.NewInt(1984))
 	require.NoError(t, err)
@@ -314,13 +318,13 @@ func createDelegateCallSignedTx(t *testing.T, ctx context.Context, auth *bind.Tr
 
 	opts := *auth
 	opts.NoSend = true
-	opts.Value = big.NewInt(2509)
+	opts.Value = big.NewInt(0).SetUint64(txValue)
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 
 	opts.GasPrice = gasPrice
-	opts.GasLimit = uint64(300000)
+	opts.GasLimit = fixedTxGasLimit
 
 	tx, err := sc.DelegateCall(&opts, calledAddress, big.NewInt(1984))
 	require.NoError(t, err)
@@ -337,13 +341,13 @@ func createMultiCallSignedTx(t *testing.T, ctx context.Context, auth *bind.Trans
 
 	opts := *auth
 	opts.NoSend = true
-	opts.Value = big.NewInt(2509)
+	opts.Value = big.NewInt(0).SetUint64(txValue)
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 
 	opts.GasPrice = gasPrice
-	opts.GasLimit = uint64(300000)
+	opts.GasLimit = fixedTxGasLimit
 
 	tx, err := sc.MultiCall(&opts, calledAddress, big.NewInt(1984))
 	require.NoError(t, err)
@@ -360,13 +364,13 @@ func createInvalidStaticCallLessParametersSignedTx(t *testing.T, ctx context.Con
 
 	opts := *auth
 	opts.NoSend = true
-	opts.Value = big.NewInt(2509)
+	opts.Value = big.NewInt(0).SetUint64(txValue)
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 
 	opts.GasPrice = gasPrice
-	opts.GasLimit = uint64(300000)
+	opts.GasLimit = fixedTxGasLimit
 
 	tx, err := sc.InvalidStaticCallLessParameters(&opts, calledAddress)
 	require.NoError(t, err)
@@ -383,13 +387,13 @@ func createInvalidStaticCallMoreParametersSignedTx(t *testing.T, ctx context.Con
 
 	opts := *auth
 	opts.NoSend = true
-	opts.Value = big.NewInt(2509)
+	opts.Value = big.NewInt(0).SetUint64(txValue)
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 
 	opts.GasPrice = gasPrice
-	opts.GasLimit = uint64(300000)
+	opts.GasLimit = fixedTxGasLimit
 
 	tx, err := sc.InvalidStaticCallMoreParameters(&opts, calledAddress)
 	require.NoError(t, err)
@@ -406,13 +410,13 @@ func createInvalidStaticCallWithInnerCallSignedTx(t *testing.T, ctx context.Cont
 
 	opts := *auth
 	opts.NoSend = true
-	opts.Value = big.NewInt(2509)
+	opts.Value = big.NewInt(0).SetUint64(txValue)
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 
 	opts.GasPrice = gasPrice
-	opts.GasLimit = uint64(300000)
+	opts.GasLimit = fixedTxGasLimit
 
 	tx, err := sc.InvalidStaticCallWithInnerCall(&opts, calledAddress)
 	require.NoError(t, err)
@@ -431,7 +435,7 @@ func createPreEcrecover0SignedTx(t *testing.T, ctx context.Context, auth *bind.T
 	require.NoError(t, err)
 
 	opts.GasPrice = gasPrice
-	opts.GasLimit = uint64(300000)
+	opts.GasLimit = fixedTxGasLimit
 
 	tx, err := sc.PreEcrecover0(&opts)
 	require.NoError(t, err)
@@ -487,13 +491,13 @@ func createChainCallSignedTx(t *testing.T, ctx context.Context, auth *bind.Trans
 
 	opts := *auth
 	opts.NoSend = true
-	opts.Value = big.NewInt(2509)
+	opts.Value = big.NewInt(0).SetUint64(txValue)
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 
 	opts.GasPrice = gasPrice
-	opts.GasLimit = uint64(300000)
+	opts.GasLimit = fixedTxGasLimit
 
 	tx, err := sc.Exec(&opts, level2Address, level3Address, level4Address)
 	require.NoError(t, err)
@@ -501,13 +505,13 @@ func createChainCallSignedTx(t *testing.T, ctx context.Context, auth *bind.Trans
 	return tx, nil
 }
 
-func saveTraceResultToFile(t *testing.T, name, network string, signedTx *ethTypes.Transaction, trace json.RawMessage, skip bool) {
+func saveTraceResultToFile(t *testing.T, testName, testCaseName, network string, signedTx *ethTypes.Transaction, trace json.RawMessage, skip bool) {
 	if skip {
 		return
 	}
 	const path = "/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json"
-	sanitizedNetworkName := strings.ReplaceAll(name+network+"_", " ", "_")
-	filePath := fmt.Sprintf(path, sanitizedNetworkName)
+	sanitizedFileName := strings.ReplaceAll(testName+"_"+testCaseName+"_"+network, " ", "_")
+	filePath := fmt.Sprintf(path, sanitizedFileName)
 	b, _ := signedTx.MarshalBinary()
 	fileContent := struct {
 		Tx    *ethTypes.Transaction
@@ -522,4 +526,93 @@ func saveTraceResultToFile(t *testing.T, name, network string, signedTx *ethType
 	require.NoError(t, err)
 	err = os.WriteFile(filePath, c, 0644)
 	require.NoError(t, err)
+}
+
+func prepareMemory(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	_, tx, sc, err := Memory.DeployMemory(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	return map[string]interface{}{
+		"sc": sc,
+	}, nil
+}
+
+func createMemorySignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Memory.Memory)
+
+	opts := *auth
+	opts.NoSend = true
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = fixedTxGasLimit
+
+	tx, err := sc.TestStaticEcrecover(&opts)
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func createChainCallRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*ChainCallLevel1.ChainCallLevel1)
+
+	level2AddressInterface := customData["level2Address"]
+	level2Address := level2AddressInterface.(common.Address)
+
+	level3AddressInterface := customData["level3Address"]
+	level3Address := level3AddressInterface.(common.Address)
+
+	level4AddressInterface := customData["level4Address"]
+	level4Address := level4AddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(0).SetUint64(txValue)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = fixedTxGasLimit
+
+	tx, err := sc.CallRevert(&opts, level2Address, level3Address, level4Address)
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func createChainDelegateCallRevertedSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*ChainCallLevel1.ChainCallLevel1)
+
+	level2AddressInterface := customData["level2Address"]
+	level2Address := level2AddressInterface.(common.Address)
+
+	level3AddressInterface := customData["level3Address"]
+	level3Address := level3AddressInterface.(common.Address)
+
+	level4AddressInterface := customData["level4Address"]
+	level4Address := level4AddressInterface.(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.Value = big.NewInt(0).SetUint64(txValue)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	opts.GasPrice = gasPrice
+	opts.GasLimit = fixedTxGasLimit
+
+	tx, err := sc.DelegateCallRevert(&opts, level2Address, level3Address, level4Address)
+	require.NoError(t, err)
+
+	return tx, nil
 }
