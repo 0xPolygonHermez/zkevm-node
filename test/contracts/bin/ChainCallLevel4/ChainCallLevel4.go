@@ -31,8 +31,8 @@ var (
 
 // ChainCallLevel4MetaData contains all meta data concerning the ChainCallLevel4 contract.
 var ChainCallLevel4MetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"exec\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"t\",\"type\":\"string\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}]",
-	Bin: "0x608060405234801561001057600080fd5b50610108806100206000396000f3fe60806040526004361060265760003560e01c80636d4ce63c14602b578063c1c0e9c4146064575b600080fd5b348015603657600080fd5b50604080518082018252600481526361686f7960e01b60208201529051605b91906080565b60405180910390f35b607e600080546001600160a01b0319163317905534600155565b005b600060208083528351808285015260005b8181101560ab578581018301518582016040015282016091565b8181111560bc576000604083870101525b50601f01601f191692909201604001939250505056fea26469706673582212207c7fc2b6008207a67e9e5557e853391335de750d1de5dcadc457558a526d437a64736f6c634300080c0033",
+	ABI: "[{\"inputs\":[],\"name\":\"exec\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"execRevert\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"get\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"t\",\"type\":\"string\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b50610171806100206000396000f3fe6080604052600436106100345760003560e01c80636d4ce63c14610039578063a6ecd35614610075578063c1c0e9c41461007f575b600080fd5b34801561004557600080fd5b50604080518082018252600481526361686f7960e01b6020820152905161006c91906100e6565b60405180910390f35b61007d61009a565b005b61007d600080546001600160a01b0319163317905534600155565b60405162461bcd60e51b815260206004820181905260248201527f61686f792c20746869732074782077696c6c20616c7761797320726576657274604482015260640160405180910390fd5b600060208083528351808285015260005b81811015610113578581018301518582016040015282016100f7565b81811115610125576000604083870101525b50601f01601f191692909201604001939250505056fea264697066735822122098df0d0f4f4e98141043bdaad1faa858d6bc95518960e902f503784b2470f7bf64736f6c634300080c0033",
 }
 
 // ChainCallLevel4ABI is the input ABI used to generate the binding from.
@@ -252,4 +252,25 @@ func (_ChainCallLevel4 *ChainCallLevel4Session) Exec() (*types.Transaction, erro
 // Solidity: function exec() payable returns()
 func (_ChainCallLevel4 *ChainCallLevel4TransactorSession) Exec() (*types.Transaction, error) {
 	return _ChainCallLevel4.Contract.Exec(&_ChainCallLevel4.TransactOpts)
+}
+
+// ExecRevert is a paid mutator transaction binding the contract method 0xa6ecd356.
+//
+// Solidity: function execRevert() payable returns()
+func (_ChainCallLevel4 *ChainCallLevel4Transactor) ExecRevert(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _ChainCallLevel4.contract.Transact(opts, "execRevert")
+}
+
+// ExecRevert is a paid mutator transaction binding the contract method 0xa6ecd356.
+//
+// Solidity: function execRevert() payable returns()
+func (_ChainCallLevel4 *ChainCallLevel4Session) ExecRevert() (*types.Transaction, error) {
+	return _ChainCallLevel4.Contract.ExecRevert(&_ChainCallLevel4.TransactOpts)
+}
+
+// ExecRevert is a paid mutator transaction binding the contract method 0xa6ecd356.
+//
+// Solidity: function execRevert() payable returns()
+func (_ChainCallLevel4 *ChainCallLevel4TransactorSession) ExecRevert() (*types.Transaction, error) {
+	return _ChainCallLevel4.Contract.ExecRevert(&_ChainCallLevel4.TransactOpts)
 }

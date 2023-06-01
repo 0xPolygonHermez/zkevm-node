@@ -10,6 +10,10 @@ contract ChainCallLevel4 {
         value = msg.value;
     }
 
+    function execRevert() public payable {
+        require(false, "ahoy, this tx will always revert");
+    }
+
     function get() public pure returns (string memory t) {
         return "ahoy";
     }
