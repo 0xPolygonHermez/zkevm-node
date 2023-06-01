@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -337,20 +338,31 @@ type Batch struct {
 	SendSequencesTxHash *common.Hash        `json:"sendSequencesTxHash"`
 	VerifyBatchTxHash   *common.Hash        `json:"verifyBatchTxHash"`
 	Transactions        []TransactionOrHash `json:"transactions"`
+	RawTransactionsData ArgBytes            `json:"rawTransactionsData"`
 }
 
 // NewBatch creates a Batch instance
 func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, receipts []types.Receipt, fullTx bool, ger *state.GlobalExitRoot) *Batch {
+	rawData := batch.BatchL2Data
+	if rawData == nil {
+		rawDataFromTxs, err := state.EncodeTransactions(batch.Transactions)
+		if err != nil {
+			log.Errorf("error encoding txs into raw data: %s", err)
+		} else {
+			rawData = rawDataFromTxs
+		}
+	}
 	res := &Batch{
-		Number:          ArgUint64(batch.BatchNumber),
-		GlobalExitRoot:  batch.GlobalExitRoot,
-		MainnetExitRoot: ger.MainnetExitRoot,
-		RollupExitRoot:  ger.RollupExitRoot,
-		AccInputHash:    batch.AccInputHash,
-		Timestamp:       ArgUint64(batch.Timestamp.Unix()),
-		StateRoot:       batch.StateRoot,
-		Coinbase:        batch.Coinbase,
-		LocalExitRoot:   batch.LocalExitRoot,
+		Number:              ArgUint64(batch.BatchNumber),
+		GlobalExitRoot:      batch.GlobalExitRoot,
+		MainnetExitRoot:     ger.MainnetExitRoot,
+		RollupExitRoot:      ger.RollupExitRoot,
+		AccInputHash:        batch.AccInputHash,
+		Timestamp:           ArgUint64(batch.Timestamp.Unix()),
+		StateRoot:           batch.StateRoot,
+		Coinbase:            batch.Coinbase,
+		LocalExitRoot:       batch.LocalExitRoot,
+		RawTransactionsData: ArgBytes(rawData),
 	}
 
 	if virtualBatch != nil {
