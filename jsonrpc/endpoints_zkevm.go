@@ -15,9 +15,15 @@ import (
 
 // ZKEVMEndpoints contains implementations for the "zkevm" RPC endpoints
 type ZKEVMEndpoints struct {
-	config Config
-	state  types.StateInterface
-	txMan  dbTxManager
+	state types.StateInterface
+	txMan DBTxManager
+}
+
+// NewZKEVMEndpoints returns ZKEVMEndpoints
+func NewZKEVMEndpoints(state types.StateInterface) *ZKEVMEndpoints {
+	return &ZKEVMEndpoints{
+		state: state,
+	}
 }
 
 // ConsolidatedBlockNumber returns last block number related to the last verified batch
@@ -78,7 +84,7 @@ func (z *ZKEVMEndpoints) BatchNumberByBlockNumber(blockNumber types.ArgUint64) (
 	})
 }
 
-// BatchNumber returns the latest virtualized batch number
+// BatchNumber returns the latest trusted batch number
 func (z *ZKEVMEndpoints) BatchNumber() (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		lastBatchNumber, err := z.state.GetLastBatchNumber(ctx, dbTx)
@@ -127,36 +133,36 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
-			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err)
 		}
 
 		txs, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 		if !errors.Is(err, state.ErrNotFound) && err != nil {
-			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v", batchNumber), err)
 		}
 
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
 			if err != nil {
-				return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", tx.Hash().String()), err)
+				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", tx.Hash().String()), err)
 			}
 			receipts = append(receipts, *receipt)
 		}
 
 		virtualBatch, err := z.state.GetVirtualBatch(ctx, batchNumber, dbTx)
 		if err != nil && !errors.Is(err, state.ErrNotFound) {
-			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
 		}
 
 		verifiedBatch, err := z.state.GetVerifiedBatch(ctx, batchNumber, dbTx)
 		if err != nil && !errors.Is(err, state.ErrNotFound) {
-			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
 		}
 
 		ger, err := z.state.GetExitRootByGlobalExitRoot(ctx, batch.GlobalExitRoot, dbTx)
 		if err != nil && !errors.Is(err, state.ErrNotFound) {
-			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load full GER from state by number %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load full GER from state by number %v", batchNumber), err)
 		} else if errors.Is(err, state.ErrNotFound) {
 			ger = &state.GlobalExitRoot{}
 		}

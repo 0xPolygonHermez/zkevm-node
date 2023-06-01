@@ -435,9 +435,9 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
 func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
-	var previousDepth int
+	var previousStep instrumentation.Step
 	var previousOp, previousGas *big.Int
-	var previousOpcode string
+	var previousError error
 	var stateRoot []byte
 
 	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, encoding.Base10)
@@ -452,7 +452,12 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 	}
 
 	tracer.CaptureTxStart(contextGas.Uint64())
-	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
+	decodedInput, err := hex.DecodeHex(trace.Context.Input)
+	if err != nil {
+		log.Errorf("error while decoding context input from hex to bytes:, %v", err)
+		return nil, ErrParsingExecutorTrace
+	}
+	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", decodedInput, contextGas.Uint64(), value)
 
 	bigStateRoot, ok := new(big.Int).SetString(trace.Context.OldStateRoot, 0)
 	if !ok {
@@ -526,7 +531,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			break
 		}
 
-		if previousOpcode == "CALL" && step.Pc != 0 {
+		if previousStep.OpCode == "CALL" && step.Pc != 0 {
 			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
 		}
 
@@ -538,20 +543,43 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			}
 		}
 
-		if step.OpCode == "CALL" || step.OpCode == "CALLCODE" || step.OpCode == "DELEGATECALL" || step.OpCode == "STATICCALL" || step.OpCode == "SELFDESTRUCT" {
-			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), gas.Uint64(), value)
-			if step.OpCode == "SELFDESTRUCT" {
-				tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+		previousOpCodeCanBeSubCall := previousStep.OpCode == "CREATE" ||
+			previousStep.OpCode == "CREATE2" ||
+			previousStep.OpCode == "DELEGATECALL" ||
+			previousStep.OpCode == "CALL" ||
+			previousStep.OpCode == "STATICCALL" ||
+			// deprecated ones
+			previousStep.OpCode == "CALLCODE" ||
+			previousStep.OpCode == "SELFDESTRUCT"
+
+		// when a sub call or create is detected, the next step contains the contract updated
+		if previousOpCodeCanBeSubCall {
+			// shadowing "value" to override its value without compromising the external code
+			value := value
+			// value is not carried over when the capture enter handles STATIC CALL
+			if previousStep.OpCode == "STATICCALL" {
+				value = nil
+			}
+
+			// if the previous depth is the same as the current one, this means
+			// the sub call did not executed any other step and the
+			// context is back to the same level. This can happen with pre compiled executions.
+			if previousStep.Depth == step.Depth {
+				addr, input := s.getPreCompiledCallAddressAndInput(previousStep)
+				tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(previousStep.Contract.Address), addr, input, previousGas.Uint64(), value)
+				previousStepGasCost, ok := new(big.Int).SetString(step.GasCost, encoding.Base10)
+				if !ok {
+					log.Debugf("error while parsing previous step gasCost")
+					return nil, ErrParsingExecutorTrace
+				}
+				tracer.CaptureExit(step.ReturnData, previousStepGasCost.Uint64(), previousError)
+			} else {
+				tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
 			}
 		}
 
-		// when a create2 is detected, the next step contains the contract updated
-		if previousOpcode == "CREATE" || previousOpcode == "CREATE2" {
-			tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
-		}
-
 		// returning from a call or create
-		if previousDepth > step.Depth {
+		if previousStep.Depth > step.Depth {
 			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
 		}
 
@@ -560,10 +588,10 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		evm.StateDB.SetStateRoot(stateRoot)
 
 		// set previous step values
-		previousDepth = step.Depth
+		previousStep = step
 		previousOp = op
 		previousGas = gas
-		previousOpcode = step.OpCode
+		previousError = stepError
 	}
 
 	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, encoding.Base10)
@@ -577,6 +605,35 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 	tracer.CaptureEnd(output, gasUsed.Uint64(), stepError)
 
 	return tracer.GetResult()
+}
+
+func (s *State) getPreCompiledCallAddressAndInput(step instrumentation.Step) (common.Address, []byte) {
+	if step.OpCode == "DELEGATECALL" || step.OpCode == "CALL" || step.OpCode == "STATICCALL" || step.OpCode == "CALLCODE" {
+		addrPos := len(step.Stack) - 1 - 1
+		argsOffsetPos := addrPos - 1
+		argsSizePos := argsOffsetPos - 1
+
+		// if the stack has the tx value, we skip it
+		stackHasValue := step.OpCode == "CALL" || step.OpCode == "CALLCODE"
+		if stackHasValue {
+			argsOffsetPos--
+			argsSizePos--
+		}
+
+		addrEncoded := step.Stack[addrPos]
+		addr := common.HexToAddress("0x" + addrEncoded)
+
+		argsOffsetEncoded := step.Stack[argsOffsetPos]
+		argsOffset := hex.DecodeUint64(argsOffsetEncoded)
+
+		argsSizeEncoded := step.Stack[argsSizePos]
+		argsSize := hex.DecodeUint64(argsSizeEncoded)
+		input := make([]byte, argsSize)
+		copy(input[0:argsSize], step.Memory[argsOffset:argsOffset+argsSize])
+		return addr, input
+	} else {
+		return common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input)
+	}
 }
 
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
@@ -738,49 +795,12 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 	return tx.To() == nil && len(tx.Data()) > 0
 }
 
-// DetermineProcessedTransactions splits the given tx process responses
-// returning a slice with only processed and a map unprocessed txs
-// respectively.
-func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
-	[]*ProcessTransactionResponse, []string, map[string]*ProcessTransactionResponse, []string) {
-	processedTxResponses := []*ProcessTransactionResponse{}
-	processedTxsHashes := []string{}
-	unprocessedTxResponses := map[string]*ProcessTransactionResponse{}
-	unprocessedTxsHashes := []string{}
-	for _, response := range responses {
-		if response.IsProcessed {
-			processedTxResponses = append(processedTxResponses, response)
-			processedTxsHashes = append(processedTxsHashes, response.TxHash.String())
-		} else {
-			log.Infof("Tx %s has not been processed", response.TxHash)
-			unprocessedTxResponses[response.TxHash.String()] = response
-			unprocessedTxsHashes = append(unprocessedTxsHashes, response.TxHash.String())
-		}
-	}
-	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
-}
-
 // StoreTransaction is used by the sequencer to add process a transaction
 func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
 
-	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
-	/*
-			isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
-			if err != nil {
-				return err
-			}
-			if isBatchClosed {
-				return ErrBatchAlreadyClosed
-			}
-
-		processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
-		if err != nil {
-			return err
-		}
-	*/
 	// if the transaction has an intrinsic invalid tx error it means
 	// the transaction has not changed the state, so we don't store it
 	if executor.IsIntrinsicError(executor.RomErrorCode(processedTx.RomError)) {
@@ -1048,9 +1068,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	executions := int64(len(txExecutions))
 	if executions > 0 {
-		log.Debugf("EstimateGas executed the TX %v times", executions)
-		averageExecutionTime := totalExecutionTime.Milliseconds() / executions
-		log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
+		log.Infof("EstimateGas executed TX %v %d times in %d milliseconds", transaction.Hash(), executions, totalExecutionTime.Milliseconds())
 	} else {
 		log.Error("Estimate gas. Tx not executed")
 	}
