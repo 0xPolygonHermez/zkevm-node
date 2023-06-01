@@ -471,6 +471,7 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 
 	var stepError error
 	for i, step := range trace.Steps {
+		stepError = nil
 		stepErrorMsg := strings.TrimSpace(step.Error)
 		if stepErrorMsg != "" {
 			stepError = fmt.Errorf(stepErrorMsg)
@@ -515,7 +516,6 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			memory = fakevm.NewMemory()
 		}
 
-		value := hex.DecodeBig(step.Contract.Value)
 		scope := &fakevm.ScopeContext{
 			Contract: fakevm.NewContract(fakevm.NewAccount(common.HexToAddress(step.Contract.Caller)), fakevm.NewAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
 			Memory:   memory,
@@ -525,8 +525,14 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 		codeAddr := common.HexToAddress(step.Contract.Address)
 		scope.Contract.CodeAddr = &codeAddr
 
-		// when a revert is detected, we stop the execution
-		if step.OpCode == "REVERT" {
+		// if the revert happens on an internal tx, we exit
+		if previousStep.OpCode == "REVERT" && previousStep.Depth > 1 {
+			stepError = fakevm.ErrExecutionReverted
+			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+		}
+
+		// if the revert happens on top level, we break
+		if step.OpCode == "REVERT" && step.Depth == 1 {
 			stepError = fakevm.ErrExecutionReverted
 			break
 		}
@@ -554,18 +560,11 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 
 		// when a sub call or create is detected, the next step contains the contract updated
 		if previousOpCodeCanBeSubCall {
-			// shadowing "value" to override its value without compromising the external code
-			value := value
-			// value is not carried over when the capture enter handles STATIC CALL
-			if previousStep.OpCode == "STATICCALL" {
-				value = nil
-			}
-
 			// if the previous depth is the same as the current one, this means
 			// the sub call did not executed any other step and the
 			// context is back to the same level. This can happen with pre compiled executions.
 			if previousStep.Depth == step.Depth {
-				addr, input := s.getPreCompiledCallAddressAndInput(previousStep)
+				addr, value, input := s.getInternalTxMemoryValues(previousStep)
 				tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(previousStep.Contract.Address), addr, input, previousGas.Uint64(), value)
 				previousStepGasCost, ok := new(big.Int).SetString(step.GasCost, encoding.Base10)
 				if !ok {
@@ -574,12 +573,16 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 				}
 				tracer.CaptureExit(step.ReturnData, previousStepGasCost.Uint64(), previousError)
 			} else {
+				value := hex.DecodeBig(step.Contract.Value)
+				if previousStep.OpCode == "STATICCALL" {
+					value = nil
+				}
 				tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
 			}
 		}
 
 		// returning from a call or create
-		if previousStep.Depth > step.Depth {
+		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
 			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
 		}
 
@@ -607,17 +610,25 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 	return tracer.GetResult()
 }
 
-func (s *State) getPreCompiledCallAddressAndInput(step instrumentation.Step) (common.Address, []byte) {
+func (s *State) getInternalTxMemoryValues(step instrumentation.Step) (common.Address, *big.Int, []byte) {
 	if step.OpCode == "DELEGATECALL" || step.OpCode == "CALL" || step.OpCode == "STATICCALL" || step.OpCode == "CALLCODE" {
-		addrPos := len(step.Stack) - 1 - 1
+		gasPos := len(step.Stack) - 1
+		addrPos := gasPos - 1
+
 		argsOffsetPos := addrPos - 1
 		argsSizePos := argsOffsetPos - 1
 
-		// if the stack has the tx value, we skip it
+		// read tx value if it exists
+		var value *big.Int
 		stackHasValue := step.OpCode == "CALL" || step.OpCode == "CALLCODE"
 		if stackHasValue {
-			argsOffsetPos--
-			argsSizePos--
+			valuePos := addrPos - 1
+			// valueEncoded := step.Stack[valuePos]
+			// value = hex.DecodeBig(valueEncoded)
+			value = hex.DecodeBig(step.Contract.Value)
+
+			argsOffsetPos = valuePos - 1
+			argsSizePos = argsOffsetPos - 1
 		}
 
 		addrEncoded := step.Stack[addrPos]
@@ -628,11 +639,24 @@ func (s *State) getPreCompiledCallAddressAndInput(step instrumentation.Step) (co
 
 		argsSizeEncoded := step.Stack[argsSizePos]
 		argsSize := hex.DecodeUint64(argsSizeEncoded)
+
 		input := make([]byte, argsSize)
-		copy(input[0:argsSize], step.Memory[argsOffset:argsOffset+argsSize])
-		return addr, input
+
+		if argsOffset > uint64(len(step.Memory)) {
+			// when none of the bytes can be found in the memory
+			// do nothing to keep input as zeroes
+		} else if argsOffset+argsSize > uint64(len(step.Memory)) {
+			// when partial bytes are found in the memory
+			// copy just the bytes we have in memory and complement the rest with zeroes
+			copy(input[0:argsSize], step.Memory[argsOffset:uint64(len(step.Memory))])
+		} else {
+			// when all the bytes are found in the memory
+			// read the bytes from memory
+			copy(input[0:argsSize], step.Memory[argsOffset:argsOffset+argsSize])
+		}
+		return addr, value, input
 	} else {
-		return common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input)
+		return common.HexToAddress(step.Contract.Address), hex.DecodeBig(step.Contract.Value), []byte(step.Contract.Input)
 	}
 }
 
