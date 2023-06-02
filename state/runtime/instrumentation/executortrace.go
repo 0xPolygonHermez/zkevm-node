@@ -58,3 +58,8 @@ type Contract struct {
 type Tracer struct {
 	Code string `json:"tracer"`
 }
+
+type InternalTxContext struct {
+	OpCode       string
+	RemainingGas uint64
+}

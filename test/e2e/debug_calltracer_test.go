@@ -91,7 +91,9 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		{name: "multi call", prepare: prepareCalls, createSignedTx: createMultiCallSignedTx},
 		{name: "pre ecrecover 0", prepare: prepareCalls, createSignedTx: createPreEcrecover0SignedTx},
 		{name: "chain call", prepare: prepareChainCalls, createSignedTx: createChainCallSignedTx},
+		{name: "delegate transfers", prepare: prepareChainCalls, createSignedTx: createDelegateTransfersSignedTx},
 		{name: "memory", prepare: prepareMemory, createSignedTx: createMemorySignedTx},
+		{name: "bridge", prepare: prepareBridge, createSignedTx: createBridgeSignedTx},
 
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
@@ -149,7 +151,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	for _, tc := range testCases {
+	for tcIdx, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			log.Debug("************************ ", tc.name, " ************************")
 
@@ -194,7 +196,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				results[network.Name] = response.Result
 				log.Debug(string(response.Result))
 
-				saveTraceResultToFile(t, "callTracer", tc.name, network.Name, signedTx, response.Result, true)
+				saveTraceResultToFile(t, fmt.Sprintf("callTracer_%v_%v", tcIdx, tc.name), network.Name, signedTx, response.Result, true)
 			}
 
 			referenceValueMap := map[string]interface{}{}
@@ -218,6 +220,8 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 
 func compareCallFrame(t *testing.T, referenceValueMap, resultMap map[string]interface{}, networkName string) {
 	require.Equal(t, referenceValueMap["from"], resultMap["from"], fmt.Sprintf("invalid `from` for network %s", networkName))
+	require.Equal(t, referenceValueMap["gas"], resultMap["gas"], fmt.Sprintf("invalid `gas` for network %s", networkName))
+	require.Equal(t, referenceValueMap["gasUsed"], resultMap["gasUsed"], fmt.Sprintf("invalid `gasUsed` for network %s", networkName))
 	require.Equal(t, referenceValueMap["input"], resultMap["input"], fmt.Sprintf("invalid `input` for network %s", networkName))
 	require.Equal(t, referenceValueMap["output"], resultMap["output"], fmt.Sprintf("invalid `output` for network %s", networkName))
 	require.Equal(t, referenceValueMap["value"], resultMap["value"], fmt.Sprintf("invalid `value` for network %s", networkName))
