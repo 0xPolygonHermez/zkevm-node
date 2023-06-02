@@ -348,16 +348,8 @@ func NewBatch(
 	receipts []types.Receipt,
 	fullTx bool,
 	ger *state.GlobalExitRoot,
-) (*Batch, error) {
+) *Batch {
 	batchL2Data := batch.BatchL2Data
-	if batchL2Data == nil {
-		batchL2dataFromTxs, err := state.EncodeTransactions(batch.Transactions)
-		if err != nil {
-			return nil, fmt.Errorf("error encoding txs into raw data: %w", err)
-		} else {
-			batchL2Data = batchL2dataFromTxs
-		}
-	}
 	res := &Batch{
 		Number:          ArgUint64(batch.BatchNumber),
 		GlobalExitRoot:  batch.GlobalExitRoot,
@@ -396,7 +388,7 @@ func NewBatch(
 		}
 	}
 
-	return res, nil
+	return res
 }
 
 // TransactionOrHash for union type of transaction and types.Hash

@@ -168,11 +168,7 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 		}
 
 		batch.Transactions = txs
-		rpcBatch, err := types.NewBatch(batch, virtualBatch, verifiedBatch, receipts, fullTx, ger)
-		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't generate new batch for number %v", batchNumber), err)
-		}
-
+		rpcBatch := types.NewBatch(batch, virtualBatch, verifiedBatch, receipts, fullTx, ger)
 		return rpcBatch, nil
 	})
 }
