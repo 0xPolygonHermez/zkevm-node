@@ -204,6 +204,10 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 		op := structLog.Op
 		if op == "SHA3" {
 			op = "KECCAK256"
+		} else if op == "STOP" && structLog.Pc == 0 {
+			// this stop is generated for calls with single
+			// step(no depth increase) and must be ignored
+			continue
 		}
 
 		structLogRes := StructLogRes{
