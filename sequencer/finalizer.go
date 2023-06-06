@@ -329,7 +329,7 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 		txsToStoreCount := len(f.pendingTransactionsToStore)
 		// Save CPU cycles if there is nothing to save
 		if txsToStoreCount == 0 {
-			time.Sleep(oneHundred * time.Millisecond)
+			time.Sleep(1 * time.Microsecond) //nolint:gomnd
 		} else {
 			for txsToStoreCount > 0 && f.pendingTransactionsToStore[0].flushId <= f.storedFlushID {
 				tx := f.pendingTransactionsToStore[0]
@@ -352,7 +352,6 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 			}
 
 			if txsToStoreCount > 0 {
-				time.Sleep(oneHundred * time.Millisecond)
 				storedFlushID, proverID, err := f.dbManager.GetStoredFlushID(ctx)
 				if err != nil {
 					log.Errorf("failed to get stored flush id, Err: %v", err)
