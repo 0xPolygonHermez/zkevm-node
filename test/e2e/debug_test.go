@@ -287,7 +287,9 @@ func TestDebugTraceTransaction(t *testing.T) {
 		{name: "multi call", prepare: prepareCalls, createSignedTx: createMultiCallSignedTx},
 		{name: "pre ecrecover 0", prepare: prepareCalls, createSignedTx: createPreEcrecover0SignedTx},
 		{name: "chain call", prepare: prepareChainCalls, createSignedTx: createChainCallSignedTx},
+		{name: "delegate transfers", prepare: prepareChainCalls, createSignedTx: createDelegateTransfersSignedTx},
 		{name: "memory", prepare: prepareMemory, createSignedTx: createMemorySignedTx},
+		{name: "bridge", prepare: prepareBridge, createSignedTx: createBridgeSignedTx},
 
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
@@ -346,7 +348,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	for _, tc := range testCases {
+	for tcIdx, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			log.Debug("************************ ", tc.name, " ************************")
 
@@ -394,7 +396,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 
 				results[network.Name] = response.Result
 
-				saveTraceResultToFile(t, "default tracer", tc.name, network.Name, signedTx, response.Result, true)
+				saveTraceResultToFile(t, fmt.Sprintf("default_tracer_%v_%v", tcIdx, tc.name), network.Name, signedTx, response.Result, true)
 			}
 
 			referenceValueMap := map[string]interface{}{}
