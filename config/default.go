@@ -139,6 +139,7 @@ URI = "zkevm-prover:50061"
 
 [Executor]
 URI = "zkevm-prover:50071"
+MaxGRPCMessageSize = 100000000
 
 [Metrics]
 Host = "0.0.0.0"
