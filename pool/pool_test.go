@@ -948,7 +948,7 @@ func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
-	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorServerConfig)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
