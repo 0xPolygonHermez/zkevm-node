@@ -151,6 +151,9 @@ func start(cliCtx *cli.Context) error {
 
 	var poolInstance *pool.Pool
 
+	if c.Metrics.ProfilingEnabled {
+		go startProfilingHttpServer(c.Metrics)
+	}
 	for _, component := range components {
 		switch component {
 		case AGGREGATOR:
@@ -242,9 +245,6 @@ func start(cliCtx *cli.Context) error {
 		go startMetricsHttpServer(c.Metrics)
 	}
 
-	if c.Metrics.ProfilingEnabled {
-		go startProfilingHttpServer(c.Metrics)
-	}
 	waitSignal(cancelFuncs)
 
 	return nil
@@ -462,6 +462,8 @@ func startProfilingHttpServer(c metrics.Config) {
 	mux.HandleFunc(metrics.ProfilingCmdEndpoint, pprof.Cmdline)
 	mux.HandleFunc(metrics.ProfilingSymbolEndpoint, pprof.Symbol)
 	mux.HandleFunc(metrics.ProfilingTraceEndpoint, pprof.Trace)
+	mux.HandleFunc("/debug/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
+	mux.HandleFunc("/debug/pprof/block", pprof.Handler("block").ServeHTTP)
 	profilingServer := &http.Server{
 		Handler:           mux,
 		ReadHeaderTimeout: two * time.Minute,
