@@ -108,7 +108,7 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 	}
 
 	// Executor connection
-	xecutor, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorURL})
+	xecutor, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorURL, MaxGRPCMessageSize: 100000000})
 	// Execute batches
 	for i := 0; i < len(tc.Requests); i++ {
 		pbr := pb.ProcessBatchRequest(tc.Requests[i]) //nolint
