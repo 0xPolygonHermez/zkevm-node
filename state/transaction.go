@@ -493,6 +493,10 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 			break
 		}
 
+		if step.OpCode == "STATICCALL" {
+			log.Debug("STATICCALL")
+		}
+
 		if step.OpCode != "CALL" || trace.Steps[i+1].Pc == 0 {
 			if step.Error != nil {
 				tracer.CaptureFault(step.Pc, fakevm.OpCode(step.Op), step.Gas, step.GasCost, scope, step.Depth, step.Error)
@@ -528,15 +532,17 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), from, addr, input, gas, value)
 				tracer.CaptureExit(step.ReturnData, gasUsed, previousStep.Error)
 			} else {
-				value := step.Contract.Value
-				if previousStep.OpCode == "STATICCALL" {
-					value = nil
-				}
+				/*
+					value := step.Contract.Value
+					if previousStep.OpCode == "STATICCALL" {
+						value = nil
+					}
+				*/
 				internalTxSteps.Push(instrumentation.InternalTxContext{
 					OpCode:       previousStep.OpCode,
 					RemainingGas: step.Gas,
 				})
-				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), step.Contract.Caller, step.Contract.Address, step.Contract.Input, step.Gas, value)
+				// tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), step.Contract.Caller, step.Contract.Address, step.Contract.Input, step.Gas, value)
 			}
 		}
 
