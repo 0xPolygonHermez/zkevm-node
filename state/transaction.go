@@ -532,6 +532,10 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 					OpCode:       previousStep.OpCode,
 					RemainingGas: step.Gas,
 				})
+
+				if previousStep.OpCode != "STATICCALL" {
+					tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), step.Contract.Caller, step.Contract.Address, step.Contract.Input, step.Gas, step.Contract.Value)
+				}
 			}
 		}
 
