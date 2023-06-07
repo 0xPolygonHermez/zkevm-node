@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/metrics"
@@ -365,6 +366,7 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 	}(wsConn)
 
 	log.Info("Websocket connection established")
+	var mu sync.Mutex
 	for {
 		msgType, message, err := wsConn.ReadMessage()
 		if err != nil {
@@ -382,6 +384,8 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 
 		if msgType == websocket.TextMessage || msgType == websocket.BinaryMessage {
 			go func() {
+				mu.Lock()
+				defer mu.Unlock()
 				resp, err := s.handler.HandleWs(message, wsConn)
 				if err != nil {
 					log.Error(fmt.Sprintf("Unable to handle WS request, %s", err.Error()))
