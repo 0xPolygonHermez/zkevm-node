@@ -501,6 +501,10 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 			}
 		}
 
+		if step.OpCode == "STATICCALL" {
+			log.Debug("STATICCALL")
+		}
+
 		previousStepStartedInternalTransaction := previousStep.OpCode == "CREATE" ||
 			previousStep.OpCode == "CREATE2" ||
 			previousStep.OpCode == "DELEGATECALL" ||
@@ -528,14 +532,15 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), from, addr, input, gas, value)
 				tracer.CaptureExit(step.ReturnData, gasUsed, previousStep.Error)
 			} else {
+				value := step.Contract.Value
+				if previousStep.OpCode == "STATICCALL" {
+					value = nil
+				}
 				internalTxSteps.Push(instrumentation.InternalTxContext{
 					OpCode:       previousStep.OpCode,
 					RemainingGas: step.Gas,
 				})
-
-				if previousStep.OpCode != "STATICCALL" {
-					tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), step.Contract.Caller, step.Contract.Address, step.Contract.Input, step.Gas, step.Contract.Value)
-				}
+				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), step.Contract.Caller, step.Contract.Address, step.Contract.Input, step.Gas, value)
 			}
 		}
 
@@ -553,6 +558,10 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 
 		// set previous step
 		previousStep = step
+	}
+
+	if previousStep.Depth > 1 {
+		tracer.CaptureExit(previousStep.ReturnData, 0, previousStep.Error)
 	}
 
 	var err error
