@@ -503,10 +503,6 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 			}
 		}
 
-		if step.OpCode == "STATICCALL" {
-			log.Debug("STATICCALL")
-		}
-
 		previousStepStartedInternalTransaction := previousStep.OpCode == "CREATE" ||
 			previousStep.OpCode == "CREATE2" ||
 			previousStep.OpCode == "DELEGATECALL" ||
