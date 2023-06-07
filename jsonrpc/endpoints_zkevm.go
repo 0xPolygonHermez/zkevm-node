@@ -169,7 +169,6 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 
 		batch.Transactions = txs
 		rpcBatch := types.NewBatch(batch, virtualBatch, verifiedBatch, receipts, fullTx, ger)
-
 		return rpcBatch, nil
 	})
 }
