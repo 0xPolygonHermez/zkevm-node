@@ -564,6 +564,8 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 
 	if reverted {
 		err = fakevm.ErrExecutionReverted
+	} else {
+		err = nil
 	}
 	tracer.CaptureEnd(trace.Context.Output, trace.Context.GasUsed, err)
 
