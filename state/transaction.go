@@ -445,6 +445,8 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 	evm.StateDB.SetStateRoot(trace.Context.OldStateRoot.Bytes())
 
 	var previousStep instrumentation.Step
+	var gasUsed uint64
+	var err error
 	reverted := false
 	internalTxSteps := NewStack[instrumentation.InternalTxContext]()
 	for i, step := range trace.Steps {
@@ -480,7 +482,7 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 
 		// if the revert happens on an internal tx, we exit
 		if previousStep.OpCode == "REVERT" && previousStep.Depth > 1 {
-			gasUsed, err := s.getGasUsed(internalTxSteps, previousStep, step)
+			gasUsed, err = s.getGasUsed(internalTxSteps, previousStep, step)
 			if err != nil {
 				return nil, err
 			}
@@ -546,7 +548,7 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 
 		// returning from internal transaction
 		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
-			gasUsed, err := s.getGasUsed(internalTxSteps, previousStep, step)
+			gasUsed, err = s.getGasUsed(internalTxSteps, previousStep, step)
 			if err != nil {
 				return nil, err
 			}
@@ -561,10 +563,9 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 	}
 
 	if previousStep.Depth > 1 {
-		tracer.CaptureExit(previousStep.ReturnData, 0, previousStep.Error)
+		tracer.CaptureExit(previousStep.ReturnData, gasUsed, previousStep.Error)
 	}
 
-	var err error
 	if reverted {
 		err = fakevm.ErrExecutionReverted
 	}
