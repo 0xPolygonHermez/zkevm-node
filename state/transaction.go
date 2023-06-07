@@ -556,13 +556,14 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 		previousStep = step
 	}
 
-	restGas := trace.Context.Gas - trace.Context.GasUsed
-	tracer.CaptureTxEnd(restGas)
 	var err error
 	if reverted {
 		err = fakevm.ErrExecutionReverted
 	}
 	tracer.CaptureEnd(trace.Context.Output, trace.Context.GasUsed, err)
+
+	restGas := trace.Context.Gas - trace.Context.GasUsed
+	tracer.CaptureTxEnd(restGas)
 
 	return tracer.GetResult()
 }
