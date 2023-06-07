@@ -251,7 +251,10 @@ func compareCallFrame(t *testing.T, referenceValueMap, resultMap map[string]inte
 
 	referenceCalls, found := referenceValueMap["calls"].([]interface{})
 	if found {
-		resultCalls := resultMap["calls"].([]interface{})
+		resultCalls := []interface{}{}
+		if resultMap["calls"] != nil {
+			resultCalls = resultMap["calls"].([]interface{})
+		}
 		require.Equal(t, len(referenceCalls), len(resultCalls), "logs size doesn't match")
 		for callIndex := range referenceCalls {
 			referenceCall := referenceCalls[callIndex].(map[string]interface{})
