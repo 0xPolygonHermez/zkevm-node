@@ -1,13 +1,13 @@
 package main
 
 import (
-	"strconv"
 	"fmt"
+	"strconv"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node"
 	pg "github.com/habx/pg-commands"
 	"github.com/urfave/cli/v2"
 )
@@ -26,10 +26,10 @@ func snapshot(ctx *cli.Context) error {
 	setupLog(c.Log)
 
 	port, err := strconv.Atoi(c.StateDB.Port)
-    if err != nil {
-        log.Error("error converting port to int. Error: ", err)
+	if err != nil {
+		log.Error("error converting port to int. Error: ", err)
 		return err
-    }
+	}
 	dump, err := pg.NewDump(&pg.Postgres{
 		Host:     c.StateDB.Host,
 		Port:     port,
@@ -53,10 +53,10 @@ func snapshot(ctx *cli.Context) error {
 	log.Info("StateDB snapshot success. Saved in ", dumpExec.File)
 
 	port, err = strconv.Atoi(c.HashDB.Port)
-    if err != nil {
-        log.Error("error converting port to int. Error: ", err)
+	if err != nil {
+		log.Error("error converting port to int. Error: ", err)
 		return err
-    }
+	}
 	dump, err = pg.NewDump(&pg.Postgres{
 		Host:     c.HashDB.Host,
 		Port:     port,

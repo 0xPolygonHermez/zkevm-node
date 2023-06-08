@@ -2,19 +2,19 @@ package main
 
 import (
 	"errors"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	pg "github.com/habx/pg-commands"
 	"github.com/urfave/cli/v2"
 )
 
 const (
-	restorestateDbFlag      = "inputfilestate"
-	restoreHashDbFlag      = "inputfileHash"
+	restorestateDbFlag = "inputfilestate"
+	restoreHashDbFlag  = "inputfileHash"
 )
 
 var restoreFlags = []cli.Flag{
@@ -49,10 +49,10 @@ func restore(ctx *cli.Context) error {
 	runStateMigrations(c.StateDB)
 
 	port, err := strconv.Atoi(c.StateDB.Port)
-    if err != nil {
-        log.Error("error converting port to int. Error: ", err)
+	if err != nil {
+		log.Error("error converting port to int. Error: ", err)
 		return err
-    }
+	}
 	restore, err := pg.NewRestore(&pg.Postgres{
 		Host:     c.StateDB.Host,
 		Port:     port,
@@ -80,10 +80,10 @@ func restore(ctx *cli.Context) error {
 		return errors.New("hashDb input file must end in .sql.tar.gz")
 	}
 	port, err = strconv.Atoi(c.HashDB.Port)
-    if err != nil {
-        log.Error("error converting port to int. Error: ", err)
+	if err != nil {
+		log.Error("error converting port to int. Error: ", err)
 		return err
-    }
+	}
 	d, err := db.NewSQLDB(c.HashDB)
 	if err != nil {
 		log.Error("error conecting to hashdb. Error: ", err)
