@@ -31,8 +31,8 @@ var (
 
 // ChainCallLevel1MetaData contains all meta data concerning the ChainCallLevel1 contract.
 var ChainCallLevel1MetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"level2Addr\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"level3Addr\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"level4Addr\",\"type\":\"address\"}],\"name\":\"exec\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
-	Bin: "0x608060405234801561001057600080fd5b506104f3806100206000396000f3fe60806040526004361061001e5760003560e01c8063c023dcf314610023575b600080fd5b61003661003136600461036b565b610038565b005b6040516001600160a01b03838116602483015282811660448301526000919085169060640160408051601f198184030181529181526020820180516001600160e01b031663ee2d011560e01b1790525161009291906103de565b6000604051808303816000865af19150503d80600081146100cf576040519150601f19603f3d011682016040523d82523d6000602084013e6100d4565b606091505b505080915050806101365760405162461bcd60e51b815260206004820152602160248201527f6661696c656420746f20706572666f726d2063616c6c20746f206c6576656c206044820152601960f91b60648201526084015b60405180910390fd5b6040516001600160a01b038481166024830152838116604483015285169060640160408051601f198184030181529181526020820180516001600160e01b031663ee2d011560e01b1790525161018c91906103de565b600060405180830381855af49150503d80600081146101c7576040519150601f19603f3d011682016040523d82523d6000602084013e6101cc565b606091505b505080915050806102325760405162461bcd60e51b815260206004820152602a60248201527f6661696c656420746f20706572666f726d2064656c65676174652063616c6c206044820152693a37903632bb32b6101960b11b606482015260840161012d565b6040516001600160a01b03848116602483015283811660448301526060919086169060640160408051601f198184030181529181526020820180516001600160e01b031663d81e842360e01b1790525161028c91906103de565b600060405180830381855afa9150503d80600081146102c7576040519150601f19603f3d011682016040523d82523d6000602084013e6102cc565b606091505b509092509050816103305760405162461bcd60e51b815260206004820152602860248201527f6661696c656420746f20706572666f726d207374617469632063616c6c20746f604482015267103632bb32b6101960c11b606482015260840161012d565b6060818060200190518101906103469190610410565b50505050505050565b80356001600160a01b038116811461036657600080fd5b919050565b60008060006060848603121561038057600080fd5b6103898461034f565b92506103976020850161034f565b91506103a56040850161034f565b90509250925092565b60005b838110156103c95781810151838201526020016103b1565b838111156103d8576000848401525b50505050565b600082516103f08184602087016103ae565b9190910192915050565b634e487b7160e01b600052604160045260246000fd5b60006020828403121561042257600080fd5b815167ffffffffffffffff8082111561043a57600080fd5b818401915084601f83011261044e57600080fd5b815181811115610460576104606103fa565b604051601f8201601f19908116603f01168101908382118183101715610488576104886103fa565b816040528281528760208487010111156104a157600080fd5b6104b28360208301602088016103ae565b97965050505050505056fea2646970667358221220a70fce29b6e5fb440773cb2a94c85ba96b98c2b7d2d3f624750ec475578ed92764736f6c634300080c0033",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"level2Addr\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"level3Addr\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"level4Addr\",\"type\":\"address\"}],\"name\":\"callRevert\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"level2Addr\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"level3Addr\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"level4Addr\",\"type\":\"address\"}],\"name\":\"delegateCallRevert\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"level2Addr\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"level3Addr\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"level4Addr\",\"type\":\"address\"}],\"name\":\"delegateTransfer\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"level2Addr\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"level3Addr\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"level4Addr\",\"type\":\"address\"}],\"name\":\"exec\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}]",
+	Bin: "0x608060405234801561001057600080fd5b5061073d806100206000396000f3fe6080604052600436106100435760003560e01c80630c0cc7d21461004f5780636949127414610064578063b04b2e2714610077578063c023dcf31461008a57600080fd5b3661004a57005b600080fd5b61006261005d36600461052e565b61009d565b005b61006261007236600461052e565b61016e565b61006261008536600461052e565b610223565b61006261009836600461052e565b61027d565b6040516001600160a01b03838116602483015282811660448301526000919085169060640160408051601f198184030181529181526020820180516001600160e01b0316600162472e9b60e01b0319179052516100fa919061059d565b6000604051808303816000865af19150503d8060008114610137576040519150601f19603f3d011682016040523d82523d6000602084013e61013c565b606091505b505080915050806101685760405162461bcd60e51b815260040161015f906105b9565b60405180910390fd5b50505050565b6040516001600160a01b0383811660248301526000919085169060440160408051601f198184030181529181526020820180516001600160e01b0316635effa1f760e11b179052516101c0919061059d565b600060405180830381855af49150503d80600081146101fb576040519150601f19603f3d011682016040523d82523d6000602084013e610200565b606091505b505080915050806101685760405162461bcd60e51b815260040161015f906105fa565b6040516001600160a01b03838116602483015282811660448301526000919085169060640160408051601f198184030181529181526020820180516001600160e01b031663086a485360e31b179052516101c0919061059d565b6040516001600160a01b03838116602483015282811660448301526000919085169060640160408051601f198184030181529181526020820180516001600160e01b031663ee2d011560e01b179052516102d7919061059d565b6000604051808303816000865af19150503d8060008114610314576040519150601f19603f3d011682016040523d82523d6000602084013e610319565b606091505b5050809150508061033c5760405162461bcd60e51b815260040161015f906105b9565b6040516001600160a01b038481166024830152838116604483015285169060640160408051601f198184030181529181526020820180516001600160e01b031663ee2d011560e01b17905251610392919061059d565b600060405180830381855af49150503d80600081146103cd576040519150601f19603f3d011682016040523d82523d6000602084013e6103d2565b606091505b505080915050806103f55760405162461bcd60e51b815260040161015f906105fa565b6040516001600160a01b03848116602483015283811660448301526060919086169060640160408051601f198184030181529181526020820180516001600160e01b031663d81e842360e01b1790525161044f919061059d565b600060405180830381855afa9150503d806000811461048a576040519150601f19603f3d011682016040523d82523d6000602084013e61048f565b606091505b509092509050816104f35760405162461bcd60e51b815260206004820152602860248201527f6661696c656420746f20706572666f726d207374617469632063616c6c20746f604482015267103632bb32b6101960c11b606482015260840161015f565b606081806020019051810190610509919061065a565b50505050505050565b80356001600160a01b038116811461052957600080fd5b919050565b60008060006060848603121561054357600080fd5b61054c84610512565b925061055a60208501610512565b915061056860408501610512565b90509250925092565b60005b8381101561058c578181015183820152602001610574565b838111156101685750506000910152565b600082516105af818460208701610571565b9190910192915050565b60208082526021908201527f6661696c656420746f20706572666f726d2063616c6c20746f206c6576656c206040820152601960f91b606082015260800190565b6020808252602a908201527f6661696c656420746f20706572666f726d2064656c65676174652063616c6c206040820152693a37903632bb32b6101960b11b606082015260800190565b634e487b7160e01b600052604160045260246000fd5b60006020828403121561066c57600080fd5b815167ffffffffffffffff8082111561068457600080fd5b818401915084601f83011261069857600080fd5b8151818111156106aa576106aa610644565b604051601f8201601f19908116603f011681019083821181831017156106d2576106d2610644565b816040528281528760208487010111156106eb57600080fd5b6106fc836020830160208801610571565b97965050505050505056fea2646970667358221220b59f48fa8573e9cdbbd8c29f3523b5c3f2f9c3c0cb8877d698821da35114e3c864736f6c634300080c0033",
 }
 
 // ChainCallLevel1ABI is the input ABI used to generate the binding from.
@@ -202,6 +202,69 @@ func (_ChainCallLevel1 *ChainCallLevel1TransactorRaw) Transact(opts *bind.Transa
 	return _ChainCallLevel1.Contract.contract.Transact(opts, method, params...)
 }
 
+// CallRevert is a paid mutator transaction binding the contract method 0x0c0cc7d2.
+//
+// Solidity: function callRevert(address level2Addr, address level3Addr, address level4Addr) payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1Transactor) CallRevert(opts *bind.TransactOpts, level2Addr common.Address, level3Addr common.Address, level4Addr common.Address) (*types.Transaction, error) {
+	return _ChainCallLevel1.contract.Transact(opts, "callRevert", level2Addr, level3Addr, level4Addr)
+}
+
+// CallRevert is a paid mutator transaction binding the contract method 0x0c0cc7d2.
+//
+// Solidity: function callRevert(address level2Addr, address level3Addr, address level4Addr) payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1Session) CallRevert(level2Addr common.Address, level3Addr common.Address, level4Addr common.Address) (*types.Transaction, error) {
+	return _ChainCallLevel1.Contract.CallRevert(&_ChainCallLevel1.TransactOpts, level2Addr, level3Addr, level4Addr)
+}
+
+// CallRevert is a paid mutator transaction binding the contract method 0x0c0cc7d2.
+//
+// Solidity: function callRevert(address level2Addr, address level3Addr, address level4Addr) payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1TransactorSession) CallRevert(level2Addr common.Address, level3Addr common.Address, level4Addr common.Address) (*types.Transaction, error) {
+	return _ChainCallLevel1.Contract.CallRevert(&_ChainCallLevel1.TransactOpts, level2Addr, level3Addr, level4Addr)
+}
+
+// DelegateCallRevert is a paid mutator transaction binding the contract method 0xb04b2e27.
+//
+// Solidity: function delegateCallRevert(address level2Addr, address level3Addr, address level4Addr) payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1Transactor) DelegateCallRevert(opts *bind.TransactOpts, level2Addr common.Address, level3Addr common.Address, level4Addr common.Address) (*types.Transaction, error) {
+	return _ChainCallLevel1.contract.Transact(opts, "delegateCallRevert", level2Addr, level3Addr, level4Addr)
+}
+
+// DelegateCallRevert is a paid mutator transaction binding the contract method 0xb04b2e27.
+//
+// Solidity: function delegateCallRevert(address level2Addr, address level3Addr, address level4Addr) payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1Session) DelegateCallRevert(level2Addr common.Address, level3Addr common.Address, level4Addr common.Address) (*types.Transaction, error) {
+	return _ChainCallLevel1.Contract.DelegateCallRevert(&_ChainCallLevel1.TransactOpts, level2Addr, level3Addr, level4Addr)
+}
+
+// DelegateCallRevert is a paid mutator transaction binding the contract method 0xb04b2e27.
+//
+// Solidity: function delegateCallRevert(address level2Addr, address level3Addr, address level4Addr) payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1TransactorSession) DelegateCallRevert(level2Addr common.Address, level3Addr common.Address, level4Addr common.Address) (*types.Transaction, error) {
+	return _ChainCallLevel1.Contract.DelegateCallRevert(&_ChainCallLevel1.TransactOpts, level2Addr, level3Addr, level4Addr)
+}
+
+// DelegateTransfer is a paid mutator transaction binding the contract method 0x69491274.
+//
+// Solidity: function delegateTransfer(address level2Addr, address level3Addr, address level4Addr) payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1Transactor) DelegateTransfer(opts *bind.TransactOpts, level2Addr common.Address, level3Addr common.Address, level4Addr common.Address) (*types.Transaction, error) {
+	return _ChainCallLevel1.contract.Transact(opts, "delegateTransfer", level2Addr, level3Addr, level4Addr)
+}
+
+// DelegateTransfer is a paid mutator transaction binding the contract method 0x69491274.
+//
+// Solidity: function delegateTransfer(address level2Addr, address level3Addr, address level4Addr) payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1Session) DelegateTransfer(level2Addr common.Address, level3Addr common.Address, level4Addr common.Address) (*types.Transaction, error) {
+	return _ChainCallLevel1.Contract.DelegateTransfer(&_ChainCallLevel1.TransactOpts, level2Addr, level3Addr, level4Addr)
+}
+
+// DelegateTransfer is a paid mutator transaction binding the contract method 0x69491274.
+//
+// Solidity: function delegateTransfer(address level2Addr, address level3Addr, address level4Addr) payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1TransactorSession) DelegateTransfer(level2Addr common.Address, level3Addr common.Address, level4Addr common.Address) (*types.Transaction, error) {
+	return _ChainCallLevel1.Contract.DelegateTransfer(&_ChainCallLevel1.TransactOpts, level2Addr, level3Addr, level4Addr)
+}
+
 // Exec is a paid mutator transaction binding the contract method 0xc023dcf3.
 //
 // Solidity: function exec(address level2Addr, address level3Addr, address level4Addr) payable returns()
@@ -221,4 +284,25 @@ func (_ChainCallLevel1 *ChainCallLevel1Session) Exec(level2Addr common.Address, 
 // Solidity: function exec(address level2Addr, address level3Addr, address level4Addr) payable returns()
 func (_ChainCallLevel1 *ChainCallLevel1TransactorSession) Exec(level2Addr common.Address, level3Addr common.Address, level4Addr common.Address) (*types.Transaction, error) {
 	return _ChainCallLevel1.Contract.Exec(&_ChainCallLevel1.TransactOpts, level2Addr, level3Addr, level4Addr)
+}
+
+// Receive is a paid mutator transaction binding the contract receive function.
+//
+// Solidity: receive() payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1Transactor) Receive(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _ChainCallLevel1.contract.RawTransact(opts, nil) // calldata is disallowed for receive function
+}
+
+// Receive is a paid mutator transaction binding the contract receive function.
+//
+// Solidity: receive() payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1Session) Receive() (*types.Transaction, error) {
+	return _ChainCallLevel1.Contract.Receive(&_ChainCallLevel1.TransactOpts)
+}
+
+// Receive is a paid mutator transaction binding the contract receive function.
+//
+// Solidity: receive() payable returns()
+func (_ChainCallLevel1 *ChainCallLevel1TransactorSession) Receive() (*types.Transaction, error) {
+	return _ChainCallLevel1.Contract.Receive(&_ChainCallLevel1.TransactOpts)
 }
