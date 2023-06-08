@@ -509,15 +509,15 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 			previousStep.OpCode == "CALL" ||
 			previousStep.OpCode == "STATICCALL" ||
 			// deprecated ones
-			previousStep.OpCode == "CALLCODE" ||
-			previousStep.OpCode == "SELFDESTRUCT"
+			previousStep.OpCode == "CALLCODE" //||
+			// previousStep.OpCode == "SELFDESTRUCT"
 
 		// when an internal transaction is detected, the next step contains the context values
 		if previousStepStartedInternalTransaction {
 			// if the previous depth is the same as the current one, this means
 			// the internal transaction did not executed any other step and the
 			// context is back to the same level. This can happen with pre compiled executions.
-			if previousStep.Depth == step.Depth {
+			if previousStep.Depth == step.Depth && previousStep.Error == nil {
 				addr, value, input, gas, gasUsed, err := s.getValuesFromInternalTxMemory(internalTxSteps, previousStep, step)
 				if err != nil {
 					return nil, err
@@ -534,11 +534,15 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 				if previousStep.OpCode == "STATICCALL" {
 					value = nil
 				}
+
 				internalTxSteps.Push(instrumentation.InternalTxContext{
 					OpCode:       previousStep.OpCode,
 					RemainingGas: step.Gas,
 				})
-				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), step.Contract.Caller, step.Contract.Address, step.Contract.Input, step.Gas, value)
+
+				if previousStep.Error == nil {
+					tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), step.Contract.Caller, step.Contract.Address, step.Contract.Input, step.Gas, value)
+				}
 			}
 		}
 
@@ -556,10 +560,6 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 
 		// set previous step
 		previousStep = step
-	}
-
-	if previousStep.Depth > 1 {
-		tracer.CaptureExit(previousStep.ReturnData, gasUsed, previousStep.Error)
 	}
 
 	if reverted {
