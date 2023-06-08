@@ -493,7 +493,12 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 			break
 		}
 
-		if step.OpCode != "CALL" || trace.Steps[i+1].Pc == 0 {
+		if i == len(trace.Steps)-1 {
+			time.Sleep(time.Second)
+		}
+
+		hasNextStep := i < len(trace.Steps)-1
+		if step.OpCode != "CALL" || (hasNextStep && trace.Steps[i+1].Pc == 0) {
 			if step.Error != nil {
 				tracer.CaptureFault(step.Pc, fakevm.OpCode(step.Op), step.Gas, step.GasCost, scope, step.Depth, step.Error)
 			} else {
