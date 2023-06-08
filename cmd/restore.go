@@ -89,7 +89,7 @@ func restore(ctx *cli.Context) error {
 		log.Error("error conecting to hashdb. Error: ", err)
 		return err
 	}
-	_, err = d.Exec(ctx.Context, "DROP SCHEMA IF EXISTS state; CREATE SCHEMA IF NOT EXISTS state;")
+	_, err = d.Exec(ctx.Context, "DROP SCHEMA IF EXISTS state CASCADE; CREATE SCHEMA IF NOT EXISTS state;")
 	if err != nil {
 		log.Error("error dropping and creating state schema. Error: ", err)
 		return err
