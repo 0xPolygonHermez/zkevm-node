@@ -41,15 +41,42 @@ func snapshot(ctx *cli.Context) error {
 		log.Error("error: ", err)
 		return err
 	}
-
+	log.Info("StateDB snapshot is being created...")
 	dump.SetFileName(fmt.Sprintf(`%v_%v_%v_%v.sql.tar.gz`, dump.DB, time.Now().Unix(), zkevm.Version, zkevm.GitRev))
 	dumpExec := dump.Exec(pg.ExecOptions{StreamPrint: false})
 	if dumpExec.Error != nil {
-		log.Error("error dumping db. Error: ", dumpExec.Error.Err)
+		log.Error("error dumping statedb. Error: ", dumpExec.Error.Err)
 		log.Debug("dumpExec.Output: ", dumpExec.Output)
 		return err
 	}
 
-	log.Info("Snapshot success. Saved in ", dumpExec.File)
+	log.Info("StateDB snapshot success. Saved in ", dumpExec.File)
+
+	port, err = strconv.Atoi(c.HashDB.Port)
+    if err != nil {
+        log.Error("error converting port to int. Error: ", err)
+		return err
+    }
+	dump, err = pg.NewDump(&pg.Postgres{
+		Host:     c.HashDB.Host,
+		Port:     port,
+		DB:       c.HashDB.Name,
+		Username: c.HashDB.User,
+		Password: c.HashDB.Password,
+	})
+	if err != nil {
+		log.Error("error: ", err)
+		return err
+	}
+	log.Info("HashDB snapshot is being created...")
+	dump.SetFileName(fmt.Sprintf(`%v_%v_%v_%v.sql.tar.gz`, dump.DB, time.Now().Unix(), zkevm.Version, zkevm.GitRev))
+	dumpExec = dump.Exec(pg.ExecOptions{StreamPrint: false})
+	if dumpExec.Error != nil {
+		log.Error("error dumping hashdb. Error: ", dumpExec.Error.Err)
+		log.Debug("dumpExec.Output: ", dumpExec.Output)
+		return err
+	}
+
+	log.Info("HashDB snapshot success. Saved in ", dumpExec.File)
 	return nil
 }

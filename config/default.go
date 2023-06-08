@@ -144,4 +144,13 @@ URI = "zkevm-prover:50071"
 Host = "0.0.0.0"
 Port = 9091
 Enabled = false
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
 `
