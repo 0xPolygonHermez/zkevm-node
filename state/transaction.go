@@ -507,11 +507,10 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 			previousStep.OpCode == "CALL" ||
 			previousStep.OpCode == "STATICCALL" ||
 			// deprecated ones
-			previousStep.OpCode == "CALLCODE" ||
-			previousStep.OpCode == "SELFDESTRUCT"
+			previousStep.OpCode == "CALLCODE"
 
 		// when an internal transaction is detected, the next step contains the context values
-		if previousStepStartedInternalTransaction {
+		if previousStepStartedInternalTransaction && previousStep.Error == nil {
 			// if the previous depth is the same as the current one, this means
 			// the internal transaction did not executed any other step and the
 			// context is back to the same level. This can happen with pre compiled executions.
@@ -556,13 +555,13 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 		previousStep = step
 	}
 
-	restGas := trace.Context.Gas - trace.Context.GasUsed
-	tracer.CaptureTxEnd(restGas)
 	var err error
 	if reverted {
 		err = fakevm.ErrExecutionReverted
 	}
 	tracer.CaptureEnd(trace.Context.Output, trace.Context.GasUsed, err)
+	restGas := trace.Context.Gas - trace.Context.GasUsed
+	tracer.CaptureTxEnd(restGas)
 
 	return tracer.GetResult()
 }
