@@ -523,7 +523,6 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 				if previousStep.OpCode == "CALL" || previousStep.OpCode == "CALLCODE" {
 					from = previousStep.Contract.Caller
 				}
-
 				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), from, addr, input, gas, value)
 				tracer.CaptureExit(step.ReturnData, gasUsed, previousStep.Error)
 			} else {
@@ -541,11 +540,21 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 
 		// returning from internal transaction
 		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
-			gasUsed, err := s.getGasUsed(internalTxSteps, previousStep, step)
-			if err != nil {
-				return nil, err
+			var gasUsed uint64
+			var err error
+			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) {
+				itCtx, err := internalTxSteps.Pop()
+				if err != nil {
+					return nil, err
+				}
+				gasUsed = itCtx.RemainingGas
+			} else {
+				gasUsed, err = s.getGasUsed(internalTxSteps, previousStep, step)
+				if err != nil {
+					return nil, err
+				}
 			}
-			tracer.CaptureExit(step.ReturnData, gasUsed, step.Error)
+			tracer.CaptureExit(step.ReturnData, gasUsed, previousStep.Error)
 		}
 
 		// set StateRoot

@@ -22,9 +22,11 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ChainCallLevel4"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Creates"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Depth"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Memory"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/OpCallAux"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -740,6 +742,45 @@ func createBridgeSignedTx(t *testing.T, ctx context.Context, auth *bind.Transact
 	acc := common.HexToAddress("0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98")
 
 	tx, err := sc.Exec(&opts, addrBridgeB, addrBridgeC, addrBridgeD, acc)
+	require.NoError(t, err)
+
+	return tx, nil
+}
+
+func prepareDepth(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	addr, tx, _, err := OpCallAux.DeployOpCallAux(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	_, tx, sc, err := Depth.DeployDepth(auth, client)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	return map[string]interface{}{
+		"sc":   sc,
+		"addr": addr,
+	}, nil
+}
+
+func createDepthSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	scInterface := customData["sc"]
+	sc := scInterface.(*Depth.Depth)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	addr := customData["addr"].(common.Address)
+
+	opts := *auth
+	opts.NoSend = true
+	opts.GasPrice = gasPrice
+	opts.GasLimit = fixedTxGasLimit
+
+	tx, err := sc.Start(&opts, addr, big.NewInt(2000))
 	require.NoError(t, err)
 
 	return tx, nil

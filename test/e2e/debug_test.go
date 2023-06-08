@@ -300,6 +300,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 		{name: "invalid static call with inner call", prepare: prepareCalls, createSignedTx: createInvalidStaticCallWithInnerCallSignedTx},
 		{name: "chain call reverted", prepare: prepareChainCalls, createSignedTx: createChainCallRevertedSignedTx},
 		{name: "chain delegate call reverted", prepare: prepareChainCalls, createSignedTx: createChainDelegateCallRevertedSignedTx},
+		{name: "depth reverted", prepare: prepareDepth, createSignedTx: createDepthSignedTx},
 	}
 
 	privateKey, err := crypto.GenerateKey()
