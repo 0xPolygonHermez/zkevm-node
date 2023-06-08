@@ -493,10 +493,6 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 			break
 		}
 
-		if i == len(trace.Steps)-1 {
-			time.Sleep(time.Second)
-		}
-
 		hasNextStep := i < len(trace.Steps)-1
 		if step.OpCode != "CALL" || (hasNextStep && trace.Steps[i+1].Pc == 0) {
 			if step.Error != nil {
