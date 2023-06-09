@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const maxMsgSize = 100000000
+const maxMsgSize = 2 * 1024 * 1024 * 1024
 
 // NewExecutorClient is the executor client constructor.
 func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient, *grpc.ClientConn, context.CancelFunc) {

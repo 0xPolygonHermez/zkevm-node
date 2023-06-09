@@ -563,3 +563,8 @@ func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
 func (d *dbManager) GetStoredFlushID(ctx context.Context) (uint64, string, error) {
 	return d.state.GetStoredFlushID(ctx)
 }
+
+// GetForcedBatch gets a forced batch by number
+func (d *dbManager) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error) {
+	return d.state.GetForcedBatch(ctx, forcedBatchNumber, dbTx)
+}

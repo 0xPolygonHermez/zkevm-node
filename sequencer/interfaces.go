@@ -119,6 +119,7 @@ type dbManagerInterface interface {
 	FlushMerkleTree(ctx context.Context) error
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx *txToStore) error
+	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 }
 
 type ethTxManager interface {

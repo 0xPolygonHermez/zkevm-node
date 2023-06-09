@@ -161,6 +161,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 			failedReason := ErrExpiredTransaction.Error()
 			for _, txTracker := range txTrackers {
 				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
+				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 				if err != nil {
 					log.Errorf("failed to update tx status, err: %v", err)
 				}

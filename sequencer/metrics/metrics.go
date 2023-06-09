@@ -119,7 +119,7 @@ func SequencesSentToL1(numSequences float64) {
 }
 
 // TxProcessed increases the counter vector by the provided transactions count
-// and for the given label.
+// and for the given label (status).
 func TxProcessed(status TxProcessedLabel, count float64) {
 	metrics.CounterVecAdd(TxProcessedName, string(status), count)
 }
