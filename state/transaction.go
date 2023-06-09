@@ -801,7 +801,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 				time.Sleep(s.cfg.WaitOnResourceExhaustion.Duration)
 				log.Errorf("retrying to process unsigned transaction")
 				processBatchResponse, err = s.executorClient.ProcessBatch(ctx, processBatchRequest)
-				if err != nil && status.Code(err) == codes.ResourceExhausted {
+				if status.Code(err) == codes.ResourceExhausted {
 					log.Errorf("error processing unsigned transaction ", err)
 					attempts++
 					continue
