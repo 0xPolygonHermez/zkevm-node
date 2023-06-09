@@ -807,7 +807,6 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 						attempts++
 						continue
 					}
-					break
 				}
 				break
 			}
