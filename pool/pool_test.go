@@ -695,7 +695,7 @@ func TestDeleteGasPricesHistoryOlderThan(t *testing.T) {
 	assert.Equal(t, expectedGasPrice2, gasPrice)
 
 	// min gas price should be the first one
-	date := time.Now().UTC().Add(-time.Second * 2)
+	date := time.Now().UTC().Sub(time.Second * 2)
 	min, err := p.MinGasPriceSince(ctx, date)
 	require.NoError(t, err)
 	require.Equal(t, expectedGasPrice1, min)
