@@ -1,8 +1,6 @@
 # zkEVM Node
 
-zkEVM Node is a Go implementation of a node that operates the Polygon zkEVM Network.
-
-## About the Polygon zkEVM network
+zkEVM Node is a Go implementation of a node that operates zkEVM.
 
 Since this is an implementation of a protocol it's fundamental to understand it, [here](https://zkevm.polygon.technology/docs/zknode/zknode-overview) you can find the specification of the protocol.
 
@@ -116,8 +114,5 @@ It's recommended to use `make` for building, and testing the code, ... Run `make
 - Make
 - GCC
 
-## Contribute
-
-Before opening a pull request, please read this [guide](CONTRIBUTING.md)
 
 
