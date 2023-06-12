@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -214,7 +215,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 	// Mine the tx in a block
 	ethBackend.Commit()
 
-	_, err = etherman.ZkEVM.VerifyBatchesTrustedAggregator(auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, []byte{})
+	_, err = etherman.ZkEVM.VerifyBatchesTrustedAggregator(auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, [24][32]byte{})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -419,4 +420,19 @@ func TestGetForks(t *testing.T) {
 	assert.Equal(t, uint64(0), blocks[0].ForkIDs[0].BatchNumber)
 	assert.Equal(t, uint64(1), blocks[0].ForkIDs[0].ForkID)
 	assert.Equal(t, "v1", blocks[0].ForkIDs[0].Version)
+}
+
+func TestProof(t *testing.T) {
+	proof := "0x20227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a05"
+	p, err := convertProof(proof)
+	require.NoError(t, err)
+	str := "20227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a05"
+	proofReference, err := encoding.DecodeBytes(&str)
+	require.NoError(t, err)
+	var expected [32]byte
+	copy(expected[:], proofReference)
+	for i := 0; i < 24; i++ {
+		assert.Equal(t, expected, p[i])
+	}
+	t.Log("Proof: ", p)
 }
