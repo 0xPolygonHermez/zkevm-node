@@ -624,13 +624,13 @@ func (s *State) getValuesFromInternalTxMemory(stepStack *Stack[instrumentation.I
 
 		input := make([]byte, argsSize)
 
-		if argsOffset > uint64(len(previousStep.Memory)) {
+		if argsOffset > uint64(previousStep.MemorySize) {
 			// when none of the bytes can be found in the memory
 			// do nothing to keep input as zeroes
-		} else if argsOffset+argsSize > uint64(len(previousStep.Memory)) {
+		} else if argsOffset+argsSize > uint64(previousStep.MemorySize) {
 			// when partial bytes are found in the memory
 			// copy just the bytes we have in memory and complement the rest with zeroes
-			copy(input[0:argsSize], previousStep.Memory[argsOffset:uint64(len(previousStep.Memory))])
+			copy(input[0:argsSize], previousStep.Memory[argsOffset:uint64(previousStep.MemorySize)])
 		} else {
 			// when all the bytes are found in the memory
 			// read the bytes from memory
@@ -638,7 +638,7 @@ func (s *State) getValuesFromInternalTxMemory(stepStack *Stack[instrumentation.I
 		}
 
 		// Compute call memory expansion cost
-		memSize := len(previousStep.Memory)
+		memSize := previousStep.MemorySize
 		lastMemSizeWord := math.Ceil((float64(memSize) + 31) / 32)                          //nolint:gomnd
 		lastMemCost := math.Floor(math.Pow(lastMemSizeWord, 2)/512) + (3 * lastMemSizeWord) //nolint:gomnd
 
