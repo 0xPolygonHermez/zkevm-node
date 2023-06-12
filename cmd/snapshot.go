@@ -41,6 +41,7 @@ func snapshot(ctx *cli.Context) error {
 		log.Error("error: ", err)
 		return err
 	}
+	dump.Options = append(dump.Options, "-Z 9")
 	log.Info("StateDB snapshot is being created...")
 	dump.SetFileName(fmt.Sprintf(`%v_%v_%v_%v.sql.tar.gz`, dump.DB, time.Now().Unix(), zkevm.Version, zkevm.GitRev))
 	dumpExec := dump.Exec(pg.ExecOptions{StreamPrint: false})
@@ -68,6 +69,7 @@ func snapshot(ctx *cli.Context) error {
 		log.Error("error: ", err)
 		return err
 	}
+	dump.Options = append(dump.Options, "-Z 9")
 	log.Info("HashDB snapshot is being created...")
 	dump.SetFileName(fmt.Sprintf(`%v_%v_%v_%v.sql.tar.gz`, dump.DB, time.Now().Unix(), zkevm.Version, zkevm.GitRev))
 	dumpExec = dump.Exec(pg.ExecOptions{StreamPrint: false})
