@@ -457,9 +457,9 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 
 		// set Memory
 		memory := fakevm.NewMemory()
-		if len(step.Memory) > 0 {
-			memory.Resize(uint64(len(step.Memory)))
-			memory.Set(0, uint64(len(step.Memory)), step.Memory)
+		if step.MemorySize > 0 {
+			memory.Resize(uint64(step.MemorySize))
+			memory.Set(uint64(step.MemoryOffset), uint64(len(step.Memory)), step.Memory)
 		} else {
 			memory = fakevm.NewMemory()
 		}

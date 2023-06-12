@@ -316,7 +316,8 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) ([]instrumen
 			}
 			step.Stack = append(step.Stack, bi)
 		}
-
+		step.MemorySize = response.MemorySize
+		step.MemoryOffset = response.MemoryOffset
 		step.Memory = make([]byte, len(response.Memory))
 		copy(step.Memory, response.Memory)
 		step.ReturnData = make([]byte, len(response.ReturnData))
