@@ -34,10 +34,14 @@ type ProcessBatchResponse struct {
 	UsedZkCounters       ZKCounters
 	Responses            []*ProcessTransactionResponse
 	ExecutorError        error
+	IsBatchProcessed     bool
+	ReadWriteAddresses   map[common.Address]*InfoReadWrite
 	IsRomLevelError      bool
 	IsExecutorLevelError bool
 	IsRomOOCError        bool
-	ReadWriteAddresses   map[common.Address]*InfoReadWrite
+	FlushID              uint64
+	StoredFlushID        uint64
+	ProverID             string
 }
 
 // ProcessTransactionResponse represents the response of a tx process.

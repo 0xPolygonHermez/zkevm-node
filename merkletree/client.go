@@ -11,7 +11,7 @@ import (
 )
 
 // NewMTDBServiceClient creates a new MTDB client.
-func NewMTDBServiceClient(ctx context.Context, c Config) (pb.StateDBServiceClient, *grpc.ClientConn, context.CancelFunc) {
+func NewMTDBServiceClient(ctx context.Context, c Config) (pb.HashDBServiceClient, *grpc.ClientConn, context.CancelFunc) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
@@ -26,6 +26,6 @@ func NewMTDBServiceClient(ctx context.Context, c Config) (pb.StateDBServiceClien
 	}
 	log.Infof("connected to merkletree")
 
-	mtDBClient := pb.NewStateDBServiceClient(mtDBConn)
+	mtDBClient := pb.NewHashDBServiceClient(mtDBConn)
 	return mtDBClient, mtDBConn, cancel
 }

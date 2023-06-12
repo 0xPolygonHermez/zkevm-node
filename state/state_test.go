@@ -67,7 +67,7 @@ var (
 	}
 	forkID                             uint64 = 2
 	executorClient                     executorclientpb.ExecutorServiceClient
-	mtDBServiceClient                  mtDBclientpb.StateDBServiceClient
+	mtDBServiceClient                  mtDBclientpb.HashDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
 	batchResources                     = state.BatchResources{
 		ZKCounters: state.ZKCounters{
@@ -725,6 +725,9 @@ func TestGenesis(t *testing.T) {
 			require.Equal(t, new(big.Int).SetBytes(common.Hex2Bytes(action.Value)), st)
 		}
 	}
+
+	err = testState.GetTree().Flush(ctx)
+	require.NoError(t, err)
 }
 
 func TestExecutor(t *testing.T) {

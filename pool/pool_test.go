@@ -274,7 +274,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81b"
 	b, err := hex.DecodeHex(batchL2Data)
 	require.NoError(t, err)
-	txs, _, err := state.DecodeTxs(b)
+	txs, _, _, err := state.DecodeTxs(b)
 	require.NoError(t, err)
 
 	tx := txs[0]

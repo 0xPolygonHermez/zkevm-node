@@ -8,9 +8,11 @@ package pb
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -18,16 +20,13 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-const (
-	ExecutorService_ProcessBatch_FullMethodName = "/executor.v1.ExecutorService/ProcessBatch"
-)
-
 // ExecutorServiceClient is the client API for ExecutorService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ExecutorServiceClient interface {
 	// / Processes a batch
 	ProcessBatch(ctx context.Context, in *ProcessBatchRequest, opts ...grpc.CallOption) (*ProcessBatchResponse, error)
+	GetFlushStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetFlushStatusResponse, error)
 }
 
 type executorServiceClient struct {
@@ -40,7 +39,16 @@ func NewExecutorServiceClient(cc grpc.ClientConnInterface) ExecutorServiceClient
 
 func (c *executorServiceClient) ProcessBatch(ctx context.Context, in *ProcessBatchRequest, opts ...grpc.CallOption) (*ProcessBatchResponse, error) {
 	out := new(ProcessBatchResponse)
-	err := c.cc.Invoke(ctx, ExecutorService_ProcessBatch_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, "/executor.v1.ExecutorService/ProcessBatch", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *executorServiceClient) GetFlushStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetFlushStatusResponse, error) {
+	out := new(GetFlushStatusResponse)
+	err := c.cc.Invoke(ctx, "/executor.v1.ExecutorService/GetFlushStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +61,7 @@ func (c *executorServiceClient) ProcessBatch(ctx context.Context, in *ProcessBat
 type ExecutorServiceServer interface {
 	// / Processes a batch
 	ProcessBatch(context.Context, *ProcessBatchRequest) (*ProcessBatchResponse, error)
+	GetFlushStatus(context.Context, *emptypb.Empty) (*GetFlushStatusResponse, error)
 	mustEmbedUnimplementedExecutorServiceServer()
 }
 
@@ -62,6 +71,9 @@ type UnimplementedExecutorServiceServer struct {
 
 func (UnimplementedExecutorServiceServer) ProcessBatch(context.Context, *ProcessBatchRequest) (*ProcessBatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProcessBatch not implemented")
+}
+func (UnimplementedExecutorServiceServer) GetFlushStatus(context.Context, *emptypb.Empty) (*GetFlushStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFlushStatus not implemented")
 }
 func (UnimplementedExecutorServiceServer) mustEmbedUnimplementedExecutorServiceServer() {}
 
@@ -86,10 +98,28 @@ func _ExecutorService_ProcessBatch_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ExecutorService_ProcessBatch_FullMethodName,
+		FullMethod: "/executor.v1.ExecutorService/ProcessBatch",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ExecutorServiceServer).ProcessBatch(ctx, req.(*ProcessBatchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ExecutorService_GetFlushStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ExecutorServiceServer).GetFlushStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/executor.v1.ExecutorService/GetFlushStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ExecutorServiceServer).GetFlushStatus(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -104,6 +134,10 @@ var ExecutorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ProcessBatch",
 			Handler:    _ExecutorService_ProcessBatch_Handler,
+		},
+		{
+			MethodName: "GetFlushStatus",
+			Handler:    _ExecutorService_GetFlushStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

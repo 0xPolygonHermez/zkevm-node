@@ -148,7 +148,7 @@ test-e2e-group-5: stop ## Runs group 5 e2e tests checking race conditions
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group5/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 1200s ../ci/e2e-group5/...
 
 .PHONY: test-e2e-group-6
 test-e2e-group-6: stop ## Runs group 6 e2e tests checking race conditions
@@ -181,11 +181,11 @@ test-e2e-group-8: stop ## Runs group 8 e2e tests checking race conditions
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group8/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 1200s ../ci/e2e-group8/...
 
 
 .PHONY: test-e2e-group-9
-test-e2e-group-9: stop ## Runs group 8 e2e tests checking race conditions
+test-e2e-group-9: stop ## Runs group 9 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
@@ -194,6 +194,30 @@ test-e2e-group-9: stop ## Runs group 8 e2e tests checking race conditions
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group9/...
+
+
+.PHONY: test-e2e-group-10
+test-e2e-group-10: stop ## Runs group 10 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNEVENTDB)
+	sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group10/...
+
+
+.PHONY: test-e2e-group-11
+test-e2e-group-11: stop ## Runs group 11 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNEVENTDB)
+	sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group11/...
 
 .PHONY: benchmark-sequencer-eth-transfers
 benchmark-sequencer-eth-transfers: stop

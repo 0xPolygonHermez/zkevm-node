@@ -49,6 +49,8 @@ type ProcessingContext struct {
 type ClosingReason string
 
 const (
+	// EmptyClosingReason is the closing reason used when a batch is not closed
+	EmptyClosingReason ClosingReason = ""
 	// BatchFullClosingReason  is the closing reason used when a batch is closed when it is full
 	BatchFullClosingReason ClosingReason = "Batch is full"
 	// ForcedBatchClosingReason  is the closing reason used when a batch is closed because it is forced
@@ -148,7 +150,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 	txs := []types.Transaction{}
 
 	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
-		txs, _, err = DecodeTxs(batchL2Data)
+		txs, _, _, err = DecodeTxs(batchL2Data)
 		if err != nil && !errors.Is(err, ErrInvalidData) {
 			return nil, err
 		}
@@ -193,7 +195,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		return nil, err
 	}
 
-	txs, _, err := DecodeTxs(request.Transactions)
+	txs, _, _, err := DecodeTxs(request.Transactions)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		return nil, err
 	}
@@ -404,7 +406,7 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, error) {
 	// Decode transactions
-	decodedTransactions, _, err := DecodeTxs(encodedTxs)
+	decodedTransactions, _, _, err := DecodeTxs(encodedTxs)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		log.Debugf("error decoding transactions: %v", err)
 		return common.Hash{}, err

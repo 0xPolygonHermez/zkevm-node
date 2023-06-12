@@ -77,6 +77,7 @@ type stateInterface interface {
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
 	FlushMerkleTree(ctx context.Context) error
+	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 }
 
 type workerInterface interface {
@@ -97,7 +98,6 @@ type dbManagerInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
-	StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error
 	DeleteTransactionFromPool(ctx context.Context, txHash common.Hash) error
 	CloseBatch(ctx context.Context, params ClosingBatchParameters) error
 	GetWIPBatch(ctx context.Context) (*WipBatch, error)
@@ -119,6 +119,9 @@ type dbManagerInterface interface {
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	FlushMerkleTree(ctx context.Context) error
 	CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error)
+	GetStoredFlushID(ctx context.Context) (uint64, string, error)
+	StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx *txToStore) error
+	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 }
 
 type ethTxManager interface {

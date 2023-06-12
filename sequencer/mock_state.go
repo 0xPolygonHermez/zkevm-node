@@ -628,6 +628,37 @@ func (_m *StateMock) GetNonceByStateRoot(ctx context.Context, address common.Add
 	return r0, r1
 }
 
+// GetStoredFlushID provides a mock function with given fields: ctx
+func (_m *StateMock) GetStoredFlushID(ctx context.Context) (uint64, string, error) {
+	ret := _m.Called(ctx)
+
+	var r0 uint64
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context) (uint64, string, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) string); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context) error); ok {
+		r2 = rf(ctx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // GetTimeForLatestBatchVirtualization provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
 	ret := _m.Called(ctx, dbTx)

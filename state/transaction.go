@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
@@ -296,18 +295,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	// //save process batch response file
-	// b, err := json.Marshal(processBatchResponse)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// filePath := "./processBatchResponse.json"
-	// err = os.WriteFile(filePath, b, 0644)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	txs, _, err := DecodeTxs(batchL2Data)
+	txs, _, _, err := DecodeTxs(batchL2Data)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		return nil, err
 	}
@@ -327,6 +315,19 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	if response.TxHash != transactionHash {
 		return nil, fmt.Errorf("tx hash not found in executor response")
 	}
+
+	// const path = "/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json"
+	// filePath := fmt.Sprintf(path, "EXECUTOR_processBatchResponse")
+	// c, _ := json.MarshalIndent(processBatchResponse, "", "    ")
+	// os.WriteFile(filePath, c, 0644)
+
+	// filePath = fmt.Sprintf(path, "NODE_execution_trace")
+	// c, _ = json.MarshalIndent(response.ExecutionTrace, "", "    ")
+	// os.WriteFile(filePath, c, 0644)
+
+	// filePath = fmt.Sprintf(path, "NODE_call_trace")
+	// c, _ = json.MarshalIndent(response.CallTrace, "", "    ")
+	// os.WriteFile(filePath, c, 0644)
 
 	result := &runtime.ExecutionResult{
 		CreateAddress: response.CreateAddress,
@@ -350,14 +351,14 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	context := instrumentation.Context{
 		From:         senderAddress.String(),
-		Input:        hex.EncodeToHex(tx.Data()),
-		Gas:          strconv.FormatUint(tx.Gas(), encoding.Base10),
-		Value:        tx.Value().String(),
-		Output:       hex.EncodeToHex(result.ReturnValue),
+		Input:        tx.Data(),
+		Gas:          tx.Gas(),
+		Value:        tx.Value(),
+		Output:       result.ReturnValue,
 		GasPrice:     tx.GasPrice().String(),
-		OldStateRoot: oldStateRoot.String(),
+		OldStateRoot: oldStateRoot,
 		Time:         uint64(endTime.Sub(startTime)),
-		GasUsed:      strconv.FormatUint(result.GasUsed, encoding.Base10),
+		GasUsed:      result.GasUsed,
 	}
 
 	// Fill trace context
@@ -384,33 +385,33 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		TxHash:      transactionHash,
 	}
 
-	var evmTracer tracers.Tracer
+	var customTracer tracers.Tracer
 	if traceConfig.Is4ByteTracer() {
-		evmTracer, err = native.NewFourByteTracer(tracerContext, traceConfig.TracerConfig)
+		customTracer, err = native.NewFourByteTracer(tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create 4byteTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create 4byteTracer, err: %v", err)
 		}
 	} else if traceConfig.IsCallTracer() {
-		evmTracer, err = native.NewCallTracer(tracerContext, traceConfig.TracerConfig)
+		customTracer, err = native.NewCallTracer(tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create callTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create callTracer, err: %v", err)
 		}
 	} else if traceConfig.IsNoopTracer() {
-		evmTracer, err = native.NewNoopTracer(tracerContext, traceConfig.TracerConfig)
+		customTracer, err = native.NewNoopTracer(tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create noopTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create noopTracer, err: %v", err)
 		}
 	} else if traceConfig.IsPrestateTracer() {
-		evmTracer, err = native.NewPrestateTracer(tracerContext, traceConfig.TracerConfig)
+		customTracer, err = native.NewPrestateTracer(tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create prestateTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create prestateTracer, err: %v", err)
 		}
 	} else if traceConfig.IsJSCustomTracer() {
-		evmTracer, err = js.NewJsTracer(*traceConfig.Tracer, tracerContext, traceConfig.TracerConfig)
+		customTracer, err = js.NewJsTracer(*traceConfig.Tracer, tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
@@ -420,9 +421,9 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
-	evm := fakevm.NewFakeEVM(fakevm.BlockContext{BlockNumber: big.NewInt(1)}, fakevm.TxContext{GasPrice: gasPrice}, fakeDB, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: evmTracer})
+	evm := fakevm.NewFakeEVM(fakevm.BlockContext{BlockNumber: big.NewInt(1)}, fakevm.TxContext{GasPrice: gasPrice}, fakeDB, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: customTracer})
 
-	traceResult, err := s.ParseTheTraceUsingTheTracer(evm, result.ExecutorTrace, evmTracer)
+	traceResult, err := s.buildTrace(evm, result.ExecutorTrace, customTracer)
 	if err != nil {
 		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
 		return nil, fmt.Errorf("failed parse the trace using the tracer: %v", err)
@@ -434,70 +435,23 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 }
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
-func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
-	var previousDepth int
-	var previousOp, previousGas *big.Int
-	var previousOpcode string
-	var stateRoot []byte
-
-	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, encoding.Base10)
-	if !ok {
-		log.Debugf("error while parsing contextGas")
-		return nil, ErrParsingExecutorTrace
+func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
+	tracer.CaptureTxStart(trace.Context.Gas)
+	contextGas := trace.Context.Gas - trace.Context.GasUsed
+	if len(trace.Steps) > 0 {
+		contextGas = trace.Steps[0].Gas
 	}
-	value, ok := new(big.Int).SetString(trace.Context.Value, encoding.Base10)
-	if !ok {
-		log.Debugf("error while parsing value")
-		return nil, ErrParsingExecutorTrace
-	}
+	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", trace.Context.Input, contextGas, trace.Context.Value)
+	evm.StateDB.SetStateRoot(trace.Context.OldStateRoot.Bytes())
 
-	tracer.CaptureTxStart(contextGas.Uint64())
-	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
-
-	bigStateRoot, ok := new(big.Int).SetString(trace.Context.OldStateRoot, 0)
-	if !ok {
-		log.Debugf("error while parsing context oldStateRoot")
-		return nil, ErrParsingExecutorTrace
-	}
-	stateRoot = bigStateRoot.Bytes()
-	evm.StateDB.SetStateRoot(stateRoot)
-
-	output := common.FromHex(trace.Context.Output)
-
-	var stepError error
+	var previousStep instrumentation.Step
+	reverted := false
+	internalTxSteps := NewStack[instrumentation.InternalTxContext]()
 	for i, step := range trace.Steps {
-		stepErrorMsg := strings.TrimSpace(step.Error)
-		if stepErrorMsg != "" {
-			stepError = fmt.Errorf(stepErrorMsg)
-		}
-
-		gas, ok := new(big.Int).SetString(step.Gas, encoding.Base10)
-		if !ok {
-			log.Debugf("error while parsing step gas")
-			return nil, ErrParsingExecutorTrace
-		}
-
-		gasCost, ok := new(big.Int).SetString(step.GasCost, encoding.Base10)
-		if !ok {
-			log.Debugf("error while parsing step gasCost")
-			return nil, ErrParsingExecutorTrace
-		}
-
-		op, ok := new(big.Int).SetString(step.Op, 0)
-		if !ok {
-			log.Debugf("error while parsing step op")
-			return nil, ErrParsingExecutorTrace
-		}
-
 		// set Stack
 		stack := fakevm.NewStack()
-		for _, stackContent := range step.Stack {
-			valueBigInt, ok := new(big.Int).SetString(stackContent, hex.Base)
-			if !ok {
-				log.Debugf("error while parsing stack valueBigInt")
-				return nil, ErrParsingExecutorTrace
-			}
-			value, _ := uint256.FromBig(valueBigInt)
+		for _, stackItem := range step.Stack {
+			value, _ := uint256.FromBig(stackItem)
 			stack.Push(value)
 		}
 
@@ -510,73 +464,202 @@ func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumen
 			memory = fakevm.NewMemory()
 		}
 
-		value := hex.DecodeBig(step.Contract.Value)
+		// set Contract
+		contract := fakevm.NewContract(
+			fakevm.NewAccount(step.Contract.Caller),
+			fakevm.NewAccount(step.Contract.Address),
+			step.Contract.Value, step.Gas)
+		contract.CodeAddr = &step.Contract.Address
+
+		// set Scope
 		scope := &fakevm.ScopeContext{
-			Contract: fakevm.NewContract(fakevm.NewAccount(common.HexToAddress(step.Contract.Caller)), fakevm.NewAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
+			Contract: contract,
 			Memory:   memory,
 			Stack:    stack,
 		}
 
-		codeAddr := common.HexToAddress(step.Contract.Address)
-		scope.Contract.CodeAddr = &codeAddr
+		// if the revert happens on an internal tx, we exit
+		if previousStep.OpCode == "REVERT" && previousStep.Depth > 1 {
+			gasUsed, err := s.getGasUsed(internalTxSteps, previousStep, step)
+			if err != nil {
+				return nil, err
+			}
+			tracer.CaptureExit(step.ReturnData, gasUsed, fakevm.ErrExecutionReverted)
+		}
 
-		// when a revert is detected, we stop the execution
-		if step.OpCode == "REVERT" {
-			stepError = fakevm.ErrExecutionReverted
+		// if the revert happens on top level, we break
+		if step.OpCode == "REVERT" && step.Depth == 1 {
+			reverted = true
 			break
 		}
 
-		if previousOpcode == "CALL" && step.Pc != 0 {
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
-		}
-
 		if step.OpCode != "CALL" || trace.Steps[i+1].Pc == 0 {
-			if stepError != nil {
-				tracer.CaptureFault(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, stepError)
+			if step.Error != nil {
+				tracer.CaptureFault(step.Pc, fakevm.OpCode(step.Op), step.Gas, step.GasCost, scope, step.Depth, step.Error)
 			} else {
-				tracer.CaptureState(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.ReturnData, step.Depth, nil)
+				tracer.CaptureState(step.Pc, fakevm.OpCode(step.Op), step.Gas, step.GasCost, scope, step.ReturnData, step.Depth, nil)
 			}
 		}
 
-		if step.OpCode == "CALL" || step.OpCode == "CALLCODE" || step.OpCode == "DELEGATECALL" || step.OpCode == "STATICCALL" || step.OpCode == "SELFDESTRUCT" {
-			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), gas.Uint64(), value)
-			if step.OpCode == "SELFDESTRUCT" {
-				tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+		previousStepStartedInternalTransaction := previousStep.OpCode == "CREATE" ||
+			previousStep.OpCode == "CREATE2" ||
+			previousStep.OpCode == "DELEGATECALL" ||
+			previousStep.OpCode == "CALL" ||
+			previousStep.OpCode == "STATICCALL" ||
+			// deprecated ones
+			previousStep.OpCode == "CALLCODE" ||
+			previousStep.OpCode == "SELFDESTRUCT"
+
+		// when an internal transaction is detected, the next step contains the context values
+		if previousStepStartedInternalTransaction {
+			// if the previous depth is the same as the current one, this means
+			// the internal transaction did not executed any other step and the
+			// context is back to the same level. This can happen with pre compiled executions.
+			if previousStep.Depth == step.Depth {
+				addr, value, input, gas, gasUsed, err := s.getValuesFromInternalTxMemory(internalTxSteps, previousStep, step)
+				if err != nil {
+					return nil, err
+				}
+				from := previousStep.Contract.Address
+				if previousStep.OpCode == "CALL" || previousStep.OpCode == "CALLCODE" {
+					from = previousStep.Contract.Caller
+				}
+
+				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), from, addr, input, gas, value)
+				tracer.CaptureExit(step.ReturnData, gasUsed, previousStep.Error)
+			} else {
+				value := step.Contract.Value
+				if previousStep.OpCode == "STATICCALL" {
+					value = nil
+				}
+				internalTxSteps.Push(instrumentation.InternalTxContext{
+					OpCode:       previousStep.OpCode,
+					RemainingGas: step.Gas,
+				})
+				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), step.Contract.Caller, step.Contract.Address, step.Contract.Input, step.Gas, value)
 			}
 		}
 
-		// when a create2 is detected, the next step contains the contract updated
-		if previousOpcode == "CREATE" || previousOpcode == "CREATE2" {
-			tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
-		}
-
-		// returning from a call or create
-		if previousDepth > step.Depth {
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+		// returning from internal transaction
+		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
+			gasUsed, err := s.getGasUsed(internalTxSteps, previousStep, step)
+			if err != nil {
+				return nil, err
+			}
+			tracer.CaptureExit(step.ReturnData, gasUsed, step.Error)
 		}
 
 		// set StateRoot
-		stateRoot = []byte(step.StateRoot)
-		evm.StateDB.SetStateRoot(stateRoot)
+		evm.StateDB.SetStateRoot(step.StateRoot.Bytes())
 
-		// set previous step values
-		previousDepth = step.Depth
-		previousOp = op
-		previousGas = gas
-		previousOpcode = step.OpCode
+		// set previous step
+		previousStep = step
 	}
 
-	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, encoding.Base10)
-	if !ok {
-		log.Debugf("error while parsing gasUsed")
-		return nil, ErrParsingExecutorTrace
-	}
-
-	restGas := contextGas.Uint64() - gasUsed.Uint64()
+	restGas := trace.Context.Gas - trace.Context.GasUsed
 	tracer.CaptureTxEnd(restGas)
-	tracer.CaptureEnd(output, gasUsed.Uint64(), stepError)
+	var err error
+	if reverted {
+		err = fakevm.ErrExecutionReverted
+	}
+	tracer.CaptureEnd(trace.Context.Output, trace.Context.GasUsed, err)
 
 	return tracer.GetResult()
+}
+
+func (s *State) getGasUsed(stepStack *Stack[instrumentation.InternalTxContext], previousStep, step instrumentation.Step) (uint64, error) {
+	itCtx, err := stepStack.Pop()
+	if err != nil {
+		return 0, err
+	}
+	var gasUsed uint64
+	if itCtx.OpCode == "CREATE" || itCtx.OpCode == "CREATE2" {
+		// if the context was initialized by a CREATE, we should use the contract gas
+		gasUsed = previousStep.Contract.Gas - step.Gas
+	} else {
+		// otherwise we use the step gas
+		gasUsed = itCtx.RemainingGas - previousStep.Gas - previousStep.GasCost
+	}
+	return gasUsed, nil
+}
+
+func (s *State) getValuesFromInternalTxMemory(stepStack *Stack[instrumentation.InternalTxContext], previousStep, step instrumentation.Step) (common.Address, *big.Int, []byte, uint64, uint64, error) {
+	if previousStep.OpCode == "DELEGATECALL" || previousStep.OpCode == "CALL" || previousStep.OpCode == "STATICCALL" || previousStep.OpCode == "CALLCODE" {
+		gasPos := len(previousStep.Stack) - 1
+		addrPos := gasPos - 1
+
+		argsOffsetPos := addrPos - 1
+		argsSizePos := argsOffsetPos - 1
+
+		// read tx value if it exists
+		var value *big.Int
+		stackHasValue := previousStep.OpCode == "CALL" || previousStep.OpCode == "CALLCODE"
+		if stackHasValue {
+			valuePos := addrPos - 1
+			// valueEncoded := step.Stack[valuePos]
+			// value = hex.DecodeBig(valueEncoded)
+			value = previousStep.Contract.Value
+
+			argsOffsetPos = valuePos - 1
+			argsSizePos = argsOffsetPos - 1
+		}
+
+		retOffsetPos := argsSizePos - 1
+		retSizePos := retOffsetPos - 1
+
+		addr := common.BytesToAddress(previousStep.Stack[addrPos].Bytes())
+		argsOffset := previousStep.Stack[argsOffsetPos].Uint64()
+		argsSize := previousStep.Stack[argsSizePos].Uint64()
+		retOffset := previousStep.Stack[retOffsetPos].Uint64()
+		retSize := previousStep.Stack[retSizePos].Uint64()
+
+		input := make([]byte, argsSize)
+
+		if argsOffset > uint64(len(previousStep.Memory)) {
+			// when none of the bytes can be found in the memory
+			// do nothing to keep input as zeroes
+		} else if argsOffset+argsSize > uint64(len(previousStep.Memory)) {
+			// when partial bytes are found in the memory
+			// copy just the bytes we have in memory and complement the rest with zeroes
+			copy(input[0:argsSize], previousStep.Memory[argsOffset:uint64(len(previousStep.Memory))])
+		} else {
+			// when all the bytes are found in the memory
+			// read the bytes from memory
+			copy(input[0:argsSize], previousStep.Memory[argsOffset:argsOffset+argsSize])
+		}
+
+		// Compute call memory expansion cost
+		memSize := len(previousStep.Memory)
+		lastMemSizeWord := math.Ceil((float64(memSize) + 31) / 32)                          //nolint:gomnd
+		lastMemCost := math.Floor(math.Pow(lastMemSizeWord, 2)/512) + (3 * lastMemSizeWord) //nolint:gomnd
+
+		memSizeWord := math.Ceil((float64(argsOffset+argsSize+31) / 32))                    //nolint:gomnd
+		newMemCost := math.Floor(math.Pow(memSizeWord, float64(2))/512) + (3 * memSizeWord) //nolint:gomnd
+		callMemCost := newMemCost - lastMemCost
+
+		// Compute return memory expansion cost
+		retMemSizeWord := math.Ceil((float64(retOffset) + float64(retSize) + 31) / 32)      //nolint:gomnd
+		retNewMemCost := math.Floor(math.Pow(retMemSizeWord, 2)/512) + (3 * retMemSizeWord) //nolint:gomnd
+		retMemCost := retNewMemCost - newMemCost
+		if retMemCost < 0 {
+			retMemCost = 0
+		}
+
+		callGasCost := retMemCost + callMemCost + 100 //nolint:gomnd
+		gasUsed := float64(previousStep.GasCost) - callGasCost
+
+		// Compute gas sent to call
+		gas := float64(previousStep.Gas) - callGasCost
+		gas -= math.Floor(gas / 64) //nolint:gomnd
+
+		return addr, value, input, uint64(gas), uint64(gasUsed), nil
+	} else {
+		gasUsed, err := s.getGasUsed(stepStack, previousStep, step)
+		if err != nil {
+			return common.Address{}, nil, nil, 0, 0, err
+		}
+		return previousStep.Contract.Address, previousStep.Contract.Value, previousStep.Contract.Input, previousStep.Gas, gasUsed, nil
+	}
 }
 
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
@@ -1011,9 +1094,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	executions := int64(len(txExecutions))
 	if executions > 0 {
-		log.Debugf("EstimateGas executed the TX %v times", executions)
-		averageExecutionTime := totalExecutionTime.Milliseconds() / executions
-		log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
+		log.Infof("EstimateGas executed TX %v %d times in %d milliseconds", transaction.Hash(), executions, totalExecutionTime.Milliseconds())
 	} else {
 		log.Error("Estimate gas. Tx not executed")
 	}

@@ -19,7 +19,6 @@ type dbManager struct {
 	txPool           txPool
 	state            stateInterface
 	worker           workerInterface
-	txsStore         TxsStore
 	l2ReorgCh        chan L2ReorgEvent
 	ctx              context.Context
 	batchConstraints batchConstraints
@@ -41,13 +40,13 @@ type ClosingBatchParameters struct {
 	ClosingReason  state.ClosingReason
 }
 
-func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, txsStore TxsStore, batchConstraints batchConstraints) *dbManager {
+func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, batchConstraints batchConstraints) *dbManager {
 	numberOfReorgs, err := state.CountReorgs(ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)
 	}
 
-	return &dbManager{ctx: ctx, cfg: config, txPool: txPool, state: state, worker: worker, txsStore: txsStore, l2ReorgCh: closingSignalCh.L2ReorgCh, batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs}
+	return &dbManager{ctx: ctx, cfg: config, txPool: txPool, state: state, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh, batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs}
 }
 
 // Start stars the dbManager routines
@@ -59,7 +58,6 @@ func (d *dbManager) Start() {
 			d.checkIfReorg()
 		}
 	}()
-	go d.storeProcessedTxAndDeleteFromPool()
 }
 
 // GetLastBatchNumber get the latest batch number from state
@@ -158,72 +156,58 @@ func (d *dbManager) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	return d.state.BeginStateTransaction(ctx)
 }
 
-// StoreProcessedTransaction stores a transaction in the state
-func (d *dbManager) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
-	return d.state.StoreTransaction(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
-}
-
 // DeleteTransactionFromPool deletes a transaction from the pool
 func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common.Hash) error {
 	return d.txPool.DeleteTransactionByHash(ctx, txHash)
 }
 
-// storeProcessedTxAndDeleteFromPool stores a tx into the state and changes it status in the pool
-func (d *dbManager) storeProcessedTxAndDeleteFromPool() {
-	for {
-		txToStore := <-d.txsStore.Ch
-		d.checkIfReorg()
+// StoreProcessedTxAndDeleteFromPool stores a tx into the state and changes it status in the pool
+func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx *txToStore) error {
+	d.checkIfReorg()
 
-		// Flush the state db
-		err := d.state.FlushMerkleTree(d.ctx)
-		if err != nil {
-			log.Fatalf("StoreProcessedTxAndDeleteFromPool. Error flushing state db: %v", err)
-		}
-
-		log.Debugf("Storing tx %v", txToStore.txResponse.TxHash)
-		dbTx, err := d.BeginStateTransaction(d.ctx)
-		if err != nil {
-			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
-		}
-
-		err = d.StoreProcessedTransaction(d.ctx, txToStore.batchNumber, txToStore.txResponse, txToStore.coinbase, txToStore.timestamp, dbTx)
-		if err != nil {
-			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
-		}
-
-		// Update batch l2 data
-		batch, err := d.state.GetBatchByNumber(d.ctx, txToStore.batchNumber, dbTx)
-		if err != nil {
-			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
-		}
-
-		txData, err := state.EncodeTransaction(txToStore.txResponse.Tx)
-		if err != nil {
-			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
-		}
-		batch.BatchL2Data = append(batch.BatchL2Data, txData...)
-
-		if !txToStore.isForcedBatch {
-			err = d.state.UpdateBatchL2Data(d.ctx, txToStore.batchNumber, batch.BatchL2Data, dbTx)
-			if err != nil {
-				log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
-			}
-		}
-
-		err = dbTx.Commit(d.ctx)
-		if err != nil {
-			log.Fatalf("StoreProcessedTxAndDeleteFromPool error committing : %v", err)
-		}
-
-		// Change Tx status to selected
-		err = d.txPool.UpdateTxStatus(d.ctx, txToStore.txResponse.TxHash, pool.TxStatusSelected, false, nil)
-		if err != nil {
-			log.Fatalf("StoreProcessedTxAndDeleteFromPool: %v", err)
-		}
-
-		log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", txToStore.txResponse.TxHash.String(), txToStore.batchNumber)
-		d.txsStore.Wg.Done()
+	log.Debugf("Storing tx %v", tx.txResponse.TxHash)
+	dbTx, err := d.BeginStateTransaction(ctx)
+	if err != nil {
+		return err
 	}
+
+	err = d.state.StoreTransaction(ctx, tx.batchNumber, tx.txResponse, tx.coinbase, tx.timestamp, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// Update batch l2 data
+	batch, err := d.state.GetBatchByNumber(ctx, tx.batchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+
+	txData, err := state.EncodeTransaction(tx.txResponse.Tx)
+	if err != nil {
+		return err
+	}
+	batch.BatchL2Data = append(batch.BatchL2Data, txData...)
+
+	if !tx.isForcedBatch {
+		err = d.state.UpdateBatchL2Data(ctx, tx.batchNumber, batch.BatchL2Data, dbTx)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = dbTx.Commit(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Change Tx status to selected
+	err = d.txPool.UpdateTxStatus(ctx, tx.txResponse.TxHash, pool.TxStatusSelected, false, nil)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", tx.txResponse.TxHash.String(), tx.batchNumber)
+	return nil
 }
 
 // GetWIPBatch returns ready WIP batch
@@ -251,7 +235,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		previousLastBatch = lastBatches[1]
 	}
 
-	lastBatchTxs, _, err := state.DecodeTxs(lastBatch.BatchL2Data)
+	lastBatchTxs, _, _, err := state.DecodeTxs(lastBatch.BatchL2Data)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +243,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	var prevLastBatchTxs []types.Transaction
 	if previousLastBatch != nil {
-		prevLastBatchTxs, _, err = state.DecodeTxs(previousLastBatch.BatchL2Data)
+		prevLastBatchTxs, _, _, err = state.DecodeTxs(previousLastBatch.BatchL2Data)
 		if err != nil {
 			return nil, err
 		}
@@ -578,4 +562,14 @@ func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
 // CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
 func (d *dbManager) CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error) {
 	return d.txPool.CalculateTxBreakEvenGasPrice(ctx, gasUsed)
+}
+
+// GetStoredFlushID returns the stored flush ID and prover ID
+func (d *dbManager) GetStoredFlushID(ctx context.Context) (uint64, string, error) {
+	return d.state.GetStoredFlushID(ctx)
+}
+
+// GetForcedBatch gets a forced batch by number
+func (d *dbManager) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error) {
+	return d.state.GetForcedBatch(ctx, forcedBatchNumber, dbTx)
 }

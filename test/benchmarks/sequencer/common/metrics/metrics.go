@@ -22,11 +22,11 @@ const (
 // CalculateAndPrint calculates and prints the results
 func CalculateAndPrint(prometheusResp *http.Response, profilingResult string, elapsed time.Duration, sequencerTimeSub, executorTimeSub float64, nTxs int) {
 	var (
-		sequencerTime, executorTime, workerTime float64
-		err                                     error
+		metricValues Values
+		err          error
 	)
 	if prometheusResp != nil {
-		sequencerTime, executorTime, workerTime, err = GetValues(prometheusResp)
+		metricValues, err = GetValues(prometheusResp)
 		if err != nil {
 			log.Fatalf("error getting prometheus metrics: %v", err)
 		}
@@ -41,9 +41,9 @@ func CalculateAndPrint(prometheusResp *http.Response, profilingResult string, el
 		log.Info("######################")
 		log.Info("# Prometheus Metrics #")
 		log.Info("######################")
-		actualTotalTime := sequencerTime - sequencerTimeSub
-		actualExecutorTime := executorTime - executorTimeSub
-		PrintPrometheus(actualTotalTime, actualExecutorTime, workerTime)
+		actualTotalTime := metricValues.SequencerTotalProcessingTime - sequencerTimeSub
+		actualExecutorTime := metricValues.ExecutorTotalProcessingTime - executorTimeSub
+		PrintPrometheus(actualTotalTime, actualExecutorTime, metricValues)
 		log.Infof("[Transactions per second]: %v", float64(nTxs)/actualTotalTime)
 	}
 	if profilingResult != "" {
@@ -55,17 +55,23 @@ func CalculateAndPrint(prometheusResp *http.Response, profilingResult string, el
 }
 
 // PrintPrometheus prints the prometheus metrics
-func PrintPrometheus(totalTime float64, executorTime float64, workerTime float64) {
+func PrintPrometheus(totalTime float64, executorTime float64, metricValues Values) {
 	log.Infof("[TOTAL Processing Time]: %v s", totalTime)
 	log.Infof("[EXECUTOR Processing Time]: %v s", executorTime)
 	log.Infof("[SEQUENCER Processing Time]: %v s", totalTime-executorTime)
-	log.Infof("[WORKER Processing Time]: %v s", workerTime)
+	log.Infof("[WORKER Processing Time]: %v s", metricValues.WorkerTotalProcessingTime)
 	log.Infof("[EXECUTOR Time Percentage from TOTAL]: %.2f %%", (executorTime/totalTime)*oneHundred)
-	log.Infof("[WORKER Time Percentage from TOTAL]: %.2f %%", (workerTime/totalTime)*oneHundred)
+	log.Infof("[WORKER Time Percentage from TOTAL]: %.2f %%", (metricValues.WorkerTotalProcessingTime/totalTime)*oneHundred)
 }
 
-// GetValues gets the prometheus metric values
-func GetValues(metricsResponse *http.Response) (float64, float64, float64, error) {
+type Values struct {
+	SequencerTotalProcessingTime float64
+	ExecutorTotalProcessingTime  float64
+	WorkerTotalProcessingTime    float64
+}
+
+// GetValues gets the prometheus metric Values
+func GetValues(metricsResponse *http.Response) (Values, error) {
 	var err error
 	if metricsResponse == nil {
 		metricsResponse, err = FetchPrometheus()
@@ -76,7 +82,7 @@ func GetValues(metricsResponse *http.Response) (float64, float64, float64, error
 
 	mf, err := testutils.ParseMetricFamilies(metricsResponse.Body)
 	if err != nil {
-		return 0, 0, 0, err
+		return Values{}, err
 	}
 	sequencerTotalProcessingTimeHisto := mf[metrics.ProcessingTimeName].Metric[0].Histogram
 	sequencerTotalProcessingTime := sequencerTotalProcessingTimeHisto.GetSampleSum()
@@ -86,7 +92,12 @@ func GetValues(metricsResponse *http.Response) (float64, float64, float64, error
 
 	executorTotalProcessingTimeHisto := mf[metricsState.ExecutorProcessingTimeName].Metric[0].Histogram
 	executorTotalProcessingTime := executorTotalProcessingTimeHisto.GetSampleSum()
-	return sequencerTotalProcessingTime, executorTotalProcessingTime, workerTotalProcessingTime, nil
+
+	return Values{
+		SequencerTotalProcessingTime: sequencerTotalProcessingTime,
+		ExecutorTotalProcessingTime:  executorTotalProcessingTime,
+		WorkerTotalProcessingTime:    workerTotalProcessingTime,
+	}, nil
 }
 
 // FetchPrometheus fetches the prometheus metrics
