@@ -233,31 +233,15 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 		}
 
 		if cfg.EnableMemory {
-			// set Memory
-			memory.Resize(uint64(structLog.MemorySize))
-			if len(structLog.Memory) > 0 {
-				memory.Set(uint64(structLog.MemoryOffset), uint64(len(structLog.Memory)), structLog.Memory)
+			const memoryChunkSize = 32
+			memory := make([]string, 0, len(structLog.Memory))
+			for i := 0; i < len(structLog.Memory); i = i + memoryChunkSize {
+				slice32Bytes := make([]byte, memoryChunkSize)
+				copy(slice32Bytes, structLog.Memory[i:i+memoryChunkSize])
+				memoryStringItem := hex.EncodeToString(slice32Bytes)
+				memory = append(memory, memoryStringItem)
 			}
-
-			if structLog.MemorySize > 0 {
-				// Populate the structLog memory
-				structLog.Memory = memory.Data()
-
-				// Convert memory to string array
-				const memoryChunkSize = 32
-				memoryArray := make([]string, 0, len(structLog.Memory))
-
-				for i := 0; i < len(structLog.Memory); i = i + memoryChunkSize {
-					slice32Bytes := make([]byte, memoryChunkSize)
-					copy(slice32Bytes, structLog.Memory[i:i+memoryChunkSize])
-					memoryStringItem := hex.EncodeToString(slice32Bytes)
-					memoryArray = append(memoryArray, memoryStringItem)
-				}
-
-				structLogRes.Memory = &memoryArray
-			} else {
-				structLogRes.Memory = &[]string{}
-			}
+			structLogRes.Memory = &memory
 		}
 
 		if !cfg.DisableStorage && len(structLog.Storage) > 0 {
