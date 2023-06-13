@@ -94,7 +94,7 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 0
-		TimestampResolution = "15s"
+		TimestampResolution = "10s"
 		[Sequencer.Finalizer.EffectiveGasPrice]
 			BreakEvenGasPriceGuaranteedPeriod = "30s"
 			MaxBreakEvenGasPriceDeviationPercentage = 10

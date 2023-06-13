@@ -71,7 +71,7 @@ func decode(ctx *cli.Context) error {
 		log.Error("error decoding rawTxs: ", err)
 		return err
 	}
-	txs, _, err := state.DecodeTxs(bytesRawTxs)
+	txs, _, _, err := state.DecodeTxs(bytesRawTxs)
 	if err != nil {
 		log.Error("error decoding tx callData: ", err)
 		return err
@@ -244,6 +244,6 @@ func decodeFullCallDataToTxs(txsData []byte) ([]types.Transaction, []byte, error
 
 	txsData = data[0].([]byte)
 
-	txs, _, err := state.DecodeTxs(txsData)
+	txs, _, _, err := state.DecodeTxs(txsData)
 	return txs, txsData, err
 }

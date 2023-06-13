@@ -117,7 +117,7 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 			return err
 		}
 		log.Infof("**********              BATCH %d              **********", tc.Requests[i].OldBatchNum)
-		txs, _, err := state.DecodeTxs(tc.Requests[i].BatchL2Data)
+		txs, _, _, err := state.DecodeTxs(tc.Requests[i].BatchL2Data)
 		if err != nil {
 			log.Warnf("Txs are not correctly encoded")
 		}

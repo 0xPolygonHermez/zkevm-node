@@ -274,7 +274,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				dbManagerMock.On("UpdateTxStatus", ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil).Once()
 			}
 
-			errWg, err := f.handleProcessTransactionResponse(ctx, txTracker, tc.executorResponse, tc.oldStateRoot)
+			_, errWg, err := f.handleProcessTransactionResponse(ctx, txTracker, tc.executorResponse, tc.oldStateRoot)
 
 			if errWg != nil {
 				errWg.Wait()
@@ -735,7 +735,7 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 	batchNumber := f.batch.batchNumber
 	decodedBatchL2Data, err = hex.DecodeHex(testBatchL2DataAsString)
 	require.NoError(t, err)
-	txs, _, err := state.DecodeTxs(decodedBatchL2Data)
+	txs, _, _, err := state.DecodeTxs(decodedBatchL2Data)
 	require.NoError(t, err)
 
 	txResp := &state.ProcessTransactionResponse{
@@ -1761,9 +1761,9 @@ func TestFinalizer_updateWorkerAfterSuccessfulProcessing(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// arrange
 			finalizerInstance := setupFinalizer(false)
 			workerMock.On("DeleteTx", tc.txTracker.Hash, tc.txTracker.From).Times(tc.expectedDeleteTxCount)
-
 			txsToDelete := make([]*TxTracker, 0, len(tc.processBatchResponse.ReadWriteAddresses))
 			for _, infoReadWrite := range tc.processBatchResponse.ReadWriteAddresses {
 				txsToDelete = append(txsToDelete, &TxTracker{
@@ -1772,16 +1772,16 @@ func TestFinalizer_updateWorkerAfterSuccessfulProcessing(t *testing.T) {
 					FailedReason: &testErrStr,
 				})
 			}
-
 			workerMock.On("UpdateAfterSingleSuccessfulTxExecution", tc.txTracker.From, tc.processBatchResponse.ReadWriteAddresses).
 				Return(txsToDelete)
-
 			if tc.expectedUpdateCount > 0 {
 				dbManagerMock.On("UpdateTxStatus", mock.Anything, mock.Anything, pool.TxStatusFailed, false, mock.Anything).Times(tc.expectedUpdateCount).Return(nil)
 			}
 
+			// act
 			finalizerInstance.updateWorkerAfterSuccessfulProcessing(ctx, tc.txTracker, tc.processBatchResponse)
 
+			// assert
 			workerMock.AssertExpectations(t)
 			dbManagerMock.AssertExpectations(t)
 		})

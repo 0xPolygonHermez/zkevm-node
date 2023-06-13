@@ -1396,6 +1396,10 @@ func Test_BlockedAddress(t *testing.T) {
 
 func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
 	normalCfg := pool.Config{
+		MinAllowedGasPriceInterval:        cfgTypes.NewDuration(5 * time.Minute),
+		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
+		DefaultMinGasPriceAllowed:         1000000000,
+		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
 		EffectiveGasPrice: pool.EffectiveGasPrice{
 			ByteGasCost:                       16,
 			L1GasPricePercentageForL2MinPrice: 10,

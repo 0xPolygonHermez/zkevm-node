@@ -34,7 +34,7 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && !strings.HasSuffix(info.Name(), "list.json") && strings.HasPrefix(info.Name(), "general_0") {
+		if !info.IsDir() && !strings.HasSuffix(info.Name(), "list.json") {
 
 			t.Run(info.Name(), func(t *testing.T) {
 

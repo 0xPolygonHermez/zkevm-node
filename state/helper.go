@@ -56,11 +56,10 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 		newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
 		newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
 		newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
-		txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+		txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded + effectivePercentageAsHex)
 		if err != nil {
 			return nil, err
 		}
-		txData = append(txData, []byte(effectivePercentageAsHex)...)
 		batchL2Data = append(batchL2Data, txData...)
 	}
 
@@ -170,6 +169,12 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, []uint8, error) {
 
 		if endPos > txDataLength {
 			err := fmt.Errorf("endPos %d is bigger than txDataLength %d", endPos, txDataLength)
+			log.Debug("error parsing header: ", err)
+			return []types.Transaction{}, txsData, []uint8{}, ErrInvalidData
+		}
+
+		if endPos < pos {
+			err := fmt.Errorf("endPos %d is smaller than pos %d", endPos, pos)
 			log.Debug("error parsing header: ", err)
 			return []types.Transaction{}, txsData, []uint8{}, ErrInvalidData
 		}

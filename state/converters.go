@@ -152,7 +152,6 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		result.CallTrace = *callTrace
 		result.EffectiveGasPrice = response.EffectiveGasPrice
 		result.EffectivePercentage = response.EffectivePercentage
-
 		result.Tx = txs[i]
 
 		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))

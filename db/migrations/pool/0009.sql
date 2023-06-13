@@ -1,5 +1,5 @@
 -- +migrate Up
-ALTER TABLE pool.transaction ADD COLUMN break_even_gas_price DECIMAL(78, 0);
+ALTER TABLE pool.blocked ADD COLUMN block_reason VARCHAR;
 
 -- +migrate Down
-ALTER TABLE pool.transaction DROP COLUMN break_even_gas_price;
+ALTER TABLE pool.blocked DROP COLUMN block_reason;
