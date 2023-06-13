@@ -134,7 +134,9 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	poolTx := NewTransaction(tx, ip, isWIP, p)
 	// Execute transaction to calculate its zkCounters
 	preExecutionResponse, err := p.PreExecuteTx(ctx, tx)
-	if err != nil {
+	if errors.Is(err, runtime.ErrIntrinsicInvalidBatchGasLimit) {
+		return ErrGasLimit
+	} else if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
 	}
 
@@ -254,6 +256,39 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 }
 
 func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
+	// Make sure the transaction is signed properly.
+	if err := state.CheckSignature(poolTx.Transaction); err != nil {
+		return ErrInvalidSender
+	}
+	from, err := state.GetSender(poolTx.Transaction)
+	if err != nil {
+		return ErrInvalidSender
+	}
+
+	// check if sender is blocked
+	_, blocked := p.blockedAddresses.Load(from.String())
+	if blocked {
+		return ErrBlockedSender
+	}
+
+	// check if the pool is full
+	txCount, err := p.storage.CountTransactionsByStatus(ctx, TxStatusPending, TxStatusFailed)
+	if err != nil {
+		return err
+	}
+	if txCount >= p.cfg.GlobalQueue {
+		return ErrTxPoolOverflow
+	}
+
+	// check if sender has reached the limit of transactions in the pool
+	txCount, err = p.storage.CountTransactionsByFromAndStatus(ctx, from, TxStatusPending, TxStatusFailed)
+	if err != nil {
+		return err
+	}
+	if txCount >= p.cfg.AccountQueue {
+		return ErrTxPoolAccountOverflow
+	}
+
 	// check chain id
 	txChainID := poolTx.ChainId().Uint64()
 	if txChainID != p.chainID && txChainID != 0 {
@@ -283,33 +318,24 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	if poolTx.Value().Sign() < 0 {
 		return ErrNegativeValue
 	}
-	// Make sure the transaction is signed properly.
-	if err := state.CheckSignature(poolTx.Transaction); err != nil {
-		return ErrInvalidSender
-	}
-	from, err := state.GetSender(poolTx.Transaction)
-	if err != nil {
-		return ErrInvalidSender
-	}
-
-	// check if sender is blocked
-	_, blocked := p.blockedAddresses.Load(from.String())
-	if blocked {
-		return ErrBlockedSender
-	}
 
 	lastL2Block, err := p.state.GetLastL2Block(ctx, nil)
 	if err != nil {
 		return err
 	}
 
-	nonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
+	currentNonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
 	if err != nil {
 		return err
 	}
 	// Ensure the transaction adheres to nonce ordering
-	if nonce > poolTx.Nonce() {
+	if poolTx.Nonce() < currentNonce {
 		return ErrNonceTooLow
+	}
+
+	// Ensure the transaction does not jump out of the expected AccountQueue
+	if poolTx.Nonce() > currentNonce+p.cfg.AccountQueue {
+		return ErrNonceTooHigh
 	}
 
 	// Transactor should have enough funds to cover the costs
