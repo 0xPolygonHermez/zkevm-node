@@ -62,6 +62,9 @@ func (m *Memory) Set32(offset uint64, val *uint256.Int) {
 func (m *Memory) Resize(size uint64) {
 	if uint64(m.Len()) < size {
 		m.store = append(m.store, make([]byte, size-uint64(m.Len()))...)
+	} else if uint64(m.Len()) > size {
+		data := m.Data()
+		m.store = data[:size]
 	}
 }
 
