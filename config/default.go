@@ -139,7 +139,7 @@ URI = "zkevm-prover:50061"
 
 [Executor]
 URI = "zkevm-prover:50071"
-MaxResourceExhaustedAttempts = 1
+MaxResourceExhaustedAttempts = 3
 WaitOnResourceExhaustion = "1s"
 
 [Metrics]
