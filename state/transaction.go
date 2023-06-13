@@ -447,6 +447,8 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 	var previousStep instrumentation.Step
 	reverted := false
 	internalTxSteps := NewStack[instrumentation.InternalTxContext]()
+	memory := fakevm.NewMemory()
+
 	for i, step := range trace.Steps {
 		// set Stack
 		stack := fakevm.NewStack()
@@ -456,13 +458,13 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 		}
 
 		// set Memory
-		memory := fakevm.NewMemory()
+		memory.Resize(uint64(step.MemorySize))
 		if len(step.Memory) > 0 {
-			memory.Resize(uint64(len(step.Memory)))
-			memory.Set(0, uint64(len(step.Memory)), step.Memory)
-		} else {
-			memory = fakevm.NewMemory()
+			memory.Set(uint64(step.MemoryOffset), uint64(len(step.Memory)), step.Memory)
 		}
+
+		// Populate the step memory for future steps
+		step.Memory = memory.Data()
 
 		// set Contract
 		contract := fakevm.NewContract(
@@ -624,13 +626,13 @@ func (s *State) getValuesFromInternalTxMemory(stepStack *Stack[instrumentation.I
 
 		input := make([]byte, argsSize)
 
-		if argsOffset > uint64(len(previousStep.Memory)) {
+		if argsOffset > uint64(previousStep.MemorySize) {
 			// when none of the bytes can be found in the memory
 			// do nothing to keep input as zeroes
-		} else if argsOffset+argsSize > uint64(len(previousStep.Memory)) {
+		} else if argsOffset+argsSize > uint64(previousStep.MemorySize) {
 			// when partial bytes are found in the memory
 			// copy just the bytes we have in memory and complement the rest with zeroes
-			copy(input[0:argsSize], previousStep.Memory[argsOffset:uint64(len(previousStep.Memory))])
+			copy(input[0:argsSize], previousStep.Memory[argsOffset:uint64(previousStep.MemorySize)])
 		} else {
 			// when all the bytes are found in the memory
 			// read the bytes from memory
@@ -638,7 +640,7 @@ func (s *State) getValuesFromInternalTxMemory(stepStack *Stack[instrumentation.I
 		}
 
 		// Compute call memory expansion cost
-		memSize := len(previousStep.Memory)
+		memSize := previousStep.MemorySize
 		lastMemSizeWord := math.Ceil((float64(memSize) + 31) / 32)                          //nolint:gomnd
 		lastMemCost := math.Floor(math.Pow(lastMemSizeWord, 2)/512) + (3 * lastMemSizeWord) //nolint:gomnd
 
