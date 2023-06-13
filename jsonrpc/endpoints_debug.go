@@ -239,7 +239,7 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 				memory.Set(uint64(structLog.MemoryOffset), uint64(len(structLog.Memory)), structLog.Memory)
 			}
 
-			// Populate the step memory for future steps
+			// Populate the structLog memory
 			structLog.Memory = memory.Data()
 
 			// Convert memory to string array
