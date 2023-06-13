@@ -226,6 +226,7 @@ func convertToStructLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumenta
 		result.GasCost = response.GasCost
 		result.Memory = response.Memory
 		result.MemorySize = int(response.MemorySize)
+		result.MemoryOffset = int(response.MemoryOffset)
 		result.Stack = convertedStack
 		result.ReturnData = response.ReturnData
 		result.Storage = convertToProperMap(response.Storage)
@@ -242,6 +243,9 @@ func convertToBigIntArray(responses []string) ([]*big.Int, error) {
 	results := make([]*big.Int, 0, len(responses))
 
 	for _, response := range responses {
+		if len(response)%2 != 0 {
+			response = "0" + response
+		}
 		result, ok := new(big.Int).SetString(response, hex.Base)
 		if ok {
 			results = append(results, result)
