@@ -11,7 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -196,7 +195,6 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 
 func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.StructLog, cfg traceConfig) []StructLogRes {
 	structLogs := make([]StructLogRes, 0, len(stateStructLogs))
-	memory := fakevm.NewMemory()
 	for _, structLog := range stateStructLogs {
 		errRes := ""
 		if structLog.Err != nil {
