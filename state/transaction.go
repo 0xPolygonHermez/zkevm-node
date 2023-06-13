@@ -458,12 +458,13 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 		}
 
 		// set Memory
-		if step.MemorySize > 0 {
-			memory.Resize(uint64(step.MemorySize))
+		memory.Resize(uint64(step.MemorySize))
+		if len(step.Memory) > 0 {
 			memory.Set(uint64(step.MemoryOffset), uint64(len(step.Memory)), step.Memory)
-		} else {
-			memory = fakevm.NewMemory()
 		}
+
+		// Populate the step memory for future steps
+		step.Memory = memory.Data()
 
 		// set Contract
 		contract := fakevm.NewContract(
