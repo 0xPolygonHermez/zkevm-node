@@ -237,6 +237,8 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 			if structLog.MemorySize < memory.Len() {
 				// Reduce memory size
 				data := memory.Data()
+				memory = fakevm.NewMemory()
+				memory.Resize(uint64(structLog.MemorySize))
 				memory.Set(0, 0, data[:structLog.MemorySize])
 			} else {
 				// Keep or increase memory size
