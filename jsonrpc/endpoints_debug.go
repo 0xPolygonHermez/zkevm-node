@@ -239,32 +239,23 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 				memory.Set(uint64(structLog.MemoryOffset), uint64(len(structLog.Memory)), structLog.Memory)
 			}
 
-			// Populate the structLog memory
-			structLog.Memory = memory.Data()
+			if structLog.MemorySize > 0 {
+				// Populate the structLog memory
+				structLog.Memory = memory.Data()
 
-			// Convert memory to string array
-			const memoryChunkSize = 32
-			memoryArray := make([]string, 0, len(structLog.Memory))
+				// Convert memory to string array
+				const memoryChunkSize = 32
+				memoryArray := make([]string, 0, len(structLog.Memory))
 
-			isMemoryEmpty := true
-
-			for _, v := range structLog.Memory {
-				if v != 0 {
-					isMemoryEmpty = false
-					break
-				}
-			}
-
-			if !isMemoryEmpty {
 				for i := 0; i < len(structLog.Memory); i = i + memoryChunkSize {
 					slice32Bytes := make([]byte, memoryChunkSize)
 					copy(slice32Bytes, structLog.Memory[i:i+memoryChunkSize])
 					memoryStringItem := hex.EncodeToString(slice32Bytes)
 					memoryArray = append(memoryArray, memoryStringItem)
 				}
-			}
 
-			structLogRes.Memory = &memoryArray
+				structLogRes.Memory = &memoryArray
+			}
 		}
 
 		if !cfg.DisableStorage && len(structLog.Storage) > 0 {
