@@ -447,6 +447,8 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 	var previousStep instrumentation.Step
 	reverted := false
 	internalTxSteps := NewStack[instrumentation.InternalTxContext]()
+	memory := fakevm.NewMemory()
+
 	for i, step := range trace.Steps {
 		// set Stack
 		stack := fakevm.NewStack()
@@ -456,7 +458,6 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 		}
 
 		// set Memory
-		memory := fakevm.NewMemory()
 		if step.MemorySize > 0 {
 			memory.Resize(uint64(step.MemorySize))
 			memory.Set(uint64(step.MemoryOffset), uint64(len(step.Memory)), step.Memory)
