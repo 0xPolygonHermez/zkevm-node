@@ -309,6 +309,9 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) ([]instrumen
 		step.GasCost = response.GasCost
 		step.Stack = make([]*big.Int, 0, len(response.Stack))
 		for _, s := range response.Stack {
+			if len(s)%2 != 0 {
+				s = "0" + s
+			}
 			bi, ok := new(big.Int).SetString(s, hex.Base)
 			if !ok {
 				log.Debugf("error while parsing stack valueBigInt")
