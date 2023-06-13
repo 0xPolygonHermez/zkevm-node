@@ -255,6 +255,8 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 				}
 
 				structLogRes.Memory = &memoryArray
+			} else {
+				structLogRes.Memory = &[]string{}
 			}
 		}
 
