@@ -388,7 +388,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Executor.MaxResourceExhaustedAttempts",
-			expectedValue: 1,
+			expectedValue: 3,
 		},
 		{
 			path:          "Executor.WaitOnResourceExhaustion",
