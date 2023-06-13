@@ -234,9 +234,10 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 
 		if cfg.EnableMemory {
 			// set Memory
-			if structLog.MemorySize < len(memory.Data()) {
+			if structLog.MemorySize < memory.Len() {
 				// Reduce memory size
-				memory.Set(0, uint64(len(structLog.Memory)), memory.Data()[:structLog.MemorySize])
+				data := memory.Data()
+				memory.Set(0, 0, data[:structLog.MemorySize])
 			} else {
 				// Keep or increase memory size
 				memory.Resize(uint64(structLog.MemorySize))
