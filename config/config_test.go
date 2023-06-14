@@ -387,6 +387,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: "zkevm-prover:50071",
 		},
 		{
+			path:          "Executor.MaxResourceExhaustedAttempts",
+			expectedValue: 3,
+		},
+		{
+			path:          "Executor.WaitOnResourceExhaustion",
+			expectedValue: types.NewDuration(1 * time.Second),
+		},
+		{
 			path:          "Metrics.Host",
 			expectedValue: "0.0.0.0",
 		},
