@@ -65,8 +65,8 @@ var (
 		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Minute),
-		AccountQueue:                      5,
-		GlobalQueue:                       10,
+		AccountQueue:                      15,
+		GlobalQueue:                       20,
 	}
 	gasPrice = big.NewInt(1000000000)
 	gasLimit = uint64(21000)
@@ -1330,6 +1330,8 @@ func Test_BlockedAddress(t *testing.T) {
 		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
+		AccountQueue:                      64,
+		GlobalQueue:                       1024,
 	}
 	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
 
