@@ -25,7 +25,7 @@ require (
 	github.com/urfave/cli/v2 v2.25.6
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.10.0
-	golang.org/x/net v0.10.0
+	golang.org/x/net v0.11.0
 	golang.org/x/sync v0.2.0
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
