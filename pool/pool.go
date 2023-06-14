@@ -260,34 +260,6 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	if err := state.CheckSignature(poolTx.Transaction); err != nil {
 		return ErrInvalidSender
 	}
-	from, err := state.GetSender(poolTx.Transaction)
-	if err != nil {
-		return ErrInvalidSender
-	}
-
-	// check if sender is blocked
-	_, blocked := p.blockedAddresses.Load(from.String())
-	if blocked {
-		return ErrBlockedSender
-	}
-
-	// check if the pool is full
-	txCount, err := p.storage.CountTransactionsByStatus(ctx, TxStatusPending, TxStatusFailed)
-	if err != nil {
-		return err
-	}
-	if txCount >= p.cfg.GlobalQueue {
-		return ErrTxPoolOverflow
-	}
-
-	// check if sender has reached the limit of transactions in the pool
-	txCount, err = p.storage.CountTransactionsByFromAndStatus(ctx, from, TxStatusPending, TxStatusFailed)
-	if err != nil {
-		return err
-	}
-	if txCount >= p.cfg.AccountQueue {
-		return ErrTxPoolAccountOverflow
-	}
 
 	// check chain id
 	txChainID := poolTx.ChainId().Uint64()
@@ -305,18 +277,21 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		return ErrOversizedData
 	}
 
-	// Reject transactions with a gas price lower than the minimum gas price
-	p.minSuggestedGasPriceMux.RLock()
-	gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
-	p.minSuggestedGasPriceMux.RUnlock()
-	if gasPriceCmp == -1 {
-		return ErrGasPrice
-	}
-
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
 	if poolTx.Value().Sign() < 0 {
 		return ErrNegativeValue
+	}
+
+	from, err := state.GetSender(poolTx.Transaction)
+	if err != nil {
+		return ErrInvalidSender
+	}
+
+	// check if sender is blocked
+	_, blocked := p.blockedAddresses.Load(from.String())
+	if blocked {
+		return ErrBlockedSender
 	}
 
 	lastL2Block, err := p.state.GetLastL2Block(ctx, nil)
@@ -333,9 +308,39 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		return ErrNonceTooLow
 	}
 
-	// Ensure the transaction does not jump out of the expected AccountQueue
-	if poolTx.Nonce() > currentNonce+p.cfg.AccountQueue {
-		return ErrNonceTooHigh
+	// check if sender has reached the limit of transactions in the pool
+	if p.cfg.AccountQueue > 0 {
+		// txCount, err := p.storage.CountTransactionsByFromAndStatus(ctx, from, TxStatusPending, TxStatusFailed)
+		// if err != nil {
+		// 	return err
+		// }
+		// if txCount >= p.cfg.AccountQueue {
+		// 	return ErrTxPoolAccountOverflow
+		// }
+
+		// Ensure the transaction does not jump out of the expected AccountQueue
+		if poolTx.Nonce() > currentNonce+p.cfg.AccountQueue-1 {
+			return ErrNonceTooHigh
+		}
+	}
+
+	// check if the pool is full
+	if p.cfg.GlobalQueue > 0 {
+		txCount, err := p.storage.CountTransactionsByStatus(ctx, TxStatusPending, TxStatusFailed)
+		if err != nil {
+			return err
+		}
+		if txCount >= p.cfg.GlobalQueue {
+			return ErrTxPoolOverflow
+		}
+	}
+
+	// Reject transactions with a gas price lower than the minimum gas price
+	p.minSuggestedGasPriceMux.RLock()
+	gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
+	p.minSuggestedGasPriceMux.RUnlock()
+	if gasPriceCmp == -1 {
+		return ErrGasPrice
 	}
 
 	// Transactor should have enough funds to cover the costs

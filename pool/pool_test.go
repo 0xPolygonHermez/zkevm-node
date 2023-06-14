@@ -1558,14 +1558,14 @@ func Test_AddTx_AccountQueueLimit(t *testing.T) {
 		Nonce:    nonce,
 		Value:    big.NewInt(0),
 		Gas:      uint64(1000000),
-		GasPrice: big.NewInt(1),
+		GasPrice: gasPrice,
 	})
 
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
 	err = p.AddTx(ctx, *signedTx, "")
-	require.Error(t, err, pool.ErrTxPoolAccountOverflow)
+	require.Error(t, err, pool.ErrNonceTooHigh)
 }
 
 func Test_AddTx_GlobalQueueLimit(t *testing.T) {
@@ -1719,7 +1719,7 @@ func Test_AddTx_NonceTooHigh(t *testing.T) {
 	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
 
 	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
-		Nonce:    cfg.AccountQueue + 1,
+		Nonce:    cfg.AccountQueue,
 		Value:    big.NewInt(0),
 		Gas:      uint64(1000000),
 		GasPrice: big.NewInt(1),
