@@ -50,7 +50,7 @@ func NewL2GasPriceSuggester(ctx context.Context, cfg Config, pool pool, ethMan *
 
 func cleanGasPriceHistory(pool pool, timeRetention time.Duration) {
 	ctx := context.Background()
-	err := pool.DeleteGasPricesHistoryOlderThan(ctx, time.Now().UTC().Sub(timeRetention))
+	err := pool.DeleteGasPricesHistoryOlderThan(ctx, time.Now().UTC().Add(-timeRetention))
 	if err != nil {
 		log.Errorf("failed to delete pool gas price history: %v", err)
 	}
