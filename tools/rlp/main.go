@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -183,7 +184,7 @@ func encode(ctx *cli.Context) error {
 	}
 	tx := types.NewTx(&txLegacy)
 
-	rawBytes, err := state.EncodeTransactions([]types.Transaction{*tx})
+	rawBytes, err := state.EncodeTransactions([]types.Transaction{*tx}, constants.EffectivePercentage)
 	if err != nil {
 		log.Error("error encoding txs: ", err)
 		return err

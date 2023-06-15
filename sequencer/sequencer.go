@@ -67,16 +67,6 @@ type ClosingSignalCh struct {
 	L2ReorgCh     chan L2ReorgEvent
 }
 
-// txToStore represents a transaction to store.
-type txToStore struct {
-	txResponse               *state.ProcessTransactionResponse
-	batchNumber              uint64
-	coinbase                 common.Address
-	timestamp                uint64
-	previousL2BlockStateRoot common.Hash
-	isForcedBatch            bool
-}
-
 // New init sequencer
 func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()

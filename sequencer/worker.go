@@ -311,7 +311,7 @@ func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
 	log.Fatal("L2 Reorg detected. Restarting to sync with the new L2 state...")
 }
 
-// convertBatchConstraintsToFloat64 converts the batch constraints to float64
+// convertBatchConstraintsToFloat64 converts the batch Constraints to float64
 func convertBatchConstraintsToFloat64(constraints batchConstraints) batchConstraintsFloat64 {
 	return batchConstraintsFloat64{
 		maxTxsPerBatch:       float64(constraints.MaxTxsPerBatch),

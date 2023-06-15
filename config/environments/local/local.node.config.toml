@@ -96,6 +96,7 @@ MaxTxLifetime = "3h"
 		[Sequencer.Finalizer.EffectiveGasPrice]
 			BreakEvenGasPriceGuaranteedPeriod = "30s"
 			MaxBreakEvenGasPriceDeviationPercentage = 10
+			IsEnabled = false
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"

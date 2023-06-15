@@ -29,7 +29,7 @@ func TestCalcGasPriceEffectivePercentage(t *testing.T) {
 		{
 			name:          "Both positive, gasPrice less than breakEven",
 			breakEven:     big.NewInt(22000000000),
-			gasPrice:      big.NewInt(55000000000),
+			gasPrice:      big.NewInt(11000000000),
 			expectedValue: big.NewInt(255),
 			err:           nil,
 		},

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
@@ -26,7 +27,8 @@ const (
 )
 
 var (
-	now = time.Now
+	now                                 = time.Now
+	maxEffectivePercentageDecodedHex, _ = hex.DecodeHex(fmt.Sprintf("%x", state.MaxEffectivePercentage))
 )
 
 // finalizer represents the finalizer component of the sequencer.
@@ -57,7 +59,7 @@ type finalizer struct {
 	maxBreakEvenGasPriceDeviationPercentage *big.Int
 	// Processed txs
 	pendingTransactionsToStore    chan transactionToStore
-	pendingTransactionsToStoreWG  sync.WaitGroup
+	pendingTransactionsToStoreWG  *sync.WaitGroup
 	pendingTransactionsToStoreMux *sync.RWMutex
 	storedFlushID                 uint64
 	storedFlushIDCond             *sync.Cond
@@ -122,21 +124,25 @@ func newFinalizer(
 		sharedResourcesMux: new(sync.RWMutex),
 		lastGERHash:        state.ZeroHash,
 		// closing signals
-		nextGER:                       common.Hash{},
-		nextGERDeadline:               0,
-		nextGERMux:                    new(sync.RWMutex),
-		nextForcedBatches:             make([]state.ForcedBatch, 0),
-		nextForcedBatchDeadline:       0,
-		nextForcedBatchesMux:          new(sync.RWMutex),
-		pendingTransactionsToStore:    make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
-		pendingTransactionsToStoreMux: &sync.RWMutex{},
-		proverID:                      "",
-		// Mutex is unlocked when the condition is broadcasted
-		storedFlushIDCond:  sync.NewCond(&sync.Mutex{}),
-		pendingFlushIDCond: sync.NewCond(&sync.Mutex{}),
+		nextGER:                 common.Hash{},
+		nextGERDeadline:         0,
+		nextGERMux:              new(sync.RWMutex),
+		nextForcedBatches:       make([]state.ForcedBatch, 0),
+		nextForcedBatchDeadline: 0,
+		nextForcedBatchesMux:    new(sync.RWMutex),
+		handlingL2Reorg:         false,
 		// event log
 		eventLog:                                eventLog,
 		maxBreakEvenGasPriceDeviationPercentage: new(big.Int).SetUint64(cfg.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage),
+		pendingTransactionsToStore:              make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
+		pendingTransactionsToStoreWG:            new(sync.WaitGroup),
+		pendingTransactionsToStoreMux:           &sync.RWMutex{},
+		storedFlushID:                           0,
+		// Mutex is unlocked when the condition is broadcasted
+		storedFlushIDCond:  sync.NewCond(&sync.Mutex{}),
+		proverID:           "",
+		lastPendingFlushID: 0,
+		pendingFlushIDCond: sync.NewCond(&sync.Mutex{}),
 	}
 }
 
@@ -258,7 +264,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
-			log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDuration.Duration)
+			//log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDuration.Duration)
 			if f.cfg.SleepDuration.Duration > 0 {
 				time.Sleep(f.cfg.SleepDuration.Duration)
 			}
@@ -389,7 +395,7 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 			f.storedFlushIDCond.L.Unlock()
 
 			// Now f.storedFlushID >= tx.flushId, you can store tx
-			f.storeProcessedTx(ctx, tx.batchNumber, tx.coinbase, tx.timestamp, tx.oldStateRoot, tx.response, tx.isForcedBatch)
+			f.storeProcessedTx(ctx, tx)
 			f.pendingTransactionsToStoreWG.Done()
 		case <-ctx.Done():
 			// The context was cancelled from outside, Wait for all goroutines to finish, cleanup and exit
@@ -504,12 +510,16 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 		// Check if the guaranteed period for the break even gas price has passed
 		guaranteedPeriodDeadline := tx.ReceivedAt.Add(f.cfg.EffectiveGasPrice.BreakEvenGasPriceGuaranteedPeriod.Duration)
 		hasGuaranteedPeriodPassed := guaranteedPeriodDeadline.After(now())
-		breakEvenGasPrice := tx.breakEvenGasPrice
+		breakEvenGasPrice := tx.BreakEvenGasPrice
 		if hasGuaranteedPeriodPassed {
 			// Calculate the new breakEvenPrice
-			breakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.ZKCounters.CumulativeGasUsed)
+			var newBreakEvenGasPrice *big.Int
+			newBreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.ZKCounters.CumulativeGasUsed)
 			if err != nil {
 				return nil, err
+			}
+			if f.cfg.EffectiveGasPrice.IsEnabled {
+				breakEvenGasPrice = newBreakEvenGasPrice
 			}
 		}
 
@@ -519,10 +529,19 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 			log.Errorf("failed to calculate effective percentage: %s", err)
 			return nil, err
 		}
+		effectivePercentageAsDecodedHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentage))
+		if err != nil {
+			log.Errorf("failed to decode effective percentage: %s", err)
+			return nil, err
+		}
 
-		effectivePercentageAsHex := fmt.Sprintf("%x", effectivePercentage)
-
-		f.processRequest.Transactions = append(f.processRequest.Transactions, []byte(effectivePercentageAsHex)...)
+		log.Infof("calculated effectivePercentage: %d for tx: %s", effectivePercentage, txHash)
+		if f.cfg.EffectiveGasPrice.IsEnabled {
+			f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
+		} else {
+			log.Infof("effective gas price is disabled so using 100 % (255) effective percentage. tx: %s", txHash)
+			f.processRequest.Transactions = append(f.processRequest.Transactions, maxEffectivePercentageDecodedHex...)
+		}
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
@@ -540,7 +559,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 
 	oldStateRoot := f.batch.stateRoot
 	if len(processBatchResponse.Responses) > 0 && tx != nil {
-		errWg, _, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
+		_, errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
 		if err != nil {
 			return errWg, err
 		}
@@ -572,13 +591,15 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		return nil, nil, err
 	}
 
-	// Check if the break even gas price has changed with too big deviation
-	deviationCheckWg = new(sync.WaitGroup)
-	deviationCheckWg.Add(1)
-	go func() {
-		defer deviationCheckWg.Done()
-		f.checkBreakEvenGasPriceDeviation(ctx, tx, result)
-	}()
+	if f.cfg.EffectiveGasPrice.IsEnabled {
+		// Check if the break even gas price has changed with too big deviation
+		deviationCheckWg = new(sync.WaitGroup)
+		deviationCheckWg.Add(1)
+		go func() {
+			defer deviationCheckWg.Done()
+			f.checkBreakEvenGasPriceDeviation(ctx, tx, result)
+		}()
+	}
 
 	processedTransaction := transactionToStore{
 		txTracker:     tx,
@@ -612,7 +633,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		f.updateWorkerAfterSuccessfulProcessing(ctx, tx, result)
 	}
 
-	return nil, nil, nil
+	return deviationCheckWg, nil, nil
 }
 
 // handleForcedTxsProcessResp handles the transactions responses for the processed forced batch.
@@ -632,7 +653,7 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 		processedTransaction := transactionToStore{
 			txTracker:     nil,
 			response:      txResp,
-			batchResponse: nil,
+			batchResponse: result,
 			batchNumber:   request.BatchNumber,
 			timestamp:     request.Timestamp,
 			coinbase:      request.Coinbase,
@@ -648,6 +669,8 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			f.pendingFlushIDCond.Broadcast()
 		}
 		f.pendingTransactionsToStoreMux.Unlock()
+		oldStateRoot = txResp.StateRoot
+
 		select {
 		case f.pendingTransactionsToStore <- processedTransaction:
 		case <-ctx.Done():
@@ -658,19 +681,16 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 }
 
 // storeProcessedTx stores the processed transaction in the database.
-func (f *finalizer) storeProcessedTx(ctx context.Context, batchNum uint64, coinbase common.Address, timestamp time.Time, previousL2BlockStateRoot common.Hash, txResponse *state.ProcessTransactionResponse, isForcedBatch bool) {
-	log.Infof("storeProcessedTx: storing processed tx: %s", txResponse.TxHash.String())
-	txToStore := &txToStore{
-		batchNumber:              batchNum,
-		txResponse:               txResponse,
-		coinbase:                 coinbase,
-		timestamp:                uint64(timestamp.Unix()),
-		previousL2BlockStateRoot: previousL2BlockStateRoot,
-		isForcedBatch:            isForcedBatch,
+func (f *finalizer) storeProcessedTx(ctx context.Context, txToStore transactionToStore) {
+	if txToStore.response != nil {
+		log.Infof("storeProcessedTx: storing processed txToStore: %s", txToStore.response.TxHash.String())
+	} else {
+		log.Info("storeProcessedTx: storing processed txToStore")
 	}
 	err := f.dbManager.StoreProcessedTxAndDeleteFromPool(ctx, txToStore)
 	if err != nil {
-		log.Fatalf("StoreProcessedTxAndDeleteFromPool: failed to store processed tx: %s", err)
+		log.Info("halting the finalizer because of a database error on storing processed transaction")
+		f.halt(ctx, err)
 	}
 	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, 1)
 }
@@ -939,7 +959,7 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
-	transactions, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
+	transactions, effectivePercentages, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
 	if err != nil {
 		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
 	}
@@ -948,12 +968,13 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 	}
 	usedResources := getUsedBatchResources(f.batchConstraints, f.batch.remainingResources)
 	receipt := ClosingBatchParameters{
-		BatchNumber:    f.batch.batchNumber,
-		StateRoot:      f.batch.stateRoot,
-		LocalExitRoot:  f.batch.localExitRoot,
-		Txs:            transactions,
-		BatchResources: usedResources,
-		ClosingReason:  f.batch.closingReason,
+		BatchNumber:          f.batch.batchNumber,
+		StateRoot:            f.batch.stateRoot,
+		LocalExitRoot:        f.batch.localExitRoot,
+		Txs:                  transactions,
+		EffectivePercentages: effectivePercentages,
+		BatchResources:       usedResources,
+		ClosingReason:        f.batch.closingReason,
 	}
 	return f.dbManager.CloseBatch(ctx, receipt)
 }
@@ -991,6 +1012,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 	}
 	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, Ger: %s", batch.BatchNumber, f.batch.initialStateRoot.String(), batch.GlobalExitRoot.String())
 	txs, _, _, err := state.DecodeTxs(batch.BatchL2Data)
+
 	if err != nil {
 		log.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: %d. Error: %v", batch.BatchNumber, err)
 		return nil, fmt.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: %d. Error: %v", batch.BatchNumber, err)
@@ -1103,7 +1125,7 @@ func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, 
 	return nil
 }
 
-// isBatchAlmostFull checks if the current batch remaining resources are under the constraints threshold for most efficient moment to close a batch
+// isBatchAlmostFull checks if the current batch remaining resources are under the Constraints threshold for most efficient moment to close a batch
 func (f *finalizer) isBatchAlmostFull() bool {
 	resources := f.batch.remainingResources
 	zkCounters := resources.ZKCounters
@@ -1189,10 +1211,10 @@ func (f *finalizer) checkBreakEvenGasPriceDeviation(ctx context.Context, tx *TxT
 	}
 
 	// Compute the difference
-	diff := new(big.Int).Abs(new(big.Int).Sub(actualBreakEvenPrice, tx.breakEvenGasPrice))
+	diff := new(big.Int).Abs(new(big.Int).Sub(actualBreakEvenPrice, tx.BreakEvenGasPrice))
 
 	// Compute deviation of breakEvenPrice
-	deviation := new(big.Int).Div(new(big.Int).Mul(tx.breakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100))
+	deviation := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
 
 	// Compare the difference with max deviation of breakEvenPrice
 	if diff.Cmp(deviation) == 1 {
@@ -1209,7 +1231,7 @@ func (f *finalizer) checkBreakEvenGasPriceDeviation(ctx context.Context, tx *TxT
 				diff                          string
 				deviation                     string
 			}{
-				preExecutionBreakEvenGasPrice: tx.breakEvenGasPrice.String(),
+				preExecutionBreakEvenGasPrice: tx.BreakEvenGasPrice.String(),
 				actualBreakEvenGasPrice:       actualBreakEvenPrice.String(),
 				diff:                          diff.String(),
 				deviation:                     deviation.String(),

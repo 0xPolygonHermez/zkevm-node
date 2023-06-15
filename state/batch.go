@@ -195,10 +195,11 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		return nil, err
 	}
 
-	txs, _, _, err := DecodeTxs(request.Transactions)
+	txs, _, effP, err := DecodeTxs(request.Transactions)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		return nil, err
 	}
+	log.Infof("ProcessBatch: %d txs, %#v effP", len(txs), effP)
 
 	var result *ProcessBatchResponse
 	result, err = s.convertToProcessBatchResponse(txs, res)

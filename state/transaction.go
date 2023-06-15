@@ -181,7 +181,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		receipt.BlockHash = block.Hash()
 
 		// Store L2 block and its transaction
-		if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
+		if err := s.AddL2Block(ctx, batchNumber, block, receipts, uint8(processedTx.EffectivePercentage), dbTx); err != nil {
 			return err
 		}
 	}
@@ -219,7 +219,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	// generate batch l2 data for the transaction
-	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx})
+	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx}, []uint8{MaxEffectivePercentage})
 	if err != nil {
 		return nil, err
 	}
@@ -859,7 +859,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	receipt.BlockHash = block.Hash()
 
 	// Store L2 block and its transaction
-	if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, block, receipts, uint8(processedTx.EffectivePercentage), dbTx); err != nil {
 		return err
 	}
 

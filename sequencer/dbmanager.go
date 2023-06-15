@@ -31,13 +31,14 @@ func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, db
 
 // ClosingBatchParameters contains the necessary parameters to close a batch
 type ClosingBatchParameters struct {
-	BatchNumber    uint64
-	StateRoot      common.Hash
-	LocalExitRoot  common.Hash
-	AccInputHash   common.Hash
-	Txs            []types.Transaction
-	BatchResources state.BatchResources
-	ClosingReason  state.ClosingReason
+	BatchNumber          uint64
+	StateRoot            common.Hash
+	LocalExitRoot        common.Hash
+	AccInputHash         common.Hash
+	Txs                  []types.Transaction
+	BatchResources       state.BatchResources
+	ClosingReason        state.ClosingReason
+	EffectivePercentages []uint8
 }
 
 func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, batchConstraints batchConstraints) *dbManager {
@@ -162,16 +163,16 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 }
 
 // StoreProcessedTxAndDeleteFromPool stores a tx into the state and changes it status in the pool
-func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx *txToStore) error {
+func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error {
 	d.checkIfReorg()
 
-	log.Debugf("Storing tx %v", tx.txResponse.TxHash)
+	log.Debugf("Storing tx %v", tx.response.TxHash)
 	dbTx, err := d.BeginStateTransaction(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = d.state.StoreTransaction(ctx, tx.batchNumber, tx.txResponse, tx.coinbase, tx.timestamp, dbTx)
+	err = d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
 	if err != nil {
 		return err
 	}
@@ -182,7 +183,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx *t
 		return err
 	}
 
-	txData, err := state.EncodeTransaction(tx.txResponse.Tx)
+	txData, err := state.EncodeTransaction(tx.response.Tx, uint8(tx.response.EffectivePercentage))
 	if err != nil {
 		return err
 	}
@@ -201,12 +202,12 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx *t
 	}
 
 	// Change Tx status to selected
-	err = d.txPool.UpdateTxStatus(ctx, tx.txResponse.TxHash, pool.TxStatusSelected, false, nil)
+	err = d.txPool.UpdateTxStatus(ctx, tx.response.TxHash, pool.TxStatusSelected, false, nil)
 	if err != nil {
 		return err
 	}
 
-	log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", tx.txResponse.TxHash.String(), tx.batchNumber)
+	log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", tx.response.TxHash.String(), tx.batchNumber)
 	return nil
 }
 
@@ -394,7 +395,7 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 		ClosingReason:  params.ClosingReason,
 	}
 
-	batchL2Data, err := state.EncodeTransactions(params.Txs)
+	batchL2Data, err := state.EncodeTransactions(params.Txs, params.EffectivePercentages)
 	if err != nil {
 		return err
 	}
@@ -536,7 +537,7 @@ func (d *dbManager) GetBalanceByStateRoot(ctx context.Context, address common.Ad
 	return d.state.GetBalanceByStateRoot(ctx, address, root)
 }
 
-func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) (txs []types.Transaction, err error) {
+func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) (txs []types.Transaction, effectivePercentages []uint8, err error) {
 	return d.state.GetTransactionsByBatchNumber(ctx, batchNumber, nil)
 }
 

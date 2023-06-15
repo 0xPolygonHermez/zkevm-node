@@ -194,6 +194,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(10),
 		},
 		{
+			path:          "Sequencer.EffectiveGasPrice.IsEnabled",
+			expectedValue: false,
+		},
+		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},

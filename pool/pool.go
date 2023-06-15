@@ -159,7 +159,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 
 		err := p.eventLog.LogEvent(ctx, event)
 		if err != nil {
-			log.Errorf("Error adding event: %v", err)
+			log.Errorf("error adding event: %v", err)
 		}
 		// Do not add tx to the pool
 		return fmt.Errorf("out of counters")
@@ -176,7 +176,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 
 		err := p.eventLog.LogEvent(ctx, event)
 		if err != nil {
-			log.Errorf("Error adding event: %v", err)
+			log.Errorf("error adding event: %v", err)
 		}
 	}
 
@@ -186,6 +186,8 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		log.Error(err)
 		return err
 	}
+	log.Infof("estimated breakEvenGasPrice: %v with gas used: %v for tx: %s", breakEvenGasPrice, preExecutionResponse.txResponse.GasUsed, tx.Hash().String())
+
 	poolTx := NewTransaction(tx, ip, isWIP, breakEvenGasPrice)
 	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
 
@@ -471,18 +473,17 @@ func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64)
 	}
 
 	// Get L2 Min Gas Price
-	l2MinGasPrice := (l1GasPrice * p.cfg.EffectiveGasPrice.L1GasPricePercentageForL2MinPrice) / 100
+	l2MinGasPrice := (l1GasPrice * p.cfg.EffectiveGasPrice.L1GasPricePercentageForL2MinPrice) / 100 //nolint:gomnd
 	if err != nil {
 		return nil, err
 	}
 	if l1GasPrice == 0 || l2MinGasPrice == 0 {
 		return nil, fmt.Errorf("failed to get L1 Gas Price and L2 Min Gas Price")
-
 	}
 
 	// Calculate break even gas price
 	totalTxPrice := (gasUsed * l2MinGasPrice) + (p.totalBytesGasCost * l1GasPrice)
-	breakEvenGasPrice := ((totalTxPrice / gasUsed) * p.cfg.EffectiveGasPrice.MarginFactorPercentage) / 100
+	breakEvenGasPrice := ((totalTxPrice / gasUsed) * p.cfg.EffectiveGasPrice.MarginFactorPercentage) / 100 //nolint:gomnd
 
 	return big.NewInt(0).SetUint64(breakEvenGasPrice), nil
 }

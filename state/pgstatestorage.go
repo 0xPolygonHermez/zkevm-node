@@ -824,44 +824,53 @@ func scanForcedBatch(row pgx.Row) (ForcedBatch, error) {
 
 // GetEncodedTransactionsByBatchNumber returns the encoded field of all
 // transactions in the given batch.
-func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []string, err error) {
-	const getEncodedTransactionsByBatchNumberSQL = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
+func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encodedTxs []string, effectivePercentages []uint8, err error) {
+	const getEncodedTransactionsByBatchNumberSQL = "SELECT encoded, effective_percentage FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
 
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
-	txs := make([]string, 0, len(rows.RawValues()))
+	encodedTxs = make([]string, 0, len(rows.RawValues()))
+	effectivePercentages = make([]uint8, 0, len(rows.RawValues()))
 
 	for rows.Next() {
-		var encoded string
-		err := rows.Scan(&encoded)
+		var (
+			encoded             string
+			effectivePercentage uint8
+		)
+		err := rows.Scan(&encoded, &effectivePercentage)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		txs = append(txs, encoded)
+		encodedTxs = append(encodedTxs, encoded)
+		effectivePercentages = append(effectivePercentages, effectivePercentage)
 	}
-	return txs, nil
+
+	return encodedTxs, effectivePercentages, nil
 }
 
 // GetTransactionsByBatchNumber returns the transactions in the given batch.
-func (p *PostgresStorage) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error) {
-	encodedTxs, err := p.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
+func (p *PostgresStorage) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, effectivePercentages []uint8, err error) {
+	var encodedTxs []string
+	encodedTxs, effectivePercentages, err = p.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
 	for i := 0; i < len(encodedTxs); i++ {
 		tx, err := DecodeTx(encodedTxs[i])
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		txs = append(txs, *tx)
 	}
-	return
+
+	return txs, effectivePercentages, nil
 }
 
 // GetTxsHashesByBatchNumber returns the hashes of the transactions in the
@@ -1384,10 +1393,10 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 }
 
 // AddL2Block adds a new L2 block to the State Store
-func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, effectivePercentage uint8, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
-	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
+	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage) VALUES($1, $2, $3, $4, $5)"
 	const addL2BlockSQL = `
         INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
                            VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9)`
@@ -1429,7 +1438,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			return err
 		}
 		decoded := string(binary)
-		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64())
+		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), effectivePercentage)
 		if err != nil {
 			return err
 		}

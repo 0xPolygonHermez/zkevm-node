@@ -145,4 +145,7 @@ type EffectiveGasPrice struct {
 
 	// MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
 	MaxBreakEvenGasPriceDeviationPercentage uint64 `mapstructure:"MaxBreakEvenGasPriceDeviationPercentage"`
+
+	// IsEnabled is a flag to enable/disable the effective gas price
+	IsEnabled bool `mapstructure:"IsEnabled"`
 }

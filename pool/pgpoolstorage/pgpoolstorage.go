@@ -254,7 +254,7 @@ func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status p
 		tx.IsWIP = isWIP
 		tx.IP = ip
 		tx.FailedReason = failedReason
-		tx.BreakEvenGasPrice, ok = new(big.Int).SetString(breakEvenGasPriceAsStr, 10)
+		tx.BreakEvenGasPrice, ok = new(big.Int).SetString(breakEvenGasPriceAsStr, 10) //nolint:gomnd
 		if !ok {
 			return nil, errors.New("invalid break even gas price")
 		}
@@ -412,7 +412,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		}
 		tx.IsWIP = isWIP
 		tx.IP = ip
-		tx.BreakEvenGasPrice, ok = new(big.Int).SetString(breakEvenGasPriceAsStr, 10)
+		tx.BreakEvenGasPrice, ok = new(big.Int).SetString(breakEvenGasPriceAsStr, 10) //nolint:gomnd
 		if !ok {
 			return nil, errors.New("invalid break even gas price")
 		}
@@ -544,7 +544,7 @@ func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash)
 
 // GetTxsByFromAndNonce get all the transactions from the pool with the same from and nonce
 func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]pool.Transaction, error) {
-	sql := `SELECT encoded, status, received_at, is_wip, ip, failed_reason
+	sql := `SELECT encoded, status, received_at, is_wip, ip, failed_reason, break_even_gas_price
 	          FROM pool.transaction
 			 WHERE from_address = $1
 			   AND nonce = $2`
@@ -667,9 +667,10 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 		receivedAt          time.Time
 		isWIP               bool
 		failedReason        *string
+		breakEvenGasPrice   *string
 	)
 
-	if err := rows.Scan(&encoded, &status, &receivedAt, &isWIP, &ip, &failedReason); err != nil {
+	if err := rows.Scan(&encoded, &status, &receivedAt, &isWIP, &ip, &failedReason, &breakEvenGasPrice); err != nil {
 		return nil, err
 	}
 
@@ -689,6 +690,13 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	tx.IsWIP = isWIP
 	tx.IP = ip
 	tx.FailedReason = failedReason
+	if breakEvenGasPrice != nil {
+		var ok bool
+		tx.BreakEvenGasPrice, ok = new(big.Int).SetString(*breakEvenGasPrice, 10) //nolint:gomnd
+		if !ok {
+			return nil, err
+		}
+	}
 
 	return tx, nil
 }

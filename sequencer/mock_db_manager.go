@@ -527,12 +527,13 @@ func (_m *DbManagerMock) GetStoredFlushID(ctx context.Context) (uint64, string, 
 }
 
 // GetTransactionsByBatchNumber provides a mock function with given fields: ctx, batchNumber
-func (_m *DbManagerMock) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) ([]types.Transaction, error) {
+func (_m *DbManagerMock) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) ([]types.Transaction, []uint8, error) {
 	ret := _m.Called(ctx, batchNumber)
 
 	var r0 []types.Transaction
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) ([]types.Transaction, error)); ok {
+	var r1 []uint8
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) ([]types.Transaction, []uint8, error)); ok {
 		return rf(ctx, batchNumber)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uint64) []types.Transaction); ok {
@@ -543,13 +544,21 @@ func (_m *DbManagerMock) GetTransactionsByBatchNumber(ctx context.Context, batch
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) []uint8); ok {
 		r1 = rf(ctx, batchNumber)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]uint8)
+		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, uint64) error); ok {
+		r2 = rf(ctx, batchNumber)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetWIPBatch provides a mock function with given fields: ctx
@@ -643,11 +652,11 @@ func (_m *DbManagerMock) ProcessForcedBatch(ForcedBatchNumber uint64, request st
 }
 
 // StoreProcessedTxAndDeleteFromPool provides a mock function with given fields: ctx, tx
-func (_m *DbManagerMock) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx *txToStore) error {
+func (_m *DbManagerMock) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error {
 	ret := _m.Called(ctx, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *txToStore) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, transactionToStore) error); ok {
 		r0 = rf(ctx, tx)
 	} else {
 		r0 = ret.Error(0)

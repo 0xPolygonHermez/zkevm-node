@@ -23,6 +23,7 @@ const (
 	sleepDuration                         = 5 * time.Second
 	minAllowedGasPriceIntervalMinutes     = 5
 	pollMinAllowedGasPriceIntervalSeconds = 15
+	defaultGasPrice                       = 1000000000
 )
 
 // Environment sets up the environment for the benchmark
@@ -79,6 +80,10 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(b, err)
+
+	if gasPrice == nil || gasPrice.Int64() == 0 {
+		gasPrice = big.NewInt(defaultGasPrice)
+	}
 
 	// PrivateKey is the private key of the sender
 	// Auth is the auth of the sender

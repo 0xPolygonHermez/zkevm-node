@@ -19,6 +19,14 @@
       "storage": {},
       "isSmartContract": false,
       "bytecode": "0x"
+    },
+    {
+      "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+      "nonce": "0",
+      "balance": "2000000000000000000",
+      "storage": {},
+      "isSmartContract": false,
+      "bytecode": "0x"
     }
   ],
   "expectedNewLeafs": [
@@ -36,7 +44,7 @@
     {
       "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
       "nonce": "0",
-      "balance": "462560",
+      "balance": "2000000000000462560",
       "storage": {},
       "isSmartContract": false,
       "bytecode": "0x"

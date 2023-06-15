@@ -42,10 +42,6 @@ const (
 )
 
 var (
-	l2BridgeAddr = common.HexToAddress("0x00000000000000000000000000000001")
-)
-
-var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 	genesis    = state.Genesis{
@@ -271,7 +267,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	const chainID = 2576980377
 	p := setupPool(t, cfg, s, st, chainID, ctx, eventLog)
 
-	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81b"
+	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81bff"
 	b, err := hex.DecodeHex(batchL2Data)
 	require.NoError(t, err)
 	txs, _, _, err := state.DecodeTxs(b)
@@ -962,7 +958,7 @@ func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), ForkIDIntervals: []state.ForkIDInterval{{
 		FromBatchNumber: 0,
 		ToBatchNumber:   math.MaxUint64,
-		ForkId:          0,
+		ForkId:          5,
 		Version:         "",
 	}}}, stateDb, executorClient, stateTree, eventLog)
 	return st
@@ -1498,7 +1494,6 @@ func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectedBreakEvenGasPrice, breakEvenGasPrice)
 			}
-
 		})
 	}
 }

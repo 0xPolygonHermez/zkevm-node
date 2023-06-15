@@ -15,48 +15,85 @@ const (
 	double       = 2
 	ether155V    = 27
 	etherPre155V = 35
-)
-
-var (
-	effectivePercentageAsHex = fmt.Sprintf("%x", 255)
+	// MaxEffectivePercentage is the maximum value that can be used as effective percentage
+	MaxEffectivePercentage = uint8(255)
+	// Decoding constants
+	headerByteLength               uint64 = 1
+	sLength                        uint64 = 32
+	rLength                        uint64 = 32
+	vLength                        uint64 = 1
+	c0                             uint64 = 192 // 192 is c0. This value is defined by the rlp protocol
+	ff                             uint64 = 255 // max value of rlp header
+	shortRlp                       uint64 = 55  // length of the short rlp codification
+	f7                             uint64 = 247 // 192 + 55 = c0 + shortRlp
+	efficiencyPercentageByteLength uint64 = 1
 )
 
 // EncodeTransactions RLP encodes the given transactions
-func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
+func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8) ([]byte, error) {
 	var batchL2Data []byte
 
-	for _, tx := range txs {
-		v, r, s := tx.RawSignatureValues()
-		sign := 1 - (v.Uint64() & 1)
-
-		nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
-		log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID)
-
-		rlpFieldsToEncode := []interface{}{
-			nonce,
-			gasPrice,
-			gas,
-			to,
-			value,
-			data,
-		}
-
-		if tx.ChainId().Uint64() > 0 {
-			rlpFieldsToEncode = append(rlpFieldsToEncode, chainID)
-			rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
-			rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
-		}
-
-		txCodedRlp, err := rlp.EncodeToBytes(rlpFieldsToEncode)
+	for i, tx := range txs {
+		txData, err := prepareRPLTxData(tx)
 		if err != nil {
 			return nil, err
 		}
+		batchL2Data = append(batchL2Data, txData...)
 
-		newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
-		newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
-		newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
-		newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
-		txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded + effectivePercentageAsHex)
+		effectivePercentageAsHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentages[i]))
+		if err != nil {
+			return nil, err
+		}
+		batchL2Data = append(batchL2Data, effectivePercentageAsHex...)
+	}
+
+	return batchL2Data, nil
+}
+
+func prepareRPLTxData(tx types.Transaction) ([]byte, error) {
+	v, r, s := tx.RawSignatureValues()
+	sign := 1 - (v.Uint64() & 1)
+
+	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
+	log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID, " ")
+
+	rlpFieldsToEncode := []interface{}{
+		nonce,
+		gasPrice,
+		gas,
+		to,
+		value,
+		data,
+	}
+
+	if tx.ChainId().Uint64() > 0 {
+		rlpFieldsToEncode = append(rlpFieldsToEncode, chainID)
+		rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
+		rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
+	}
+
+	txCodedRlp, err := rlp.EncodeToBytes(rlpFieldsToEncode)
+	if err != nil {
+		return nil, err
+	}
+
+	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
+	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
+	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
+	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+	if err != nil {
+		return nil, err
+	}
+	return txData, nil
+}
+
+// EncodeTransactionsWithoutEffectivePercentage RLP encodes the given transactions without the effective percentage
+func EncodeTransactionsWithoutEffectivePercentage(txs []types.Transaction) ([]byte, error) {
+	var batchL2Data []byte
+
+	for _, tx := range txs {
+		txData, err := prepareRPLTxData(tx)
 		if err != nil {
 			return nil, err
 		}
@@ -66,10 +103,14 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	return batchL2Data, nil
 }
 
+// EncodeTransactionWithoutEffectivePercentage RLP encodes the given transaction without the effective percentage
+func EncodeTransactionWithoutEffectivePercentage(tx types.Transaction) ([]byte, error) {
+	return EncodeTransactionsWithoutEffectivePercentage([]types.Transaction{tx})
+}
+
 // EncodeTransaction RLP encodes the given transaction
-func EncodeTransaction(tx types.Transaction) ([]byte, error) {
-	transactions := []types.Transaction{tx}
-	return EncodeTransactions(transactions)
+func EncodeTransaction(tx types.Transaction, effectivePercentage uint8) ([]byte, error) {
+	return EncodeTransactions([]types.Transaction{tx}, []uint8{effectivePercentage})
 }
 
 // EncodeUnsignedTransaction RLP encodes the given unsigned transaction
@@ -106,7 +147,8 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce
 	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
 	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
 	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
-	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+	effectivePercentageAsHex := fmt.Sprintf("%x", MaxEffectivePercentage)
+	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded + effectivePercentageAsHex)
 	if err != nil {
 		return nil, err
 	}
@@ -120,17 +162,6 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, []uint8, error) {
 	var pos uint64
 	var txs []types.Transaction
 	var efficiencyPercentages []uint8
-	const (
-		headerByteLength               uint64 = 1
-		sLength                        uint64 = 32
-		rLength                        uint64 = 32
-		vLength                        uint64 = 1
-		c0                             uint64 = 192 // 192 is c0. This value is defined by the rlp protocol
-		ff                             uint64 = 255 // max value of rlp header
-		shortRlp                       uint64 = 55  // length of the short rlp codification
-		f7                             uint64 = 247 // 192 + 55 = c0 + shortRlp
-		efficiencyPercentageByteLength uint64 = 1
-	)
 	txDataLength := uint64(len(txsData))
 	if txDataLength == 0 {
 		return txs, txsData, nil, nil

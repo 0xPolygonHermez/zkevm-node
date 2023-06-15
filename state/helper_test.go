@@ -41,7 +41,7 @@ func TestDecodeRandomBatchL2Data(t *testing.T) {
 }
 
 func TestDecodePre155BatchL2Data(t *testing.T) {
-	pre155, err := hex.DecodeString("e480843b9aca00826163941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77cb7d2a666860f3c6b8f5ef96f86c7ec5562e97fd04c2e10f3755ff3a0456f9feb246df95217bf9082f84f9e40adb0049c6664a5bb4c9cbe34ab1a73e77bab26ed1b")
+	pre155, err := hex.DecodeString("e480843b9aca00826163941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77cb7d2a666860f3c6b8f5ef96f86c7ec5562e97fd04c2e10f3755ff3a0456f9feb246df95217bf9082f84f9e40adb0049c6664a5bb4c9cbe34ab1a73e77bab26ed1bff")
 	require.NoError(t, err)
 	txs, _, _, err := state.DecodeTxs(pre155)
 	require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestDecodePre155BatchL2Data(t *testing.T) {
 	assert.Equal(t, uint64(0), txs[0].Nonce())
 	assert.Equal(t, new(big.Int).SetUint64(1000000000), txs[0].GasPrice())
 
-	pre155, err = hex.DecodeString("e580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae988084159278193d7bcd98c00060650f12c381cc2d4f4cc8abf54059aecd2c7aabcfcdd191ba6827b1e72f0eb0b8d5daae64962f4aafde7853e1c102de053edbedf066e6e3c2dc1b")
+	pre155, err = hex.DecodeString("e580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae988084159278193d7bcd98c00060650f12c381cc2d4f4cc8abf54059aecd2c7aabcfcdd191ba6827b1e72f0eb0b8d5daae64962f4aafde7853e1c102de053edbedf066e6e3c2dc1bff")
 	require.NoError(t, err)
 	txs, _, _, err = state.DecodeTxs(pre155)
 	require.NoError(t, err)
@@ -88,11 +88,11 @@ func TestDecodePre155Tx(t *testing.T) {
 }
 
 func TestEncodePre155BatchL2Data(t *testing.T) {
-	pre155, err := hex.DecodeString("e480843b9aca00826163941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77cb7d2a666860f3c6b8f5ef96f86c7ec5562e97fd04c2e10f3755ff3a0456f9feb246df95217bf9082f84f9e40adb0049c6664a5bb4c9cbe34ab1a73e77bab26ed1b")
+	pre155, err := hex.DecodeString("e480843b9aca00826163941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77cb7d2a666860f3c6b8f5ef96f86c7ec5562e97fd04c2e10f3755ff3a0456f9feb246df95217bf9082f84f9e40adb0049c6664a5bb4c9cbe34ab1a73e77bab26ed1bff")
 	require.NoError(t, err)
-	txs, _, _, err := state.DecodeTxs(pre155)
+	txs, _, effectivePercentages, err := state.DecodeTxs(pre155)
 	require.NoError(t, err)
-	rawtxs, err := state.EncodeTransactions(txs)
+	rawtxs, err := state.EncodeTransactions(txs, effectivePercentages)
 	require.NoError(t, err)
 	t.Log("Txs decoded: ", txs, len(txs))
 	assert.Equal(t, pre155, rawtxs)

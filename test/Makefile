@@ -275,7 +275,7 @@ run-node: ## Runs the node
 	$(RUNETHTXMANAGER)
 	$(RUNSYNC)
 	sleep 2
-	#$(RUNSEQUENCER)
+	$(RUNSEQUENCER)
 	$(RUNSEQUENCESENDER)
 	$(RUNL2GASPRICER)
 	$(RUNAGGREGATOR)
@@ -414,7 +414,7 @@ stop-grafana: ## Stops the grafana service
 .PHONY: run-permissionless
 run-permissionless: run-node ## Runs the trusted and permissionless node
 	$(RUNPERMISSIONLESSDB)
-	sleep 1
+	sleep 3
 	$(RUNPERMISSIONLESSZKPROVER)
 	$(RUNPERMISSIONLESSNODE)
 
