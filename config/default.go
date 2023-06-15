@@ -112,10 +112,6 @@ MaxTxSizeForL1 = 131072
 SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 
-[PriceGetter]
-Type = "default"
-DefaultPrice = "2000"
-
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
