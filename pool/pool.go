@@ -186,16 +186,12 @@ func (p *Pool) PreExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 		return response, err
 	}
 
-	response.usedZkCounters = processBatchResponse.UsedZkCounters
-
-	if processBatchResponse.IsBatchProcessed {
-		if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
-			r := processBatchResponse.Responses[0]
-			response.isOOC = executor.IsROMOutOfGasError(executor.RomErrorCode(r.RomError))
-			response.isReverted = errors.Is(r.RomError, runtime.ErrExecutionReverted)
-		}
-	} else {
-		response.isOOG = !processBatchResponse.IsBatchProcessed
+	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
+		errorToCheck := processBatchResponse.Responses[0].RomError
+		response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
+		response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
+		response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+		response.usedZkCounters = processBatchResponse.UsedZkCounters
 	}
 
 	return response, nil
@@ -234,6 +230,11 @@ func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus T
 		IsWIP:        isWIP,
 		FailedReason: failedReason,
 	})
+}
+
+// DeleteGasPricesHistoryOlderThan deletes gas prices older than a given date except the most recent one
+func (p *Pool) DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error {
+	return p.storage.DeleteGasPricesHistoryOlderThan(ctx, date)
 }
 
 // SetGasPrice allows an external component to define the gas price

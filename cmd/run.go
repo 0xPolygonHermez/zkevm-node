@@ -318,7 +318,50 @@ func runJSONRPCServer(c config.Config, chainID uint64, pool *pool.Pool, st *stat
 	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
 
-	if err := jsonrpc.NewServer(c.RPC, chainID, pool, st, storage, apis).Start(); err != nil {
+	services := []jsonrpc.Service{}
+	if _, ok := apis[jsonrpc.APIEth]; ok {
+		services = append(services, jsonrpc.Service{
+			Name:    jsonrpc.APIEth,
+			Service: jsonrpc.NewEthEndpoints(c.RPC, chainID, pool, st, storage),
+		})
+	}
+
+	if _, ok := apis[jsonrpc.APINet]; ok {
+		services = append(services, jsonrpc.Service{
+			Name:    jsonrpc.APINet,
+			Service: jsonrpc.NewNetEndpoints(chainID),
+		})
+	}
+
+	if _, ok := apis[jsonrpc.APIZKEVM]; ok {
+		services = append(services, jsonrpc.Service{
+			Name:    jsonrpc.APIZKEVM,
+			Service: jsonrpc.NewZKEVMEndpoints(st),
+		})
+	}
+
+	if _, ok := apis[jsonrpc.APITxPool]; ok {
+		services = append(services, jsonrpc.Service{
+			Name:    jsonrpc.APITxPool,
+			Service: &jsonrpc.TxPoolEndpoints{},
+		})
+	}
+
+	if _, ok := apis[jsonrpc.APIDebug]; ok {
+		services = append(services, jsonrpc.Service{
+			Name:    jsonrpc.APIDebug,
+			Service: jsonrpc.NewDebugEndpoints(st),
+		})
+	}
+
+	if _, ok := apis[jsonrpc.APIWeb3]; ok {
+		services = append(services, jsonrpc.Service{
+			Name:    jsonrpc.APIWeb3,
+			Service: &jsonrpc.Web3Endpoints{},
+		})
+	}
+
+	if err := jsonrpc.NewServer(c.RPC, chainID, pool, st, storage, services).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -413,9 +456,11 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 	}
 
 	stateCfg := state.Config{
-		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
-		ChainID:              l2ChainID,
-		ForkIDIntervals:      forkIDIntervals,
+		MaxCumulativeGasUsed:         c.Sequencer.MaxCumulativeGasUsed,
+		ChainID:                      l2ChainID,
+		ForkIDIntervals:              forkIDIntervals,
+		MaxResourceExhaustedAttempts: c.Executor.MaxResourceExhaustedAttempts,
+		WaitOnResourceExhaustion:     c.Executor.WaitOnResourceExhaustion,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)

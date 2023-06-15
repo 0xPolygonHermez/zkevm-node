@@ -98,7 +98,7 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
-		TimestampResolution = "15s"	
+		TimestampResolution = "10s"	
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
@@ -133,12 +133,16 @@ Type = "follower"
 UpdatePeriod = "10s"
 Factor = 0.15
 DefaultGasPriceWei = 2000000000
+CleanHistoryPeriod = "1h"
+CleanHistoryTimeRetention = "5m"
 
 [MTClient]
 URI = "zkevm-prover:50061"
 
 [Executor]
 URI = "zkevm-prover:50071"
+MaxResourceExhaustedAttempts = 3
+WaitOnResourceExhaustion = "1s"
 
 [Metrics]
 Host = "0.0.0.0"

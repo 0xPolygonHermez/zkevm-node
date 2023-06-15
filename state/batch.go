@@ -49,6 +49,8 @@ type ProcessingContext struct {
 type ClosingReason string
 
 const (
+	// EmptyClosingReason is the closing reason used when a batch is not closed
+	EmptyClosingReason ClosingReason = ""
 	// BatchFullClosingReason  is the closing reason used when a batch is closed when it is full
 	BatchFullClosingReason ClosingReason = "Batch is full"
 	// ForcedBatchClosingReason  is the closing reason used when a batch is closed because it is forced
@@ -145,10 +147,15 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 		return nil, err
 	}
 
-	txs, _, err := DecodeTxs(batchL2Data)
-	if err != nil && !errors.Is(err, ErrInvalidData) {
-		return nil, err
+	txs := []types.Transaction{}
+
+	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
+		txs, _, err = DecodeTxs(batchL2Data)
+		if err != nil && !errors.Is(err, ErrInvalidData) {
+			return nil, err
+		}
 	}
+
 	result, err := s.convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
@@ -425,7 +432,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
-		if !isProcessed(processed.Responses[i].Error) {
+		if !IsStateRootChanged(processed.Responses[i].Error) {
 			if executor.IsROMOutOfCountersError(processed.Responses[i].Error) {
 				processed.Responses = []*pb.ProcessTransactionResponse{}
 				break

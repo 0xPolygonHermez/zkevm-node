@@ -22,11 +22,14 @@ const (
 type Config struct {
 	Type EstimatorType `mapstructure:"Type"`
 
-	DefaultGasPriceWei uint64         `mapstructure:"DefaultGasPriceWei"`
-	MaxPrice           *big.Int       `mapstructure:"MaxPrice"`
-	IgnorePrice        *big.Int       `mapstructure:"IgnorePrice"`
-	CheckBlocks        int            `mapstructure:"CheckBlocks"`
-	Percentile         int            `mapstructure:"Percentile"`
-	UpdatePeriod       types.Duration `mapstructure:"UpdatePeriod"`
-	Factor             float64        `mapstructure:"Factor"`
+	DefaultGasPriceWei        uint64         `mapstructure:"DefaultGasPriceWei"`
+	MaxPrice                  *big.Int       `mapstructure:"MaxPrice"`
+	IgnorePrice               *big.Int       `mapstructure:"IgnorePrice"`
+	CheckBlocks               int            `mapstructure:"CheckBlocks"`
+	Percentile                int            `mapstructure:"Percentile"`
+	UpdatePeriod              types.Duration `mapstructure:"UpdatePeriod"`
+	CleanHistoryPeriod        types.Duration `mapstructure:"CleanHistoryPeriod"`
+	CleanHistoryTimeRetention types.Duration `mapstructure:"CleanHistoryTimeRetention"`
+
+	Factor float64 `mapstructure:"Factor"`
 }

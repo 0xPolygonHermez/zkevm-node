@@ -21,6 +21,8 @@ var (
 	ErrContractAddressCollision = errors.New("contract address collision")
 	// ErrExecutionReverted indicates the execution has been reverted
 	ErrExecutionReverted = errors.New("execution reverted")
+	// ErrOutOfCountersStep indicates there are not enough step counters to continue the execution
+	ErrOutOfCountersStep = errors.New("not enough step counters to continue the execution")
 	// ErrOutOfCountersKeccak indicates there are not enough keccak counters to continue the execution
 	ErrOutOfCountersKeccak = errors.New("not enough keccak counters to continue the execution")
 	// ErrOutOfCountersBinary indicates there are not enough binary counters to continue the execution
@@ -67,6 +69,8 @@ var (
 	ErrFea2Scalar = errors.New("fea2scalar")
 	// ErrTos32 indicates a tos32 error in the ROM
 	ErrTos32 = errors.New("tos32")
+	// ErrGRPCResourceExhaustedAsTimeout indicates a GRPC resource exhausted error
+	ErrGRPCResourceExhaustedAsTimeout = errors.New("request timed out")
 )
 
 // ExecutionResult includes all output after executing given evm

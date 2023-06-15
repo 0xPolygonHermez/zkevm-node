@@ -86,10 +86,24 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		{name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
 		{name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
+		{name: "call", prepare: prepareCalls, createSignedTx: createCallSignedTx},
+		{name: "delegate call", prepare: prepareCalls, createSignedTx: createDelegateCallSignedTx},
+		{name: "multi call", prepare: prepareCalls, createSignedTx: createMultiCallSignedTx},
+		{name: "pre ecrecover 0", prepare: prepareCalls, createSignedTx: createPreEcrecover0SignedTx},
+		{name: "chain call", prepare: prepareChainCalls, createSignedTx: createChainCallSignedTx},
+		{name: "delegate transfers", prepare: prepareChainCalls, createSignedTx: createDelegateTransfersSignedTx},
+		{name: "memory", prepare: prepareMemory, createSignedTx: createMemorySignedTx},
+		{name: "bridge", prepare: prepareBridge, createSignedTx: createBridgeSignedTx},
+
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
 		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
 		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		{name: "invalid static call less parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallLessParametersSignedTx},
+		{name: "invalid static call more parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallMoreParametersSignedTx},
+		{name: "invalid static call with inner call", prepare: prepareCalls, createSignedTx: createInvalidStaticCallWithInnerCallSignedTx},
+		{name: "chain call reverted", prepare: prepareChainCalls, createSignedTx: createChainCallRevertedSignedTx},
+		{name: "chain delegate call reverted", prepare: prepareChainCalls, createSignedTx: createChainDelegateCallRevertedSignedTx},
 	}
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -137,7 +151,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	for _, tc := range testCases {
+	for tcIdx, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			log.Debug("************************ ", tc.name, " ************************")
 
@@ -182,23 +196,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				results[network.Name] = response.Result
 				log.Debug(string(response.Result))
 
-				// save result in a file
-				// sanitizedNetworkName := strings.ReplaceAll(network.Name+"_"+tc.name, " ", "_")
-				// filePath := fmt.Sprintf("/home/tclemos/github.com/0xPolygonHermez/zkevm-node/dist/%v.json", sanitizedNetworkName)
-				// b, _ := signedTx.MarshalBinary()
-				// fileContent := struct {
-				// 	Tx    *ethTypes.Transaction
-				// 	RLP   string
-				// 	Trace json.RawMessage
-				// }{
-				// 	Tx:    signedTx,
-				// 	RLP:   hex.EncodeToHex(b),
-				// 	Trace: response.Result,
-				// }
-				// c, err := json.MarshalIndent(fileContent, "", "    ")
-				// require.NoError(t, err)
-				// err = os.WriteFile(filePath, c, 0644)
-				// require.NoError(t, err)
+				saveTraceResultToFile(t, fmt.Sprintf("callTracer_%v_%v", tcIdx, tc.name), network.Name, signedTx, response.Result, true)
 			}
 
 			referenceValueMap := map[string]interface{}{}
@@ -222,6 +220,8 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 
 func compareCallFrame(t *testing.T, referenceValueMap, resultMap map[string]interface{}, networkName string) {
 	require.Equal(t, referenceValueMap["from"], resultMap["from"], fmt.Sprintf("invalid `from` for network %s", networkName))
+	require.Equal(t, referenceValueMap["gas"], resultMap["gas"], fmt.Sprintf("invalid `gas` for network %s", networkName))
+	require.Equal(t, referenceValueMap["gasUsed"], resultMap["gasUsed"], fmt.Sprintf("invalid `gasUsed` for network %s", networkName))
 	require.Equal(t, referenceValueMap["input"], resultMap["input"], fmt.Sprintf("invalid `input` for network %s", networkName))
 	require.Equal(t, referenceValueMap["output"], resultMap["output"], fmt.Sprintf("invalid `output` for network %s", networkName))
 	require.Equal(t, referenceValueMap["value"], resultMap["value"], fmt.Sprintf("invalid `value` for network %s", networkName))
@@ -274,10 +274,10 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	// defer func() {
-	// 	require.NoError(t, operations.Teardown())
-	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	// }()
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	}()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -322,20 +322,23 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
+		// by block number
 		{name: "eth transfer by number", blockNumberOrHash: "number", createSignedTx: createEthTransferSignedTx},
 		{name: "sc deployment by number", blockNumberOrHash: "number", createSignedTx: createScDeploySignedTx},
 		{name: "sc call by number", blockNumberOrHash: "number", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
 		{name: "erc20 transfer by number", blockNumberOrHash: "number", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
-
+		// by block hash
 		{name: "eth transfer by hash", blockNumberOrHash: "hash", createSignedTx: createEthTransferSignedTx},
 		{name: "sc deployment by hash", blockNumberOrHash: "hash", createSignedTx: createScDeploySignedTx},
 		{name: "sc call by hash", blockNumberOrHash: "hash", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
 		{name: "erc20 transfer by hash", blockNumberOrHash: "hash", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+
 		// failed transactions
+		// by block number
 		{name: "sc deployment reverted by number", blockNumberOrHash: "number", createSignedTx: createScDeployRevertedSignedTx},
 		{name: "sc call reverted by number", blockNumberOrHash: "number", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
 		{name: "erc20 transfer reverted by number", blockNumberOrHash: "number", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
-
+		// by block hash
 		{name: "sc deployment reverted by hash", blockNumberOrHash: "hash", createSignedTx: createScDeployRevertedSignedTx},
 		{name: "sc call reverted by hash", blockNumberOrHash: "hash", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
 		{name: "erc20 transfer reverted by hash", blockNumberOrHash: "hash", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},

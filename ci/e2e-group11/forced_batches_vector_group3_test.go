@@ -28,7 +28,7 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	vectorFilesDir := "./../vectors/src/state-transition/forced-tx"
+	vectorFilesDir := "./../vectors/src/state-transition/forced-tx/group3"
 	ctx := context.Background()
 	err := filepath.Walk(vectorFilesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

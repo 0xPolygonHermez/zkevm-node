@@ -168,6 +168,12 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 			return []types.Transaction{}, txsData, ErrInvalidData
 		}
 
+		if endPos < pos {
+			err := fmt.Errorf("endPos %d is smaller than pos %d", endPos, pos)
+			log.Debug("error parsing header: ", err)
+			return []types.Transaction{}, txsData, ErrInvalidData
+		}
+
 		fullDataTx := txsData[pos:endPos]
 		txInfo := txsData[pos : pos+length+headerByteLength]
 		rData := txsData[pos+length+headerByteLength : pos+length+rLength+headerByteLength]
@@ -180,8 +186,8 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 		var rlpFields [][]byte
 		err = rlp.DecodeBytes(txInfo, &rlpFields)
 		if err != nil {
-			log.Debug("error decoding tx Bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
-			return []types.Transaction{}, txsData, err
+			log.Error("error decoding tx Bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+			return []types.Transaction{}, txsData, ErrInvalidData
 		}
 
 		legacyTx, err := RlpFieldsToLegacyTx(rlpFields, vData, rData, sData)

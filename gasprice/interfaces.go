@@ -3,6 +3,7 @@ package gasprice
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -14,6 +15,7 @@ import (
 type pool interface {
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	GetGasPrice(ctx context.Context) (uint64, error)
+	DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error
 }
 
 // stateInterface gathers the methods required to interact with the state.

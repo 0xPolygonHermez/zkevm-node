@@ -183,7 +183,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.Finalizer.TimestampResolution",
-			expectedValue: types.NewDuration(15 * time.Second),
+			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
@@ -385,6 +385,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Executor.URI",
 			expectedValue: "zkevm-prover:50071",
+		},
+		{
+			path:          "Executor.MaxResourceExhaustedAttempts",
+			expectedValue: 3,
+		},
+		{
+			path:          "Executor.WaitOnResourceExhaustion",
+			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
 			path:          "Metrics.Host",

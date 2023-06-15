@@ -48,27 +48,42 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 		return nil, err
 	}
 
-	isBatchProcessed := response.Error == executor.EXECUTOR_ERROR_NO_ERROR
-	if isBatchProcessed && len(response.Responses) > 0 {
-		// Check out of counters
-		errorToCheck := response.Responses[len(response.Responses)-1].Error
-		isBatchProcessed = !executor.IsROMOutOfCountersError(errorToCheck)
+	isExecutorLevelError := (response.Error != executor.EXECUTOR_ERROR_NO_ERROR)
+	isRomLevelError := false
+	isRomOOCError := false
+
+	if response.Responses != nil {
+		for _, resp := range response.Responses {
+			if resp.Error != pb.RomError_ROM_ERROR_NO_ERROR {
+				isRomLevelError = true
+				break
+			}
+		}
+
+		if len(response.Responses) > 0 {
+			// Check out of counters
+			errorToCheck := response.Responses[len(response.Responses)-1].Error
+			isRomOOCError = executor.IsROMOutOfCountersError(errorToCheck)
+		}
 	}
 
 	return &ProcessBatchResponse{
-		NewStateRoot:       common.BytesToHash(response.NewStateRoot),
-		NewAccInputHash:    common.BytesToHash(response.NewAccInputHash),
-		NewLocalExitRoot:   common.BytesToHash(response.NewLocalExitRoot),
-		NewBatchNumber:     response.NewBatchNum,
-		UsedZkCounters:     convertToCounters(response),
-		Responses:          responses,
-		ExecutorError:      executor.ExecutorErr(response.Error),
-		IsBatchProcessed:   isBatchProcessed,
-		ReadWriteAddresses: readWriteAddresses,
+		NewStateRoot:         common.BytesToHash(response.NewStateRoot),
+		NewAccInputHash:      common.BytesToHash(response.NewAccInputHash),
+		NewLocalExitRoot:     common.BytesToHash(response.NewLocalExitRoot),
+		NewBatchNumber:       response.NewBatchNum,
+		UsedZkCounters:       convertToCounters(response),
+		Responses:            responses,
+		ExecutorError:        executor.ExecutorErr(response.Error),
+		IsExecutorLevelError: isExecutorLevelError,
+		IsRomLevelError:      isRomLevelError,
+		IsRomOOCError:        isRomOOCError,
+		ReadWriteAddresses:   readWriteAddresses,
 	}, nil
 }
 
-func isProcessed(err pb.RomError) bool {
+// IsStateRootChanged returns true if the transaction changes the state root
+func IsStateRootChanged(err pb.RomError) bool {
 	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
 }
 
@@ -125,9 +140,13 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.IsProcessed = isProcessed(response.Error)
+		result.ChangesStateRoot = IsStateRootChanged(response.Error)
 		result.ExecutionTrace = *trace
-		result.CallTrace = convertToExecutorTrace(response.CallTrace)
+		callTrace, err := convertToExecutorTrace(response.CallTrace)
+		if err != nil {
+			return nil, err
+		}
+		result.CallTrace = *callTrace
 		result.Tx = txs[i]
 
 		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
@@ -158,7 +177,7 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
 		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
 		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
-		log.Debugf("ProcessTransactionResponse[IsProcessed]: %v", result.IsProcessed)
+		log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
 	}
 
 	return results, nil
@@ -241,14 +260,18 @@ func convertToProperMap(responses map[string]string) map[common.Hash]common.Hash
 	return results
 }
 
-func convertToExecutorTrace(callTrace *pb.CallTrace) instrumentation.ExecutorTrace {
+func convertToExecutorTrace(callTrace *pb.CallTrace) (*instrumentation.ExecutorTrace, error) {
 	trace := new(instrumentation.ExecutorTrace)
 	if callTrace != nil {
 		trace.Context = convertToContext(callTrace.Context)
-		trace.Steps = convertToInstrumentationSteps(callTrace.Steps)
+		steps, err := convertToInstrumentationSteps(callTrace.Steps)
+		if err != nil {
+			return nil, err
+		}
+		trace.Steps = steps
 	}
 
-	return *trace
+	return trace, nil
 }
 
 func convertToContext(context *pb.TransactionContext) instrumentation.Context {
@@ -256,51 +279,60 @@ func convertToContext(context *pb.TransactionContext) instrumentation.Context {
 		Type:         context.Type,
 		From:         context.From,
 		To:           context.To,
-		Input:        string(context.Data),
-		Gas:          fmt.Sprint(context.Gas),
-		Value:        context.Value,
-		Output:       string(context.Output),
+		Input:        context.Data,
+		Gas:          context.Gas,
+		Value:        hex.DecodeBig(context.Value),
+		Output:       context.Output,
 		GasPrice:     context.GasPrice,
-		OldStateRoot: string(context.OldStateRoot),
+		OldStateRoot: common.BytesToHash(context.OldStateRoot),
 		Time:         uint64(context.ExecutionTime),
-		GasUsed:      fmt.Sprint(context.GasUsed),
+		GasUsed:      context.GasUsed,
 	}
 }
 
-func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrumentation.Step {
+func convertToInstrumentationSteps(responses []*pb.TransactionStep) ([]instrumentation.Step, error) {
 	results := make([]instrumentation.Step, 0, len(responses))
 	for _, response := range responses {
 		step := new(instrumentation.Step)
-		step.StateRoot = string(response.StateRoot)
+		step.StateRoot = common.BytesToHash(response.StateRoot)
 		step.Depth = int(response.Depth)
 		step.Pc = response.Pc
-		step.Gas = fmt.Sprint(response.Gas)
+		step.Gas = response.Gas
 		step.OpCode = fakevm.OpCode(response.Op).String()
 		step.Refund = fmt.Sprint(response.GasRefund)
-		step.Op = fmt.Sprint(response.Op)
+		step.Op = uint64(response.Op)
 		err := executor.RomErr(response.Error)
 		if err != nil {
-			step.Error = err.Error()
+			step.Error = err
 		}
 		step.Contract = convertToInstrumentationContract(response.Contract)
-		step.GasCost = fmt.Sprint(response.GasCost)
-		step.Stack = response.Stack
+		step.GasCost = response.GasCost
+		step.Stack = make([]*big.Int, 0, len(response.Stack))
+		for _, s := range response.Stack {
+			bi, ok := new(big.Int).SetString(s, hex.Base)
+			if !ok {
+				log.Debugf("error while parsing stack valueBigInt")
+				return nil, ErrParsingExecutorTrace
+			}
+			step.Stack = append(step.Stack, bi)
+		}
+
 		step.Memory = make([]byte, len(response.Memory))
 		copy(step.Memory, response.Memory)
 		step.ReturnData = make([]byte, len(response.ReturnData))
 		copy(step.ReturnData, response.ReturnData)
 		results = append(results, *step)
 	}
-	return results
+	return results, nil
 }
 
 func convertToInstrumentationContract(response *pb.Contract) instrumentation.Contract {
 	return instrumentation.Contract{
-		Address: response.Address,
-		Caller:  response.Caller,
-		Value:   response.Value,
-		Input:   string(response.Data),
-		Gas:     fmt.Sprint(response.Gas),
+		Address: common.HexToAddress(response.Address),
+		Caller:  common.HexToAddress(response.Caller),
+		Value:   hex.DecodeBig(response.Value),
+		Input:   response.Data,
+		Gas:     response.Gas,
 	}
 }
 
