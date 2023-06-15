@@ -154,7 +154,7 @@ make run-approve-matic
     - `Type:` Web
     - `Host:` localhost
     - `Port:` 4001
-    - `Url:` <http://localhost:4000>
+    - `Url:` <http://localhost:4001>
 - Prover
   - `Type:` Mock
   - `Host:` localhost
