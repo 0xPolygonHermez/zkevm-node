@@ -204,6 +204,8 @@ func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterfac
 }
 
 // StringOrHex returns the block number as a string or hex
+// n == -5 = finalized
+// n == -4 = safe
 // n == -3 = pending
 // n == -2 = latest
 // n == -1 = earliest
@@ -314,29 +316,45 @@ func (b *BlockNumberOrHash) UnmarshalJSON(buffer []byte) error {
 	err = json.Unmarshal(buffer, &m)
 	if err == nil {
 		if v, ok := m[BlockNumberKey]; ok {
-			input, _ := json.Marshal(v.(string))
-			err := json.Unmarshal(input, &number)
-			if err == nil {
-				b.SetNumber(number)
-				return nil
+			vStr, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("invalid %v", BlockNumberKey)
 			}
+			input, err := json.Marshal(vStr)
+			if err != nil {
+				return err
+			}
+			err = json.Unmarshal(input, &number)
+			if err != nil {
+				return fmt.Errorf("invalid %v", BlockNumberKey)
+			}
+			b.SetNumber(number)
+			return nil
 		} else if v, ok := m[BlockHashKey]; ok {
-			input, _ := json.Marshal(v.(string))
-			err := json.Unmarshal(input, &hash)
-			if err == nil {
-				requireCanonical, ok := m[RequireCanonicalKey]
-				if ok {
-					switch v := requireCanonical.(type) {
-					case bool:
-						b.SetHash(hash, v)
-					default:
-						return fmt.Errorf("invalid requiredCanonical")
-					}
-				} else {
-					b.SetHash(hash, false)
-				}
-				return nil
+			vStr, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("invalid %v", BlockHashKey)
 			}
+			input, err := json.Marshal(vStr)
+			if err != nil {
+				return err
+			}
+			err = json.Unmarshal(input, &hash)
+			if err != nil {
+				return fmt.Errorf("invalid %v", BlockHashKey)
+			}
+			requireCanonical, ok := m[RequireCanonicalKey]
+			if ok {
+				switch v := requireCanonical.(type) {
+				case bool:
+					b.SetHash(hash, v)
+				default:
+					return fmt.Errorf("invalid %v", RequireCanonicalKey)
+				}
+			} else {
+				b.SetHash(hash, false)
+			}
+			return nil
 		} else {
 			return fmt.Errorf("invalid block or hash")
 		}
