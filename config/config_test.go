@@ -342,8 +342,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
-			path:          "RPC.SequencerNodeURI",
+			path:          "TrustedSequencer.TrustedSequencerURL",
 			expectedValue: "",
+		},
+		{
+			path:          "TrustedSequencer.IsTrustedSequencer",
+			expectedValue: false,
 		},
 		{
 			path:          "RPC.MaxRequestsPerIPAndSecond",
