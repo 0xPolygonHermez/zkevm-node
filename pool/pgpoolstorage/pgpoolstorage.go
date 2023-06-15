@@ -421,7 +421,7 @@ func (p *PostgresPoolStorage) DeleteGasPricesHistoryOlderThan(ctx context.Contex
 			SELECT item_id
 			FROM pool.gas_price
 			ORDER BY item_id DESC
-			LIMIT 1
+			LIMIT 2
 		)`
 	if _, err := p.db.Exec(ctx, sql, date); err != nil {
 		return err
@@ -431,7 +431,7 @@ func (p *PostgresPoolStorage) DeleteGasPricesHistoryOlderThan(ctx context.Contex
 
 // GetGasPrice returns the current gas price
 func (p *PostgresPoolStorage) GetGasPrice(ctx context.Context) (uint64, error) {
-	sql := "SELECT price FROM pool.gas_price ORDER BY item_id DESC LIMIT 1"
+	sql := "SELECT price FROM pool.gas_price ORDER BY item_id DESC LIMIT 1 OFFSET 1"
 	rows, err := p.db.Query(ctx, sql)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, state.ErrNotFound
