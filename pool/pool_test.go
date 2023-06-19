@@ -664,6 +664,51 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	assert.Equal(t, expectedGasPrice, gasPrice)
 }
 
+func TestDeleteGasPricesHistoryOlderThan(t *testing.T) {
+	initOrResetDB(t)
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	require.NoError(t, err)
+
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	require.NoError(t, err)
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	p := pool.NewPool(cfg, s, nil, common.Address{}, chainID.Uint64(), eventLog)
+
+	ctx := context.Background()
+
+	// set first gas price
+	expectedGasPrice1 := uint64(1)
+	err = p.SetGasPrice(ctx, expectedGasPrice1)
+	require.NoError(t, err)
+	gasPrice, err := p.GetGasPrice(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, expectedGasPrice1, gasPrice)
+
+	// set second gas price
+	expectedGasPrice2 := uint64(2)
+	err = p.SetGasPrice(ctx, expectedGasPrice2)
+	require.NoError(t, err)
+	gasPrice, err = p.GetGasPrice(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, expectedGasPrice2, gasPrice)
+
+	// min gas price should be the first one
+	date := time.Now().UTC().Add(-time.Second * 2)
+	min, err := p.MinGasPriceSince(ctx, date)
+	require.NoError(t, err)
+	require.Equal(t, expectedGasPrice1, min)
+
+	// deleting the gas price history should keep at least the last one gas price (the second one)
+	err = p.DeleteGasPricesHistoryOlderThan(ctx, time.Now().UTC().Add(time.Second))
+	require.NoError(t, err)
+
+	min, err = p.MinGasPriceSince(ctx, date)
+	require.NoError(t, err)
+	require.Equal(t, expectedGasPrice2, min)
+}
+
 func TestGetPendingTxSince(t *testing.T) {
 	initOrResetDB(t)
 
