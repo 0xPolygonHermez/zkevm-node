@@ -130,8 +130,8 @@ func newFinalizer(
 		pendingTransactionsToStoreMux: new(sync.RWMutex),
 		proverID:                      "",
 		// Mutex is unlocked when the condition is broadcasted
-		storedFlushIDCond:  sync.NewCond(&sync.Mutex{}),
-		pendingFlushIDCond: sync.NewCond(&sync.Mutex{}),
+		storedFlushIDCond:  sync.NewCond(new(sync.Mutex)),
+		pendingFlushIDCond: sync.NewCond(new(sync.Mutex)),
 	}
 }
 
