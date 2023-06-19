@@ -516,8 +516,23 @@ func (p *PostgresPoolStorage) GetGasPrices(ctx context.Context) (uint64, uint64,
 	return l2GasPrice, l1GasPrice, nil
 }
 
-// MinGasPriceSince returns the min gas price after given timestamp
-func (p *PostgresPoolStorage) MinGasPriceSince(ctx context.Context, timestamp time.Time) (uint64, error) {
+// DeleteGasPricesHistoryOlderThan deletes all gas prices older than the given date except the last one
+func (p *PostgresPoolStorage) DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error {
+	sql := `DELETE FROM pool.gas_price
+		WHERE timestamp < $1 AND item_id NOT IN (
+			SELECT item_id
+			FROM pool.gas_price
+			ORDER BY item_id DESC
+			LIMIT 1
+		)`
+	if _, err := p.db.Exec(ctx, sql, date); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MinL2GasPriceSince returns the min L2 gas price after given timestamp
+func (p *PostgresPoolStorage) MinL2GasPriceSince(ctx context.Context, timestamp time.Time) (uint64, error) {
 	sql := "SELECT COALESCE(MIN(price), 0) FROM pool.gas_price WHERE \"timestamp\" >= $1 LIMIT 1"
 	var gasPrice uint64
 	err := p.db.QueryRow(ctx, sql, timestamp).Scan(&gasPrice)

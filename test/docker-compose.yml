@@ -224,7 +224,7 @@ services:
 
   zkevm-explorer-l1:
     container_name: zkevm-explorer-l1
-    image: hermeznetwork/hermez-node-blockscout:latest
+    image: hermeznetwork/zkevm-explorer:latest
     ports:
       - 4000:4000
     environment:
@@ -257,7 +257,7 @@ services:
 
   zkevm-explorer-l2:
     container_name: zkevm-explorer-l2
-    image: hermeznetwork/hermez-node-blockscout:latest
+    image: hermeznetwork/zkevm-explorer:latest
     ports:
       - 4001:4000
     environment:

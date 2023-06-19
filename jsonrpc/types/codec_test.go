@@ -3,10 +3,12 @@ package types
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/mocks"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -260,6 +262,54 @@ func TestBlockNumberStringOrHex(t *testing.T) {
 	}
 }
 
+func TestBlockNumberOrHashMarshaling(t *testing.T) {
+	type testCase struct {
+		json           string
+		expectedResult *BlockNumberOrHash
+		expectedError  error
+	}
+
+	testCases := []testCase{
+		// success
+		{`{"blockNumber":"1"}`, &BlockNumberOrHash{number: bnPtr(BlockNumber(uint64(1)))}, nil},
+		{`{"blockHash":"0x1"}`, &BlockNumberOrHash{hash: argHashPtr(common.HexToHash("0x1"))}, nil},
+		{`{"blockHash":"0x1", "requireCanonical":true}`, &BlockNumberOrHash{hash: argHashPtr(common.HexToHash("0x1")), requireCanonical: true}, nil},
+		// float wrong value
+		{`{"blockNumber":1.0}`, &BlockNumberOrHash{}, fmt.Errorf("invalid blockNumber")},
+		{`{"blockHash":1.0}`, &BlockNumberOrHash{}, fmt.Errorf("invalid blockHash")},
+		{`{"blockHash":"0x1", "requireCanonical":1.0}`, &BlockNumberOrHash{}, fmt.Errorf("invalid requireCanonical")},
+		// int wrong value
+		{`{"blockNumber":1}`, &BlockNumberOrHash{}, fmt.Errorf("invalid blockNumber")},
+		{`{"blockHash":1}`, &BlockNumberOrHash{}, fmt.Errorf("invalid blockHash")},
+		{`{"blockHash":"0x1", "requireCanonical":1}`, &BlockNumberOrHash{}, fmt.Errorf("invalid requireCanonical")},
+		// string wrong value
+		{`{"blockNumber":"aaa"}`, &BlockNumberOrHash{}, fmt.Errorf("invalid blockNumber")},
+		{`{"blockHash":"ggg"}`, &BlockNumberOrHash{}, fmt.Errorf("invalid blockHash")},
+		{`{"blockHash":"0x1", "requireCanonical":"aaa"}`, &BlockNumberOrHash{}, fmt.Errorf("invalid requireCanonical")},
+	}
+
+	for _, testCase := range testCases {
+		var result *BlockNumberOrHash
+		err := json.Unmarshal([]byte(testCase.json), &result)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, testCase.expectedResult.number, result.number)
+		assert.Equal(t, testCase.expectedResult.hash, result.hash)
+		assert.Equal(t, testCase.expectedResult.requireCanonical, testCase.expectedResult.requireCanonical)
+
+		if testCase.expectedError == nil {
+			assert.Nil(t, err)
+		} else {
+			assert.Equal(t, testCase.expectedError.Error(), err.Error())
+		}
+	}
+}
+
 func bnPtr(bn BlockNumber) *BlockNumber {
 	return &bn
+}
+
+func argHashPtr(hash common.Hash) *ArgHash {
+	h := ArgHash(hash)
+	return &h
 }

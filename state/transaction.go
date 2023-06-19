@@ -27,6 +27,8 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
 	"github.com/jackc/pgx/v4"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -703,6 +705,8 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	var attempts = 1
+
 	if s.executorClient == nil {
 		return nil, ErrExecutorNil
 	}
@@ -791,11 +795,34 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
-		// Log this error as an executor unspecified error
-		s.eventLog.LogExecutorError(ctx, pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
-		log.Errorf("error processing unsigned transaction ", err)
-		return nil, err
-	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		if status.Code(err) == codes.ResourceExhausted {
+			log.Errorf("error processing unsigned transaction ", err)
+			for attempts < s.cfg.MaxResourceExhaustedAttempts {
+				time.Sleep(s.cfg.WaitOnResourceExhaustion.Duration)
+				log.Errorf("retrying to process unsigned transaction")
+				processBatchResponse, err = s.executorClient.ProcessBatch(ctx, processBatchRequest)
+				if status.Code(err) == codes.ResourceExhausted {
+					log.Errorf("error processing unsigned transaction ", err)
+					attempts++
+					continue
+				}
+				break
+			}
+		}
+
+		if err != nil {
+			if status.Code(err) == codes.ResourceExhausted {
+				log.Error("reporting error as time out")
+				return nil, runtime.ErrGRPCResourceExhaustedAsTimeout
+			}
+			// Log this error as an executor unspecified error
+			s.eventLog.LogExecutorError(ctx, pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
+			log.Errorf("error processing unsigned transaction ", err)
+			return nil, err
+		}
+	}
+
+	if err == nil && processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
 		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err

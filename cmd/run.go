@@ -455,9 +455,11 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 	}
 
 	stateCfg := state.Config{
-		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
-		ChainID:              l2ChainID,
-		ForkIDIntervals:      forkIDIntervals,
+		MaxCumulativeGasUsed:         c.Sequencer.MaxCumulativeGasUsed,
+		ChainID:                      l2ChainID,
+		ForkIDIntervals:              forkIDIntervals,
+		MaxResourceExhaustedAttempts: c.Executor.MaxResourceExhaustedAttempts,
+		WaitOnResourceExhaustion:     c.Executor.WaitOnResourceExhaustion,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)

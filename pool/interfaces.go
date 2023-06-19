@@ -23,6 +23,7 @@ type storage interface {
 	GetNonWIPTxsByStatus(ctx context.Context, status TxStatus, limit uint64) ([]Transaction, error)
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	SetGasPrices(ctx context.Context, l2GasPrice uint64, l1GasPrice uint64) error
+	DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error
 	UpdateTxsStatus(ctx context.Context, updateInfo []TxStatusUpdateInfo) error
 	UpdateTxStatus(ctx context.Context, updateInfo TxStatusUpdateInfo) error
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
@@ -33,7 +34,7 @@ type storage interface {
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
 	GetAllAddressesBlocked(ctx context.Context) ([]common.Address, error)
-	MinGasPriceSince(ctx context.Context, timestamp time.Time) (uint64, error)
+	MinL2GasPriceSince(ctx context.Context, timestamp time.Time) (uint64, error)
 }
 
 type stateInterface interface {

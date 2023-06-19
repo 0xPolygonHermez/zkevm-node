@@ -263,6 +263,11 @@ func (p *Pool) SetGasPrices(ctx context.Context, l2GasPrice uint64, l1GasPrice u
 	return p.storage.SetGasPrices(ctx, l2GasPrice, l1GasPrice)
 }
 
+// DeleteGasPricesHistoryOlderThan deletes gas prices older than a given date except the most recent one
+func (p *Pool) DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error {
+	return p.storage.DeleteGasPricesHistoryOlderThan(ctx, date)
+}
+
 // GetGasPrices returns the current L2 Gas Price and L1 Gas Price
 func (p *Pool) GetGasPrices(ctx context.Context) (GasPrices, error) {
 	l2GasPrice, l1GasPrice, err := p.storage.GetGasPrices(ctx)
@@ -403,7 +408,7 @@ func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
 		fromTimestamp = p.startTimestamp
 	}
 
-	l2GasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
+	l2GasPrice, err := p.storage.MinL2GasPriceSince(ctx, fromTimestamp)
 	if err != nil {
 		p.minSuggestedGasPriceMux.Lock()
 		// Ensuring we always have suggested minimum gas price
