@@ -141,14 +141,12 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			return nil, respErr
 		}
 
-		var blockToProcess *uint64
+		n := block.NumberU64()
+		blockToProcess := &n
 		if blockArg != nil {
 			blockNumArg := blockArg.Number()
 			if blockNumArg != nil && (*blockArg.Number() == types.LatestBlockNumber || *blockArg.Number() == types.PendingBlockNumber) {
 				blockToProcess = nil
-			} else {
-				n := block.NumberU64()
-				blockToProcess = &n
 			}
 		}
 
