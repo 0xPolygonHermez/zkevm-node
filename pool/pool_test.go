@@ -1458,7 +1458,7 @@ func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
 		gasUsed                   uint64
 		l1GasPrice                *big.Int
 		expectedBreakEvenGasPrice *big.Int
-		expectError               bool
+		expectError               error
 		cfg                       pool.Config
 	}{
 		{
@@ -1471,31 +1471,19 @@ func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
 		{
 			desc:        "L1 gas price is zero",
 			l1GasPrice:  big.NewInt(0),
-			expectError: true,
+			expectError: pool.ErrReceivedZeroL1GasPrice,
 			gasUsed:     5000,
 			cfg:         normalCfg,
-		},
-		{
-			desc:        "L2 gas price is zero",
-			gasUsed:     5000,
-			expectError: true,
-			cfg:         l1MinGasPricePercentageZeroCfg,
-		},
-		{
-			desc:        "L1 gas price and L2 gas price are zero",
-			gasUsed:     5000,
-			expectError: true,
-			cfg:         l1MinGasPricePercentageZeroCfg,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.l1GasPrice != nil {
-				oldGasPrice := gasPrice
+				oldL1GasPrice := gasPrice
 				l1GasPrice = tc.l1GasPrice
 				defer func() {
-					l1GasPrice = oldGasPrice
+					l1GasPrice = oldL1GasPrice
 				}()
 			}
 
@@ -1538,8 +1526,8 @@ func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
 			p := setupPool(t, tc.cfg, s, st, chainID, ctx, eventLog)
 
 			breakEvenGasPrice, err := p.CalculateTxBreakEvenGasPrice(ctx, tc.txDataLength, tc.gasUsed)
-			if tc.expectError {
-				assert.Error(t, err)
+			if tc.expectError != nil {
+				assert.ErrorIs(t, err, tc.expectError)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectedBreakEvenGasPrice, breakEvenGasPrice)

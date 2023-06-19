@@ -487,7 +487,7 @@ func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength ui
 	}
 	if gasPrices.L1GasPrice == 0 {
 		log.Warn("Received L1 gas price 0. Skipping estimation...")
-		return nil, errors.New("received L1 gas price 0")
+		return nil, ErrReceivedZeroL1GasPrice
 	}
 
 	// Get L2 Min Gas Price
@@ -495,8 +495,8 @@ func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength ui
 	if err != nil {
 		return nil, err
 	}
-	if l2MinGasPrice == 0 {
-		return nil, fmt.Errorf("error L2 Min Gas Price can't be 0")
+	if l2MinGasPrice < p.cfg.DefaultMinGasPriceAllowed {
+		l2MinGasPrice = p.cfg.DefaultMinGasPriceAllowed
 	}
 
 	// Calculate break even gas price
