@@ -624,8 +624,9 @@ func TestEstimateGas(t *testing.T) {
 					On("GetNonce", context.Background(), *txArgs.From, blockRoot).
 					Return(nonce, nil).
 					Once()
+				b := block.NumberU64()
 				m.State.
-					On("EstimateGas", txMatchBy, *txArgs.From, nilUint64, m.DbTx).
+					On("EstimateGas", txMatchBy, *txArgs.From, &b, m.DbTx).
 					Return(*testCase.expectedResult, nil, nil).
 					Once()
 			},
@@ -664,9 +665,9 @@ func TestEstimateGas(t *testing.T) {
 
 				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
-
+				b := block.NumberU64()
 				m.State.
-					On("EstimateGas", txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, m.DbTx).
+					On("EstimateGas", txMatchBy, common.HexToAddress(DefaultSenderAddress), &b, m.DbTx).
 					Return(*testCase.expectedResult, nil, nil).
 					Once()
 			},
