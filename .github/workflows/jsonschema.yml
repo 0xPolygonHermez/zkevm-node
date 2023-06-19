@@ -1,0 +1,69 @@
+---
+name: JSON schema
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - update-external-dependencies
+      - 'release/**'
+  pull_request:
+
+jobs:
+  json-schema:
+    strategy:
+      matrix:
+        go-version: [ 1.19.x ]
+        goarch: [ "amd64" ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: ${{ matrix.go-version }}
+      env:
+        GOARCH: ${{ matrix.goarch }}
+
+    - uses: actions/setup-python@v1
+    - uses: BSFishy/pip-action@v1
+      with:
+        packages: |
+          json-schema-for-humans
+
+    - name: Check if JSON schema and generated doc is up to date
+      run: |
+        EXPECTED_DIFF=""
+        NOT_UPDATED_MSG="JSON Schema is not up to date, run 'make config-doc-gen' before creating the PR"
+
+        echo "Checking if JSON schema is up to date..."
+        go run ./cmd generate-json-schema --output=docs/config-file/actual-schema.json
+        ACTUAL_DIFF_JSON_SCHEMA=$(diff docs/config-file/actual-schema.json docs/config-file/config-schema.json)
+        if [ "$ACTUAL_DIFF_JSON_SCHEMA" != "$EXPECTED_DIFF" ]; then
+          echo $ACTUAL_DIFF_JSON_SCHEMA
+          echo $NOT_UPDATED_MSG
+          exit 1
+        fi
+
+        echo "Checking if Markdown doc is up to date..."
+        generate-schema-doc --config template_name=md --config footer_show_time=false docs/config-file/config-schema.json docs/config-file/actual-doc.md
+        ACTUAL_DIFF_MD_DOC=$(diff docs/config-file/actual-doc.md docs/config-file/config-doc.md)
+        if [ "$ACTUAL_DIFF_MD_DOC" != "$EXPECTED_DIFF" ]; then
+          echo $ACTUAL_DIFF_MD_DOC
+          echo $NOT_UPDATED_MSG
+          exit 1
+        fi
+
+        echo "Checking if HTML doc is up to date..."
+        generate-schema-doc --config footer_show_time=false docs/config-file/config-schema.json docs/config-file/actual-doc.html
+        ACTUAL_DIFF_HTML_DOC=$(diff docs/config-file/actual-doc.html docs/config-file/config-doc.html)
+        if [ "$ACTUAL_DIFF_HTML_DOC" != "$EXPECTED_DIFF" ]; then
+          echo $ACTUAL_DIFF_HTML_DOC
+          echo $NOT_UPDATED_MSG
+          exit 1
+        fi
+
+        echo "Everything up to date"

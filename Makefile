@@ -54,6 +54,16 @@ install-linter: ## Installs the linter
 lint: ## Runs the linter
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run
 
+.PHONY: install-config-doc-gen
+install-config-doc-gen: ## Installs the Python libraries to generate the configuration doc. Reuqires pip (sudo apt install python3-pip. You may need to add "~/.local/bin" to your path
+	pip3 install json-schema-for-humans
+
+.PHONY: config-doc-gen
+config-doc-gen: ## Installs the Python libraries to generate the configuration doc
+	go run ./cmd generate-json-schema --output=docs/config-file/config-schema.json
+	generate-schema-doc --config footer_show_time=false docs/config-file/config-schema.json docs/config-file/config-doc.html
+	generate-schema-doc --config template_name=md --config footer_show_time=false docs/config-file/config-schema.json docs/config-file/config-doc.md
+
 .PHONY: update-external-dependencies
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
 	go run ./scripts/cmd/... updatedeps

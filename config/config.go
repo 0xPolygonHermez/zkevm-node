@@ -48,6 +48,8 @@ const (
 	FlagPassword = "password"
 	// FlagMigrations is the flag for migrations.
 	FlagMigrations = "migrations"
+	// FlagOutputFile is the flag for the output file
+	FlagOutputFile = "output"
 	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
 	FlagMaxAmount = "max-amount"
 )
