@@ -52,25 +52,25 @@ func (_m *DbManagerMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, err
 	return r0, r1
 }
 
-// CalculateTxBreakEvenGasPrice provides a mock function with given fields: ctx, gasUsed
-func (_m *DbManagerMock) CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error) {
-	ret := _m.Called(ctx, gasUsed)
+// CalculateTxBreakEvenGasPrice provides a mock function with given fields: ctx, txDataLength, gasUsed
+func (_m *DbManagerMock) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64) (*big.Int, error) {
+	ret := _m.Called(ctx, txDataLength, gasUsed)
 
 	var r0 *big.Int
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) (*big.Int, error)); ok {
-		return rf(ctx, gasUsed)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) (*big.Int, error)); ok {
+		return rf(ctx, txDataLength, gasUsed)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) *big.Int); ok {
-		r0 = rf(ctx, gasUsed)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) *big.Int); ok {
+		r0 = rf(ctx, txDataLength, gasUsed)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*big.Int)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
-		r1 = rf(ctx, gasUsed)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64) error); ok {
+		r1 = rf(ctx, txDataLength, gasUsed)
 	} else {
 		r1 = ret.Error(1)
 	}

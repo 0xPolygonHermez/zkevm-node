@@ -33,18 +33,19 @@ var (
 
 // finalizer represents the finalizer component of the sequencer.
 type finalizer struct {
-	cfg                FinalizerCfg
-	closingSignalCh    ClosingSignalCh
-	isSynced           func(ctx context.Context) bool
-	sequencerAddress   common.Address
-	worker             workerInterface
-	dbManager          dbManagerInterface
-	executor           stateInterface
-	batch              *WipBatch
-	batchConstraints   batchConstraints
-	processRequest     state.ProcessRequest
-	sharedResourcesMux *sync.RWMutex
-	lastGERHash        common.Hash
+	cfg                  FinalizerCfg
+	effectiveGasPriceCfg EffectiveGasPriceCfg
+	closingSignalCh      ClosingSignalCh
+	isSynced             func(ctx context.Context) bool
+	sequencerAddress     common.Address
+	worker               workerInterface
+	dbManager            dbManagerInterface
+	executor             stateInterface
+	batch                *WipBatch
+	batchConstraints     batchConstraints
+	processRequest       state.ProcessRequest
+	sharedResourcesMux   *sync.RWMutex
+	lastGERHash          common.Hash
 	// closing signals
 	nextGER                 common.Hash
 	nextGERDeadline         int64
@@ -101,6 +102,7 @@ func (w *WipBatch) isEmpty() bool {
 // newFinalizer returns a new instance of Finalizer.
 func newFinalizer(
 	cfg FinalizerCfg,
+	effectiveGasPriceCfg EffectiveGasPriceCfg,
 	worker workerInterface,
 	dbManager dbManagerInterface,
 	executor stateInterface,
@@ -111,18 +113,19 @@ func newFinalizer(
 	eventLog *event.EventLog,
 ) *finalizer {
 	return &finalizer{
-		cfg:                cfg,
-		closingSignalCh:    closingSignalCh,
-		isSynced:           isSynced,
-		sequencerAddress:   sequencerAddr,
-		worker:             worker,
-		dbManager:          dbManager,
-		executor:           executor,
-		batch:              new(WipBatch),
-		batchConstraints:   batchConstraints,
-		processRequest:     state.ProcessRequest{},
-		sharedResourcesMux: new(sync.RWMutex),
-		lastGERHash:        state.ZeroHash,
+		cfg:                  cfg,
+		effectiveGasPriceCfg: effectiveGasPriceCfg,
+		closingSignalCh:      closingSignalCh,
+		isSynced:             isSynced,
+		sequencerAddress:     sequencerAddr,
+		worker:               worker,
+		dbManager:            dbManager,
+		executor:             executor,
+		batch:                new(WipBatch),
+		batchConstraints:     batchConstraints,
+		processRequest:       state.ProcessRequest{},
+		sharedResourcesMux:   new(sync.RWMutex),
+		lastGERHash:          state.ZeroHash,
 		// closing signals
 		nextGER:                 common.Hash{},
 		nextGERDeadline:         0,
@@ -133,7 +136,7 @@ func newFinalizer(
 		handlingL2Reorg:         false,
 		// event log
 		eventLog:                                eventLog,
-		maxBreakEvenGasPriceDeviationPercentage: new(big.Int).SetUint64(cfg.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage),
+		maxBreakEvenGasPriceDeviationPercentage: new(big.Int).SetUint64(effectiveGasPriceCfg.MaxBreakEvenGasPriceDeviationPercentage),
 		pendingTransactionsToStore:              make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
 		pendingTransactionsToStoreWG:            new(sync.WaitGroup),
 		pendingTransactionsToStoreMux:           &sync.RWMutex{},
@@ -264,7 +267,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
-			//log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDuration.Duration)
+			log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDuration.Duration)
 			if f.cfg.SleepDuration.Duration > 0 {
 				time.Sleep(f.cfg.SleepDuration.Duration)
 			}
@@ -508,17 +511,17 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 		f.processRequest.Transactions = tx.RawTx
 		hashStr = tx.HashStr
 		// Check if the guaranteed period for the break even gas price has passed
-		guaranteedPeriodDeadline := tx.ReceivedAt.Add(f.cfg.EffectiveGasPrice.BreakEvenGasPriceGuaranteedPeriod.Duration)
+		guaranteedPeriodDeadline := tx.ReceivedAt.Add(f.effectiveGasPriceCfg.BreakEvenGasPriceGuaranteedPeriod.Duration)
 		hasGuaranteedPeriodPassed := guaranteedPeriodDeadline.After(now())
 		breakEvenGasPrice := tx.BreakEvenGasPrice
 		if hasGuaranteedPeriodPassed {
 			// Calculate the new breakEvenPrice
 			var newBreakEvenGasPrice *big.Int
-			newBreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.ZKCounters.CumulativeGasUsed)
+			newBreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, tx.BatchResources.ZKCounters.CumulativeGasUsed)
 			if err != nil {
 				return nil, err
 			}
-			if f.cfg.EffectiveGasPrice.IsEnabled {
+			if f.effectiveGasPriceCfg.Enabled {
 				breakEvenGasPrice = newBreakEvenGasPrice
 			}
 		}
@@ -536,7 +539,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 		}
 
 		log.Infof("calculated effectivePercentage: %d for tx: %s", effectivePercentage, txHash)
-		if f.cfg.EffectiveGasPrice.IsEnabled {
+		if f.effectiveGasPriceCfg.Enabled {
 			f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
 		} else {
 			log.Infof("effective gas price is disabled so using 100 % (255) effective percentage. tx: %s", txHash)
@@ -591,7 +594,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		return nil, nil, err
 	}
 
-	if f.cfg.EffectiveGasPrice.IsEnabled {
+	if f.effectiveGasPriceCfg.Enabled {
 		// Check if the break even gas price has changed with too big deviation
 		deviationCheckWg = new(sync.WaitGroup)
 		deviationCheckWg.Add(1)
@@ -1204,7 +1207,7 @@ func getUsedBatchResources(constraints batchConstraints, remainingResources stat
 
 func (f *finalizer) checkBreakEvenGasPriceDeviation(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) {
 	// Calculate the breakEvenPrice with the actual gasUsed
-	actualBreakEvenPrice, err := f.dbManager.CalculateTxBreakEvenGasPrice(ctx, result.Responses[0].GasUsed)
+	actualBreakEvenPrice, err := f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, result.Responses[0].GasUsed)
 	if err != nil {
 		log.Errorf("failed to calculate breakEvenPrice with actual gasUsed: %s", err.Error())
 		return
@@ -1224,13 +1227,15 @@ func (f *finalizer) checkBreakEvenGasPriceDeviation(ctx context.Context, tx *TxT
 			Component:   event.Component_Sequencer,
 			Level:       event.Level_Critical,
 			EventID:     event.EventID_FinalizerBreakEvenGasPriceBigDifference,
-			Description: fmt.Sprintf("The difference: %s between the breakEvenPrice and the actualBreakEvenPrice is more than %d %%", diff.String(), f.cfg.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage),
+			Description: fmt.Sprintf("The difference: %s between the breakEvenPrice and the actualBreakEvenPrice is more than %d %%", diff.String(), f.effectiveGasPriceCfg.MaxBreakEvenGasPriceDeviationPercentage),
 			Json: struct {
+				transactionHash               string
 				preExecutionBreakEvenGasPrice string
 				actualBreakEvenGasPrice       string
 				diff                          string
 				deviation                     string
 			}{
+				transactionHash:               tx.Hash.String(),
 				preExecutionBreakEvenGasPrice: tx.BreakEvenGasPrice.String(),
 				actualBreakEvenGasPrice:       actualBreakEvenPrice.String(),
 				diff:                          diff.String(),

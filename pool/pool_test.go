@@ -61,14 +61,15 @@ var (
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Minute),
 		EffectiveGasPrice: pool.EffectiveGasPrice{
-			L1GasPricePercentageForL2MinPrice: 10,
-			ByteGasCost:                       16,
-			MarginFactorPercentage:            10,
+			L1GasPriceFactor: 10,
+			ByteGasCost:      16,
+			MarginFactor:     10,
 		},
 	}
-	gasPrice = big.NewInt(1000000000)
-	gasLimit = uint64(21000)
-	chainID  = big.NewInt(1337)
+	gasPrice   = big.NewInt(1000000000)
+	l1GasPrice = big.NewInt(1000000000000)
+	gasLimit   = uint64(21000)
+	chainID    = big.NewInt(1337)
 )
 
 func TestMain(m *testing.M) {
@@ -652,14 +653,12 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 
 	nBig, err := rand.Int(rand.Reader, big.NewInt(0).SetUint64(math.MaxUint64))
 	require.NoError(t, err)
-	expectedGasPrice := nBig.Uint64()
-
+	expectedGasPrice := pool.GasPrices{nBig.Uint64(), nBig.Uint64()}
 	ctx := context.Background()
-
-	err = p.SetGasPrice(ctx, expectedGasPrice)
+	err = p.SetGasPrices(ctx, expectedGasPrice.L2GasPrice, expectedGasPrice.L1GasPrice)
 	require.NoError(t, err)
 
-	gasPrice, err := p.GetGasPrice(ctx)
+	gasPrice, err := p.GetGasPrices(ctx)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedGasPrice, gasPrice)
@@ -1332,21 +1331,21 @@ func Test_BlockedAddress(t *testing.T) {
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
 		EffectiveGasPrice: pool.EffectiveGasPrice{
-			L1GasPricePercentageForL2MinPrice: 10,
-			ByteGasCost:                       16,
-			MarginFactorPercentage:            10,
+			L1GasPriceFactor: 10,
+			ByteGasCost:      16,
+			MarginFactor:     10,
 		},
 	}
 
 	p := setupPool(t, cfg, s, st, chainID, ctx, eventLog)
 
-	gasPrice, err := p.GetGasPrice(ctx)
+	gasPrices, err := p.GetGasPrices(ctx)
 	require.NoError(t, err)
 
 	// Add tx while address is not blocked
 	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
 		Nonce:    0,
-		GasPrice: big.NewInt(0).SetInt64(int64(gasPrice)),
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrices.L2GasPrice)),
 		Gas:      24000,
 		To:       &auth.From,
 		Value:    big.NewInt(1000),
@@ -1367,7 +1366,7 @@ func Test_BlockedAddress(t *testing.T) {
 	// get blocked when try to add new tx
 	tx = ethTypes.NewTx(&ethTypes.LegacyTx{
 		Nonce:    1,
-		GasPrice: big.NewInt(0).SetInt64(int64(gasPrice)),
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrices.L2GasPrice)),
 		Gas:      24000,
 		To:       &auth.From,
 		Value:    big.NewInt(1000),
@@ -1397,15 +1396,16 @@ func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
 		EffectiveGasPrice: pool.EffectiveGasPrice{
-			ByteGasCost:                       16,
-			L1GasPricePercentageForL2MinPrice: 10,
-			MarginFactorPercentage:            10,
+			ByteGasCost:      16,
+			L1GasPriceFactor: 10,
+			MarginFactor:     10,
 		},
 	}
 	l1MinGasPricePercentageZeroCfg := normalCfg
-	l1MinGasPricePercentageZeroCfg.EffectiveGasPrice.L1GasPricePercentageForL2MinPrice = 0
+	l1MinGasPricePercentageZeroCfg.EffectiveGasPrice.L1GasPriceFactor = 0
 	testCases := []struct {
 		desc                      string
+		txDataLength              uint64
 		gasUsed                   uint64
 		l1GasPrice                *big.Int
 		expectedBreakEvenGasPrice *big.Int
@@ -1414,15 +1414,16 @@ func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
 	}{
 		{
 			desc:                      "Normal scenario",
+			txDataLength:              1000,
 			gasUsed:                   5000,
-			expectedBreakEvenGasPrice: big.NewInt(31120000),
+			expectedBreakEvenGasPrice: big.NewInt(1330000000000),
 			cfg:                       normalCfg,
 		},
 		{
 			desc:        "L1 gas price is zero",
-			gasUsed:     5000,
 			l1GasPrice:  big.NewInt(0),
 			expectError: true,
+			gasUsed:     5000,
 			cfg:         normalCfg,
 		},
 		{
@@ -1443,9 +1444,9 @@ func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.l1GasPrice != nil {
 				oldGasPrice := gasPrice
-				gasPrice = tc.l1GasPrice
+				l1GasPrice = tc.l1GasPrice
 				defer func() {
-					gasPrice = oldGasPrice
+					l1GasPrice = oldGasPrice
 				}()
 			}
 
@@ -1487,7 +1488,7 @@ func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
 			const chainID = 2576980377
 			p := setupPool(t, tc.cfg, s, st, chainID, ctx, eventLog)
 
-			breakEvenGasPrice, err := p.CalculateTxBreakEvenGasPrice(ctx, tc.gasUsed)
+			breakEvenGasPrice, err := p.CalculateTxBreakEvenGasPrice(ctx, tc.txDataLength, tc.gasUsed)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
@@ -1501,7 +1502,7 @@ func TestCalculateTxBreakEvenGasPrice(t *testing.T) {
 func setupPool(t *testing.T, cfg pool.Config, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {
 	p := pool.NewPool(cfg, s, st, chainID, eventLog)
 
-	err := p.SetGasPrice(ctx, gasPrice.Uint64())
+	err := p.SetGasPrices(ctx, gasPrice.Uint64(), l1GasPrice.Uint64())
 	require.NoError(t, err)
 	p.StartPollingMinSuggestedGasPrice(ctx)
 	return p

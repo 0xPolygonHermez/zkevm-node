@@ -34,9 +34,9 @@ PollMinAllowedGasPriceInterval = "15s"
 	EnableLog = false
 	MaxConns = 200
 	[Pool.EffectiveGasPrice]
-	L1GasPricePercentageForL2MinPrice = 10
+	L1GasPriceFactor = 10
 	ByteGasCost = 16
-	MarginFactorPercentage = 10
+	MarginFactor = 10
 
 [Etherman]
 URL = "http://localhost:8545"
@@ -103,15 +103,15 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		TimestampResolution = "10s"
-		[Sequencer.Finalizer.EffectiveGasPrice]
-			BreakEvenGasPriceGuaranteedPeriod = "30s"
-			MaxBreakEvenGasPriceDeviationPercentage = 10
-			IsEnabled = false
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
+	[Sequencer.EffectiveGasPrice]
+		BreakEvenGasPriceGuaranteedPeriod = "30s"
+		MaxBreakEvenGasPriceDeviationPercentage = 10
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "5s"

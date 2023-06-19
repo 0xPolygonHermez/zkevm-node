@@ -15,7 +15,7 @@ type L2GasPricer interface {
 }
 
 // NewL2GasPriceSuggester init.
-func NewL2GasPriceSuggester(ctx context.Context, cfg Config, pool pool, ethMan *etherman.Client, state *state.State) {
+func NewL2GasPriceSuggester(ctx context.Context, cfg Config, pool poolInterface, ethMan *etherman.Client, state *state.State) {
 	var gpricer L2GasPricer
 	switch cfg.Type {
 	case LastNBatchesType:

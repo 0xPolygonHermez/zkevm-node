@@ -186,15 +186,15 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.EffectiveGasPrice.BreakEvenGasPriceGuaranteedPeriod",
+			path:          "Sequencer.EffectiveGasPrice.BreakEvenGasPriceGuaranteedPeriod",
 			expectedValue: types.NewDuration(30 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
+			path:          "Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
 			expectedValue: uint64(10),
 		},
 		{
-			path:          "Sequencer.EffectiveGasPrice.IsEnabled",
+			path:          "Sequencer.EffectiveGasPrice.Enabled",
 			expectedValue: false,
 		},
 		{
@@ -355,7 +355,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 200,
 		},
 		{
-			path:          "Pool.EffectiveGasPrice.L1GasPricePercentageForL2MinPrice",
+			path:          "Pool.EffectiveGasPrice.L1GasPriceFactor",
 			expectedValue: uint64(10),
 		},
 		{
@@ -363,7 +363,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(16),
 		},
 		{
-			path:          "Pool.EffectiveGasPrice.MarginFactorPercentage",
+			path:          "Pool.EffectiveGasPrice.MarginFactor",
 			expectedValue: uint64(10),
 		},
 		{

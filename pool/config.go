@@ -35,12 +35,12 @@ type Config struct {
 
 // EffectiveGasPrice has parameters for the effective gas price calculation.
 type EffectiveGasPrice struct {
-	// L1GasPricePercentageForL2MinPrice is the percentage of the L1 gas price that will be used as the L2 min gas price
-	L1GasPricePercentageForL2MinPrice uint64 `mapstructure:"L1GasPricePercentageForL2MinPrice"`
+	// L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price
+	L1GasPriceFactor uint64 `mapstructure:"L1GasPriceFactor"`
 
 	// ByteGasCost is the gas cost per byte
 	ByteGasCost uint64 `mapstructure:"ByteGasCost"`
 
-	// MarginFactorPercentage is the margin factor percentage to be added to the L2 min gas price
-	MarginFactorPercentage uint64 `mapstructure:"MarginFactorPercentage"`
+	// MarginFactor is the margin factor percentage to be added to the L2 min gas price
+	MarginFactor uint64 `mapstructure:"MarginFactor"`
 }

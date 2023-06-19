@@ -482,37 +482,38 @@ func (p *PostgresPoolStorage) DeleteTransactionsByHashes(ctx context.Context, ha
 	return nil
 }
 
-// SetGasPrice allows an external component to define the gas price
-func (p *PostgresPoolStorage) SetGasPrice(ctx context.Context, gasPrice uint64) error {
-	sql := "INSERT INTO pool.gas_price (price, timestamp) VALUES ($1, $2)"
-	if _, err := p.db.Exec(ctx, sql, gasPrice, time.Now().UTC()); err != nil {
+// SetGasPrices sets the latest l2 and l1 gas prices
+func (p *PostgresPoolStorage) SetGasPrices(ctx context.Context, l2GasPrice, l1GasPrice uint64) error {
+	sql := "INSERT INTO pool.gas_price (price, l1_price, timestamp) VALUES ($1, $2, $3)"
+	if _, err := p.db.Exec(ctx, sql, l2GasPrice, l1GasPrice, time.Now().UTC()); err != nil {
 		return err
 	}
 	return nil
 }
 
-// GetGasPrice returns the current gas price
-func (p *PostgresPoolStorage) GetGasPrice(ctx context.Context) (uint64, error) {
-	sql := "SELECT price FROM pool.gas_price ORDER BY item_id DESC LIMIT 1"
+// GetGasPrices returns the latest l2 and l1 gas prices
+func (p *PostgresPoolStorage) GetGasPrices(ctx context.Context) (uint64, uint64, error) {
+	sql := "SELECT price, l1_price FROM pool.gas_price ORDER BY item_id DESC LIMIT 1"
 	rows, err := p.db.Query(ctx, sql)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, state.ErrNotFound
+		return 0, 0, state.ErrNotFound
 	} else if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	defer rows.Close()
 
-	gasPrice := uint64(0)
+	l2GasPrice := uint64(0)
+	l1GasPrice := uint64(0)
 
 	for rows.Next() {
-		err := rows.Scan(&gasPrice)
+		err := rows.Scan(&l2GasPrice, &l1GasPrice)
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
 	}
 
-	return gasPrice, nil
+	return l2GasPrice, l1GasPrice, nil
 }
 
 // MinGasPriceSince returns the min gas price after given timestamp

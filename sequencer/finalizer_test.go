@@ -51,6 +51,13 @@ var (
 		GERCh:         make(chan common.Hash),
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
+	effectiveGasPriceCfg = EffectiveGasPriceCfg{
+		BreakEvenGasPriceGuaranteedPeriod: cfgTypes.Duration{
+			Duration: 30 * time.Second,
+		},
+		MaxBreakEvenGasPriceDeviationPercentage: 10,
+		Enabled:                                 true,
+	}
 	cfg = FinalizerCfg{
 		GERDeadlineTimeout: cfgTypes.Duration{
 			Duration: 60,
@@ -72,13 +79,6 @@ var (
 		},
 		ResourcePercentageToCloseBatch: 10,
 		GERFinalityNumberOfBlocks:      64,
-		EffectiveGasPrice: EffectiveGasPrice{
-			BreakEvenGasPriceGuaranteedPeriod: cfgTypes.Duration{
-				Duration: 30 * time.Second,
-			},
-			MaxBreakEvenGasPriceDeviationPercentage: 10,
-			IsEnabled:                               true,
-		},
 	}
 	nonce1          = uint64(1)
 	nonce2          = uint64(2)
@@ -117,7 +117,7 @@ func TestNewFinalizer(t *testing.T) {
 	dbManagerMock.On("GetLastSentFlushID", context.Background()).Return(uint64(0), nil)
 
 	// arrange and act
-	f = newFinalizer(cfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, bc, eventLog)
+	f = newFinalizer(cfg, effectiveGasPriceCfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, bc, eventLog)
 
 	// assert
 	assert.NotNil(t, f)
@@ -133,7 +133,9 @@ func TestNewFinalizer(t *testing.T) {
 func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 	f = setupFinalizer(true)
 	ctx = context.Background()
-	txTracker := &TxTracker{Hash: txHash, From: senderAddr, Nonce: 1, BreakEvenGasPrice: breakEvenGasPrice}
+	txTracker := &TxTracker{Hash: txHash, From: senderAddr, Nonce: 1, BreakEvenGasPrice: breakEvenGasPrice, BatchResources: state.BatchResources{
+		Bytes: 1000,
+	}}
 	txResponse := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
 		StateRoot: newHash2,
@@ -285,7 +287,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				workerMock.On("UpdateTx", txTracker.Hash, txTracker.From, tc.executorResponse.UsedZkCounters).Return().Once()
 			}
 			if tc.expectedError == nil {
-				dbManagerMock.On("CalculateTxBreakEvenGasPrice", ctx, txResponse.GasUsed).Return(breakEvenGasPrice, nilErr).Once()
+				dbManagerMock.On("CalculateTxBreakEvenGasPrice", ctx, txTracker.BatchResources.Bytes, txResponse.GasUsed).Return(breakEvenGasPrice, nilErr).Once()
 				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", txTracker.From, tc.executorResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
 			}
@@ -1404,6 +1406,9 @@ func Test_processTransaction(t *testing.T) {
 		Nonce:             nonce1,
 		BreakEvenGasPrice: breakEvenGasPrice,
 		GasPrice:          breakEvenGasPrice,
+		BatchResources: state.BatchResources{
+			Bytes: 1000,
+		},
 	}
 	successfulTxResponse := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
@@ -1498,7 +1503,7 @@ func Test_processTransaction(t *testing.T) {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
 			}
 			if tc.expectedErr == nil {
-				dbManagerMock.On("CalculateTxBreakEvenGasPrice", tc.ctx, tc.expectedResponse.Responses[0].GasUsed).Return(breakEvenGasPrice, nilErr).Once()
+				dbManagerMock.On("CalculateTxBreakEvenGasPrice", tc.ctx, txTracker.BatchResources.Bytes, tc.expectedResponse.Responses[0].GasUsed).Return(breakEvenGasPrice, nilErr).Once()
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", tc.tx.From, tc.expectedResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
 			}
 
@@ -2405,18 +2410,19 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 	return &finalizer{
-		cfg:                cfg,
-		closingSignalCh:    closingSignalCh,
-		isSynced:           isSynced,
-		sequencerAddress:   seqAddr,
-		worker:             workerMock,
-		dbManager:          dbManagerMock,
-		executor:           executorMock,
-		batch:              wipBatch,
-		batchConstraints:   bc,
-		processRequest:     state.ProcessRequest{},
-		sharedResourcesMux: new(sync.RWMutex),
-		lastGERHash:        common.Hash{},
+		cfg:                  cfg,
+		effectiveGasPriceCfg: effectiveGasPriceCfg,
+		closingSignalCh:      closingSignalCh,
+		isSynced:             isSynced,
+		sequencerAddress:     seqAddr,
+		worker:               workerMock,
+		dbManager:            dbManagerMock,
+		executor:             executorMock,
+		batch:                wipBatch,
+		batchConstraints:     bc,
+		processRequest:       state.ProcessRequest{},
+		sharedResourcesMux:   new(sync.RWMutex),
+		lastGERHash:          common.Hash{},
 		// closing signals
 		nextGER:                                 common.Hash{},
 		nextGERDeadline:                         0,

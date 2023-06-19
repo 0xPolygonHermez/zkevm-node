@@ -561,8 +561,8 @@ func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
 }
 
 // CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
-func (d *dbManager) CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error) {
-	return d.txPool.CalculateTxBreakEvenGasPrice(ctx, gasUsed)
+func (d *dbManager) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64) (*big.Int, error) {
+	return d.txPool.CalculateTxBreakEvenGasPrice(ctx, txDataLength, gasUsed)
 }
 
 // GetStoredFlushID returns the stored flush ID and prover ID

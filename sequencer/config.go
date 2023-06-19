@@ -88,6 +88,9 @@ type Config struct {
 
 	// Worker's specific config properties
 	Worker WorkerCfg `mapstructure:"Worker"`
+
+	// EffectiveGasPrice is the config for the gas price
+	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -121,9 +124,6 @@ type FinalizerCfg struct {
 
 	// TimestampResolution is the resolution of the timestamp used to close a batch
 	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
-
-	// EffectiveGasPrice is the config for the gas price
-	EffectiveGasPrice EffectiveGasPrice `mapstructure:"EffectiveGasPrice"`
 }
 
 // WorkerCfg contains the Worker's configuration properties
@@ -138,14 +138,14 @@ type DBManagerCfg struct {
 	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
 }
 
-// EffectiveGasPrice contains the configuration properties for the effective gas price
-type EffectiveGasPrice struct {
+// EffectiveGasPriceCfg contains the configuration properties for the effective gas price
+type EffectiveGasPriceCfg struct {
 	// BreakEvenGasPriceGuaranteedPeriod is the period of time for which the break even gas price is guaranteed
 	BreakEvenGasPriceGuaranteedPeriod types.Duration `mapstructure:"BreakEvenGasPriceGuaranteedPeriod"`
 
 	// MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
 	MaxBreakEvenGasPriceDeviationPercentage uint64 `mapstructure:"MaxBreakEvenGasPriceDeviationPercentage"`
 
-	// IsEnabled is a flag to enable/disable the effective gas price
-	IsEnabled bool `mapstructure:"IsEnabled"`
+	// Enabled is a flag to enable/disable the effective gas price
+	Enabled bool `mapstructure:"Enabled"`
 }

@@ -27,7 +27,7 @@ type txPool interface {
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, failedReason *string) error
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
-	CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error)
+	CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64) (*big.Int, error)
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -118,7 +118,7 @@ type dbManagerInterface interface {
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	FlushMerkleTree(ctx context.Context) error
-	CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error)
+	CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64) (*big.Int, error)
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)

@@ -35,7 +35,7 @@ const (
 	// constants used in calculation of BreakEvenGasPrice
 	signatureBytesLength           = 65
 	effectivePercentageBytesLength = 1
-	txDataBytesLength              = signatureBytesLength + effectivePercentageBytesLength
+	totalRlpFieldsLength           = signatureBytesLength + effectivePercentageBytesLength
 )
 
 // Pool is an implementation of the Pool interface
@@ -49,7 +49,7 @@ type Pool struct {
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
 	eventLog                *event.EventLog
-	totalBytesGasCost       uint64
+	startTimestamp          time.Time
 }
 
 type preExecutionResponse struct {
@@ -60,17 +60,24 @@ type preExecutionResponse struct {
 	txResponse     *state.ProcessTransactionResponse
 }
 
+// GasPrices contains the gas prices for L2 and L1
+type GasPrices struct {
+	L2GasPrice uint64
+	L1GasPrice uint64
+}
+
 // NewPool creates and initializes an instance of Pool
 func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
+	startTimestamp := time.Now()
 	p := &Pool{
 		cfg:                     cfg,
+		startTimestamp:          startTimestamp,
 		storage:                 s,
 		state:                   st,
 		chainID:                 chainID,
 		blockedAddresses:        sync.Map{},
 		minSuggestedGasPriceMux: new(sync.RWMutex),
 		eventLog:                eventLog,
-		totalBytesGasCost:       txDataBytesLength * cfg.EffectiveGasPrice.ByteGasCost,
 	}
 
 	p.refreshBlockedAddresses()
@@ -180,7 +187,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		}
 	}
 
-	breakEvenGasPrice, err := p.CalculateTxBreakEvenGasPrice(ctx, preExecutionResponse.txResponse.GasUsed)
+	breakEvenGasPrice, err := p.CalculateTxBreakEvenGasPrice(ctx, uint64(len(preExecutionResponse.txResponse.Tx.Data())), preExecutionResponse.txResponse.GasUsed)
 	if err != nil {
 		err = fmt.Errorf("error estimating break even gas price. err: %w", err)
 		log.Error(err)
@@ -251,14 +258,15 @@ func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus T
 	})
 }
 
-// SetGasPrice allows an external component to define the gas price
-func (p *Pool) SetGasPrice(ctx context.Context, gasPrice uint64) error {
-	return p.storage.SetGasPrice(ctx, gasPrice)
+// SetGasPrices sets the current L2 Gas Price and L1 Gas Price
+func (p *Pool) SetGasPrices(ctx context.Context, l2GasPrice uint64, l1GasPrice uint64) error {
+	return p.storage.SetGasPrices(ctx, l2GasPrice, l1GasPrice)
 }
 
-// GetGasPrice returns the current gas price
-func (p *Pool) GetGasPrice(ctx context.Context) (uint64, error) {
-	return p.storage.GetGasPrice(ctx)
+// GetGasPrices returns the current L2 Gas Price and L1 Gas Price
+func (p *Pool) GetGasPrices(ctx context.Context) (GasPrices, error) {
+	l2GasPrice, l1GasPrice, err := p.storage.GetGasPrices(ctx)
+	return GasPrices{L1GasPrice: l1GasPrice, L2GasPrice: l2GasPrice}, err
 }
 
 // CountPendingTransactions get number of pending transactions
@@ -390,7 +398,12 @@ func (p *Pool) validateTx(ctx context.Context, poolTx types.Transaction) error {
 
 func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
 	fromTimestamp := time.Now().UTC().Add(-p.cfg.MinAllowedGasPriceInterval.Duration)
-	gasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
+	// Ensuring we don't use a timestamp before the pool start as it may be using older L1 gas price factor
+	if fromTimestamp.Before(p.startTimestamp) {
+		fromTimestamp = p.startTimestamp
+	}
+
+	l2GasPrice, err := p.storage.MinGasPriceSince(ctx, fromTimestamp)
 	if err != nil {
 		p.minSuggestedGasPriceMux.Lock()
 		// Ensuring we always have suggested minimum gas price
@@ -406,9 +419,9 @@ func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
 		}
 	} else {
 		p.minSuggestedGasPriceMux.Lock()
-		p.minSuggestedGasPrice = big.NewInt(0).SetUint64(gasPrice)
+		p.minSuggestedGasPrice = big.NewInt(0).SetUint64(l2GasPrice)
 		p.minSuggestedGasPriceMux.Unlock()
-		log.Infof("Min allowed gas price updated to: %d", gasPrice)
+		log.Infof("Min allowed gas price updated to: %d", l2GasPrice)
 	}
 }
 
@@ -460,30 +473,30 @@ func (p *Pool) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bo
 }
 
 // CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
-func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, gasUsed uint64) (*big.Int, error) {
-	// Get L1 Gas Price
-	l1GasPrice, err := p.GetGasPrice(ctx)
+func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64) (*big.Int, error) {
+	// Get L1 and L2 Gas Prices
+	gasPrices, err := p.GetGasPrices(ctx)
 	if err != nil {
-		log.Warn(fmt.Sprintf("Failed to get L1 gas price: %v", err))
+		log.Warn(fmt.Sprintf("Failed to get L1 and L2 gas prices: %v", err))
 		return nil, err
 	}
-	if l1GasPrice == 0 {
+	if gasPrices.L1GasPrice == 0 {
 		log.Warn("Received L1 gas price 0. Skipping estimation...")
 		return nil, errors.New("received L1 gas price 0")
 	}
 
 	// Get L2 Min Gas Price
-	l2MinGasPrice := (l1GasPrice * p.cfg.EffectiveGasPrice.L1GasPricePercentageForL2MinPrice) / 100 //nolint:gomnd
+	l2MinGasPrice := (gasPrices.L1GasPrice * p.cfg.EffectiveGasPrice.L1GasPriceFactor) / 100 //nolint:gomnd
 	if err != nil {
 		return nil, err
 	}
-	if l1GasPrice == 0 || l2MinGasPrice == 0 {
-		return nil, fmt.Errorf("failed to get L1 Gas Price and L2 Min Gas Price")
+	if l2MinGasPrice == 0 {
+		return nil, fmt.Errorf("error L2 Min Gas Price can't be 0")
 	}
 
 	// Calculate break even gas price
-	totalTxPrice := (gasUsed * l2MinGasPrice) + (p.totalBytesGasCost * l1GasPrice)
-	breakEvenGasPrice := ((totalTxPrice / gasUsed) * p.cfg.EffectiveGasPrice.MarginFactorPercentage) / 100 //nolint:gomnd
+	totalTxPrice := (gasUsed * l2MinGasPrice) + (totalRlpFieldsLength * txDataLength * gasPrices.L1GasPrice)
+	breakEvenGasPrice := ((totalTxPrice / gasUsed) * p.cfg.EffectiveGasPrice.MarginFactor) / 100 //nolint:gomnd
 
 	return big.NewInt(0).SetUint64(breakEvenGasPrice), nil
 }
