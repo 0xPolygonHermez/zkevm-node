@@ -127,7 +127,7 @@ func newFinalizer(
 		nextForcedBatchesMux:          new(sync.RWMutex),
 		eventLog:                      eventLog,
 		pendingTransactionsToStore:    make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
-		pendingTransactionsToStoreMux: &sync.RWMutex{},
+		pendingTransactionsToStoreMux: new(sync.RWMutex),
 		proverID:                      "",
 		// Mutex is unlocked when the condition is broadcasted
 		storedFlushIDCond:  sync.NewCond(&sync.Mutex{}),
