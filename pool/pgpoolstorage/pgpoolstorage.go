@@ -8,7 +8,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -636,8 +635,6 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	tx.ZKCounters.UsedBinaries = usedBinaries
 	tx.ZKCounters.UsedSteps = usedSteps
 	tx.FailedReason = failedReason
-
-	log.Infof("ZKCounters", tx.ZKCounters)
 
 	return tx, nil
 }
