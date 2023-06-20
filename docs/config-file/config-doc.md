@@ -23,95 +23,87 @@
       - [4.3.1.2. Property `root > EthTxManager > PrivateKeys > PrivateKeys items > Password`](#EthTxManager_PrivateKeys_items_Password)
   - [4.4. Property `root > EthTxManager > ForcedGas`](#EthTxManager_ForcedGas)
 - [5. Property `root > Pool`](#Pool)
-  - [5.1. Property `root > Pool > FreeClaimGasLimit`](#Pool_FreeClaimGasLimit)
-  - [5.2. Property `root > Pool > IntervalToRefreshBlockedAddresses`](#Pool_IntervalToRefreshBlockedAddresses)
-  - [5.3. Property `root > Pool > MaxTxBytesSize`](#Pool_MaxTxBytesSize)
-  - [5.4. Property `root > Pool > MaxTxDataBytesSize`](#Pool_MaxTxDataBytesSize)
-  - [5.5. Property `root > Pool > DB`](#Pool_DB)
-    - [5.5.1. Property `root > Pool > DB > Name`](#Pool_DB_Name)
-    - [5.5.2. Property `root > Pool > DB > User`](#Pool_DB_User)
-    - [5.5.3. Property `root > Pool > DB > Password`](#Pool_DB_Password)
-    - [5.5.4. Property `root > Pool > DB > Host`](#Pool_DB_Host)
-    - [5.5.5. Property `root > Pool > DB > Port`](#Pool_DB_Port)
-    - [5.5.6. Property `root > Pool > DB > EnableLog`](#Pool_DB_EnableLog)
-    - [5.5.7. Property `root > Pool > DB > MaxConns`](#Pool_DB_MaxConns)
-  - [5.6. Property `root > Pool > DefaultMinGasPriceAllowed`](#Pool_DefaultMinGasPriceAllowed)
-  - [5.7. Property `root > Pool > MinAllowedGasPriceInterval`](#Pool_MinAllowedGasPriceInterval)
-  - [5.8. Property `root > Pool > PollMinAllowedGasPriceInterval`](#Pool_PollMinAllowedGasPriceInterval)
+  - [5.1. Property `root > Pool > IntervalToRefreshBlockedAddresses`](#Pool_IntervalToRefreshBlockedAddresses)
+  - [5.2. Property `root > Pool > MaxTxBytesSize`](#Pool_MaxTxBytesSize)
+  - [5.3. Property `root > Pool > MaxTxDataBytesSize`](#Pool_MaxTxDataBytesSize)
+  - [5.4. Property `root > Pool > DB`](#Pool_DB)
+    - [5.4.1. Property `root > Pool > DB > Name`](#Pool_DB_Name)
+    - [5.4.2. Property `root > Pool > DB > User`](#Pool_DB_User)
+    - [5.4.3. Property `root > Pool > DB > Password`](#Pool_DB_Password)
+    - [5.4.4. Property `root > Pool > DB > Host`](#Pool_DB_Host)
+    - [5.4.5. Property `root > Pool > DB > Port`](#Pool_DB_Port)
+    - [5.4.6. Property `root > Pool > DB > EnableLog`](#Pool_DB_EnableLog)
+    - [5.4.7. Property `root > Pool > DB > MaxConns`](#Pool_DB_MaxConns)
+  - [5.5. Property `root > Pool > DefaultMinGasPriceAllowed`](#Pool_DefaultMinGasPriceAllowed)
+  - [5.6. Property `root > Pool > MinAllowedGasPriceInterval`](#Pool_MinAllowedGasPriceInterval)
+  - [5.7. Property `root > Pool > PollMinAllowedGasPriceInterval`](#Pool_PollMinAllowedGasPriceInterval)
 - [6. Property `root > RPC`](#RPC)
   - [6.1. Property `root > RPC > Host`](#RPC_Host)
   - [6.2. Property `root > RPC > Port`](#RPC_Port)
-  - [6.3. Property `root > RPC > ReadTimeoutInSec`](#RPC_ReadTimeoutInSec)
-  - [6.4. Property `root > RPC > WriteTimeoutInSec`](#RPC_WriteTimeoutInSec)
+  - [6.3. Property `root > RPC > ReadTimeout`](#RPC_ReadTimeout)
+  - [6.4. Property `root > RPC > WriteTimeout`](#RPC_WriteTimeout)
   - [6.5. Property `root > RPC > MaxRequestsPerIPAndSecond`](#RPC_MaxRequestsPerIPAndSecond)
   - [6.6. Property `root > RPC > SequencerNodeURI`](#RPC_SequencerNodeURI)
-  - [6.7. Property `root > RPC > DefaultSenderAddress`](#RPC_DefaultSenderAddress)
-  - [6.8. Property `root > RPC > MaxCumulativeGasUsed`](#RPC_MaxCumulativeGasUsed)
-  - [6.9. Property `root > RPC > ChainID`](#RPC_ChainID)
-  - [6.10. Property `root > RPC > WebSockets`](#RPC_WebSockets)
-    - [6.10.1. Property `root > RPC > WebSockets > Enabled`](#RPC_WebSockets_Enabled)
-    - [6.10.2. Property `root > RPC > WebSockets > Port`](#RPC_WebSockets_Port)
-  - [6.11. Property `root > RPC > EnableL2SuggestedGasPricePolling`](#RPC_EnableL2SuggestedGasPricePolling)
+  - [6.7. Property `root > RPC > MaxCumulativeGasUsed`](#RPC_MaxCumulativeGasUsed)
+  - [6.8. Property `root > RPC > WebSockets`](#RPC_WebSockets)
+    - [6.8.1. Property `root > RPC > WebSockets > Enabled`](#RPC_WebSockets_Enabled)
+    - [6.8.2. Property `root > RPC > WebSockets > Host`](#RPC_WebSockets_Host)
+    - [6.8.3. Property `root > RPC > WebSockets > Port`](#RPC_WebSockets_Port)
+  - [6.9. Property `root > RPC > EnableL2SuggestedGasPricePolling`](#RPC_EnableL2SuggestedGasPricePolling)
 - [7. Property `root > Synchronizer`](#Synchronizer)
   - [7.1. Property `root > Synchronizer > SyncInterval`](#Synchronizer_SyncInterval)
   - [7.2. Property `root > Synchronizer > SyncChunkSize`](#Synchronizer_SyncChunkSize)
   - [7.3. Property `root > Synchronizer > TrustedSequencerURL`](#Synchronizer_TrustedSequencerURL)
 - [8. Property `root > Sequencer`](#Sequencer)
-  - [8.1. Property `root > Sequencer > WaitPeriodSendSequence`](#Sequencer_WaitPeriodSendSequence)
-  - [8.2. Property `root > Sequencer > WaitPeriodPoolIsEmpty`](#Sequencer_WaitPeriodPoolIsEmpty)
-  - [8.3. Property `root > Sequencer > LastBatchVirtualizationTimeMaxWaitPeriod`](#Sequencer_LastBatchVirtualizationTimeMaxWaitPeriod)
-  - [8.4. Property `root > Sequencer > BlocksAmountForTxsToBeDeleted`](#Sequencer_BlocksAmountForTxsToBeDeleted)
-  - [8.5. Property `root > Sequencer > FrequencyToCheckTxsForDelete`](#Sequencer_FrequencyToCheckTxsForDelete)
-  - [8.6. Property `root > Sequencer > MaxTxsPerBatch`](#Sequencer_MaxTxsPerBatch)
-  - [8.7. Property `root > Sequencer > MaxBatchBytesSize`](#Sequencer_MaxBatchBytesSize)
-  - [8.8. Property `root > Sequencer > MaxCumulativeGasUsed`](#Sequencer_MaxCumulativeGasUsed)
-  - [8.9. Property `root > Sequencer > MaxKeccakHashes`](#Sequencer_MaxKeccakHashes)
-  - [8.10. Property `root > Sequencer > MaxPoseidonHashes`](#Sequencer_MaxPoseidonHashes)
-  - [8.11. Property `root > Sequencer > MaxPoseidonPaddings`](#Sequencer_MaxPoseidonPaddings)
-  - [8.12. Property `root > Sequencer > MaxMemAligns`](#Sequencer_MaxMemAligns)
-  - [8.13. Property `root > Sequencer > MaxArithmetics`](#Sequencer_MaxArithmetics)
-  - [8.14. Property `root > Sequencer > MaxBinaries`](#Sequencer_MaxBinaries)
-  - [8.15. Property `root > Sequencer > MaxSteps`](#Sequencer_MaxSteps)
-  - [8.16. Property `root > Sequencer > WeightBatchBytesSize`](#Sequencer_WeightBatchBytesSize)
-  - [8.17. Property `root > Sequencer > WeightCumulativeGasUsed`](#Sequencer_WeightCumulativeGasUsed)
-  - [8.18. Property `root > Sequencer > WeightKeccakHashes`](#Sequencer_WeightKeccakHashes)
-  - [8.19. Property `root > Sequencer > WeightPoseidonHashes`](#Sequencer_WeightPoseidonHashes)
-  - [8.20. Property `root > Sequencer > WeightPoseidonPaddings`](#Sequencer_WeightPoseidonPaddings)
-  - [8.21. Property `root > Sequencer > WeightMemAligns`](#Sequencer_WeightMemAligns)
-  - [8.22. Property `root > Sequencer > WeightArithmetics`](#Sequencer_WeightArithmetics)
-  - [8.23. Property `root > Sequencer > WeightBinaries`](#Sequencer_WeightBinaries)
-  - [8.24. Property `root > Sequencer > WeightSteps`](#Sequencer_WeightSteps)
-  - [8.25. Property `root > Sequencer > TxLifetimeCheckTimeout`](#Sequencer_TxLifetimeCheckTimeout)
-  - [8.26. Property `root > Sequencer > MaxTxLifetime`](#Sequencer_MaxTxLifetime)
-  - [8.27. Property `root > Sequencer > MaxTxSizeForL1`](#Sequencer_MaxTxSizeForL1)
-  - [8.28. Property `root > Sequencer > Finalizer`](#Sequencer_Finalizer)
-    - [8.28.1. Property `root > Sequencer > Finalizer > GERDeadlineTimeoutInSec`](#Sequencer_Finalizer_GERDeadlineTimeoutInSec)
-    - [8.28.2. Property `root > Sequencer > Finalizer > ForcedBatchDeadlineTimeoutInSec`](#Sequencer_Finalizer_ForcedBatchDeadlineTimeoutInSec)
-    - [8.28.3. Property `root > Sequencer > Finalizer > SleepDurationInMs`](#Sequencer_Finalizer_SleepDurationInMs)
-    - [8.28.4. Property `root > Sequencer > Finalizer > ResourcePercentageToCloseBatch`](#Sequencer_Finalizer_ResourcePercentageToCloseBatch)
-    - [8.28.5. Property `root > Sequencer > Finalizer > GERFinalityNumberOfBlocks`](#Sequencer_Finalizer_GERFinalityNumberOfBlocks)
-    - [8.28.6. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingL1Timeout`](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout)
-    - [8.28.7. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingGER`](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER)
-    - [8.28.8. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingForcedBatches`](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches)
-    - [8.28.9. Property `root > Sequencer > Finalizer > ForcedBatchesFinalityNumberOfBlocks`](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks)
-    - [8.28.10. Property `root > Sequencer > Finalizer > TimestampResolution`](#Sequencer_Finalizer_TimestampResolution)
-    - [8.28.11. Property `root > Sequencer > Finalizer > SenderAddress`](#Sequencer_Finalizer_SenderAddress)
-    - [8.28.12. Property `root > Sequencer > Finalizer > PrivateKeys`](#Sequencer_Finalizer_PrivateKeys)
-      - [8.28.12.1. root > Sequencer > Finalizer > PrivateKeys > PrivateKeys items](#autogenerated_heading_4)
-        - [8.28.12.1.1. Property `root > Sequencer > Finalizer > PrivateKeys > PrivateKeys items > Path`](#Sequencer_Finalizer_PrivateKeys_items_Path)
-        - [8.28.12.1.2. Property `root > Sequencer > Finalizer > PrivateKeys > PrivateKeys items > Password`](#Sequencer_Finalizer_PrivateKeys_items_Password)
-  - [8.29. Property `root > Sequencer > DBManager`](#Sequencer_DBManager)
-    - [8.29.1. Property `root > Sequencer > DBManager > PoolRetrievalInterval`](#Sequencer_DBManager_PoolRetrievalInterval)
-    - [8.29.2. Property `root > Sequencer > DBManager > L2ReorgRetrievalInterval`](#Sequencer_DBManager_L2ReorgRetrievalInterval)
-  - [8.30. Property `root > Sequencer > Worker`](#Sequencer_Worker)
-    - [8.30.1. Property `root > Sequencer > Worker > ResourceCostMultiplier`](#Sequencer_Worker_ResourceCostMultiplier)
-- [9. Property `root > PriceGetter`](#PriceGetter)
-  - [9.1. Property `root > PriceGetter > Type`](#PriceGetter_Type)
-  - [9.2. Property `root > PriceGetter > PriceProvider`](#PriceGetter_PriceProvider)
-    - [9.2.1. Property `root > PriceGetter > PriceProvider > URL`](#PriceGetter_PriceProvider_URL)
-    - [9.2.2. Property `root > PriceGetter > PriceProvider > Type`](#PriceGetter_PriceProvider_Type)
-  - [9.3. Property `root > PriceGetter > UpdateFrequency`](#PriceGetter_UpdateFrequency)
-  - [9.4. Property `root > PriceGetter > DefaultPrice`](#PriceGetter_DefaultPrice)
+  - [8.1. Property `root > Sequencer > WaitPeriodPoolIsEmpty`](#Sequencer_WaitPeriodPoolIsEmpty)
+  - [8.2. Property `root > Sequencer > BlocksAmountForTxsToBeDeleted`](#Sequencer_BlocksAmountForTxsToBeDeleted)
+  - [8.3. Property `root > Sequencer > FrequencyToCheckTxsForDelete`](#Sequencer_FrequencyToCheckTxsForDelete)
+  - [8.4. Property `root > Sequencer > MaxTxsPerBatch`](#Sequencer_MaxTxsPerBatch)
+  - [8.5. Property `root > Sequencer > MaxBatchBytesSize`](#Sequencer_MaxBatchBytesSize)
+  - [8.6. Property `root > Sequencer > MaxCumulativeGasUsed`](#Sequencer_MaxCumulativeGasUsed)
+  - [8.7. Property `root > Sequencer > MaxKeccakHashes`](#Sequencer_MaxKeccakHashes)
+  - [8.8. Property `root > Sequencer > MaxPoseidonHashes`](#Sequencer_MaxPoseidonHashes)
+  - [8.9. Property `root > Sequencer > MaxPoseidonPaddings`](#Sequencer_MaxPoseidonPaddings)
+  - [8.10. Property `root > Sequencer > MaxMemAligns`](#Sequencer_MaxMemAligns)
+  - [8.11. Property `root > Sequencer > MaxArithmetics`](#Sequencer_MaxArithmetics)
+  - [8.12. Property `root > Sequencer > MaxBinaries`](#Sequencer_MaxBinaries)
+  - [8.13. Property `root > Sequencer > MaxSteps`](#Sequencer_MaxSteps)
+  - [8.14. Property `root > Sequencer > WeightBatchBytesSize`](#Sequencer_WeightBatchBytesSize)
+  - [8.15. Property `root > Sequencer > WeightCumulativeGasUsed`](#Sequencer_WeightCumulativeGasUsed)
+  - [8.16. Property `root > Sequencer > WeightKeccakHashes`](#Sequencer_WeightKeccakHashes)
+  - [8.17. Property `root > Sequencer > WeightPoseidonHashes`](#Sequencer_WeightPoseidonHashes)
+  - [8.18. Property `root > Sequencer > WeightPoseidonPaddings`](#Sequencer_WeightPoseidonPaddings)
+  - [8.19. Property `root > Sequencer > WeightMemAligns`](#Sequencer_WeightMemAligns)
+  - [8.20. Property `root > Sequencer > WeightArithmetics`](#Sequencer_WeightArithmetics)
+  - [8.21. Property `root > Sequencer > WeightBinaries`](#Sequencer_WeightBinaries)
+  - [8.22. Property `root > Sequencer > WeightSteps`](#Sequencer_WeightSteps)
+  - [8.23. Property `root > Sequencer > TxLifetimeCheckTimeout`](#Sequencer_TxLifetimeCheckTimeout)
+  - [8.24. Property `root > Sequencer > MaxTxLifetime`](#Sequencer_MaxTxLifetime)
+  - [8.25. Property `root > Sequencer > Finalizer`](#Sequencer_Finalizer)
+    - [8.25.1. Property `root > Sequencer > Finalizer > GERDeadlineTimeout`](#Sequencer_Finalizer_GERDeadlineTimeout)
+    - [8.25.2. Property `root > Sequencer > Finalizer > ForcedBatchDeadlineTimeout`](#Sequencer_Finalizer_ForcedBatchDeadlineTimeout)
+    - [8.25.3. Property `root > Sequencer > Finalizer > SleepDuration`](#Sequencer_Finalizer_SleepDuration)
+    - [8.25.4. Property `root > Sequencer > Finalizer > ResourcePercentageToCloseBatch`](#Sequencer_Finalizer_ResourcePercentageToCloseBatch)
+    - [8.25.5. Property `root > Sequencer > Finalizer > GERFinalityNumberOfBlocks`](#Sequencer_Finalizer_GERFinalityNumberOfBlocks)
+    - [8.25.6. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingL1Timeout`](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout)
+    - [8.25.7. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingGER`](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER)
+    - [8.25.8. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingForcedBatches`](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches)
+    - [8.25.9. Property `root > Sequencer > Finalizer > ForcedBatchesFinalityNumberOfBlocks`](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks)
+    - [8.25.10. Property `root > Sequencer > Finalizer > TimestampResolution`](#Sequencer_Finalizer_TimestampResolution)
+  - [8.26. Property `root > Sequencer > DBManager`](#Sequencer_DBManager)
+    - [8.26.1. Property `root > Sequencer > DBManager > PoolRetrievalInterval`](#Sequencer_DBManager_PoolRetrievalInterval)
+    - [8.26.2. Property `root > Sequencer > DBManager > L2ReorgRetrievalInterval`](#Sequencer_DBManager_L2ReorgRetrievalInterval)
+  - [8.27. Property `root > Sequencer > Worker`](#Sequencer_Worker)
+    - [8.27.1. Property `root > Sequencer > Worker > ResourceCostMultiplier`](#Sequencer_Worker_ResourceCostMultiplier)
+- [9. Property `root > SequenceSender`](#SequenceSender)
+  - [9.1. Property `root > SequenceSender > WaitPeriodSendSequence`](#SequenceSender_WaitPeriodSendSequence)
+  - [9.2. Property `root > SequenceSender > LastBatchVirtualizationTimeMaxWaitPeriod`](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod)
+  - [9.3. Property `root > SequenceSender > MaxTxSizeForL1`](#SequenceSender_MaxTxSizeForL1)
+  - [9.4. Property `root > SequenceSender > SenderAddress`](#SequenceSender_SenderAddress)
+  - [9.5. Property `root > SequenceSender > PrivateKeys`](#SequenceSender_PrivateKeys)
+    - [9.5.1. root > SequenceSender > PrivateKeys > PrivateKeys items](#autogenerated_heading_4)
+      - [9.5.1.1. Property `root > SequenceSender > PrivateKeys > PrivateKeys items > Path`](#SequenceSender_PrivateKeys_items_Path)
+      - [9.5.1.2. Property `root > SequenceSender > PrivateKeys > PrivateKeys items > Password`](#SequenceSender_PrivateKeys_items_Password)
 - [10. Property `root > Aggregator`](#Aggregator)
   - [10.1. Property `root > Aggregator > Host`](#Aggregator_Host)
   - [10.2. Property `root > Aggregator > Port`](#Aggregator_Port)
@@ -161,9 +153,13 @@
   - [12.5. Property `root > L2GasPriceSuggester > CheckBlocks`](#L2GasPriceSuggester_CheckBlocks)
   - [12.6. Property `root > L2GasPriceSuggester > Percentile`](#L2GasPriceSuggester_Percentile)
   - [12.7. Property `root > L2GasPriceSuggester > UpdatePeriod`](#L2GasPriceSuggester_UpdatePeriod)
-  - [12.8. Property `root > L2GasPriceSuggester > Factor`](#L2GasPriceSuggester_Factor)
+  - [12.8. Property `root > L2GasPriceSuggester > CleanHistoryPeriod`](#L2GasPriceSuggester_CleanHistoryPeriod)
+  - [12.9. Property `root > L2GasPriceSuggester > CleanHistoryTimeRetention`](#L2GasPriceSuggester_CleanHistoryTimeRetention)
+  - [12.10. Property `root > L2GasPriceSuggester > Factor`](#L2GasPriceSuggester_Factor)
 - [13. Property `root > Executor`](#Executor)
   - [13.1. Property `root > Executor > URI`](#Executor_URI)
+  - [13.2. Property `root > Executor > MaxResourceExhaustedAttempts`](#Executor_MaxResourceExhaustedAttempts)
+  - [13.3. Property `root > Executor > WaitOnResourceExhaustion`](#Executor_WaitOnResourceExhaustion)
 - [14. Property `root > MTClient`](#MTClient)
   - [14.1. Property `root > MTClient > URI`](#MTClient_URI)
 - [15. Property `root > StateDB`](#StateDB)
@@ -199,71 +195,91 @@
 
 **Description:** Config represents the configuration of the entire Hermez Node
 
-| Property                                       | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ---------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| + [IsTrustedSequencer](#IsTrustedSequencer )   | No      | boolean | No         | -          | -                 |
-| + [Log](#Log )                                 | No      | object  | No         | -          | -                 |
-| + [Etherman](#Etherman )                       | No      | object  | No         | -          | -                 |
-| + [EthTxManager](#EthTxManager )               | No      | object  | No         | -          | -                 |
-| + [Pool](#Pool )                               | No      | object  | No         | -          | -                 |
-| + [RPC](#RPC )                                 | No      | object  | No         | -          | -                 |
-| + [Synchronizer](#Synchronizer )               | No      | object  | No         | -          | -                 |
-| + [Sequencer](#Sequencer )                     | No      | object  | No         | -          | -                 |
-| + [PriceGetter](#PriceGetter )                 | No      | object  | No         | -          | -                 |
-| + [Aggregator](#Aggregator )                   | No      | object  | No         | -          | -                 |
-| + [NetworkConfig](#NetworkConfig )             | No      | object  | No         | -          | -                 |
-| + [L2GasPriceSuggester](#L2GasPriceSuggester ) | No      | object  | No         | -          | -                 |
-| + [Executor](#Executor )                       | No      | object  | No         | -          | -                 |
-| + [MTClient](#MTClient )                       | No      | object  | No         | -          | -                 |
-| + [StateDB](#StateDB )                         | No      | object  | No         | -          | -                 |
-| + [Metrics](#Metrics )                         | No      | object  | No         | -          | -                 |
-| + [EventLog](#EventLog )                       | No      | object  | No         | -          | -                 |
+| Property                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                |
+| ---------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------- |
+| - [IsTrustedSequencer](#IsTrustedSequencer )   | No      | boolean | No         | -          | -                                                                                |
+| - [Log](#Log )                                 | No      | object  | No         | -          | Configure Log level for all the services, allow also to store the logs in a file |
+| - [Etherman](#Etherman )                       | No      | object  | No         | -          | -                                                                                |
+| - [EthTxManager](#EthTxManager )               | No      | object  | No         | -          | -                                                                                |
+| - [Pool](#Pool )                               | No      | object  | No         | -          | -                                                                                |
+| - [RPC](#RPC )                                 | No      | object  | No         | -          | -                                                                                |
+| - [Synchronizer](#Synchronizer )               | No      | object  | No         | -          | -                                                                                |
+| - [Sequencer](#Sequencer )                     | No      | object  | No         | -          | -                                                                                |
+| - [SequenceSender](#SequenceSender )           | No      | object  | No         | -          | -                                                                                |
+| - [Aggregator](#Aggregator )                   | No      | object  | No         | -          | -                                                                                |
+| - [NetworkConfig](#NetworkConfig )             | No      | object  | No         | -          | -                                                                                |
+| - [L2GasPriceSuggester](#L2GasPriceSuggester ) | No      | object  | No         | -          | -                                                                                |
+| - [Executor](#Executor )                       | No      | object  | No         | -          | -                                                                                |
+| - [MTClient](#MTClient )                       | No      | object  | No         | -          | -                                                                                |
+| - [StateDB](#StateDB )                         | No      | object  | No         | -          | -                                                                                |
+| - [Metrics](#Metrics )                         | No      | object  | No         | -          | -                                                                                |
+| - [EventLog](#EventLog )                       | No      | object  | No         | -          | -                                                                                |
 
 ## <a name="IsTrustedSequencer"></a>1. Property `root > IsTrustedSequencer`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `boolean` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `false`   |
 
 ## <a name="Log"></a>2. Property `root > Log`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
-| Property                           | Pattern | Type            | Deprecated | Definition | Title/Description                                                    |
-| ---------------------------------- | ------- | --------------- | ---------- | ---------- | -------------------------------------------------------------------- |
-| + [Environment](#Log_Environment ) | No      | string          | No         | -          | Environment defining the log format ("production" or "development"). |
-| + [Level](#Log_Level )             | No      | string          | No         | -          | Level of log, e.g. INFO, WARN, ...                                   |
-| + [Outputs](#Log_Outputs )         | No      | array of string | No         | -          | Outputs                                                              |
+**Description:** Configure Log level for all the services, allow also to store the logs in a file
+
+| Property                           | Pattern | Type             | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [Environment](#Log_Environment ) | No      | enum (of string) | No         | -          | Environment defining the log format ("production" or "development").<br />In development mode enables development mode (which makes DPanicLevel logs panic), uses a console encoder, writes to standard error, and disables sampling. Stacktraces are automatically included on logs of WarnLevel and above.<br />Check [here](https://pkg.go.dev/go.uber.org/zap@v1.24.0#NewDevelopmentConfig) |
+| - [Level](#Log_Level )             | No      | enum (of string) | No         | -          | Level of log. As lower value more logs are going to be generated                                                                                                                                                                                                                                                                                                                                |
+| - [Outputs](#Log_Outputs )         | No      | array of string  | No         | -          | Outputs                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ### <a name="Log_Environment"></a>2.1. Property `root > Log > Environment`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                    |
+| ------------ | ------------------ |
+| **Type**     | `enum (of string)` |
+| **Required** | No                 |
+| **Default**  | `"development"`    |
 
 **Description:** Environment defining the log format ("production" or "development").
+In development mode enables development mode (which makes DPanicLevel logs panic), uses a console encoder, writes to standard error, and disables sampling. Stacktraces are automatically included on logs of WarnLevel and above.
+Check [here](https://pkg.go.dev/go.uber.org/zap@v1.24.0#NewDevelopmentConfig)
+
+Must be one of:
+* "production"
+* "development"
 
 ### <a name="Log_Level"></a>2.2. Property `root > Log > Level`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                    |
+| ------------ | ------------------ |
+| **Type**     | `enum (of string)` |
+| **Required** | No                 |
+| **Default**  | `"info"`           |
 
-**Description:** Level of log, e.g. INFO, WARN, ...
+**Description:** Level of log. As lower value more logs are going to be generated
+
+Must be one of:
+* "debug"
+* "info"
+* "warn"
+* "error"
+* "dpanic"
+* "panic"
+* "fatal"
 
 ### <a name="Log_Outputs"></a>2.3. Property `root > Log > Outputs`
 
 |              |                   |
 | ------------ | ----------------- |
 | **Type**     | `array of string` |
-| **Required** | Yes               |
+| **Required** | No                |
 
 **Description:** Outputs
 
@@ -291,95 +307,102 @@
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                                              | Pattern | Type    | Deprecated | Definition | Title/Description |
 | ----------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| + [URL](#Etherman_URL )                               | No      | string  | No         | -          | -                 |
-| + [PrivateKeyPath](#Etherman_PrivateKeyPath )         | No      | string  | No         | -          | -                 |
-| + [PrivateKeyPassword](#Etherman_PrivateKeyPassword ) | No      | string  | No         | -          | -                 |
-| + [MultiGasProvider](#Etherman_MultiGasProvider )     | No      | boolean | No         | -          | -                 |
-| + [Etherscan](#Etherman_Etherscan )                   | No      | object  | No         | -          | -                 |
+| - [URL](#Etherman_URL )                               | No      | string  | No         | -          | -                 |
+| - [PrivateKeyPath](#Etherman_PrivateKeyPath )         | No      | string  | No         | -          | -                 |
+| - [PrivateKeyPassword](#Etherman_PrivateKeyPassword ) | No      | string  | No         | -          | -                 |
+| - [MultiGasProvider](#Etherman_MultiGasProvider )     | No      | boolean | No         | -          | -                 |
+| - [Etherscan](#Etherman_Etherscan )                   | No      | object  | No         | -          | -                 |
 
 ### <a name="Etherman_URL"></a>3.1. Property `root > Etherman > URL`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                           |
+| ------------ | ------------------------- |
+| **Type**     | `string`                  |
+| **Required** | No                        |
+| **Default**  | `"http://localhost:8545"` |
 
 ### <a name="Etherman_PrivateKeyPath"></a>3.2. Property `root > Etherman > PrivateKeyPath`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 ### <a name="Etherman_PrivateKeyPassword"></a>3.3. Property `root > Etherman > PrivateKeyPassword`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 ### <a name="Etherman_MultiGasProvider"></a>3.4. Property `root > Etherman > MultiGasProvider`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `boolean` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `false`   |
 
 ### <a name="Etherman_Etherscan"></a>3.5. Property `root > Etherman > Etherscan`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                                | Pattern | Type   | Deprecated | Definition | Title/Description |
 | --------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| + [ApiKey](#Etherman_Etherscan_ApiKey ) | No      | string | No         | -          | -                 |
-| + [Url](#Etherman_Etherscan_Url )       | No      | string | No         | -          | -                 |
+| - [ApiKey](#Etherman_Etherscan_ApiKey ) | No      | string | No         | -          | -                 |
+| - [Url](#Etherman_Etherscan_Url )       | No      | string | No         | -          | -                 |
 
 #### <a name="Etherman_Etherscan_ApiKey"></a>3.5.1. Property `root > Etherman > Etherscan > ApiKey`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 #### <a name="Etherman_Etherscan_Url"></a>3.5.2. Property `root > Etherman > Etherscan > Url`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 ## <a name="EthTxManager"></a>4. Property `root > EthTxManager`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                                                        | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                  |
 | --------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| + [FrequencyToMonitorTxs](#EthTxManager_FrequencyToMonitorTxs ) | No      | string          | No         | -          | Duration                                                                                                                           |
-| + [WaitTxToBeMined](#EthTxManager_WaitTxToBeMined )             | No      | string          | No         | -          | Duration                                                                                                                           |
-| + [PrivateKeys](#EthTxManager_PrivateKeys )                     | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs |
-| + [ForcedGas](#EthTxManager_ForcedGas )                         | No      | integer         | No         | -          | ForcedGas is the amount of gas to be forced in case of gas estimation error                                                        |
+| - [FrequencyToMonitorTxs](#EthTxManager_FrequencyToMonitorTxs ) | No      | string          | No         | -          | Duration                                                                                                                           |
+| - [WaitTxToBeMined](#EthTxManager_WaitTxToBeMined )             | No      | string          | No         | -          | Duration                                                                                                                           |
+| - [PrivateKeys](#EthTxManager_PrivateKeys )                     | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs |
+| - [ForcedGas](#EthTxManager_ForcedGas )                         | No      | integer         | No         | -          | ForcedGas is the amount of gas to be forced in case of gas estimation error                                                        |
 
 ### <a name="EthTxManager_FrequencyToMonitorTxs"></a>4.1. Property `root > EthTxManager > FrequencyToMonitorTxs`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                            |
+| ------------ | -------------------------- |
+| **Type**     | `string`                   |
+| **Required** | No                         |
+| **Default**  | `{"Duration": 1000000000}` |
 
 **Description:** FrequencyToMonitorTxs frequency of the resending failed txs
 
@@ -397,10 +420,11 @@
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                              |
+| ------------ | ---------------------------- |
+| **Type**     | `string`                     |
+| **Required** | No                           |
+| **Default**  | `{"Duration": 120000000000}` |
 
 **Description:** WaitTxToBeMined time to wait after transaction was sent to the ethereum
 
@@ -419,7 +443,7 @@
 |              |                   |
 | ------------ | ----------------- |
 | **Type**     | `array of object` |
-| **Required** | Yes               |
+| **Required** | No                |
 
 **Description:** PrivateKeys defines all the key store files that are going
 to be read in order to provide the private keys to sign the L1 txs
@@ -448,15 +472,15 @@ to be read in order to provide the private keys to sign the L1 txs
 
 | Property                                                | Pattern | Type   | Deprecated | Definition | Title/Description                                      |
 | ------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------ |
-| + [Path](#EthTxManager_PrivateKeys_items_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
-| + [Password](#EthTxManager_PrivateKeys_items_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
+| - [Path](#EthTxManager_PrivateKeys_items_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
+| - [Password](#EthTxManager_PrivateKeys_items_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
 ##### <a name="EthTxManager_PrivateKeys_items_Path"></a>4.3.1.1. Property `root > EthTxManager > PrivateKeys > PrivateKeys items > Path`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
 
 **Description:** Path is the file path for the key store file
 
@@ -465,7 +489,7 @@ to be read in order to provide the private keys to sign the L1 txs
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
 
 **Description:** Password is the password to decrypt the key store file
 
@@ -474,7 +498,8 @@ to be read in order to provide the private keys to sign the L1 txs
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `0`       |
 
 **Description:** ForcedGas is the amount of gas to be forced in case of gas estimation error
 
@@ -483,37 +508,28 @@ to be read in order to provide the private keys to sign the L1 txs
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                                                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                                              |
 | ------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------ |
-| + [FreeClaimGasLimit](#Pool_FreeClaimGasLimit )                                 | No      | integer | No         | -          | FreeClaimGasLimit is the max gas allowed use to do a free claim                |
-| + [IntervalToRefreshBlockedAddresses](#Pool_IntervalToRefreshBlockedAddresses ) | No      | string  | No         | -          | Duration                                                                       |
-| + [MaxTxBytesSize](#Pool_MaxTxBytesSize )                                       | No      | integer | No         | -          | MaxTxBytesSize is the max size of a transaction in bytes                       |
-| + [MaxTxDataBytesSize](#Pool_MaxTxDataBytesSize )                               | No      | integer | No         | -          | MaxTxDataBytesSize is the max size of the data field of a transaction in bytes |
-| + [DB](#Pool_DB )                                                               | No      | object  | No         | -          | DB is the database configuration                                               |
-| + [DefaultMinGasPriceAllowed](#Pool_DefaultMinGasPriceAllowed )                 | No      | integer | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest              |
-| + [MinAllowedGasPriceInterval](#Pool_MinAllowedGasPriceInterval )               | No      | string  | No         | -          | Duration                                                                       |
-| + [PollMinAllowedGasPriceInterval](#Pool_PollMinAllowedGasPriceInterval )       | No      | string  | No         | -          | Duration                                                                       |
+| - [IntervalToRefreshBlockedAddresses](#Pool_IntervalToRefreshBlockedAddresses ) | No      | string  | No         | -          | Duration                                                                       |
+| - [MaxTxBytesSize](#Pool_MaxTxBytesSize )                                       | No      | integer | No         | -          | MaxTxBytesSize is the max size of a transaction in bytes                       |
+| - [MaxTxDataBytesSize](#Pool_MaxTxDataBytesSize )                               | No      | integer | No         | -          | MaxTxDataBytesSize is the max size of the data field of a transaction in bytes |
+| - [DB](#Pool_DB )                                                               | No      | object  | No         | -          | DB is the database configuration                                               |
+| - [DefaultMinGasPriceAllowed](#Pool_DefaultMinGasPriceAllowed )                 | No      | integer | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest              |
+| - [MinAllowedGasPriceInterval](#Pool_MinAllowedGasPriceInterval )               | No      | string  | No         | -          | Duration                                                                       |
+| - [PollMinAllowedGasPriceInterval](#Pool_PollMinAllowedGasPriceInterval )       | No      | string  | No         | -          | Duration                                                                       |
 
-### <a name="Pool_FreeClaimGasLimit"></a>5.1. Property `root > Pool > FreeClaimGasLimit`
-
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | Yes       |
-
-**Description:** FreeClaimGasLimit is the max gas allowed use to do a free claim
-
-### <a name="Pool_IntervalToRefreshBlockedAddresses"></a>5.2. Property `root > Pool > IntervalToRefreshBlockedAddresses`
+### <a name="Pool_IntervalToRefreshBlockedAddresses"></a>5.1. Property `root > Pool > IntervalToRefreshBlockedAddresses`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                              |
+| ------------ | ---------------------------- |
+| **Type**     | `string`                     |
+| **Required** | No                           |
+| **Default**  | `{"Duration": 300000000000}` |
 
 **Description:** IntervalToRefreshBlockedAddresses is the time it takes to sync the
 blocked address list from db to memory
@@ -528,124 +544,135 @@ blocked address list from db to memory
 "300ms"
 ```
 
-### <a name="Pool_MaxTxBytesSize"></a>5.3. Property `root > Pool > MaxTxBytesSize`
+### <a name="Pool_MaxTxBytesSize"></a>5.2. Property `root > Pool > MaxTxBytesSize`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `100132`  |
 
 **Description:** MaxTxBytesSize is the max size of a transaction in bytes
 
-### <a name="Pool_MaxTxDataBytesSize"></a>5.4. Property `root > Pool > MaxTxDataBytesSize`
+### <a name="Pool_MaxTxDataBytesSize"></a>5.3. Property `root > Pool > MaxTxDataBytesSize`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `100000`  |
 
 **Description:** MaxTxDataBytesSize is the max size of the data field of a transaction in bytes
 
-### <a name="Pool_DB"></a>5.5. Property `root > Pool > DB`
+### <a name="Pool_DB"></a>5.4. Property `root > Pool > DB`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 **Description:** DB is the database configuration
 
 | Property                           | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
 | ---------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
-| + [Name](#Pool_DB_Name )           | No      | string  | No         | -          | Database name                                              |
-| + [User](#Pool_DB_User )           | No      | string  | No         | -          | User name                                                  |
-| + [Password](#Pool_DB_Password )   | No      | string  | No         | -          | Password of the user                                       |
-| + [Host](#Pool_DB_Host )           | No      | string  | No         | -          | Host address                                               |
-| + [Port](#Pool_DB_Port )           | No      | string  | No         | -          | Port Number                                                |
-| + [EnableLog](#Pool_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
-| + [MaxConns](#Pool_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
+| - [Name](#Pool_DB_Name )           | No      | string  | No         | -          | Database name                                              |
+| - [User](#Pool_DB_User )           | No      | string  | No         | -          | User name                                                  |
+| - [Password](#Pool_DB_Password )   | No      | string  | No         | -          | Password of the user                                       |
+| - [Host](#Pool_DB_Host )           | No      | string  | No         | -          | Host address                                               |
+| - [Port](#Pool_DB_Port )           | No      | string  | No         | -          | Port Number                                                |
+| - [EnableLog](#Pool_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
+| - [MaxConns](#Pool_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-#### <a name="Pool_DB_Name"></a>5.5.1. Property `root > Pool > DB > Name`
+#### <a name="Pool_DB_Name"></a>5.4.1. Property `root > Pool > DB > Name`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |             |
+| ------------ | ----------- |
+| **Type**     | `string`    |
+| **Required** | No          |
+| **Default**  | `"pool_db"` |
 
 **Description:** Database name
 
-#### <a name="Pool_DB_User"></a>5.5.2. Property `root > Pool > DB > User`
+#### <a name="Pool_DB_User"></a>5.4.2. Property `root > Pool > DB > User`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |               |
+| ------------ | ------------- |
+| **Type**     | `string`      |
+| **Required** | No            |
+| **Default**  | `"pool_user"` |
 
 **Description:** User name
 
-#### <a name="Pool_DB_Password"></a>5.5.3. Property `root > Pool > DB > Password`
+#### <a name="Pool_DB_Password"></a>5.4.3. Property `root > Pool > DB > Password`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                   |
+| ------------ | ----------------- |
+| **Type**     | `string`          |
+| **Required** | No                |
+| **Default**  | `"pool_password"` |
 
 **Description:** Password of the user
 
-#### <a name="Pool_DB_Host"></a>5.5.4. Property `root > Pool > DB > Host`
+#### <a name="Pool_DB_Host"></a>5.4.4. Property `root > Pool > DB > Host`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                   |
+| ------------ | ----------------- |
+| **Type**     | `string`          |
+| **Required** | No                |
+| **Default**  | `"zkevm-pool-db"` |
 
 **Description:** Host address
 
-#### <a name="Pool_DB_Port"></a>5.5.5. Property `root > Pool > DB > Port`
+#### <a name="Pool_DB_Port"></a>5.4.5. Property `root > Pool > DB > Port`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `"5432"` |
 
 **Description:** Port Number
 
-#### <a name="Pool_DB_EnableLog"></a>5.5.6. Property `root > Pool > DB > EnableLog`
+#### <a name="Pool_DB_EnableLog"></a>5.4.6. Property `root > Pool > DB > EnableLog`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `boolean` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `false`   |
 
 **Description:** EnableLog
 
-#### <a name="Pool_DB_MaxConns"></a>5.5.7. Property `root > Pool > DB > MaxConns`
+#### <a name="Pool_DB_MaxConns"></a>5.4.7. Property `root > Pool > DB > MaxConns`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `200`     |
 
 **Description:** MaxConns is the maximum number of connections in the pool.
 
-### <a name="Pool_DefaultMinGasPriceAllowed"></a>5.6. Property `root > Pool > DefaultMinGasPriceAllowed`
+### <a name="Pool_DefaultMinGasPriceAllowed"></a>5.5. Property `root > Pool > DefaultMinGasPriceAllowed`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | Yes       |
+|              |              |
+| ------------ | ------------ |
+| **Type**     | `integer`    |
+| **Required** | No           |
+| **Default**  | `1000000000` |
 
 **Description:** DefaultMinGasPriceAllowed is the default min gas price to suggest
 
-### <a name="Pool_MinAllowedGasPriceInterval"></a>5.7. Property `root > Pool > MinAllowedGasPriceInterval`
+### <a name="Pool_MinAllowedGasPriceInterval"></a>5.6. Property `root > Pool > MinAllowedGasPriceInterval`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                              |
+| ------------ | ---------------------------- |
+| **Type**     | `string`                     |
+| **Required** | No                           |
+| **Default**  | `{"Duration": 300000000000}` |
 
 **Description:** MinAllowedGasPriceInterval is the interval to look back of the suggested min gas price for a tx
 
@@ -659,14 +686,15 @@ blocked address list from db to memory
 "300ms"
 ```
 
-### <a name="Pool_PollMinAllowedGasPriceInterval"></a>5.8. Property `root > Pool > PollMinAllowedGasPriceInterval`
+### <a name="Pool_PollMinAllowedGasPriceInterval"></a>5.7. Property `root > Pool > PollMinAllowedGasPriceInterval`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                             |
+| ------------ | --------------------------- |
+| **Type**     | `string`                    |
+| **Required** | No                          |
+| **Default**  | `{"Duration": 15000000000}` |
 
 **Description:** PollMinAllowedGasPriceInterval is the interval to poll the suggested min gas price for a tx
 
@@ -685,132 +713,172 @@ blocked address list from db to memory
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
-| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                           |
-| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| + [Host](#RPC_Host )                                                         | No      | string  | No         | -          | -                                                                                                                                                                                           |
-| + [Port](#RPC_Port )                                                         | No      | integer | No         | -          | -                                                                                                                                                                                           |
-| + [ReadTimeoutInSec](#RPC_ReadTimeoutInSec )                                 | No      | integer | No         | -          | -                                                                                                                                                                                           |
-| + [WriteTimeoutInSec](#RPC_WriteTimeoutInSec )                               | No      | integer | No         | -          | -                                                                                                                                                                                           |
-| + [MaxRequestsPerIPAndSecond](#RPC_MaxRequestsPerIPAndSecond )               | No      | number  | No         | -          | -                                                                                                                                                                                           |
-| + [SequencerNodeURI](#RPC_SequencerNodeURI )                                 | No      | string  | No         | -          | SequencerNodeURI is used allow Non-Sequencer nodes<br />to relay transactions to the Sequencer node                                                                                         |
-| + [DefaultSenderAddress](#RPC_DefaultSenderAddress )                         | No      | string  | No         | -          | DefaultSenderAddress is the address that jRPC will use<br />to communicate with the state for eth_EstimateGas and eth_Call when<br />the From field is not specified because it is optional |
-| + [MaxCumulativeGasUsed](#RPC_MaxCumulativeGasUsed )                         | No      | integer | No         | -          | MaxCumulativeGasUsed is the max gas allowed per batch                                                                                                                                       |
-| + [ChainID](#RPC_ChainID )                                                   | No      | integer | No         | -          | ChainID is the L2 ChainID provided by the Network Config                                                                                                                                    |
-| + [WebSockets](#RPC_WebSockets )                                             | No      | object  | No         | -          | Websockets                                                                                                                                                                                  |
-| + [EnableL2SuggestedGasPricePolling](#RPC_EnableL2SuggestedGasPricePolling ) | No      | boolean | No         | -          | EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.                                                                           |
+| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                 |
+| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| - [Host](#RPC_Host )                                                         | No      | string  | No         | -          | Host defines the network adapter that will be used to serve the HTTP requests                                     |
+| - [Port](#RPC_Port )                                                         | No      | integer | No         | -          | Port defines the port to serve the endpoints via HTTP                                                             |
+| - [ReadTimeout](#RPC_ReadTimeout )                                           | No      | string  | No         | -          | Duration                                                                                                          |
+| - [WriteTimeout](#RPC_WriteTimeout )                                         | No      | string  | No         | -          | Duration                                                                                                          |
+| - [MaxRequestsPerIPAndSecond](#RPC_MaxRequestsPerIPAndSecond )               | No      | number  | No         | -          | MaxRequestsPerIPAndSecond defines how much requests a single IP can<br />send within a single second              |
+| - [SequencerNodeURI](#RPC_SequencerNodeURI )                                 | No      | string  | No         | -          | SequencerNodeURI is used allow Non-Sequencer nodes<br />to relay transactions to the Sequencer node               |
+| - [MaxCumulativeGasUsed](#RPC_MaxCumulativeGasUsed )                         | No      | integer | No         | -          | MaxCumulativeGasUsed is the max gas allowed per batch                                                             |
+| - [WebSockets](#RPC_WebSockets )                                             | No      | object  | No         | -          | WebSockets configuration                                                                                          |
+| - [EnableL2SuggestedGasPricePolling](#RPC_EnableL2SuggestedGasPricePolling ) | No      | boolean | No         | -          | EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price. |
 
 ### <a name="RPC_Host"></a>6.1. Property `root > RPC > Host`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |             |
+| ------------ | ----------- |
+| **Type**     | `string`    |
+| **Required** | No          |
+| **Default**  | `"0.0.0.0"` |
+
+**Description:** Host defines the network adapter that will be used to serve the HTTP requests
 
 ### <a name="RPC_Port"></a>6.2. Property `root > RPC > Port`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `8545`    |
 
-### <a name="RPC_ReadTimeoutInSec"></a>6.3. Property `root > RPC > ReadTimeoutInSec`
+**Description:** Port defines the port to serve the endpoints via HTTP
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | Yes       |
+### <a name="RPC_ReadTimeout"></a>6.3. Property `root > RPC > ReadTimeout`
 
-### <a name="RPC_WriteTimeoutInSec"></a>6.4. Property `root > RPC > WriteTimeoutInSec`
+**Title:** Duration
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | Yes       |
+|              |                             |
+| ------------ | --------------------------- |
+| **Type**     | `string`                    |
+| **Required** | No                          |
+| **Default**  | `{"Duration": 60000000000}` |
+
+**Description:** ReadTimeout is the HTTP server read timeout
+check net/http.server.ReadTimeout and net/http.server.ReadHeaderTimeout
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+### <a name="RPC_WriteTimeout"></a>6.4. Property `root > RPC > WriteTimeout`
+
+**Title:** Duration
+
+|              |                             |
+| ------------ | --------------------------- |
+| **Type**     | `string`                    |
+| **Required** | No                          |
+| **Default**  | `{"Duration": 60000000000}` |
+
+**Description:** WriteTimeout is the HTTP server write timeout
+check net/http.server.WriteTimeout
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
 
 ### <a name="RPC_MaxRequestsPerIPAndSecond"></a>6.5. Property `root > RPC > MaxRequestsPerIPAndSecond`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `number` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `500`    |
+
+**Description:** MaxRequestsPerIPAndSecond defines how much requests a single IP can
+send within a single second
 
 ### <a name="RPC_SequencerNodeURI"></a>6.6. Property `root > RPC > SequencerNodeURI`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 **Description:** SequencerNodeURI is used allow Non-Sequencer nodes
 to relay transactions to the Sequencer node
 
-### <a name="RPC_DefaultSenderAddress"></a>6.7. Property `root > RPC > DefaultSenderAddress`
-
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
-
-**Description:** DefaultSenderAddress is the address that jRPC will use
-to communicate with the state for eth_EstimateGas and eth_Call when
-the From field is not specified because it is optional
-
-### <a name="RPC_MaxCumulativeGasUsed"></a>6.8. Property `root > RPC > MaxCumulativeGasUsed`
+### <a name="RPC_MaxCumulativeGasUsed"></a>6.7. Property `root > RPC > MaxCumulativeGasUsed`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `0`       |
 
 **Description:** MaxCumulativeGasUsed is the max gas allowed per batch
 
-### <a name="RPC_ChainID"></a>6.9. Property `root > RPC > ChainID`
-
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | Yes       |
-
-**Description:** ChainID is the L2 ChainID provided by the Network Config
-
-### <a name="RPC_WebSockets"></a>6.10. Property `root > RPC > WebSockets`
+### <a name="RPC_WebSockets"></a>6.8. Property `root > RPC > WebSockets`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
-**Description:** Websockets
+**Description:** WebSockets configuration
 
-| Property                              | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| + [Enabled](#RPC_WebSockets_Enabled ) | No      | boolean | No         | -          | -                 |
-| + [Port](#RPC_WebSockets_Port )       | No      | integer | No         | -          | -                 |
+| Property                              | Pattern | Type    | Deprecated | Definition | Title/Description                                                           |
+| ------------------------------------- | ------- | ------- | ---------- | ---------- | --------------------------------------------------------------------------- |
+| - [Enabled](#RPC_WebSockets_Enabled ) | No      | boolean | No         | -          | Enabled defines if the WebSocket requests are enabled or disabled           |
+| - [Host](#RPC_WebSockets_Host )       | No      | string  | No         | -          | Host defines the network adapter that will be used to serve the WS requests |
+| - [Port](#RPC_WebSockets_Port )       | No      | integer | No         | -          | Port defines the port to serve the endpoints via WS                         |
 
-#### <a name="RPC_WebSockets_Enabled"></a>6.10.1. Property `root > RPC > WebSockets > Enabled`
+#### <a name="RPC_WebSockets_Enabled"></a>6.8.1. Property `root > RPC > WebSockets > Enabled`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `boolean` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `true`    |
 
-#### <a name="RPC_WebSockets_Port"></a>6.10.2. Property `root > RPC > WebSockets > Port`
+**Description:** Enabled defines if the WebSocket requests are enabled or disabled
+
+#### <a name="RPC_WebSockets_Host"></a>6.8.2. Property `root > RPC > WebSockets > Host`
+
+|              |             |
+| ------------ | ----------- |
+| **Type**     | `string`    |
+| **Required** | No          |
+| **Default**  | `"0.0.0.0"` |
+
+**Description:** Host defines the network adapter that will be used to serve the WS requests
+
+#### <a name="RPC_WebSockets_Port"></a>6.8.3. Property `root > RPC > WebSockets > Port`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `8546`    |
 
-### <a name="RPC_EnableL2SuggestedGasPricePolling"></a>6.11. Property `root > RPC > EnableL2SuggestedGasPricePolling`
+**Description:** Port defines the port to serve the endpoints via WS
+
+### <a name="RPC_EnableL2SuggestedGasPricePolling"></a>6.9. Property `root > RPC > EnableL2SuggestedGasPricePolling`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `boolean` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `true`    |
 
 **Description:** EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.
 
@@ -819,23 +887,24 @@ the From field is not specified because it is optional
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                        |
 | ----------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------ |
-| + [SyncInterval](#Synchronizer_SyncInterval )               | No      | string  | No         | -          | Duration                                                                 |
-| + [SyncChunkSize](#Synchronizer_SyncChunkSize )             | No      | integer | No         | -          | SyncChunkSize is the number of blocks to sync on each chunk              |
-| + [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL ) | No      | string  | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state |
+| - [SyncInterval](#Synchronizer_SyncInterval )               | No      | string  | No         | -          | Duration                                                                 |
+| - [SyncChunkSize](#Synchronizer_SyncChunkSize )             | No      | integer | No         | -          | SyncChunkSize is the number of blocks to sync on each chunk              |
+| - [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL ) | No      | string  | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state |
 
 ### <a name="Synchronizer_SyncInterval"></a>7.1. Property `root > Synchronizer > SyncInterval`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                            |
+| ------------ | -------------------------- |
+| **Type**     | `string`                   |
+| **Required** | No                         |
+| **Default**  | `{"Duration": 1000000000}` |
 
 **Description:** SyncInterval is the delay interval between reading new rollup information
 
@@ -854,7 +923,8 @@ the From field is not specified because it is optional
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `100`     |
 
 **Description:** SyncChunkSize is the number of blocks to sync on each chunk
 
@@ -863,7 +933,8 @@ the From field is not specified because it is optional
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 **Description:** TrustedSequencerURL is the rpc url to connect and sync the trusted state
 
@@ -872,72 +943,48 @@ the From field is not specified because it is optional
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
-| Property                                                                                           | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                  |
-| -------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| + [WaitPeriodSendSequence](#Sequencer_WaitPeriodSendSequence )                                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
-| + [WaitPeriodPoolIsEmpty](#Sequencer_WaitPeriodPoolIsEmpty )                                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
-| + [LastBatchVirtualizationTimeMaxWaitPeriod](#Sequencer_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
-| + [BlocksAmountForTxsToBeDeleted](#Sequencer_BlocksAmountForTxsToBeDeleted )                       | No      | integer | No         | -          | BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool                                                                                                                                                                                                                       |
-| + [FrequencyToCheckTxsForDelete](#Sequencer_FrequencyToCheckTxsForDelete )                         | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
-| + [MaxTxsPerBatch](#Sequencer_MaxTxsPerBatch )                                                     | No      | integer | No         | -          | MaxTxsPerBatch is the maximum amount of transactions in the batch                                                                                                                                                                                                                                                  |
-| + [MaxBatchBytesSize](#Sequencer_MaxBatchBytesSize )                                               | No      | integer | No         | -          | MaxBatchBytesSize is the maximum batch size in bytes<br />(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)                                                                                                                                                                 |
-| + [MaxCumulativeGasUsed](#Sequencer_MaxCumulativeGasUsed )                                         | No      | integer | No         | -          | MaxCumulativeGasUsed is max gas amount used by batch                                                                                                                                                                                                                                                               |
-| + [MaxKeccakHashes](#Sequencer_MaxKeccakHashes )                                                   | No      | integer | No         | -          | MaxKeccakHashes is max keccak hashes used by batch                                                                                                                                                                                                                                                                 |
-| + [MaxPoseidonHashes](#Sequencer_MaxPoseidonHashes )                                               | No      | integer | No         | -          | MaxPoseidonHashes is max poseidon hashes batch can handle                                                                                                                                                                                                                                                          |
-| + [MaxPoseidonPaddings](#Sequencer_MaxPoseidonPaddings )                                           | No      | integer | No         | -          | MaxPoseidonPaddings is max poseidon paddings batch can handle                                                                                                                                                                                                                                                      |
-| + [MaxMemAligns](#Sequencer_MaxMemAligns )                                                         | No      | integer | No         | -          | MaxMemAligns is max mem aligns batch can handle                                                                                                                                                                                                                                                                    |
-| + [MaxArithmetics](#Sequencer_MaxArithmetics )                                                     | No      | integer | No         | -          | MaxArithmetics is max arithmetics batch can handle                                                                                                                                                                                                                                                                 |
-| + [MaxBinaries](#Sequencer_MaxBinaries )                                                           | No      | integer | No         | -          | MaxBinaries is max binaries batch can handle                                                                                                                                                                                                                                                                       |
-| + [MaxSteps](#Sequencer_MaxSteps )                                                                 | No      | integer | No         | -          | MaxSteps is max steps batch can handle                                                                                                                                                                                                                                                                             |
-| + [WeightBatchBytesSize](#Sequencer_WeightBatchBytesSize )                                         | No      | integer | No         | -          | WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource                                                                                                                                                                                                                                      |
-| + [WeightCumulativeGasUsed](#Sequencer_WeightCumulativeGasUsed )                                   | No      | integer | No         | -          | WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource                                                                                                                                                                                                                                |
-| + [WeightKeccakHashes](#Sequencer_WeightKeccakHashes )                                             | No      | integer | No         | -          | WeightKeccakHashes is the cost weight for the KeccakHashes batch resource                                                                                                                                                                                                                                          |
-| + [WeightPoseidonHashes](#Sequencer_WeightPoseidonHashes )                                         | No      | integer | No         | -          | WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource                                                                                                                                                                                                                                      |
-| + [WeightPoseidonPaddings](#Sequencer_WeightPoseidonPaddings )                                     | No      | integer | No         | -          | WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource                                                                                                                                                                                                                                  |
-| + [WeightMemAligns](#Sequencer_WeightMemAligns )                                                   | No      | integer | No         | -          | WeightMemAligns is the cost weight for the MemAligns batch resource                                                                                                                                                                                                                                                |
-| + [WeightArithmetics](#Sequencer_WeightArithmetics )                                               | No      | integer | No         | -          | WeightArithmetics is the cost weight for the Arithmetics batch resource                                                                                                                                                                                                                                            |
-| + [WeightBinaries](#Sequencer_WeightBinaries )                                                     | No      | integer | No         | -          | WeightBinaries is the cost weight for the Binaries batch resource                                                                                                                                                                                                                                                  |
-| + [WeightSteps](#Sequencer_WeightSteps )                                                           | No      | integer | No         | -          | WeightSteps is the cost weight for the Steps batch resource                                                                                                                                                                                                                                                        |
-| + [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )                                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
-| + [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
-| + [MaxTxSizeForL1](#Sequencer_MaxTxSizeForL1 )                                                     | No      | integer | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not. |
-| + [Finalizer](#Sequencer_Finalizer )                                                               | No      | object  | No         | -          | Finalizer's specific config properties                                                                                                                                                                                                                                                                             |
-| + [DBManager](#Sequencer_DBManager )                                                               | No      | object  | No         | -          | DBManager's specific config properties                                                                                                                                                                                                                                                                             |
-| + [Worker](#Sequencer_Worker )                                                                     | No      | object  | No         | -          | Worker's specific config properties                                                                                                                                                                                                                                                                                |
+| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                  |
+| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [WaitPeriodPoolIsEmpty](#Sequencer_WaitPeriodPoolIsEmpty )                 | No      | string  | No         | -          | Duration                                                                                                                                           |
+| - [BlocksAmountForTxsToBeDeleted](#Sequencer_BlocksAmountForTxsToBeDeleted ) | No      | integer | No         | -          | BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool                                                       |
+| - [FrequencyToCheckTxsForDelete](#Sequencer_FrequencyToCheckTxsForDelete )   | No      | string  | No         | -          | Duration                                                                                                                                           |
+| - [MaxTxsPerBatch](#Sequencer_MaxTxsPerBatch )                               | No      | integer | No         | -          | MaxTxsPerBatch is the maximum amount of transactions in the batch                                                                                  |
+| - [MaxBatchBytesSize](#Sequencer_MaxBatchBytesSize )                         | No      | integer | No         | -          | MaxBatchBytesSize is the maximum batch size in bytes<br />(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1) |
+| - [MaxCumulativeGasUsed](#Sequencer_MaxCumulativeGasUsed )                   | No      | integer | No         | -          | MaxCumulativeGasUsed is max gas amount used by batch                                                                                               |
+| - [MaxKeccakHashes](#Sequencer_MaxKeccakHashes )                             | No      | integer | No         | -          | MaxKeccakHashes is max keccak hashes used by batch                                                                                                 |
+| - [MaxPoseidonHashes](#Sequencer_MaxPoseidonHashes )                         | No      | integer | No         | -          | MaxPoseidonHashes is max poseidon hashes batch can handle                                                                                          |
+| - [MaxPoseidonPaddings](#Sequencer_MaxPoseidonPaddings )                     | No      | integer | No         | -          | MaxPoseidonPaddings is max poseidon paddings batch can handle                                                                                      |
+| - [MaxMemAligns](#Sequencer_MaxMemAligns )                                   | No      | integer | No         | -          | MaxMemAligns is max mem aligns batch can handle                                                                                                    |
+| - [MaxArithmetics](#Sequencer_MaxArithmetics )                               | No      | integer | No         | -          | MaxArithmetics is max arithmetics batch can handle                                                                                                 |
+| - [MaxBinaries](#Sequencer_MaxBinaries )                                     | No      | integer | No         | -          | MaxBinaries is max binaries batch can handle                                                                                                       |
+| - [MaxSteps](#Sequencer_MaxSteps )                                           | No      | integer | No         | -          | MaxSteps is max steps batch can handle                                                                                                             |
+| - [WeightBatchBytesSize](#Sequencer_WeightBatchBytesSize )                   | No      | integer | No         | -          | WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource                                                                      |
+| - [WeightCumulativeGasUsed](#Sequencer_WeightCumulativeGasUsed )             | No      | integer | No         | -          | WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource                                                                |
+| - [WeightKeccakHashes](#Sequencer_WeightKeccakHashes )                       | No      | integer | No         | -          | WeightKeccakHashes is the cost weight for the KeccakHashes batch resource                                                                          |
+| - [WeightPoseidonHashes](#Sequencer_WeightPoseidonHashes )                   | No      | integer | No         | -          | WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource                                                                      |
+| - [WeightPoseidonPaddings](#Sequencer_WeightPoseidonPaddings )               | No      | integer | No         | -          | WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource                                                                  |
+| - [WeightMemAligns](#Sequencer_WeightMemAligns )                             | No      | integer | No         | -          | WeightMemAligns is the cost weight for the MemAligns batch resource                                                                                |
+| - [WeightArithmetics](#Sequencer_WeightArithmetics )                         | No      | integer | No         | -          | WeightArithmetics is the cost weight for the Arithmetics batch resource                                                                            |
+| - [WeightBinaries](#Sequencer_WeightBinaries )                               | No      | integer | No         | -          | WeightBinaries is the cost weight for the Binaries batch resource                                                                                  |
+| - [WeightSteps](#Sequencer_WeightSteps )                                     | No      | integer | No         | -          | WeightSteps is the cost weight for the Steps batch resource                                                                                        |
+| - [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )               | No      | string  | No         | -          | Duration                                                                                                                                           |
+| - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string  | No         | -          | Duration                                                                                                                                           |
+| - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                                                                             |
+| - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                                                                             |
+| - [Worker](#Sequencer_Worker )                                               | No      | object  | No         | -          | Worker's specific config properties                                                                                                                |
 
-### <a name="Sequencer_WaitPeriodSendSequence"></a>8.1. Property `root > Sequencer > WaitPeriodSendSequence`
+### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>8.1. Property `root > Sequencer > WaitPeriodPoolIsEmpty`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
-
-**Description:** WaitPeriodSendSequence is the time the sequencer waits until
-trying to send a sequence to L1
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>8.2. Property `root > Sequencer > WaitPeriodPoolIsEmpty`
-
-**Title:** Duration
-
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                            |
+| ------------ | -------------------------- |
+| **Type**     | `string`                   |
+| **Required** | No                         |
+| **Default**  | `{"Duration": 1000000000}` |
 
 **Description:** WaitPeriodPoolIsEmpty is the time the sequencer waits until
 trying to add new txs to the state
@@ -952,44 +999,25 @@ trying to add new txs to the state
 "300ms"
 ```
 
-### <a name="Sequencer_LastBatchVirtualizationTimeMaxWaitPeriod"></a>8.3. Property `root > Sequencer > LastBatchVirtualizationTimeMaxWaitPeriod`
-
-**Title:** Duration
-
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
-
-**Description:** LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-### <a name="Sequencer_BlocksAmountForTxsToBeDeleted"></a>8.4. Property `root > Sequencer > BlocksAmountForTxsToBeDeleted`
+### <a name="Sequencer_BlocksAmountForTxsToBeDeleted"></a>8.2. Property `root > Sequencer > BlocksAmountForTxsToBeDeleted`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `100`     |
 
 **Description:** BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
 
-### <a name="Sequencer_FrequencyToCheckTxsForDelete"></a>8.5. Property `root > Sequencer > FrequencyToCheckTxsForDelete`
+### <a name="Sequencer_FrequencyToCheckTxsForDelete"></a>8.3. Property `root > Sequencer > FrequencyToCheckTxsForDelete`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                                |
+| ------------ | ------------------------------ |
+| **Type**     | `string`                       |
+| **Required** | No                             |
+| **Default**  | `{"Duration": 43200000000000}` |
 
 **Description:** FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
 
@@ -1003,186 +1031,206 @@ trying to add new txs to the state
 "300ms"
 ```
 
-### <a name="Sequencer_MaxTxsPerBatch"></a>8.6. Property `root > Sequencer > MaxTxsPerBatch`
+### <a name="Sequencer_MaxTxsPerBatch"></a>8.4. Property `root > Sequencer > MaxTxsPerBatch`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `150`     |
 
 **Description:** MaxTxsPerBatch is the maximum amount of transactions in the batch
 
-### <a name="Sequencer_MaxBatchBytesSize"></a>8.7. Property `root > Sequencer > MaxBatchBytesSize`
+### <a name="Sequencer_MaxBatchBytesSize"></a>8.5. Property `root > Sequencer > MaxBatchBytesSize`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `129848`  |
 
 **Description:** MaxBatchBytesSize is the maximum batch size in bytes
 (subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)
 
-### <a name="Sequencer_MaxCumulativeGasUsed"></a>8.8. Property `root > Sequencer > MaxCumulativeGasUsed`
+### <a name="Sequencer_MaxCumulativeGasUsed"></a>8.6. Property `root > Sequencer > MaxCumulativeGasUsed`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | Yes       |
+|              |            |
+| ------------ | ---------- |
+| **Type**     | `integer`  |
+| **Required** | No         |
+| **Default**  | `30000000` |
 
 **Description:** MaxCumulativeGasUsed is max gas amount used by batch
 
-### <a name="Sequencer_MaxKeccakHashes"></a>8.9. Property `root > Sequencer > MaxKeccakHashes`
+### <a name="Sequencer_MaxKeccakHashes"></a>8.7. Property `root > Sequencer > MaxKeccakHashes`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `468`     |
 
 **Description:** MaxKeccakHashes is max keccak hashes used by batch
 
-### <a name="Sequencer_MaxPoseidonHashes"></a>8.10. Property `root > Sequencer > MaxPoseidonHashes`
+### <a name="Sequencer_MaxPoseidonHashes"></a>8.8. Property `root > Sequencer > MaxPoseidonHashes`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `279620`  |
 
 **Description:** MaxPoseidonHashes is max poseidon hashes batch can handle
 
-### <a name="Sequencer_MaxPoseidonPaddings"></a>8.11. Property `root > Sequencer > MaxPoseidonPaddings`
+### <a name="Sequencer_MaxPoseidonPaddings"></a>8.9. Property `root > Sequencer > MaxPoseidonPaddings`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `149796`  |
 
 **Description:** MaxPoseidonPaddings is max poseidon paddings batch can handle
 
-### <a name="Sequencer_MaxMemAligns"></a>8.12. Property `root > Sequencer > MaxMemAligns`
+### <a name="Sequencer_MaxMemAligns"></a>8.10. Property `root > Sequencer > MaxMemAligns`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `262144`  |
 
 **Description:** MaxMemAligns is max mem aligns batch can handle
 
-### <a name="Sequencer_MaxArithmetics"></a>8.13. Property `root > Sequencer > MaxArithmetics`
+### <a name="Sequencer_MaxArithmetics"></a>8.11. Property `root > Sequencer > MaxArithmetics`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `262144`  |
 
 **Description:** MaxArithmetics is max arithmetics batch can handle
 
-### <a name="Sequencer_MaxBinaries"></a>8.14. Property `root > Sequencer > MaxBinaries`
+### <a name="Sequencer_MaxBinaries"></a>8.12. Property `root > Sequencer > MaxBinaries`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `262144`  |
 
 **Description:** MaxBinaries is max binaries batch can handle
 
-### <a name="Sequencer_MaxSteps"></a>8.15. Property `root > Sequencer > MaxSteps`
+### <a name="Sequencer_MaxSteps"></a>8.13. Property `root > Sequencer > MaxSteps`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `8388608` |
 
 **Description:** MaxSteps is max steps batch can handle
 
-### <a name="Sequencer_WeightBatchBytesSize"></a>8.16. Property `root > Sequencer > WeightBatchBytesSize`
+### <a name="Sequencer_WeightBatchBytesSize"></a>8.14. Property `root > Sequencer > WeightBatchBytesSize`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `1`       |
 
 **Description:** WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
 
-### <a name="Sequencer_WeightCumulativeGasUsed"></a>8.17. Property `root > Sequencer > WeightCumulativeGasUsed`
+### <a name="Sequencer_WeightCumulativeGasUsed"></a>8.15. Property `root > Sequencer > WeightCumulativeGasUsed`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `1`       |
 
 **Description:** WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource
 
-### <a name="Sequencer_WeightKeccakHashes"></a>8.18. Property `root > Sequencer > WeightKeccakHashes`
+### <a name="Sequencer_WeightKeccakHashes"></a>8.16. Property `root > Sequencer > WeightKeccakHashes`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `1`       |
 
 **Description:** WeightKeccakHashes is the cost weight for the KeccakHashes batch resource
 
-### <a name="Sequencer_WeightPoseidonHashes"></a>8.19. Property `root > Sequencer > WeightPoseidonHashes`
+### <a name="Sequencer_WeightPoseidonHashes"></a>8.17. Property `root > Sequencer > WeightPoseidonHashes`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `1`       |
 
 **Description:** WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource
 
-### <a name="Sequencer_WeightPoseidonPaddings"></a>8.20. Property `root > Sequencer > WeightPoseidonPaddings`
+### <a name="Sequencer_WeightPoseidonPaddings"></a>8.18. Property `root > Sequencer > WeightPoseidonPaddings`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `1`       |
 
 **Description:** WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource
 
-### <a name="Sequencer_WeightMemAligns"></a>8.21. Property `root > Sequencer > WeightMemAligns`
+### <a name="Sequencer_WeightMemAligns"></a>8.19. Property `root > Sequencer > WeightMemAligns`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `1`       |
 
 **Description:** WeightMemAligns is the cost weight for the MemAligns batch resource
 
-### <a name="Sequencer_WeightArithmetics"></a>8.22. Property `root > Sequencer > WeightArithmetics`
+### <a name="Sequencer_WeightArithmetics"></a>8.20. Property `root > Sequencer > WeightArithmetics`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `1`       |
 
 **Description:** WeightArithmetics is the cost weight for the Arithmetics batch resource
 
-### <a name="Sequencer_WeightBinaries"></a>8.23. Property `root > Sequencer > WeightBinaries`
+### <a name="Sequencer_WeightBinaries"></a>8.21. Property `root > Sequencer > WeightBinaries`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `1`       |
 
 **Description:** WeightBinaries is the cost weight for the Binaries batch resource
 
-### <a name="Sequencer_WeightSteps"></a>8.24. Property `root > Sequencer > WeightSteps`
+### <a name="Sequencer_WeightSteps"></a>8.22. Property `root > Sequencer > WeightSteps`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `1`       |
 
 **Description:** WeightSteps is the cost weight for the Steps batch resource
 
-### <a name="Sequencer_TxLifetimeCheckTimeout"></a>8.25. Property `root > Sequencer > TxLifetimeCheckTimeout`
+### <a name="Sequencer_TxLifetimeCheckTimeout"></a>8.23. Property `root > Sequencer > TxLifetimeCheckTimeout`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                              |
+| ------------ | ---------------------------- |
+| **Type**     | `string`                     |
+| **Required** | No                           |
+| **Default**  | `{"Duration": 600000000000}` |
 
 **Description:** TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
 
@@ -1196,14 +1244,15 @@ trying to add new txs to the state
 "300ms"
 ```
 
-### <a name="Sequencer_MaxTxLifetime"></a>8.26. Property `root > Sequencer > MaxTxLifetime`
+### <a name="Sequencer_MaxTxLifetime"></a>8.24. Property `root > Sequencer > MaxTxLifetime`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                                |
+| ------------ | ------------------------------ |
+| **Type**     | `string`                       |
+| **Required** | No                             |
+| **Default**  | `{"Duration": 10800000000000}` |
 
 **Description:** MaxTxLifetime is the time a tx can be in the sequencer memory
 
@@ -1217,53 +1266,40 @@ trying to add new txs to the state
 "300ms"
 ```
 
-### <a name="Sequencer_MaxTxSizeForL1"></a>8.27. Property `root > Sequencer > MaxTxSizeForL1`
-
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | Yes       |
-
-**Description:** MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
-non-trivial consequences: larger transactions than 128KB are significantly harder and
-more expensive to propagate; larger transactions also take more resources
-to validate whether they fit into the pool or not.
-
-### <a name="Sequencer_Finalizer"></a>8.28. Property `root > Sequencer > Finalizer`
+### <a name="Sequencer_Finalizer"></a>8.25. Property `root > Sequencer > Finalizer`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 **Description:** Finalizer's specific config properties
 
-| Property                                                                                                                       | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                  |
-| ------------------------------------------------------------------------------------------------------------------------------ | ------- | --------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| + [GERDeadlineTimeoutInSec](#Sequencer_Finalizer_GERDeadlineTimeoutInSec )                                                     | No      | string          | No         | -          | Duration                                                                                                                           |
-| + [ForcedBatchDeadlineTimeoutInSec](#Sequencer_Finalizer_ForcedBatchDeadlineTimeoutInSec )                                     | No      | string          | No         | -          | Duration                                                                                                                           |
-| + [SleepDurationInMs](#Sequencer_Finalizer_SleepDurationInMs )                                                                 | No      | string          | No         | -          | Duration                                                                                                                           |
-| + [ResourcePercentageToCloseBatch](#Sequencer_Finalizer_ResourcePercentageToCloseBatch )                                       | No      | integer         | No         | -          | ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed                        |
-| + [GERFinalityNumberOfBlocks](#Sequencer_Finalizer_GERFinalityNumberOfBlocks )                                                 | No      | integer         | No         | -          | GERFinalityNumberOfBlocks is number of blocks to consider GER final                                                                |
-| + [ClosingSignalsManagerWaitForCheckingL1Timeout](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout )         | No      | string          | No         | -          | Duration                                                                                                                           |
-| + [ClosingSignalsManagerWaitForCheckingGER](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER )                     | No      | string          | No         | -          | Duration                                                                                                                           |
-| + [ClosingSignalsManagerWaitForCheckingForcedBatches](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches ) | No      | string          | No         | -          | Duration                                                                                                                           |
-| + [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer         | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                                                      |
-| + [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string          | No         | -          | Duration                                                                                                                           |
-| + [SenderAddress](#Sequencer_Finalizer_SenderAddress )                                                                         | No      | string          | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                    |
-| + [PrivateKeys](#Sequencer_Finalizer_PrivateKeys )                                                                             | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs |
+| Property                                                                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
+| - [GERDeadlineTimeout](#Sequencer_Finalizer_GERDeadlineTimeout )                                                               | No      | string  | No         | -          | Duration                                                                                                    |
+| - [ForcedBatchDeadlineTimeout](#Sequencer_Finalizer_ForcedBatchDeadlineTimeout )                                               | No      | string  | No         | -          | Duration                                                                                                    |
+| - [SleepDuration](#Sequencer_Finalizer_SleepDuration )                                                                         | No      | string  | No         | -          | Duration                                                                                                    |
+| - [ResourcePercentageToCloseBatch](#Sequencer_Finalizer_ResourcePercentageToCloseBatch )                                       | No      | integer | No         | -          | ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed |
+| - [GERFinalityNumberOfBlocks](#Sequencer_Finalizer_GERFinalityNumberOfBlocks )                                                 | No      | integer | No         | -          | GERFinalityNumberOfBlocks is number of blocks to consider GER final                                         |
+| - [ClosingSignalsManagerWaitForCheckingL1Timeout](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout )         | No      | string  | No         | -          | Duration                                                                                                    |
+| - [ClosingSignalsManagerWaitForCheckingGER](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER )                     | No      | string  | No         | -          | Duration                                                                                                    |
+| - [ClosingSignalsManagerWaitForCheckingForcedBatches](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches ) | No      | string  | No         | -          | Duration                                                                                                    |
+| - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                               |
+| - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                    |
 
-#### <a name="Sequencer_Finalizer_GERDeadlineTimeoutInSec"></a>8.28.1. Property `root > Sequencer > Finalizer > GERDeadlineTimeoutInSec`
+#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>8.25.1. Property `root > Sequencer > Finalizer > GERDeadlineTimeout`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                            |
+| ------------ | -------------------------- |
+| **Type**     | `string`                   |
+| **Required** | No                         |
+| **Default**  | `{"Duration": 5000000000}` |
 
-**Description:** GERDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to update Global Exit Root
+**Description:** GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root
 
 **Examples:** 
 
@@ -1275,16 +1311,17 @@ to validate whether they fit into the pool or not.
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeoutInSec"></a>8.28.2. Property `root > Sequencer > Finalizer > ForcedBatchDeadlineTimeoutInSec`
+#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>8.25.2. Property `root > Sequencer > Finalizer > ForcedBatchDeadlineTimeout`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                             |
+| ------------ | --------------------------- |
+| **Type**     | `string`                    |
+| **Required** | No                          |
+| **Default**  | `{"Duration": 60000000000}` |
 
-**Description:** ForcedBatchDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to process Forced Batches
+**Description:** ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
 
 **Examples:** 
 
@@ -1296,16 +1333,17 @@ to validate whether they fit into the pool or not.
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_SleepDurationInMs"></a>8.28.3. Property `root > Sequencer > Finalizer > SleepDurationInMs`
+#### <a name="Sequencer_Finalizer_SleepDuration"></a>8.25.3. Property `root > Sequencer > Finalizer > SleepDuration`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                           |
+| ------------ | ------------------------- |
+| **Type**     | `string`                  |
+| **Required** | No                        |
+| **Default**  | `{"Duration": 100000000}` |
 
-**Description:** SleepDurationInMs is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
+**Description:** SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
 
 **Examples:** 
 
@@ -1317,32 +1355,35 @@ to validate whether they fit into the pool or not.
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>8.28.4. Property `root > Sequencer > Finalizer > ResourcePercentageToCloseBatch`
+#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>8.25.4. Property `root > Sequencer > Finalizer > ResourcePercentageToCloseBatch`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `10`      |
 
 **Description:** ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
 
-#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>8.28.5. Property `root > Sequencer > Finalizer > GERFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>8.25.5. Property `root > Sequencer > Finalizer > GERFinalityNumberOfBlocks`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `64`      |
 
 **Description:** GERFinalityNumberOfBlocks is number of blocks to consider GER final
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>8.28.6. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingL1Timeout`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>8.25.6. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingL1Timeout`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                             |
+| ------------ | --------------------------- |
+| **Type**     | `string`                    |
+| **Required** | No                          |
+| **Default**  | `{"Duration": 10000000000}` |
 
 **Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
 
@@ -1356,14 +1397,15 @@ to validate whether they fit into the pool or not.
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>8.28.7. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingGER`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>8.25.7. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingGER`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                             |
+| ------------ | --------------------------- |
+| **Type**     | `string`                    |
+| **Required** | No                          |
+| **Default**  | `{"Duration": 10000000000}` |
 
 **Description:** ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation
 
@@ -1377,14 +1419,15 @@ to validate whether they fit into the pool or not.
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>8.28.8. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingForcedBatches`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>8.25.8. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingForcedBatches`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                             |
+| ------------ | --------------------------- |
+| **Type**     | `string`                    |
+| **Required** | No                          |
+| **Default**  | `{"Duration": 10000000000}` |
 
 **Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
 
@@ -1398,23 +1441,25 @@ to validate whether they fit into the pool or not.
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>8.28.9. Property `root > Sequencer > Finalizer > ForcedBatchesFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>8.25.9. Property `root > Sequencer > Finalizer > ForcedBatchesFinalityNumberOfBlocks`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `64`      |
 
 **Description:** ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
 
-#### <a name="Sequencer_Finalizer_TimestampResolution"></a>8.28.10. Property `root > Sequencer > Finalizer > TimestampResolution`
+#### <a name="Sequencer_Finalizer_TimestampResolution"></a>8.25.10. Property `root > Sequencer > Finalizer > TimestampResolution`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                             |
+| ------------ | --------------------------- |
+| **Type**     | `string`                    |
+| **Required** | No                          |
+| **Default**  | `{"Duration": 10000000000}` |
 
 **Description:** TimestampResolution is the resolution of the timestamp used to close a batch
 
@@ -1428,22 +1473,176 @@ to validate whether they fit into the pool or not.
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_SenderAddress"></a>8.28.11. Property `root > Sequencer > Finalizer > SenderAddress`
+### <a name="Sequencer_DBManager"></a>8.26. Property `root > Sequencer > DBManager`
+
+|                           |                                                         |
+| ------------------------- | ------------------------------------------------------- |
+| **Type**                  | `object`                                                |
+| **Required**              | No                                                      |
+| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+
+**Description:** DBManager's specific config properties
+
+| Property                                                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
+| ---------------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
+| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
+| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
+
+#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>8.26.1. Property `root > Sequencer > DBManager > PoolRetrievalInterval`
+
+**Title:** Duration
+
+|              |                           |
+| ------------ | ------------------------- |
+| **Type**     | `string`                  |
+| **Required** | No                        |
+| **Default**  | `{"Duration": 500000000}` |
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>8.26.2. Property `root > Sequencer > DBManager > L2ReorgRetrievalInterval`
+
+**Title:** Duration
+
+|              |                            |
+| ------------ | -------------------------- |
+| **Type**     | `string`                   |
+| **Required** | No                         |
+| **Default**  | `{"Duration": 5000000000}` |
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+### <a name="Sequencer_Worker"></a>8.27. Property `root > Sequencer > Worker`
+
+|                           |                                                         |
+| ------------------------- | ------------------------------------------------------- |
+| **Type**                  | `object`                                                |
+| **Required**              | No                                                      |
+| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+
+**Description:** Worker's specific config properties
+
+| Property                                                              | Pattern | Type   | Deprecated | Definition | Title/Description                                              |
+| --------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | -------------------------------------------------------------- |
+| - [ResourceCostMultiplier](#Sequencer_Worker_ResourceCostMultiplier ) | No      | number | No         | -          | ResourceCostMultiplier is the multiplier for the resource cost |
+
+#### <a name="Sequencer_Worker_ResourceCostMultiplier"></a>8.27.1. Property `root > Sequencer > Worker > ResourceCostMultiplier`
 
 |              |          |
 | ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+| **Type**     | `number` |
+| **Required** | No       |
+| **Default**  | `1000`   |
+
+**Description:** ResourceCostMultiplier is the multiplier for the resource cost
+
+## <a name="SequenceSender"></a>9. Property `root > SequenceSender`
+
+|                           |                                                         |
+| ------------------------- | ------------------------------------------------------- |
+| **Type**                  | `object`                                                |
+| **Required**              | No                                                      |
+| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+
+| Property                                                                                                | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| - [WaitPeriodSendSequence](#SequenceSender_WaitPeriodSendSequence )                                     | No      | string          | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
+| - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string          | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
+| - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer         | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not. |
+| - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | string          | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                    |
+| - [PrivateKeys](#SequenceSender_PrivateKeys )                                                           | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                 |
+
+### <a name="SequenceSender_WaitPeriodSendSequence"></a>9.1. Property `root > SequenceSender > WaitPeriodSendSequence`
+
+**Title:** Duration
+
+|              |                            |
+| ------------ | -------------------------- |
+| **Type**     | `string`                   |
+| **Required** | No                         |
+| **Default**  | `{"Duration": 5000000000}` |
+
+**Description:** WaitPeriodSendSequence is the time the sequencer waits until
+trying to send a sequence to L1
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+### <a name="SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod"></a>9.2. Property `root > SequenceSender > LastBatchVirtualizationTimeMaxWaitPeriod`
+
+**Title:** Duration
+
+|              |                            |
+| ------------ | -------------------------- |
+| **Type**     | `string`                   |
+| **Required** | No                         |
+| **Default**  | `{"Duration": 5000000000}` |
+
+**Description:** LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+### <a name="SequenceSender_MaxTxSizeForL1"></a>9.3. Property `root > SequenceSender > MaxTxSizeForL1`
+
+|              |           |
+| ------------ | --------- |
+| **Type**     | `integer` |
+| **Required** | No        |
+| **Default**  | `131072`  |
+
+**Description:** MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
+non-trivial consequences: larger transactions than 128KB are significantly harder and
+more expensive to propagate; larger transactions also take more resources
+to validate whether they fit into the pool or not.
+
+### <a name="SequenceSender_SenderAddress"></a>9.4. Property `root > SequenceSender > SenderAddress`
+
+|              |                                                |
+| ------------ | ---------------------------------------------- |
+| **Type**     | `string`                                       |
+| **Required** | No                                             |
+| **Default**  | `"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"` |
 
 **Description:** SenderAddress defines which private key the eth tx manager needs to use
 to sign the L1 txs
 
-#### <a name="Sequencer_Finalizer_PrivateKeys"></a>8.28.12. Property `root > Sequencer > Finalizer > PrivateKeys`
+### <a name="SequenceSender_PrivateKeys"></a>9.5. Property `root > SequenceSender > PrivateKeys`
 
 |              |                   |
 | ------------ | ----------------- |
 | **Type**     | `array of object` |
-| **Required** | Yes               |
+| **Required** | No                |
 
 **Description:** PrivateKeys defines all the key store files that are going
 to be read in order to provide the private keys to sign the L1 txs
@@ -1456,11 +1655,11 @@ to be read in order to provide the private keys to sign the L1 txs
 | **Additional items** | False              |
 | **Tuple validation** | See below          |
 
-| Each item of this array must be                             | Description                                                                          |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [PrivateKeys items](#Sequencer_Finalizer_PrivateKeys_items) | KeystoreFileConfig has all the information needed to load a private key from a k ... |
+| Each item of this array must be                        | Description                                                                          |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| [PrivateKeys items](#SequenceSender_PrivateKeys_items) | KeystoreFileConfig has all the information needed to load a private key from a k ... |
 
-##### <a name="autogenerated_heading_4"></a>8.28.12.1. root > Sequencer > Finalizer > PrivateKeys > PrivateKeys items
+#### <a name="autogenerated_heading_4"></a>9.5.1. root > SequenceSender > PrivateKeys > PrivateKeys items
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
@@ -1470,223 +1669,60 @@ to be read in order to provide the private keys to sign the L1 txs
 
 **Description:** KeystoreFileConfig has all the information needed to load a private key from a key store file
 
-| Property                                                       | Pattern | Type   | Deprecated | Definition | Title/Description                                      |
-| -------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------ |
-| + [Path](#Sequencer_Finalizer_PrivateKeys_items_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
-| + [Password](#Sequencer_Finalizer_PrivateKeys_items_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
+| Property                                                  | Pattern | Type   | Deprecated | Definition | Title/Description                                      |
+| --------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------ |
+| - [Path](#SequenceSender_PrivateKeys_items_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
+| - [Password](#SequenceSender_PrivateKeys_items_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
-##### <a name="Sequencer_Finalizer_PrivateKeys_items_Path"></a>8.28.12.1.1. Property `root > Sequencer > Finalizer > PrivateKeys > PrivateKeys items > Path`
+##### <a name="SequenceSender_PrivateKeys_items_Path"></a>9.5.1.1. Property `root > SequenceSender > PrivateKeys > PrivateKeys items > Path`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
 
 **Description:** Path is the file path for the key store file
 
-##### <a name="Sequencer_Finalizer_PrivateKeys_items_Password"></a>8.28.12.1.2. Property `root > Sequencer > Finalizer > PrivateKeys > PrivateKeys items > Password`
+##### <a name="SequenceSender_PrivateKeys_items_Password"></a>9.5.1.2. Property `root > SequenceSender > PrivateKeys > PrivateKeys items > Password`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
 
 **Description:** Password is the password to decrypt the key store file
-
-### <a name="Sequencer_DBManager"></a>8.29. Property `root > Sequencer > DBManager`
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
-
-**Description:** DBManager's specific config properties
-
-| Property                                                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| + [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
-| + [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
-
-#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>8.29.1. Property `root > Sequencer > DBManager > PoolRetrievalInterval`
-
-**Title:** Duration
-
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>8.29.2. Property `root > Sequencer > DBManager > L2ReorgRetrievalInterval`
-
-**Title:** Duration
-
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-### <a name="Sequencer_Worker"></a>8.30. Property `root > Sequencer > Worker`
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
-
-**Description:** Worker's specific config properties
-
-| Property                                                              | Pattern | Type   | Deprecated | Definition | Title/Description                                              |
-| --------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | -------------------------------------------------------------- |
-| + [ResourceCostMultiplier](#Sequencer_Worker_ResourceCostMultiplier ) | No      | number | No         | -          | ResourceCostMultiplier is the multiplier for the resource cost |
-
-#### <a name="Sequencer_Worker_ResourceCostMultiplier"></a>8.30.1. Property `root > Sequencer > Worker > ResourceCostMultiplier`
-
-|              |          |
-| ------------ | -------- |
-| **Type**     | `number` |
-| **Required** | Yes      |
-
-**Description:** ResourceCostMultiplier is the multiplier for the resource cost
-
-## <a name="PriceGetter"></a>9. Property `root > PriceGetter`
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
-
-| Property                                           | Pattern | Type   | Deprecated | Definition | Title/Description                              |
-| -------------------------------------------------- | ------- | ------ | ---------- | ---------- | ---------------------------------------------- |
-| + [Type](#PriceGetter_Type )                       | No      | string | No         | -          | Type is price getter type                      |
-| + [PriceProvider](#PriceGetter_PriceProvider )     | No      | object | No         | -          | PriceProvider config                           |
-| + [UpdateFrequency](#PriceGetter_UpdateFrequency ) | No      | string | No         | -          | Duration                                       |
-| + [DefaultPrice](#PriceGetter_DefaultPrice )       | No      | object | No         | -          | DefaultPrice is used only for the default type |
-
-### <a name="PriceGetter_Type"></a>9.1. Property `root > PriceGetter > Type`
-
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
-
-**Description:** Type is price getter type
-
-### <a name="PriceGetter_PriceProvider"></a>9.2. Property `root > PriceGetter > PriceProvider`
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
-
-**Description:** PriceProvider config
-
-| Property                                   | Pattern | Type   | Deprecated | Definition | Title/Description                               |
-| ------------------------------------------ | ------- | ------ | ---------- | ---------- | ----------------------------------------------- |
-| + [URL](#PriceGetter_PriceProvider_URL )   | No      | string | No         | -          | URL is Ethereum network url, if type is uniswap |
-| + [Type](#PriceGetter_PriceProvider_Type ) | No      | string | No         | -          | Type is price getter type                       |
-
-#### <a name="PriceGetter_PriceProvider_URL"></a>9.2.1. Property `root > PriceGetter > PriceProvider > URL`
-
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
-
-**Description:** URL is Ethereum network url, if type is uniswap
-
-#### <a name="PriceGetter_PriceProvider_Type"></a>9.2.2. Property `root > PriceGetter > PriceProvider > Type`
-
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
-
-**Description:** Type is price getter type
-
-### <a name="PriceGetter_UpdateFrequency"></a>9.3. Property `root > PriceGetter > UpdateFrequency`
-
-**Title:** Duration
-
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
-
-**Description:** UpdateFrequency is price updating frequency, used only for the async type
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-### <a name="PriceGetter_DefaultPrice"></a>9.4. Property `root > PriceGetter > DefaultPrice`
-
-|                           |                                                                           |
-| ------------------------- | ------------------------------------------------------------------------- |
-| **Type**                  | `object`                                                                  |
-| **Required**              | Yes                                                                       |
-| **Additional properties** | [[Any type: allowed]](# "Additional Properties of any type are allowed.") |
-
-**Description:** DefaultPrice is used only for the default type
 
 ## <a name="Aggregator"></a>10. Property `root > Aggregator`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                                                                                            | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| + [Host](#Aggregator_Host )                                                                         | No      | string  | No         | -          | Host for the grpc server                                                                                                                                                    |
-| + [Port](#Aggregator_Port )                                                                         | No      | integer | No         | -          | Port for the grpc server                                                                                                                                                    |
-| + [RetryTime](#Aggregator_RetryTime )                                                               | No      | string  | No         | -          | Duration                                                                                                                                                                    |
-| + [VerifyProofInterval](#Aggregator_VerifyProofInterval )                                           | No      | string  | No         | -          | Duration                                                                                                                                                                    |
-| + [ProofStatePollingInterval](#Aggregator_ProofStatePollingInterval )                               | No      | string  | No         | -          | Duration                                                                                                                                                                    |
-| + [TxProfitabilityCheckerType](#Aggregator_TxProfitabilityCheckerType )                             | No      | string  | No         | -          | TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch<br />possible values: base/acceptall                                         |
-| + [TxProfitabilityMinReward](#Aggregator_TxProfitabilityMinReward )                                 | No      | object  | No         | -          | TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch<br />this parameter is used for the base tx profitability checker |
-| + [IntervalAfterWhichBatchConsolidateAnyway](#Aggregator_IntervalAfterWhichBatchConsolidateAnyway ) | No      | string  | No         | -          | Duration                                                                                                                                                                    |
-| + [ChainID](#Aggregator_ChainID )                                                                   | No      | integer | No         | -          | ChainID is the L2 ChainID provided by the Network Config                                                                                                                    |
-| + [ForkId](#Aggregator_ForkId )                                                                     | No      | integer | No         | -          | ForkID is the L2 ForkID provided by the Network Config                                                                                                                      |
-| + [SenderAddress](#Aggregator_SenderAddress )                                                       | No      | string  | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                             |
-| + [CleanupLockedProofsInterval](#Aggregator_CleanupLockedProofsInterval )                           | No      | string  | No         | -          | Duration                                                                                                                                                                    |
-| + [GeneratingProofCleanupThreshold](#Aggregator_GeneratingProofCleanupThreshold )                   | No      | string  | No         | -          | GeneratingProofCleanupThreshold represents the time interval after<br />which a proof in generating state is considered to be stuck and<br />allowed to be cleared.         |
+| - [Host](#Aggregator_Host )                                                                         | No      | string  | No         | -          | Host for the grpc server                                                                                                                                                    |
+| - [Port](#Aggregator_Port )                                                                         | No      | integer | No         | -          | Port for the grpc server                                                                                                                                                    |
+| - [RetryTime](#Aggregator_RetryTime )                                                               | No      | string  | No         | -          | Duration                                                                                                                                                                    |
+| - [VerifyProofInterval](#Aggregator_VerifyProofInterval )                                           | No      | string  | No         | -          | Duration                                                                                                                                                                    |
+| - [ProofStatePollingInterval](#Aggregator_ProofStatePollingInterval )                               | No      | string  | No         | -          | Duration                                                                                                                                                                    |
+| - [TxProfitabilityCheckerType](#Aggregator_TxProfitabilityCheckerType )                             | No      | string  | No         | -          | TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch<br />possible values: base/acceptall                                         |
+| - [TxProfitabilityMinReward](#Aggregator_TxProfitabilityMinReward )                                 | No      | object  | No         | -          | TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch<br />this parameter is used for the base tx profitability checker |
+| - [IntervalAfterWhichBatchConsolidateAnyway](#Aggregator_IntervalAfterWhichBatchConsolidateAnyway ) | No      | string  | No         | -          | Duration                                                                                                                                                                    |
+| - [ChainID](#Aggregator_ChainID )                                                                   | No      | integer | No         | -          | ChainID is the L2 ChainID provided by the Network Config                                                                                                                    |
+| - [ForkId](#Aggregator_ForkId )                                                                     | No      | integer | No         | -          | ForkID is the L2 ForkID provided by the Network Config                                                                                                                      |
+| - [SenderAddress](#Aggregator_SenderAddress )                                                       | No      | string  | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                             |
+| - [CleanupLockedProofsInterval](#Aggregator_CleanupLockedProofsInterval )                           | No      | string  | No         | -          | Duration                                                                                                                                                                    |
+| - [GeneratingProofCleanupThreshold](#Aggregator_GeneratingProofCleanupThreshold )                   | No      | string  | No         | -          | GeneratingProofCleanupThreshold represents the time interval after<br />which a proof in generating state is considered to be stuck and<br />allowed to be cleared.         |
 
 ### <a name="Aggregator_Host"></a>10.1. Property `root > Aggregator > Host`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |             |
+| ------------ | ----------- |
+| **Type**     | `string`    |
+| **Required** | No          |
+| **Default**  | `"0.0.0.0"` |
 
 **Description:** Host for the grpc server
 
@@ -1695,7 +1731,8 @@ to be read in order to provide the private keys to sign the L1 txs
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `50081`   |
 
 **Description:** Port for the grpc server
 
@@ -1703,10 +1740,11 @@ to be read in order to provide the private keys to sign the L1 txs
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                            |
+| ------------ | -------------------------- |
+| **Type**     | `string`                   |
+| **Required** | No                         |
+| **Default**  | `{"Duration": 5000000000}` |
 
 **Description:** RetryTime is the time the aggregator main loop sleeps if there are no proofs to aggregate
 or batches to generate proofs. It is also used in the isSynced loop
@@ -1725,10 +1763,11 @@ or batches to generate proofs. It is also used in the isSynced loop
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                             |
+| ------------ | --------------------------- |
+| **Type**     | `string`                    |
+| **Required** | No                          |
+| **Default**  | `{"Duration": 90000000000}` |
 
 **Description:** VerifyProofInterval is the interval of time to verify/send an proof in L1
 
@@ -1746,10 +1785,11 @@ or batches to generate proofs. It is also used in the isSynced loop
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                            |
+| ------------ | -------------------------- |
+| **Type**     | `string`                   |
+| **Required** | No                         |
+| **Default**  | `{"Duration": 5000000000}` |
 
 **Description:** ProofStatePollingInterval is the interval time to polling the prover about the generation state of a proof
 
@@ -1765,10 +1805,11 @@ or batches to generate proofs. It is also used in the isSynced loop
 
 ### <a name="Aggregator_TxProfitabilityCheckerType"></a>10.6. Property `root > Aggregator > TxProfitabilityCheckerType`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |               |
+| ------------ | ------------- |
+| **Type**     | `string`      |
+| **Required** | No            |
+| **Default**  | `"acceptall"` |
 
 **Description:** TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
 possible values: base/acceptall
@@ -1778,7 +1819,7 @@ possible values: base/acceptall
 |                           |                                                                           |
 | ------------------------- | ------------------------------------------------------------------------- |
 | **Type**                  | `object`                                                                  |
-| **Required**              | Yes                                                                       |
+| **Required**              | No                                                                        |
 | **Additional properties** | [[Any type: allowed]](# "Additional Properties of any type are allowed.") |
 
 **Description:** TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
@@ -1788,10 +1829,11 @@ this parameter is used for the base tx profitability checker
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                   |
+| ------------ | ----------------- |
+| **Type**     | `string`          |
+| **Required** | No                |
+| **Default**  | `{"Duration": 0}` |
 
 **Description:** IntervalAfterWhichBatchConsolidateAnyway this is interval for the main sequencer, that will check if there is no transactions
 
@@ -1810,7 +1852,8 @@ this parameter is used for the base tx profitability checker
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `0`       |
 
 **Description:** ChainID is the L2 ChainID provided by the Network Config
 
@@ -1819,7 +1862,8 @@ this parameter is used for the base tx profitability checker
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `2`       |
 
 **Description:** ForkID is the L2 ForkID provided by the Network Config
 
@@ -1828,7 +1872,8 @@ this parameter is used for the base tx profitability checker
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 **Description:** SenderAddress defines which private key the eth tx manager needs to use
 to sign the L1 txs
@@ -1837,10 +1882,11 @@ to sign the L1 txs
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                              |
+| ------------ | ---------------------------- |
+| **Type**     | `string`                     |
+| **Required** | No                           |
+| **Default**  | `{"Duration": 120000000000}` |
 
 **Description:** CleanupLockedProofsInterval is the interval of time to clean up locked proofs.
 
@@ -1859,7 +1905,8 @@ to sign the L1 txs
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `"10m"`  |
 
 **Description:** GeneratingProofCleanupThreshold represents the time interval after
 which a proof in generating state is considered to be stuck and
@@ -1870,45 +1917,45 @@ allowed to be cleared.
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description |
 | ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
-| + [l1Config](#NetworkConfig_l1Config )                                       | No      | object           | No         | -          | -                 |
-| + [L2GlobalExitRootManagerAddr](#NetworkConfig_L2GlobalExitRootManagerAddr ) | No      | array of integer | No         | -          | -                 |
-| + [L2BridgeAddr](#NetworkConfig_L2BridgeAddr )                               | No      | array of integer | No         | -          | -                 |
-| + [Genesis](#NetworkConfig_Genesis )                                         | No      | object           | No         | -          | -                 |
-| + [MaxCumulativeGasUsed](#NetworkConfig_MaxCumulativeGasUsed )               | No      | integer          | No         | -          | -                 |
+| - [l1Config](#NetworkConfig_l1Config )                                       | No      | object           | No         | -          | -                 |
+| - [L2GlobalExitRootManagerAddr](#NetworkConfig_L2GlobalExitRootManagerAddr ) | No      | array of integer | No         | -          | -                 |
+| - [L2BridgeAddr](#NetworkConfig_L2BridgeAddr )                               | No      | array of integer | No         | -          | -                 |
+| - [Genesis](#NetworkConfig_Genesis )                                         | No      | object           | No         | -          | -                 |
+| - [MaxCumulativeGasUsed](#NetworkConfig_MaxCumulativeGasUsed )               | No      | integer          | No         | -          | -                 |
 
 ### <a name="NetworkConfig_l1Config"></a>11.1. Property `root > NetworkConfig > l1Config`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                                                                                          | Pattern | Type             | Deprecated | Definition | Title/Description |
 | ------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
-| + [chainId](#NetworkConfig_l1Config_chainId )                                                     | No      | integer          | No         | -          | -                 |
-| + [polygonZkEVMAddress](#NetworkConfig_l1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | -                 |
-| + [maticTokenAddress](#NetworkConfig_l1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | -                 |
-| + [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | -                 |
+| - [chainId](#NetworkConfig_l1Config_chainId )                                                     | No      | integer          | No         | -          | -                 |
+| - [polygonZkEVMAddress](#NetworkConfig_l1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | -                 |
+| - [maticTokenAddress](#NetworkConfig_l1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | -                 |
+| - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | -                 |
 
 #### <a name="NetworkConfig_l1Config_chainId"></a>11.1.1. Property `root > NetworkConfig > l1Config > chainId`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
 
 #### <a name="NetworkConfig_l1Config_polygonZkEVMAddress"></a>11.1.2. Property `root > NetworkConfig > l1Config > polygonZkEVMAddress`
 
 |              |                    |
 | ------------ | ------------------ |
 | **Type**     | `array of integer` |
-| **Required** | Yes                |
+| **Required** | No                 |
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1934,7 +1981,7 @@ allowed to be cleared.
 |              |                    |
 | ------------ | ------------------ |
 | **Type**     | `array of integer` |
-| **Required** | Yes                |
+| **Required** | No                 |
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1960,7 +2007,7 @@ allowed to be cleared.
 |              |                    |
 | ------------ | ------------------ |
 | **Type**     | `array of integer` |
-| **Required** | Yes                |
+| **Required** | No                 |
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1986,7 +2033,7 @@ allowed to be cleared.
 |              |                    |
 | ------------ | ------------------ |
 | **Type**     | `array of integer` |
-| **Required** | Yes                |
+| **Required** | No                 |
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -2012,7 +2059,7 @@ allowed to be cleared.
 |              |                    |
 | ------------ | ------------------ |
 | **Type**     | `array of integer` |
-| **Required** | Yes                |
+| **Required** | No                 |
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -2038,21 +2085,22 @@ allowed to be cleared.
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                           |
 | ------------------------------------------------------------ | ------- | ---------------- | ---------- | ---------- | --------------------------------------------------------------------------- |
-| + [GenesisBlockNum](#NetworkConfig_Genesis_GenesisBlockNum ) | No      | integer          | No         | -          | GenesisBlockNum is the block number where the polygonZKEVM smc was deployed |
-| + [Root](#NetworkConfig_Genesis_Root )                       | No      | array of integer | No         | -          | -                                                                           |
-| + [GenesisActions](#NetworkConfig_Genesis_GenesisActions )   | No      | array of object  | No         | -          | -                                                                           |
+| - [GenesisBlockNum](#NetworkConfig_Genesis_GenesisBlockNum ) | No      | integer          | No         | -          | GenesisBlockNum is the block number where the polygonZKEVM smc was deployed |
+| - [Root](#NetworkConfig_Genesis_Root )                       | No      | array of integer | No         | -          | -                                                                           |
+| - [GenesisActions](#NetworkConfig_Genesis_GenesisActions )   | No      | array of object  | No         | -          | -                                                                           |
 
 #### <a name="NetworkConfig_Genesis_GenesisBlockNum"></a>11.4.1. Property `root > NetworkConfig > Genesis > GenesisBlockNum`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `0`       |
 
 **Description:** GenesisBlockNum is the block number where the polygonZKEVM smc was deployed
 
@@ -2061,7 +2109,7 @@ allowed to be cleared.
 |              |                    |
 | ------------ | ------------------ |
 | **Type**     | `array of integer` |
-| **Required** | Yes                |
+| **Required** | No                 |
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -2087,7 +2135,7 @@ allowed to be cleared.
 |              |                   |
 | ------------ | ----------------- |
 | **Type**     | `array of object` |
-| **Required** | Yes               |
+| **Required** | No                |
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -2113,109 +2161,114 @@ allowed to be cleared.
 
 | Property                                                                          | Pattern | Type    | Deprecated | Definition | Title/Description |
 | --------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| + [address](#NetworkConfig_Genesis_GenesisActions_items_address )                 | No      | string  | No         | -          | -                 |
-| + [type](#NetworkConfig_Genesis_GenesisActions_items_type )                       | No      | integer | No         | -          | -                 |
-| + [storagePosition](#NetworkConfig_Genesis_GenesisActions_items_storagePosition ) | No      | string  | No         | -          | -                 |
-| + [bytecode](#NetworkConfig_Genesis_GenesisActions_items_bytecode )               | No      | string  | No         | -          | -                 |
-| + [key](#NetworkConfig_Genesis_GenesisActions_items_key )                         | No      | string  | No         | -          | -                 |
-| + [value](#NetworkConfig_Genesis_GenesisActions_items_value )                     | No      | string  | No         | -          | -                 |
-| + [root](#NetworkConfig_Genesis_GenesisActions_items_root )                       | No      | string  | No         | -          | -                 |
+| - [address](#NetworkConfig_Genesis_GenesisActions_items_address )                 | No      | string  | No         | -          | -                 |
+| - [type](#NetworkConfig_Genesis_GenesisActions_items_type )                       | No      | integer | No         | -          | -                 |
+| - [storagePosition](#NetworkConfig_Genesis_GenesisActions_items_storagePosition ) | No      | string  | No         | -          | -                 |
+| - [bytecode](#NetworkConfig_Genesis_GenesisActions_items_bytecode )               | No      | string  | No         | -          | -                 |
+| - [key](#NetworkConfig_Genesis_GenesisActions_items_key )                         | No      | string  | No         | -          | -                 |
+| - [value](#NetworkConfig_Genesis_GenesisActions_items_value )                     | No      | string  | No         | -          | -                 |
+| - [root](#NetworkConfig_Genesis_GenesisActions_items_root )                       | No      | string  | No         | -          | -                 |
 
 ##### <a name="NetworkConfig_Genesis_GenesisActions_items_address"></a>11.4.3.1.1. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > address`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
 
 ##### <a name="NetworkConfig_Genesis_GenesisActions_items_type"></a>11.4.3.1.2. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > type`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
 
 ##### <a name="NetworkConfig_Genesis_GenesisActions_items_storagePosition"></a>11.4.3.1.3. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > storagePosition`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
 
 ##### <a name="NetworkConfig_Genesis_GenesisActions_items_bytecode"></a>11.4.3.1.4. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > bytecode`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
 
 ##### <a name="NetworkConfig_Genesis_GenesisActions_items_key"></a>11.4.3.1.5. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > key`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
 
 ##### <a name="NetworkConfig_Genesis_GenesisActions_items_value"></a>11.4.3.1.6. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > value`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
 
 ##### <a name="NetworkConfig_Genesis_GenesisActions_items_root"></a>11.4.3.1.7. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > root`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
 
 ### <a name="NetworkConfig_MaxCumulativeGasUsed"></a>11.5. Property `root > NetworkConfig > MaxCumulativeGasUsed`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `0`       |
 
 ## <a name="L2GasPriceSuggester"></a>12. Property `root > L2GasPriceSuggester`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
-| Property                                                         | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| + [Type](#L2GasPriceSuggester_Type )                             | No      | string  | No         | -          | -                 |
-| + [DefaultGasPriceWei](#L2GasPriceSuggester_DefaultGasPriceWei ) | No      | integer | No         | -          | -                 |
-| + [MaxPrice](#L2GasPriceSuggester_MaxPrice )                     | No      | object  | No         | -          | -                 |
-| + [IgnorePrice](#L2GasPriceSuggester_IgnorePrice )               | No      | object  | No         | -          | -                 |
-| + [CheckBlocks](#L2GasPriceSuggester_CheckBlocks )               | No      | integer | No         | -          | -                 |
-| + [Percentile](#L2GasPriceSuggester_Percentile )                 | No      | integer | No         | -          | -                 |
-| + [UpdatePeriod](#L2GasPriceSuggester_UpdatePeriod )             | No      | string  | No         | -          | Duration          |
-| + [Factor](#L2GasPriceSuggester_Factor )                         | No      | number  | No         | -          | -                 |
+| Property                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description |
+| ------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [Type](#L2GasPriceSuggester_Type )                                           | No      | string  | No         | -          | -                 |
+| - [DefaultGasPriceWei](#L2GasPriceSuggester_DefaultGasPriceWei )               | No      | integer | No         | -          | -                 |
+| - [MaxPrice](#L2GasPriceSuggester_MaxPrice )                                   | No      | object  | No         | -          | -                 |
+| - [IgnorePrice](#L2GasPriceSuggester_IgnorePrice )                             | No      | object  | No         | -          | -                 |
+| - [CheckBlocks](#L2GasPriceSuggester_CheckBlocks )                             | No      | integer | No         | -          | -                 |
+| - [Percentile](#L2GasPriceSuggester_Percentile )                               | No      | integer | No         | -          | -                 |
+| - [UpdatePeriod](#L2GasPriceSuggester_UpdatePeriod )                           | No      | string  | No         | -          | Duration          |
+| - [CleanHistoryPeriod](#L2GasPriceSuggester_CleanHistoryPeriod )               | No      | string  | No         | -          | Duration          |
+| - [CleanHistoryTimeRetention](#L2GasPriceSuggester_CleanHistoryTimeRetention ) | No      | string  | No         | -          | Duration          |
+| - [Factor](#L2GasPriceSuggester_Factor )                                       | No      | number  | No         | -          | -                 |
 
 ### <a name="L2GasPriceSuggester_Type"></a>12.1. Property `root > L2GasPriceSuggester > Type`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |              |
+| ------------ | ------------ |
+| **Type**     | `string`     |
+| **Required** | No           |
+| **Default**  | `"follower"` |
 
 ### <a name="L2GasPriceSuggester_DefaultGasPriceWei"></a>12.2. Property `root > L2GasPriceSuggester > DefaultGasPriceWei`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | Yes       |
+|              |              |
+| ------------ | ------------ |
+| **Type**     | `integer`    |
+| **Required** | No           |
+| **Default**  | `2000000000` |
 
 ### <a name="L2GasPriceSuggester_MaxPrice"></a>12.3. Property `root > L2GasPriceSuggester > MaxPrice`
 
 |                           |                                                                           |
 | ------------------------- | ------------------------------------------------------------------------- |
 | **Type**                  | `object`                                                                  |
-| **Required**              | Yes                                                                       |
+| **Required**              | No                                                                        |
 | **Additional properties** | [[Any type: allowed]](# "Additional Properties of any type are allowed.") |
 
 ### <a name="L2GasPriceSuggester_IgnorePrice"></a>12.4. Property `root > L2GasPriceSuggester > IgnorePrice`
@@ -2223,7 +2276,7 @@ allowed to be cleared.
 |                           |                                                                           |
 | ------------------------- | ------------------------------------------------------------------------- |
 | **Type**                  | `object`                                                                  |
-| **Required**              | Yes                                                                       |
+| **Required**              | No                                                                        |
 | **Additional properties** | [[Any type: allowed]](# "Additional Properties of any type are allowed.") |
 
 ### <a name="L2GasPriceSuggester_CheckBlocks"></a>12.5. Property `root > L2GasPriceSuggester > CheckBlocks`
@@ -2231,23 +2284,26 @@ allowed to be cleared.
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `0`       |
 
 ### <a name="L2GasPriceSuggester_Percentile"></a>12.6. Property `root > L2GasPriceSuggester > Percentile`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `0`       |
 
 ### <a name="L2GasPriceSuggester_UpdatePeriod"></a>12.7. Property `root > L2GasPriceSuggester > UpdatePeriod`
 
 **Title:** Duration
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                             |
+| ------------ | --------------------------- |
+| **Type**     | `string`                    |
+| **Required** | No                          |
+| **Default**  | `{"Duration": 10000000000}` |
 
 **Examples:** 
 
@@ -2259,50 +2315,127 @@ allowed to be cleared.
 "300ms"
 ```
 
-### <a name="L2GasPriceSuggester_Factor"></a>12.8. Property `root > L2GasPriceSuggester > Factor`
+### <a name="L2GasPriceSuggester_CleanHistoryPeriod"></a>12.8. Property `root > L2GasPriceSuggester > CleanHistoryPeriod`
+
+**Title:** Duration
+
+|              |                               |
+| ------------ | ----------------------------- |
+| **Type**     | `string`                      |
+| **Required** | No                            |
+| **Default**  | `{"Duration": 3600000000000}` |
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+### <a name="L2GasPriceSuggester_CleanHistoryTimeRetention"></a>12.9. Property `root > L2GasPriceSuggester > CleanHistoryTimeRetention`
+
+**Title:** Duration
+
+|              |                              |
+| ------------ | ---------------------------- |
+| **Type**     | `string`                     |
+| **Required** | No                           |
+| **Default**  | `{"Duration": 300000000000}` |
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+### <a name="L2GasPriceSuggester_Factor"></a>12.10. Property `root > L2GasPriceSuggester > Factor`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `number` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `0.15`   |
 
 ## <a name="Executor"></a>13. Property `root > Executor`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
-| Property                | Pattern | Type   | Deprecated | Definition | Title/Description |
-| ----------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| + [URI](#Executor_URI ) | No      | string | No         | -          | -                 |
+| Property                                                                  | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                       |
+| ------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------- |
+| - [URI](#Executor_URI )                                                   | No      | string  | No         | -          | -                                                                                                                       |
+| - [MaxResourceExhaustedAttempts](#Executor_MaxResourceExhaustedAttempts ) | No      | integer | No         | -          | MaxResourceExhaustedAttempts is the max number of attempts to make a transaction succeed because of resource exhaustion |
+| - [WaitOnResourceExhaustion](#Executor_WaitOnResourceExhaustion )         | No      | string  | No         | -          | Duration                                                                                                                |
 
 ### <a name="Executor_URI"></a>13.1. Property `root > Executor > URI`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                        |
+| ------------ | ---------------------- |
+| **Type**     | `string`               |
+| **Required** | No                     |
+| **Default**  | `"zkevm-prover:50071"` |
+
+### <a name="Executor_MaxResourceExhaustedAttempts"></a>13.2. Property `root > Executor > MaxResourceExhaustedAttempts`
+
+|              |           |
+| ------------ | --------- |
+| **Type**     | `integer` |
+| **Required** | No        |
+| **Default**  | `3`       |
+
+**Description:** MaxResourceExhaustedAttempts is the max number of attempts to make a transaction succeed because of resource exhaustion
+
+### <a name="Executor_WaitOnResourceExhaustion"></a>13.3. Property `root > Executor > WaitOnResourceExhaustion`
+
+**Title:** Duration
+
+|              |                            |
+| ------------ | -------------------------- |
+| **Type**     | `string`                   |
+| **Required** | No                         |
+| **Default**  | `{"Duration": 1000000000}` |
+
+**Description:** WaitOnResourceExhaustion is the time to wait before retrying a transaction because of resource exhaustion
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
 
 ## <a name="MTClient"></a>14. Property `root > MTClient`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                | Pattern | Type   | Deprecated | Definition | Title/Description      |
 | ----------------------- | ------- | ------ | ---------- | ---------- | ---------------------- |
-| + [URI](#MTClient_URI ) | No      | string | No         | -          | URI is the server URI. |
+| - [URI](#MTClient_URI ) | No      | string | No         | -          | URI is the server URI. |
 
 ### <a name="MTClient_URI"></a>14.1. Property `root > MTClient > URI`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                        |
+| ------------ | ---------------------- |
+| **Type**     | `string`               |
+| **Required** | No                     |
+| **Default**  | `"zkevm-prover:50061"` |
 
 **Description:** URI is the server URI.
 
@@ -2311,52 +2444,56 @@ allowed to be cleared.
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                           | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
 | ---------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
-| + [Name](#StateDB_Name )           | No      | string  | No         | -          | Database name                                              |
-| + [User](#StateDB_User )           | No      | string  | No         | -          | User name                                                  |
-| + [Password](#StateDB_Password )   | No      | string  | No         | -          | Password of the user                                       |
-| + [Host](#StateDB_Host )           | No      | string  | No         | -          | Host address                                               |
-| + [Port](#StateDB_Port )           | No      | string  | No         | -          | Port Number                                                |
-| + [EnableLog](#StateDB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
-| + [MaxConns](#StateDB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
+| - [Name](#StateDB_Name )           | No      | string  | No         | -          | Database name                                              |
+| - [User](#StateDB_User )           | No      | string  | No         | -          | User name                                                  |
+| - [Password](#StateDB_Password )   | No      | string  | No         | -          | Password of the user                                       |
+| - [Host](#StateDB_Host )           | No      | string  | No         | -          | Host address                                               |
+| - [Port](#StateDB_Port )           | No      | string  | No         | -          | Port Number                                                |
+| - [EnableLog](#StateDB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
+| - [MaxConns](#StateDB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
 ### <a name="StateDB_Name"></a>15.1. Property `root > StateDB > Name`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |              |
+| ------------ | ------------ |
+| **Type**     | `string`     |
+| **Required** | No           |
+| **Default**  | `"state_db"` |
 
 **Description:** Database name
 
 ### <a name="StateDB_User"></a>15.2. Property `root > StateDB > User`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                |
+| ------------ | -------------- |
+| **Type**     | `string`       |
+| **Required** | No             |
+| **Default**  | `"state_user"` |
 
 **Description:** User name
 
 ### <a name="StateDB_Password"></a>15.3. Property `root > StateDB > Password`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                    |
+| ------------ | ------------------ |
+| **Type**     | `string`           |
+| **Required** | No                 |
+| **Default**  | `"state_password"` |
 
 **Description:** Password of the user
 
 ### <a name="StateDB_Host"></a>15.4. Property `root > StateDB > Host`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |                    |
+| ------------ | ------------------ |
+| **Type**     | `string`           |
+| **Required** | No                 |
+| **Default**  | `"zkevm-state-db"` |
 
 **Description:** Host address
 
@@ -2365,7 +2502,8 @@ allowed to be cleared.
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `"5432"` |
 
 **Description:** Port Number
 
@@ -2374,7 +2512,8 @@ allowed to be cleared.
 |              |           |
 | ------------ | --------- |
 | **Type**     | `boolean` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `false`   |
 
 **Description:** EnableLog
 
@@ -2383,7 +2522,8 @@ allowed to be cleared.
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `200`     |
 
 **Description:** MaxConns is the maximum number of connections in the pool.
 
@@ -2392,98 +2532,105 @@ allowed to be cleared.
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property                                         | Pattern | Type    | Deprecated | Definition | Title/Description |
 | ------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------- |
-| + [Host](#Metrics_Host )                         | No      | string  | No         | -          | -                 |
-| + [Port](#Metrics_Port )                         | No      | integer | No         | -          | -                 |
-| + [Enabled](#Metrics_Enabled )                   | No      | boolean | No         | -          | -                 |
-| + [ProfilingHost](#Metrics_ProfilingHost )       | No      | string  | No         | -          | -                 |
-| + [ProfilingPort](#Metrics_ProfilingPort )       | No      | integer | No         | -          | -                 |
-| + [ProfilingEnabled](#Metrics_ProfilingEnabled ) | No      | boolean | No         | -          | -                 |
+| - [Host](#Metrics_Host )                         | No      | string  | No         | -          | -                 |
+| - [Port](#Metrics_Port )                         | No      | integer | No         | -          | -                 |
+| - [Enabled](#Metrics_Enabled )                   | No      | boolean | No         | -          | -                 |
+| - [ProfilingHost](#Metrics_ProfilingHost )       | No      | string  | No         | -          | -                 |
+| - [ProfilingPort](#Metrics_ProfilingPort )       | No      | integer | No         | -          | -                 |
+| - [ProfilingEnabled](#Metrics_ProfilingEnabled ) | No      | boolean | No         | -          | -                 |
 
 ### <a name="Metrics_Host"></a>16.1. Property `root > Metrics > Host`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | Yes      |
+|              |             |
+| ------------ | ----------- |
+| **Type**     | `string`    |
+| **Required** | No          |
+| **Default**  | `"0.0.0.0"` |
 
 ### <a name="Metrics_Port"></a>16.2. Property `root > Metrics > Port`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `9091`    |
 
 ### <a name="Metrics_Enabled"></a>16.3. Property `root > Metrics > Enabled`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `boolean` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `false`   |
 
 ### <a name="Metrics_ProfilingHost"></a>16.4. Property `root > Metrics > ProfilingHost`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 ### <a name="Metrics_ProfilingPort"></a>16.5. Property `root > Metrics > ProfilingPort`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `0`       |
 
 ### <a name="Metrics_ProfilingEnabled"></a>16.6. Property `root > Metrics > ProfilingEnabled`
 
 |              |           |
 | ------------ | --------- |
 | **Type**     | `boolean` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `false`   |
 
 ## <a name="EventLog"></a>17. Property `root > EventLog`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 | Property              | Pattern | Type   | Deprecated | Definition | Title/Description                |
 | --------------------- | ------- | ------ | ---------- | ---------- | -------------------------------- |
-| + [DB](#EventLog_DB ) | No      | object | No         | -          | DB is the database configuration |
+| - [DB](#EventLog_DB ) | No      | object | No         | -          | DB is the database configuration |
 
 ### <a name="EventLog_DB"></a>17.1. Property `root > EventLog > DB`
 
 |                           |                                                         |
 | ------------------------- | ------------------------------------------------------- |
 | **Type**                  | `object`                                                |
-| **Required**              | Yes                                                     |
+| **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
 **Description:** DB is the database configuration
 
 | Property                               | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
 | -------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
-| + [Name](#EventLog_DB_Name )           | No      | string  | No         | -          | Database name                                              |
-| + [User](#EventLog_DB_User )           | No      | string  | No         | -          | User name                                                  |
-| + [Password](#EventLog_DB_Password )   | No      | string  | No         | -          | Password of the user                                       |
-| + [Host](#EventLog_DB_Host )           | No      | string  | No         | -          | Host address                                               |
-| + [Port](#EventLog_DB_Port )           | No      | string  | No         | -          | Port Number                                                |
-| + [EnableLog](#EventLog_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
-| + [MaxConns](#EventLog_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
+| - [Name](#EventLog_DB_Name )           | No      | string  | No         | -          | Database name                                              |
+| - [User](#EventLog_DB_User )           | No      | string  | No         | -          | User name                                                  |
+| - [Password](#EventLog_DB_Password )   | No      | string  | No         | -          | Password of the user                                       |
+| - [Host](#EventLog_DB_Host )           | No      | string  | No         | -          | Host address                                               |
+| - [Port](#EventLog_DB_Port )           | No      | string  | No         | -          | Port Number                                                |
+| - [EnableLog](#EventLog_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
+| - [MaxConns](#EventLog_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
 #### <a name="EventLog_DB_Name"></a>17.1.1. Property `root > EventLog > DB > Name`
 
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 **Description:** Database name
 
@@ -2492,7 +2639,8 @@ allowed to be cleared.
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 **Description:** User name
 
@@ -2501,7 +2649,8 @@ allowed to be cleared.
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 **Description:** Password of the user
 
@@ -2510,7 +2659,8 @@ allowed to be cleared.
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 **Description:** Host address
 
@@ -2519,7 +2669,8 @@ allowed to be cleared.
 |              |          |
 | ------------ | -------- |
 | **Type**     | `string` |
-| **Required** | Yes      |
+| **Required** | No       |
+| **Default**  | `""`     |
 
 **Description:** Port Number
 
@@ -2528,7 +2679,8 @@ allowed to be cleared.
 |              |           |
 | ------------ | --------- |
 | **Type**     | `boolean` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `false`   |
 
 **Description:** EnableLog
 
@@ -2537,7 +2689,8 @@ allowed to be cleared.
 |              |           |
 | ------------ | --------- |
 | **Type**     | `integer` |
-| **Required** | Yes       |
+| **Required** | No        |
+| **Default**  | `0`       |
 
 **Description:** MaxConns is the maximum number of connections in the pool.
 

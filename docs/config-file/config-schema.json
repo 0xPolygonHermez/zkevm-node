@@ -1,19 +1,35 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
-	"$id": "github.com/0xPolygonHermez/zkevm-nodeconfig/config",
+	"$id": "github.com/0xPolygonHermez/zkevm-node/config/config",
 	"properties": {
 		"IsTrustedSequencer": {
-			"type": "boolean"
+			"type": "boolean",
+			"default": false
 		},
 		"Log": {
 			"properties": {
 				"Environment": {
 					"type": "string",
-					"description": "Environment defining the log format (\"production\" or \"development\")."
+					"enum": [
+						"production",
+						"development"
+					],
+					"description": "Environment defining the log format (\"production\" or \"development\").\nIn development mode enables development mode (which makes DPanicLevel logs panic), uses a console encoder, writes to standard error, and disables sampling. Stacktraces are automatically included on logs of WarnLevel and above.\nCheck [here](https://pkg.go.dev/go.uber.org/zap@v1.24.0#NewDevelopmentConfig)",
+					"default": "development"
 				},
 				"Level": {
 					"type": "string",
-					"description": "Level of log, e.g. INFO, WARN, ..."
+					"enum": [
+						"debug",
+						"info",
+						"warn",
+						"error",
+						"dpanic",
+						"panic",
+						"fatal"
+					],
+					"description": "Level of log. As lower value more logs are going to be generated",
+					"default": "info"
 				},
 				"Outputs": {
 					"items": {
@@ -25,52 +41,43 @@
 			},
 			"additionalProperties": false,
 			"type": "object",
-			"required": [
-				"Environment",
-				"Level",
-				"Outputs"
-			]
+			"description": "Configure Log level for all the services, allow also to store the logs in a file"
 		},
 		"Etherman": {
 			"properties": {
 				"URL": {
-					"type": "string"
+					"type": "string",
+					"default": "http://localhost:8545"
 				},
 				"PrivateKeyPath": {
-					"type": "string"
+					"type": "string",
+					"default": ""
 				},
 				"PrivateKeyPassword": {
-					"type": "string"
+					"type": "string",
+					"default": ""
 				},
 				"MultiGasProvider": {
-					"type": "boolean"
+					"type": "boolean",
+					"default": false
 				},
 				"Etherscan": {
 					"properties": {
 						"ApiKey": {
-							"type": "string"
+							"type": "string",
+							"default": ""
 						},
 						"Url": {
-							"type": "string"
+							"type": "string",
+							"default": ""
 						}
 					},
 					"additionalProperties": false,
-					"type": "object",
-					"required": [
-						"ApiKey",
-						"Url"
-					]
+					"type": "object"
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"URL",
-				"PrivateKeyPath",
-				"PrivateKeyPassword",
-				"MultiGasProvider",
-				"Etherscan"
-			]
+			"type": "object"
 		},
 		"EthTxManager": {
 			"properties": {
@@ -78,6 +85,9 @@
 					"type": "string",
 					"title": "Duration",
 					"description": "FrequencyToMonitorTxs frequency of the resending failed txs",
+					"default": {
+						"Duration": 1000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -87,6 +97,9 @@
 					"type": "string",
 					"title": "Duration",
 					"description": "WaitTxToBeMined time to wait after transaction was sent to the ethereum",
+					"default": {
+						"Duration": 120000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -106,10 +119,6 @@
 						},
 						"additionalProperties": false,
 						"type": "object",
-						"required": [
-							"Path",
-							"Password"
-						],
 						"description": "KeystoreFileConfig has all the information needed to load a private key from a key store file"
 					},
 					"type": "array",
@@ -117,28 +126,22 @@
 				},
 				"ForcedGas": {
 					"type": "integer",
-					"description": "ForcedGas is the amount of gas to be forced in case of gas estimation error"
+					"description": "ForcedGas is the amount of gas to be forced in case of gas estimation error",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"FrequencyToMonitorTxs",
-				"WaitTxToBeMined",
-				"PrivateKeys",
-				"ForcedGas"
-			]
+			"type": "object"
 		},
 		"Pool": {
 			"properties": {
-				"FreeClaimGasLimit": {
-					"type": "integer",
-					"description": "FreeClaimGasLimit is the max gas allowed use to do a free claim"
-				},
 				"IntervalToRefreshBlockedAddresses": {
 					"type": "string",
 					"title": "Duration",
 					"description": "IntervalToRefreshBlockedAddresses is the time it takes to sync the\nblocked address list from db to memory",
+					"default": {
+						"Duration": 300000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -146,64 +149,68 @@
 				},
 				"MaxTxBytesSize": {
 					"type": "integer",
-					"description": "MaxTxBytesSize is the max size of a transaction in bytes"
+					"description": "MaxTxBytesSize is the max size of a transaction in bytes",
+					"default": 100132
 				},
 				"MaxTxDataBytesSize": {
 					"type": "integer",
-					"description": "MaxTxDataBytesSize is the max size of the data field of a transaction in bytes"
+					"description": "MaxTxDataBytesSize is the max size of the data field of a transaction in bytes",
+					"default": 100000
 				},
 				"DB": {
 					"properties": {
 						"Name": {
 							"type": "string",
-							"description": "Database name"
+							"description": "Database name",
+							"default": "pool_db"
 						},
 						"User": {
 							"type": "string",
-							"description": "User name"
+							"description": "User name",
+							"default": "pool_user"
 						},
 						"Password": {
 							"type": "string",
-							"description": "Password of the user"
+							"description": "Password of the user",
+							"default": "pool_password"
 						},
 						"Host": {
 							"type": "string",
-							"description": "Host address"
+							"description": "Host address",
+							"default": "zkevm-pool-db"
 						},
 						"Port": {
 							"type": "string",
-							"description": "Port Number"
+							"description": "Port Number",
+							"default": "5432"
 						},
 						"EnableLog": {
 							"type": "boolean",
-							"description": "EnableLog"
+							"description": "EnableLog",
+							"default": false
 						},
 						"MaxConns": {
 							"type": "integer",
-							"description": "MaxConns is the maximum number of connections in the pool."
+							"description": "MaxConns is the maximum number of connections in the pool.",
+							"default": 200
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"required": [
-						"Name",
-						"User",
-						"Password",
-						"Host",
-						"Port",
-						"EnableLog",
-						"MaxConns"
-					],
 					"description": "DB is the database configuration"
 				},
 				"DefaultMinGasPriceAllowed": {
 					"type": "integer",
-					"description": "DefaultMinGasPriceAllowed is the default min gas price to suggest"
+					"description": "DefaultMinGasPriceAllowed is the default min gas price to suggest",
+					"default": 1000000000
 				},
 				"MinAllowedGasPriceInterval": {
 					"type": "string",
 					"title": "Duration",
 					"description": "MinAllowedGasPriceInterval is the interval to look back of the suggested min gas price for a tx",
+					"default": {
+						"Duration": 300000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -213,6 +220,9 @@
 					"type": "string",
 					"title": "Duration",
 					"description": "PollMinAllowedGasPriceInterval is the interval to poll the suggested min gas price for a tx",
+					"default": {
+						"Duration": 15000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -220,88 +230,89 @@
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"FreeClaimGasLimit",
-				"IntervalToRefreshBlockedAddresses",
-				"MaxTxBytesSize",
-				"MaxTxDataBytesSize",
-				"DB",
-				"DefaultMinGasPriceAllowed",
-				"MinAllowedGasPriceInterval",
-				"PollMinAllowedGasPriceInterval"
-			]
+			"type": "object"
 		},
 		"RPC": {
 			"properties": {
 				"Host": {
-					"type": "string"
+					"type": "string",
+					"description": "Host defines the network adapter that will be used to serve the HTTP requests",
+					"default": "0.0.0.0"
 				},
 				"Port": {
-					"type": "integer"
+					"type": "integer",
+					"description": "Port defines the port to serve the endpoints via HTTP",
+					"default": 8545
 				},
-				"ReadTimeoutInSec": {
-					"type": "integer"
+				"ReadTimeout": {
+					"type": "string",
+					"title": "Duration",
+					"description": "ReadTimeout is the HTTP server read timeout\ncheck net/http.server.ReadTimeout and net/http.server.ReadHeaderTimeout",
+					"default": {
+						"Duration": 60000000000
+					},
+					"examples": [
+						"1m",
+						"300ms"
+					]
 				},
-				"WriteTimeoutInSec": {
-					"type": "integer"
+				"WriteTimeout": {
+					"type": "string",
+					"title": "Duration",
+					"description": "WriteTimeout is the HTTP server write timeout\ncheck net/http.server.WriteTimeout",
+					"default": {
+						"Duration": 60000000000
+					},
+					"examples": [
+						"1m",
+						"300ms"
+					]
 				},
 				"MaxRequestsPerIPAndSecond": {
-					"type": "number"
+					"type": "number",
+					"description": "MaxRequestsPerIPAndSecond defines how much requests a single IP can\nsend within a single second",
+					"default": 500
 				},
 				"SequencerNodeURI": {
 					"type": "string",
-					"description": "SequencerNodeURI is used allow Non-Sequencer nodes\nto relay transactions to the Sequencer node"
-				},
-				"DefaultSenderAddress": {
-					"type": "string",
-					"description": "DefaultSenderAddress is the address that jRPC will use\nto communicate with the state for eth_EstimateGas and eth_Call when\nthe From field is not specified because it is optional"
+					"description": "SequencerNodeURI is used allow Non-Sequencer nodes\nto relay transactions to the Sequencer node",
+					"default": ""
 				},
 				"MaxCumulativeGasUsed": {
 					"type": "integer",
-					"description": "MaxCumulativeGasUsed is the max gas allowed per batch"
-				},
-				"ChainID": {
-					"type": "integer",
-					"description": "ChainID is the L2 ChainID provided by the Network Config"
+					"description": "MaxCumulativeGasUsed is the max gas allowed per batch",
+					"default": 0
 				},
 				"WebSockets": {
 					"properties": {
 						"Enabled": {
-							"type": "boolean"
+							"type": "boolean",
+							"description": "Enabled defines if the WebSocket requests are enabled or disabled",
+							"default": true
+						},
+						"Host": {
+							"type": "string",
+							"description": "Host defines the network adapter that will be used to serve the WS requests",
+							"default": "0.0.0.0"
 						},
 						"Port": {
-							"type": "integer"
+							"type": "integer",
+							"description": "Port defines the port to serve the endpoints via WS",
+							"default": 8546
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"required": [
-						"Enabled",
-						"Port"
-					],
-					"description": "Websockets"
+					"description": "WebSockets configuration"
 				},
 				"EnableL2SuggestedGasPricePolling": {
 					"type": "boolean",
-					"description": "EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price."
+					"description": "EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.",
+					"default": true
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"Host",
-				"Port",
-				"ReadTimeoutInSec",
-				"WriteTimeoutInSec",
-				"MaxRequestsPerIPAndSecond",
-				"SequencerNodeURI",
-				"DefaultSenderAddress",
-				"MaxCumulativeGasUsed",
-				"ChainID",
-				"WebSockets",
-				"EnableL2SuggestedGasPricePolling"
-			]
+			"type": "object"
 		},
 		"Synchronizer": {
 			"properties": {
@@ -309,6 +320,9 @@
 					"type": "string",
 					"title": "Duration",
 					"description": "SyncInterval is the delay interval between reading new rollup information",
+					"default": {
+						"Duration": 1000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -316,45 +330,27 @@
 				},
 				"SyncChunkSize": {
 					"type": "integer",
-					"description": "SyncChunkSize is the number of blocks to sync on each chunk"
+					"description": "SyncChunkSize is the number of blocks to sync on each chunk",
+					"default": 100
 				},
 				"TrustedSequencerURL": {
 					"type": "string",
-					"description": "TrustedSequencerURL is the rpc url to connect and sync the trusted state"
+					"description": "TrustedSequencerURL is the rpc url to connect and sync the trusted state",
+					"default": ""
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"SyncInterval",
-				"SyncChunkSize",
-				"TrustedSequencerURL"
-			]
+			"type": "object"
 		},
 		"Sequencer": {
 			"properties": {
-				"WaitPeriodSendSequence": {
-					"type": "string",
-					"title": "Duration",
-					"description": "WaitPeriodSendSequence is the time the sequencer waits until\ntrying to send a sequence to L1",
-					"examples": [
-						"1m",
-						"300ms"
-					]
-				},
 				"WaitPeriodPoolIsEmpty": {
 					"type": "string",
 					"title": "Duration",
 					"description": "WaitPeriodPoolIsEmpty is the time the sequencer waits until\ntrying to add new txs to the state",
-					"examples": [
-						"1m",
-						"300ms"
-					]
-				},
-				"LastBatchVirtualizationTimeMaxWaitPeriod": {
-					"type": "string",
-					"title": "Duration",
-					"description": "LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent",
+					"default": {
+						"Duration": 1000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -362,12 +358,16 @@
 				},
 				"BlocksAmountForTxsToBeDeleted": {
 					"type": "integer",
-					"description": "BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool"
+					"description": "BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool",
+					"default": 100
 				},
 				"FrequencyToCheckTxsForDelete": {
 					"type": "string",
 					"title": "Duration",
 					"description": "FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting",
+					"default": {
+						"Duration": 43200000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -375,84 +375,106 @@
 				},
 				"MaxTxsPerBatch": {
 					"type": "integer",
-					"description": "MaxTxsPerBatch is the maximum amount of transactions in the batch"
+					"description": "MaxTxsPerBatch is the maximum amount of transactions in the batch",
+					"default": 150
 				},
 				"MaxBatchBytesSize": {
 					"type": "integer",
-					"description": "MaxBatchBytesSize is the maximum batch size in bytes\n(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)"
+					"description": "MaxBatchBytesSize is the maximum batch size in bytes\n(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)",
+					"default": 129848
 				},
 				"MaxCumulativeGasUsed": {
 					"type": "integer",
-					"description": "MaxCumulativeGasUsed is max gas amount used by batch"
+					"description": "MaxCumulativeGasUsed is max gas amount used by batch",
+					"default": 30000000
 				},
 				"MaxKeccakHashes": {
 					"type": "integer",
-					"description": "MaxKeccakHashes is max keccak hashes used by batch"
+					"description": "MaxKeccakHashes is max keccak hashes used by batch",
+					"default": 468
 				},
 				"MaxPoseidonHashes": {
 					"type": "integer",
-					"description": "MaxPoseidonHashes is max poseidon hashes batch can handle"
+					"description": "MaxPoseidonHashes is max poseidon hashes batch can handle",
+					"default": 279620
 				},
 				"MaxPoseidonPaddings": {
 					"type": "integer",
-					"description": "MaxPoseidonPaddings is max poseidon paddings batch can handle"
+					"description": "MaxPoseidonPaddings is max poseidon paddings batch can handle",
+					"default": 149796
 				},
 				"MaxMemAligns": {
 					"type": "integer",
-					"description": "MaxMemAligns is max mem aligns batch can handle"
+					"description": "MaxMemAligns is max mem aligns batch can handle",
+					"default": 262144
 				},
 				"MaxArithmetics": {
 					"type": "integer",
-					"description": "MaxArithmetics is max arithmetics batch can handle"
+					"description": "MaxArithmetics is max arithmetics batch can handle",
+					"default": 262144
 				},
 				"MaxBinaries": {
 					"type": "integer",
-					"description": "MaxBinaries is max binaries batch can handle"
+					"description": "MaxBinaries is max binaries batch can handle",
+					"default": 262144
 				},
 				"MaxSteps": {
 					"type": "integer",
-					"description": "MaxSteps is max steps batch can handle"
+					"description": "MaxSteps is max steps batch can handle",
+					"default": 8388608
 				},
 				"WeightBatchBytesSize": {
 					"type": "integer",
-					"description": "WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource"
+					"description": "WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource",
+					"default": 1
 				},
 				"WeightCumulativeGasUsed": {
 					"type": "integer",
-					"description": "WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource"
+					"description": "WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource",
+					"default": 1
 				},
 				"WeightKeccakHashes": {
 					"type": "integer",
-					"description": "WeightKeccakHashes is the cost weight for the KeccakHashes batch resource"
+					"description": "WeightKeccakHashes is the cost weight for the KeccakHashes batch resource",
+					"default": 1
 				},
 				"WeightPoseidonHashes": {
 					"type": "integer",
-					"description": "WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource"
+					"description": "WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource",
+					"default": 1
 				},
 				"WeightPoseidonPaddings": {
 					"type": "integer",
-					"description": "WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource"
+					"description": "WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource",
+					"default": 1
 				},
 				"WeightMemAligns": {
 					"type": "integer",
-					"description": "WeightMemAligns is the cost weight for the MemAligns batch resource"
+					"description": "WeightMemAligns is the cost weight for the MemAligns batch resource",
+					"default": 1
 				},
 				"WeightArithmetics": {
 					"type": "integer",
-					"description": "WeightArithmetics is the cost weight for the Arithmetics batch resource"
+					"description": "WeightArithmetics is the cost weight for the Arithmetics batch resource",
+					"default": 1
 				},
 				"WeightBinaries": {
 					"type": "integer",
-					"description": "WeightBinaries is the cost weight for the Binaries batch resource"
+					"description": "WeightBinaries is the cost weight for the Binaries batch resource",
+					"default": 1
 				},
 				"WeightSteps": {
 					"type": "integer",
-					"description": "WeightSteps is the cost weight for the Steps batch resource"
+					"description": "WeightSteps is the cost weight for the Steps batch resource",
+					"default": 1
 				},
 				"TxLifetimeCheckTimeout": {
 					"type": "string",
 					"title": "Duration",
 					"description": "TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime",
+					"default": {
+						"Duration": 600000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -462,39 +484,47 @@
 					"type": "string",
 					"title": "Duration",
 					"description": "MaxTxLifetime is the time a tx can be in the sequencer memory",
+					"default": {
+						"Duration": 10800000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
 					]
 				},
-				"MaxTxSizeForL1": {
-					"type": "integer",
-					"description": "MaxTxSizeForL1 is the maximum size a single transaction can have. This field has\nnon-trivial consequences: larger transactions than 128KB are significantly harder and\nmore expensive to propagate; larger transactions also take more resources\nto validate whether they fit into the pool or not."
-				},
 				"Finalizer": {
 					"properties": {
-						"GERDeadlineTimeoutInSec": {
+						"GERDeadlineTimeout": {
 							"type": "string",
 							"title": "Duration",
-							"description": "GERDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to update Global Exit Root",
+							"description": "GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root",
+							"default": {
+								"Duration": 5000000000
+							},
 							"examples": [
 								"1m",
 								"300ms"
 							]
 						},
-						"ForcedBatchDeadlineTimeoutInSec": {
+						"ForcedBatchDeadlineTimeout": {
 							"type": "string",
 							"title": "Duration",
-							"description": "ForcedBatchDeadlineTimeoutInSec is the time the finalizer waits after receiving closing signal to process Forced Batches",
+							"description": "ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches",
+							"default": {
+								"Duration": 60000000000
+							},
 							"examples": [
 								"1m",
 								"300ms"
 							]
 						},
-						"SleepDurationInMs": {
+						"SleepDuration": {
 							"type": "string",
 							"title": "Duration",
-							"description": "SleepDurationInMs is the time the finalizer sleeps between each iteration, if there are no transactions to be processed",
+							"description": "SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed",
+							"default": {
+								"Duration": 100000000
+							},
 							"examples": [
 								"1m",
 								"300ms"
@@ -502,16 +532,21 @@
 						},
 						"ResourcePercentageToCloseBatch": {
 							"type": "integer",
-							"description": "ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed"
+							"description": "ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed",
+							"default": 10
 						},
 						"GERFinalityNumberOfBlocks": {
 							"type": "integer",
-							"description": "GERFinalityNumberOfBlocks is number of blocks to consider GER final"
+							"description": "GERFinalityNumberOfBlocks is number of blocks to consider GER final",
+							"default": 64
 						},
 						"ClosingSignalsManagerWaitForCheckingL1Timeout": {
 							"type": "string",
 							"title": "Duration",
 							"description": "ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation",
+							"default": {
+								"Duration": 10000000000
+							},
 							"examples": [
 								"1m",
 								"300ms"
@@ -521,6 +556,9 @@
 							"type": "string",
 							"title": "Duration",
 							"description": "ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation",
+							"default": {
+								"Duration": 10000000000
+							},
 							"examples": [
 								"1m",
 								"300ms"
@@ -530,6 +568,9 @@
 							"type": "string",
 							"title": "Duration",
 							"description": "ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation",
+							"default": {
+								"Duration": 10000000000
+							},
 							"examples": [
 								"1m",
 								"300ms"
@@ -537,61 +578,24 @@
 						},
 						"ForcedBatchesFinalityNumberOfBlocks": {
 							"type": "integer",
-							"description": "ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final"
+							"description": "ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final",
+							"default": 64
 						},
 						"TimestampResolution": {
 							"type": "string",
 							"title": "Duration",
 							"description": "TimestampResolution is the resolution of the timestamp used to close a batch",
+							"default": {
+								"Duration": 10000000000
+							},
 							"examples": [
 								"1m",
 								"300ms"
 							]
-						},
-						"SenderAddress": {
-							"type": "string",
-							"description": "SenderAddress defines which private key the eth tx manager needs to use\nto sign the L1 txs"
-						},
-						"PrivateKeys": {
-							"items": {
-								"properties": {
-									"Path": {
-										"type": "string",
-										"description": "Path is the file path for the key store file"
-									},
-									"Password": {
-										"type": "string",
-										"description": "Password is the password to decrypt the key store file"
-									}
-								},
-								"additionalProperties": false,
-								"type": "object",
-								"required": [
-									"Path",
-									"Password"
-								],
-								"description": "KeystoreFileConfig has all the information needed to load a private key from a key store file"
-							},
-							"type": "array",
-							"description": "PrivateKeys defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs"
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"required": [
-						"GERDeadlineTimeoutInSec",
-						"ForcedBatchDeadlineTimeoutInSec",
-						"SleepDurationInMs",
-						"ResourcePercentageToCloseBatch",
-						"GERFinalityNumberOfBlocks",
-						"ClosingSignalsManagerWaitForCheckingL1Timeout",
-						"ClosingSignalsManagerWaitForCheckingGER",
-						"ClosingSignalsManagerWaitForCheckingForcedBatches",
-						"ForcedBatchesFinalityNumberOfBlocks",
-						"TimestampResolution",
-						"SenderAddress",
-						"PrivateKeys"
-					],
 					"description": "Finalizer's specific config properties"
 				},
 				"DBManager": {
@@ -599,6 +603,9 @@
 						"PoolRetrievalInterval": {
 							"type": "string",
 							"title": "Duration",
+							"default": {
+								"Duration": 500000000
+							},
 							"examples": [
 								"1m",
 								"300ms"
@@ -607,6 +614,9 @@
 						"L2ReorgRetrievalInterval": {
 							"type": "string",
 							"title": "Duration",
+							"default": {
+								"Duration": 5000000000
+							},
 							"examples": [
 								"1m",
 								"300ms"
@@ -615,126 +625,102 @@
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"required": [
-						"PoolRetrievalInterval",
-						"L2ReorgRetrievalInterval"
-					],
 					"description": "DBManager's specific config properties"
 				},
 				"Worker": {
 					"properties": {
 						"ResourceCostMultiplier": {
 							"type": "number",
-							"description": "ResourceCostMultiplier is the multiplier for the resource cost"
+							"description": "ResourceCostMultiplier is the multiplier for the resource cost",
+							"default": 1000
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"required": [
-						"ResourceCostMultiplier"
-					],
 					"description": "Worker's specific config properties"
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"WaitPeriodSendSequence",
-				"WaitPeriodPoolIsEmpty",
-				"LastBatchVirtualizationTimeMaxWaitPeriod",
-				"BlocksAmountForTxsToBeDeleted",
-				"FrequencyToCheckTxsForDelete",
-				"MaxTxsPerBatch",
-				"MaxBatchBytesSize",
-				"MaxCumulativeGasUsed",
-				"MaxKeccakHashes",
-				"MaxPoseidonHashes",
-				"MaxPoseidonPaddings",
-				"MaxMemAligns",
-				"MaxArithmetics",
-				"MaxBinaries",
-				"MaxSteps",
-				"WeightBatchBytesSize",
-				"WeightCumulativeGasUsed",
-				"WeightKeccakHashes",
-				"WeightPoseidonHashes",
-				"WeightPoseidonPaddings",
-				"WeightMemAligns",
-				"WeightArithmetics",
-				"WeightBinaries",
-				"WeightSteps",
-				"TxLifetimeCheckTimeout",
-				"MaxTxLifetime",
-				"MaxTxSizeForL1",
-				"Finalizer",
-				"DBManager",
-				"Worker"
-			]
+			"type": "object"
 		},
-		"PriceGetter": {
+		"SequenceSender": {
 			"properties": {
-				"Type": {
-					"type": "string",
-					"description": "Type is price getter type"
-				},
-				"PriceProvider": {
-					"properties": {
-						"URL": {
-							"type": "string",
-							"description": "URL is Ethereum network url, if type is uniswap"
-						},
-						"Type": {
-							"type": "string",
-							"description": "Type is price getter type"
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"required": [
-						"URL",
-						"Type"
-					],
-					"description": "PriceProvider config"
-				},
-				"UpdateFrequency": {
+				"WaitPeriodSendSequence": {
 					"type": "string",
 					"title": "Duration",
-					"description": "UpdateFrequency is price updating frequency, used only for the async type",
+					"description": "WaitPeriodSendSequence is the time the sequencer waits until\ntrying to send a sequence to L1",
+					"default": {
+						"Duration": 5000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
 					]
 				},
-				"DefaultPrice": {
-					"properties": {},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "DefaultPrice is used only for the default type"
+				"LastBatchVirtualizationTimeMaxWaitPeriod": {
+					"type": "string",
+					"title": "Duration",
+					"description": "LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent",
+					"default": {
+						"Duration": 5000000000
+					},
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"MaxTxSizeForL1": {
+					"type": "integer",
+					"description": "MaxTxSizeForL1 is the maximum size a single transaction can have. This field has\nnon-trivial consequences: larger transactions than 128KB are significantly harder and\nmore expensive to propagate; larger transactions also take more resources\nto validate whether they fit into the pool or not.",
+					"default": 131072
+				},
+				"SenderAddress": {
+					"type": "string",
+					"description": "SenderAddress defines which private key the eth tx manager needs to use\nto sign the L1 txs",
+					"default": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+				},
+				"PrivateKeys": {
+					"items": {
+						"properties": {
+							"Path": {
+								"type": "string",
+								"description": "Path is the file path for the key store file"
+							},
+							"Password": {
+								"type": "string",
+								"description": "Password is the password to decrypt the key store file"
+							}
+						},
+						"additionalProperties": false,
+						"type": "object",
+						"description": "KeystoreFileConfig has all the information needed to load a private key from a key store file"
+					},
+					"type": "array",
+					"description": "PrivateKeys defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs"
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"Type",
-				"PriceProvider",
-				"UpdateFrequency",
-				"DefaultPrice"
-			]
+			"type": "object"
 		},
 		"Aggregator": {
 			"properties": {
 				"Host": {
 					"type": "string",
-					"description": "Host for the grpc server"
+					"description": "Host for the grpc server",
+					"default": "0.0.0.0"
 				},
 				"Port": {
 					"type": "integer",
-					"description": "Port for the grpc server"
+					"description": "Port for the grpc server",
+					"default": 50081
 				},
 				"RetryTime": {
 					"type": "string",
 					"title": "Duration",
 					"description": "RetryTime is the time the aggregator main loop sleeps if there are no proofs to aggregate\nor batches to generate proofs. It is also used in the isSynced loop",
+					"default": {
+						"Duration": 5000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -744,6 +730,9 @@
 					"type": "string",
 					"title": "Duration",
 					"description": "VerifyProofInterval is the interval of time to verify/send an proof in L1",
+					"default": {
+						"Duration": 90000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -753,6 +742,9 @@
 					"type": "string",
 					"title": "Duration",
 					"description": "ProofStatePollingInterval is the interval time to polling the prover about the generation state of a proof",
+					"default": {
+						"Duration": 5000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -760,7 +752,8 @@
 				},
 				"TxProfitabilityCheckerType": {
 					"type": "string",
-					"description": "TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch\npossible values: base/acceptall"
+					"description": "TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch\npossible values: base/acceptall",
+					"default": "acceptall"
 				},
 				"TxProfitabilityMinReward": {
 					"properties": {},
@@ -772,6 +765,9 @@
 					"type": "string",
 					"title": "Duration",
 					"description": "IntervalAfterWhichBatchConsolidateAnyway this is interval for the main sequencer, that will check if there is no transactions",
+					"default": {
+						"Duration": 0
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -779,20 +775,26 @@
 				},
 				"ChainID": {
 					"type": "integer",
-					"description": "ChainID is the L2 ChainID provided by the Network Config"
+					"description": "ChainID is the L2 ChainID provided by the Network Config",
+					"default": 0
 				},
 				"ForkId": {
 					"type": "integer",
-					"description": "ForkID is the L2 ForkID provided by the Network Config"
+					"description": "ForkID is the L2 ForkID provided by the Network Config",
+					"default": 2
 				},
 				"SenderAddress": {
 					"type": "string",
-					"description": "SenderAddress defines which private key the eth tx manager needs to use\nto sign the L1 txs"
+					"description": "SenderAddress defines which private key the eth tx manager needs to use\nto sign the L1 txs",
+					"default": ""
 				},
 				"CleanupLockedProofsInterval": {
 					"type": "string",
 					"title": "Duration",
 					"description": "CleanupLockedProofsInterval is the interval of time to clean up locked proofs.",
+					"default": {
+						"Duration": 120000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
@@ -800,26 +802,12 @@
 				},
 				"GeneratingProofCleanupThreshold": {
 					"type": "string",
-					"description": "GeneratingProofCleanupThreshold represents the time interval after\nwhich a proof in generating state is considered to be stuck and\nallowed to be cleared."
+					"description": "GeneratingProofCleanupThreshold represents the time interval after\nwhich a proof in generating state is considered to be stuck and\nallowed to be cleared.",
+					"default": "10m"
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"Host",
-				"Port",
-				"RetryTime",
-				"VerifyProofInterval",
-				"ProofStatePollingInterval",
-				"TxProfitabilityCheckerType",
-				"TxProfitabilityMinReward",
-				"IntervalAfterWhichBatchConsolidateAnyway",
-				"ChainID",
-				"ForkId",
-				"SenderAddress",
-				"CleanupLockedProofsInterval",
-				"GeneratingProofCleanupThreshold"
-			]
+			"type": "object"
 		},
 		"NetworkConfig": {
 			"properties": {
@@ -854,13 +842,7 @@
 						}
 					},
 					"additionalProperties": false,
-					"type": "object",
-					"required": [
-						"chainId",
-						"polygonZkEVMAddress",
-						"maticTokenAddress",
-						"polygonZkEVMGlobalExitRootAddress"
-					]
+					"type": "object"
 				},
 				"L2GlobalExitRootManagerAddr": {
 					"items": {
@@ -882,7 +864,8 @@
 					"properties": {
 						"GenesisBlockNum": {
 							"type": "integer",
-							"description": "GenesisBlockNum is the block number where the polygonZKEVM smc was deployed"
+							"description": "GenesisBlockNum is the block number where the polygonZKEVM smc was deployed",
+							"default": 0
 						},
 						"Root": {
 							"items": {
@@ -919,49 +902,31 @@
 								},
 								"additionalProperties": false,
 								"type": "object",
-								"required": [
-									"address",
-									"type",
-									"storagePosition",
-									"bytecode",
-									"key",
-									"value",
-									"root"
-								],
 								"description": "GenesisAction represents one of the values set on the SMT during genesis."
 							},
 							"type": "array"
 						}
 					},
 					"additionalProperties": false,
-					"type": "object",
-					"required": [
-						"GenesisBlockNum",
-						"Root",
-						"GenesisActions"
-					]
+					"type": "object"
 				},
 				"MaxCumulativeGasUsed": {
-					"type": "integer"
+					"type": "integer",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"l1Config",
-				"L2GlobalExitRootManagerAddr",
-				"L2BridgeAddr",
-				"Genesis",
-				"MaxCumulativeGasUsed"
-			]
+			"type": "object"
 		},
 		"L2GasPriceSuggester": {
 			"properties": {
 				"Type": {
-					"type": "string"
+					"type": "string",
+					"default": "follower"
 				},
 				"DefaultGasPriceWei": {
-					"type": "integer"
+					"type": "integer",
+					"default": 2000000000
 				},
 				"MaxPrice": {
 					"properties": {},
@@ -974,135 +939,162 @@
 					"type": "object"
 				},
 				"CheckBlocks": {
-					"type": "integer"
+					"type": "integer",
+					"default": 0
 				},
 				"Percentile": {
-					"type": "integer"
+					"type": "integer",
+					"default": 0
 				},
 				"UpdatePeriod": {
 					"type": "string",
 					"title": "Duration",
+					"default": {
+						"Duration": 10000000000
+					},
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"CleanHistoryPeriod": {
+					"type": "string",
+					"title": "Duration",
+					"default": {
+						"Duration": 3600000000000
+					},
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"CleanHistoryTimeRetention": {
+					"type": "string",
+					"title": "Duration",
+					"default": {
+						"Duration": 300000000000
+					},
 					"examples": [
 						"1m",
 						"300ms"
 					]
 				},
 				"Factor": {
-					"type": "number"
+					"type": "number",
+					"default": 0.15
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"Type",
-				"DefaultGasPriceWei",
-				"MaxPrice",
-				"IgnorePrice",
-				"CheckBlocks",
-				"Percentile",
-				"UpdatePeriod",
-				"Factor"
-			]
+			"type": "object"
 		},
 		"Executor": {
 			"properties": {
 				"URI": {
-					"type": "string"
+					"type": "string",
+					"default": "zkevm-prover:50071"
+				},
+				"MaxResourceExhaustedAttempts": {
+					"type": "integer",
+					"description": "MaxResourceExhaustedAttempts is the max number of attempts to make a transaction succeed because of resource exhaustion",
+					"default": 3
+				},
+				"WaitOnResourceExhaustion": {
+					"type": "string",
+					"title": "Duration",
+					"description": "WaitOnResourceExhaustion is the time to wait before retrying a transaction because of resource exhaustion",
+					"default": {
+						"Duration": 1000000000
+					},
+					"examples": [
+						"1m",
+						"300ms"
+					]
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"URI"
-			]
+			"type": "object"
 		},
 		"MTClient": {
 			"properties": {
 				"URI": {
 					"type": "string",
-					"description": "URI is the server URI."
+					"description": "URI is the server URI.",
+					"default": "zkevm-prover:50061"
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"URI"
-			]
+			"type": "object"
 		},
 		"StateDB": {
 			"properties": {
 				"Name": {
 					"type": "string",
-					"description": "Database name"
+					"description": "Database name",
+					"default": "state_db"
 				},
 				"User": {
 					"type": "string",
-					"description": "User name"
+					"description": "User name",
+					"default": "state_user"
 				},
 				"Password": {
 					"type": "string",
-					"description": "Password of the user"
+					"description": "Password of the user",
+					"default": "state_password"
 				},
 				"Host": {
 					"type": "string",
-					"description": "Host address"
+					"description": "Host address",
+					"default": "zkevm-state-db"
 				},
 				"Port": {
 					"type": "string",
-					"description": "Port Number"
+					"description": "Port Number",
+					"default": "5432"
 				},
 				"EnableLog": {
 					"type": "boolean",
-					"description": "EnableLog"
+					"description": "EnableLog",
+					"default": false
 				},
 				"MaxConns": {
 					"type": "integer",
-					"description": "MaxConns is the maximum number of connections in the pool."
+					"description": "MaxConns is the maximum number of connections in the pool.",
+					"default": 200
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"Name",
-				"User",
-				"Password",
-				"Host",
-				"Port",
-				"EnableLog",
-				"MaxConns"
-			]
+			"type": "object"
 		},
 		"Metrics": {
 			"properties": {
 				"Host": {
-					"type": "string"
+					"type": "string",
+					"default": "0.0.0.0"
 				},
 				"Port": {
-					"type": "integer"
+					"type": "integer",
+					"default": 9091
 				},
 				"Enabled": {
-					"type": "boolean"
+					"type": "boolean",
+					"default": false
 				},
 				"ProfilingHost": {
-					"type": "string"
+					"type": "string",
+					"default": ""
 				},
 				"ProfilingPort": {
-					"type": "integer"
+					"type": "integer",
+					"default": 0
 				},
 				"ProfilingEnabled": {
-					"type": "boolean"
+					"type": "boolean",
+					"default": false
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"Host",
-				"Port",
-				"Enabled",
-				"ProfilingHost",
-				"ProfilingPort",
-				"ProfilingEnabled"
-			]
+			"type": "object"
 		},
 		"EventLog": {
 			"properties": {
@@ -1110,74 +1102,50 @@
 					"properties": {
 						"Name": {
 							"type": "string",
-							"description": "Database name"
+							"description": "Database name",
+							"default": ""
 						},
 						"User": {
 							"type": "string",
-							"description": "User name"
+							"description": "User name",
+							"default": ""
 						},
 						"Password": {
 							"type": "string",
-							"description": "Password of the user"
+							"description": "Password of the user",
+							"default": ""
 						},
 						"Host": {
 							"type": "string",
-							"description": "Host address"
+							"description": "Host address",
+							"default": ""
 						},
 						"Port": {
 							"type": "string",
-							"description": "Port Number"
+							"description": "Port Number",
+							"default": ""
 						},
 						"EnableLog": {
 							"type": "boolean",
-							"description": "EnableLog"
+							"description": "EnableLog",
+							"default": false
 						},
 						"MaxConns": {
 							"type": "integer",
-							"description": "MaxConns is the maximum number of connections in the pool."
+							"description": "MaxConns is the maximum number of connections in the pool.",
+							"default": 0
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"required": [
-						"Name",
-						"User",
-						"Password",
-						"Host",
-						"Port",
-						"EnableLog",
-						"MaxConns"
-					],
 					"description": "DB is the database configuration"
 				}
 			},
 			"additionalProperties": false,
-			"type": "object",
-			"required": [
-				"DB"
-			]
+			"type": "object"
 		}
 	},
 	"additionalProperties": false,
 	"type": "object",
-	"required": [
-		"IsTrustedSequencer",
-		"Log",
-		"Etherman",
-		"EthTxManager",
-		"Pool",
-		"RPC",
-		"Synchronizer",
-		"Sequencer",
-		"PriceGetter",
-		"Aggregator",
-		"NetworkConfig",
-		"L2GasPriceSuggester",
-		"Executor",
-		"MTClient",
-		"StateDB",
-		"Metrics",
-		"EventLog"
-	],
 	"description": "Config represents the configuration of the entire Hermez Node"
 }

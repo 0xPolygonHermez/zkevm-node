@@ -56,7 +56,8 @@ const (
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	IsTrustedSequencer  bool `mapstructure:"IsTrustedSequencer"`
+	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer" jsonschema:"default=true"`
+	// Configure Log level for all the services, allow also to store the logs in a file
 	Log                 log.Config
 	Etherman            etherman.Config
 	EthTxManager        ethtxmanager.Config
