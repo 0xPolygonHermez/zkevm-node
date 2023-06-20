@@ -12,8 +12,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
@@ -49,6 +50,7 @@ func NewSynchronizer(
 	genesis state.Genesis,
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	metrics.Register()
 
 	return &ClientSynchronizer{
 		isTrustedSequencer: isTrustedSequencer,
@@ -69,6 +71,7 @@ var waitDuration = time.Duration(0)
 // Sync function will read the last state synced and will continue from that point.
 // Sync() will read blockchain events to detect rollup updates
 func (s *ClientSynchronizer) Sync() error {
+	startInitialization := time.Now()
 	// If there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
 	// Get the latest synced block. If there is no block on db, use genesis block
 	log.Info("Sync started")
@@ -177,12 +180,14 @@ func (s *ClientSynchronizer) Sync() error {
 		}
 		return err
 	}
+	metrics.InitializationTime(time.Since(startInitialization))
 
 	for {
 		select {
 		case <-s.ctx.Done():
 			return nil
 		case <-time.After(waitDuration):
+			start := time.Now()
 			latestSequencedBatchNumber, err := s.etherMan.GetLatestBatchNumber()
 			if err != nil {
 				log.Warn("error getting latest sequenced batch in the rollup. Error: ", err)
@@ -208,7 +213,9 @@ func (s *ClientSynchronizer) Sync() error {
 			// Sync trusted state
 			if latestSyncedBatch >= latestSequencedBatchNumber {
 				log.Info("L1 state fully synchronized")
+				startTrusted := time.Now()
 				err = s.syncTrustedState(latestSyncedBatch)
+				metrics.FullTrustedSyncTime(time.Since(startTrusted))
 				if err != nil {
 					log.Warn("error syncing trusted state. Error: ", err)
 					continue
@@ -216,7 +223,10 @@ func (s *ClientSynchronizer) Sync() error {
 				waitDuration = s.cfg.SyncInterval.Duration
 			}
 			//Sync L1Blocks
-			if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
+			startL1 := time.Now()
+			lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced);
+			metrics.FullL1SyncTime(time.Since(startL1))
+			if err != nil {
 				log.Warn("error syncing blocks: ", err)
 				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
 				if err != nil {
@@ -226,6 +236,7 @@ func (s *ClientSynchronizer) Sync() error {
 					continue
 				}
 			}
+			metrics.FullSyncIterationTime(time.Since(start))
 		}
 	}
 }
@@ -268,11 +279,15 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		// Name can be defferent in the order struct. For instance: Batches or Name:NewSequencers. This name is an identifier to check
 		// if the next info that must be stored in the db is a new sequencer or a batch. The value pos (position) tells what is the
 		// array index where this value is.
+		start := time.Now()
 		blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, fromBlock, &toBlock)
+		metrics.ReadL1DataTime(time.Since(start))
 		if err != nil {
 			return lastEthBlockSynced, err
 		}
+		start = time.Now()
 		err = s.processBlockRange(blocks, order)
+		metrics.ProcessL1DataTime(time.Since(start))
 		if err != nil {
 			return lastEthBlockSynced, err
 		}
@@ -332,7 +347,9 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 	}
 
 	log.Info("Getting trusted state info")
+	start := time.Now()
 	lastTrustedStateBatchNumber, err := s.zkEVMClient.BatchNumber(s.ctx)
+	metrics.GetTrustedBatchNumberTime(time.Since(start))
 	if err != nil {
 		log.Warn("error syncing trusted state. Error: ", err)
 		return err
@@ -346,7 +363,9 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 
 	batchNumberToSync := latestSyncedBatch
 	for batchNumberToSync <= lastTrustedStateBatchNumber {
+		start = time.Now()
 		batchToSync, err := s.zkEVMClient.BatchByNumber(s.ctx, big.NewInt(0).SetUint64(batchNumberToSync))
+		metrics.GetTrustedBatchInfoTime(time.Since(start))
 		if err != nil {
 			log.Warnf("failed to get batch %v from trusted state. Error: %v", batchNumberToSync, err)
 			return err
@@ -357,8 +376,10 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 			log.Errorf("error creating db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
 			return err
 		}
-
-		if err := s.processTrustedBatch(batchToSync, dbTx); err != nil {
+		start = time.Now()
+		err = s.processTrustedBatch(batchToSync, dbTx)
+		metrics.ProcessTrustedBatchTime(time.Since(start))
+		if err != nil {
 			log.Errorf("error processing trusted batch %v: %v", batchNumberToSync, err)
 			err := dbTx.Rollback(s.ctx)
 			if err != nil {
@@ -778,7 +799,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			if errors.Is(err, state.ErrNotFound) || errors.Is(err, state.ErrStateNotSynchronized) {
 				log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
 				// If it is not found, store batch
-				newStateRoot, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, metrics.SynchronizerCallerLabel)
+				newStateRoot, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
 				if err != nil {
 					log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 					rollbackErr := dbTx.Rollback(s.ctx)
@@ -858,7 +879,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				return err
 			}
-			_, err = s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, metrics.SynchronizerCallerLabel)
+			_, err = s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
 			if err != nil {
 				log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				rollbackErr := dbTx.Rollback(s.ctx)
@@ -982,7 +1003,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			ForcedBatchNum: &forcedBatches[i].ForcedBatchNumber,
 		}
 		// Process batch
-		_, err := s.state.ProcessAndStoreClosedBatch(s.ctx, batch, forcedBatches[i].RawTxsData, dbTx, metrics.SynchronizerCallerLabel)
+		_, err := s.state.ProcessAndStoreClosedBatch(s.ctx, batch, forcedBatches[i].RawTxsData, dbTx, stateMetrics.SynchronizerCallerLabel)
 		if err != nil {
 			log.Errorf("error processing batch in processSequenceForceBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, block.BlockNumber, err)
 			rollbackErr := dbTx.Rollback(s.ctx)
@@ -1167,6 +1188,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 
 	log.Debugf("resetting trusted state from batch %v", trustedBatch.Number)
 	previousBatchNumber := trustedBatch.Number - 1
+	metrics.TrustedBatchCleanCounter()
 	if err := s.state.ResetTrustedState(s.ctx, uint64(previousBatchNumber), dbTx); err != nil {
 		log.Errorf("failed to reset trusted state", trustedBatch.Number)
 		return err
@@ -1186,7 +1208,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 
 	log.Debugf("processing sequencer for batch %v", trustedBatch.Number)
 
-	processBatchResp, err := s.state.ProcessSequencerBatch(s.ctx, uint64(trustedBatch.Number), trustedBatchL2Data, metrics.SynchronizerCallerLabel, dbTx)
+	processBatchResp, err := s.state.ProcessSequencerBatch(s.ctx, uint64(trustedBatch.Number), trustedBatchL2Data, stateMetrics.SynchronizerCallerLabel, dbTx)
 	if err != nil {
 		log.Errorf("error processing sequencer batch for batch: %d", trustedBatch.Number)
 		return err
