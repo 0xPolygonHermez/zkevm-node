@@ -8,7 +8,6 @@ package pb
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -19,6 +18,11 @@ import (
 // is compatible with the grpc package it is being compiled against.
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
+
+const (
+	ExecutorService_ProcessBatch_FullMethodName   = "/executor.v1.ExecutorService/ProcessBatch"
+	ExecutorService_GetFlushStatus_FullMethodName = "/executor.v1.ExecutorService/GetFlushStatus"
+)
 
 // ExecutorServiceClient is the client API for ExecutorService service.
 //
@@ -39,7 +43,7 @@ func NewExecutorServiceClient(cc grpc.ClientConnInterface) ExecutorServiceClient
 
 func (c *executorServiceClient) ProcessBatch(ctx context.Context, in *ProcessBatchRequest, opts ...grpc.CallOption) (*ProcessBatchResponse, error) {
 	out := new(ProcessBatchResponse)
-	err := c.cc.Invoke(ctx, "/executor.v1.ExecutorService/ProcessBatch", in, out, opts...)
+	err := c.cc.Invoke(ctx, ExecutorService_ProcessBatch_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +52,7 @@ func (c *executorServiceClient) ProcessBatch(ctx context.Context, in *ProcessBat
 
 func (c *executorServiceClient) GetFlushStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetFlushStatusResponse, error) {
 	out := new(GetFlushStatusResponse)
-	err := c.cc.Invoke(ctx, "/executor.v1.ExecutorService/GetFlushStatus", in, out, opts...)
+	err := c.cc.Invoke(ctx, ExecutorService_GetFlushStatus_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +102,7 @@ func _ExecutorService_ProcessBatch_Handler(srv interface{}, ctx context.Context,
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/executor.v1.ExecutorService/ProcessBatch",
+		FullMethod: ExecutorService_ProcessBatch_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ExecutorServiceServer).ProcessBatch(ctx, req.(*ProcessBatchRequest))
@@ -116,7 +120,7 @@ func _ExecutorService_GetFlushStatus_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/executor.v1.ExecutorService/GetFlushStatus",
+		FullMethod: ExecutorService_GetFlushStatus_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ExecutorServiceServer).GetFlushStatus(ctx, req.(*emptypb.Empty))
