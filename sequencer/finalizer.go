@@ -514,7 +514,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 		guaranteedPeriodDeadline := tx.ReceivedAt.Add(f.effectiveGasPriceCfg.BreakEvenGasPriceGuaranteedPeriod.Duration)
 		hasGuaranteedPeriodPassed := guaranteedPeriodDeadline.After(now())
 		breakEvenGasPrice := tx.BreakEvenGasPrice
-		if hasGuaranteedPeriodPassed {
+		if hasGuaranteedPeriodPassed || breakEvenGasPrice == nil || breakEvenGasPrice.Uint64() == 0 {
 			// Calculate the new breakEvenPrice
 			var newBreakEvenGasPrice *big.Int
 			newBreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, tx.BatchResources.ZKCounters.CumulativeGasUsed)
