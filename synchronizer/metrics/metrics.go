@@ -45,8 +45,8 @@ const (
 // Register the metrics for the synchronizer package.
 func Register() {
 	var (
-		counters    []prometheus.CounterOpts
-		histograms  []prometheus.HistogramOpts
+		counters   []prometheus.CounterOpts
+		histograms []prometheus.HistogramOpts
 	)
 
 	counters = []prometheus.CounterOpts{
