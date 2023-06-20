@@ -191,10 +191,10 @@ To configure your Metamask to use your local environment, follow these steps:
 
 | Address | Description |
 |---|---|
-| 0x610178dA211FEF7D417bC0e6FeD39F05609AD788 | Proof of Efficiency |
+| 0x8A791620dd6260079BF849Dc5567aDC3F2FdC318 | Proof of Efficiency |
 | 0xff0EE8ea08cEf5cb4322777F5CC3E8A584B8A4A0 | Bridge |
 | 0x5FbDB2315678afecb367f032d93F642f64180aa3 | Matic token |
-| 0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6 | GlobalExitRootManager |
+| 0xa513E6E4b8f2a923D98304ec87F64353C4D5C853 | GlobalExitRootManager |
 
 ## Deployer Account
 
