@@ -28,7 +28,6 @@ import (
 	"github.com/dop251/goja"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -246,7 +245,7 @@ func (t *jsTracer) CaptureStart(env *fakevm.FakeEVM, from common.Address, to com
 	t.ctx["block"] = t.vm.ToValue(env.Context.BlockNumber.Uint64())
 	// Update list of precompiles based on current block
 	rules := env.ChainConfig().Rules(env.Context.BlockNumber, env.Context.Random != nil, env.Context.Time)
-	t.activePrecompiles = vm.ActivePrecompiles(rules)
+	t.activePrecompiles = fakevm.ActivePrecompiles(rules)
 }
 
 // CaptureState implements the Tracer interface to trace a single step of VM execution.
