@@ -115,7 +115,7 @@ PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-ForkId = 2
+ForkId = 5
 RetryTime = "5s"
 VerifyProofInterval = "10s"
 TxProfitabilityCheckerType = "acceptall"
