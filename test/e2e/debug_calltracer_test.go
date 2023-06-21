@@ -94,6 +94,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		{name: "delegate transfers", prepare: prepareChainCalls, createSignedTx: createDelegateTransfersSignedTx},
 		{name: "memory", prepare: prepareMemory, createSignedTx: createMemorySignedTx},
 		{name: "bridge", prepare: prepareBridge, createSignedTx: createBridgeSignedTx},
+		{name: "deploy create 0", createSignedTx: createDeployCreate0SignedTx},
 
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
