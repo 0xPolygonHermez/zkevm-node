@@ -785,3 +785,24 @@ func createDepthSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactO
 
 	return tx, nil
 }
+
+func createDeployCreate0SignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	nonce, err := client.PendingNonceAt(ctx, auth.From)
+	require.NoError(t, err)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	scByteCode, err := testutils.ReadBytecode("DeployCreate0/DeployCreate0.bin")
+	require.NoError(t, err)
+	data := common.Hex2Bytes(scByteCode)
+
+	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: gasPrice,
+		Gas:      fixedTxGasLimit,
+		Data:     data,
+	})
+
+	return auth.Signer(auth.From, tx)
+}
