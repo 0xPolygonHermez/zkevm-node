@@ -814,7 +814,8 @@
 				"l1Config": {
 					"properties": {
 						"chainId": {
-							"type": "integer"
+							"type": "integer",
+							"default": 0
 						},
 						"polygonZkEVMAddress": {
 							"items": {

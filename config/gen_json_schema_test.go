@@ -1,13 +1,192 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 
 	"github.com/invopop/jsonschema"
+	"github.com/mitchellh/mapstructure"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
+
+type MySectionConfig struct {
+}
+
+type MyTestConfig struct {
+	F1 string
+	F2 int
+}
+
+type MyTestConfigWithJsonRenaming struct {
+	F1 string `json:"f1_another_name"`
+	F2 int    `json:"f2_another_name"`
+}
+
+type MyTestConfigWithMapstructureRenaming struct {
+	F1 string `mapstructure:"f1_another_name"`
+	F2 int    `mapstructure:"f2_another_name"`
+}
+
+type MyTestConfigWithMapstructureRenamingInSubStruct struct {
+	F1 string
+	F2 int
+	F3 MyTestConfigWithMapstructureRenaming
+}
+
+func checkDefaultValue(t *testing.T, schema *jsonschema.Schema, key []string, expectedValue interface{}) {
+	v, err := getValueFromSchema(schema, key)
+	require.NoError(t, err)
+	require.EqualValues(t, expectedValue, v.Default)
+}
+
+const MyTestConfigTomlFile = `
+f1_another_name="value_f1"
+f2_another_name=5678
+`
+
+// This test is just to check what is the behaviour of reading a file
+// when using tags `mapstructure` and `json`
+func TestExploratoryForCheckReadFromFile(t *testing.T) {
+	t.Skip("Is not a real test, just an exploratory one")
+	viper.SetConfigType("toml")
+	err := viper.ReadConfig(bytes.NewBuffer([]byte(MyTestConfigTomlFile)))
+	require.NoError(t, err)
+
+	var cfgJson MyTestConfigWithJsonRenaming
+	err = viper.Unmarshal(&cfgJson, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	require.NoError(t, err)
+
+	var cfgMapStructure MyTestConfigWithMapstructureRenaming
+	err = viper.Unmarshal(&cfgMapStructure, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	require.NoError(t, err)
+
+	require.EqualValues(t, cfgMapStructure.F1, cfgJson.F1)
+	require.EqualValues(t, cfgMapStructure.F2, cfgJson.F2)
+}
+
+func TestGenerateJsonSchemaCustomWithNameChangingUsingMapsInSubFieldtrucutMustPanic(t *testing.T) {
+	cli := cli.NewContext(nil, nil, nil)
+	generator := ConfigJsonSchemaGenerater[MyTestConfigWithMapstructureRenamingInSubStruct]{
+		repoName:                "mytest",
+		cleanRequiredField:      true,
+		addCodeCommentsToSchema: true,
+		pathSourceCode:          "./",
+		defaultValues: &MyTestConfigWithMapstructureRenamingInSubStruct{
+			F1: "defaultf1",
+			F2: 1234,
+		},
+	}
+	//https://gophersnippets.com/how-to-test-a-function-that-panics
+	t.Run("panics", func(t *testing.T) {
+		// If the function panics, recover() will
+		// return a non nil value.
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("function should panic")
+			}
+		}()
+
+		generator.GenerateJsonSchema(cli)
+	})
+}
+
+func TestGenerateJsonSchemaCustomWithNameChangingUsingMapstrucutMustPanic(t *testing.T) {
+	cli := cli.NewContext(nil, nil, nil)
+	generator := ConfigJsonSchemaGenerater[MyTestConfigWithMapstructureRenaming]{
+		repoName:                "mytest",
+		cleanRequiredField:      true,
+		addCodeCommentsToSchema: true,
+		pathSourceCode:          "./",
+		defaultValues: &MyTestConfigWithMapstructureRenaming{
+			F1: "defaultf1",
+			F2: 1234,
+		},
+	}
+	//https://gophersnippets.com/how-to-test-a-function-that-panics
+	t.Run("panics", func(t *testing.T) {
+		// If the function panics, recover() will
+		// return a non nil value.
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("function should panic")
+			}
+		}()
+
+		generator.GenerateJsonSchema(cli)
+	})
+
+}
+
+// This case is a field that is mapped with another name in the json file
+func TestGenerateJsonSchemaCustomWithNameChangingSetDefault(t *testing.T) {
+	cli := cli.NewContext(nil, nil, nil)
+	generator := ConfigJsonSchemaGenerater[MyTestConfigWithJsonRenaming]{
+		repoName:                "mytest",
+		cleanRequiredField:      true,
+		addCodeCommentsToSchema: true,
+		pathSourceCode:          "./",
+		defaultValues: &MyTestConfigWithJsonRenaming{
+			F1: "defaultf1",
+			F2: 1234,
+		},
+	}
+
+	schema, err := generator.GenerateJsonSchema(cli)
+	require.NoError(t, err)
+	require.NotNil(t, schema)
+
+	checkDefaultValue(t, schema, []string{"f1_another_name"}, "defaultf1")
+	checkDefaultValue(t, schema, []string{"f2_another_name"}, 1234)
+}
+
+func TestGenerateJsonSchemaCustomSetDefault(t *testing.T) {
+	cli := cli.NewContext(nil, nil, nil)
+	generator := ConfigJsonSchemaGenerater[MyTestConfig]{
+		repoName:                "mytest",
+		cleanRequiredField:      true,
+		addCodeCommentsToSchema: true,
+		pathSourceCode:          "./",
+		defaultValues: &MyTestConfig{
+			F1: "defaultf1",
+			F2: 1234,
+		},
+	}
+
+	schema, err := generator.GenerateJsonSchema(cli)
+	require.NoError(t, err)
+	require.NotNil(t, schema)
+	checkDefaultValue(t, schema, []string{"F1"}, "defaultf1")
+
+}
+
+func TestGenerateJsonSchemaInjectDefaultValue1stLevel(t *testing.T) {
+	cli := cli.NewContext(nil, nil, nil)
+	generator := NewConfigJsonSchemaGenerater()
+	generator.pathSourceCode = "../../"
+	generator.defaultValues.IsTrustedSequencer = false
+	schema, err := generator.GenerateJsonSchema(cli)
+	require.NoError(t, err)
+	require.NotNil(t, schema)
+	v, err := getValueFromSchema(schema, []string{"IsTrustedSequencer"})
+	require.NoError(t, err)
+	require.EqualValues(t, false, v.Default)
+}
+
+func TestGenerateJsonSchemaInjectDefaultValue2stLevel(t *testing.T) {
+	cli := cli.NewContext(nil, nil, nil)
+	generator := NewConfigJsonSchemaGenerater()
+	generator.pathSourceCode = "../../"
+	generator.defaultValues.Log.Level = "mylevel"
+	schema, err := generator.GenerateJsonSchema(cli)
+	require.NoError(t, err)
+	require.NotNil(t, schema)
+	v, err := getValueFromSchema(schema, []string{"Log", "Level"})
+	require.NoError(t, err)
+	require.EqualValues(t, "mylevel", v.Default)
+}
 
 func getValueFromSchema(schema *jsonschema.Schema, keys []string) (*jsonschema.Schema, error) {
 	if schema == nil {
@@ -29,32 +208,4 @@ func getValueFromSchema(schema *jsonschema.Schema, keys []string) (*jsonschema.S
 		subschema = new_schema
 	}
 	return subschema, nil
-}
-
-func TestGenerateJsonSchemaInjectDefaultValue1stLevel(t *testing.T) {
-	cli := cli.NewContext(nil, nil, nil)
-	generator := NewConfigJsonSchemaGenerater()
-	generator.pathSourceCode = "../../"
-	generator.defaultValues.IsTrustedSequencer = false
-	schema, err := generator.GenerateJsonSchema(cli)
-	require.NoError(t, err)
-	require.NotNil(t, schema)
-	v, err := getValueFromSchema(schema, []string{"IsTrustedSequencer"})
-	require.NoError(t, err)
-	require.EqualValues(t, false, v.Default)
-
-}
-
-func TestGenerateJsonSchemaInjectDefaultValue2stLevel(t *testing.T) {
-	cli := cli.NewContext(nil, nil, nil)
-	generator := NewConfigJsonSchemaGenerater()
-	generator.pathSourceCode = "../../"
-	generator.defaultValues.Log.Level = "mylevel"
-	schema, err := generator.GenerateJsonSchema(cli)
-	require.NoError(t, err)
-	require.NotNil(t, schema)
-	v, err := getValueFromSchema(schema, []string{"Log", "Level"})
-	require.NoError(t, err)
-	require.EqualValues(t, "mylevel", v.Default)
-
 }

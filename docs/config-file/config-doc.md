@@ -1949,6 +1949,7 @@ allowed to be cleared.
 | ------------ | --------- |
 | **Type**     | `integer` |
 | **Required** | No        |
+| **Default**  | `0`       |
 
 #### <a name="NetworkConfig_l1Config_polygonZkEVMAddress"></a>11.1.2. Property `root > NetworkConfig > l1Config > polygonZkEVMAddress`
 
