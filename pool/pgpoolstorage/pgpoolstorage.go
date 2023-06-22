@@ -352,11 +352,23 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 }
 
 // CountTransactionsByStatus get number of transactions
-// accordingly to the provided status
-func (p *PostgresPoolStorage) CountTransactionsByStatus(ctx context.Context, status pool.TxStatus) (uint64, error) {
-	sql := "SELECT COUNT(*) FROM pool.transaction WHERE status = $1"
+// accordingly to the provided statuses
+func (p *PostgresPoolStorage) CountTransactionsByStatus(ctx context.Context, status ...pool.TxStatus) (uint64, error) {
+	sql := "SELECT COUNT(*) FROM pool.transaction WHERE status = ANY ($1)"
 	var counter uint64
-	err := p.db.QueryRow(ctx, sql, status.String()).Scan(&counter)
+	err := p.db.QueryRow(ctx, sql, status).Scan(&counter)
+	if err != nil {
+		return 0, err
+	}
+	return counter, nil
+}
+
+// CountTransactionsByFromAndStatus get number of transactions
+// accordingly to the from address and provided statuses
+func (p *PostgresPoolStorage) CountTransactionsByFromAndStatus(ctx context.Context, from common.Address, status ...pool.TxStatus) (uint64, error) {
+	sql := "SELECT COUNT(*) FROM pool.transaction WHERE from_address = $1 AND status = ANY ($2)"
+	var counter uint64
+	err := p.db.QueryRow(ctx, sql, from.String(), status).Scan(&counter)
 	if err != nil {
 		return 0, err
 	}

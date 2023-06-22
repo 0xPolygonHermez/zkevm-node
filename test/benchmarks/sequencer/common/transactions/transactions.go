@@ -20,7 +20,7 @@ func SendAndWait(
 	ctx context.Context,
 	auth *bind.TransactOpts,
 	client *ethclient.Client,
-	countByStatusFunc func(ctx context.Context, status pool.TxStatus) (uint64, error),
+	countByStatusFunc func(ctx context.Context, status ...pool.TxStatus) (uint64, error),
 	nTxs int,
 	erc20SC *ERC20.ERC20,
 	txSenderFunc func(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts, erc20SC *ERC20.ERC20) error,
@@ -70,7 +70,7 @@ func SendAndWait(
 }
 
 // WaitStatusSelected waits for a number of transactions to be marked as selected in the pool
-func WaitStatusSelected(countByStatusFunc func(ctx context.Context, status pool.TxStatus) (uint64, error), initialCount uint64, nTxs uint64) error {
+func WaitStatusSelected(countByStatusFunc func(ctx context.Context, status ...pool.TxStatus) (uint64, error), initialCount uint64, nTxs uint64) error {
 	log.Debug("Wait for sequencer to select all txs from the pool")
 	pollingInterval := 1 * time.Second
 
