@@ -762,7 +762,6 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			log.Debug("Setting forced batch num: ", forcedBatches[0].ForcedBatchNumber)
 			batch.ForcedBatchNum = &forcedBatches[0].ForcedBatchNumber
 		}
-		log.Debug("Forced batch Num: ", batch.ForcedBatchNum)
 
 		// Now we need to check the batch. ForcedBatches should be already stored in the batch table because this is done by the sequencer
 		processCtx := state.ProcessingContext{
@@ -781,7 +780,6 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			if errors.Is(err, state.ErrNotFound) || errors.Is(err, state.ErrStateNotSynchronized) {
 				log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
 				// If it is not found, store batch
-				log.Debug("forcedBatchNum before 1: ", processCtx.ForcedBatchNum)
 				newStateRoot, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, metrics.SynchronizerCallerLabel)
 				if err != nil {
 					log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
@@ -862,7 +860,6 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				return err
 			}
-			log.Debug("forcedBatchNum before 2: ", processCtx.ForcedBatchNum)
 			_, err = s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, metrics.SynchronizerCallerLabel)
 			if err != nil {
 				log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
@@ -1191,6 +1188,10 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		Coinbase:       common.HexToAddress(trustedBatch.Coinbase.String()),
 		Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
 		GlobalExitRoot: trustedBatch.GlobalExitRoot,
+	}
+	if trustedBatch.ForcedBatchNumber != nil {
+		fb := uint64(*trustedBatch.ForcedBatchNumber)
+		processCtx.ForcedBatchNum = &fb
 	}
 	if err := s.state.OpenBatch(s.ctx, processCtx, dbTx); err != nil {
 		log.Errorf("error opening batch %d", trustedBatch.Number)

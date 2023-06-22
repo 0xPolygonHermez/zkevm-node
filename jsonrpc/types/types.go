@@ -326,6 +326,7 @@ func NewBlock(b *types.Block, fullTx bool) *Block {
 // Batch structure
 type Batch struct {
 	Number              ArgUint64           `json:"number"`
+	ForcedBatchNumber   *ArgUint64          `json:"forcedBatchNumber,omitempty"`
 	Coinbase            common.Address      `json:"coinbase"`
 	StateRoot           common.Hash         `json:"stateRoot"`
 	GlobalExitRoot      common.Hash         `json:"globalExitRoot"`
@@ -351,6 +352,10 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 		StateRoot:       batch.StateRoot,
 		Coinbase:        batch.Coinbase,
 		LocalExitRoot:   batch.LocalExitRoot,
+	}
+	if batch.ForcedBatchNum != nil {
+		fb := ArgUint64(*batch.ForcedBatchNum)
+		res.ForcedBatchNumber = &fb
 	}
 
 	if virtualBatch != nil {
