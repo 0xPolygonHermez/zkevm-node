@@ -9,7 +9,10 @@
                     {%- if sub_property.is_additional_properties -%}
                         <em>
                     {%- endif -%}
-                    <span class="property-name">{{ sub_property.property_display_name | escape }}</span>
+                    <span class="property-name">
+                        {% set schema = sub_property %}
+                        {%- include "breadcrumbs_object.html" -%}
+                    </span>
                     {%- if sub_property.is_additional_properties -%}
                         </em>
                     {%- endif -%}
@@ -22,8 +25,11 @@
                     {%- if sub_property.is_pattern_property -%}
                         {{ " " }}<span class="badge badge-info pattern-property">Pattern Property</span>
                     {%- endif -%}
+                    
                 </button>
+                
             </h2>
+            {{ sub_property.description | escape }}
         </div>
 
         <div id="{{ html_id }}"

@@ -54,15 +54,27 @@ const (
 	FlagMaxAmount = "max-amount"
 )
 
-// Config represents the configuration of the entire Hermez Node
+/*
+Config represents the configuration of the entire Hermez Node
+The file is [TOML format](https://en.wikipedia.org/wiki/TOML#).
+You could find some examples:
+- `config/environments/local/local.node.config.toml`: running a permisionless node
+- `config/environments/mainnet/public.node.config.toml`
+- `config/environments/public/public.node.config.toml`
+- `test/config/test.node.config.toml`: configuration for a trusted node used in CI
+*/
 type Config struct {
+	// This define is a trusted node (`true`) or a permission less (`false`). If you don't known
+	// set to `false`
 	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer"`
 	// Configure Log level for all the services, allow also to store the logs in a file
-	Log                 log.Config
-	Etherman            etherman.Config
-	EthTxManager        ethtxmanager.Config
-	Pool                pool.Config
-	RPC                 jsonrpc.Config
+	Log log.Config
+	// Configure service `Etherman` responsable to interact with L1.
+	Etherman     etherman.Config
+	EthTxManager ethtxmanager.Config
+	Pool         pool.Config
+	RPC          jsonrpc.Config
+	// Configuration of service `Syncrhonizer` that do the syncronization between L1<->L2 and permissionless nodes
 	Synchronizer        synchronizer.Config
 	Sequencer           sequencer.Config
 	SequenceSender      sequencesender.Config

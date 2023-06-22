@@ -4,6 +4,7 @@
 	"properties": {
 		"IsTrustedSequencer": {
 			"type": "boolean",
+			"description": "This define is a trusted node (`true`) or a permission less (`false`). If you don't known\nset to `false`",
 			"default": false
 		},
 		"Log": {
@@ -77,7 +78,8 @@
 				}
 			},
 			"additionalProperties": false,
-			"type": "object"
+			"type": "object",
+			"description": "Configure service `Etherman` responsable to interact with L1."
 		},
 		"EthTxManager": {
 			"properties": {
@@ -340,7 +342,8 @@
 				}
 			},
 			"additionalProperties": false,
-			"type": "object"
+			"type": "object",
+			"description": "Configuration of service `Syncrhonizer` that do the syncronization between L1\u003c-\u003eL2 and permissionless nodes"
 		},
 		"Sequencer": {
 			"properties": {
@@ -1148,5 +1151,5 @@
 	},
 	"additionalProperties": false,
 	"type": "object",
-	"description": "Config represents the configuration of the entire Hermez Node"
+	"description": "Config represents the configuration of the entire Hermez Node The file is [TOML format](https://en.wikipedia.org/wiki/TOML#)."
 }

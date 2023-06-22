@@ -4,20 +4,25 @@
     {% include "tabbed_section.html" %}
 {%- endmacro -%}
 
-{%- macro content(schema, skip_headers=False) -%}
+{%- macro content(schema, skip_headers=False, skip_type=False) -%}
     {% set keys = schema.keywords %}
 
     {# Resolve type #}
     {%- set type_name = schema.type_name -%}
-
-    {% if not skip_headers %}
+    
+    {% if not skip_headers and type_name != "object" %}
         {%- if config.show_breadcrumbs -%}
-            {%- include "breadcrumbs.html" -%}
+            {%- if type_name == "object" -%}
+                {%- include "breadcrumbs_object.html" -%}
+            {%- else -%}
+                {%- include "breadcrumbs_no_object.html" -%}
+            {%- endif -%}
+
         {%- endif -%}
 
         {# Display type #}
-        {%- if not schema is combining -%}
-            <span class="badge badge-dark value-type">Type: {{ type_name }}</span>
+        {%- if not schema is combining  and not skip_type -%}
+         <span class="badge badge-dark value-type">Type: {{ type_name }}</span> 
         {%- endif -%}
 
         {%- if schema.format -%}
@@ -41,10 +46,9 @@
     {%- elif schema.refers_to -%}
         {{ content(schema.refers_to_merged, True) }}
     {%- else -%}
-        {%- if schema.explicit_no_additional_properties -%}
-            {{ " " }}<span class="badge badge-info no-additional">No Additional Properties</span>
-        {%- endif -%}
-
+   
+      
+    
         {# Combining: allOf, anyOf, oneOf, not #}
         {%- if schema.kw_all_of -%}
             <div class="all-of-value" id="{{ schema.kw_all_of.html_id }}">{{ tabbed_section("allOf", schema.kw_all_of) }}</div>
@@ -101,9 +105,14 @@
             {% include "section_examples.html" %}
         {%- endif -%}
 
+
         {# Properties, pattern properties, additional properties #}
         {%- for sub_property in schema.iterate_properties -%}
-            {% include "section_properties.html" %}
+        {%- if sub_property.type_name == "object" -%}
+            {% include "section_properties_object.html" %}
+        {%- else -%}
+            {% include "section_properties_2.html" %}
+        {%- endif -%}
         {%- endfor -%}
     {%- endif -%}
 {%- endmacro -%}

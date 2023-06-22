@@ -193,27 +193,27 @@
 | **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
 
-**Description:** Config represents the configuration of the entire Hermez Node
+**Description:** Config represents the configuration of the entire Hermez Node The file is [TOML format](https://en.wikipedia.org/wiki/TOML#).
 
-| Property                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                |
-| ---------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------- |
-| - [IsTrustedSequencer](#IsTrustedSequencer )   | No      | boolean | No         | -          | -                                                                                |
-| - [Log](#Log )                                 | No      | object  | No         | -          | Configure Log level for all the services, allow also to store the logs in a file |
-| - [Etherman](#Etherman )                       | No      | object  | No         | -          | -                                                                                |
-| - [EthTxManager](#EthTxManager )               | No      | object  | No         | -          | -                                                                                |
-| - [Pool](#Pool )                               | No      | object  | No         | -          | -                                                                                |
-| - [RPC](#RPC )                                 | No      | object  | No         | -          | -                                                                                |
-| - [Synchronizer](#Synchronizer )               | No      | object  | No         | -          | -                                                                                |
-| - [Sequencer](#Sequencer )                     | No      | object  | No         | -          | -                                                                                |
-| - [SequenceSender](#SequenceSender )           | No      | object  | No         | -          | -                                                                                |
-| - [Aggregator](#Aggregator )                   | No      | object  | No         | -          | -                                                                                |
-| - [NetworkConfig](#NetworkConfig )             | No      | object  | No         | -          | -                                                                                |
-| - [L2GasPriceSuggester](#L2GasPriceSuggester ) | No      | object  | No         | -          | -                                                                                |
-| - [Executor](#Executor )                       | No      | object  | No         | -          | -                                                                                |
-| - [MTClient](#MTClient )                       | No      | object  | No         | -          | -                                                                                |
-| - [StateDB](#StateDB )                         | No      | object  | No         | -          | -                                                                                |
-| - [Metrics](#Metrics )                         | No      | object  | No         | -          | -                                                                                |
-| - [EventLog](#EventLog )                       | No      | object  | No         | -          | -                                                                                |
+| Property                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                   |
+| ---------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| - [IsTrustedSequencer](#IsTrustedSequencer )   | No      | boolean | No         | -          | This define is a trusted node (\`true\`) or a permission less (\`false\`). If you don't known<br />set to \`false\` |
+| - [Log](#Log )                                 | No      | object  | No         | -          | Configure Log level for all the services, allow also to store the logs in a file                                    |
+| - [Etherman](#Etherman )                       | No      | object  | No         | -          | Configure service \`Etherman\` responsable to interact with L1.                                                     |
+| - [EthTxManager](#EthTxManager )               | No      | object  | No         | -          | -                                                                                                                   |
+| - [Pool](#Pool )                               | No      | object  | No         | -          | -                                                                                                                   |
+| - [RPC](#RPC )                                 | No      | object  | No         | -          | -                                                                                                                   |
+| - [Synchronizer](#Synchronizer )               | No      | object  | No         | -          | Configuration of service \`Syncrhonizer\` that do the syncronization between L1<->L2 and permissionless nodes       |
+| - [Sequencer](#Sequencer )                     | No      | object  | No         | -          | -                                                                                                                   |
+| - [SequenceSender](#SequenceSender )           | No      | object  | No         | -          | -                                                                                                                   |
+| - [Aggregator](#Aggregator )                   | No      | object  | No         | -          | -                                                                                                                   |
+| - [NetworkConfig](#NetworkConfig )             | No      | object  | No         | -          | -                                                                                                                   |
+| - [L2GasPriceSuggester](#L2GasPriceSuggester ) | No      | object  | No         | -          | -                                                                                                                   |
+| - [Executor](#Executor )                       | No      | object  | No         | -          | -                                                                                                                   |
+| - [MTClient](#MTClient )                       | No      | object  | No         | -          | -                                                                                                                   |
+| - [StateDB](#StateDB )                         | No      | object  | No         | -          | -                                                                                                                   |
+| - [Metrics](#Metrics )                         | No      | object  | No         | -          | -                                                                                                                   |
+| - [EventLog](#EventLog )                       | No      | object  | No         | -          | -                                                                                                                   |
 
 ## <a name="IsTrustedSequencer"></a>1. Property `root > IsTrustedSequencer`
 
@@ -222,6 +222,9 @@
 | **Type**     | `boolean` |
 | **Required** | No        |
 | **Default**  | `false`   |
+
+**Description:** This define is a trusted node (`true`) or a permission less (`false`). If you don't known
+set to `false`
 
 ## <a name="Log"></a>2. Property `root > Log`
 
@@ -309,6 +312,8 @@ Must be one of:
 | **Type**                  | `object`                                                |
 | **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+
+**Description:** Configure service `Etherman` responsable to interact with L1.
 
 | Property                                              | Pattern | Type    | Deprecated | Definition | Title/Description |
 | ----------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
@@ -889,6 +894,8 @@ to relay transactions to the Sequencer node
 | **Type**                  | `object`                                                |
 | **Required**              | No                                                      |
 | **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+
+**Description:** Configuration of service `Syncrhonizer` that do the syncronization between L1<->L2 and permissionless nodes
 
 | Property                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                        |
 | ----------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------ |

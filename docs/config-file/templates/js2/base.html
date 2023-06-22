@@ -1,5 +1,3 @@
-{% from 'content.html' import content with context %}
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,26 +15,13 @@
     {% endif %}
     <title>{%- if title -%}{{ title }}{%- else -%}Schema Docs{%- endif -%}</title>
 </head>
-<body onload="anchorOnLoad();" id="root">
-    {%- if title -%}
-        <h1>{{ title }}</h1>
-    {%- endif -%}
-    {%- if config.expand_buttons -%}
-        <div class="text-right">
-            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target=".collapse:not(.show)" aria-expanded="false">Expand all</button>
-            <button class="btn btn-primary" type="button" data-toggle="collapse" data-target=".collapse.show" aria-expanded="false">Collapse all</button>
-        </div>
-    {%- endif -%}
+<body>
+    {%- set type_name = schema.type_name -%}
+    <span class="badge badge-dark value-type">Type: {{ type_name }}</span> 
 
-    {%- set description = (schema | get_description) -%}
-    {%- include "section_description.html" -%}
-    
-    {{ content(schema,False, True) }}
+    {%- for sub_property in schema.iterate_properties -%}
+            {% include "section_properties.html" %}
+    {%- endfor -%}
 
-    {% if config.with_footer -%}
-    <footer>
-        <p class="generated-by-footer">Generated using <a href="https://github.com/coveooss/json-schema-for-humans">json-schema-for-humans</a>{%- if config.footer_show_time %} on {{ get_local_time() }}{%- endif -%}</p>
-    </footer>
-    {%- endif -%}
 </body>
 </html>
