@@ -137,9 +137,10 @@ func TestBatchUnmarshal(t *testing.T) {
 		},
 		{
 			name: "with txs",
-			json: `{"number":"0x1","coinbase":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","stateRoot":"0x49e7b7eb6bb34b07a1063cd2c7a9cac88845c1867e8a026d69fc00b862c2ca72","globalExitRoot":"0x0000000000000000000000000000000000000000000000000000000000000001","localExitRoot":"0x0000000000000000000000000000000000000000000000000000000000000002","accInputHash":"0x0000000000000000000000000000000000000000000000000000000000000003","timestamp":"0x64133495","sendSequencesTxHash":"0x0000000000000000000000000000000000000000000000000000000000000004","verifyBatchTxHash":"0x0000000000000000000000000000000000000000000000000000000000000005","transactions":[{"nonce":"0x8","gasPrice":"0x3b9aca00","gas":"0x5208","to":"0xb48ca794d49eec406a5dd2c547717e37b5952a83","value":"0xde0b6b3a7640000","input":"0x","v":"0x7f5","r":"0x27d94abdecca8324d23221cec81f0a3398d7eee2dc831f698fe12447695897d5","s":"0x1b9f1d7cabbb69d309f9e6ffe10b3e205ad86af1058f4dbacdd06a8db03a5669","hash":"0xd0433908a0b56ec6d90758abfe5ae11185e13bedb3d70e8ab7c0d7e3f0e395b5","from":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","blockHash":"0x7e8efeb2b5bb9aaef68a9b2f5b6c0a14900745380a68f72f9c15f978546109cc","blockNumber":"0x1","transactionIndex":"0x0","chainId":"0x3e9","type":"0x0"}]}`,
+			json: `{"number":"0x1","forcedBatchNumber":"1","coinbase":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","stateRoot":"0x49e7b7eb6bb34b07a1063cd2c7a9cac88845c1867e8a026d69fc00b862c2ca72","globalExitRoot":"0x0000000000000000000000000000000000000000000000000000000000000001","localExitRoot":"0x0000000000000000000000000000000000000000000000000000000000000002","accInputHash":"0x0000000000000000000000000000000000000000000000000000000000000003","timestamp":"0x64133495","sendSequencesTxHash":"0x0000000000000000000000000000000000000000000000000000000000000004","verifyBatchTxHash":"0x0000000000000000000000000000000000000000000000000000000000000005","transactions":[{"nonce":"0x8","gasPrice":"0x3b9aca00","gas":"0x5208","to":"0xb48ca794d49eec406a5dd2c547717e37b5952a83","value":"0xde0b6b3a7640000","input":"0x","v":"0x7f5","r":"0x27d94abdecca8324d23221cec81f0a3398d7eee2dc831f698fe12447695897d5","s":"0x1b9f1d7cabbb69d309f9e6ffe10b3e205ad86af1058f4dbacdd06a8db03a5669","hash":"0xd0433908a0b56ec6d90758abfe5ae11185e13bedb3d70e8ab7c0d7e3f0e395b5","from":"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266","blockHash":"0x7e8efeb2b5bb9aaef68a9b2f5b6c0a14900745380a68f72f9c15f978546109cc","blockNumber":"0x1","transactionIndex":"0x0","chainId":"0x3e9","type":"0x0"}]}`,
 			expected: Batch{
 				Number:              1,
+				ForcedBatchNumber:   ArgUint64Ptr(1),
 				Coinbase:            common.HexToAddress("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"),
 				StateRoot:           common.HexToHash("0x49e7b7eb6bb34b07a1063cd2c7a9cac88845c1867e8a026d69fc00b862c2ca72"),
 				GlobalExitRoot:      common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
@@ -200,6 +201,7 @@ func TestBatchUnmarshal(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, testCase.expected.Number, result.Number)
+		assert.Equal(t, testCase.expected.ForcedBatchNumber, result.ForcedBatchNumber)
 		assert.Equal(t, testCase.expected.Coinbase, result.Coinbase)
 		assert.Equal(t, testCase.expected.StateRoot, result.StateRoot)
 		assert.Equal(t, testCase.expected.GlobalExitRoot, result.GlobalExitRoot)
