@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"reflect"
-	"strings"
 
 	"github.com/invopop/jsonschema"
 	"github.com/urfave/cli/v2"
@@ -12,7 +11,8 @@ import (
 // The struct are the parameters to generate a json-schema based on the T struct
 // The parametrization of the function are used for unittest
 type ConfigJsonSchemaGenerater[T any] struct {
-	repoName string
+	repoName       string
+	repoNameSuffix string
 	// It force to remove any required field in json-schema
 	cleanRequiredField bool
 	// It read the comments in the code and add as description in schema
@@ -30,6 +30,7 @@ type ConfigJsonSchemaGenerater[T any] struct {
 func NewConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[Config] {
 	res := ConfigJsonSchemaGenerater[Config]{}
 	res.repoName = "github.com/0xPolygonHermez/zkevm-node"
+	res.repoNameSuffix = "/config/config"
 	res.addCodeCommentsToSchema = true
 	res.pathSourceCode = "./"
 	res.cleanRequiredField = true
@@ -48,18 +49,18 @@ func (s ConfigJsonSchemaGenerater[T]) GenerateJsonSchema(cli *cli.Context) (*jso
 	r := new(jsonschema.Reflector)
 	repoName := s.repoName
 	r.Namer = func(rt reflect.Type) string {
-		return strings.TrimLeft(rt.PkgPath(), repoName) + "_" + rt.Name()
+		return rt.PkgPath() + "_" + rt.Name()
 	}
 	r.ExpandedStruct = true
 	r.DoNotReference = true
 	if s.addCodeCommentsToSchema {
-		if err := r.AddGoComments(repoName, "./"); err != nil {
+		if err := r.AddGoComments(repoName, s.pathSourceCode); err != nil {
 			return nil, err
 		}
 	}
 
 	schema := r.Reflect(s.defaultValues)
-	schema.ID = jsonschema.ID(s.repoName + "/config/config")
+	schema.ID = jsonschema.ID(s.repoName + s.repoNameSuffix)
 
 	if s.cleanRequiredField {
 		cleanRequiredFields(schema)

@@ -20,6 +20,14 @@
 
         {%- endif -%}
 
+        
+
+        {# Display default #}
+        {%- set default_value = schema.default_value -%}
+        {%- if default_value -%}
+            {{ " " }}<span class="badge badge-success default-value">Default: {{ default_value }}</span>
+        {%- endif -%}
+
         {# Display type #}
         {%- if not schema is combining  and not skip_type -%}
          <span class="badge badge-dark value-type">Type: {{ type_name }}</span> 
@@ -27,12 +35,6 @@
 
         {%- if schema.format -%}
             <span class="badge badge-info value-type">Format: {{ schema.format }}</span>
-        {%- endif -%}
-
-        {# Display default #}
-        {%- set default_value = schema.default_value -%}
-        {%- if default_value -%}
-            {{ " " }}<span class="badge badge-success default-value">Default: {{ default_value }}</span>
         {%- endif -%}
         <br/>
 

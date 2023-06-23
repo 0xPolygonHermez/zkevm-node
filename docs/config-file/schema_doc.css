@@ -68,6 +68,7 @@ body {
 
 .badge.value-type {
     font-size: 120%;
+    margin-left: 5px;
     margin-right: 5px;
     margin-bottom: 10px;
 }
@@ -107,6 +108,16 @@ body {
 .generated-by-footer {
     margin-top: 1em;
     text-align: right;
+}
+
+.breadcrumbs {
+    font-family: monospace;
+    background: #e9ecef; 
+    font-size: 100%;
+    margin-left: 10px;
+    font-weight: 500;
+    display: inline-block;
+    margin: 20px
 }
 
 /* From https://github.com/richleland/pygments-css/blob/master/friendly.css, see https://github.com/trentm/python-markdown2/wiki/fenced-code-blocks */

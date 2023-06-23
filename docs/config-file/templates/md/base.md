@@ -6,7 +6,7 @@
 {% endwith %}
 {% endset %}
 
-{{ md_get_toc() }}
+
 
 {{ contentBase }}
 

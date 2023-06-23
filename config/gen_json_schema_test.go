@@ -15,8 +15,20 @@ import (
 type MySectionConfig struct {
 }
 
+/*
+Config represents the configuration of the entire Hermez Node
+The file is [TOML format](https://en.wikipedia.org/wiki/TOML#)
+
+You could find some examples:
+- `config/environments/local/local.node.config.toml`: running a permisionless node
+- `config/environments/mainnet/public.node.config.toml`
+- `config/environments/public/public.node.config.toml`
+- `test/config/test.node.config.toml`: configuration for a trusted node used in CI
+*/
 type MyTestConfig struct {
+	// F1 field description
 	F1 string
+	// F2 field description
 	F2 int
 }
 
@@ -46,6 +58,29 @@ const MyTestConfigTomlFile = `
 f1_another_name="value_f1"
 f2_another_name=5678
 `
+
+func TestGenerateJsonSchemaCommentsWithMultiplesLines(t *testing.T) {
+	cli := cli.NewContext(nil, nil, nil)
+	generator := ConfigJsonSchemaGenerater[MyTestConfig]{
+		repoName:                "github.com/0xPolygonHermez/zkevm-node/config/",
+		cleanRequiredField:      true,
+		addCodeCommentsToSchema: true,
+		pathSourceCode:          "./",
+		repoNameSuffix:          "config/",
+		defaultValues: &MyTestConfig{
+			F1: "defaultf1",
+			F2: 1234,
+		},
+	}
+	schema, err := generator.GenerateJsonSchema(cli)
+	require.NoError(t, err)
+	require.NotNil(t, schema)
+	v, err := getValueFromSchema(schema, []string{"F2"})
+	require.NoError(t, err)
+	require.EqualValues(t, 1234, v.Default)
+	require.NotEmpty(t, v.Description)
+
+}
 
 // This test is just to check what is the behaviour of reading a file
 // when using tags `mapstructure` and `json`
@@ -165,7 +200,7 @@ func TestGenerateJsonSchemaCustomSetDefault(t *testing.T) {
 func TestGenerateJsonSchemaInjectDefaultValue1stLevel(t *testing.T) {
 	cli := cli.NewContext(nil, nil, nil)
 	generator := NewConfigJsonSchemaGenerater()
-	generator.pathSourceCode = "../../"
+	generator.pathSourceCode = "../"
 	generator.defaultValues.IsTrustedSequencer = false
 	schema, err := generator.GenerateJsonSchema(cli)
 	require.NoError(t, err)
@@ -178,7 +213,11 @@ func TestGenerateJsonSchemaInjectDefaultValue1stLevel(t *testing.T) {
 func TestGenerateJsonSchemaInjectDefaultValue2stLevel(t *testing.T) {
 	cli := cli.NewContext(nil, nil, nil)
 	generator := NewConfigJsonSchemaGenerater()
-	generator.pathSourceCode = "../../"
+	generator.pathSourceCode = "../"
+	// This is a hack, we are not at root folder, then to store the comment is joining .. with reponame
+	// and doesn't find out the comment
+	generator.repoName = "github.com/0xPolygonHermez/zkevm-node/config/"
+	generator.repoNameSuffix = "/config"
 	generator.defaultValues.Log.Level = "mylevel"
 	schema, err := generator.GenerateJsonSchema(cli)
 	require.NoError(t, err)
@@ -186,6 +225,7 @@ func TestGenerateJsonSchemaInjectDefaultValue2stLevel(t *testing.T) {
 	v, err := getValueFromSchema(schema, []string{"Log", "Level"})
 	require.NoError(t, err)
 	require.EqualValues(t, "mylevel", v.Default)
+	require.NotEmpty(t, v.Description)
 }
 
 func getValueFromSchema(schema *jsonschema.Schema, keys []string) (*jsonschema.Schema, error) {

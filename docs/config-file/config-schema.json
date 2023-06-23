@@ -343,7 +343,7 @@
 			},
 			"additionalProperties": false,
 			"type": "object",
-			"description": "Configuration of service `Syncrhonizer` that do the syncronization between L1\u003c-\u003eL2 and permissionless nodes"
+			"description": "Configuration of service `Syncrhonizer`. For this service is also important the value of `IsTrustedSequencer`"
 		},
 		"Sequencer": {
 			"properties": {
@@ -1151,5 +1151,5 @@
 	},
 	"additionalProperties": false,
 	"type": "object",
-	"description": "Config represents the configuration of the entire Hermez Node The file is [TOML format](https://en.wikipedia.org/wiki/TOML#)."
+	"description": "Config represents the configuration of the entire Hermez Node The file is TOML format You could find some examples:\n\n[TOML format]: https://en.wikipedia.org/wiki/TOML"
 }

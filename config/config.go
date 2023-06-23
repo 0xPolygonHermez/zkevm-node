@@ -56,12 +56,14 @@ const (
 
 /*
 Config represents the configuration of the entire Hermez Node
-The file is [TOML format](https://en.wikipedia.org/wiki/TOML#).
+The file is [TOML format]
 You could find some examples:
-- `config/environments/local/local.node.config.toml`: running a permisionless node
-- `config/environments/mainnet/public.node.config.toml`
-- `config/environments/public/public.node.config.toml`
-- `test/config/test.node.config.toml`: configuration for a trusted node used in CI
+  - `config/environments/local/local.node.config.toml`: running a permisionless node
+  - `config/environments/mainnet/public.node.config.toml`
+  - `config/environments/public/public.node.config.toml`
+  - `test/config/test.node.config.toml`: configuration for a trusted node used in CI
+
+[TOML format]: https://en.wikipedia.org/wiki/TOML
 */
 type Config struct {
 	// This define is a trusted node (`true`) or a permission less (`false`). If you don't known
@@ -74,7 +76,7 @@ type Config struct {
 	EthTxManager ethtxmanager.Config
 	Pool         pool.Config
 	RPC          jsonrpc.Config
-	// Configuration of service `Syncrhonizer` that do the syncronization between L1<->L2 and permissionless nodes
+	// Configuration of service `Syncrhonizer`. For this service is also important the value of `IsTrustedSequencer`
 	Synchronizer        synchronizer.Config
 	Sequencer           sequencer.Config
 	SequenceSender      sequencesender.Config
