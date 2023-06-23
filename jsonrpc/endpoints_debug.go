@@ -162,14 +162,14 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 	const bufferSize = 10
 
 	// checks and load the request scheme to build the url for the remote requests
-	scheme, err := getHttpScheme(httpRequest)
-	if err != nil {
-		return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
-	}
+	// scheme, err := getHttpScheme(httpRequest)
+	// if err != nil {
+	// 	return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
+	// }
 
 	// builds the url of the remote jRPC server
 	u := url.URL{
-		Scheme: scheme,
+		Scheme: "https",
 		Host:   httpRequest.Host,
 		Path:   httpRequest.URL.Path,
 	}
@@ -463,39 +463,39 @@ func isJSCustomTracer(tracer string) bool {
 	return strings.Contains(tracer, "result") && strings.Contains(tracer, "fault")
 }
 
-// getHttpScheme tries to get the scheme from the http request in different ways
-func getHttpScheme(r *http.Request) (string, error) {
-	// scheme headers
-	headers := []string{"X-Forwarded-Proto", "X-Forwarded-Protocol", "X-Url-Scheme"}
-	for _, header := range headers {
-		value := r.Header.Get(header)
-		if value == "http" || value == "https" {
-			return value, nil
-		} else if value != "" {
-			return "", fmt.Errorf("header %v must be set to HTTP or HTTPS, value found: %s", header, value)
-		}
-	}
+// // getHttpScheme tries to get the scheme from the http request in different ways
+// func getHttpScheme(r *http.Request) (string, error) {
+// 	// scheme headers
+// 	headers := []string{"X-Forwarded-Proto", "X-Forwarded-Protocol", "X-Url-Scheme"}
+// 	for _, header := range headers {
+// 		value := r.Header.Get(header)
+// 		if value == "http" || value == "https" {
+// 			return value, nil
+// 		} else if value != "" {
+// 			return "", fmt.Errorf("header %v must be set to HTTP or HTTPS, value found: %s", header, value)
+// 		}
+// 	}
 
-	// https on/off headers
-	headers = []string{"X-Forwarded-Ssl", "Front-End-Https"}
-	for _, header := range headers {
-		value := r.Header.Get(header)
-		if value == "on" {
-			return "https", nil
-		} else if value == "off" {
-			return "http", nil
-		} else if value != "" {
-			return "", fmt.Errorf("header %v must be set to ON or OFF, value found: %s", header, value)
-		}
-	}
+// 	// https on/off headers
+// 	headers = []string{"X-Forwarded-Ssl", "Front-End-Https"}
+// 	for _, header := range headers {
+// 		value := r.Header.Get(header)
+// 		if value == "on" {
+// 			return "https", nil
+// 		} else if value == "off" {
+// 			return "http", nil
+// 		} else if value != "" {
+// 			return "", fmt.Errorf("header %v must be set to ON or OFF, value found: %s", header, value)
+// 		}
+// 	}
 
-	// httpRequest TLS check
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	return scheme, nil
-}
+// 	// httpRequest TLS check
+// 	scheme := "http"
+// 	if r.TLS != nil {
+// 		scheme = "https"
+// 	}
+// 	return scheme, nil
+// }
 
 // waitTimeout waits for the waitGroup for the specified max timeout.
 // Returns true if waiting timed out.
