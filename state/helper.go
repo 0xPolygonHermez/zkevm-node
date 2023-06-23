@@ -272,22 +272,24 @@ func DecodeTx(encodedTx string) (*types.Transaction, error) {
 }
 
 func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse) *types.Receipt {
-	effectiveGasPrice, ok := big.NewInt(0).SetString(processedTx.EffectiveGasPrice, hex.Base)
-	if !ok {
-		log.Errorf("error converting effective gas price %s to big.Int", processedTx.EffectiveGasPrice)
-	}
-
 	receipt := &types.Receipt{
 		Type:              uint8(processedTx.Type),
 		PostState:         processedTx.StateRoot.Bytes(),
 		CumulativeGasUsed: processedTx.GasUsed,
 		BlockNumber:       blockNumber,
 		GasUsed:           processedTx.GasUsed,
-		EffectiveGasPrice: effectiveGasPrice,
 		TxHash:            processedTx.Tx.Hash(),
 		TransactionIndex:  0,
 		ContractAddress:   processedTx.CreateAddress,
 		Logs:              processedTx.Logs,
+	}
+
+	if processedTx.EffectiveGasPrice != "" {
+		effectiveGasPrice, ok := big.NewInt(0).SetString(processedTx.EffectiveGasPrice, hex.Base)
+		if !ok {
+			log.Errorf("error converting effective gas price %s to big.Int", processedTx.EffectiveGasPrice)
+		}
+		receipt.EffectiveGasPrice = effectiveGasPrice
 	}
 
 	// TODO: this fix is temporary while the Executor is returning a
