@@ -156,7 +156,7 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 	const bufferSize = 10
 
 	// builds the url of the jRPC server from the data found in the httpRequest
-	scheme := "http"
+	scheme := "https"
 	if httpRequest.URL.Scheme != "" {
 		scheme = httpRequest.URL.Scheme
 	}
