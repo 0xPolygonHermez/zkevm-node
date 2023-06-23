@@ -24,6 +24,7 @@ import (
 const (
 	toAddressHex      = "0x4d5Cf5032B2a844602278b01199ED191A86c93ff"
 	gerFinalityBlocks = uint64(250)
+	forkID5           = 5
 )
 
 var (
@@ -60,7 +61,7 @@ func TestForcedBatches(t *testing.T) {
 	unsignedTx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, unsignedTx)
 	require.NoError(t, err)
-	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage)
+	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID5)
 	require.NoError(t, err)
 	forcedBatch, err := sendForcedBatch(t, encodedTxs, opsman)
 	require.NoError(t, err)
