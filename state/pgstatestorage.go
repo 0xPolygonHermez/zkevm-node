@@ -1180,7 +1180,8 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 // GetTransactionReceipt gets a transaction receipt accordingly to the provided transaction hash
 func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
 	var txHash, encodedTx, contractAddress, l2BlockHash string
-	var l2BlockNum, effective_gas_price uint64
+	var l2BlockNum uint64
+	var effective_gas_price *uint64
 
 	const getReceiptSQL = `
 		SELECT 
@@ -1236,8 +1237,9 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 
 	receipt.BlockNumber = big.NewInt(0).SetUint64(l2BlockNum)
 	receipt.BlockHash = common.HexToHash(l2BlockHash)
-	receipt.EffectiveGasPrice = big.NewInt(0).SetUint64(effective_gas_price)
-
+	if effective_gas_price == nil {
+		receipt.EffectiveGasPrice = big.NewInt(0).SetUint64(*effective_gas_price)
+	}
 	receipt.Logs = logs
 	receipt.Bloom = types.CreateBloom(types.Receipts{&receipt})
 
@@ -1959,10 +1961,18 @@ func (p *PostgresStorage) hashesToHex(hashes []common.Hash) []string {
 // AddReceipt adds a new receipt to the State Store
 func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
+
+	var effectiveGasPrice *uint64
+
+	if receipt.EffectiveGasPrice != nil {
+		egf := receipt.EffectiveGasPrice.Uint64()
+		effectiveGasPrice = &egf
+	}
+
 	const addReceiptSQL = `
         INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, effective_gas_price, block_num, tx_index, contract_address)
                            VALUES (     $1,   $2,         $3,     $4,                  $5,       $6,        		  $7,        $8,       $9,			    $10)`
-	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.EffectiveGasPrice.Uint64(), receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
+	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, effectiveGasPrice, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
 	return err
 }
 
