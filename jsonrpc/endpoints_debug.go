@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +34,7 @@ var defaultTraceConfig = &traceConfig{
 
 // DebugEndpoints is the debug jsonrpc endpoint
 type DebugEndpoints struct {
+	cfg   Config
 	state types.StateInterface
 	txMan dbTxManager
 }
@@ -147,19 +149,25 @@ func (d *DebugEndpoints) TraceBlockByHash(hash types.ArgHash, cfg *traceConfig) 
 // -> picked jRPC server group trace transaction responses from other jRPC servers
 // -> picked jRPC respond the initial request to the user with all the tx traces
 func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number types.BatchNumber, cfg *traceConfig) (interface{}, types.Error) {
-	// timeout is the maximum time the code will wait for all the
-	// traces to be loaded from the jRPC and added to the responses
-	const timeout = 10 * time.Minute
+	type traceResponse struct {
+		blockNumber uint64
+		txIndex     uint64
+		txHash      common.Hash
+		trace       interface{}
+		err         error
+	}
 
 	// the size of the buffer defines
 	// how many txs it will process in parallel.
 	const bufferSize = 10
 
-	// builds the url of the jRPC server from the data found in the httpRequest
-	scheme := "https"
-	if httpRequest.URL.Scheme != "" {
-		scheme = httpRequest.URL.Scheme
+	// checks and load the request scheme to build the url for the remote requests
+	scheme, err := getHttpScheme(httpRequest)
+	if err != nil {
+		return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 	}
+
+	// builds the url of the remote jRPC server
 	u := url.URL{
 		Scheme: scheme,
 		Host:   httpRequest.Host,
@@ -196,29 +204,37 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 
 		requests := make(chan (ethTypes.Receipt), bufferSize)
 
+		mu := sync.Mutex{}
 		wg := sync.WaitGroup{}
 		wg.Add(len(receipts))
-		responses := make(chan (traceBatchTransactionResponse), len(receipts))
+		responses := make([]traceResponse, 0, len(receipts))
 
 		// gets the trace from the jRPC and adds it to the responses
 		loadTraceByTxHash := func(receipt ethTypes.Receipt) {
+			response := traceResponse{
+				blockNumber: receipt.BlockNumber.Uint64(),
+				txIndex:     uint64(receipt.TransactionIndex),
+				txHash:      receipt.TxHash,
+			}
+
 			defer wg.Done()
 			res, err := client.JSONRPCCall(rpcURL, "debug_traceTransaction", receipt.TxHash.String(), cfg)
 			if err != nil {
-				log.Errorf("failed to get tx trace from remote jRPC server %v, err: %v", rpcURL, err)
-				return
-			}
-
-			if res.Error != nil {
-				log.Errorf("tx trace error returned from remote jRPC server %v, %v %v", rpcURL, res.Error.Code, res.Error.Message)
-				return
+				err := fmt.Errorf("failed to get tx trace from remote jRPC server %v, err: %w", rpcURL, err)
+				log.Errorf(err.Error())
+				response.err = err
+			} else if res.Error != nil {
+				err := fmt.Errorf("tx trace error returned from remote jRPC server %v, %v %v", rpcURL, res.Error.Code, res.Error.Message)
+				log.Errorf(err.Error())
+				response.err = err
+			} else {
+				response.trace = res.Result
 			}
 
 			// add to the responses
-			responses <- traceBatchTransactionResponse{
-				TxHash: receipt.TxHash,
-				Result: res.Result,
-			}
+			mu.Lock()
+			defer mu.Unlock()
+			responses = append(responses, response)
 		}
 
 		// goes through the buffer and loads the trace
@@ -238,17 +254,35 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 		}
 
 		// wait the traces to be loaded
-		if waitTimeout(&wg, timeout) {
+		if waitTimeout(&wg, d.cfg.ReadTimeout.Duration) {
 			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to get traces for batch %v: timeout reached", batchNumber), nil)
 		}
 
 		close(requests)
-		close(responses)
+
+		// since the txs are attached to a L2 Block and the L2 Block is
+		// the struct attached to the Batch, in order to always respond
+		// the traces in the same order, we need to order the transactions
+		// first by block number and then by tx index, so we can have something
+		// close to the txs being sorted by a tx index related to the batch
+		sort.Slice(responses, func(i, j int) bool {
+			if responses[i].txIndex != responses[j].txIndex {
+				return responses[i].txIndex < responses[j].txIndex
+			}
+			return responses[i].blockNumber < responses[j].blockNumber
+		})
 
 		// build the batch trace response array
 		traces := make([]traceBatchTransactionResponse, 0, len(receipts))
-		for response := range responses {
-			traces = append(traces, response)
+		for _, response := range responses {
+			if response.err != nil {
+				return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to get traces for batch %v: failed to get trace for tx: %v, err: %v", batchNumber, response.txHash.String(), response.err.Error()), nil)
+			}
+
+			traces = append(traces, traceBatchTransactionResponse{
+				TxHash: response.txHash,
+				Result: response.trace,
+			})
 		}
 		return traces, nil
 	})
@@ -427,6 +461,40 @@ func isBuiltInTracer(tracer string) bool {
 // https://geth.ethereum.org/docs/developers/evm-tracing/custom-tracer
 func isJSCustomTracer(tracer string) bool {
 	return strings.Contains(tracer, "result") && strings.Contains(tracer, "fault")
+}
+
+// getHttpScheme tries to get the scheme from the http request in different ways
+func getHttpScheme(r *http.Request) (string, error) {
+	// scheme headers
+	headers := []string{"X-Forwarded-Proto", "X-Forwarded-Protocol", "X-Url-Scheme"}
+	for _, header := range headers {
+		value := r.Header.Get(header)
+		if value == "http" || value == "https" {
+			return value, nil
+		} else if value != "" {
+			return "", fmt.Errorf("header %v must be set to HTTP or HTTPS, value found: %s", header, value)
+		}
+	}
+
+	// https on/off headers
+	headers = []string{"X-Forwarded-Ssl", "Front-End-Https"}
+	for _, header := range headers {
+		value := r.Header.Get(header)
+		if value == "on" {
+			return "https", nil
+		} else if value == "off" {
+			return "http", nil
+		} else if value != "" {
+			return "", fmt.Errorf("header %v must be set to ON or OFF, value found: %s", header, value)
+		}
+	}
+
+	// httpRequest TLS check
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	return scheme, nil
 }
 
 // waitTimeout waits for the waitGroup for the specified max timeout.
