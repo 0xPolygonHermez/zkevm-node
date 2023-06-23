@@ -20,22 +20,22 @@ const (
 	// FullL1SyncTimeName is the name of the label for the synchronization of the L1 state.
 	FullL1SyncTimeName = Prefix + "full_L1_sync_time"
 
-	// FullSyncIterationTimeName is the name of the label for a full synchronization iteration.
+	// FullSyncIterationTimeName is the name of the label for a L1 synchronization.
 	FullSyncIterationTimeName = Prefix + "full_L1_sync_time"
 
-	// ReadL1DataTimeName is the name of the label for a full synchronization iteration.
+	// ReadL1DataTimeName is the name of the label to read L1 data.
 	ReadL1DataTimeName = Prefix + "read_L1_data_time"
 
-	// ProcessL1DataTimeName is the name of the label for a full synchronization iteration.
+	// ProcessL1DataTimeName is the name of the label to process L1 data.
 	ProcessL1DataTimeName = Prefix + "process_L1_data_time"
 
-	// GetTrustedBatchNumberTimeName is the name of the label for a full synchronization iteration.
+	// GetTrustedBatchNumberTimeName is the name of the label to get trusted batchNumber.
 	GetTrustedBatchNumberTimeName = Prefix + "get_trusted_batchNumber_time"
 
-	// GetTrustedBatchInfoTimeName is the name of the label for a full synchronization iteration.
+	// GetTrustedBatchInfoTimeName is the name of the label to get trusted batchInfo.
 	GetTrustedBatchInfoTimeName = Prefix + "get_trusted_batchInfo_time"
 
-	// ProcessTrustedBatchTimeName is the name of the label for a full synchronization iteration.
+	// ProcessTrustedBatchTimeName is the name of the label to process trusted batch.
 	ProcessTrustedBatchTimeName = Prefix + "process_trusted_batch_time"
 
 	// TrustedBatchCleanCounterName is the name of the label for the counter of trusted batch resets.
