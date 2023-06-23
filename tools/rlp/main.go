@@ -19,6 +19,10 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const (
+	forkID4 = 4
+)
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "RlpTool"
@@ -43,6 +47,14 @@ func main() {
 			Action:  encode,
 		},
 	}
+	app.Flags = []cli.Flag{
+		&cli.Uint64Flag{
+			Name:    "forkID",
+			Aliases: []string{"forkid"},
+			Usage:   "forkID number",
+			Value:   forkID4,
+		},
+	}
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Errorf("\nError: %v\n", err)
@@ -57,7 +69,7 @@ func decodeFull(ctx *cli.Context) error {
 		log.Error("error decoding callData: ", err)
 		return err
 	}
-	txs, rawTxs, err := decodeFullCallDataToTxs(bytesCallData)
+	txs, rawTxs, err := decodeFullCallDataToTxs(bytesCallData, ctx.Uint64("forkID"))
 	if err != nil {
 		return err
 	}
@@ -72,7 +84,7 @@ func decode(ctx *cli.Context) error {
 		log.Error("error decoding rawTxs: ", err)
 		return err
 	}
-	txs, _, _, err := state.DecodeTxs(bytesRawTxs)
+	txs, _, _, err := state.DecodeTxs(bytesRawTxs, ctx.Uint64("forkID"))
 	if err != nil {
 		log.Error("error decoding tx callData: ", err)
 		return err
@@ -82,7 +94,7 @@ func decode(ctx *cli.Context) error {
 }
 
 func encode(ctx *cli.Context) error {
-	fmt.Print("Nonce : ")
+	fmt.Println("Nonce : ")
 	var nonceS string
 	if _, err := fmt.Scanln(&nonceS); err != nil {
 		return err
@@ -92,17 +104,17 @@ func encode(ctx *cli.Context) error {
 		log.Error("error decoding nonce: ", err)
 		return err
 	}
-	log.Info("Nonce: ", nonce)
+	fmt.Println("Nonce: ", nonce)
 
-	fmt.Print("GasPrice : ")
+	fmt.Println("GasPrice : ")
 	var gasPriceS string
 	if _, err := fmt.Scanln(&gasPriceS); err != nil {
 		return err
 	}
 	gasPrice, _ := new(big.Int).SetString(gasPriceS, encoding.Base10)
-	log.Info("GasPrice: ", gasPrice)
+	fmt.Println("GasPrice: ", gasPrice)
 
-	fmt.Print("Gas : ")
+	fmt.Println("Gas : ")
 	var gasS string
 	if _, err := fmt.Scanln(&gasS); err != nil {
 		return err
@@ -112,25 +124,25 @@ func encode(ctx *cli.Context) error {
 		log.Error("error decoding gas: ", err)
 		return err
 	}
-	log.Info("Gas: ", gas)
+	fmt.Println("Gas: ", gas)
 
-	fmt.Print("To : ")
+	fmt.Println("To : ")
 	var toS string
 	if _, err := fmt.Scanln(&toS); err != nil {
 		return err
 	}
 	to := common.HexToAddress(toS)
-	log.Info("To: ", to)
+	fmt.Println("To: ", to)
 
-	fmt.Print("Value : ")
+	fmt.Println("Value : ")
 	var valueS string
 	if _, err := fmt.Scanln(&valueS); err != nil {
 		return err
 	}
 	value, _ := new(big.Int).SetString(valueS, encoding.Base10)
-	log.Info("Value: ", value)
+	fmt.Println("Value: ", value)
 
-	fmt.Print("Data : ")
+	fmt.Println("Data : ")
 	var dataS string
 	if _, err := fmt.Scanln(&dataS); err != nil {
 		if err.Error() != "unexpected newline" {
@@ -145,31 +157,31 @@ func encode(ctx *cli.Context) error {
 			return err
 		}
 	}
-	log.Info("Data: ", data)
+	fmt.Println("Data: ", data)
 
-	fmt.Print("V: ")
+	fmt.Println("V: ")
 	var vS string
 	if _, err := fmt.Scanln(&vS); err != nil {
 		return err
 	}
 	v, _ := new(big.Int).SetString(vS, encoding.Base10)
-	log.Info("V: ", v)
+	fmt.Println("V: ", v)
 
-	fmt.Print("R: ")
+	fmt.Println("R: ")
 	var rS string
 	if _, err := fmt.Scanln(&rS); err != nil {
 		return err
 	}
 	r, _ := new(big.Int).SetString(rS, encoding.Base10)
-	log.Info("R: ", r)
+	fmt.Println("R: ", r)
 
-	fmt.Print("S: ")
+	fmt.Println("S: ")
 	var sS string
 	if _, err := fmt.Scanln(&sS); err != nil {
 		return err
 	}
 	s, _ := new(big.Int).SetString(sS, encoding.Base10)
-	log.Info("S: ", s)
+	fmt.Println("S: ", s)
 
 	var txLegacy = types.LegacyTx{
 		Nonce:    nonce,
@@ -184,41 +196,41 @@ func encode(ctx *cli.Context) error {
 	}
 	tx := types.NewTx(&txLegacy)
 
-	rawBytes, err := state.EncodeTransactions([]types.Transaction{*tx}, constants.EffectivePercentage)
+	rawBytes, err := state.EncodeTransactions([]types.Transaction{*tx}, constants.EffectivePercentage, ctx.Uint64("forkID"))
 	if err != nil {
 		log.Error("error encoding txs: ", err)
 		return err
 	}
-	log.Info("encoded tx with signature using RLP in []byte: ", rawBytes)
-	log.Info("rawtx with signature using RLP in hex: ", hex.EncodeToString(rawBytes))
+	fmt.Println("encoded tx with signature using RLP in []byte: ", rawBytes)
+	fmt.Println("rawtx with signature using RLP in hex: ", hex.EncodeToString(rawBytes))
 
 	return nil
 }
 
 func printTxs(txs []types.Transaction, rawTxs []byte) {
-	log.Info("RawTxs: ", hex.EncodeToHex(rawTxs))
+	fmt.Println("RawTxs: ", hex.EncodeToHex(rawTxs))
 	for _, tx := range txs {
-		log.Info("#######################################################################")
-		log.Info("#######################################################################")
-		log.Infof("Decoded tx: %+v", tx)
-		log.Info("ChainID: ", tx.ChainId())
-		log.Info("Cost: ", tx.Cost())
-		log.Info("Data: ", hex.EncodeToString(tx.Data()))
-		log.Info("Gas: ", tx.Gas())
-		log.Info("GasPrice: ", tx.GasPrice())
-		log.Info("Hash: ", tx.Hash())
-		log.Info("Nonce: ", tx.Nonce())
+		fmt.Println("#######################################################################")
+		fmt.Println("#######################################################################")
+		fmt.Printf("Decoded tx: %+v\n", tx)
+		fmt.Println("ChainID: ", tx.ChainId())
+		fmt.Println("Cost: ", tx.Cost())
+		fmt.Println("Data: ", hex.EncodeToString(tx.Data()))
+		fmt.Println("Gas: ", tx.Gas())
+		fmt.Println("GasPrice: ", tx.GasPrice())
+		fmt.Println("Hash: ", tx.Hash())
+		fmt.Println("Nonce: ", tx.Nonce())
 		v, r, s := tx.RawSignatureValues()
-		log.Info("V: ", v)
-		log.Info("R: ", r)
-		log.Info("S: ", s)
-		log.Info("To: ", tx.To())
-		log.Info("Type: ", tx.Type())
-		log.Info("Value: ", tx.Value())
+		fmt.Println("V: ", v)
+		fmt.Println("R: ", r)
+		fmt.Println("S: ", s)
+		fmt.Println("To: ", tx.To())
+		fmt.Println("Type: ", tx.Type())
+		fmt.Println("Value: ", tx.Value())
 	}
 }
 
-func decodeFullCallDataToTxs(txsData []byte) ([]types.Transaction, []byte, error) {
+func decodeFullCallDataToTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, error) {
 	// The first 4 bytes are the function hash bytes. These bytes has to be ripped.
 	// After that, the unpack method is used to read the call data.
 	// The txs data is a chunk of concatenated rawTx. This rawTx is the encoded tx information in rlp + the signature information (v, r, s).
@@ -245,6 +257,6 @@ func decodeFullCallDataToTxs(txsData []byte) ([]types.Transaction, []byte, error
 
 	txsData = data[0].([]byte)
 
-	txs, _, _, err := state.DecodeTxs(txsData)
+	txs, _, _, err := state.DecodeTxs(txsData, forkID)
 	return txs, txsData, err
 }

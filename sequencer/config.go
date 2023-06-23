@@ -124,6 +124,9 @@ type FinalizerCfg struct {
 
 	// TimestampResolution is the resolution of the timestamp used to close a batch
 	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
+
+	// ForkID is the fork id of the chain
+	ForkID uint64 `mapstructure:"ForkID"`
 }
 
 // WorkerCfg contains the Worker's configuration properties
@@ -136,6 +139,7 @@ type WorkerCfg struct {
 type DBManagerCfg struct {
 	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
 	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
+	ForkID                   uint64         `mapstructure:"ForkID"`
 }
 
 // EffectiveGasPriceCfg contains the configuration properties for the effective gas price

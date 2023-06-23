@@ -183,7 +183,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	txData, err := state.EncodeTransaction(tx.response.Tx, uint8(tx.response.EffectivePercentage))
+	txData, err := state.EncodeTransaction(tx.response.Tx, uint8(tx.response.EffectivePercentage), d.cfg.ForkID)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		previousLastBatch = lastBatches[1]
 	}
 
-	lastBatchTxs, _, _, err := state.DecodeTxs(lastBatch.BatchL2Data)
+	lastBatchTxs, _, _, err := state.DecodeTxs(lastBatch.BatchL2Data, d.cfg.ForkID)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	var prevLastBatchTxs []types.Transaction
 	if previousLastBatch != nil {
-		prevLastBatchTxs, _, _, err = state.DecodeTxs(previousLastBatch.BatchL2Data)
+		prevLastBatchTxs, _, _, err = state.DecodeTxs(previousLastBatch.BatchL2Data, d.cfg.ForkID)
 		if err != nil {
 			return nil, err
 		}
@@ -395,7 +395,7 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 		ClosingReason:  params.ClosingReason,
 	}
 
-	batchL2Data, err := state.EncodeTransactions(params.Txs, params.EffectivePercentages)
+	batchL2Data, err := state.EncodeTransactions(params.Txs, params.EffectivePercentages, d.cfg.ForkID)
 	if err != nil {
 		return err
 	}

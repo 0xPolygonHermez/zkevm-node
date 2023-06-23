@@ -26,6 +26,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	forkID5 = 5
+)
+
 func init() {
 	log.Init(log.Config{
 		Level:   "debug",
@@ -315,7 +319,7 @@ func TestSendSequences(t *testing.T) {
 	require.NoError(t, err)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx1}, constants.EffectivePercentage)
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx1}, constants.EffectivePercentage, forkID5)
 	require.NoError(t, err)
 	sequence := ethmanTypes.Sequence{
 		GlobalExitRoot: ger,

@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	forkID5      = 5
 	double       = 2
 	ether155V    = 27
 	etherPre155V = 35
@@ -30,7 +31,7 @@ const (
 )
 
 // EncodeTransactions RLP encodes the given transactions
-func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8) ([]byte, error) {
+func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8, forkID uint64) ([]byte, error) {
 	var batchL2Data []byte
 
 	for i, tx := range txs {
@@ -40,11 +41,13 @@ func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8) (
 		}
 		batchL2Data = append(batchL2Data, txData...)
 
-		effectivePercentageAsHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentages[i]))
-		if err != nil {
-			return nil, err
+		if forkID >= forkID5 {
+			effectivePercentageAsHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentages[i]))
+			if err != nil {
+				return nil, err
+			}
+			batchL2Data = append(batchL2Data, effectivePercentageAsHex...)
 		}
-		batchL2Data = append(batchL2Data, effectivePercentageAsHex...)
 	}
 
 	return batchL2Data, nil
@@ -109,8 +112,8 @@ func EncodeTransactionWithoutEffectivePercentage(tx types.Transaction) ([]byte, 
 }
 
 // EncodeTransaction RLP encodes the given transaction
-func EncodeTransaction(tx types.Transaction, effectivePercentage uint8) ([]byte, error) {
-	return EncodeTransactions([]types.Transaction{tx}, []uint8{effectivePercentage})
+func EncodeTransaction(tx types.Transaction, effectivePercentage uint8, forkID uint64) ([]byte, error) {
+	return EncodeTransactions([]types.Transaction{tx}, []uint8{effectivePercentage}, forkID)
 }
 
 // EncodeUnsignedTransaction RLP encodes the given unsigned transaction
@@ -157,7 +160,7 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce
 }
 
 // DecodeTxs extracts Transactions for its encoded form
-func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, []uint8, error) {
+func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []uint8, error) {
 	// Process coded txs
 	var pos uint64
 	var txs []types.Transaction
@@ -196,7 +199,11 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, []uint8, error) {
 			length = n + num - f7 // num - f7 is the header. For example 0xf7
 		}
 
-		endPos := pos + length + rLength + sLength + vLength + headerByteLength + efficiencyPercentageByteLength
+		endPos := pos + length + rLength + sLength + vLength + headerByteLength
+
+		if forkID >= forkID5 {
+			endPos += efficiencyPercentageByteLength
+		}
 
 		if endPos > txDataLength {
 			err := fmt.Errorf("endPos %d is bigger than txDataLength %d", endPos, txDataLength)
@@ -222,8 +229,11 @@ func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, []uint8, error) {
 		rData := txsData[dataStart : dataStart+rLength]
 		sData := txsData[dataStart+rLength : dataStart+rLength+sLength]
 		vData := txsData[dataStart+rLength+sLength : dataStart+rLength+sLength+vLength]
-		efficiencyPercentage := txsData[dataStart+rLength+sLength+vLength : endPos]
-		efficiencyPercentages = append(efficiencyPercentages, uint8(efficiencyPercentage[0]))
+
+		if forkID >= forkID5 {
+			efficiencyPercentage := txsData[dataStart+rLength+sLength+vLength : endPos]
+			efficiencyPercentages = append(efficiencyPercentages, uint8(efficiencyPercentage[0]))
+		}
 
 		pos = endPos
 

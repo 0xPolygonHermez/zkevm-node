@@ -1014,7 +1014,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, Ger: %s", batch.BatchNumber, f.batch.initialStateRoot.String(), batch.GlobalExitRoot.String())
-	txs, _, _, err := state.DecodeTxs(batch.BatchL2Data)
+	txs, _, _, err := state.DecodeTxs(batch.BatchL2Data, f.cfg.ForkID)
 
 	if err != nil {
 		log.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: %d. Error: %v", batch.BatchNumber, err)

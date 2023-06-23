@@ -20,6 +20,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	forkID5 = 5
+)
+
 func TestConsolidatedBlockNumber(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
@@ -708,7 +712,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					batchTxs = append(batchTxs, *tx)
 					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
 				require.NoError(t, err)
 				tc.ExpectedResult.BatchL2Data = batchL2Data
 				batch := &state.Batch{
@@ -821,7 +825,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					batchTxs = append(batchTxs, *tx)
 					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
 				require.NoError(t, err)
 
 				batch := &state.Batch{
@@ -959,7 +963,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					batchTxs = append(batchTxs, *tx)
 					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
 				require.NoError(t, err)
 				batch := &state.Batch{
 					BatchNumber:    1,
