@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -754,10 +753,6 @@ func scanBatch(row pgx.Row) (Batch, error) {
 	}
 	if aihStr != nil {
 		batch.AccInputHash = common.HexToHash(*aihStr)
-	}
-	batch.Transactions, _, err = DecodeTxs(batch.BatchL2Data)
-	if err != nil {
-		log.Warnf("error decoding txs of batch: %d. Error: %v", batch.BatchNumber, err)
 	}
 
 	batch.Coinbase = common.HexToAddress(coinbaseStr)
