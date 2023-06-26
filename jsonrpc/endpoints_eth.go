@@ -865,7 +865,7 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get syncing info from state", err)
 		}
 
-		if syncInfo.CurrentBlockNumber == syncInfo.LastBlockNumberSeen {
+		if syncInfo.CurrentBlockNumber >= syncInfo.LastBlockNumberSeen {
 			return false, nil
 		}
 

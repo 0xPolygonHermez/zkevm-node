@@ -28,4 +28,10 @@ type Config struct {
 
 	// PollMinAllowedGasPriceInterval is the interval to poll the suggested min gas price for a tx
 	PollMinAllowedGasPriceInterval types.Duration `mapstructure:"PollMinAllowedGasPriceInterval"`
+
+	// AccountQueue represents the maximum number of non-executable transaction slots permitted per account
+	AccountQueue uint64 `mapstructure:"AccountQueue"`
+
+	// GlobalQueue represents the maximum number of non-executable transaction slots for all accounts
+	GlobalQueue uint64 `mapstructure:"GlobalQueue"`
 }

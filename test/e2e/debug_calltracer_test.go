@@ -94,6 +94,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		{name: "delegate transfers", prepare: prepareChainCalls, createSignedTx: createDelegateTransfersSignedTx},
 		{name: "memory", prepare: prepareMemory, createSignedTx: createMemorySignedTx},
 		{name: "bridge", prepare: prepareBridge, createSignedTx: createBridgeSignedTx},
+		{name: "deploy create 0", createSignedTx: createDeployCreate0SignedTx},
 
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
@@ -104,6 +105,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		{name: "invalid static call with inner call", prepare: prepareCalls, createSignedTx: createInvalidStaticCallWithInnerCallSignedTx},
 		{name: "chain call reverted", prepare: prepareChainCalls, createSignedTx: createChainCallRevertedSignedTx},
 		{name: "chain delegate call reverted", prepare: prepareChainCalls, createSignedTx: createChainDelegateCallRevertedSignedTx},
+		{name: "depth reverted", prepare: prepareDepth, createSignedTx: createDepthSignedTx},
 	}
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
