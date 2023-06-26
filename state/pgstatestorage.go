@@ -1237,7 +1237,7 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 
 	receipt.BlockNumber = big.NewInt(0).SetUint64(l2BlockNum)
 	receipt.BlockHash = common.HexToHash(l2BlockHash)
-	if effective_gas_price == nil {
+	if effective_gas_price != nil {
 		receipt.EffectiveGasPrice = big.NewInt(0).SetUint64(*effective_gas_price)
 	}
 	receipt.Logs = logs
