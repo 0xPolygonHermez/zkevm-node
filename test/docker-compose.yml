@@ -117,6 +117,8 @@ services:
   zkevm-sync:
     container_name: zkevm-sync
     image: zkevm-node
+    ports:
+      - 9095:9091 # needed if metrics enabled
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     volumes:
