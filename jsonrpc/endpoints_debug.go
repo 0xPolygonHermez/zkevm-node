@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -202,6 +203,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 
 func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.StructLog, cfg traceConfig) []StructLogRes {
 	structLogs := make([]StructLogRes, 0, len(stateStructLogs))
+	memory := fakevm.NewMemory()
 	for _, structLog := range stateStructLogs {
 		errRes := ""
 		if structLog.Err != nil {
@@ -238,15 +240,31 @@ func (d *DebugEndpoints) buildStructLogs(stateStructLogs []instrumentation.Struc
 		}
 
 		if cfg.EnableMemory {
-			const memoryChunkSize = 32
-			memory := make([]string, 0, len(structLog.Memory))
-			for i := 0; i < len(structLog.Memory); i = i + memoryChunkSize {
-				slice32Bytes := make([]byte, memoryChunkSize)
-				copy(slice32Bytes, structLog.Memory[i:i+memoryChunkSize])
-				memoryStringItem := hex.EncodeToString(slice32Bytes)
-				memory = append(memory, memoryStringItem)
+			memory.Resize(uint64(structLog.MemorySize))
+			if len(structLog.Memory) > 0 {
+				memory.Set(uint64(structLog.MemoryOffset), uint64(len(structLog.Memory)), structLog.Memory)
 			}
-			structLogRes.Memory = &memory
+
+			if structLog.MemorySize > 0 {
+				// Populate the structLog memory
+				structLog.Memory = memory.Data()
+
+				// Convert memory to string array
+				const memoryChunkSize = 32
+				memoryArray := make([]string, 0, len(structLog.Memory))
+
+				for i := 0; i < len(structLog.Memory); i = i + memoryChunkSize {
+					slice32Bytes := make([]byte, memoryChunkSize)
+					copy(slice32Bytes, structLog.Memory[i:i+memoryChunkSize])
+					memoryStringItem := hex.EncodeToString(slice32Bytes)
+					memoryArray = append(memoryArray, memoryStringItem)
+				}
+
+				structLogRes.Memory = &memoryArray
+			} else {
+				memory = fakevm.NewMemory()
+				structLogRes.Memory = &[]string{}
+			}
 		}
 
 		if !cfg.DisableStorage && len(structLog.Storage) > 0 {

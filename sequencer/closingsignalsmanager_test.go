@@ -56,7 +56,7 @@ func setupTest(t *testing.T) {
 
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 	localMtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
-	localExecutorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	localExecutorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
 
 	localExecutorClient, localExecutorClientConn, localExecutorCancel = executor.NewExecutorClient(localCtx, localExecutorServerConfig)
 	s := localExecutorClientConn.GetState()
