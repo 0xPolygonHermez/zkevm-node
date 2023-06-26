@@ -57,6 +57,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 		Type:              uint8(tx.Type()),
 		PostState:         state.ZeroHash.Bytes(),
 		CumulativeGasUsed: 0,
+		EffectiveGasPrice: big.NewInt(0),
 		BlockNumber:       blockNumber,
 		GasUsed:           tx.Gas(),
 		TxHash:            tx.Hash(),

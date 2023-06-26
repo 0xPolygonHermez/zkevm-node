@@ -284,6 +284,14 @@ func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 		Logs:              processedTx.Logs,
 	}
 
+	if processedTx.EffectiveGasPrice != "" {
+		effectiveGasPrice, ok := big.NewInt(0).SetString(processedTx.EffectiveGasPrice, hex.Base)
+		if !ok {
+			log.Errorf("error converting effective gas price %s to big.Int", processedTx.EffectiveGasPrice)
+		}
+		receipt.EffectiveGasPrice = effectiveGasPrice
+	}
+
 	// TODO: this fix is temporary while the Executor is returning a
 	// different Tx hash for the TxHash, Log.TxHash and Tx.Hash().
 	// At the moment, the processedTx.TxHash and Log[n].TxHash are
