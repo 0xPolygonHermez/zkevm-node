@@ -187,15 +187,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		}
 	}
 
-	breakEvenGasPrice, err := p.CalculateTxBreakEvenGasPrice(ctx, uint64(len(preExecutionResponse.txResponse.Tx.Data())), preExecutionResponse.txResponse.GasUsed)
-	if err != nil {
-		err = fmt.Errorf("error estimating break even gas price. err: %w", err)
-		log.Error(err)
-		return err
-	}
-	log.Infof("estimated breakEvenGasPrice: %v with gas used: %v for tx: %s", breakEvenGasPrice, preExecutionResponse.txResponse.GasUsed, tx.Hash().String())
-
-	poolTx := NewTransaction(tx, ip, isWIP, breakEvenGasPrice)
+	poolTx := NewTransaction(tx, ip, isWIP)
 	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, *poolTx)

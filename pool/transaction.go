@@ -1,7 +1,6 @@
 package pool
 
 import (
-	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -46,18 +45,16 @@ type Transaction struct {
 	IsWIP                 bool
 	IP                    string
 	FailedReason          *string
-	BreakEvenGasPrice     *big.Int
 }
 
 // NewTransaction creates a new transaction
-func NewTransaction(tx types.Transaction, ip string, isWIP bool, breakEvenGasPrice *big.Int) *Transaction {
+func NewTransaction(tx types.Transaction, ip string, isWIP bool) *Transaction {
 	poolTx := Transaction{
-		Transaction:       tx,
-		Status:            TxStatusPending,
-		ReceivedAt:        time.Now(),
-		IsWIP:             isWIP,
-		IP:                ip,
-		BreakEvenGasPrice: breakEvenGasPrice,
+		Transaction: tx,
+		Status:      TxStatusPending,
+		ReceivedAt:  time.Now(),
+		IsWIP:       isWIP,
+		IP:          ip,
 	}
 
 	return &poolTx
