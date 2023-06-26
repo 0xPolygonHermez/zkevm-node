@@ -1166,6 +1166,12 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		return err
 	}
 
+	processCtx := state.ProcessingContext{
+		BatchNumber:    uint64(trustedBatch.Number),
+		Coinbase:       common.HexToAddress(trustedBatch.Coinbase.String()),
+		Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
+		GlobalExitRoot: trustedBatch.GlobalExitRoot,
+	}
 	// check if batch needs to be synchronized
 	if batch != nil {
 		matchNumber := batch.BatchNumber == uint64(trustedBatch.Number)
@@ -1182,28 +1188,23 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 			return nil
 		}
 		log.Infof("batch %v needs to be updated", trustedBatch.Number)
+
+		// Update batchL2Data
+		err := s.state.UpdateBatchL2Data(s.ctx, batch.BatchNumber, trustedBatchL2Data, dbTx)
+		if err != nil {
+			log.Errorf("error opening batch %d", trustedBatch.Number)
+			return err
+		}
+		log.Debug("BatchL2Data updated for batch: ", batch.BatchNumber)
 	} else {
 		log.Infof("batch %v needs to be synchronized", trustedBatch.Number)
-	}
-
-	log.Debugf("resetting trusted state from batch %v", trustedBatch.Number)
-	previousBatchNumber := trustedBatch.Number - 1
-	metrics.TrustedBatchCleanCounter()
-	if err := s.state.ResetTrustedState(s.ctx, uint64(previousBatchNumber), dbTx); err != nil {
-		log.Errorf("failed to reset trusted state", trustedBatch.Number)
-		return err
-	}
-
-	log.Debugf("opening batch %v", trustedBatch.Number)
-	processCtx := state.ProcessingContext{
-		BatchNumber:    uint64(trustedBatch.Number),
-		Coinbase:       common.HexToAddress(trustedBatch.Coinbase.String()),
-		Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
-		GlobalExitRoot: trustedBatch.GlobalExitRoot,
-	}
-	if err := s.state.OpenBatch(s.ctx, processCtx, dbTx); err != nil {
-		log.Errorf("error opening batch %d", trustedBatch.Number)
-		return err
+		log.Debugf("opening batch %v", trustedBatch.Number)
+		
+		err := s.state.OpenBatch(s.ctx, processCtx, dbTx)
+		if err != nil {
+			log.Errorf("error opening batch %d", trustedBatch.Number)
+			return err
+		}
 	}
 
 	log.Debugf("processing sequencer for batch %v", trustedBatch.Number)
