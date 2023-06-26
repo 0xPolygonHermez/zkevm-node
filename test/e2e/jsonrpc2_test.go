@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"math/big"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
@@ -468,5 +470,75 @@ func TestCallMissingParameters(t *testing.T) {
 				require.Equal(t, testCase.expectedError.Message, response.Error.Message)
 			})
 		}
+	}
+}
+
+func TestWebSocketsConcurrentWrites(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	setup()
+	defer teardown()
+
+	const msgQty = 1000
+
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+
+		wsConn, _, err := websocket.DefaultDialer.Dial(network.WebSocketURL, nil)
+		defer func() {
+			err := wsConn.Close()
+			require.NoError(t, err)
+		}()
+		require.NoError(t, err)
+
+		wg := sync.WaitGroup{}
+		wg.Add(msgQty)
+		receivedMessages := make(chan []byte, msgQty)
+		go func(t *testing.T, wsConn *websocket.Conn) {
+			c := 0
+			for i := 0; i < msgQty; i++ {
+				_, message, err := wsConn.ReadMessage()
+				require.NoError(t, err)
+				receivedMessages <- message
+				wg.Done()
+				c++
+			}
+		}(t, wsConn)
+
+		params := []string{}
+		jParam, err := json.Marshal(params)
+		require.NoError(t, err)
+
+		req := types.Request{JSONRPC: "2.0", ID: float64(1), Method: "eth_blockNumber", Params: jParam}
+		jReq, _ := json.Marshal(req)
+
+		for i := 0; i < msgQty; i++ {
+			err = wsConn.WriteMessage(websocket.TextMessage, jReq)
+			require.NoError(t, err)
+		}
+
+		if waitTimeout(&wg, time.Second*5) {
+			t.Error("timeout reached")
+			return
+		}
+
+		assert.Equal(t, msgQty, len(receivedMessages))
+	}
+}
+
+// waitTimeout waits for the waitgroup for the specified max timeout.
+// Returns true if waiting timed out.
+func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return false // completed normally
+	case <-time.After(timeout):
+		return true // timed out
 	}
 }

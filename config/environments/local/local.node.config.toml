@@ -133,6 +133,7 @@ URI = "zkevm-prover:50061"
 URI = "zkevm-prover:50071"
 MaxResourceExhaustedAttempts = 3
 WaitOnResourceExhaustion = "1s"
+MaxGRPCMessageSize = 100000000
 
 [Metrics]
 Host = "0.0.0.0"

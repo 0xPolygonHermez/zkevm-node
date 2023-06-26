@@ -2,6 +2,7 @@ package pool_test
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"fmt"
 	"math"
@@ -64,6 +65,8 @@ var (
 		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Minute),
+		AccountQueue:                      15,
+		GlobalQueue:                       20,
 	}
 	gasPrice = big.NewInt(1000000000)
 	gasLimit = uint64(21000)
@@ -197,15 +200,14 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	require.NoError(t, err)
 
-	const chainID = 2576980377
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID, eventLog)
+	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64(), eventLog)
 
 	b := make([]byte, cfg.MaxTxBytesSize+1)
 	to := common.HexToAddress(operations.DefaultSequencerAddress)
 	tx := ethTypes.NewTransaction(0, to, big.NewInt(0), gasLimit, big.NewInt(0), b)
 
 	// GetAuth configures and returns an auth object.
-	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, chainID)
+	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, chainID.Uint64())
 	require.NoError(t, err)
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
@@ -993,7 +995,7 @@ func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
-	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorServerConfig)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
@@ -1226,8 +1228,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 			require.NoError(t, err)
 
-			const chainID = 2576980377
-			p := setupPool(t, cfg, s, st, chainID, ctx, eventLog)
+			p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
 			tx := ethTypes.NewTx(&ethTypes.LegacyTx{
 				Nonce:    tc.nonce,
 				To:       tc.to,
@@ -1239,7 +1240,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 			require.NoError(t, err)
 
-			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
+			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(int64(chainID.Uint64())))
 			require.NoError(t, err)
 
 			signedTx, err := auth.Signer(auth.From, tx)
@@ -1337,8 +1338,7 @@ func Test_BlockedAddress(t *testing.T) {
 
 	st := newState(stateSqlDB, eventLog)
 
-	const chainID = 2576980377
-	auth := operations.MustGetAuth(operations.DefaultSequencerPrivateKey, chainID)
+	auth := operations.MustGetAuth(operations.DefaultSequencerPrivateKey, chainID.Uint64())
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -1375,8 +1375,10 @@ func Test_BlockedAddress(t *testing.T) {
 		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
+		AccountQueue:                      64,
+		GlobalQueue:                       1024,
 	}
-	p := setupPool(t, cfg, s, st, chainID, ctx, eventLog)
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
 
 	gasPrice, err := p.GetGasPrice(ctx)
 	require.NoError(t, err)
@@ -1426,6 +1428,359 @@ func Test_BlockedAddress(t *testing.T) {
 	// allowed to add tx again
 	err = p.AddTx(ctx, *signedTx, "")
 	require.NoError(t, err)
+}
+
+func Test_AddTx_GasOverBatchLimit(t *testing.T) {
+	testCases := []struct {
+		name          string
+		nonce         uint64
+		to            *common.Address
+		value         *big.Int
+		gasLimit      uint64
+		gasPrice      *big.Int
+		data          []byte
+		expectedError error
+	}{
+		{
+			name:          "Gas over batch limit",
+			nonce:         0,
+			to:            nil,
+			value:         big.NewInt(0),
+			gasLimit:      uint64(30000001),
+			gasPrice:      big.NewInt(1000000000000),
+			data:          []byte{},
+			expectedError: pool.ErrGasLimit,
+		},
+	}
+
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		log.Fatal(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			initOrResetDB(t)
+
+			stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+			if err != nil {
+				panic(err)
+			}
+			defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+			poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+			require.NoError(t, err)
+			defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+			st := newState(stateSqlDB, eventLog)
+
+			genesisBlock := state.Block{
+				BlockNumber: 0,
+				BlockHash:   state.ZeroHash,
+				ParentHash:  state.ZeroHash,
+				ReceivedAt:  time.Now(),
+			}
+			genesis := state.Genesis{
+				GenesisActions: []*state.GenesisAction{
+					{
+						Address: senderAddress,
+						Type:    int(merkletree.LeafTypeBalance),
+						Value:   "1000000000000000000000",
+					},
+				},
+			}
+			ctx := context.Background()
+			dbTx, err := st.BeginStateTransaction(ctx)
+			require.NoError(t, err)
+			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			require.NoError(t, err)
+			require.NoError(t, dbTx.Commit(ctx))
+
+			s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+			require.NoError(t, err)
+
+			p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
+			tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+				Nonce:    tc.nonce,
+				To:       tc.to,
+				Value:    tc.value,
+				Gas:      tc.gasLimit,
+				GasPrice: tc.gasPrice,
+				Data:     tc.data,
+			})
+			privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+			require.NoError(t, err)
+
+			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+			require.NoError(t, err)
+
+			signedTx, err := auth.Signer(auth.From, tx)
+			require.NoError(t, err)
+
+			err = p.AddTx(ctx, *signedTx, "")
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func Test_AddTx_AccountQueueLimit(t *testing.T) {
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		log.Fatal(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	initOrResetDB(t)
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	require.NoError(t, err)
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB, eventLog)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	genesis := state.Genesis{
+		GenesisActions: []*state.GenesisAction{
+			{
+				Address: senderAddress,
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
+		},
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	require.NoError(t, err)
+
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	nonce := uint64(0)
+	for nonce < cfg.AccountQueue {
+		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+			Nonce:    nonce,
+			Value:    big.NewInt(0),
+			Gas:      uint64(1000000),
+			GasPrice: gasPrice,
+		})
+
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+
+		err = p.AddTx(ctx, *signedTx, "")
+		require.NoError(t, err)
+		nonce++
+	}
+
+	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    nonce,
+		Value:    big.NewInt(0),
+		Gas:      uint64(1000000),
+		GasPrice: gasPrice,
+	})
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, "")
+	require.Error(t, err, pool.ErrNonceTooHigh)
+}
+
+func Test_AddTx_GlobalQueueLimit(t *testing.T) {
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		log.Fatal(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	initOrResetDB(t)
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	require.NoError(t, err)
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB, eventLog)
+
+	// generate accounts
+	accounts := map[common.Address]*ecdsa.PrivateKey{}
+	genesisActions := []*state.GenesisAction{
+		{
+			Address: senderAddress,
+			Type:    int(merkletree.LeafTypeBalance),
+			Value:   "1000000000000000000000",
+		},
+	}
+	for i := 0; i < int(cfg.GlobalQueue); i++ {
+		privateKey, err := crypto.GenerateKey()
+		require.NoError(t, err)
+		publicKey := privateKey.Public().(*ecdsa.PublicKey)
+		fromAddress := crypto.PubkeyToAddress(*publicKey)
+		accounts[fromAddress] = privateKey
+		genesisActions = append(genesisActions, &state.GenesisAction{
+			Address: fromAddress.String(),
+			Type:    int(merkletree.LeafTypeBalance),
+			Value:   "1000000000000000000000",
+		})
+	}
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	genesis := state.Genesis{
+		GenesisActions: genesisActions,
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	require.NoError(t, err)
+
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
+
+	for _, privateKey := range accounts {
+		auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+		require.NoError(t, err)
+		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+			Nonce:    0,
+			Value:    big.NewInt(0),
+			Gas:      uint64(1000000),
+			GasPrice: gasPrice,
+		})
+
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+
+		err = p.AddTx(ctx, *signedTx, "")
+		require.NoError(t, err)
+	}
+
+	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    0,
+		Value:    big.NewInt(0),
+		Gas:      uint64(1000000),
+		GasPrice: big.NewInt(1),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, "")
+	require.Error(t, err, pool.ErrTxPoolOverflow)
+}
+
+func Test_AddTx_NonceTooHigh(t *testing.T) {
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		log.Fatal(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	initOrResetDB(t)
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	require.NoError(t, err)
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB, eventLog)
+
+	// generate accounts
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	genesis := state.Genesis{
+		GenesisActions: []*state.GenesisAction{
+			{
+				Address: senderAddress,
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
+		},
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	require.NoError(t, err)
+
+	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
+
+	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    cfg.AccountQueue,
+		Value:    big.NewInt(0),
+		Gas:      uint64(1000000),
+		GasPrice: big.NewInt(1),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, "")
+	require.Error(t, err, pool.ErrNonceTooHigh)
 }
 
 func setupPool(t *testing.T, cfg pool.Config, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {
