@@ -27,16 +27,17 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	isTrustedSequencer bool
-	etherMan           ethermanInterface
-	state              stateInterface
-	pool               poolInterface
-	ethTxManager       ethTxManager
-	zkEVMClient        zkEVMClientInterface
-	ctx                context.Context
-	cancelCtx          context.CancelFunc
-	genesis            state.Genesis
-	cfg                Config
+	isTrustedSequencer  bool
+	etherMan            ethermanInterface
+	state               stateInterface
+	pool                poolInterface
+	ethTxManager        ethTxManager
+	zkEVMClient         zkEVMClientInterface
+	ctx                 context.Context
+	cancelCtx           context.CancelFunc
+	genesis             state.Genesis
+	cfg                 Config
+	CurrentTrustedBatch *state.Batch
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -367,33 +368,33 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 		batchToSync, err := s.zkEVMClient.BatchByNumber(s.ctx, big.NewInt(0).SetUint64(batchNumberToSync))
 		metrics.GetTrustedBatchInfoTime(time.Since(start))
 		if err != nil {
-			log.Warnf("failed to get batch %v from trusted state. Error: %v", batchNumberToSync, err)
+			log.Warnf("failed to get batch %d from trusted state. Error: %v", batchNumberToSync, err)
 			return err
 		}
 
 		dbTx, err := s.state.BeginStateTransaction(s.ctx)
 		if err != nil {
-			log.Errorf("error creating db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
+			log.Errorf("error creating db transaction to sync trusted batch %d: %v", batchNumberToSync, err)
 			return err
 		}
 		start = time.Now()
-		err = s.processTrustedBatch(batchToSync, dbTx)
+		cbatch, err := s.processTrustedBatch(batchToSync, dbTx)
 		metrics.ProcessTrustedBatchTime(time.Since(start))
 		if err != nil {
-			log.Errorf("error processing trusted batch %v: %v", batchNumberToSync, err)
-			err := dbTx.Rollback(s.ctx)
-			if err != nil {
-				log.Errorf("error rolling back db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
-				return err
+			log.Errorf("error processing trusted batch %d: %v", batchNumberToSync, err)
+			rollbackErr := dbTx.Rollback(s.ctx)
+			if rollbackErr != nil {
+				log.Errorf("error rolling back db transaction to sync trusted batch %d: %v", batchNumberToSync, rollbackErr)
+				return rollbackErr
 			}
-			break
+			return err
 		}
 
 		if err := dbTx.Commit(s.ctx); err != nil {
 			log.Errorf("error committing db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
 			return err
 		}
-
+		s.CurrentTrustedBatch = cbatch
 		batchNumberToSync++
 	}
 
@@ -1156,14 +1157,17 @@ func (s *ClientSynchronizer) processTrustedVerifyBatches(lastVerifiedBatch ether
 	return nil
 }
 
-func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx pgx.Tx) error {
+func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx pgx.Tx) (*state.Batch, error) {
 	log.Debugf("processing trusted batch: %v", trustedBatch.Number)
 	trustedBatchL2Data := trustedBatch.BatchL2Data
-
-	batch, err := s.state.GetBatchByNumber(s.ctx, uint64(trustedBatch.Number), nil)
-	if err != nil && err != state.ErrStateNotSynchronized {
-		log.Warnf("failed to get batch %v from local trusted state. Error: %v", trustedBatch.Number, err)
-		return err
+	batch := s.CurrentTrustedBatch
+	if batch == nil || uint64(trustedBatch.Number) != batch.BatchNumber {
+		var err error
+		batch, err = s.state.GetBatchByNumber(s.ctx, uint64(trustedBatch.Number), nil)
+		if err != nil && err != state.ErrStateNotSynchronized {
+			log.Warnf("failed to get batch %v from local trusted state. Error: %v", trustedBatch.Number, err)
+			return nil, err
+		}
 	}
 
 	processCtx := state.ProcessingContext{
@@ -1185,7 +1189,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		if matchNumber && matchGER && matchLER && matchSR &&
 			matchCoinbase && matchTimestamp && matchL2Data {
 			log.Debugf("batch %v already synchronized", trustedBatch.Number)
-			return nil
+			return batch, nil
 		}
 		log.Infof("batch %v needs to be updated", trustedBatch.Number)
 
@@ -1193,8 +1197,9 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		err := s.state.UpdateBatchL2Data(s.ctx, batch.BatchNumber, trustedBatchL2Data, dbTx)
 		if err != nil {
 			log.Errorf("error opening batch %d", trustedBatch.Number)
-			return err
+			return nil, err
 		}
+		batch.BatchL2Data = trustedBatchL2Data
 		log.Debug("BatchL2Data updated for batch: ", batch.BatchNumber)
 	} else {
 		log.Infof("batch %v needs to be synchronized", trustedBatch.Number)
@@ -1203,7 +1208,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		err := s.state.OpenBatch(s.ctx, processCtx, dbTx)
 		if err != nil {
 			log.Errorf("error opening batch %d", trustedBatch.Number)
-			return err
+			return nil, err
 		}
 	}
 
@@ -1212,13 +1217,13 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 	processBatchResp, err := s.state.ProcessSequencerBatch(s.ctx, uint64(trustedBatch.Number), trustedBatchL2Data, stateMetrics.SynchronizerCallerLabel, dbTx)
 	if err != nil {
 		log.Errorf("error processing sequencer batch for batch: %d", trustedBatch.Number)
-		return err
+		return nil, err
 	}
 
 	log.Debugf("storing transactions for batch %v", trustedBatch.Number)
 	if err = s.state.StoreTransactions(s.ctx, uint64(trustedBatch.Number), processBatchResp.Responses, dbTx); err != nil {
 		log.Errorf("failed to store transactions for batch: %d", trustedBatch.Number)
-		return err
+		return nil, err
 	}
 
 	log.Debug("trustedBatch.StateRoot ", trustedBatch.StateRoot)
@@ -1234,12 +1239,12 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		log.Debugf("closing batch %v", trustedBatch.Number)
 		if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
 			log.Errorf("error closing batch %d", trustedBatch.Number)
-			return err
+			return nil, err
 		}
 	}
 
 	log.Infof("batch %v synchronized", trustedBatch.Number)
-	return nil
+	return batch, nil
 }
 
 func (s *ClientSynchronizer) reorgPool(dbTx pgx.Tx) error {
