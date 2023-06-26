@@ -315,6 +315,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
+			path:          "Pool.AccountQueue",
+			expectedValue: uint64(64),
+		},
+		{
+			path:          "Pool.GlobalQueue",
+			expectedValue: uint64(1024),
+		},
+		{
 			path:          "Pool.DB.User",
 			expectedValue: "pool_user",
 		},
@@ -385,6 +393,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Executor.URI",
 			expectedValue: "zkevm-prover:50071",
+		},
+		{
+			path:          "Executor.MaxGRPCMessageSize",
+			expectedValue: int(100000000),
 		},
 		{
 			path:          "Metrics.Host",

@@ -648,6 +648,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				Timestamp:           1,
 				SendSequencesTxHash: ptrHash(common.HexToHash("0x10")),
 				VerifyBatchTxHash:   ptrHash(common.HexToHash("0x20")),
+				BatchL2Data:         hexToBytes("0x04"),
 			},
 			ExpectedError: nil,
 			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
@@ -668,6 +669,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					AccInputHash:   common.HexToHash("0x3"),
 					GlobalExitRoot: common.HexToHash("0x4"),
 					Timestamp:      time.Unix(1, 0),
+					BatchL2Data:    hexToBytes("0x04"),
 				}
 
 				m.State.
@@ -772,6 +774,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				Timestamp:           1,
 				SendSequencesTxHash: ptrHash(common.HexToHash("0x10")),
 				VerifyBatchTxHash:   ptrHash(common.HexToHash("0x20")),
+				BatchL2Data:         hexToBytes("0x04"),
 			},
 			ExpectedError: nil,
 			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
@@ -792,6 +795,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					AccInputHash:   common.HexToHash("0x3"),
 					GlobalExitRoot: common.HexToHash("0x4"),
 					Timestamp:      time.Unix(1, 0),
+					BatchL2Data:    hexToBytes("0x04"),
 				}
 
 				m.State.
@@ -869,6 +873,7 @@ func TestGetBatchByNumber(t *testing.T) {
 			WithTxDetail: true,
 			ExpectedResult: &types.Batch{
 				Number:              1,
+				ForcedBatchNumber:   ptrArgUint64FromUint64(1),
 				Coinbase:            common.HexToAddress("0x1"),
 				StateRoot:           common.HexToHash("0x2"),
 				AccInputHash:        common.HexToHash("0x3"),
@@ -876,6 +881,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				Timestamp:           1,
 				SendSequencesTxHash: ptrHash(common.HexToHash("0x10")),
 				VerifyBatchTxHash:   ptrHash(common.HexToHash("0x20")),
+				BatchL2Data:         hexToBytes("0x04"),
 			},
 			ExpectedError: nil,
 			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
@@ -894,13 +900,16 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(uint64(tc.ExpectedResult.Number), nil).
 					Once()
 
+				var fb uint64 = 1
 				batch := &state.Batch{
 					BatchNumber:    1,
+					ForcedBatchNum: &fb,
 					Coinbase:       common.HexToAddress("0x1"),
 					StateRoot:      common.HexToHash("0x2"),
 					AccInputHash:   common.HexToHash("0x3"),
 					GlobalExitRoot: common.HexToHash("0x4"),
 					Timestamp:      time.Unix(1, 0),
+					BatchL2Data:    hexToBytes("0x04"),
 				}
 
 				m.State.
@@ -1066,6 +1075,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					err = json.Unmarshal(res.Result, &batch)
 					require.NoError(t, err)
 					assert.Equal(t, tc.ExpectedResult.Number.Hex(), batch["number"].(string))
+					if tc.ExpectedResult.ForcedBatchNumber != nil {
+						assert.Equal(t, tc.ExpectedResult.ForcedBatchNumber.Hex(), batch["forcedBatchNumber"].(string))
+					}
 					assert.Equal(t, tc.ExpectedResult.Coinbase.String(), batch["coinbase"].(string))
 					assert.Equal(t, tc.ExpectedResult.StateRoot.String(), batch["stateRoot"].(string))
 					assert.Equal(t, tc.ExpectedResult.GlobalExitRoot.String(), batch["globalExitRoot"].(string))
@@ -1074,6 +1086,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					assert.Equal(t, tc.ExpectedResult.Timestamp.Hex(), batch["timestamp"].(string))
 					assert.Equal(t, tc.ExpectedResult.SendSequencesTxHash.String(), batch["sendSequencesTxHash"].(string))
 					assert.Equal(t, tc.ExpectedResult.VerifyBatchTxHash.String(), batch["verifyBatchTxHash"].(string))
+					assert.Equal(t, tc.ExpectedResult.BatchL2Data.Hex(), batch["batchL2Data"].(string))
 					batchTxs := batch["transactions"].([]interface{})
 					for i, txOrHash := range tc.ExpectedResult.Transactions {
 						switch batchTxOrHash := batchTxs[i].(type) {
@@ -1133,4 +1146,9 @@ func signTx(tx *ethTypes.Transaction, chainID uint64) *ethTypes.Transaction {
 	auth, _ := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(chainID))
 	signedTx, _ := auth.Signer(auth.From, tx)
 	return signedTx
+}
+
+func hexToBytes(str string) []byte {
+	bytes, _ := hex.DecodeHex(str)
+	return bytes
 }
