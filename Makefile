@@ -55,7 +55,7 @@ lint: ## Runs the linter
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run
 
 .PHONY: install-config-doc-gen
-install-config-doc-gen: ## Installs the Python libraries to generate the configuration doc. Reuqires pip (sudo apt install python3-pip. You may need to add "~/.local/bin" to your path
+install-config-doc-gen: ## Installs the Python libraries to generate the configuration doc. Requires pip (sudo apt install python3-pip. You may need to add "~/.local/bin" to your path
 	pip3 install json-schema-for-humans
 
 .PHONY: config-doc-gen
