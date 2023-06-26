@@ -41,11 +41,7 @@ const (
 
 // Register the metrics for the synchronizer package.
 func Register() {
-	var (
-		histograms []prometheus.HistogramOpts
-	)
-
-	histograms = []prometheus.HistogramOpts{
+	histograms := []prometheus.HistogramOpts{
 		{
 			Name: InitializationTimeName,
 			Help: "[SYNCHRONIZER] initialization time",

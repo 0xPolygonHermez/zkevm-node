@@ -1204,7 +1204,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 	} else {
 		log.Infof("batch %v needs to be synchronized", trustedBatch.Number)
 		log.Debugf("opening batch %v", trustedBatch.Number)
-		
+
 		err := s.state.OpenBatch(s.ctx, processCtx, dbTx)
 		if err != nil {
 			log.Errorf("error opening batch %d", trustedBatch.Number)
