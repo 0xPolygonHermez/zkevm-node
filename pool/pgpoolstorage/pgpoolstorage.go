@@ -168,16 +168,9 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 // if limit = 0, then there is no limit
 func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status pool.TxStatus, limit uint64) ([]pool.Transaction, error) {
 	var (
-		rows              pgx.Rows
-		err               error
-		sql               string
-		encoded, ip       string
-		failedReason      *string
-		cumulativeGasUsed uint64
-		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
-		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
-		receivedAt time.Time
-		isWIP      bool
+		rows pgx.Rows
+		err  error
+		sql  string
 	)
 
 	if limit == 0 {
@@ -186,7 +179,7 @@ func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status p
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
 		sql = `SELECT encoded, status, received_at, is_wip, ip, cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
-		used_arithmetics, used_binaries, used_steps, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1 DESC LIMIT $2`
+		used_arithmetics, used_binaries, used_steps, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1 ORDER BY gas_price DESC LIMIT $2`
 		rows, err = p.db.Query(ctx, sql, status.String(), limit)
 	}
 	if err != nil {
@@ -196,51 +189,11 @@ func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status p
 
 	txs := make([]pool.Transaction, 0, len(rows.RawValues()))
 	for rows.Next() {
-		err := rows.Scan(
-			&encoded,
-			&cumulativeGasUsed,
-			&usedKeccakHashes,
-			&usedPoseidonHashes,
-			&usedPoseidonPaddings,
-			&usedMemAligns,
-			&usedArithmetics,
-			&usedBinaries,
-			&usedSteps,
-			&receivedAt,
-			&isWIP,
-			&ip,
-			&failedReason,
-		)
-
+		tx, err := scanTx(rows)
 		if err != nil {
 			return nil, err
 		}
-		tx := pool.Transaction{}
-		b, err := hex.DecodeHex(encoded)
-		if err != nil {
-			return nil, err
-		}
-		if err := tx.UnmarshalBinary(b); err != nil {
-			return nil, err
-		}
-
-		tx.Status = status
-		tx.ZKCounters = state.ZKCounters{
-			CumulativeGasUsed:    cumulativeGasUsed,
-			UsedKeccakHashes:     usedKeccakHashes,
-			UsedPoseidonHashes:   usedPoseidonHashes,
-			UsedPoseidonPaddings: usedPoseidonPaddings,
-			UsedMemAligns:        usedMemAligns,
-			UsedArithmetics:      usedArithmetics,
-			UsedBinaries:         usedBinaries,
-			UsedSteps:            usedSteps,
-		}
-		tx.ReceivedAt = receivedAt
-		tx.IsWIP = isWIP
-		tx.IP = ip
-		tx.FailedReason = failedReason
-
-		txs = append(txs, tx)
+		txs = append(txs, *tx)
 	}
 
 	return txs, nil
