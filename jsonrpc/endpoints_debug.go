@@ -7,13 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -161,20 +159,6 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 	// how many txs it will process in parallel.
 	const bufferSize = 10
 
-	// checks and load the request scheme to build the url for the remote requests
-	// scheme, err := getHttpScheme(httpRequest)
-	// if err != nil {
-	// 	return rpcErrorResponse(types.DefaultErrorCode, err.Error(), nil)
-	// }
-
-	// builds the url of the remote jRPC server
-	u := url.URL{
-		Scheme: "https",
-		Host:   httpRequest.Host,
-		Path:   httpRequest.URL.Path,
-	}
-	rpcURL := u.String()
-
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		batchNumber, rpcErr := number.GetNumericBatchNumber(ctx, d.state, dbTx)
 		if rpcErr != nil {
@@ -210,7 +194,7 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 		responses := make([]traceResponse, 0, len(receipts))
 
 		// gets the trace from the jRPC and adds it to the responses
-		loadTraceByTxHash := func(receipt ethTypes.Receipt) {
+		loadTraceByTxHash := func(d *DebugEndpoints, receipt ethTypes.Receipt, cfg *traceConfig) {
 			response := traceResponse{
 				blockNumber: receipt.BlockNumber.Uint64(),
 				txIndex:     uint64(receipt.TransactionIndex),
@@ -218,17 +202,13 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 			}
 
 			defer wg.Done()
-			res, err := client.JSONRPCCall(rpcURL, "debug_traceTransaction", receipt.TxHash.String(), cfg)
+			trace, err := d.TraceTransaction(types.ArgHash(receipt.TxHash), cfg)
 			if err != nil {
-				err := fmt.Errorf("failed to get tx trace from remote jRPC server %v, err: %w", rpcURL, err)
-				log.Errorf(err.Error())
-				response.err = err
-			} else if res.Error != nil {
-				err := fmt.Errorf("tx trace error returned from remote jRPC server %v, %v %v", rpcURL, res.Error.Code, res.Error.Message)
+				err := fmt.Errorf("failed to get tx trace for tx %v, err: %w", receipt.TxHash.String(), err)
 				log.Errorf(err.Error())
 				response.err = err
 			} else {
-				response.trace = res.Result
+				response.trace = trace
 			}
 
 			// add to the responses
@@ -243,7 +223,7 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 		go func() {
 			index := uint(0)
 			for req := range requests {
-				go loadTraceByTxHash(req)
+				go loadTraceByTxHash(d, req, cfg)
 				index++
 			}
 		}()
@@ -462,40 +442,6 @@ func isBuiltInTracer(tracer string) bool {
 func isJSCustomTracer(tracer string) bool {
 	return strings.Contains(tracer, "result") && strings.Contains(tracer, "fault")
 }
-
-// // getHttpScheme tries to get the scheme from the http request in different ways
-// func getHttpScheme(r *http.Request) (string, error) {
-// 	// scheme headers
-// 	headers := []string{"X-Forwarded-Proto", "X-Forwarded-Protocol", "X-Url-Scheme"}
-// 	for _, header := range headers {
-// 		value := r.Header.Get(header)
-// 		if value == "http" || value == "https" {
-// 			return value, nil
-// 		} else if value != "" {
-// 			return "", fmt.Errorf("header %v must be set to HTTP or HTTPS, value found: %s", header, value)
-// 		}
-// 	}
-
-// 	// https on/off headers
-// 	headers = []string{"X-Forwarded-Ssl", "Front-End-Https"}
-// 	for _, header := range headers {
-// 		value := r.Header.Get(header)
-// 		if value == "on" {
-// 			return "https", nil
-// 		} else if value == "off" {
-// 			return "http", nil
-// 		} else if value != "" {
-// 			return "", fmt.Errorf("header %v must be set to ON or OFF, value found: %s", header, value)
-// 		}
-// 	}
-
-// 	// httpRequest TLS check
-// 	scheme := "http"
-// 	if r.TLS != nil {
-// 		scheme = "https"
-// 	}
-// 	return scheme, nil
-// }
 
 // waitTimeout waits for the waitGroup for the specified max timeout.
 // Returns true if waiting timed out.
