@@ -73,11 +73,10 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			received_at,
 			from_address,
 			is_wip,
-			ip,
-			break_even_gas_price
+			ip
 		) 
 		VALUES 
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 			ON CONFLICT (hash) DO UPDATE SET 
 			encoded = $2,
 			decoded = $3,
@@ -95,8 +94,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			received_at = $15,
 			from_address = $16,
 			is_wip = $17,
-			ip = $18,
-			break_even_gas_price = $19
+			ip = $18
 	`
 
 	// Get FromAddress from the JSON data
@@ -286,8 +284,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			received_at,
 			nonce,
 			is_wip,
-			ip,
-			break_even_gas_price
+			ip
 		FROM
 			pool.transaction p1
 		WHERE 
@@ -315,8 +312,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				received_at,
 				nonce,
 				is_wip,
-				ip,
-				break_even_gas_price
+				ip
 			FROM
 				pool.transaction p1
 			WHERE
@@ -331,9 +327,9 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 	}
 
 	var (
-		encoded, status, ip, breakEvenGasPriceAsStr string
-		receivedAt                                  time.Time
-		cumulativeGasUsed                           uint64
+		encoded, status, ip string
+		receivedAt          time.Time
+		cumulativeGasUsed   uint64
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
 		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
 		nonce uint64
@@ -366,7 +362,6 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			&nonce,
 			&isWIP,
 			&ip,
-			&breakEvenGasPriceAsStr,
 		)
 
 		if err != nil {
