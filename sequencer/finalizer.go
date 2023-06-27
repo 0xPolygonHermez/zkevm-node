@@ -508,6 +508,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 
 	hashStr := "nil"
 	if tx != nil {
+		// Increase nunber of executions related to gas price
+		tx.EffectiveGasPriceExecutions++
 		f.processRequest.Transactions = tx.RawTx
 		hashStr = tx.HashStr
 		breakEvenGasPrice := tx.BreakEvenGasPrice
@@ -557,9 +559,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 		f.halt(ctx, err)
 		return nil, err
 	}
-
-	// Increase nunber of executions related to gas price
-	tx.EffectiveGasPriceExecutions++
 
 	oldStateRoot := f.batch.stateRoot
 	if len(processBatchResponse.Responses) > 0 && tx != nil {
