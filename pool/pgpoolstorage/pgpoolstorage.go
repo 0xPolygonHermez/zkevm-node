@@ -163,8 +163,8 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 	return txs, nil
 }
 
-// GetNonWIPTxs returns an array of transactions
-func (p *PostgresPoolStorage) GetNonWIPTxs(ctx context.Context) ([]pool.Transaction, error) {
+// GetNonWIPPendingTxs returns an array of transactions
+func (p *PostgresPoolStorage) GetNonWIPPendingTxs(ctx context.Context) ([]pool.Transaction, error) {
 	var (
 		rows pgx.Rows
 		err  error

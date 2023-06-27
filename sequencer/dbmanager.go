@@ -120,7 +120,7 @@ func (d *dbManager) loadFromPool() {
 	for {
 		time.Sleep(d.cfg.PoolRetrievalInterval.Duration)
 
-		poolTransactions, err := d.txPool.GetNonWIPTxs(d.ctx)
+		poolTransactions, err := d.txPool.GetNonWIPPendingTxs(d.ctx)
 		if err != nil && err != pool.ErrNotFound {
 			log.Errorf("load tx from pool: %v", err)
 		}

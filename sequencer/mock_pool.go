@@ -74,8 +74,8 @@ func (_m *PoolMock) DeleteTransactionsByHashes(ctx context.Context, hashes []com
 	return r0
 }
 
-// GetNonWIPTxs provides a mock function with given fields: ctx
-func (_m *PoolMock) GetNonWIPTxs(ctx context.Context) ([]pool.Transaction, error) {
+// GetNonWIPPendingTxs provides a mock function with given fields: ctx
+func (_m *PoolMock) GetNonWIPPendingTxs(ctx context.Context) ([]pool.Transaction, error) {
 	ret := _m.Called(ctx)
 
 	var r0 []pool.Transaction

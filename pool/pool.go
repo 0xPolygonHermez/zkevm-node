@@ -225,9 +225,9 @@ func (p *Pool) GetPendingTxs(ctx context.Context, limit uint64) ([]Transaction, 
 	return p.storage.GetTxsByStatus(ctx, TxStatusPending, limit)
 }
 
-// GetNonWIPTxs from the pool
-func (p *Pool) GetNonWIPTxs(ctx context.Context) ([]Transaction, error) {
-	return p.storage.GetNonWIPTxs(ctx)
+// GetNonWIPPendingTxs from the pool
+func (p *Pool) GetNonWIPPendingTxs(ctx context.Context) ([]Transaction, error) {
+	return p.storage.GetNonWIPPendingTxs(ctx)
 }
 
 // GetSelectedTxs gets selected txs from the pool db
