@@ -31,6 +31,12 @@ type Config struct {
 
 	// EffectiveGasPrice is the configuration for the break even and effective gas price calculation
 	EffectiveGasPrice EffectiveGasPrice `mapstructure:"EffectiveGasPrice"`
+
+	// AccountQueue represents the maximum number of non-executable transaction slots permitted per account
+	AccountQueue uint64 `mapstructure:"AccountQueue"`
+
+	// GlobalQueue represents the maximum number of non-executable transaction slots for all accounts
+	GlobalQueue uint64 `mapstructure:"GlobalQueue"`
 }
 
 // EffectiveGasPrice has parameters for the effective gas price calculation.

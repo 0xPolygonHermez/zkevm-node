@@ -1866,6 +1866,32 @@ func TestSyncing(t *testing.T) {
 					Once()
 			},
 		},
+		{
+			Name:           "get syncing information successfully when synced and trusted state is ahead",
+			ExpectedResult: nil,
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
+					Return(uint64(10), nil).
+					Once()
+
+				m.State.
+					On("GetSyncingInfo", context.Background(), m.DbTx).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, LastBlockNumberSeen: 1, LastBlockNumberConsolidated: 1}, nil).
+					Once()
+			},
+		},
 	}
 
 	for _, testCase := range testCases {

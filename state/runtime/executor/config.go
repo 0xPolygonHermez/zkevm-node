@@ -9,4 +9,5 @@ type Config struct {
 	MaxResourceExhaustedAttempts int `mapstructure:"MaxResourceExhaustedAttempts"`
 	// WaitOnResourceExhaustion is the time to wait before retrying a transaction because of resource exhaustion
 	WaitOnResourceExhaustion types.Duration `mapstructure:"WaitOnResourceExhaustion"`
+	MaxGRPCMessageSize       int            `mapstructure:"MaxGRPCMessageSize"`
 }

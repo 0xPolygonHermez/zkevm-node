@@ -39,6 +39,8 @@ services:
       zkevm-state-db:
         condition: service_healthy
     image: zkevm-node
+    ports:
+      - 9092:9091 # needed if metrics enabled
     deploy:
       resources:
         limits:

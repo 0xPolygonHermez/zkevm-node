@@ -115,7 +115,6 @@ func (z *ZKEVMEndpoints) VerifiedBatchNumber() (interface{}, types.Error) {
 		if err != nil {
 			return "0x0", types.NewRPCError(types.DefaultErrorCode, "failed to get the last verified batch number from state")
 		}
-
 		return hex.EncodeUint64(lastBatch.BatchNumber), nil
 	})
 }

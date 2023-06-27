@@ -117,6 +117,8 @@ services:
   zkevm-sync:
     container_name: zkevm-sync
     image: zkevm-node
+    ports:
+      - 9095:9091 # needed if metrics enabled
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     volumes:
@@ -245,7 +247,7 @@ services:
     container_name: zkevm-explorer-l1-db
     image: postgres
     ports:
-      - 5435:5432
+      - 5436:5432
     environment:
       - POSTGRES_USER=l1_explorer_user
       - POSTGRES_PASSWORD=l1_explorer_password
@@ -299,7 +301,7 @@ services:
     container_name: zkevm-explorer-l2-db
     image: postgres
     ports:
-      - 5436:5432
+      - 5437:5432
     environment:
       - POSTGRES_USER=l2_explorer_user
       - POSTGRES_PASSWORD=l2_explorer_password

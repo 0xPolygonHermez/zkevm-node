@@ -890,6 +890,7 @@ func TestGetBatchByNumber(t *testing.T) {
 			WithTxDetail: true,
 			ExpectedResult: &types.Batch{
 				Number:              1,
+				ForcedBatchNumber:   ptrArgUint64FromUint64(1),
 				Coinbase:            common.HexToAddress("0x1"),
 				StateRoot:           common.HexToHash("0x2"),
 				AccInputHash:        common.HexToHash("0x3"),
@@ -965,8 +966,10 @@ func TestGetBatchByNumber(t *testing.T) {
 				}
 				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
 				require.NoError(t, err)
+				var fb uint64 = 1
 				batch := &state.Batch{
 					BatchNumber:    1,
+					ForcedBatchNum: &fb,
 					Coinbase:       common.HexToAddress("0x1"),
 					StateRoot:      common.HexToHash("0x2"),
 					AccInputHash:   common.HexToHash("0x3"),
@@ -1095,6 +1098,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					err = json.Unmarshal(res.Result, &batch)
 					require.NoError(t, err)
 					assert.Equal(t, tc.ExpectedResult.Number.Hex(), batch["number"].(string))
+					if tc.ExpectedResult.ForcedBatchNumber != nil {
+						assert.Equal(t, tc.ExpectedResult.ForcedBatchNumber.Hex(), batch["forcedBatchNumber"].(string))
+					}
 					assert.Equal(t, tc.ExpectedResult.Coinbase.String(), batch["coinbase"].(string))
 					assert.Equal(t, tc.ExpectedResult.StateRoot.String(), batch["stateRoot"].(string))
 					assert.Equal(t, tc.ExpectedResult.GlobalExitRoot.String(), batch["globalExitRoot"].(string))

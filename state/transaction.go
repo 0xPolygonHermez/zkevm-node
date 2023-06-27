@@ -497,7 +497,8 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 			break
 		}
 
-		if step.OpCode != "CALL" || trace.Steps[i+1].Pc == 0 {
+		hasNextStep := i < len(trace.Steps)-1
+		if step.OpCode != "CALL" || (hasNextStep && trace.Steps[i+1].Pc == 0) {
 			if step.Error != nil {
 				tracer.CaptureFault(step.Pc, fakevm.OpCode(step.Op), step.Gas, step.GasCost, scope, step.Depth, step.Error)
 			} else {
@@ -511,16 +512,15 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 			previousStep.OpCode == "CALL" ||
 			previousStep.OpCode == "STATICCALL" ||
 			// deprecated ones
-			previousStep.OpCode == "CALLCODE" ||
-			previousStep.OpCode == "SELFDESTRUCT"
+			previousStep.OpCode == "CALLCODE"
 
 		// when an internal transaction is detected, the next step contains the context values
-		if previousStepStartedInternalTransaction {
+		if previousStepStartedInternalTransaction && previousStep.Error == nil {
 			// if the previous depth is the same as the current one, this means
 			// the internal transaction did not executed any other step and the
 			// context is back to the same level. This can happen with pre compiled executions.
 			if previousStep.Depth == step.Depth {
-				addr, value, input, gas, gasUsed, err := s.getValuesFromInternalTxMemory(internalTxSteps, previousStep, step)
+				addr, value, input, gas, gasUsed, err := s.getValuesFromInternalTxMemory(previousStep, step)
 				if err != nil {
 					return nil, err
 				}
@@ -528,7 +528,6 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 				if previousStep.OpCode == "CALL" || previousStep.OpCode == "CALLCODE" {
 					from = previousStep.Contract.Caller
 				}
-
 				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), from, addr, input, gas, value)
 				tracer.CaptureExit(step.ReturnData, gasUsed, previousStep.Error)
 			} else {
@@ -546,11 +545,21 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 
 		// returning from internal transaction
 		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
-			gasUsed, err := s.getGasUsed(internalTxSteps, previousStep, step)
-			if err != nil {
-				return nil, err
+			var gasUsed uint64
+			var err error
+			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) {
+				itCtx, err := internalTxSteps.Pop()
+				if err != nil {
+					return nil, err
+				}
+				gasUsed = itCtx.RemainingGas
+			} else {
+				gasUsed, err = s.getGasUsed(internalTxSteps, previousStep, step)
+				if err != nil {
+					return nil, err
+				}
 			}
-			tracer.CaptureExit(step.ReturnData, gasUsed, step.Error)
+			tracer.CaptureExit(step.ReturnData, gasUsed, previousStep.Error)
 		}
 
 		// set StateRoot
@@ -560,19 +569,19 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 		previousStep = step
 	}
 
-	restGas := trace.Context.Gas - trace.Context.GasUsed
-	tracer.CaptureTxEnd(restGas)
 	var err error
 	if reverted {
 		err = fakevm.ErrExecutionReverted
 	}
 	tracer.CaptureEnd(trace.Context.Output, trace.Context.GasUsed, err)
+	restGas := trace.Context.Gas - trace.Context.GasUsed
+	tracer.CaptureTxEnd(restGas)
 
 	return tracer.GetResult()
 }
 
-func (s *State) getGasUsed(stepStack *Stack[instrumentation.InternalTxContext], previousStep, step instrumentation.Step) (uint64, error) {
-	itCtx, err := stepStack.Pop()
+func (s *State) getGasUsed(internalTxContextStack *Stack[instrumentation.InternalTxContext], previousStep, step instrumentation.Step) (uint64, error) {
+	itCtx, err := internalTxContextStack.Pop()
 	if err != nil {
 		return 0, err
 	}
@@ -587,7 +596,7 @@ func (s *State) getGasUsed(stepStack *Stack[instrumentation.InternalTxContext], 
 	return gasUsed, nil
 }
 
-func (s *State) getValuesFromInternalTxMemory(stepStack *Stack[instrumentation.InternalTxContext], previousStep, step instrumentation.Step) (common.Address, *big.Int, []byte, uint64, uint64, error) {
+func (s *State) getValuesFromInternalTxMemory(previousStep, step instrumentation.Step) (common.Address, *big.Int, []byte, uint64, uint64, error) {
 	if previousStep.OpCode == "DELEGATECALL" || previousStep.OpCode == "CALL" || previousStep.OpCode == "STATICCALL" || previousStep.OpCode == "CALLCODE" {
 		gasPos := len(previousStep.Stack) - 1
 		addrPos := gasPos - 1
@@ -658,11 +667,38 @@ func (s *State) getValuesFromInternalTxMemory(stepStack *Stack[instrumentation.I
 
 		return addr, value, input, uint64(gas), uint64(gasUsed), nil
 	} else {
-		gasUsed, err := s.getGasUsed(stepStack, previousStep, step)
-		if err != nil {
-			return common.Address{}, nil, nil, 0, 0, err
+		createdAddressPos := len(step.Stack) - 1
+		addr := common.BytesToAddress(step.Stack[createdAddressPos].Bytes())
+
+		valuePos := len(previousStep.Stack) - 1
+		value := previousStep.Stack[valuePos]
+
+		offsetPos := valuePos - 1
+		offset := previousStep.Stack[offsetPos].Uint64()
+
+		sizePos := offsetPos - 1
+		size := previousStep.Stack[sizePos].Uint64()
+
+		input := make([]byte, size)
+
+		if offset > uint64(previousStep.MemorySize) {
+			// when none of the bytes can be found in the memory
+			// do nothing to keep input as zeroes
+		} else if offset+size > uint64(previousStep.MemorySize) {
+			// when partial bytes are found in the memory
+			// copy just the bytes we have in memory and complement the rest with zeroes
+			copy(input[0:size], previousStep.Memory[offset:uint64(previousStep.MemorySize)])
+		} else {
+			// when all the bytes are found in the memory
+			// read the bytes from memory
+			copy(input[0:size], previousStep.Memory[offset:offset+size])
 		}
-		return previousStep.Contract.Address, previousStep.Contract.Value, previousStep.Contract.Input, previousStep.Gas, gasUsed, nil
+
+		// Compute gas sent to call
+		gas := float64(previousStep.Gas - previousStep.GasCost) //nolint:gomnd
+		gas -= math.Floor(gas / 64)                             //nolint:gomnd
+
+		return addr, value, input, uint64(gas), 0, nil
 	}
 }
 

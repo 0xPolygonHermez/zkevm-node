@@ -63,7 +63,7 @@ type batchConstraintsFloat64 struct {
 }
 
 // newTxTracker creates and inti a TxTracker
-func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints batchConstraintsFloat64, weights batchResourceWeights, resourceCostMultiplier float64, ip string, breakEvenGasPrice *big.Int) (*TxTracker, error) {
+func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints batchConstraintsFloat64, weights batchResourceWeights, resourceCostMultiplier float64, ip string) (*TxTracker, error) {
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err
@@ -98,7 +98,6 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints b
 		WeightMultipliers:      calculateWeightMultipliers(weights, totalWeight),
 		ResourceCostMultiplier: resourceCostMultiplier,
 		TotalWeight:            totalWeight,
-		BreakEvenGasPrice:      breakEvenGasPrice,
 	}
 	txTracker.calculateEfficiency(constraints, weights)
 

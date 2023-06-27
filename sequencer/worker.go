@@ -40,8 +40,8 @@ func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints
 }
 
 // NewTxTracker creates and inits a TxTracker
-func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, breakEvenGasPrice *big.Int) (*TxTracker, error) {
-	return newTxTracker(tx, counters, w.batchConstraints, w.batchResourceWeights, w.cfg.ResourceCostMultiplier, ip, breakEvenGasPrice)
+func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
+	return newTxTracker(tx, counters, w.batchConstraints, w.batchResourceWeights, w.cfg.ResourceCostMultiplier, ip)
 }
 
 // AddTxTracker adds a new Tx to the Worker
@@ -263,7 +263,6 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 				if foundAt == -1 || foundAt > i {
 					foundAt = i
 					tx = txCandidate
-					log.Infof("GetBestFittingTx found tx(%s) at index(%d) with efficiency(%f)", tx.Hash.String(), i, tx.Efficiency)
 				}
 				foundMutex.Unlock()
 
@@ -272,6 +271,12 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 		}(i, resources)
 	}
 	wg.Wait()
+
+	if foundAt != -1 {
+		log.Infof("GetBestFittingTx found tx(%s) at index(%d) with efficiency(%f)", tx.Hash.String(), foundAt, tx.Efficiency)
+	} else {
+		log.Debugf("GetBestFittingTx no tx found")
+	}
 
 	return tx
 }

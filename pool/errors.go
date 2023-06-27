@@ -30,9 +30,26 @@ var (
 	// ErrBlockedSender is returned if the transaction is sent by a blocked account.
 	ErrBlockedSender = errors.New("blocked sender")
 
+	// ErrGasLimit is returned if a transaction's requested gas limit exceeds the
+	// maximum allowance of the current block.
+	ErrGasLimit = errors.New("exceeds block gas limit")
+
+	// ErrTxPoolAccountOverflow is returned if the account sending the transaction
+	// has already reached the limit of transactions in the pool set by the config
+	// AccountQueue and can't accept another remote transaction.
+	ErrTxPoolAccountOverflow = errors.New("account has reached the tx limit in the txpool")
+
+	// ErrTxPoolOverflow is returned if the transaction pool is full and can't accept
+	// another remote transaction.
+	ErrTxPoolOverflow = errors.New("txpool is full")
+
 	// ErrNonceTooLow is returned if the nonce of a transaction is lower than the
 	// one present in the local chain.
 	ErrNonceTooLow = errors.New("nonce too low")
+
+	// ErrNonceTooHigh is returned if the nonce of a transaction is higher than the
+	// current + the configured AccountQueue.
+	ErrNonceTooHigh = errors.New("nonce too high")
 
 	// ErrInsufficientFunds is returned if the total cost of executing a transaction
 	// is higher than the balance of the user's account.

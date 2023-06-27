@@ -56,7 +56,7 @@ func setupTest(t *testing.T) {
 
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 	localMtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
-	localExecutorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	localExecutorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
 
 	localExecutorClient, localExecutorClientConn, localExecutorCancel = executor.NewExecutorClient(localCtx, localExecutorServerConfig)
 	s := localExecutorClientConn.GetState()
@@ -76,16 +76,16 @@ func setupTest(t *testing.T) {
 	localState = state.NewState(stateCfg, state.NewPostgresStorage(localStateDb), localExecutorClient, localStateTree, eventLog)
 
 	batchConstraints := batchConstraints{
-		MaxTxsPerBatch:       150,
-		MaxBatchBytesSize:    129848,
+		MaxTxsPerBatch:       300,
+		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,
-		MaxKeccakHashes:      468,
-		MaxPoseidonHashes:    279620,
-		MaxPoseidonPaddings:  149796,
-		MaxMemAligns:         262144,
-		MaxArithmetics:       262144,
-		MaxBinaries:          262144,
-		MaxSteps:             8388608,
+		MaxKeccakHashes:      2145,
+		MaxPoseidonHashes:    252357,
+		MaxPoseidonPaddings:  135191,
+		MaxMemAligns:         236585,
+		MaxArithmetics:       236585,
+		MaxBinaries:          473170,
+		MaxSteps:             7570538,
 	}
 
 	localTestDbManager = newDBManager(localCtx, dbManagerCfg, nil, localState, nil, closingSignalCh, batchConstraints)

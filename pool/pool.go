@@ -138,7 +138,8 @@ func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
 
 // AddTx adds a transaction to the pool with the pending state
 func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
-	if err := p.validateTx(ctx, tx); err != nil {
+	poolTx := NewTransaction(tx, ip, false)
+	if err := p.validateTx(ctx, *poolTx); err != nil {
 		return err
 	}
 
@@ -149,8 +150,10 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
 	// Execute transaction to calculate its zkCounters
 	preExecutionResponse, err := p.preExecuteTx(ctx, tx)
-	if err != nil {
-		log.Debugf("preExecuteTx error (this can be ignored): %v", err)
+	if errors.Is(err, runtime.ErrIntrinsicInvalidBatchGasLimit) {
+		return ErrGasLimit
+	} else if err != nil {
+		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
 	}
 
 	if preExecutionResponse.isOOC {
@@ -187,15 +190,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		}
 	}
 
-	breakEvenGasPrice, err := p.CalculateTxBreakEvenGasPrice(ctx, uint64(len(preExecutionResponse.txResponse.Tx.Data())), preExecutionResponse.txResponse.GasUsed)
-	if err != nil {
-		err = fmt.Errorf("error estimating break even gas price. err: %w", err)
-		log.Error(err)
-		return err
-	}
-	log.Infof("estimated breakEvenGasPrice: %v with gas used: %v for tx: %s", breakEvenGasPrice, preExecutionResponse.txResponse.GasUsed, tx.Hash().String())
-
-	poolTx := NewTransaction(tx, ip, isWIP, breakEvenGasPrice)
+	poolTx := NewTransaction(tx, ip, isWIP)
 	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, *poolTx)
@@ -285,7 +280,12 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 	return p.storage.IsTxPending(ctx, hash)
 }
 
-func (p *Pool) validateTx(ctx context.Context, poolTx types.Transaction) error {
+func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
+	// Make sure the transaction is signed properly.
+	if err := state.CheckSignature(poolTx.Transaction); err != nil {
+		return ErrInvalidSender
+	}
+
 	// check chain id
 	txChainID := poolTx.ChainId().Uint64()
 	if txChainID != p.chainID && txChainID != 0 {
@@ -302,24 +302,13 @@ func (p *Pool) validateTx(ctx context.Context, poolTx types.Transaction) error {
 		return ErrOversizedData
 	}
 
-	// Reject transactions with a gas price lower than the minimum gas price
-	p.minSuggestedGasPriceMux.RLock()
-	gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
-	p.minSuggestedGasPriceMux.RUnlock()
-	if gasPriceCmp == -1 {
-		return ErrGasPrice
-	}
-
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
 	if poolTx.Value().Sign() < 0 {
 		return ErrNegativeValue
 	}
-	// Make sure the transaction is signed properly.
-	if err := state.CheckSignature(poolTx); err != nil {
-		return ErrInvalidSender
-	}
-	from, err := state.GetSender(poolTx)
+
+	from, err := state.GetSender(poolTx.Transaction)
 	if err != nil {
 		return ErrInvalidSender
 	}
@@ -335,13 +324,48 @@ func (p *Pool) validateTx(ctx context.Context, poolTx types.Transaction) error {
 		return err
 	}
 
-	nonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
+	currentNonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
 	if err != nil {
 		return err
 	}
 	// Ensure the transaction adheres to nonce ordering
-	if nonce > poolTx.Nonce() {
+	if poolTx.Nonce() < currentNonce {
 		return ErrNonceTooLow
+	}
+
+	// check if sender has reached the limit of transactions in the pool
+	if p.cfg.AccountQueue > 0 {
+		// txCount, err := p.storage.CountTransactionsByFromAndStatus(ctx, from, TxStatusPending, TxStatusFailed)
+		// if err != nil {
+		// 	return err
+		// }
+		// if txCount >= p.cfg.AccountQueue {
+		// 	return ErrTxPoolAccountOverflow
+		// }
+
+		// Ensure the transaction does not jump out of the expected AccountQueue
+		if poolTx.Nonce() > currentNonce+p.cfg.AccountQueue-1 {
+			return ErrNonceTooHigh
+		}
+	}
+
+	// check if the pool is full
+	if p.cfg.GlobalQueue > 0 {
+		txCount, err := p.storage.CountTransactionsByStatus(ctx, TxStatusPending, TxStatusFailed)
+		if err != nil {
+			return err
+		}
+		if txCount >= p.cfg.GlobalQueue {
+			return ErrTxPoolOverflow
+		}
+	}
+
+	// Reject transactions with a gas price lower than the minimum gas price
+	p.minSuggestedGasPriceMux.RLock()
+	gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
+	p.minSuggestedGasPriceMux.RUnlock()
+	if gasPriceCmp == -1 {
+		return ErrGasPrice
 	}
 
 	// Transactor should have enough funds to cover the costs
@@ -356,7 +380,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx types.Transaction) error {
 	}
 
 	// Ensure the transaction has more gas than the basic poolTx fee.
-	intrGas, err := IntrinsicGas(poolTx)
+	intrGas, err := IntrinsicGas(poolTx.Transaction)
 	if err != nil {
 		return err
 	}
@@ -394,7 +418,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx types.Transaction) error {
 	}
 
 	// Executor field size requirements check
-	if err := p.checkTxFieldCompatibilityWithExecutor(ctx, poolTx); err != nil {
+	if err := p.checkTxFieldCompatibilityWithExecutor(ctx, poolTx.Transaction); err != nil {
 		return err
 	}
 
