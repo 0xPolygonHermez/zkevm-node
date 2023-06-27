@@ -285,7 +285,7 @@ func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 	}
 
 	if processedTx.EffectiveGasPrice != "" {
-		effectiveGasPrice, ok := big.NewInt(0).SetString(processedTx.EffectiveGasPrice, hex.Base)
+		effectiveGasPrice, ok := big.NewInt(0).SetString(processedTx.EffectiveGasPrice, 0)
 		if !ok {
 			log.Errorf("error converting effective gas price %s to big.Int", processedTx.EffectiveGasPrice)
 		}
