@@ -98,6 +98,7 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints b
 		WeightMultipliers:      calculateWeightMultipliers(weights, totalWeight),
 		ResourceCostMultiplier: resourceCostMultiplier,
 		TotalWeight:            totalWeight,
+		BreakEvenGasPrice:      new(big.Int).SetUint64(0),
 	}
 	txTracker.calculateEfficiency(constraints, weights)
 
