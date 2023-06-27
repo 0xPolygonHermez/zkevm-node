@@ -15,6 +15,8 @@ var (
 
 	// ErrBreakEvenGasPriceEmpty happens when the breakEven or gasPrice is nil or zero
 	ErrBreakEvenGasPriceEmpty = errors.New("breakEven and gasPrice cannot be nil or zero")
+	// ErrEffectiveGasPriceReexecution happens when the effective gas price requires reexecution
+	ErrEffectiveGasPriceReexecution = errors.New("effective gas price requites reexecution")
 )
 
 // CalcGasPriceEffectivePercentage calculates the gas price's effective percentage

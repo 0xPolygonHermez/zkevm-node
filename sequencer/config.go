@@ -144,9 +144,6 @@ type DBManagerCfg struct {
 
 // EffectiveGasPriceCfg contains the configuration properties for the effective gas price
 type EffectiveGasPriceCfg struct {
-	// BreakEvenGasPriceGuaranteedPeriod is the period of time for which the break even gas price is guaranteed
-	BreakEvenGasPriceGuaranteedPeriod types.Duration `mapstructure:"BreakEvenGasPriceGuaranteedPeriod"`
-
 	// MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
 	MaxBreakEvenGasPriceDeviationPercentage uint64 `mapstructure:"MaxBreakEvenGasPriceDeviationPercentage"`
 

@@ -177,10 +177,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.EffectiveGasPrice.BreakEvenGasPriceGuaranteedPeriod",
-			expectedValue: types.NewDuration(30 * time.Second),
-		},
-		{
 			path:          "Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
 			expectedValue: uint64(10),
 		},

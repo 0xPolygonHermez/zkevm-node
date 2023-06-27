@@ -99,7 +99,6 @@ MaxTxLifetime = "3h"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
 	[Sequencer.EffectiveGasPrice]
-		BreakEvenGasPriceGuaranteedPeriod = "30s"
 		MaxBreakEvenGasPriceDeviationPercentage = 10
 		Enabled = false
 

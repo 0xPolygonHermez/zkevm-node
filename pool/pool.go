@@ -225,10 +225,9 @@ func (p *Pool) GetPendingTxs(ctx context.Context, limit uint64) ([]Transaction, 
 	return p.storage.GetTxsByStatus(ctx, TxStatusPending, limit)
 }
 
-// GetNonWIPPendingTxs from the pool
-// limit parameter is used to limit amount of pending txs from the db
-func (p *Pool) GetNonWIPPendingTxs(ctx context.Context) ([]Transaction, error) {
-	return p.storage.GetNonWIPTxsByStatus(ctx, TxStatusPending)
+// GetNonWIPTxs from the pool
+func (p *Pool) GetNonWIPTxs(ctx context.Context) ([]Transaction, error) {
+	return p.storage.GetNonWIPTxs(ctx)
 }
 
 // GetSelectedTxs gets selected txs from the pool db

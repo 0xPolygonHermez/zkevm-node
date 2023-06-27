@@ -52,9 +52,6 @@ var (
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 	effectiveGasPriceCfg = EffectiveGasPriceCfg{
-		BreakEvenGasPriceGuaranteedPeriod: cfgTypes.Duration{
-			Duration: 30 * time.Second,
-		},
 		MaxBreakEvenGasPriceDeviationPercentage: 10,
 		Enabled:                                 true,
 	}
@@ -295,7 +292,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				dbManagerMock.On("UpdateTxStatus", ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil).Once()
 			}
 
-			_, errWg, err := f.handleProcessTransactionResponse(ctx, txTracker, tc.executorResponse, tc.oldStateRoot)
+			errWg, err := f.handleProcessTransactionResponse(ctx, txTracker, tc.executorResponse, tc.oldStateRoot)
 			if errWg != nil {
 				errWg.Wait()
 			}
