@@ -57,8 +57,8 @@ var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 
-	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "toni-prover:50071")
-	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "toni-prover:50061")
+	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
+	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
 	executorConfig   = executor.Config{URI: executorURI, MaxGRPCMessageSize: 100000000}
 	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )
