@@ -601,17 +601,17 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 
 		if actualBreakEvenPrice.Cmp(tx.BreakEvenGasPrice) == -1 {
 			// Compute the difference
-			diff := new(big.Int).Abs(new(big.Int).Sub(tx.BreakEvenGasPrice, actualBreakEvenPrice))
+			diff := new(big.Int).Sub(tx.BreakEvenGasPrice, actualBreakEvenPrice)
 			// Compute deviation of breakEvenPrice
 			deviation := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
 
 			if diff.Cmp(deviation) == 1 {
 				if tx.EffectiveGasPriceExecutions < 2 { //nolint:gomnd
 					tx.BreakEvenGasPrice = actualBreakEvenPrice
-					tx.IsEffectiveGasPriceFinalExecution = true
 					return nil, ErrEffectiveGasPriceReexecution
 				} else {
 					tx.BreakEvenGasPrice = tx.GasPrice
+					tx.IsEffectiveGasPriceFinalExecution = true
 					ev := &event.Event{
 						ReceivedAt:  time.Now(),
 						Source:      event.Source_Node,
@@ -639,12 +639,13 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 					}
 					return nil, ErrEffectiveGasPriceReexecution
 				}
-			} else if diff.Cmp(deviation) <= 0 && actualBreakEvenPrice.Cmp(tx.GasPrice) == 1 {
-				tx.BreakEvenGasPrice = tx.GasPrice
-				tx.IsEffectiveGasPriceFinalExecution = true
-				return nil, ErrEffectiveGasPriceReexecution
 			}
+		} else if actualBreakEvenPrice.Cmp(tx.GasPrice) == 1 {
+			tx.BreakEvenGasPrice = tx.GasPrice
+			tx.IsEffectiveGasPriceFinalExecution = true
+			return nil, ErrEffectiveGasPriceReexecution
 		}
+
 	}
 
 	processedTransaction := transactionToStore{
