@@ -203,7 +203,7 @@ func start(cliCtx *cli.Context) error {
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
 			}
-			go runJSONRPCServer(*c, l2ChainID, poolInstance, st, apis)
+			go runJSONRPCServer(*c, etherman, l2ChainID, poolInstance, st, apis)
 		case SYNCHRONIZER:
 			ev.Component = event.Component_Synchronizer
 			ev.Description = "Running synchronizer"
@@ -314,9 +314,20 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 	}
 }
 
-func runJSONRPCServer(c config.Config, chainID uint64, pool *pool.Pool, st *state.State, apis map[string]bool) {
+func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64, pool *pool.Pool, st *state.State, apis map[string]bool) {
+	var err error
 	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
+	if !c.IsTrustedSequencer {
+		if c.RPC.SequencerNodeURI == "" {
+			log.Debug("getting trusted sequencer URL from smc")
+			c.RPC.SequencerNodeURI, err = etherman.GetTrustedSequencerURL()
+			if err != nil {
+				log.Fatal("error getting trusted sequencer URI. Error: %v", err)
+			}
+		}
+		log.Debug("SequencerNodeURI ", c.RPC.SequencerNodeURI)
+	}
 
 	services := []jsonrpc.Service{}
 	if _, ok := apis[jsonrpc.APIEth]; ok {
@@ -456,9 +467,11 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 	}
 
 	stateCfg := state.Config{
-		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
-		ChainID:              l2ChainID,
-		ForkIDIntervals:      forkIDIntervals,
+		MaxCumulativeGasUsed:         c.Sequencer.MaxCumulativeGasUsed,
+		ChainID:                      l2ChainID,
+		ForkIDIntervals:              forkIDIntervals,
+		MaxResourceExhaustedAttempts: c.Executor.MaxResourceExhaustedAttempts,
+		WaitOnResourceExhaustion:     c.Executor.WaitOnResourceExhaustion,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)

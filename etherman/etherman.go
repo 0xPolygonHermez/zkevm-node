@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
@@ -173,6 +174,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		}
 		gProviders = append(gProviders, ethgasstation.NewEthGasStationService())
 	}
+	metrics.Register()
 
 	return &Client{
 		EthClient:             ethClient,
@@ -191,6 +193,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 
 // VerifyGenBlockNumber verifies if the genesis Block Number is valid
 func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
+	start := time.Now()
 	log.Info("Verifying genesis blockNumber: ", genBlockNumber)
 	// Filter query
 	genBlock := new(big.Int).SetUint64(genBlockNumber)
@@ -215,12 +218,14 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 	if zkevmVersion.NumBatch != 0 {
 		return false, fmt.Errorf("the specified genBlockNumber in config file does not contain the initial forkID event (BatchNum: %d). Please use the proper blockNumber.", zkevmVersion.NumBatch)
 	}
+	metrics.VerifyGenBlockTime(time.Since(start))
 	return true, nil
 }
 
 // GetForks returns fork information
 func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64) ([]state.ForkIDInterval, error) {
 	log.Debug("Getting forkIDs from blockNumber: ", genBlockNumber)
+	start := time.Now()
 	// Filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(genBlockNumber),
@@ -256,6 +261,7 @@ func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64) ([]
 		}
 		forks = append(forks, fork)
 	}
+	metrics.GetForksTime(time.Since(start))
 	log.Debugf("Forks decoded: %+v", forks)
 	return forks, nil
 }
@@ -285,19 +291,27 @@ type Order struct {
 }
 
 func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]Block, map[common.Hash][]Order, error) {
+	start := time.Now()
 	logs, err := etherMan.EthClient.FilterLogs(ctx, query)
+	metrics.GetEventsTime(time.Since(start))
 	if err != nil {
 		return nil, nil, err
 	}
 	var blocks []Block
 	blocksOrder := make(map[common.Hash][]Order)
+	startProcess := time.Now()
 	for _, vLog := range logs {
+		startProcessSingleEvent := time.Now()
 		err := etherMan.processEvent(ctx, vLog, &blocks, &blocksOrder)
+		metrics.ProcessSingleEventTime(time.Since(startProcessSingleEvent))
+		metrics.EventCounter()
 		if err != nil {
 			log.Warnf("error processing event. Retrying... Error: %s. vLog: %+v", err.Error(), vLog)
 			return nil, nil, err
 		}
 	}
+	metrics.ProcessAllEventTime(time.Since(startProcess))
+	metrics.ReadAndProcessAllEventsTime(time.Since(start))
 	return blocks, blocksOrder, nil
 }
 

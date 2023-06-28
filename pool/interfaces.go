@@ -13,7 +13,8 @@ import (
 
 type storage interface {
 	AddTx(ctx context.Context, tx Transaction) error
-	CountTransactionsByStatus(ctx context.Context, status TxStatus) (uint64, error)
+	CountTransactionsByStatus(ctx context.Context, status ...TxStatus) (uint64, error)
+	CountTransactionsByFromAndStatus(ctx context.Context, from common.Address, status ...TxStatus) (uint64, error)
 	DeleteTransactionsByHashes(ctx context.Context, hashes []common.Hash) error
 	GetGasPrice(ctx context.Context) (uint64, error)
 	GetNonce(ctx context.Context, address common.Address) (uint64, error)
@@ -23,6 +24,7 @@ type storage interface {
 	GetNonWIPTxsByStatus(ctx context.Context, status TxStatus, limit uint64) ([]Transaction, error)
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
+	DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error
 	UpdateTxsStatus(ctx context.Context, updateInfo []TxStatusUpdateInfo) error
 	UpdateTxStatus(ctx context.Context, updateInfo TxStatusUpdateInfo) error
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error

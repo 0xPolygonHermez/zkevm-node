@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,24 +41,16 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(100),
 		},
 		{
-			path:          "PriceGetter.Type",
-			expectedValue: pricegetter.DefaultType,
-		},
-		{
-			path:          "PriceGetter.DefaultPrice",
-			expectedValue: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
-		},
-		{
 			path:          "Sequencer.WaitPeriodPoolIsEmpty",
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
 			path:          "Sequencer.MaxTxsPerBatch",
-			expectedValue: uint64(150),
+			expectedValue: uint64(300),
 		},
 		{
 			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: uint64(129848),
+			expectedValue: uint64(120000),
 		},
 		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
@@ -75,31 +66,31 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.MaxKeccakHashes",
-			expectedValue: uint32(468),
+			expectedValue: uint32(2145),
 		},
 		{
 			path:          "Sequencer.MaxPoseidonHashes",
-			expectedValue: uint32(279620),
+			expectedValue: uint32(252357),
 		},
 		{
 			path:          "Sequencer.MaxPoseidonPaddings",
-			expectedValue: uint32(149796),
+			expectedValue: uint32(135191),
 		},
 		{
 			path:          "Sequencer.MaxMemAligns",
-			expectedValue: uint32(262144),
+			expectedValue: uint32(236585),
 		},
 		{
 			path:          "Sequencer.MaxArithmetics",
-			expectedValue: uint32(262144),
+			expectedValue: uint32(236585),
 		},
 		{
 			path:          "Sequencer.MaxBinaries",
-			expectedValue: uint32(262144),
+			expectedValue: uint32(473170),
 		},
 		{
 			path:          "Sequencer.MaxSteps",
-			expectedValue: uint32(8388608),
+			expectedValue: uint32(7570538),
 		},
 		{
 			path:          "Sequencer.TxLifetimeCheckTimeout",
@@ -250,14 +241,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(0),
 		},
 		{
-			path:          "PriceGetter.Type",
-			expectedValue: pricegetter.DefaultType,
-		},
-		{
-			path:          "PriceGetter.DefaultPrice",
-			expectedValue: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
-		},
-		{
 			path:          "L2GasPriceSuggester.DefaultGasPriceWei",
 			expectedValue: uint64(2000000000),
 		},
@@ -313,6 +296,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.PollMinAllowedGasPriceInterval",
 			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
+			path:          "Pool.AccountQueue",
+			expectedValue: uint64(64),
+		},
+		{
+			path:          "Pool.GlobalQueue",
+			expectedValue: uint64(1024),
 		},
 		{
 			path:          "Pool.DB.User",
@@ -385,6 +376,18 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Executor.URI",
 			expectedValue: "zkevm-prover:50071",
+		},
+		{
+			path:          "Executor.MaxResourceExhaustedAttempts",
+			expectedValue: 3,
+		},
+		{
+			path:          "Executor.WaitOnResourceExhaustion",
+			expectedValue: types.NewDuration(1 * time.Second),
+		},
+		{
+			path:          "Executor.MaxGRPCMessageSize",
+			expectedValue: int(100000000),
 		},
 		{
 			path:          "Metrics.Host",

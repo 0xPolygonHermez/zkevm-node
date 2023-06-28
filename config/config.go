@@ -16,7 +16,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencesender"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -64,7 +63,6 @@ type Config struct {
 	Synchronizer        synchronizer.Config
 	Sequencer           sequencer.Config
 	SequenceSender      sequencesender.Config
-	PriceGetter         pricegetter.Config
 	Aggregator          aggregator.Config
 	NetworkConfig       NetworkConfig
 	L2GasPriceSuggester gasprice.Config
