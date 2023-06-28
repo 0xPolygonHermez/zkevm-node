@@ -770,8 +770,8 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			if uint64(forcedBatches[0].ForcedAt.Unix()) != sbatch.MinForcedTimestamp ||
 				forcedBatches[0].GlobalExitRoot != sbatch.GlobalExitRoot ||
 				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(sbatch.Transactions) {
-				log.Warnf("ForcedBatch stored: %+v", forcedBatches)
-				log.Warnf("ForcedBatch sequenced received: %+v", sbatch)
+				log.Warnf("ForcedBatch stored: %+v. RawTxsData: %s", forcedBatches, common.Bytes2Hex(forcedBatches[0].RawTxsData))
+				log.Warnf("ForcedBatch sequenced received: %+v. RawTxsData: %s", sbatch, common.Bytes2Hex(sbatch.Transactions))
 				log.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
@@ -780,6 +780,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				}
 				return fmt.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
 			}
+			log.Debug("Setting forcedBatchNum: ", forcedBatches[0].ForcedBatchNumber)
 			batch.ForcedBatchNum = &forcedBatches[0].ForcedBatchNumber
 		}
 
@@ -1205,6 +1206,10 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		log.Infof("Batch %v needs to be synchronized", trustedBatch.Number)
 		log.Debugf("Opening batch %v", trustedBatch.Number)
 
+		if trustedBatch.ForcedBatchNumber != nil {
+			fb := uint64(*trustedBatch.ForcedBatchNumber)
+			processCtx.ForcedBatchNum = &fb
+		}
 		err := s.state.OpenBatch(s.ctx, processCtx, dbTx)
 		if err != nil {
 			log.Errorf("error opening batch %d", trustedBatch.Number)

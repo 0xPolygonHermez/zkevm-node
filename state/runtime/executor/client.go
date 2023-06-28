@@ -11,13 +11,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const maxMsgSize = 2 * 1024 * 1024 * 1024
-
 // NewExecutorClient is the executor client constructor.
 func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient, *grpc.ClientConn, context.CancelFunc) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(c.MaxGRPCMessageSize)),
 		grpc.WithBlock(),
 	}
 	const maxWaitSeconds = 120
