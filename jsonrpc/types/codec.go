@@ -3,11 +3,13 @@ package types
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -161,7 +163,7 @@ func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
 }
 
 // GetNumericBlockNumber returns a numeric block number based on the BlockNumber instance
-func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterface, dbTx pgx.Tx) (uint64, Error) {
+func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterface, e EthermanInterface, dbTx pgx.Tx) (uint64, Error) {
 	bValue := LatestBlockNumber
 	if b != nil {
 		bValue = *b
@@ -180,17 +182,31 @@ func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterfac
 		return 0, nil
 
 	case SafeBlockNumber:
-		lastBlockNumber, err := s.GetLastVirtualizedL2BlockNumber(ctx, dbTx)
+		l1SafeBlockNumber, err := e.GetSafeBlockNumber((ctx))
 		if err != nil {
-			return 0, NewRPCError(DefaultErrorCode, "failed to get the last virtualized block number from state")
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the safe block number from ethereum")
+		}
+
+		lastBlockNumber, err := s.GetSafeL2BlockNumber(ctx, l1SafeBlockNumber, dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return 0, nil
+		} else if err != nil {
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the safe block number from state")
 		}
 
 		return lastBlockNumber, nil
 
 	case FinalizedBlockNumber:
-		lastBlockNumber, err := s.GetLastConsolidatedL2BlockNumber(ctx, dbTx)
+		l1FinalizedBlockNumber, err := e.GetFinalizedBlockNumber((ctx))
 		if err != nil {
-			return 0, NewRPCError(DefaultErrorCode, "failed to get the last verified block number from state")
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the finalized block number from ethereum")
+		}
+
+		lastBlockNumber, err := s.GetFinalizedL2BlockNumber(ctx, l1FinalizedBlockNumber, dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return 0, nil
+		} else if err != nil {
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the finalized block number from state")
 		}
 
 		return lastBlockNumber, nil

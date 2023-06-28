@@ -333,7 +333,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	if _, ok := apis[jsonrpc.APIEth]; ok {
 		services = append(services, jsonrpc.Service{
 			Name:    jsonrpc.APIEth,
-			Service: jsonrpc.NewEthEndpoints(c.RPC, chainID, pool, st, storage),
+			Service: jsonrpc.NewEthEndpoints(c.RPC, chainID, pool, st, etherman, storage),
 		})
 	}
 
@@ -361,7 +361,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	if _, ok := apis[jsonrpc.APIDebug]; ok {
 		services = append(services, jsonrpc.Service{
 			Name:    jsonrpc.APIDebug,
-			Service: jsonrpc.NewDebugEndpoints(st),
+			Service: jsonrpc.NewDebugEndpoints(st, etherman),
 		})
 	}
 

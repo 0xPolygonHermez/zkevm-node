@@ -36,6 +36,7 @@ type mocksWrapper struct {
 func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *ethclient.Client) {
 	pool := mocks.NewPoolMock(t)
 	st := mocks.NewStateMock(t)
+	etherman := mocks.NewEthermanMock(t)
 	storage := newStorageMock(t)
 	dbTx := mocks.NewDBTxMock(t)
 	apis := map[string]bool{
@@ -55,7 +56,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	if _, ok := apis[APIEth]; ok {
 		services = append(services, Service{
 			Name:    APIEth,
-			Service: NewEthEndpoints(cfg, chainID, pool, st, storage),
+			Service: NewEthEndpoints(cfg, chainID, pool, st, etherman, storage),
 		})
 	}
 
@@ -83,7 +84,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	if _, ok := apis[APIDebug]; ok {
 		services = append(services, Service{
 			Name:    APIDebug,
-			Service: NewDebugEndpoints(st),
+			Service: NewDebugEndpoints(st, etherman),
 		})
 	}
 
