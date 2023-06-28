@@ -19,7 +19,7 @@ type Config struct {
 	// WaitOnResourceExhaustion is the time to wait before retrying a transaction because of resource exhaustion
 	WaitOnResourceExhaustion types.Duration
 
-	// Batch number where there is a forkid change (fork upgrade)
+	// Batch number from which there is a forkid change (fork upgrade)
 	ForkUpgradeBatchNumber uint64
 
 	// New fork id to be used for batches greaters than ForkUpgradeBatchNumber (fork upgrade)

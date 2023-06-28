@@ -20,7 +20,7 @@ func (s *State) UpdateForkIDIntervals(intervals []ForkIDInterval) {
 func (s *State) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	// If NumBatchForkIdUpgrade is defined (!=0) we are performing forkid upgrade process
 	// In this case, if the batchNumber is the next to the NumBatchForkIdUpgrade, we need to return the
-	// new "future" forkId (last fork id + 1)
+	// new "future" forkId (ForkUpgradeNewForkId)
 	if (s.cfg.ForkUpgradeBatchNumber) != 0 && (batchNumber > s.cfg.ForkUpgradeBatchNumber) {
 		return s.cfg.ForkUpgradeNewForkId
 	}
