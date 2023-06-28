@@ -444,18 +444,30 @@ func rpcBatchTostateBatch(rpcBatch *types.Batch) state.Batch {
 	}
 }
 
-func TestAvoidResetTrustedBatch(t *testing.T) {
+// func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchronizer) {
+// 	m.ZKEVMClient.
+// 		On("BatchNumber", mock.Anything).
+// 		Return(lastBatchNumberInTrustedNode, nil).
+// 		Once()
+// }
+
+// TODO
+//func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
+//}
+
+// Feature #2220: Optimize Trusted state synchronization
+//
+//	this Check partially point 2: Avoid read the batch information from db all the time, keeping it in memory.
+func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItInALocalVar(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
 	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, *genesis, *cfg)
 	require.NoError(t, err)
 	sync, ok := sync_interface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
 	lastBatchNumber := uint64(10)
-	// The Remote Node BatchNumber
-	lastBatchNumberInTrustedNode := uint64(10)
 	m.ZKEVMClient.
 		On("BatchNumber", mock.Anything).
-		Return(lastBatchNumberInTrustedNode, nil).
+		Return(lastBatchNumber, nil).
 		Once()
 
 	batch10With1Tx := createBatch(t, lastBatchNumber, 1)
@@ -464,7 +476,7 @@ func TestAvoidResetTrustedBatch(t *testing.T) {
 		On("BatchByNumber", mock.Anything, mock.AnythingOfType("*big.Int")).
 		Run(func(args mock.Arguments) {
 			param := args.Get(1).(*big.Int)
-			expected := big.NewInt(int64(lastBatchNumberInTrustedNode))
+			expected := big.NewInt(int64(lastBatchNumber))
 			assert.Equal(t, *expected, *param)
 		}).
 		Return(batch10With2Tx, nil).
@@ -504,6 +516,7 @@ func TestAvoidResetTrustedBatch(t *testing.T) {
 	// batch 2:
 	sync.syncTrustedState(lastBatchNumber)
 
+	require.Equal(t, *sync.CurrentTrustedBatch, stateBatchWithOnly2Trs)
 }
 
 // issue #2220
