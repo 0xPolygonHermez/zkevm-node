@@ -640,7 +640,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 					return nil, ErrEffectiveGasPriceReexecution
 				}
 			}
-		} else if actualBreakEvenPrice.Cmp(tx.GasPrice) == 1 {
+		} else if tx.GasPrice != nil && actualBreakEvenPrice.Cmp(tx.GasPrice) == 1 {
 			tx.BreakEvenGasPrice = tx.GasPrice
 			tx.IsEffectiveGasPriceFinalExecution = true
 			return nil, ErrEffectiveGasPriceReexecution
