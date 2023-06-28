@@ -645,7 +645,6 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 			tx.IsEffectiveGasPriceFinalExecution = true
 			return nil, ErrEffectiveGasPriceReexecution
 		}
-
 	}
 
 	processedTransaction := transactionToStore{
