@@ -347,113 +347,24 @@ type mocks struct {
 // 	}
 // }
 
-func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
-	genesis := state.Genesis{
-		GenesisBlockNum: uint64(123456),
-	}
-	cfg := Config{
-		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize: 10,
-	}
-
-	m := mocks{
-		Etherman:    newEthermanMock(t),
-		State:       newStateMock(t),
-		Pool:        newPoolMock(t),
-		DbTx:        newDbTxMock(t),
-		ZKEVMClient: newZkEVMClientMock(t),
-	}
-	return &genesis, &cfg, &m
-}
-
-func transactionToTxData(t types.Transaction) *ethTypes.Transaction {
-	inner := ethTypes.NewTx(&ethTypes.LegacyTx{
-		Nonce:    uint64(t.Nonce),
-		GasPrice: (*big.Int)(&t.GasPrice),
-		Gas:      uint64(t.Gas),
-		To:       t.To,
-		Value:    (*big.Int)(&t.Value),
-		V:        (*big.Int)(&t.V),
-		R:        (*big.Int)(&t.R),
-		S:        (*big.Int)(&t.S),
-	})
-	return inner
-}
-
-func createTransaction(txIndex uint64) types.Transaction {
-	r, _ := new(big.Int).SetString("0x07445CC110033D6A44AD1736ECDF76D26CAB8AB20B9DABB1022EA9BF0707A14E", 0)
-	s, _ := new(big.Int).SetString("0x675F2042E60C2D09A4B9C4862693596A75DDE508FCD8E6C7A95283FAD94372EC", 0)
-	to := common.HexToAddress("530C75b2E17ac4d1DF146845cF905AEfB31c3607")
-	block_hash := common.Hash([common.HashLength]byte{102, 231, 81, 89, 126, 43, 201, 5, 72, 85, 63, 88, 132, 194, 77, 155, 206, 246, 224, 205, 132, 229, 190, 32, 116, 150, 59, 88, 201, 248, 128, 99})
-	block_number := types.ArgUint64(1)
-	tx_index := types.ArgUint64(txIndex)
-	transaction := types.Transaction{
-		Nonce:    types.ArgUint64(8),
-		GasPrice: types.ArgBig(*big.NewInt(1000000000)),
-		Gas:      types.ArgUint64(21000),
-		To:       &to,
-		Value:    types.ArgBig(*big.NewInt(2000000000000000000)),
-		V:        types.ArgBig(*big.NewInt(2037)),
-		R:        types.ArgBig(*r),
-		//R:           types.ArgBig{neg: false, abs: []Word{157249674926334286, 7830504874417433521, 4948637090219783890, 523645440948911466}},
-		//S:           types.ArgBig{neg: false, abs: []Word{12200959453910233836, 8493196299055195847, 11869734373363505514, 7448707780393577737}},
-		S:           types.ArgBig(*s),
-		Hash:        common.Hash([common.HashLength]byte{30, 184, 220, 207, 103, 194, 81, 217, 185, 173, 187, 253, 136, 201, 218, 21, 192, 0, 116, 182, 60, 68, 209, 250, 178, 183, 117, 113, 44, 41, 249, 43}),
-		From:        common.HexToAddress("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
-		BlockHash:   &block_hash,
-		BlockNumber: &block_number,
-		TxIndex:     &tx_index,
-		ChainID:     types.ArgBig(*big.NewInt(1001)),
-		Type:        types.ArgUint64(0),
-	}
-	return transaction
-}
-
-func createBatch(t *testing.T, batchNumber uint64, howManyTx int) *types.Batch {
-
-	transactions := []types.TransactionOrHash{}
-	transactions_state := []ethTypes.Transaction{}
-	for i := 0; i < howManyTx; i++ {
-		t := createTransaction(uint64(i + 1))
-		transaction := types.TransactionOrHash{Tx: &t}
-		transactions = append(transactions, transaction)
-		transactions_state = append(transactions_state, *transactionToTxData(t))
-	}
-	batchL2Data, err := state.EncodeTransactions(transactions_state)
-	require.NoError(t, err)
-
-	batch := &types.Batch{
-		Number:       types.ArgUint64(batchNumber),
-		Coinbase:     common.Address([common.AddressLength]byte{243, 159, 214, 229, 26, 173, 136, 246, 244, 206, 106, 184, 130, 114, 121, 207, 255, 185, 34, 102}),
-		Timestamp:    types.ArgUint64(1687854474), // Creation timestamp
-		Transactions: transactions,
-		BatchL2Data:  batchL2Data,
-	}
-	return batch
-}
-
-func rpcBatchTostateBatch(rpcBatch *types.Batch) state.Batch {
-	return state.Batch{
-		BatchNumber:    uint64(rpcBatch.Number),
-		Coinbase:       rpcBatch.Coinbase,
-		StateRoot:      rpcBatch.StateRoot,
-		BatchL2Data:    rpcBatch.BatchL2Data,
-		GlobalExitRoot: rpcBatch.GlobalExitRoot,
-		LocalExitRoot:  rpcBatch.MainnetExitRoot,
-		Timestamp:      time.Unix(int64(rpcBatch.Timestamp), 0),
-	}
-}
-
-// func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchronizer) {
-// 	m.ZKEVMClient.
-// 		On("BatchNumber", mock.Anything).
-// 		Return(lastBatchNumberInTrustedNode, nil).
-// 		Once()
-// }
-
 // TODO
-//func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
-//}
+func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
+	genesis, cfg, m := setupGenericTest(t)
+	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, *genesis, *cfg)
+	require.NoError(t, err)
+	sync, ok := sync_interface.(*ClientSynchronizer)
+	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
+	lastBatchNumber := uint64(10)
+	batch10With1Tx := createBatch(t, lastBatchNumber, 1)
+	batch10With2Tx := createBatch(t, lastBatchNumber, 2)
+	batch10With3Tx := createBatch(t, lastBatchNumber, 3)
+
+	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, true)
+	sync.syncTrustedState(lastBatchNumber)
+	expectedCallsForsyncTrustedState(t, m, sync, batch10With2Tx, batch10With3Tx, false)
+	sync.syncTrustedState(lastBatchNumber)
+	require.Equal(t, *sync.CurrentTrustedBatch, rpcBatchTostateBatch(batch10With3Tx))
+}
 
 // Feature #2220: Optimize Trusted state synchronization
 //
@@ -465,58 +376,13 @@ func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItIn
 	sync, ok := sync_interface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
 	lastBatchNumber := uint64(10)
-	m.ZKEVMClient.
-		On("BatchNumber", mock.Anything).
-		Return(lastBatchNumber, nil).
-		Once()
-
 	batch10With1Tx := createBatch(t, lastBatchNumber, 1)
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2)
-	m.ZKEVMClient.
-		On("BatchByNumber", mock.Anything, mock.AnythingOfType("*big.Int")).
-		Run(func(args mock.Arguments) {
-			param := args.Get(1).(*big.Int)
-			expected := big.NewInt(int64(lastBatchNumber))
-			assert.Equal(t, *expected, *param)
-		}).
-		Return(batch10With2Tx, nil).
-		Once()
 
-	m.State.On("BeginStateTransaction", sync.ctx).
-		Return(m.DbTx, nil).
-		Once()
-
-	// This expected calls belongs to processTrustedBatch(batchToSync, dbTx)
-	stateBatchWithOnly1Trs := rpcBatchTostateBatch(batch10With1Tx)
-	stateBatchWithOnly2Trs := rpcBatchTostateBatch(batch10With2Tx)
-	m.State.
-		On("GetBatchByNumber", mock.Anything, uint64(batch10With1Tx.Number), mock.Anything).
-		Return(&stateBatchWithOnly1Trs, nil).
-		Once()
-
-	m.State.
-		On("UpdateBatchL2Data", sync.ctx, lastBatchNumber, stateBatchWithOnly2Trs.BatchL2Data, mock.Anything).
-		Return(nil).
-		Once()
-
-	processedBatch := state.ProcessBatchResponse{}
-	m.State.
-		On("ProcessSequencerBatch", sync.ctx, lastBatchNumber, stateBatchWithOnly2Trs.BatchL2Data, mock.Anything, mock.Anything).
-		Return(&processedBatch, nil).
-		Once()
-
-	m.State.
-		On("StoreTransactions", sync.ctx, lastBatchNumber, processedBatch.Responses, m.DbTx).
-		Return(nil).
-		Once()
-
-	m.DbTx.On("Commit", sync.ctx).Return(nil).Once()
-	// act:
-	// batch 1: 1 trs inside
-	// batch 2:
+	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, true)
 	sync.syncTrustedState(lastBatchNumber)
 
-	require.Equal(t, *sync.CurrentTrustedBatch, stateBatchWithOnly2Trs)
+	require.Equal(t, *sync.CurrentTrustedBatch, rpcBatchTostateBatch(batch10With2Tx))
 }
 
 // issue #2220
@@ -984,4 +850,150 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 	err = sync.Sync()
 	require.NoError(t, err)
+}
+
+func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
+	genesis := state.Genesis{
+		GenesisBlockNum: uint64(123456),
+	}
+	cfg := Config{
+		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize: 10,
+	}
+
+	m := mocks{
+		Etherman:    newEthermanMock(t),
+		State:       newStateMock(t),
+		Pool:        newPoolMock(t),
+		DbTx:        newDbTxMock(t),
+		ZKEVMClient: newZkEVMClientMock(t),
+	}
+	return &genesis, &cfg, &m
+}
+
+func transactionToTxData(t types.Transaction) *ethTypes.Transaction {
+	inner := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    uint64(t.Nonce),
+		GasPrice: (*big.Int)(&t.GasPrice),
+		Gas:      uint64(t.Gas),
+		To:       t.To,
+		Value:    (*big.Int)(&t.Value),
+		V:        (*big.Int)(&t.V),
+		R:        (*big.Int)(&t.R),
+		S:        (*big.Int)(&t.S),
+	})
+	return inner
+}
+
+func createTransaction(txIndex uint64) types.Transaction {
+	r, _ := new(big.Int).SetString("0x07445CC110033D6A44AD1736ECDF76D26CAB8AB20B9DABB1022EA9BF0707A14E", 0)
+	s, _ := new(big.Int).SetString("0x675F2042E60C2D09A4B9C4862693596A75DDE508FCD8E6C7A95283FAD94372EC", 0)
+	to := common.HexToAddress("530C75b2E17ac4d1DF146845cF905AEfB31c3607")
+	block_hash := common.Hash([common.HashLength]byte{102, 231, 81, 89, 126, 43, 201, 5, 72, 85, 63, 88, 132, 194, 77, 155, 206, 246, 224, 205, 132, 229, 190, 32, 116, 150, 59, 88, 201, 248, 128, 99})
+	block_number := types.ArgUint64(1)
+	tx_index := types.ArgUint64(txIndex)
+	transaction := types.Transaction{
+		Nonce:    types.ArgUint64(8),
+		GasPrice: types.ArgBig(*big.NewInt(1000000000)),
+		Gas:      types.ArgUint64(21000),
+		To:       &to,
+		Value:    types.ArgBig(*big.NewInt(2000000000000000000)),
+		V:        types.ArgBig(*big.NewInt(2037)),
+		R:        types.ArgBig(*r),
+		//R:           types.ArgBig{neg: false, abs: []Word{157249674926334286, 7830504874417433521, 4948637090219783890, 523645440948911466}},
+		//S:           types.ArgBig{neg: false, abs: []Word{12200959453910233836, 8493196299055195847, 11869734373363505514, 7448707780393577737}},
+		S:           types.ArgBig(*s),
+		Hash:        common.Hash([common.HashLength]byte{30, 184, 220, 207, 103, 194, 81, 217, 185, 173, 187, 253, 136, 201, 218, 21, 192, 0, 116, 182, 60, 68, 209, 250, 178, 183, 117, 113, 44, 41, 249, 43}),
+		From:        common.HexToAddress("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
+		BlockHash:   &block_hash,
+		BlockNumber: &block_number,
+		TxIndex:     &tx_index,
+		ChainID:     types.ArgBig(*big.NewInt(1001)),
+		Type:        types.ArgUint64(0),
+	}
+	return transaction
+}
+
+func createBatch(t *testing.T, batchNumber uint64, howManyTx int) *types.Batch {
+
+	transactions := []types.TransactionOrHash{}
+	transactions_state := []ethTypes.Transaction{}
+	for i := 0; i < howManyTx; i++ {
+		t := createTransaction(uint64(i + 1))
+		transaction := types.TransactionOrHash{Tx: &t}
+		transactions = append(transactions, transaction)
+		transactions_state = append(transactions_state, *transactionToTxData(t))
+	}
+	batchL2Data, err := state.EncodeTransactions(transactions_state)
+	require.NoError(t, err)
+
+	batch := &types.Batch{
+		Number:       types.ArgUint64(batchNumber),
+		Coinbase:     common.Address([common.AddressLength]byte{243, 159, 214, 229, 26, 173, 136, 246, 244, 206, 106, 184, 130, 114, 121, 207, 255, 185, 34, 102}),
+		Timestamp:    types.ArgUint64(1687854474), // Creation timestamp
+		Transactions: transactions,
+		BatchL2Data:  batchL2Data,
+	}
+	return batch
+}
+
+func rpcBatchTostateBatch(rpcBatch *types.Batch) state.Batch {
+	return state.Batch{
+		BatchNumber:    uint64(rpcBatch.Number),
+		Coinbase:       rpcBatch.Coinbase,
+		StateRoot:      rpcBatch.StateRoot,
+		BatchL2Data:    rpcBatch.BatchL2Data,
+		GlobalExitRoot: rpcBatch.GlobalExitRoot,
+		LocalExitRoot:  rpcBatch.MainnetExitRoot,
+		Timestamp:      time.Unix(int64(rpcBatch.Timestamp), 0),
+	}
+}
+
+func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchronizer,
+	batchInPermissionLess *types.Batch, batchInTrustedNode *types.Batch, needToRetrieveBatchFromDatabase bool) {
+	batchNumber := uint64(batchInTrustedNode.Number)
+	m.ZKEVMClient.
+		On("BatchNumber", mock.Anything).
+		Return(batchNumber, nil).
+		Once()
+
+	m.ZKEVMClient.
+		On("BatchByNumber", mock.Anything, mock.AnythingOfType("*big.Int")).
+		Run(func(args mock.Arguments) {
+			param := args.Get(1).(*big.Int)
+			expected := big.NewInt(int64(batchNumber))
+			assert.Equal(t, *expected, *param)
+		}).
+		Return(batchInTrustedNode, nil).
+		Once()
+
+	m.State.On("BeginStateTransaction", sync.ctx).
+		Return(m.DbTx, nil).
+		Once()
+
+	stateBatchInTrustedNode := rpcBatchTostateBatch(batchInTrustedNode)
+	stateBatchInPermissionLess := rpcBatchTostateBatch(batchInPermissionLess)
+	if needToRetrieveBatchFromDatabase {
+		m.State.
+			On("GetBatchByNumber", mock.Anything, uint64(batchInPermissionLess.Number), mock.Anything).
+			Return(&stateBatchInPermissionLess, nil).
+			Once()
+	}
+	m.State.
+		On("UpdateBatchL2Data", sync.ctx, batchNumber, stateBatchInTrustedNode.BatchL2Data, mock.Anything).
+		Return(nil).
+		Once()
+
+	processedBatch := state.ProcessBatchResponse{}
+	m.State.
+		On("ProcessSequencerBatch", sync.ctx, batchNumber, stateBatchInTrustedNode.BatchL2Data, mock.Anything, mock.Anything).
+		Return(&processedBatch, nil).
+		Once()
+
+	m.State.
+		On("StoreTransactions", sync.ctx, batchNumber, processedBatch.Responses, m.DbTx).
+		Return(nil).
+		Once()
+
+	m.DbTx.On("Commit", sync.ctx).Return(nil).Once()
 }
