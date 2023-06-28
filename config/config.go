@@ -54,23 +54,25 @@ const (
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	IsTrustedSequencer  bool `mapstructure:"IsTrustedSequencer"`
-	Log                 log.Config
-	Etherman            etherman.Config
-	EthTxManager        ethtxmanager.Config
-	Pool                pool.Config
-	RPC                 jsonrpc.Config
-	Synchronizer        synchronizer.Config
-	Sequencer           sequencer.Config
-	SequenceSender      sequencesender.Config
-	Aggregator          aggregator.Config
-	NetworkConfig       NetworkConfig
-	L2GasPriceSuggester gasprice.Config
-	Executor            executor.Config
-	MTClient            merkletree.Config
-	StateDB             db.Config
-	Metrics             metrics.Config
-	EventLog            event.Config
+	IsTrustedSequencer     bool   `mapstructure:"IsTrustedSequencer"`
+	ForkUpgradeBatchNumber uint64 `mapstructure:"ForkUpgradeBatchNumber"`
+	ForkUpgradeNewForkId   uint64 `mapstructure:"ForkUpgradeNewForkId"`
+	Log                    log.Config
+	Etherman               etherman.Config
+	EthTxManager           ethtxmanager.Config
+	Pool                   pool.Config
+	RPC                    jsonrpc.Config
+	Synchronizer           synchronizer.Config
+	Sequencer              sequencer.Config
+	SequenceSender         sequencesender.Config
+	Aggregator             aggregator.Config
+	NetworkConfig          NetworkConfig
+	L2GasPriceSuggester    gasprice.Config
+	Executor               executor.Config
+	MTClient               merkletree.Config
+	StateDB                db.Config
+	Metrics                metrics.Config
+	EventLog               event.Config
 }
 
 // Default parses the default configuration values.
