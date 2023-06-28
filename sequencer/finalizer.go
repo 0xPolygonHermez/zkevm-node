@@ -258,11 +258,20 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 				f.batch.timestamp = now()
 			}
 
-			f.sharedResourcesMux.Lock()
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
-			_, err := f.processTransaction(ctx, tx)
-			if err != nil {
-				log.Errorf("failed to process transaction in finalizeBatches, Err: %v", err)
+			f.sharedResourcesMux.Lock()
+			for {
+				_, err := f.processTransaction(ctx, tx)
+				if err != nil {
+					if err == ErrEffectiveGasPriceReprocess {
+						log.Info("reprocessing tx because of effective gas price calculation: %s", tx.Hash.Hex())
+						continue
+					} else {
+						log.Errorf("failed to process transaction in finalizeBatches, Err: %v", err)
+						break
+					}
+				}
+				break
 			}
 			f.sharedResourcesMux.Unlock()
 		} else {
@@ -508,43 +517,50 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 
 	hashStr := "nil"
 	if tx != nil {
-		// Increase nunber of executions related to gas price
-		tx.EffectiveGasPriceExecutions++
 		f.processRequest.Transactions = tx.RawTx
 		hashStr = tx.HashStr
 		breakEvenGasPrice := tx.BreakEvenGasPrice
 		if breakEvenGasPrice.Uint64() == 0 {
 			// Calculate the new breakEvenPrice
-			var newBreakEvenGasPrice *big.Int
-			newBreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, tx.BatchResources.ZKCounters.CumulativeGasUsed)
+			tx.BreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, tx.BatchResources.ZKCounters.CumulativeGasUsed)
 			if err != nil {
-				return nil, err
+				if f.effectiveGasPriceCfg.Enabled {
+					return nil, err
+				} else {
+					log.Warnf("failed to calculate break even gas price: %s", err)
+				}
 			}
+		}
+
+		var (
+			effectivePercentage uint8
+			err                 error
+		)
+
+		effectivePercentageAsDecodedHex := maxEffectivePercentageDecodedHex
+
+		if tx.BreakEvenGasPrice.Uint64() != 0 {
+			// If the tx gas price is lower than the break even gas price, we set the effective percentage to 255 (100%)
+			if tx.GasPrice.Cmp(tx.BreakEvenGasPrice) <= 0 {
+				effectivePercentage = state.MaxEffectivePercentage
+				tx.IsEffectiveGasPriceFinalExecution = true
+			} else {
+				effectivePercentage, err = CalculateEffectiveGasPricePercentage(tx.GasPrice, breakEvenGasPrice)
+				if err != nil {
+					log.Errorf("failed to calculate effective percentage: %s", err)
+					return nil, err
+				}
+			}
+
 			if f.effectiveGasPriceCfg.Enabled {
-				breakEvenGasPrice = newBreakEvenGasPrice
+				effectivePercentageAsDecodedHex, err = hex.DecodeHex(fmt.Sprintf("%x", effectivePercentage))
+				if err != nil {
+					return nil, err
+				}
 			}
+			log.Infof("calculated effectivePercentage: %d for tx: %s", effectivePercentage, txHash)
 		}
-
-		// If the tx gas price is lower than the break even gas price, we set the effective percentage to 255 (100%)
-		effectivePercentage, err := CalcGasPriceEffectivePercentage(tx.GasPrice, breakEvenGasPrice)
-		if err != nil {
-			log.Errorf("failed to calculate effective percentage: %s", err)
-			return nil, err
-		}
-		effectivePercentageAsDecodedHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentage))
-		if err != nil {
-			log.Errorf("failed to decode effective percentage: %s", err)
-			return nil, err
-		}
-
-		log.Infof("calculated effectivePercentage: %d for tx: %s", effectivePercentage, txHash)
-
-		if f.effectiveGasPriceCfg.Enabled {
-			f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
-		} else {
-			log.Infof("effective gas price is disabled so using 100 % (255) effective percentage. tx: %s", txHash)
-			f.processRequest.Transactions = append(f.processRequest.Transactions, maxEffectivePercentageDecodedHex...)
-		}
+		f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
@@ -593,12 +609,16 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	}
 
 	if f.effectiveGasPriceCfg.Enabled && !tx.IsEffectiveGasPriceFinalExecution {
+		// Increase nunber of executions related to gas price
+		tx.EffectiveGasPriceProcessCount++
+
 		actualBreakEvenPrice, err := f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, result.Responses[0].GasUsed)
 		if err != nil {
 			log.Errorf("failed to calculate breakEvenPrice with actual gasUsed: %s", err.Error())
 			return nil, err
 		}
 
+		// if actualBreakEvenPrice < tx.BrakeEvenGasPrice
 		if actualBreakEvenPrice.Cmp(tx.BreakEvenGasPrice) == -1 {
 			// Compute the difference
 			diff := new(big.Int).Sub(tx.BreakEvenGasPrice, actualBreakEvenPrice)
@@ -606,9 +626,9 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 			deviation := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
 
 			if diff.Cmp(deviation) == 1 {
-				if tx.EffectiveGasPriceExecutions < 2 { //nolint:gomnd
+				if tx.EffectiveGasPriceProcessCount < 2 { //nolint:gomnd
 					tx.BreakEvenGasPrice = actualBreakEvenPrice
-					return nil, ErrEffectiveGasPriceReexecution
+					return nil, ErrEffectiveGasPriceReprocess
 				} else {
 					tx.BreakEvenGasPrice = tx.GasPrice
 					tx.IsEffectiveGasPriceFinalExecution = true
@@ -637,13 +657,13 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 					if err != nil {
 						log.Errorf("failed to log event: %s", err.Error())
 					}
-					return nil, ErrEffectiveGasPriceReexecution
+					return nil, ErrEffectiveGasPriceReprocess
 				}
-			}
+			} // TODO: Review this check regarding tx.GasPrice being nil
 		} else if tx.GasPrice != nil && actualBreakEvenPrice.Cmp(tx.GasPrice) == 1 {
 			tx.BreakEvenGasPrice = tx.GasPrice
 			tx.IsEffectiveGasPriceFinalExecution = true
-			return nil, ErrEffectiveGasPriceReexecution
+			return nil, ErrEffectiveGasPriceReprocess
 		}
 	}
 

@@ -33,7 +33,7 @@ type TxTracker struct {
 	TotalWeight                       float64
 	BreakEvenGasPrice                 *big.Int
 	GasPriceEffectivePercentage       uint8
-	EffectiveGasPriceExecutions       uint8
+	EffectiveGasPriceProcessCount     uint8
 	IsEffectiveGasPriceFinalExecution bool
 }
 
@@ -101,7 +101,7 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints b
 		ResourceCostMultiplier:            resourceCostMultiplier,
 		TotalWeight:                       totalWeight,
 		BreakEvenGasPrice:                 new(big.Int).SetUint64(0),
-		EffectiveGasPriceExecutions:       0,
+		EffectiveGasPriceProcessCount:     0,
 		IsEffectiveGasPriceFinalExecution: false,
 	}
 	txTracker.calculateEfficiency(constraints, weights)

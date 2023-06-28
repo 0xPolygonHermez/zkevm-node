@@ -505,17 +505,17 @@ func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength ui
 	gasPrices, err := p.GetGasPrices(ctx)
 	if err != nil {
 		log.Warn(fmt.Sprintf("Failed to get L1 and L2 gas prices: %v", err))
-		return nil, err
+		return big.NewInt(0), err
 	}
 	if gasPrices.L1GasPrice == 0 {
 		log.Warn("Received L1 gas price 0. Skipping estimation...")
-		return nil, ErrReceivedZeroL1GasPrice
+		return big.NewInt(0), ErrReceivedZeroL1GasPrice
 	}
 
 	// Get L2 Min Gas Price
 	l2MinGasPrice := (gasPrices.L1GasPrice * p.cfg.EffectiveGasPrice.L1GasPriceFactor) / 100 //nolint:gomnd
 	if err != nil {
-		return nil, err
+		return big.NewInt(0), err
 	}
 	if l2MinGasPrice < p.cfg.DefaultMinGasPriceAllowed {
 		l2MinGasPrice = p.cfg.DefaultMinGasPriceAllowed
