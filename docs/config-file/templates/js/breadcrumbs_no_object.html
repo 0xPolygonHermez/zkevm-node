@@ -1,14 +1,10 @@
 <div class="breadcrumbs">
-{%- for node in schema.nodes_from_root -%}
-    {%- if loop.first -%}
-    {%- else -%}
-        <a href="#{{ node.html_id }}" onclick="anchorLink('{{ node.html_id }}')">{{ node.name_for_breadcrumbs }}</a>
-    {%- endif -%}
-    {%- if not loop.last and not loop.first %}
-.
-    {% endif -%}
-    {%- if  loop.last-%}
-=
-    {% endif -%}
+{% set my_string = [] %}
+{%- for node in schema.nodes_from_root -%}    
+        {%- if not loop.first -%}
+            <!-- {{ my_string.append(node.name_for_breadcrumbs) }} -->
+        {%- endif -%}
 {%- endfor -%}
+<a href="#{{ my_string|join('.') }}" onclick="anchorLink('{{ my_string|join('.') }}')">{{ my_string|join('.') }}=</a>
+
 </div>
