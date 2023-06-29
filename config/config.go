@@ -71,7 +71,7 @@ type Config struct {
 	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer"`
 	// Configure Log level for all the services, allow also to store the logs in a file
 	Log log.Config
-	// Configure service `Etherman` responsable to interact with L1.
+	// Configure service `Etherman` responsible to interact with L1.
 	Etherman     etherman.Config
 	EthTxManager ethtxmanager.Config
 	Pool         pool.Config

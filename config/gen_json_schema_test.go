@@ -124,7 +124,8 @@ func TestGenerateJsonSchemaCustomWithNameChangingUsingMapsInSubFieldtrucutMustPa
 			}
 		}()
 
-		generator.GenerateJsonSchema(cli)
+		_, err := generator.GenerateJsonSchema(cli)
+		require.NoError(t, err)
 	})
 }
 
@@ -150,7 +151,8 @@ func TestGenerateJsonSchemaCustomWithNameChangingUsingMapstrucutMustPanic(t *tes
 			}
 		}()
 
-		generator.GenerateJsonSchema(cli)
+		_, err := generator.GenerateJsonSchema(cli)
+		require.NoError(t, err)
 	})
 
 }

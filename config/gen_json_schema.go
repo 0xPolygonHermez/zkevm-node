@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// The struct are the parameters to generate a json-schema based on the T struct
+// ConfigJsonSchemaGenerater are the parameters to generate a json-schema based on the T struct
 // The parametrization of the function are used for unittest
 type ConfigJsonSchemaGenerater[T any] struct {
 	repoName       string
@@ -26,7 +26,7 @@ type ConfigJsonSchemaGenerater[T any] struct {
 	removeNetworkConfig bool
 }
 
-// Constructor for build the json-schema of the general config file (.toml)
+// NewConfigJsonSchemaGenerater returns a new class for generating json-schema of the general config file (.toml)
 func NewConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[Config] {
 	res := ConfigJsonSchemaGenerater[Config]{}
 	res.repoName = "github.com/0xPolygonHermez/zkevm-node"
@@ -42,7 +42,7 @@ func NewConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[Config] {
 	return res
 }
 
-// This launch the generation, and returns the schema
+// GenerateJsonSchema launchs the generation, and returns the schema
 func (s ConfigJsonSchemaGenerater[T]) GenerateJsonSchema(cli *cli.Context) (*jsonschema.Schema, error) {
 	checkNoMapStructureIsRenamingFields(s.defaultValues)
 
@@ -78,7 +78,7 @@ func (s ConfigJsonSchemaGenerater[T]) GenerateJsonSchema(cli *cli.Context) (*jso
 
 }
 
-// This serialize the schema in JSON to be stored
+// SerializeJsonSchema serializes the schema in JSON to be stored
 func (s ConfigJsonSchemaGenerater[T]) SerializeJsonSchema(schema *jsonschema.Schema) ([]byte, error) {
 	file, err := json.MarshalIndent(schema, "", "\t")
 	if err != nil {
