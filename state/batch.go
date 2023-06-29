@@ -176,7 +176,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		updateMT = cTrue
 	}
 
-	forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, request.BatchNumber)
+	forkID := s.GetForkIDByBatchNumber(request.BatchNumber)
 
 	// Create Batch
 	var processBatchRequest = &pb.ProcessBatchRequest{
@@ -314,7 +314,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	if lastBatch.BatchNumber != batchNumber {
 		return nil, ErrInvalidBatchNumber
 	}
-	forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
+	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{

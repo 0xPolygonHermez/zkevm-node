@@ -115,7 +115,6 @@ PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-ForkId = 5
 RetryTime = "5s"
 VerifyProofInterval = "10s"
 TxProfitabilityCheckerType = "acceptall"
@@ -162,3 +161,12 @@ ProfilingEnabled = true
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200

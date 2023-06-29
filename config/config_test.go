@@ -472,7 +472,7 @@ func Test_Defaults(t *testing.T) {
 	flagSet := flag.NewFlagSet("", flag.PanicOnError)
 	flagSet.String(config.FlagNetwork, "testnet", "")
 	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
-	cfg, err := config.Load(ctx)
+	cfg, err := config.Load(ctx, true)
 	if err != nil {
 		t.Fatalf("Unexpected error loading default config: %v", err)
 	}
@@ -516,7 +516,7 @@ func TestEnvVarArrayDecoding(t *testing.T) {
 		os.Unsetenv("ZKEVM_NODE_LOG_OUTPUTS")
 	}()
 
-	cfg, err := config.Load(ctx)
+	cfg, err := config.Load(ctx, true)
 	require.NoError(t, err)
 
 	assert.Equal(t, 3, len(cfg.Log.Outputs))

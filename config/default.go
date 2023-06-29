@@ -3,6 +3,8 @@ package config
 // DefaultValues is the default configuration
 const DefaultValues = `
 IsTrustedSequencer = false
+ForkUpgradeBatchNumber = 0
+ForkUpgradeNewForkId = 0
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -125,7 +127,6 @@ PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-ForkId = 2
 RetryTime = "5s"
 VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
@@ -155,4 +156,13 @@ MaxGRPCMessageSize = 100000000
 Host = "0.0.0.0"
 Port = 9091
 Enabled = false
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
 `

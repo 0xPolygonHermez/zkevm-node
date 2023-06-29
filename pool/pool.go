@@ -320,8 +320,15 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		return ErrTxTypeNotSupported
 	}
 
+	// gets tx sender for validations
+	from, err := state.GetSender(poolTx.Transaction)
+	if err != nil {
+		return ErrInvalidSender
+	}
+
 	// Reject transactions over defined size to prevent DOS attacks
 	if poolTx.Size() > p.cfg.MaxTxBytesSize {
+		log.Infof("%v: %v", ErrOversizedData.Error(), from.String())
 		return ErrOversizedData
 	}
 
@@ -331,14 +338,10 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		return ErrNegativeValue
 	}
 
-	from, err := state.GetSender(poolTx.Transaction)
-	if err != nil {
-		return ErrInvalidSender
-	}
-
 	// check if sender is blocked
 	_, blocked := p.blockedAddresses.Load(from.String())
 	if blocked {
+		log.Infof("%v: %v", ErrBlockedSender.Error(), from.String())
 		return ErrBlockedSender
 	}
 
@@ -368,6 +371,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 
 		// Ensure the transaction does not jump out of the expected AccountQueue
 		if poolTx.Nonce() > currentNonce+p.cfg.AccountQueue-1 {
+			log.Infof("%v: %v", ErrNonceTooHigh.Error(), from.String())
 			return ErrNonceTooHigh
 		}
 	}

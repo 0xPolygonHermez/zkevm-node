@@ -60,7 +60,7 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 			panic(err.Error())
 		}
 	default:
-		panic(fmt.Errorf("unsupported --network value. Must be one of: [%s, %s, %s]", mainnet, testnet, custom))
+		log.Fatalf("unsupported --network value. Must be one of: [%s, %s, %s]", mainnet, testnet, custom)
 	}
 	config, err := loadGenesisFromJSONString(networkJSON)
 	if err != nil {

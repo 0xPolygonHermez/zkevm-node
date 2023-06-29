@@ -799,7 +799,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
-	forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
+	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber,
@@ -1042,7 +1042,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, false, gasUsed, nil, err
 		}
 
-		forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
+		forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
 		// Create a batch to be sent to the executor
 		processBatchRequest := &pb.ProcessBatchRequest{
 			OldBatchNum:      lastBatch.BatchNumber,
