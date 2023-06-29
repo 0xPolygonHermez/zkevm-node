@@ -73,7 +73,7 @@ type Config struct {
 	StateDB                db.Config
 	Metrics                metrics.Config
 	EventLog               event.Config
-  HashDB                 db.Config
+	HashDB                 db.Config
 }
 
 // Default parses the default configuration values.
