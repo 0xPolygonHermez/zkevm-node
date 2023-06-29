@@ -1496,7 +1496,7 @@ func Test_processTransaction(t *testing.T) {
 				}()
 			}
 
-			executorMock.On("ProcessBatch", tc.ctx, mock.Anything, true).Return(tc.expectedResponse, tc.executorErr).Once()
+			executorMock.On("ProcessBatch", tc.ctx, mock.Anything, true).Return(tc.expectedResponse, tc.executorErr)
 			if tc.executorErr == nil {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
 			}
