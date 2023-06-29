@@ -10,8 +10,7 @@ const (
 )
 
 var (
-	bitsBigInt           = big.NewInt(bits)
-	hundredPercentInBits = big.NewInt(bits - 1)
+	bitsBigInt = big.NewInt(bits)
 
 	// ErrBreakEvenGasPriceEmpty happens when the breakEven or gasPrice is nil or zero
 	ErrBreakEvenGasPriceEmpty = errors.New("breakEven and gasPrice cannot be nil or zero")
@@ -24,10 +23,6 @@ func CalculateEffectiveGasPricePercentage(gasPrice *big.Int, breakEven *big.Int)
 	if breakEven == nil || gasPrice == nil ||
 		gasPrice.Cmp(big.NewInt(0)) == 0 || breakEven.Cmp(big.NewInt(0)) == 0 {
 		return 0, ErrBreakEvenGasPriceEmpty
-	}
-
-	if gasPrice.Cmp(breakEven) <= 0 {
-		return uint8(hundredPercentInBits.Uint64()), nil
 	}
 
 	// Simulate Ceil with integer division
