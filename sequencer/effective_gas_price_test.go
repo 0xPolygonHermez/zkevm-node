@@ -44,7 +44,7 @@ func TestCalcGasPriceEffectivePercentage(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := CalculateEffectiveGasPricePercentage(tc.breakEven, tc.gasPrice)
+			actual, err := CalculateEffectiveGasPricePercentage(tc.gasPrice, tc.breakEven)
 			assert.Equal(t, tc.err, err)
 			if actual != 0 {
 				assert.Equal(t, tc.expectedValue, actual)
