@@ -50,7 +50,8 @@ type Pool struct {
 	minSuggestedGasPriceMux *sync.RWMutex
 	eventLog                *event.EventLog
 	startTimestamp          time.Time
-	GasPrices               GasPrices
+	gasPrices               GasPrices
+	gasPricesMux            *sync.RWMutex
 }
 
 type preExecutionResponse struct {
@@ -79,6 +80,8 @@ func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog 
 		blockedAddresses:        sync.Map{},
 		minSuggestedGasPriceMux: new(sync.RWMutex),
 		eventLog:                eventLog,
+		gasPrices:               GasPrices{0, 0},
+		gasPricesMux:            new(sync.RWMutex),
 	}
 
 	p.refreshBlockedAddresses()
@@ -107,7 +110,9 @@ func (p *Pool) refreshGasPrices() {
 		return
 	}
 
-	p.GasPrices = gasPrices
+	p.gasPricesMux.Lock()
+	p.gasPrices = gasPrices
+	p.gasPricesMux.Unlock()
 }
 
 // refreshBlockedAddresses refreshes the list of blocked addresses for the provided instance of pool
@@ -521,7 +526,9 @@ func (p *Pool) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bo
 
 // CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
 func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
-	gasPrices := p.GasPrices
+	p.gasPricesMux.RLock()
+	gasPrices := p.gasPrices
+	p.gasPricesMux.RUnlock()
 
 	// We enforce l1GasPrice to make it consistent during the lifespan of the transaction
 	gasPrices.L1GasPrice = l1GasPrice
