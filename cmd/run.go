@@ -41,7 +41,7 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
-	c, err := config.Load(cliCtx)
+	c, err := config.Load(cliCtx, true)
 	if err != nil {
 		return err
 	}

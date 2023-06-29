@@ -71,6 +71,7 @@ type Config struct {
 	StateDB             db.Config
 	Metrics             metrics.Config
 	EventLog            event.Config
+	HashDB              db.Config
 }
 
 // Default parses the default configuration values.
@@ -90,7 +91,7 @@ func Default() (*Config, error) {
 }
 
 // Load loads the configuration
-func Load(ctx *cli.Context) (*Config, error) {
+func Load(ctx *cli.Context, loadNetworkConfig bool) (*Config, error) {
 	cfg, err := Default()
 	if err != nil {
 		return nil, err
@@ -130,7 +131,10 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Load genesis parameters
-	cfg.loadNetworkConfig(ctx)
+
+	if loadNetworkConfig {
+		// Load genesis parameters
+		cfg.loadNetworkConfig(ctx)
+	}
 	return cfg, nil
 }
