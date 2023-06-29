@@ -35,7 +35,7 @@ var (
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
 		Usage:    "Configuration `FILE`",
-		Required: false,
+		Required: true,
 	}
 	networkFlag = cli.StringFlag{
 		Name:     config.FlagNetwork,
@@ -148,6 +148,20 @@ func main() {
 			Usage:   "Dumps the state in a JSON file, for debug purposes",
 			Action:  dumpState,
 			Flags:   dumpStateFlags,
+		},
+		{
+			Name:    "snapshot",
+			Aliases: []string{"snap"},
+			Usage:   "Snapshot the state db",
+			Action:  snapshot,
+			Flags:   snapshotFlags,
+		},
+		{
+			Name:    "restore",
+			Aliases: []string{},
+			Usage:   "Restore snapshot of the state db",
+			Action:  restore,
+			Flags:   restoreFlags,
 		},
 	}
 

@@ -30,7 +30,7 @@ func approveTokens(ctx *cli.Context) error {
 	addrKeyStorePath := ctx.String(config.FlagKeyStorePath)
 	addrPassword := ctx.String(config.FlagPassword)
 
-	c, err := config.Load(ctx)
+	c, err := config.Load(ctx, true)
 	if err != nil {
 		return err
 	}

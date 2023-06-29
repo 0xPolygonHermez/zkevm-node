@@ -153,3 +153,12 @@ ProfilingEnabled = true
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
