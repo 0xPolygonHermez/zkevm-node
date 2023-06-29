@@ -20,6 +20,13 @@ LDFLAGS += -X 'github.com/0xPolygonHermez/zkevm-node.GitRev=$(GITREV)'
 LDFLAGS += -X 'github.com/0xPolygonHermez/zkevm-node.GitBranch=$(GITBRANCH)'
 LDFLAGS += -X 'github.com/0xPolygonHermez/zkevm-node.BuildDate=$(DATE)'
 
+# Variables
+VENV           = .venv
+VENV_PYTHON    = $(VENV)/bin/python
+SYSTEM_PYTHON  = $(or $(shell which python3), $(shell which python))
+PYTHON         = $(or $(wildcard $(VENV_PYTHON)), "install_first_venv")
+GENERATE_SCHEMA_DOC = $(VENV)/bin/generate-schema-doc
+
 .PHONY: build
 build: ## Builds the binary locally into ./dist
 	$(GOENVVARS) go build -ldflags "all=$(LDFLAGS)" -o $(GOBIN)/$(GOBINARY) $(GOCMD)
@@ -54,16 +61,25 @@ install-linter: ## Installs the linter
 lint: ## Runs the linter
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run
 
+
+$(VENV_PYTHON):
+	rm -rf $(VENV)
+	$(SYSTEM_PYTHON) -m venv $(VENV)
+
+venv: $(VENV_PYTHON)
+
+# https://stackoverflow.com/questions/24736146/how-to-use-virtualenv-in-makefile
 .PHONY: install-config-doc-gen
-install-config-doc-gen: ## Installs the Python libraries to generate the configuration doc. Requires pip (sudo apt install python3-pip. You may need to add "~/.local/bin" to your path
-	pip3 install json-schema-for-humans
+$(GENERATE_SCHEMA_DOC): $(VENV_PYTHON)
+	$(PYTHON) -m pip install --upgrade pip
+	$(PYTHON) -m pip install json-schema-for-humans
 
 .PHONY: config-doc-gen
-config-doc-gen: ## Installs the Python libraries to generate the configuration doc
+config-doc-gen: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema  and the HTML documentation
 	go run ./cmd generate-json-schema --output=docs/config-file/config-schema.json
-	generate-schema-doc --config show_breadcrumbs=true --config footer_show_time=false --config expand_buttons=true --config custom_template_path=docs/config-file/templates/js/base.html docs/config-file/config-schema.json docs/config-file/config-doc.html
+	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true --config footer_show_time=false --config expand_buttons=true --config custom_template_path=docs/config-file/templates/js/base.html docs/config-file/config-schema.json docs/config-file/config-doc.html
 	#generate-schema-doc --config show_breadcrumbs=true --config footer_show_time=false --config expand_buttons=true   docs/config-file/config-schema.json docs/config-file/config-doc-reference.html
-	generate-schema-doc  --config custom_template_path=docs/config-file/templates/md/base.md --config footer_show_time=false docs/config-file/config-schema.json docs/config-file/config-doc.md
+	#generate-schema-doc  --config custom_template_path=docs/config-file/templates/md/base.md --config footer_show_time=false docs/config-file/config-schema.json docs/config-file/config-doc.md
 
 .PHONY: update-external-dependencies
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
