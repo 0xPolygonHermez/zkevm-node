@@ -274,7 +274,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 			}
 
 			if tc.expectedDeleteTxCall {
-				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
+				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return()
 			}
 			if tc.expectedMoveToNotReadyCall {
 				addressInfo := tc.executorResponse.ReadWriteAddresses[senderAddr]
@@ -500,31 +500,31 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 					f.processRequest.Transactions = decodedBatchL2Data
 				}()
 
-				executorMock.On("ProcessBatch", ctx, f.processRequest, true).Return(tc.reprocessFullBatchResponse, tc.reprocessBatchErr).Once()
+				executorMock.On("ProcessBatch", ctx, f.processRequest, true).Return(tc.reprocessFullBatchResponse, tc.reprocessBatchErr)
 			}
 
 			if tc.stateRootAndLERErr == nil {
-				dbManagerMock.On("CloseBatch", ctx, tc.closeBatchParams).Return(tc.closeBatchErr).Once()
-				dbManagerMock.On("GetBatchByNumber", ctx, f.batch.batchNumber, nil).Return(tc.batches[0], nilErr).Once()
-				dbManagerMock.On("GetTransactionsByBatchNumber", ctx, f.batch.batchNumber).Return(currTxs, constants.EffectivePercentage, nilErr).Once()
+				dbManagerMock.On("CloseBatch", ctx, tc.closeBatchParams).Return(tc.closeBatchErr)
+				dbManagerMock.On("GetBatchByNumber", ctx, f.batch.batchNumber, nil).Return(tc.batches[0], nilErr)
+				dbManagerMock.On("GetTransactionsByBatchNumber", ctx, f.batch.batchNumber).Return(currTxs, constants.EffectivePercentage, nilErr)
 				if tc.forcedBatches != nil && len(tc.forcedBatches) > 0 {
 					processRequest := f.processRequest
 					processRequest.BatchNumber = f.processRequest.BatchNumber + 1
 					processRequest.OldStateRoot = newHash
 					processRequest.Transactions = nil
-					dbManagerMock.On("GetLastTrustedForcedBatchNumber", ctx, nil).Return(tc.forcedBatches[0].ForcedBatchNumber-1, nilErr).Once()
-					dbManagerMock.On("ProcessForcedBatch", tc.forcedBatches[0].ForcedBatchNumber, processRequest).Return(tc.reprocessFullBatchResponse, nilErr).Once()
+					dbManagerMock.On("GetLastTrustedForcedBatchNumber", ctx, nil).Return(tc.forcedBatches[0].ForcedBatchNumber-1, nilErr)
+					dbManagerMock.On("ProcessForcedBatch", tc.forcedBatches[0].ForcedBatchNumber, processRequest).Return(tc.reprocessFullBatchResponse, nilErr)
 				}
 				if tc.closeBatchErr == nil {
-					dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nilErr).Once()
-					dbManagerMock.On("OpenBatch", ctx, mock.Anything, dbTxMock).Return(tc.openBatchErr).Once()
+					dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nilErr)
+					dbManagerMock.On("OpenBatch", ctx, mock.Anything, dbTxMock).Return(tc.openBatchErr)
 					if tc.openBatchErr == nil {
-						dbTxMock.On("Commit", ctx).Return(nilErr).Once()
+						dbTxMock.On("Commit", ctx).Return(nilErr)
 					} else {
-						dbTxMock.On("Rollback", ctx).Return(nilErr).Once()
+						dbTxMock.On("Rollback", ctx).Return(nilErr)
 					}
 				}
-				executorMock.On("ProcessBatch", ctx, f.processRequest, false).Return(tc.reprocessFullBatchResponse, tc.reprocessBatchErr).Once()
+				executorMock.On("ProcessBatch", ctx, f.processRequest, false).Return(tc.reprocessFullBatchResponse, tc.reprocessBatchErr)
 			}
 
 			if tc.stateRootAndLERErr != nil {
@@ -703,34 +703,34 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
 			if tc.lastBatchNum == nil {
-				dbManagerMock.Mock.On("GetLastBatch", ctx).Return(tc.batches[0], tc.getLastBatchErr).Once()
+				dbManagerMock.Mock.On("GetLastBatch", ctx).Return(tc.batches[0], tc.getLastBatchErr)
 			} else {
-				dbManagerMock.On("GetBatchByNumber", ctx, *tc.lastBatchNum, nil).Return(tc.batches[0], tc.getLastBatchByNumberErr).Once()
+				dbManagerMock.On("GetBatchByNumber", ctx, *tc.lastBatchNum, nil).Return(tc.batches[0], tc.getLastBatchByNumberErr)
 			}
 			if tc.getLastBatchByNumberErr == nil {
 				if tc.getLastBatchErr == nil {
-					dbManagerMock.Mock.On("IsBatchClosed", ctx, *tc.lastBatchNum).Return(tc.isBatchClosed, tc.isBatchClosedErr).Once()
+					dbManagerMock.Mock.On("IsBatchClosed", ctx, *tc.lastBatchNum).Return(tc.isBatchClosed, tc.isBatchClosedErr)
 				}
 				if tc.isBatchClosed {
 					if tc.getLastBatchErr == nil && tc.isBatchClosedErr == nil {
-						dbManagerMock.Mock.On("GetLatestGer", ctx, f.cfg.GERFinalityNumberOfBlocks).Return(state.GlobalExitRoot{GlobalExitRoot: tc.ger}, testNow(), tc.getLatestGERErr).Once()
+						dbManagerMock.Mock.On("GetLatestGer", ctx, f.cfg.GERFinalityNumberOfBlocks).Return(state.GlobalExitRoot{GlobalExitRoot: tc.ger}, testNow(), tc.getLatestGERErr)
 						if tc.getLatestGERErr == nil {
-							dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nil).Once()
+							dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nil)
 							if tc.openBatchErr == nil {
-								dbTxMock.On("Commit", ctx).Return(nil).Once()
+								dbTxMock.On("Commit", ctx).Return(nil)
 							}
 						}
 					}
 
 					if tc.getLastBatchErr == nil && tc.isBatchClosedErr == nil && tc.getLatestGERErr == nil {
-						dbManagerMock.On("OpenBatch", ctx, tc.expectedProcessingCtx, dbTxMock).Return(tc.openBatchErr).Once()
+						dbManagerMock.On("OpenBatch", ctx, tc.expectedProcessingCtx, dbTxMock).Return(tc.openBatchErr)
 					}
 
 					if tc.expectedErr != nil && tc.openBatchErr != nil {
-						dbTxMock.On("Rollback", ctx).Return(nil).Once()
+						dbTxMock.On("Rollback", ctx).Return(nil)
 					}
 				} else {
-					dbManagerMock.Mock.On("GetWIPBatch", ctx).Return(tc.expectedBatch, tc.getWIPBatchErr).Once()
+					dbManagerMock.Mock.On("GetWIPBatch", ctx).Return(tc.expectedBatch, tc.getWIPBatchErr)
 				}
 			}
 
@@ -900,7 +900,7 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 			f.nextForcedBatches = make([]state.ForcedBatch, len(tc.forcedBatches))
 			copy(f.nextForcedBatches, tc.forcedBatches)
 			internalBatchNumber := batchNumber
-			dbManagerMock.On("GetLastTrustedForcedBatchNumber", ctx, nil).Return(uint64(1), tc.getLastTrustedForcedBatchNumErr).Once()
+			dbManagerMock.On("GetLastTrustedForcedBatchNumber", ctx, nil).Return(uint64(1), tc.getLastTrustedForcedBatchNumErr)
 			tc.forcedBatches = f.sortForcedBatches(tc.forcedBatches)
 
 			if tc.getLastTrustedForcedBatchNumErr == nil {
@@ -934,11 +934,11 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 							}
 						}
 					}
-					dbManagerMock.On("ProcessForcedBatch", forcedBatch.ForcedBatchNumber, processRequest).Return(currResp, nilErr).Once()
+					dbManagerMock.On("ProcessForcedBatch", forcedBatch.ForcedBatchNumber, processRequest).Return(currResp, nilErr)
 				}
 
 				if tc.processInBetweenForcedBatch {
-					dbManagerMock.On("GetForcedBatch", ctx, uint64(2), nil).Return(&forcedBatch1, tc.getForcedBatchError).Once()
+					dbManagerMock.On("GetForcedBatch", ctx, uint64(2), nil).Return(&forcedBatch1, tc.getForcedBatchError)
 				}
 			}
 
@@ -1027,17 +1027,17 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
-			dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, tc.beginTxErr).Once()
+			dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, tc.beginTxErr)
 			if tc.beginTxErr == nil {
-				dbManagerMock.On("OpenBatch", ctx, mock.Anything, dbTxMock).Return(tc.openBatchErr).Once()
+				dbManagerMock.On("OpenBatch", ctx, mock.Anything, dbTxMock).Return(tc.openBatchErr)
 			}
 
 			if tc.expectedErr != nil && (tc.rollbackErr != nil || tc.openBatchErr != nil) {
-				dbTxMock.On("Rollback", ctx).Return(tc.rollbackErr).Once()
+				dbTxMock.On("Rollback", ctx).Return(tc.rollbackErr)
 			}
 
 			if tc.expectedErr == nil || tc.commitErr != nil {
-				dbTxMock.On("Commit", ctx).Return(tc.commitErr).Once()
+				dbTxMock.On("Commit", ctx).Return(tc.commitErr)
 			}
 
 			// act
@@ -1094,8 +1094,8 @@ func TestFinalizer_closeBatch(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
-			dbManagerMock.Mock.On("CloseBatch", ctx, receipt).Return(tc.managerErr).Once()
-			dbManagerMock.Mock.On("GetTransactionsByBatchNumber", ctx, receipt.BatchNumber).Return(txs, effectivePercentages, tc.managerErr).Once()
+			dbManagerMock.Mock.On("CloseBatch", ctx, receipt).Return(tc.managerErr)
+			dbManagerMock.Mock.On("GetTransactionsByBatchNumber", ctx, receipt.BatchNumber).Return(txs, effectivePercentages, tc.managerErr)
 
 			// act
 			err := f.closeBatch(ctx)
@@ -1151,7 +1151,7 @@ func TestFinalizer_openBatch(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
-			dbManagerMock.Mock.On("OpenBatch", mock.Anything, mock.Anything, mock.Anything).Return(tc.managerErr).Once()
+			dbManagerMock.Mock.On("OpenBatch", mock.Anything, mock.Anything, mock.Anything).Return(tc.managerErr)
 
 			// act
 			actualCtx, err := f.openBatch(ctx, tc.batchNum, oldHash, nil)
@@ -1293,7 +1293,7 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			f.batch.remainingResources = tc.remaining
 			dbManagerMock.On("AddEvent", ctx, mock.Anything, nil).Return(nil)
 			if tc.expectedWorkerUpdate {
-				workerMock.On("UpdateTx", txResponse.TxHash, tc.expectedTxTracker.From, result.UsedZkCounters).Return().Once()
+				workerMock.On("UpdateTx", txResponse.TxHash, tc.expectedTxTracker.From, result.UsedZkCounters).Return()
 			}
 
 			// act
@@ -1359,16 +1359,16 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 			// arrange
 			if tc.expectedDeleteCall {
 				workerMock.On("DeleteTx", txHash, senderAddr).Return()
-				dbManagerMock.On("UpdateTxStatus", ctx, txHash, tc.updateTxStatus, false, mock.Anything).Return(nil).Once()
+				dbManagerMock.On("UpdateTxStatus", ctx, txHash, tc.updateTxStatus, false, mock.Anything).Return(nil)
 			}
 			if tc.expectedMoveCall {
 				workerMock.On("MoveTxToNotReady", txHash, senderAddr, &nonce, big.NewInt(0)).Return([]*TxTracker{
 					{
 						Hash: txHash2,
 					},
-				}).Once()
+				})
 
-				dbManagerMock.On("UpdateTxStatus", ctx, txHash2, pool.TxStatusFailed, false, mock.Anything).Return(nil).Once()
+				dbManagerMock.On("UpdateTxStatus", ctx, txHash2, pool.TxStatusFailed, false, mock.Anything).Return(nil)
 			}
 
 			result := &state.ProcessBatchResponse{
@@ -2018,7 +2018,7 @@ func TestFinalizer_getLastBatchNumAndOldStateRoot(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
-			dbManagerMock.On("GetLastNBatches", context.Background(), uint(2)).Return(tc.mockBatches, tc.mockError).Once()
+			dbManagerMock.On("GetLastNBatches", context.Background(), uint(2)).Return(tc.mockBatches, tc.mockError)
 
 			// act
 			batchNum, stateRoot, err := f.getLastBatchNumAndOldStateRoot(context.Background())
