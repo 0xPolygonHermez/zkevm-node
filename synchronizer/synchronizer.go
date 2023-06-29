@@ -367,6 +367,10 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 
 	batchNumberToSync := latestSyncedBatch
 	for batchNumberToSync <= lastTrustedStateBatchNumber {
+		if batchNumberToSync == 0 {
+			batchNumberToSync++
+			continue
+		}
 		start = time.Now()
 		batchToSync, err := s.zkEVMClient.BatchByNumber(s.ctx, big.NewInt(0).SetUint64(batchNumberToSync))
 		metrics.GetTrustedBatchInfoTime(time.Since(start))
@@ -1166,14 +1170,17 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 	log.Debugf("Processing trusted batch: %v", trustedBatch.Number)
 	trustedBatchL2Data := trustedBatch.BatchL2Data
 	batches := s.trustedState.lastTrustedBatches
-	if len(batches) == 0 || uint64(trustedBatch.Number) != batches[0].BatchNumber {
+	log.Debug("len(batches): ", len(batches))
+	if len(batches) == 0 || batches[0] == nil || (batches[0] != nil && uint64(trustedBatch.Number) != batches[0].BatchNumber) {
+		log.Debug("Updating batch[0] value!")
 		batch, err := s.state.GetBatchByNumber(s.ctx, uint64(trustedBatch.Number), dbTx)
 		if err != nil && err != state.ErrStateNotSynchronized {
 			log.Warnf("failed to get batch %v from local trusted state. Error: %v", trustedBatch.Number, err)
 			return nil, nil, err
 		}
 		var prevBatch *state.Batch
-		if len(batches) == 0 || uint64(trustedBatch.Number-1) != batches[0].BatchNumber{
+		if len(batches) == 0 || batches[0] == nil || (batches[0] != nil && uint64(trustedBatch.Number-1) != batches[0].BatchNumber) {
+			log.Debug("Updating batch[1] value!")
 			prevBatch, err = s.state.GetBatchByNumber(s.ctx, uint64(trustedBatch.Number-1), dbTx)
 			if err != nil && err != state.ErrStateNotSynchronized {
 				log.Warnf("failed to get prevBatch %v from local trusted state. Error: %v", trustedBatch.Number-1, err)
@@ -1182,18 +1189,21 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		} else {
 			prevBatch = batches[0]
 		}
+		log.Debug("batch: ", batch)
+		log.Debug("prevBatch: ", prevBatch)
 		batches = []*state.Batch{ batch, prevBatch}
 	}
-	if s.trustedState.lastStateRoot == nil && (batches[0].StateRoot == common.Hash{}) {
+	if s.trustedState.lastStateRoot == nil && (batches[0] == nil || (batches[0].StateRoot == common.Hash{})) {
+		log.Debug("Setting stateRoot of previous batch. StateRoot: ", batches[1].StateRoot)
 		// Previous synchronization incomplete. Needs to reprocess all txs again
 		s.trustedState.lastStateRoot = &batches[1].StateRoot
-	} else if (batches[0].StateRoot != common.Hash{}) {
+	} else if batches[0] != nil && (batches[0].StateRoot != common.Hash{}) {
 		// Previous synchronization completed
 		s.trustedState.lastStateRoot = &batches[0].StateRoot
 	}
 
 	request := state.ProcessRequest {
-		BatchNumber: batches[0].BatchNumber,
+		BatchNumber: uint64(trustedBatch.Number),
     	OldStateRoot: *s.trustedState.lastStateRoot,
     	OldAccInputHash: batches[1].AccInputHash,
     	Coinbase: common.HexToAddress(trustedBatch.Coinbase.String()),
@@ -1215,14 +1225,6 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 			return batches, s.trustedState.lastStateRoot, nil
 		}
 		log.Infof("Batch %v needs to be updated", trustedBatch.Number)
-
-		// Update batchL2Data
-		err := s.state.UpdateBatchL2Data(s.ctx, batches[0].BatchNumber, trustedBatchL2Data, dbTx)
-		if err != nil {
-			log.Errorf("error opening batch %d", trustedBatch.Number)
-			return nil, nil, err
-		}
-		batches[0].BatchL2Data = trustedBatchL2Data
 		
 		// Find txs to be processed and included in the trusted state
 		if *s.trustedState.lastStateRoot == batches[1].StateRoot {
@@ -1240,6 +1242,8 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				log.Errorf("error decoding stored txs from trustedstate. Error: %v, batch.BatchL2Data: %s", err, common.Bytes2Hex(batches[0].BatchL2Data))
 				return nil, nil, err
 			}
+			log.Debug("len(storedTxs): ", len(storedTxs))
+			log.Debug("len(syncedTxs): ", len(syncedTxs))
 			if len(storedTxs) < len(syncedTxs) {
 				txsToBeAdded := syncedTxs[len(storedTxs):]
 				request.Transactions, err = state.EncodeTransactions(txsToBeAdded)
@@ -1247,16 +1251,38 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 					log.Error("error encoding txs (%d) to be added to the state. Error: %v", len(txsToBeAdded), err)
 					return nil, nil, err 
 				}
+				log.Debug("request.Transactions: ", common.Bytes2Hex(request.Transactions))
 			} else {
-				log.Info("Nothing to sync. Node updated")
-				return batches, s.trustedState.lastStateRoot, nil
+				log.Info("Nothing to sync. Node updated. Checking if it is closed")
+				isBatchClosed := trustedBatch.StateRoot.String() != state.ZeroHash.String()
+				if isBatchClosed {
+					receipt := state.ProcessingReceipt{
+						BatchNumber:   uint64(trustedBatch.Number),
+						StateRoot:     trustedBatch.StateRoot,
+						LocalExitRoot: trustedBatch.LocalExitRoot,
+						BatchL2Data:   trustedBatchL2Data,
+						AccInputHash:  trustedBatch.AccInputHash,
+					}
+					log.Debugf("closing batch %v", trustedBatch.Number)
+					if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
+						log.Errorf("error closing batch %d", trustedBatch.Number)
+						return nil, nil, err
+					}
+				}
+				return batches, &trustedBatch.StateRoot, nil
 			}
 		}
-
+		// Update batchL2Data
+		err := s.state.UpdateBatchL2Data(s.ctx, batches[0].BatchNumber, trustedBatchL2Data, dbTx)
+		if err != nil {
+			log.Errorf("error opening batch %d", trustedBatch.Number)
+			return nil, nil, err
+		}
+		batches[0].BatchL2Data = trustedBatchL2Data
 		log.Debug("BatchL2Data updated for batch: ", batches[0].BatchNumber)
 	} else {
 		log.Infof("Batch %v needs to be synchronized", trustedBatch.Number)
-		log.Debugf("Opening batch %v", trustedBatch.Number)
+		log.Debugf("Opening batch %d", trustedBatch.Number)
 		processCtx := state.ProcessingContext{
 			BatchNumber:    uint64(trustedBatch.Number),
 			Coinbase:       common.HexToAddress(trustedBatch.Coinbase.String()),
@@ -1269,7 +1295,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		}
 		err := s.state.OpenBatch(s.ctx, processCtx, dbTx)
 		if err != nil {
-			log.Errorf("error opening batch %d", trustedBatch.Number)
+			log.Error("error opening batch: ", trustedBatch.Number)
 			return nil, nil, err
 		}
 		request.GlobalExitRoot = trustedBatch.GlobalExitRoot
@@ -1284,10 +1310,12 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		return nil, nil, err
 	}
 
-	log.Debugf("Storing transactions for batch %v", trustedBatch.Number)
-	if err = s.state.StoreTransactions(s.ctx, uint64(trustedBatch.Number), processBatchResp.Responses, dbTx); err != nil {
-		log.Errorf("failed to store transactions for batch: %v", trustedBatch.Number)
-		return nil, nil, err
+	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.Responses), trustedBatch.Number)
+	for _, tx := range processBatchResp.Responses {
+		if err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), dbTx); err != nil {
+			log.Errorf("failed to store transactions for batch: %v", trustedBatch.Number)
+			return nil, nil, err
+		}
 	}
 
 	log.Debug("TrustedBatch.StateRoot ", trustedBatch.StateRoot)
