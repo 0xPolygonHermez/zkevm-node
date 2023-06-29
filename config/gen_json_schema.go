@@ -75,7 +75,6 @@ func (s ConfigJsonSchemaGenerater[T]) GenerateJsonSchema(cli *cli.Context) (*jso
 	}
 
 	return schema, nil
-
 }
 
 // SerializeJsonSchema serializes the schema in JSON to be stored
@@ -110,7 +109,6 @@ func checkNoMapStructureIsRenamingFields(data interface{}) {
 			checkNoMapStructureIsRenamingFields(reflected.FieldByName(field.Name).Interface())
 		}
 	}
-
 }
 
 func variantFieldIsSet(field *interface{}) bool {
@@ -183,7 +181,6 @@ func fillDefaultValuesPartial(schema *jsonschema.Schema, default_config interfac
 }
 
 func cleanRequiredFields(schema *jsonschema.Schema) {
-
 	schema.Required = []string{}
 	if schema.Properties == nil {
 		return
