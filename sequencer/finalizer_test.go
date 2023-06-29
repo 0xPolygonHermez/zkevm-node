@@ -1501,7 +1501,6 @@ func Test_processTransaction(t *testing.T) {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
 			}
 			if tc.expectedErr == nil {
-				// dbManagerMock.On("CalculateTxBreakEvenGasPrice", tc.ctx, txTracker.BatchResources.Bytes, tc.expectedResponse.Responses[0].GasUsed).Return(breakEvenGasPrice, nilErr).Once()
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", tc.tx.From, tc.expectedResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
 			}
 
