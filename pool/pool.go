@@ -91,8 +91,8 @@ func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog 
 
 	go func(cfg *Config, p *Pool) {
 		for {
-			time.Sleep(cfg.IntervalToRefreshGasPrices.Duration)
 			p.refreshGasPrices()
+			time.Sleep(cfg.IntervalToRefreshGasPrices.Duration)
 		}
 	}(&cfg, p)
 
