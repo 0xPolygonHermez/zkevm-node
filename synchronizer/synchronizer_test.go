@@ -925,7 +925,7 @@ func createBatch(t *testing.T, batchNumber uint64, howManyTx int) *types.Batch {
 		transactions = append(transactions, transaction)
 		transactions_state = append(transactions_state, *transactionToTxData(t))
 	}
-	batchL2Data, err := state.EncodeTransactions(transactions_state, nil, 0)
+	batchL2Data, err := state.EncodeTransactions(transactions_state, nil, 4)
 	require.NoError(t, err)
 
 	batch := &types.Batch{
