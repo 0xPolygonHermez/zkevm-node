@@ -103,7 +103,7 @@ MaxTxLifetime = "3h"
 		ResourceCostMultiplier = 1000
 	[Sequencer.EffectiveGasPrice]
 		MaxBreakEvenGasPriceDeviationPercentage = 10
-		Enabled = true
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "15s"

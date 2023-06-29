@@ -519,8 +519,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 	if tx != nil {
 		f.processRequest.Transactions = tx.RawTx
 		hashStr = tx.HashStr
-		breakEvenGasPrice := tx.BreakEvenGasPrice
-		if breakEvenGasPrice.Uint64() == 0 {
+		if tx.BreakEvenGasPrice.Uint64() == 0 {
 			// Calculate the new breakEvenPrice
 			tx.BreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPRice)
 			if err != nil {
@@ -545,7 +544,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 				effectivePercentage = state.MaxEffectivePercentage
 				tx.IsEffectiveGasPriceFinalExecution = true
 			} else {
-				effectivePercentage, err = CalculateEffectiveGasPricePercentage(tx.GasPrice, breakEvenGasPrice)
+				effectivePercentage, err = CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.BreakEvenGasPrice)
 				if err != nil {
 					log.Errorf("failed to calculate effective percentage: %s", err)
 					return nil, err
