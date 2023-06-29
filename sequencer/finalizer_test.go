@@ -284,8 +284,8 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				workerMock.On("UpdateTx", txTracker.Hash, txTracker.From, tc.executorResponse.UsedZkCounters).Return().Once()
 			}
 			if tc.expectedError == nil {
-				dbManagerMock.On("CalculateTxBreakEvenGasPrice", ctx, txTracker.BatchResources.Bytes, txResponse.GasUsed).Return(breakEvenGasPrice, nilErr).Once()
-				dbManagerMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L2GasPrice: 2, L1GasPrice: 1}, nilErr).Once()
+				dbManagerMock.On("CalculateTxBreakEvenGasPrice", ctx, txTracker.BatchResources.Bytes, txResponse.GasUsed, uint64(1)).Return(breakEvenGasPrice, nilErr).Once()
+				dbManagerMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L1GasPrice: 2, L2GasPrice: 1}, nilErr).Once()
 				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", txTracker.From, tc.executorResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
 			}
