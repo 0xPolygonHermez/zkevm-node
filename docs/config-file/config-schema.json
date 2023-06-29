@@ -79,7 +79,7 @@
 			},
 			"additionalProperties": false,
 			"type": "object",
-			"description": "Configure service `Etherman` responsable to interact with L1."
+			"description": "Configure service `Etherman` responsible to interact with L1."
 		},
 		"EthTxManager": {
 			"properties": {
@@ -229,6 +229,16 @@
 						"1m",
 						"300ms"
 					]
+				},
+				"AccountQueue": {
+					"type": "integer",
+					"description": "AccountQueue represents the maximum number of non-executable transaction slots permitted per account",
+					"default": 64
+				},
+				"GlobalQueue": {
+					"type": "integer",
+					"description": "GlobalQueue represents the maximum number of non-executable transaction slots for all accounts",
+					"default": 1024
 				}
 			},
 			"additionalProperties": false,
@@ -379,12 +389,12 @@
 				"MaxTxsPerBatch": {
 					"type": "integer",
 					"description": "MaxTxsPerBatch is the maximum amount of transactions in the batch",
-					"default": 150
+					"default": 300
 				},
 				"MaxBatchBytesSize": {
 					"type": "integer",
 					"description": "MaxBatchBytesSize is the maximum batch size in bytes\n(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)",
-					"default": 129848
+					"default": 120000
 				},
 				"MaxCumulativeGasUsed": {
 					"type": "integer",
@@ -394,37 +404,37 @@
 				"MaxKeccakHashes": {
 					"type": "integer",
 					"description": "MaxKeccakHashes is max keccak hashes used by batch",
-					"default": 468
+					"default": 2145
 				},
 				"MaxPoseidonHashes": {
 					"type": "integer",
 					"description": "MaxPoseidonHashes is max poseidon hashes batch can handle",
-					"default": 279620
+					"default": 252357
 				},
 				"MaxPoseidonPaddings": {
 					"type": "integer",
 					"description": "MaxPoseidonPaddings is max poseidon paddings batch can handle",
-					"default": 149796
+					"default": 135191
 				},
 				"MaxMemAligns": {
 					"type": "integer",
 					"description": "MaxMemAligns is max mem aligns batch can handle",
-					"default": 262144
+					"default": 236585
 				},
 				"MaxArithmetics": {
 					"type": "integer",
 					"description": "MaxArithmetics is max arithmetics batch can handle",
-					"default": 262144
+					"default": 236585
 				},
 				"MaxBinaries": {
 					"type": "integer",
 					"description": "MaxBinaries is max binaries batch can handle",
-					"default": 262144
+					"default": 473170
 				},
 				"MaxSteps": {
 					"type": "integer",
 					"description": "MaxSteps is max steps batch can handle",
-					"default": 8388608
+					"default": 7570538
 				},
 				"WeightBatchBytesSize": {
 					"type": "integer",
@@ -1013,6 +1023,10 @@
 						"1m",
 						"300ms"
 					]
+				},
+				"MaxGRPCMessageSize": {
+					"type": "integer",
+					"default": 100000000
 				}
 			},
 			"additionalProperties": false,
@@ -1143,6 +1157,47 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "DB is the database configuration"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"HashDB": {
+			"properties": {
+				"Name": {
+					"type": "string",
+					"description": "Database name",
+					"default": "prover_db"
+				},
+				"User": {
+					"type": "string",
+					"description": "User name",
+					"default": "prover_user"
+				},
+				"Password": {
+					"type": "string",
+					"description": "Password of the user",
+					"default": "prover_pass"
+				},
+				"Host": {
+					"type": "string",
+					"description": "Host address",
+					"default": "zkevm-state-db"
+				},
+				"Port": {
+					"type": "string",
+					"description": "Port Number",
+					"default": "5432"
+				},
+				"EnableLog": {
+					"type": "boolean",
+					"description": "EnableLog",
+					"default": false
+				},
+				"MaxConns": {
+					"type": "integer",
+					"description": "MaxConns is the maximum number of connections in the pool.",
+					"default": 200
 				}
 			},
 			"additionalProperties": false,
