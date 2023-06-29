@@ -37,26 +37,11 @@ const (
 
 	// ProcessTrustedBatchTimeName is the name of the label to process trusted batch.
 	ProcessTrustedBatchTimeName = Prefix + "process_trusted_batch_time"
-
-	// TrustedBatchCleanCounterName is the name of the label for the counter of trusted batch resets.
-	TrustedBatchCleanCounterName = Prefix + "trusted_batch_clean_counter"
 )
 
 // Register the metrics for the synchronizer package.
 func Register() {
-	var (
-		counters   []prometheus.CounterOpts
-		histograms []prometheus.HistogramOpts
-	)
-
-	counters = []prometheus.CounterOpts{
-		{
-			Name: TrustedBatchCleanCounterName,
-			Help: "[SYNCHRONIZER] count of trusted Batch clean",
-		},
-	}
-
-	histograms = []prometheus.HistogramOpts{
+	histograms := []prometheus.HistogramOpts{
 		{
 			Name: InitializationTimeName,
 			Help: "[SYNCHRONIZER] initialization time",
@@ -95,7 +80,6 @@ func Register() {
 		},
 	}
 
-	metrics.RegisterCounters(counters...)
 	metrics.RegisterHistograms(histograms...)
 }
 
@@ -151,9 +135,4 @@ func GetTrustedBatchInfoTime(lastProcessTime time.Duration) {
 func ProcessTrustedBatchTime(lastProcessTime time.Duration) {
 	execTimeInSeconds := float64(lastProcessTime) / float64(time.Second)
 	metrics.HistogramObserve(ProcessTrustedBatchTimeName, execTimeInSeconds)
-}
-
-// TrustedBatchCleanCounter increases the counter for the trusted batch clean
-func TrustedBatchCleanCounter() {
-	metrics.CounterInc(TrustedBatchCleanCounterName)
 }

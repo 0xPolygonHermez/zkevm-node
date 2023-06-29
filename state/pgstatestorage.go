@@ -730,7 +730,7 @@ func scanBatch(row pgx.Row) (Batch, error) {
 		stateStr    *string
 		coinbaseStr string
 	)
-	if err := row.Scan(
+	err := row.Scan(
 		&batch.BatchNumber,
 		&gerStr,
 		&lerStr,
@@ -740,7 +740,8 @@ func scanBatch(row pgx.Row) (Batch, error) {
 		&coinbaseStr,
 		&batch.BatchL2Data,
 		&batch.ForcedBatchNum,
-	); err != nil {
+	)
+	if err != nil {
 		return batch, err
 	}
 	batch.GlobalExitRoot = common.HexToHash(gerStr)
