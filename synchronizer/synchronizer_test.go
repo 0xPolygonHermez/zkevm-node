@@ -347,7 +347,9 @@ type mocks struct {
 // 	}
 // }
 
-// TODO
+// Feature #2220: Optimize Trusted state synchronization
+//
+//	this Check partially point 2: Use previous batch stored in memory to avoid getting from database
 func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
 	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, *genesis, *cfg)
@@ -360,15 +362,17 @@ func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneI
 	batch10With3Tx := createBatch(t, lastBatchNumber, 3)
 
 	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, true)
-	sync.syncTrustedState(lastBatchNumber)
+	err = sync.syncTrustedState(lastBatchNumber)
+	require.NoError(t, err)
 	expectedCallsForsyncTrustedState(t, m, sync, batch10With2Tx, batch10With3Tx, false)
-	sync.syncTrustedState(lastBatchNumber)
+	err = sync.syncTrustedState(lastBatchNumber)
+	require.NoError(t, err)
 	require.Equal(t, *sync.CurrentTrustedBatch, rpcBatchTostateBatch(batch10With3Tx))
 }
 
 // Feature #2220: Optimize Trusted state synchronization
 //
-//	this Check partially point 2: Avoid read the batch information from db all the time, keeping it in memory.
+//	this Check partially point 2: Store last batch in memory (CurrentTrustedBatch)
 func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItInALocalVar(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
 	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, *genesis, *cfg)
@@ -380,8 +384,8 @@ func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItIn
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2)
 
 	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, true)
-	sync.syncTrustedState(lastBatchNumber)
-
+	err = sync.syncTrustedState(lastBatchNumber)
+	require.NoError(t, err)
 	require.Equal(t, *sync.CurrentTrustedBatch, rpcBatchTostateBatch(batch10With2Tx))
 }
 
@@ -915,7 +919,6 @@ func createTransaction(txIndex uint64) types.Transaction {
 }
 
 func createBatch(t *testing.T, batchNumber uint64, howManyTx int) *types.Batch {
-
 	transactions := []types.TransactionOrHash{}
 	transactions_state := []ethTypes.Transaction{}
 	for i := 0; i < howManyTx; i++ {

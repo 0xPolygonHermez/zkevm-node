@@ -1209,7 +1209,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		if trustedBatch.ForcedBatchNumber != nil {
 			fb := uint64(*trustedBatch.ForcedBatchNumber)
 			processCtx.ForcedBatchNum = &fb
-		}		
+		}
 		err := s.state.OpenBatch(s.ctx, processCtx, dbTx)
 		if err != nil {
 			log.Errorf("error opening batch %d", trustedBatch.Number)
