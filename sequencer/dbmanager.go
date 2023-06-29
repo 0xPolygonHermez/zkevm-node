@@ -552,9 +552,14 @@ func (d *dbManager) FlushMerkleTree(ctx context.Context) error {
 	return d.state.FlushMerkleTree(ctx)
 }
 
+// GetGasPrices returns the current L2 Gas Price and L1 Gas Price
+func (d *dbManager) GetGasPrices(ctx context.Context) (pool.GasPrices, error) {
+	return d.txPool.GetGasPrices(ctx)
+}
+
 // CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
-func (d *dbManager) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64) (*big.Int, error) {
-	return d.txPool.CalculateTxBreakEvenGasPrice(ctx, txDataLength, gasUsed)
+func (d *dbManager) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
+	return d.txPool.CalculateTxBreakEvenGasPrice(ctx, txDataLength, gasUsed, l1GasPrice)
 }
 
 // GetStoredFlushID returns the stored flush ID and prover ID

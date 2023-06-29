@@ -52,9 +52,6 @@ var (
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 	effectiveGasPriceCfg = EffectiveGasPriceCfg{
-		BreakEvenGasPriceGuaranteedPeriod: cfgTypes.Duration{
-			Duration: 30 * time.Second,
-		},
 		MaxBreakEvenGasPriceDeviationPercentage: 10,
 		Enabled:                                 true,
 	}
@@ -287,7 +284,8 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				workerMock.On("UpdateTx", txTracker.Hash, txTracker.From, tc.executorResponse.UsedZkCounters).Return().Once()
 			}
 			if tc.expectedError == nil {
-				dbManagerMock.On("CalculateTxBreakEvenGasPrice", ctx, txTracker.BatchResources.Bytes, txResponse.GasUsed).Return(breakEvenGasPrice, nilErr).Once()
+				dbManagerMock.On("CalculateTxBreakEvenGasPrice", ctx, txTracker.BatchResources.Bytes, txResponse.GasUsed, uint64(0)).Return(breakEvenGasPrice, nilErr).Once()
+				dbManagerMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L1GasPrice: 0, L2GasPrice: 0}, nilErr).Once()
 				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", txTracker.From, tc.executorResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
 			}
@@ -295,7 +293,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				dbManagerMock.On("UpdateTxStatus", ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil).Once()
 			}
 
-			_, errWg, err := f.handleProcessTransactionResponse(ctx, txTracker, tc.executorResponse, tc.oldStateRoot)
+			errWg, err := f.handleProcessTransactionResponse(ctx, txTracker, tc.executorResponse, tc.oldStateRoot)
 			if errWg != nil {
 				errWg.Wait()
 			}
@@ -1503,7 +1501,6 @@ func Test_processTransaction(t *testing.T) {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
 			}
 			if tc.expectedErr == nil {
-				dbManagerMock.On("CalculateTxBreakEvenGasPrice", tc.ctx, txTracker.BatchResources.Bytes, tc.expectedResponse.Responses[0].GasUsed).Return(breakEvenGasPrice, nilErr).Once()
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", tc.tx.From, tc.expectedResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
 			}
 

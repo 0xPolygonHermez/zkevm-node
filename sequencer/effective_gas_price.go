@@ -15,17 +15,19 @@ var (
 
 	// ErrBreakEvenGasPriceEmpty happens when the breakEven or gasPrice is nil or zero
 	ErrBreakEvenGasPriceEmpty = errors.New("breakEven and gasPrice cannot be nil or zero")
+	// ErrEffectiveGasPriceReprocess happens when the effective gas price requires reexecution
+	ErrEffectiveGasPriceReprocess = errors.New("effective gas price requires reprocessing the transaction")
 )
 
-// CalcGasPriceEffectivePercentage calculates the gas price's effective percentage
-func CalcGasPriceEffectivePercentage(breakEven *big.Int, gasPrice *big.Int) (*big.Int, error) {
+// CalculateEffectiveGasPricePercentage calculates the gas price's effective percentage
+func CalculateEffectiveGasPricePercentage(gasPrice *big.Int, breakEven *big.Int) (uint8, error) {
 	if breakEven == nil || gasPrice == nil ||
 		gasPrice.Cmp(big.NewInt(0)) == 0 || breakEven.Cmp(big.NewInt(0)) == 0 {
-		return nil, ErrBreakEvenGasPriceEmpty
+		return 0, ErrBreakEvenGasPriceEmpty
 	}
 
 	if gasPrice.Cmp(breakEven) <= 0 {
-		return hundredPercentInBits, nil
+		return uint8(hundredPercentInBits.Uint64()), nil
 	}
 
 	// Simulate Ceil with integer division
@@ -34,5 +36,5 @@ func CalcGasPriceEffectivePercentage(breakEven *big.Int, gasPrice *big.Int) (*bi
 	b = b.Sub(b, big.NewInt(1)) //nolint:gomnd
 	b = b.Div(b, gasPrice)
 
-	return b, nil
+	return uint8(b.Uint64()), nil
 }

@@ -20,6 +20,7 @@ MaxConns = 200
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
+IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=100132
 MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
@@ -111,7 +112,6 @@ MaxTxLifetime = "3h"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
 	[Sequencer.EffectiveGasPrice]
-		BreakEvenGasPriceGuaranteedPeriod = "30s"
 		MaxBreakEvenGasPriceDeviationPercentage = 10
 		Enabled = false
 

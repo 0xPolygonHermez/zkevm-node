@@ -258,11 +258,20 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 				f.batch.timestamp = now()
 			}
 
-			f.sharedResourcesMux.Lock()
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
-			_, err := f.processTransaction(ctx, tx)
-			if err != nil {
-				log.Errorf("failed to process transaction in finalizeBatches, Err: %v", err)
+			f.sharedResourcesMux.Lock()
+			for {
+				_, err := f.processTransaction(ctx, tx)
+				if err != nil {
+					if err == ErrEffectiveGasPriceReprocess {
+						log.Info("reprocessing tx because of effective gas price calculation: %s", tx.Hash.Hex())
+						continue
+					} else {
+						log.Errorf("failed to process transaction in finalizeBatches, Err: %v", err)
+						break
+					}
+				}
+				break
 			}
 			f.sharedResourcesMux.Unlock()
 		} else {
@@ -510,41 +519,47 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 	if tx != nil {
 		f.processRequest.Transactions = tx.RawTx
 		hashStr = tx.HashStr
-		// Check if the guaranteed period for the break even gas price has passed
-		guaranteedPeriodDeadline := tx.ReceivedAt.Add(f.effectiveGasPriceCfg.BreakEvenGasPriceGuaranteedPeriod.Duration)
-		hasGuaranteedPeriodPassed := guaranteedPeriodDeadline.After(now())
-		breakEvenGasPrice := tx.BreakEvenGasPrice
-		if hasGuaranteedPeriodPassed || breakEvenGasPrice == nil || breakEvenGasPrice.Uint64() == 0 {
+		if tx.BreakEvenGasPrice.Uint64() == 0 {
 			// Calculate the new breakEvenPrice
-			var newBreakEvenGasPrice *big.Int
-			newBreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, tx.BatchResources.ZKCounters.CumulativeGasUsed)
+			tx.BreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPRice)
 			if err != nil {
-				return nil, err
+				if f.effectiveGasPriceCfg.Enabled {
+					return nil, err
+				} else {
+					log.Warnf("failed to calculate break even gas price: %s", err)
+				}
 			}
+		}
+
+		var (
+			effectivePercentage uint8
+			err                 error
+		)
+
+		effectivePercentageAsDecodedHex := maxEffectivePercentageDecodedHex
+
+		if tx.BreakEvenGasPrice.Uint64() != 0 {
+			// If the tx gas price is lower than the break even gas price, we set the effective percentage to 255 (100%)
+			if tx.GasPrice.Cmp(tx.BreakEvenGasPrice) <= 0 {
+				effectivePercentage = state.MaxEffectivePercentage
+				tx.IsEffectiveGasPriceFinalExecution = true
+			} else {
+				effectivePercentage, err = CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.BreakEvenGasPrice)
+				if err != nil {
+					log.Errorf("failed to calculate effective percentage: %s", err)
+					return nil, err
+				}
+			}
+
 			if f.effectiveGasPriceCfg.Enabled {
-				breakEvenGasPrice = newBreakEvenGasPrice
+				effectivePercentageAsDecodedHex, err = hex.DecodeHex(fmt.Sprintf("%x", effectivePercentage))
+				if err != nil {
+					return nil, err
+				}
 			}
+			log.Infof("calculated effectivePercentage: %d for tx: %s", effectivePercentage, txHash)
 		}
-
-		// If the tx gas price is lower than the break even gas price, we set the effective percentage to 255 (100%)
-		effectivePercentage, err := CalcGasPriceEffectivePercentage(tx.GasPrice, breakEvenGasPrice)
-		if err != nil {
-			log.Errorf("failed to calculate effective percentage: %s", err)
-			return nil, err
-		}
-		effectivePercentageAsDecodedHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentage))
-		if err != nil {
-			log.Errorf("failed to decode effective percentage: %s", err)
-			return nil, err
-		}
-
-		log.Infof("calculated effectivePercentage: %d for tx: %s", effectivePercentage, txHash)
-		if f.effectiveGasPriceCfg.Enabled {
-			f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
-		} else {
-			log.Infof("effective gas price is disabled so using 100 % (255) effective percentage. tx: %s", txHash)
-			f.processRequest.Transactions = append(f.processRequest.Transactions, maxEffectivePercentageDecodedHex...)
-		}
+		f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
@@ -562,7 +577,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 
 	oldStateRoot := f.batch.stateRoot
 	if len(processBatchResponse.Responses) > 0 && tx != nil {
-		_, errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
+		errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
 		if err != nil {
 			return errWg, err
 		}
@@ -577,31 +592,83 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 }
 
 // handleProcessTransactionResponse handles the response of transaction processing.
-
-func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) (deviationCheckWg *sync.WaitGroup, errWg *sync.WaitGroup, err error) {
+func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) (errWg *sync.WaitGroup, err error) {
 	// Handle Transaction Error
-
 	errorCode := executor.RomErrorCode(result.Responses[0].RomError)
 	if !state.IsStateRootChanged(errorCode) {
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		errWg = f.handleProcessTransactionError(ctx, result, tx)
-		return nil, errWg, result.Responses[0].RomError
+		return errWg, result.Responses[0].RomError
 	}
 
 	// Check remaining resources
 	err = f.checkRemainingResources(result, tx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	if f.effectiveGasPriceCfg.Enabled {
-		// Check if the break even gas price has changed with too big deviation
-		deviationCheckWg = new(sync.WaitGroup)
-		deviationCheckWg.Add(1)
-		go func() {
-			defer deviationCheckWg.Done()
-			f.checkBreakEvenGasPriceDeviation(ctx, tx, result)
-		}()
+	if f.effectiveGasPriceCfg.Enabled && !tx.IsEffectiveGasPriceFinalExecution {
+		// Increase nunber of executions related to gas price
+		tx.EffectiveGasPriceProcessCount++
+		gasPrices, err := f.dbManager.GetGasPrices(ctx)
+		if err != nil {
+			log.Errorf("failed to get gas prices: %s", err)
+			return nil, err
+		}
+		tx.L1GasPRice = gasPrices.L1GasPrice
+		actualBreakEvenPrice, err := f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, result.Responses[0].GasUsed, tx.L1GasPRice)
+		if err != nil {
+			log.Errorf("failed to calculate breakEvenPrice with actual gasUsed: %s", err.Error())
+			return nil, err
+		}
+
+		// if actualBreakEvenPrice < tx.BrakeEvenGasPrice
+		if actualBreakEvenPrice.Cmp(tx.BreakEvenGasPrice) == -1 {
+			// Compute the difference
+			diff := new(big.Int).Sub(tx.BreakEvenGasPrice, actualBreakEvenPrice)
+			// Compute deviation of breakEvenPrice
+			deviation := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
+
+			if diff.Cmp(deviation) == 1 {
+				if tx.EffectiveGasPriceProcessCount < 2 { //nolint:gomnd
+					tx.BreakEvenGasPrice = actualBreakEvenPrice
+					return nil, ErrEffectiveGasPriceReprocess
+				} else {
+					tx.BreakEvenGasPrice = tx.GasPrice
+					tx.IsEffectiveGasPriceFinalExecution = true
+					ev := &event.Event{
+						ReceivedAt:  time.Now(),
+						Source:      event.Source_Node,
+						Component:   event.Component_Sequencer,
+						Level:       event.Level_Critical,
+						EventID:     event.EventID_FinalizerBreakEvenGasPriceBigDifference,
+						Description: fmt.Sprintf("The difference: %s between the breakEvenPrice and the actualBreakEvenPrice is more than %d %%", diff.String(), f.effectiveGasPriceCfg.MaxBreakEvenGasPriceDeviationPercentage),
+						Json: struct {
+							transactionHash               string
+							preExecutionBreakEvenGasPrice string
+							actualBreakEvenGasPrice       string
+							diff                          string
+							deviation                     string
+						}{
+							transactionHash:               tx.Hash.String(),
+							preExecutionBreakEvenGasPrice: tx.BreakEvenGasPrice.String(),
+							actualBreakEvenGasPrice:       actualBreakEvenPrice.String(),
+							diff:                          diff.String(),
+							deviation:                     deviation.String(),
+						},
+					}
+					err = f.eventLog.LogEvent(ctx, ev)
+					if err != nil {
+						log.Errorf("failed to log event: %s", err.Error())
+					}
+					return nil, ErrEffectiveGasPriceReprocess
+				}
+			} // TODO: Review this check regarding tx.GasPrice being nil
+		} else if tx.GasPrice != nil && actualBreakEvenPrice.Cmp(tx.GasPrice) == 1 {
+			tx.BreakEvenGasPrice = tx.GasPrice
+			tx.IsEffectiveGasPriceFinalExecution = true
+			return nil, ErrEffectiveGasPriceReprocess
+		}
 	}
 
 	processedTransaction := transactionToStore{
@@ -636,7 +703,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		f.updateWorkerAfterSuccessfulProcessing(ctx, tx, result)
 	}
 
-	return deviationCheckWg, nil, nil
+	return nil, nil
 }
 
 // handleForcedTxsProcessResp handles the transactions responses for the processed forced batch.
@@ -1202,49 +1269,5 @@ func getUsedBatchResources(constraints batchConstraints, remainingResources stat
 			UsedSteps:            constraints.MaxSteps - remainingResources.ZKCounters.UsedSteps,
 		},
 		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
-	}
-}
-
-func (f *finalizer) checkBreakEvenGasPriceDeviation(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) {
-	// Calculate the breakEvenPrice with the actual gasUsed
-	actualBreakEvenPrice, err := f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, result.Responses[0].GasUsed)
-	if err != nil {
-		log.Errorf("failed to calculate breakEvenPrice with actual gasUsed: %s", err.Error())
-		return
-	}
-
-	// Compute the difference
-	diff := new(big.Int).Abs(new(big.Int).Sub(actualBreakEvenPrice, tx.BreakEvenGasPrice))
-
-	// Compute deviation of breakEvenPrice
-	deviation := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
-
-	// Compare the difference with max deviation of breakEvenPrice
-	if diff.Cmp(deviation) == 1 {
-		ev := &event.Event{
-			ReceivedAt:  time.Now(),
-			Source:      event.Source_Node,
-			Component:   event.Component_Sequencer,
-			Level:       event.Level_Critical,
-			EventID:     event.EventID_FinalizerBreakEvenGasPriceBigDifference,
-			Description: fmt.Sprintf("The difference: %s between the breakEvenPrice and the actualBreakEvenPrice is more than %d %%", diff.String(), f.effectiveGasPriceCfg.MaxBreakEvenGasPriceDeviationPercentage),
-			Json: struct {
-				transactionHash               string
-				preExecutionBreakEvenGasPrice string
-				actualBreakEvenGasPrice       string
-				diff                          string
-				deviation                     string
-			}{
-				transactionHash:               tx.Hash.String(),
-				preExecutionBreakEvenGasPrice: tx.BreakEvenGasPrice.String(),
-				actualBreakEvenGasPrice:       actualBreakEvenPrice.String(),
-				diff:                          diff.String(),
-				deviation:                     deviation.String(),
-			},
-		}
-		err = f.eventLog.LogEvent(ctx, ev)
-		if err != nil {
-			log.Errorf("failed to log event: %s", err.Error())
-		}
 	}
 }
