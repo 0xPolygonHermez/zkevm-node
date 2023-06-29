@@ -281,7 +281,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		log.Infof("Getting rollup info from block %d to block %d", fromBlock, toBlock)
 		// This function returns the rollup information contained in the ethereum blocks and an extra param called order.
 		// Order param is a map that contains the event order to allow the synchronizer store the info in the same order that is readed.
-		// Name can be defferent in the order struct. For instance: Batches or Name:NewSequencers. This name is an identifier to check
+		// Name can be different in the order struct. For instance: Batches or Name:NewSequencers. This name is an identifier to check
 		// if the next info that must be stored in the db is a new sequencer or a batch. The value pos (position) tells what is the
 		// array index where this value is.
 		start := time.Now()
@@ -487,7 +487,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 
 // This function allows reset the state until an specific ethereum block
 func (s *ClientSynchronizer) resetState(blockNumber uint64) error {
-	log.Debug("Reverting synchronization to block: ", blockNumber)
+	log.Info("Reverting synchronization to block: ", blockNumber)
 	dbTx, err := s.state.BeginStateTransaction(s.ctx)
 	if err != nil {
 		log.Error("error starting a db transaction to reset the state. Error: ", err)
@@ -590,7 +590,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 		}
 	}
 	if latestEthBlockSynced.BlockHash != latestBlock.BlockHash {
-		log.Debug("Reorg detected in block: ", latestEthBlockSynced.BlockNumber)
+		log.Info("Reorg detected in block: ", latestEthBlockSynced.BlockNumber)
 		return latestBlock, nil
 	}
 	return nil, nil

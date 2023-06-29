@@ -31,7 +31,7 @@ func TestUniswap(t *testing.T) {
 	app := cli.NewApp()
 	var n string
 	flag.StringVar(&n, "network", "local", "")
-	cfg, err := config.Load(cli.NewContext(app, flag.CommandLine, nil))
+	cfg, err := config.Load(cli.NewContext(app, flag.CommandLine, nil), true)
 	require.NoError(t, err)
 
 	opsCfg := &operations.Config{

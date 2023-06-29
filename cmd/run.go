@@ -41,7 +41,7 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
-	c, err := config.Load(cliCtx)
+	c, err := config.Load(cliCtx, true)
 	if err != nil {
 		return err
 	}
@@ -405,6 +405,8 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 		}
 	}
 
+	cfg.SequenceSender.ForkUpgradeBatchNumber = cfg.ForkUpgradeBatchNumber
+
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
 	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog)
@@ -472,6 +474,8 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 		ForkIDIntervals:              forkIDIntervals,
 		MaxResourceExhaustedAttempts: c.Executor.MaxResourceExhaustedAttempts,
 		WaitOnResourceExhaustion:     c.Executor.WaitOnResourceExhaustion,
+		ForkUpgradeBatchNumber:       c.ForkUpgradeBatchNumber,
+		ForkUpgradeNewForkId:         c.ForkUpgradeNewForkId,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)
