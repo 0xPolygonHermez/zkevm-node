@@ -897,15 +897,13 @@ func createTransaction(txIndex uint64) types.Transaction {
 	block_number := types.ArgUint64(1)
 	tx_index := types.ArgUint64(txIndex)
 	transaction := types.Transaction{
-		Nonce:    types.ArgUint64(8),
-		GasPrice: types.ArgBig(*big.NewInt(1000000000)),
-		Gas:      types.ArgUint64(21000),
-		To:       &to,
-		Value:    types.ArgBig(*big.NewInt(2000000000000000000)),
-		V:        types.ArgBig(*big.NewInt(2037)),
-		R:        types.ArgBig(*r),
-		//R:           types.ArgBig{neg: false, abs: []Word{157249674926334286, 7830504874417433521, 4948637090219783890, 523645440948911466}},
-		//S:           types.ArgBig{neg: false, abs: []Word{12200959453910233836, 8493196299055195847, 11869734373363505514, 7448707780393577737}},
+		Nonce:       types.ArgUint64(8),
+		GasPrice:    types.ArgBig(*big.NewInt(1000000000)),
+		Gas:         types.ArgUint64(21000),
+		To:          &to,
+		Value:       types.ArgBig(*big.NewInt(2000000000000000000)),
+		V:           types.ArgBig(*big.NewInt(2037)),
+		R:           types.ArgBig(*r),
 		S:           types.ArgBig(*s),
 		Hash:        common.Hash([common.HashLength]byte{30, 184, 220, 207, 103, 194, 81, 217, 185, 173, 187, 253, 136, 201, 218, 21, 192, 0, 116, 182, 60, 68, 209, 250, 178, 183, 117, 113, 44, 41, 249, 43}),
 		From:        common.HexToAddress("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
