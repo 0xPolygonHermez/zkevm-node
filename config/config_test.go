@@ -285,6 +285,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 200,
 		},
 		{
+			path:          "Pool.IntervalToRefreshGasPrices",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
 			path:          "Pool.MaxTxBytesSize",
 			expectedValue: uint64(100132),
 		},

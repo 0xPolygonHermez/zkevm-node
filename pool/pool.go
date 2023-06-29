@@ -50,6 +50,7 @@ type Pool struct {
 	minSuggestedGasPriceMux *sync.RWMutex
 	eventLog                *event.EventLog
 	startTimestamp          time.Time
+	GasPrices               GasPrices
 }
 
 type preExecutionResponse struct {
@@ -87,7 +88,26 @@ func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog 
 			p.refreshBlockedAddresses()
 		}
 	}(&cfg, p)
+
+	go func(cfg *Config, p *Pool) {
+		for {
+			time.Sleep(cfg.IntervalToRefreshGasPrices.Duration)
+			p.refreshGasPrices()
+		}
+	}(&cfg, p)
+
 	return p
+}
+
+// refresGasPRices refreshes the gas price
+func (p *Pool) refreshGasPrices() {
+	gasPrices, err := p.GetGasPrices(context.Background())
+	if err != nil {
+		log.Error("failed to load gas prices")
+		return
+	}
+
+	p.GasPrices = gasPrices
 }
 
 // refreshBlockedAddresses refreshes the list of blocked addresses for the provided instance of pool
@@ -500,13 +520,12 @@ func (p *Pool) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bo
 }
 
 // CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
-func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64) (*big.Int, error) {
-	// Get L1 and L2 Gas Prices
-	gasPrices, err := p.GetGasPrices(ctx)
-	if err != nil {
-		log.Warn(fmt.Sprintf("Failed to get L1 and L2 gas prices: %v", err))
-		return big.NewInt(0), err
-	}
+func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
+	gasPrices := p.GasPrices
+
+	// We enforce l1GasPrice to make it consistent during the lifespan of the transaction
+	gasPrices.L1GasPrice = l1GasPrice
+
 	if gasPrices.L1GasPrice == 0 {
 		log.Warn("Received L1 gas price 0. Skipping estimation...")
 		return big.NewInt(0), ErrReceivedZeroL1GasPrice
@@ -514,9 +533,6 @@ func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength ui
 
 	// Get L2 Min Gas Price
 	l2MinGasPrice := (gasPrices.L1GasPrice * p.cfg.EffectiveGasPrice.L1GasPriceFactor) / 100 //nolint:gomnd
-	if err != nil {
-		return big.NewInt(0), err
-	}
 	if l2MinGasPrice < p.cfg.DefaultMinGasPriceAllowed {
 		l2MinGasPrice = p.cfg.DefaultMinGasPriceAllowed
 	}

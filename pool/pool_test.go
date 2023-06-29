@@ -62,6 +62,7 @@ var (
 		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Minute),
+		IntervalToRefreshGasPrices:        cfgTypes.NewDuration(5 * time.Second),
 		EffectiveGasPrice: pool.EffectiveGasPrice{
 			L1GasPriceFactor: 10,
 			ByteGasCost:      16,
@@ -1381,6 +1382,7 @@ func Test_BlockedAddress(t *testing.T) {
 		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
+		IntervalToRefreshGasPrices:        cfgTypes.NewDuration(5 * time.Second),
 		EffectiveGasPrice: pool.EffectiveGasPrice{
 			L1GasPriceFactor: 10,
 			ByteGasCost:      16,

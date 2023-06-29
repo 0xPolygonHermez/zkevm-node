@@ -522,7 +522,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 		breakEvenGasPrice := tx.BreakEvenGasPrice
 		if breakEvenGasPrice.Uint64() == 0 {
 			// Calculate the new breakEvenPrice
-			tx.BreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, tx.BatchResources.ZKCounters.CumulativeGasUsed)
+			tx.BreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPRice)
 			if err != nil {
 				if f.effectiveGasPriceCfg.Enabled {
 					return nil, err
@@ -611,8 +611,13 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	if f.effectiveGasPriceCfg.Enabled && !tx.IsEffectiveGasPriceFinalExecution {
 		// Increase nunber of executions related to gas price
 		tx.EffectiveGasPriceProcessCount++
-
-		actualBreakEvenPrice, err := f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, result.Responses[0].GasUsed)
+		gasPrices, err := f.dbManager.GetGasPrices(ctx)
+		if err != nil {
+			log.Errorf("failed to get gas prices: %s", err)
+			return nil, err
+		}
+		tx.L1GasPRice = gasPrices.L1GasPrice
+		actualBreakEvenPrice, err := f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, result.Responses[0].GasUsed, tx.L1GasPRice)
 		if err != nil {
 			log.Errorf("failed to calculate breakEvenPrice with actual gasUsed: %s", err.Error())
 			return nil, err
