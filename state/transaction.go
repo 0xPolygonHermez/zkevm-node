@@ -886,7 +886,7 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 	return tx.To() == nil && len(tx.Data()) > 0
 }
 
-// StoreTransaction is used by the sequencer to add process a transaction
+// StoreTransaction is used by the sequencer and trusted state synchronizer to add process a transaction.
 func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
