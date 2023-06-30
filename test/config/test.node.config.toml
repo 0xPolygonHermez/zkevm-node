@@ -32,9 +32,9 @@ PollMinAllowedGasPriceInterval = "15s"
 	EnableLog = false
 	MaxConns = 200
 	[Pool.EffectiveGasPrice]
-	L1GasPriceFactor = 10
+	L1GasPriceFactor = 0.25
 	ByteGasCost = 16
-	MarginFactor = 10
+	MarginFactor = 1
 
 [Etherman]
 URL = "http://zkevm-mock-l1-network:8545"

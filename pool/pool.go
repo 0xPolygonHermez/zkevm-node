@@ -543,14 +543,14 @@ func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength ui
 	}
 
 	// Get L2 Min Gas Price
-	l2MinGasPrice := (gasPrices.L1GasPrice * p.cfg.EffectiveGasPrice.L1GasPriceFactor) / 100 //nolint:gomnd
+	l2MinGasPrice := uint64(float64(gasPrices.L1GasPrice) * p.cfg.EffectiveGasPrice.L1GasPriceFactor)
 	if l2MinGasPrice < p.cfg.DefaultMinGasPriceAllowed {
 		l2MinGasPrice = p.cfg.DefaultMinGasPriceAllowed
 	}
 
 	// Calculate break even gas price
 	totalTxPrice := (gasUsed * l2MinGasPrice) + (totalRlpFieldsLength * txDataLength * gasPrices.L1GasPrice)
-	breakEvenGasPrice := ((totalTxPrice / gasUsed) * p.cfg.EffectiveGasPrice.MarginFactor) / 100 //nolint:gomnd
+	breakEvenGasPrice := uint64(float64(totalTxPrice/gasUsed) * p.cfg.EffectiveGasPrice.MarginFactor)
 
 	return big.NewInt(0).SetUint64(breakEvenGasPrice), nil
 }

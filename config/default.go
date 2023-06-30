@@ -39,9 +39,9 @@ GlobalQueue = 1024
 	EnableLog = false
 	MaxConns = 200
 	[Pool.EffectiveGasPrice]
-	L1GasPriceFactor = 10
+	L1GasPriceFactor = 0.25
 	ByteGasCost = 16
-	MarginFactor = 10
+	MarginFactor = 1
 
 [Etherman]
 URL = "http://localhost:8545"

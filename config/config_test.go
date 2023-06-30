@@ -347,7 +347,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Pool.EffectiveGasPrice.L1GasPriceFactor",
-			expectedValue: uint64(10),
+			expectedValue: float64(0.25),
 		},
 		{
 			path:          "Pool.EffectiveGasPrice.ByteGasCost",
@@ -355,7 +355,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Pool.EffectiveGasPrice.MarginFactor",
-			expectedValue: uint64(10),
+			expectedValue: float64(1),
 		},
 		{
 			path:          "RPC.Host",
