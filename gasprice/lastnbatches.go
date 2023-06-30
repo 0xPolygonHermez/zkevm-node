@@ -99,7 +99,8 @@ func (g *LastNL2BlocksGasPrice) UpdateGasPriceAvg() {
 	// Store gasPrices
 	factorAsPercentage := int64(g.cfg.Factor * 100) // nolint:gomnd
 	factor := big.NewInt(factorAsPercentage)
-	l1GasPrice := new(big.Int).Div(g.lastPrice, factor)
+	l1GasPriceDivBy100 := new(big.Int).Div(g.lastPrice, factor)
+	l1GasPrice := l1GasPriceDivBy100.Mul(l1GasPriceDivBy100, big.NewInt(100))
 	err = g.pool.SetGasPrices(g.ctx, g.lastPrice.Uint64(), l1GasPrice.Uint64())
 	if err != nil {
 		log.Errorf("failed to update gas price in poolDB, err: %v", err)
