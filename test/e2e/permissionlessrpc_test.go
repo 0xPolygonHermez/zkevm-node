@@ -127,4 +127,20 @@ func TestPermissionlessJRPC(t *testing.T) {
 	isThereL2Reorg := true
 	require.NoError(t, row.Scan(&isThereL2Reorg))
 	require.False(t, isThereL2Reorg)
+
+	// Assert that he permissionless node is fully synced
+	time.Sleep(30 * time.Second) // Give some time for the permissionless node to get synced
+	clientTrusted, err := ethclient.Dial(operations.DefaultL1NetworkURL)
+	require.NoError(t, err)
+	expectedBlock, err := clientTrusted.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+	actualBlock, err := client.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+	je, err := expectedBlock.Header().MarshalJSON()
+	require.NoError(t, err)
+	log.Info(string(je))
+	ja, err := actualBlock.Header().MarshalJSON()
+	require.NoError(t, err)
+	log.Info(string(ja))
+	require.Equal(t, string(je), string(ja))
 }
