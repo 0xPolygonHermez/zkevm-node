@@ -27,10 +27,11 @@ type mockedServer struct {
 }
 
 type mocksWrapper struct {
-	Pool    *mocks.PoolMock
-	State   *mocks.StateMock
-	Storage *storageMock
-	DbTx    *mocks.DBTxMock
+	Pool     *mocks.PoolMock
+	State    *mocks.StateMock
+	Etherman *mocks.EthermanMock
+	Storage  *storageMock
+	DbTx     *mocks.DBTxMock
 }
 
 func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *ethclient.Client) {
@@ -124,10 +125,11 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	}
 
 	mks := &mocksWrapper{
-		Pool:    pool,
-		State:   st,
-		Storage: storage,
-		DbTx:    dbTx,
+		Pool:     pool,
+		State:    st,
+		Etherman: etherman,
+		Storage:  storage,
+		DbTx:     dbTx,
 	}
 
 	return msv, mks, ethClient
