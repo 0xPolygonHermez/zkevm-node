@@ -338,10 +338,12 @@ type Batch struct {
 	SendSequencesTxHash *common.Hash        `json:"sendSequencesTxHash"`
 	VerifyBatchTxHash   *common.Hash        `json:"verifyBatchTxHash"`
 	Transactions        []TransactionOrHash `json:"transactions"`
+	BatchL2Data         ArgBytes            `json:"batchL2Data"`
 }
 
 // NewBatch creates a Batch instance
 func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, receipts []types.Receipt, fullTx bool, ger *state.GlobalExitRoot) *Batch {
+	batchL2Data := batch.BatchL2Data
 	res := &Batch{
 		Number:          ArgUint64(batch.BatchNumber),
 		GlobalExitRoot:  batch.GlobalExitRoot,
@@ -352,6 +354,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 		StateRoot:       batch.StateRoot,
 		Coinbase:        batch.Coinbase,
 		LocalExitRoot:   batch.LocalExitRoot,
+		BatchL2Data:     ArgBytes(batchL2Data),
 	}
 	if batch.ForcedBatchNum != nil {
 		fb := ArgUint64(*batch.ForcedBatchNum)
