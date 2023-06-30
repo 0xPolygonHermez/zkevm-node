@@ -23,11 +23,11 @@ type LastNL2BlocksGasPrice struct {
 	fetchLock sync.Mutex
 
 	state stateInterface
-	pool  pool
+	pool  poolInterface
 }
 
 // newLastNL2BlocksGasPriceSuggester init gas price suggester for last n l2 blocks strategy.
-func newLastNL2BlocksGasPriceSuggester(ctx context.Context, cfg Config, state stateInterface, pool pool) *LastNL2BlocksGasPrice {
+func newLastNL2BlocksGasPriceSuggester(ctx context.Context, cfg Config, state stateInterface, pool poolInterface) *LastNL2BlocksGasPrice {
 	return &LastNL2BlocksGasPrice{
 		cfg:   cfg,
 		ctx:   ctx,
@@ -96,8 +96,12 @@ func (g *LastNL2BlocksGasPrice) UpdateGasPriceAvg() {
 	g.lastL2BlockNumber = l2BlockNumber
 	g.cacheLock.Unlock()
 
-	// Store gasPrice
-	err = g.pool.SetGasPrice(g.ctx, g.lastPrice.Uint64())
+	// Store gasPrices
+	factorAsPercentage := int64(g.cfg.Factor * 100) // nolint:gomnd
+	factor := big.NewInt(factorAsPercentage)
+	l1GasPriceDivBy100 := new(big.Int).Div(g.lastPrice, factor)
+	l1GasPrice := l1GasPriceDivBy100.Mul(l1GasPriceDivBy100, big.NewInt(100)) // nolint:gomnd
+	err = g.pool.SetGasPrices(g.ctx, g.lastPrice.Uint64(), l1GasPrice.Uint64())
 	if err != nil {
 		log.Errorf("failed to update gas price in poolDB, err: %v", err)
 	}

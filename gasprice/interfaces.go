@@ -5,16 +5,17 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
 // Consumer interfaces required by the package.
 
-// pool contains methods to interact with the tx pool.
-type pool interface {
-	SetGasPrice(ctx context.Context, gasPrice uint64) error
-	GetGasPrice(ctx context.Context) (uint64, error)
+// poolInterface contains methods to interact with the tx poolInterface.
+type poolInterface interface {
+	SetGasPrices(ctx context.Context, l2GasPrice uint64, l1GasPrice uint64) error
+	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error
 }
 

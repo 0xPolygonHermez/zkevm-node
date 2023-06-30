@@ -14,11 +14,11 @@ import (
 
 // StateTree provides methods to access and modify state in merkletree
 type StateTree struct {
-	grpcClient pb.StateDBServiceClient
+	grpcClient pb.HashDBServiceClient
 }
 
 // NewStateTree creates new StateTree.
-func NewStateTree(client pb.StateDBServiceClient) *StateTree {
+func NewStateTree(client pb.HashDBServiceClient) *StateTree {
 	return &StateTree{
 		grpcClient: client,
 	}

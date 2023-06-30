@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -38,7 +37,7 @@ var (
 	}
 	dbManagerCfg      = DBManagerCfg{PoolRetrievalInterval: types.NewDuration(500 * time.Millisecond)}
 	executorClient    executorclientpb.ExecutorServiceClient
-	mtDBServiceClient mtDBclientpb.StateDBServiceClient
+	mtDBServiceClient mtDBclientpb.HashDBServiceClient
 	mtDBClientConn    *grpc.ClientConn
 	testDbManager     *dbManager
 )
@@ -74,12 +73,6 @@ func setupDBManager() {
 		GERCh:         make(chan common.Hash),
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
-
-	txsStore := TxsStore{
-		Ch: make(chan *txToStore),
-		Wg: new(sync.WaitGroup),
-	}
-
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
@@ -93,7 +86,7 @@ func setupDBManager() {
 		MaxSteps:             7570538,
 	}
 
-	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
+	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, batchConstraints)
 }
 
 func initOrResetDB() {

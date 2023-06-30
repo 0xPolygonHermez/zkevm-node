@@ -13,6 +13,7 @@ type ForkIDInterval struct {
 // UpdateForkIDIntervals updates the forkID intervals
 func (s *State) UpdateForkIDIntervals(intervals []ForkIDInterval) {
 	log.Infof("Updating forkIDs. Setting %d forkIDs", len(intervals))
+	log.Infof("intervals: %#v", intervals)
 	s.cfg.ForkIDIntervals = intervals
 }
 

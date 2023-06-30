@@ -148,9 +148,10 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 	}
 
 	txs := []types.Transaction{}
+	forkID := s.GetForkIDByBatchNumber(batchNumber)
 
 	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
-		txs, _, err = DecodeTxs(batchL2Data)
+		txs, _, _, err = DecodeTxs(batchL2Data, forkID)
 		if err != nil && !errors.Is(err, ErrInvalidData) {
 			return nil, err
 		}
@@ -195,10 +196,11 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		return nil, err
 	}
 
-	txs, _, err := DecodeTxs(request.Transactions)
+	txs, _, effP, err := DecodeTxs(request.Transactions, forkID)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		return nil, err
 	}
+	log.Infof("ProcessBatch: %d txs, %#v effP", len(txs), effP)
 
 	var result *ProcessBatchResponse
 	result, err = s.convertToProcessBatchResponse(txs, res)
@@ -406,7 +408,8 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, error) {
 	// Decode transactions
-	decodedTransactions, _, err := DecodeTxs(encodedTxs)
+	forkID := s.GetForkIDByBatchNumber(processingCtx.BatchNumber)
+	decodedTransactions, _, _, err := DecodeTxs(encodedTxs, forkID)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		log.Debugf("error decoding transactions: %v", err)
 		return common.Hash{}, err

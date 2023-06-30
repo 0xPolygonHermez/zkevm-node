@@ -177,6 +177,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
+			path:          "Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
+			expectedValue: uint64(10),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.Enabled",
+			expectedValue: false,
+		},
+		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
@@ -277,6 +285,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 200,
 		},
 		{
+			path:          "Pool.IntervalToRefreshGasPrices",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
 			path:          "Pool.MaxTxBytesSize",
 			expectedValue: uint64(100132),
 		},
@@ -332,6 +344,18 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.DB.MaxConns",
 			expectedValue: 200,
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.L1GasPriceFactor",
+			expectedValue: float64(0.25),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.ByteGasCost",
+			expectedValue: uint64(16),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.MarginFactor",
+			expectedValue: float64(1),
 		},
 		{
 			path:          "RPC.Host",

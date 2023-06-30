@@ -22,6 +22,7 @@ MaxConns = 200
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
+IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=100132
 MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
@@ -37,6 +38,10 @@ GlobalQueue = 1024
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
+	[Pool.EffectiveGasPrice]
+	L1GasPriceFactor = 0.25
+	ByteGasCost = 16
+	MarginFactor = 1
 
 [Etherman]
 URL = "http://localhost:8545"
@@ -102,12 +107,15 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
-		TimestampResolution = "10s"	
+		TimestampResolution = "10s"
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
+	[Sequencer.EffectiveGasPrice]
+		MaxBreakEvenGasPriceDeviationPercentage = 10
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "5s"

@@ -61,6 +61,7 @@ type stateInterface interface {
 	SetInitSyncBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
+	GetForkIDByBatchNumber(batchNumber uint64) uint64
 }
 
 type ethTxManager interface {

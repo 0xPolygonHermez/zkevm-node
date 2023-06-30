@@ -17,6 +17,7 @@ MaxConns = 200
 [Pool]
 FreeClaimGasLimit = 1500000
 IntervalToRefreshBlockedAddresses = "5m"
+IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=100132
 MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
@@ -30,6 +31,10 @@ PollMinAllowedGasPriceInterval = "15s"
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
+	[Pool.EffectiveGasPrice]
+	L1GasPriceFactor = 0.25
+	ByteGasCost = 16
+	MarginFactor = 1
 
 [Etherman]
 URL = "http://zkevm-mock-l1-network:8545"
@@ -96,6 +101,9 @@ MaxTxLifetime = "3h"
 		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
+	[Sequencer.EffectiveGasPrice]
+		MaxBreakEvenGasPriceDeviationPercentage = 10
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "15s"
@@ -124,7 +132,7 @@ PrivateKeys = [
 ]
 
 [L2GasPriceSuggester]
-Type = "follower"
+Type = "default"
 UpdatePeriod = "10s"
 Factor = 0.5
 DefaultGasPriceWei = 1000000000

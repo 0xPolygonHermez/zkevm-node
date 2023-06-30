@@ -15,7 +15,7 @@ type L2GasPricer interface {
 }
 
 // NewL2GasPriceSuggester init.
-func NewL2GasPriceSuggester(ctx context.Context, cfg Config, pool pool, ethMan *etherman.Client, state *state.State) {
+func NewL2GasPriceSuggester(ctx context.Context, cfg Config, pool poolInterface, ethMan *etherman.Client, state *state.State) {
 	var gpricer L2GasPricer
 	switch cfg.Type {
 	case LastNBatchesType:
@@ -48,7 +48,7 @@ func NewL2GasPriceSuggester(ctx context.Context, cfg Config, pool pool, ethMan *
 	}
 }
 
-func cleanGasPriceHistory(pool pool, timeRetention time.Duration) {
+func cleanGasPriceHistory(pool poolInterface, timeRetention time.Duration) {
 	ctx := context.Background()
 	err := pool.DeleteGasPricesHistoryOlderThan(ctx, time.Now().UTC().Add(-timeRetention))
 	if err != nil {

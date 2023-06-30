@@ -37,7 +37,7 @@ Same goes for the Prover Config ([prover-config.json](https://github.com/0xPolyg
     "runProverClient": false,
     "runExecutorServer": true,
     "runExecutorClient": false,
-    "runStateDBServer": true
+    "runHashDBServer": true
 }
 ```
 
@@ -90,7 +90,7 @@ For *only* Prover Config (`only-prover-config.json`):
     "runProverClient": false,
     "runExecutorServer": false,
     "runExecutorClient": false,
-    "runStateDBServer": false
+    "runHashDBServer": false
 }
 ```
 

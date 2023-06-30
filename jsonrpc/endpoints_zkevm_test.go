@@ -20,6 +20,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	forkID5 = 5
+)
+
 func TestConsolidatedBlockNumber(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
@@ -667,7 +671,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				}
 
 				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
-
+				effectivePercentages := make([]uint8, 0, len(txs))
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 				receipts := []*ethTypes.Receipt{}
 				for i, tx := range txs {
@@ -706,8 +710,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					)
 
 					batchTxs = append(batchTxs, *tx)
+					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
 				require.NoError(t, err)
 				tc.ExpectedResult.BatchL2Data = batchL2Data
 				batch := &state.Batch{
@@ -761,7 +766,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				}
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
-					Return(batchTxs, nil).
+					Return(batchTxs, effectivePercentages, nil).
 					Once()
 			},
 		},
@@ -797,7 +802,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				}
 
 				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
-
+				effectivePercentages := make([]uint8, 0, len(txs))
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				receipts := []*ethTypes.Receipt{}
@@ -818,8 +823,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					)
 
 					batchTxs = append(batchTxs, *tx)
+					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
 				require.NoError(t, err)
 
 				batch := &state.Batch{
@@ -872,7 +878,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				}
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
-					Return(batchTxs, nil).
+					Return(batchTxs, effectivePercentages, nil).
 					Once()
 
 				tc.ExpectedResult.BatchL2Data = batchL2Data
@@ -916,7 +922,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				}
 
 				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
-
+				effectivePercentages := make([]uint8, 0, len(txs))
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				receipts := []*ethTypes.Receipt{}
@@ -956,8 +962,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					)
 
 					batchTxs = append(batchTxs, *tx)
+					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
 				require.NoError(t, err)
 				var fb uint64 = 1
 				batch := &state.Batch{
@@ -1012,7 +1019,7 @@ func TestGetBatchByNumber(t *testing.T) {
 				}
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
-					Return(batchTxs, nil).
+					Return(batchTxs, effectivePercentages, nil).
 					Once()
 				tc.ExpectedResult.BatchL2Data = batchL2Data
 			},

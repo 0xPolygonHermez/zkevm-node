@@ -32,6 +32,10 @@ const (
 	EventID_ExecutorRLPError EventID = "EXECUTOR RLP ERROR"
 	// EventID_FinalizerHalt is triggered when the finalizer halts
 	EventID_FinalizerHalt EventID = "FINALIZER HALT"
+	// EventID_FinalizerRestart is triggered when the finalizer restarts
+	EventID_FinalizerRestart EventID = "FINALIZER RESTART"
+	// EventID_FinalizerBreakEvenGasPriceBigDifference is triggered when the finalizer recalculates the break even gas price and detects a big difference
+	EventID_FinalizerBreakEvenGasPriceBigDifference EventID = "FINALIZER BREAK EVEN GAS PRICE BIG DIFFERENCE"
 
 	// Source_Node is the source of the event
 	Source_Node Source = "node"
