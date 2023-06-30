@@ -20,6 +20,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const (
+	forkID5 = 5
+)
+
 // Synchronizer connects L1 and L2
 type Synchronizer interface {
 	Sync() error
@@ -1207,13 +1211,18 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 			request.Transactions = trustedBatchL2Data
 		} else {
 			// Only new txs need to be processed
-			storedTxs, syncedTxs, err := decodeTxs(trustedBatchL2Data, batches)
+			storedTxs, syncedTxs, _, syncedEfficiencyPercentages, err := s.decodeTxs(trustedBatchL2Data, batches)
 			if err != nil {
 				return nil, nil, err
 			}
 			if len(storedTxs) < len(syncedTxs) {
+				forkID := s.state.GetForkIDByBatchNumber(batches[0].BatchNumber)
 				txsToBeAdded := syncedTxs[len(storedTxs):]
-				request.Transactions, err = state.EncodeTransactions(txsToBeAdded)
+				if forkID >= forkID5 {
+					syncedEfficiencyPercentages = syncedEfficiencyPercentages[len(storedTxs):]
+				}
+
+				request.Transactions, err = state.EncodeTransactions(txsToBeAdded, syncedEfficiencyPercentages, forkID)
 				if err != nil {
 					log.Error("error encoding txs (%d) to be added to the state. Error: %v", len(txsToBeAdded), err)
 					return nil, nil, err
@@ -1361,20 +1370,21 @@ func (s *ClientSynchronizer) openBatch(trustedBatch *types.Batch, dbTx pgx.Tx) e
 	return nil
 }
 
-func decodeTxs(trustedBatchL2Data types.ArgBytes, batches []*state.Batch) ([]ethTypes.Transaction, []ethTypes.Transaction, error) {
-	syncedTxs, _, err := state.DecodeTxs(trustedBatchL2Data)
+func (s *ClientSynchronizer) decodeTxs(trustedBatchL2Data types.ArgBytes, batches []*state.Batch) ([]ethTypes.Transaction, []ethTypes.Transaction, []uint8, []uint8, error) {
+	forkID := s.state.GetForkIDByBatchNumber(batches[0].BatchNumber)
+	syncedTxs, _, syncedEfficiencyPercentages, err := state.DecodeTxs(trustedBatchL2Data, forkID)
 	if err != nil {
 		log.Errorf("error decoding synced txs from trustedstate. Error: %v, TrustedBatchL2Data: %s", err, trustedBatchL2Data.Hex())
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	storedTxs, _, err := state.DecodeTxs(batches[0].BatchL2Data)
+	storedTxs, _, storedEfficiencyPercentages, err := state.DecodeTxs(batches[0].BatchL2Data, forkID)
 	if err != nil {
 		log.Errorf("error decoding stored txs from trustedstate. Error: %v, batch.BatchL2Data: %s", err, common.Bytes2Hex(batches[0].BatchL2Data))
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	log.Debug("len(storedTxs): ", len(storedTxs))
 	log.Debug("len(syncedTxs): ", len(syncedTxs))
-	return storedTxs, syncedTxs, nil
+	return storedTxs, syncedTxs, storedEfficiencyPercentages, syncedEfficiencyPercentages, nil
 }
 
 func checkIfSynced(batches []*state.Batch, trustedBatch *types.Batch) bool {
