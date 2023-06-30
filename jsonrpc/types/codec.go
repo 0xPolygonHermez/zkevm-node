@@ -182,7 +182,7 @@ func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterfac
 		return 0, nil
 
 	case SafeBlockNumber:
-		l1SafeBlockNumber, err := e.GetSafeBlockNumber((ctx))
+		l1SafeBlockNumber, err := e.GetSafeBlockNumber(ctx)
 		if err != nil {
 			return 0, NewRPCError(DefaultErrorCode, "failed to get the safe block number from ethereum")
 		}
@@ -197,7 +197,7 @@ func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterfac
 		return lastBlockNumber, nil
 
 	case FinalizedBlockNumber:
-		l1FinalizedBlockNumber, err := e.GetFinalizedBlockNumber((ctx))
+		l1FinalizedBlockNumber, err := e.GetFinalizedBlockNumber(ctx)
 		if err != nil {
 			return 0, NewRPCError(DefaultErrorCode, "failed to get the finalized block number from ethereum")
 		}
