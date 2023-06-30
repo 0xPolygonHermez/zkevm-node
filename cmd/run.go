@@ -126,11 +126,9 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
-	log.Infof("Fork ID read from POE SC = %v", currentForkID)
+	log.Infof("Fork ID read from POE SC = %v", forkIDIntervals[len(forkIDIntervals)-1].ForkId)
 	c.Aggregator.ChainID = l2ChainID
 	c.Aggregator.ForkId = currentForkID
-	c.Sequencer.DBManager.ForkID = currentForkID
-	c.Sequencer.Finalizer.ForkID = currentForkID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()

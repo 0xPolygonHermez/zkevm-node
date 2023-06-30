@@ -79,6 +79,7 @@ type stateInterface interface {
 	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
 	FlushMerkleTree(ctx context.Context) error
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
+	GetForkIDByBatchNumber(batchNumber uint64) uint64
 }
 
 type workerInterface interface {
@@ -124,6 +125,7 @@ type dbManagerInterface interface {
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
+	GetForkIDByBatchNumber(batchNumber uint64) uint64
 }
 
 type ethTxManager interface {

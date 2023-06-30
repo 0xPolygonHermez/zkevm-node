@@ -262,6 +262,20 @@ func (_m *DbManagerMock) GetForcedBatchesSince(ctx context.Context, forcedBatchN
 	return r0, r1
 }
 
+// GetForkIDByBatchNumber provides a mock function with given fields: batchNumber
+func (_m *DbManagerMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
+	ret := _m.Called(batchNumber)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(uint64) uint64); ok {
+		r0 = rf(batchNumber)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	return r0
+}
+
 // GetGasPrices provides a mock function with given fields: ctx
 func (_m *DbManagerMock) GetGasPrices(ctx context.Context) (pool.GasPrices, error) {
 	ret := _m.Called(ctx)
