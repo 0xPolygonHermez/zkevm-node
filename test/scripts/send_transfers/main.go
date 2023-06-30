@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -23,7 +24,7 @@ func main() {
 		PrivateKey string
 	}{
 		//{Name: "Local L1", URL: operations.DefaultL1NetworkURL, ChainID: operations.DefaultL1ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
-		{Name: "Local L2", URL: operations.DefaultL2NetworkURL, ChainID: operations.DefaultL2ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
+		{Name: "Local L2", URL: "http://34.77.127.3:8080", ChainID: 1234, PrivateKey: operations.DefaultSequencerPrivateKey},
 	}
 
 	for _, network := range networks {
@@ -60,6 +61,7 @@ func main() {
 			tx := ethTransfer(ctx, client, auth, to, transferAmount, &nonce)
 			fmt.Println("tx sent: ", tx.Hash().String())
 			// lastTxHash = tx.Hash()
+			time.Sleep(4 * time.Second)
 		}
 
 		// err = operations.WaitTxToBeMined(client, lastTxHash, txTimeout)
