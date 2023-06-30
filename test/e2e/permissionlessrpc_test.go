@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -129,13 +130,25 @@ func TestPermissionlessJRPC(t *testing.T) {
 	require.False(t, isThereL2Reorg)
 
 	// Assert that he permissionless node is fully synced
-	time.Sleep(30 * time.Second) // Give some time for the permissionless node to get synced
-	clientTrusted, err := ethclient.Dial(operations.DefaultL1NetworkURL)
+	clientTrusted, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
-	expectedBlock, err := clientTrusted.BlockByNumber(ctx, nil)
+	blockNum, err := clientTrusted.BlockNumber(ctx)
 	require.NoError(t, err)
-	actualBlock, err := client.BlockByNumber(ctx, nil)
+	blockNumBig := big.NewInt(int64(blockNum))
+	expectedBlock, err := clientTrusted.BlockByNumber(ctx, blockNumBig)
 	require.NoError(t, err)
+	var actualBlock *types.Block
+	// Wait for permissionless to be synced
+	err = errors.New("wait for it")
+	for err != nil {
+		actualBlock, err = client.BlockByNumber(ctx, blockNumBig)
+		time.Sleep(10 * time.Second)
+		if err != nil {
+			blockNumLess, _err := clientTrusted.BlockNumber(ctx)
+			require.NoError(t, _err)
+			log.Infof("trustless is at block %d, waiting to reach %d", blockNumLess, blockNum)
+		}
+	}
 	je, err := expectedBlock.Header().MarshalJSON()
 	require.NoError(t, err)
 	log.Info(string(je))
