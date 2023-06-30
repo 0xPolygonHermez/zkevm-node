@@ -976,6 +976,10 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 	stateBatchInPermissionLess := rpcBatchTostateBatch(batchInPermissionLess)
 	if needToRetrieveBatchFromDatabase {
 		m.State.
+			On("GetBatchByNumber", mock.Anything, uint64(batchInPermissionLess.Number-1), mock.Anything).
+			Return(&stateBatchInPermissionLess, nil).
+			Once()
+		m.State.
 			On("GetBatchByNumber", mock.Anything, uint64(batchInPermissionLess.Number), mock.Anything).
 			Return(&stateBatchInPermissionLess, nil).
 			Once()
@@ -985,16 +989,34 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		Return(nil).
 		Once()
 
-	processedBatch := state.ProcessBatchResponse{}
+	tx1 := state.ProcessTransactionResponse{}
+
+	processedBatch := state.ProcessBatchResponse{
+		Responses: []*state.ProcessTransactionResponse{&tx1},
+	}
+	// m.State.
+	// 	On("ProcessSequencerBatch", sync.ctx, batchNumber, stateBatchInTrustedNode.BatchL2Data, mock.Anything, mock.Anything).
+	// 	Return(&processedBatch, nil).
+	// 	Once()
+
+	// s.state.ProcessBatch(s.ctx, request, true) -> state.ProcessBatchResponse
+
 	m.State.
-		On("ProcessSequencerBatch", sync.ctx, batchNumber, stateBatchInTrustedNode.BatchL2Data, mock.Anything, mock.Anything).
+		On("ProcessBatch", sync.ctx, mock.Anything, true).
 		Return(&processedBatch, nil).
 		Once()
 
+	// StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error
+
 	m.State.
-		On("StoreTransactions", sync.ctx, batchNumber, processedBatch.Responses, m.DbTx).
+		On("StoreTransaction", sync.ctx, uint64(stateBatchInTrustedNode.BatchNumber), mock.Anything, stateBatchInTrustedNode.Coinbase, uint64(batchInTrustedNode.Timestamp), m.DbTx).
 		Return(nil).
 		Once()
+
+	// m.State.
+	// 	On("StoreTransactions", sync.ctx, batchNumber, processedBatch.Responses, m.DbTx).
+	// 	Return(nil).
+	// 	Once()
 
 	m.DbTx.On("Commit", sync.ctx).Return(nil).Once()
 }
