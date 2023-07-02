@@ -168,8 +168,12 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 	// }
 
 	// builds the url of the remote jRPC server
+	scheme := "http"
+	if d.cfg.TraceBatchUseHTTPS {
+		scheme = "https"
+	}
 	u := url.URL{
-		Scheme: "https",
+		Scheme: scheme,
 		Host:   httpRequest.Host,
 		Path:   httpRequest.URL.Path,
 	}
