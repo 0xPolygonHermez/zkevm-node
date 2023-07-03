@@ -18,9 +18,13 @@
 **Title:** {{ schema.title }}
 {% endif %}
 
-{% if schema.type_name != "object" %}
+**Type:** : `{{ schema.type_name }}`
+{% if schema.type_name != "object" and schema.default_value %}
     {# input schema #}
+
 **Default:** `{{schema.default_value}}`
+
+
 {% endif %}
 {#
 {{ schema | md_type_info_table | md_generate_table }} 
@@ -35,10 +39,10 @@
 {% set examples = schema.examples %}
 {% if examples %}
     {% include "section_examples.md" %}
-{% else %}
-    {% if schema.type_name != "object" %}
-        {% include "generate_toml_example.md" %}
-    {% endif %}
+{% endif %}
+
+{% if schema.type_name != "object" and schema.default_value %}
+    {% include "generate_toml_example.md" %}
 {% endif %}
 
 {% if schema.should_be_a_link(config) %}

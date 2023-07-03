@@ -2,9 +2,13 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/invopop/jsonschema"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -42,10 +46,32 @@ type MyTestConfigWithMapstructureRenaming struct {
 	F2 int    `mapstructure:"f2_another_name"`
 }
 
+type ExapmleTestWithSimpleArrays struct {
+	F1 string
+	// Example of array
+	Outputs []string
+}
+
 type MyTestConfigWithMapstructureRenamingInSubStruct struct {
 	F1 string
 	F2 int
 	F3 MyTestConfigWithMapstructureRenaming
+}
+type KeystoreFileConfigExample struct {
+	// Path is the file path for the key store file
+	Path string
+
+	// Password is the password to decrypt the key store file
+	Password string
+}
+
+type ConfigWithDurationAndAComplexArray struct {
+	// FrequencyToMonitorTxs frequency of the resending failed txs
+	FrequencyToMonitorTxs types.Duration
+
+	// PrivateKeys defines all the key store files that are going
+	// to be read in order to provide the private keys to sign the L1 txs
+	PrivateKeys []KeystoreFileConfigExample
 }
 
 func checkDefaultValue(t *testing.T, schema *jsonschema.Schema, key []string, expectedValue interface{}) {
@@ -58,6 +84,82 @@ const MyTestConfigTomlFile = `
 f1_another_name="value_f1"
 f2_another_name=5678
 `
+
+func TestGenerateJsonSchemaCommentsWithDurationItem(t *testing.T) {
+	cli := cli.NewContext(nil, nil, nil)
+	duration, err := time.ParseDuration("1m")
+	require.NoError(t, err)
+	generator := ConfigJsonSchemaGenerater[ConfigWithDurationAndAComplexArray]{
+		repoName:                "github.com/0xPolygonHermez/zkevm-node/config/",
+		cleanRequiredField:      true,
+		addCodeCommentsToSchema: true,
+		pathSourceCode:          "./",
+		repoNameSuffix:          "config/",
+		defaultValues: &ConfigWithDurationAndAComplexArray{
+			FrequencyToMonitorTxs: types.NewDuration(duration),
+		},
+	}
+	schema, err := generator.GenerateJsonSchema(cli)
+	require.NoError(t, err)
+	require.NotNil(t, schema)
+	v, err := getValueFromSchema(schema, []string{"FrequencyToMonitorTxs"})
+	require.NoError(t, err)
+	require.EqualValues(t, "1m0s", v.Default)
+	require.NotEmpty(t, v.Description)
+}
+
+func TestGenerateJsonSchemaCommentsWithComplexArrays(t *testing.T) {
+	cli := cli.NewContext(nil, nil, nil)
+	PrivateKeys := []KeystoreFileConfigExample{{Path: "/pk/sequencer.keystore", Password: "testonly"}}
+	generator := ConfigJsonSchemaGenerater[ConfigWithDurationAndAComplexArray]{
+		repoName:                "github.com/0xPolygonHermez/zkevm-node/config/",
+		cleanRequiredField:      true,
+		addCodeCommentsToSchema: true,
+		pathSourceCode:          "./",
+		repoNameSuffix:          "config/",
+		defaultValues: &ConfigWithDurationAndAComplexArray{
+			PrivateKeys: PrivateKeys,
+		},
+	}
+	schema, err := generator.GenerateJsonSchema(cli)
+	require.NoError(t, err)
+	require.NotNil(t, schema)
+	v, err := getValueFromSchema(schema, []string{"PrivateKeys"})
+	require.NoError(t, err)
+	require.EqualValues(t, PrivateKeys, v.Default)
+	require.NotEmpty(t, v.Description)
+	serialized, err := generator.SerializeJsonSchema(schema)
+	require.NoError(t, err)
+	var decoded interface{}
+	err = json.Unmarshal(serialized, &decoded)
+	require.NoError(t, err)
+	//def := decoded["properties"]["PrivateKeys"]["default"]
+	def := decoded.(map[string]interface{})["properties"].(map[string]interface{})["PrivateKeys"].(map[string]interface{})["default"]
+	s := fmt.Sprint(def)
+	require.EqualValues(t, "[map[Password:testonly Path:/pk/sequencer.keystore]]", s)
+}
+
+func TestGenerateJsonSchemaCommentsWithArrays(t *testing.T) {
+	cli := cli.NewContext(nil, nil, nil)
+	generator := ConfigJsonSchemaGenerater[ExapmleTestWithSimpleArrays]{
+		repoName:                "github.com/0xPolygonHermez/zkevm-node/config/",
+		cleanRequiredField:      true,
+		addCodeCommentsToSchema: true,
+		pathSourceCode:          "./",
+		repoNameSuffix:          "config/",
+		defaultValues: &ExapmleTestWithSimpleArrays{
+			F1:      "defaultf1",
+			Outputs: []string{"abc"},
+		},
+	}
+	schema, err := generator.GenerateJsonSchema(cli)
+	require.NoError(t, err)
+	require.NotNil(t, schema)
+	v, err := getValueFromSchema(schema, []string{"Outputs"})
+	require.NoError(t, err)
+	require.EqualValues(t, []string{"abc"}, v.Default)
+	require.NotEmpty(t, v.Description)
+}
 
 func TestGenerateJsonSchemaCommentsWithMultiplesLines(t *testing.T) {
 	cli := cli.NewContext(nil, nil, nil)

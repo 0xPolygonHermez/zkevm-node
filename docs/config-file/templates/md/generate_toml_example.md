@@ -12,7 +12,7 @@
 {% set section_name = breadcumbs_section|join('.')  %}
 {% set variable_name = breadcumbs|last()  %}
 
-#### Example setting the default value ({{schema.default_value}})
+**Example setting the default value** ({{schema.default_value}}):
 ```
 {% if section_name != "" %}
 [{{section_name}}]

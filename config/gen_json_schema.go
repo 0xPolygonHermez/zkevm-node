@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/invopop/jsonschema"
 	"github.com/urfave/cli/v2"
 )
@@ -169,11 +170,21 @@ func fillDefaultValuesPartial(schema *jsonschema.Schema, default_config interfac
 			if default_value.IsValid() && variantFieldIsSet(&value_schema.Default) {
 				switch value_schema.Type {
 				case "array":
-					//panic("type not supported")
+					if !default_value.IsZero() && !default_value.IsNil() {
+						def_value := default_value.Interface()
+						value_schema.Default = def_value
+					}
 				case "object":
 					fillDefaultValuesPartial(value_schema, default_value.Interface())
 				default: // string, number, integer, boolean
-					value_schema.Default = default_value.Interface()
+					if default_value.Type() == reflect.TypeOf(types.Duration{}) {
+						duration, ok := default_value.Interface().(types.Duration)
+						if ok {
+							value_schema.Default = duration.String()
+						}
+					} else {
+						value_schema.Default = default_value.Interface()
+					}
 				}
 			}
 		}
