@@ -1,11 +1,5 @@
 # Schema Docs
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
-
 **Description:** Config represents the configuration of the entire Hermez Node The file is TOML format You could find some examples:
 
 [TOML format]: https://en.wikipedia.org/wiki/TOML
@@ -31,24 +25,18 @@
 | - [EventLog](#EventLog )                       | No      | object  | No         | -          | -                                                                                                                   |
 | - [HashDB](#HashDB )                           | No      | object  | No         | -          | -                                                                                                                   |
 
-## <a name="IsTrustedSequencer"></a>1. Property `root > IsTrustedSequencer`
+## <a name="IsTrustedSequencer"></a>1. `IsTrustedSequencer`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `boolean` |
-| **Required** | No        |
-| **Default**  | `false`   |
-
+**Default:** `false`
 **Description:** This define is a trusted node (`true`) or a permission less (`false`). If you don't known
 set to `false`
 
-## <a name="Log"></a>2. Property `root > Log`
+#### Example setting the default value (false)
+```
+IsTrustedSequencer=false
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="Log"></a>2. `[Log]`
 
 **Description:** Configure Log level for all the services, allow also to store the logs in a file
 
@@ -58,31 +46,33 @@ set to `false`
 | - [Level](#Log_Level )             | No      | enum (of string) | No         | -          | Level of log. As lower value more logs are going to be generated                                                                                                                                                                                                                                                                                                                                |
 | - [Outputs](#Log_Outputs )         | No      | array of string  | No         | -          | Outputs                                                                                                                                                                                                                                                                                                                                                                                         |
 
-### <a name="Log_Environment"></a>2.1. Property `root > Log > Environment`
+### <a name="Log_Environment"></a>2.1. `Log.Environment`
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `enum (of string)` |
-| **Required** | No                 |
-| **Default**  | `"development"`    |
-
+**Default:** `"development"`
 **Description:** Environment defining the log format ("production" or "development").
 In development mode enables development mode (which makes DPanicLevel logs panic), uses a console encoder, writes to standard error, and disables sampling. Stacktraces are automatically included on logs of WarnLevel and above.
 Check [here](https://pkg.go.dev/go.uber.org/zap@v1.24.0#NewDevelopmentConfig)
+
+#### Example setting the default value ("development")
+```
+[Log]
+Environment="development"
+```
 
 Must be one of:
 * "production"
 * "development"
 
-### <a name="Log_Level"></a>2.2. Property `root > Log > Level`
+### <a name="Log_Level"></a>2.2. `Log.Level`
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `enum (of string)` |
-| **Required** | No                 |
-| **Default**  | `"info"`           |
-
+**Default:** `"info"`
 **Description:** Level of log. As lower value more logs are going to be generated
+
+#### Example setting the default value ("info")
+```
+[Log]
+Level="info"
+```
 
 Must be one of:
 * "debug"
@@ -93,14 +83,16 @@ Must be one of:
 * "panic"
 * "fatal"
 
-### <a name="Log_Outputs"></a>2.3. Property `root > Log > Outputs`
+### <a name="Log_Outputs"></a>2.3. `Log.Outputs`
 
-|              |                   |
-| ------------ | ----------------- |
-| **Type**     | `array of string` |
-| **Required** | No                |
-
+**Default:** `None`
 **Description:** Outputs
+
+#### Example setting the default value (None)
+```
+[Log]
+Outputs=None
+```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -114,20 +106,17 @@ Must be one of:
 | ----------------------------------- | ----------- |
 | [Outputs items](#Log_Outputs_items) | -           |
 
-#### <a name="autogenerated_heading_2"></a>2.3.1. root > Log > Outputs > Outputs items
+#### <a name="autogenerated_heading_2"></a>2.3.1. Log.Outputs.Outputs items
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
+**Default:** `None`
 
-## <a name="Etherman"></a>3. Property `root > Etherman`
+#### Example setting the default value (None)
+```
+[Log]
+Outputs items=None
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="Etherman"></a>3. `[Etherman]`
 
 **Description:** Configure service `Etherman` responsible to interact with L1.
 
@@ -139,74 +128,74 @@ Must be one of:
 | - [MultiGasProvider](#Etherman_MultiGasProvider )     | No      | boolean | No         | -          | -                 |
 | - [Etherscan](#Etherman_Etherscan )                   | No      | object  | No         | -          | -                 |
 
-### <a name="Etherman_URL"></a>3.1. Property `root > Etherman > URL`
+### <a name="Etherman_URL"></a>3.1. `Etherman.URL`
 
-|              |                           |
-| ------------ | ------------------------- |
-| **Type**     | `string`                  |
-| **Required** | No                        |
-| **Default**  | `"http://localhost:8545"` |
+**Default:** `"http://localhost:8545"`
 
-### <a name="Etherman_PrivateKeyPath"></a>3.2. Property `root > Etherman > PrivateKeyPath`
+#### Example setting the default value ("http://localhost:8545")
+```
+[Etherman]
+URL="http://localhost:8545"
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+### <a name="Etherman_PrivateKeyPath"></a>3.2. `Etherman.PrivateKeyPath`
 
-### <a name="Etherman_PrivateKeyPassword"></a>3.3. Property `root > Etherman > PrivateKeyPassword`
+**Default:** `""`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+#### Example setting the default value ("")
+```
+[Etherman]
+PrivateKeyPath=""
+```
 
-### <a name="Etherman_MultiGasProvider"></a>3.4. Property `root > Etherman > MultiGasProvider`
+### <a name="Etherman_PrivateKeyPassword"></a>3.3. `Etherman.PrivateKeyPassword`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `boolean` |
-| **Required** | No        |
-| **Default**  | `false`   |
+**Default:** `""`
 
-### <a name="Etherman_Etherscan"></a>3.5. Property `root > Etherman > Etherscan`
+#### Example setting the default value ("")
+```
+[Etherman]
+PrivateKeyPassword=""
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+### <a name="Etherman_MultiGasProvider"></a>3.4. `Etherman.MultiGasProvider`
+
+**Default:** `false`
+
+#### Example setting the default value (false)
+```
+[Etherman]
+MultiGasProvider=false
+```
+
+### <a name="Etherman_Etherscan"></a>3.5. `[Etherman.Etherscan]`
 
 | Property                                | Pattern | Type   | Deprecated | Definition | Title/Description |
 | --------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
 | - [ApiKey](#Etherman_Etherscan_ApiKey ) | No      | string | No         | -          | -                 |
 | - [Url](#Etherman_Etherscan_Url )       | No      | string | No         | -          | -                 |
 
-#### <a name="Etherman_Etherscan_ApiKey"></a>3.5.1. Property `root > Etherman > Etherscan > ApiKey`
+#### <a name="Etherman_Etherscan_ApiKey"></a>3.5.1. `Etherman.Etherscan.ApiKey`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+**Default:** `""`
 
-#### <a name="Etherman_Etherscan_Url"></a>3.5.2. Property `root > Etherman > Etherscan > Url`
+#### Example setting the default value ("")
+```
+[Etherman.Etherscan]
+ApiKey=""
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+#### <a name="Etherman_Etherscan_Url"></a>3.5.2. `Etherman.Etherscan.Url`
 
-## <a name="EthTxManager"></a>4. Property `root > EthTxManager`
+**Default:** `""`
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+#### Example setting the default value ("")
+```
+[Etherman.Etherscan]
+Url=""
+```
+
+## <a name="EthTxManager"></a>4. `[EthTxManager]`
 
 | Property                                                        | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                  |
 | --------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -215,16 +204,11 @@ Must be one of:
 | - [PrivateKeys](#EthTxManager_PrivateKeys )                     | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs |
 | - [ForcedGas](#EthTxManager_ForcedGas )                         | No      | integer         | No         | -          | ForcedGas is the amount of gas to be forced in case of gas estimation error                                                        |
 
-### <a name="EthTxManager_FrequencyToMonitorTxs"></a>4.1. Property `root > EthTxManager > FrequencyToMonitorTxs`
+### <a name="EthTxManager_FrequencyToMonitorTxs"></a>4.1. `EthTxManager.FrequencyToMonitorTxs`
 
 **Title:** Duration
 
-|              |                            |
-| ------------ | -------------------------- |
-| **Type**     | `string`                   |
-| **Required** | No                         |
-| **Default**  | `{"Duration": 1000000000}` |
-
+**Default:** `{"Duration": 1000000000}`
 **Description:** FrequencyToMonitorTxs frequency of the resending failed txs
 
 **Examples:** 
@@ -237,16 +221,11 @@ Must be one of:
 "300ms"
 ```
 
-### <a name="EthTxManager_WaitTxToBeMined"></a>4.2. Property `root > EthTxManager > WaitTxToBeMined`
+### <a name="EthTxManager_WaitTxToBeMined"></a>4.2. `EthTxManager.WaitTxToBeMined`
 
 **Title:** Duration
 
-|              |                              |
-| ------------ | ---------------------------- |
-| **Type**     | `string`                     |
-| **Required** | No                           |
-| **Default**  | `{"Duration": 120000000000}` |
-
+**Default:** `{"Duration": 120000000000}`
 **Description:** WaitTxToBeMined time to wait after transaction was sent to the ethereum
 
 **Examples:** 
@@ -259,15 +238,17 @@ Must be one of:
 "300ms"
 ```
 
-### <a name="EthTxManager_PrivateKeys"></a>4.3. Property `root > EthTxManager > PrivateKeys`
+### <a name="EthTxManager_PrivateKeys"></a>4.3. `EthTxManager.PrivateKeys`
 
-|              |                   |
-| ------------ | ----------------- |
-| **Type**     | `array of object` |
-| **Required** | No                |
-
+**Default:** `None`
 **Description:** PrivateKeys defines all the key store files that are going
 to be read in order to provide the private keys to sign the L1 txs
+
+#### Example setting the default value (None)
+```
+[EthTxManager]
+PrivateKeys=None
+```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -281,13 +262,7 @@ to be read in order to provide the private keys to sign the L1 txs
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | [PrivateKeys items](#EthTxManager_PrivateKeys_items) | KeystoreFileConfig has all the information needed to load a private key from a k ... |
 
-#### <a name="autogenerated_heading_3"></a>4.3.1. root > EthTxManager > PrivateKeys > PrivateKeys items
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+#### <a name="autogenerated_heading_3"></a>4.3.1. [EthTxManager.PrivateKeys.PrivateKeys items]
 
 **Description:** KeystoreFileConfig has all the information needed to load a private key from a key store file
 
@@ -296,41 +271,40 @@ to be read in order to provide the private keys to sign the L1 txs
 | - [Path](#EthTxManager_PrivateKeys_items_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
 | - [Password](#EthTxManager_PrivateKeys_items_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
-##### <a name="EthTxManager_PrivateKeys_items_Path"></a>4.3.1.1. Property `root > EthTxManager > PrivateKeys > PrivateKeys items > Path`
+##### <a name="EthTxManager_PrivateKeys_items_Path"></a>4.3.1.1. `EthTxManager.PrivateKeys.PrivateKeys items.Path`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-
+**Default:** `None`
 **Description:** Path is the file path for the key store file
 
-##### <a name="EthTxManager_PrivateKeys_items_Password"></a>4.3.1.2. Property `root > EthTxManager > PrivateKeys > PrivateKeys items > Password`
+#### Example setting the default value (None)
+```
+[EthTxManager.PrivateKeys items]
+Path=None
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
+##### <a name="EthTxManager_PrivateKeys_items_Password"></a>4.3.1.2. `EthTxManager.PrivateKeys.PrivateKeys items.Password`
 
+**Default:** `None`
 **Description:** Password is the password to decrypt the key store file
 
-### <a name="EthTxManager_ForcedGas"></a>4.4. Property `root > EthTxManager > ForcedGas`
+#### Example setting the default value (None)
+```
+[EthTxManager.PrivateKeys items]
+Password=None
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `0`       |
+### <a name="EthTxManager_ForcedGas"></a>4.4. `EthTxManager.ForcedGas`
 
+**Default:** `0`
 **Description:** ForcedGas is the amount of gas to be forced in case of gas estimation error
 
-## <a name="Pool"></a>5. Property `root > Pool`
+#### Example setting the default value (0)
+```
+[EthTxManager]
+ForcedGas=0
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="Pool"></a>5. `[Pool]`
 
 | Property                                                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                    |
 | ------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------- |
@@ -344,16 +318,11 @@ to be read in order to provide the private keys to sign the L1 txs
 | - [AccountQueue](#Pool_AccountQueue )                                           | No      | integer | No         | -          | AccountQueue represents the maximum number of non-executable transaction slots permitted per account |
 | - [GlobalQueue](#Pool_GlobalQueue )                                             | No      | integer | No         | -          | GlobalQueue represents the maximum number of non-executable transaction slots for all accounts       |
 
-### <a name="Pool_IntervalToRefreshBlockedAddresses"></a>5.1. Property `root > Pool > IntervalToRefreshBlockedAddresses`
+### <a name="Pool_IntervalToRefreshBlockedAddresses"></a>5.1. `Pool.IntervalToRefreshBlockedAddresses`
 
 **Title:** Duration
 
-|              |                              |
-| ------------ | ---------------------------- |
-| **Type**     | `string`                     |
-| **Required** | No                           |
-| **Default**  | `{"Duration": 300000000000}` |
-
+**Default:** `{"Duration": 300000000000}`
 **Description:** IntervalToRefreshBlockedAddresses is the time it takes to sync the
 blocked address list from db to memory
 
@@ -367,33 +336,29 @@ blocked address list from db to memory
 "300ms"
 ```
 
-### <a name="Pool_MaxTxBytesSize"></a>5.2. Property `root > Pool > MaxTxBytesSize`
+### <a name="Pool_MaxTxBytesSize"></a>5.2. `Pool.MaxTxBytesSize`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `100132`  |
-
+**Default:** `100132`
 **Description:** MaxTxBytesSize is the max size of a transaction in bytes
 
-### <a name="Pool_MaxTxDataBytesSize"></a>5.3. Property `root > Pool > MaxTxDataBytesSize`
+#### Example setting the default value (100132)
+```
+[Pool]
+MaxTxBytesSize=100132
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `100000`  |
+### <a name="Pool_MaxTxDataBytesSize"></a>5.3. `Pool.MaxTxDataBytesSize`
 
+**Default:** `100000`
 **Description:** MaxTxDataBytesSize is the max size of the data field of a transaction in bytes
 
-### <a name="Pool_DB"></a>5.4. Property `root > Pool > DB`
+#### Example setting the default value (100000)
+```
+[Pool]
+MaxTxDataBytesSize=100000
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+### <a name="Pool_DB"></a>5.4. `[Pool.DB]`
 
 **Description:** DB is the database configuration
 
@@ -407,96 +372,99 @@ blocked address list from db to memory
 | - [EnableLog](#Pool_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#Pool_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-#### <a name="Pool_DB_Name"></a>5.4.1. Property `root > Pool > DB > Name`
+#### <a name="Pool_DB_Name"></a>5.4.1. `Pool.DB.Name`
 
-|              |             |
-| ------------ | ----------- |
-| **Type**     | `string`    |
-| **Required** | No          |
-| **Default**  | `"pool_db"` |
-
+**Default:** `"pool_db"`
 **Description:** Database name
 
-#### <a name="Pool_DB_User"></a>5.4.2. Property `root > Pool > DB > User`
+#### Example setting the default value ("pool_db")
+```
+[Pool.DB]
+Name="pool_db"
+```
 
-|              |               |
-| ------------ | ------------- |
-| **Type**     | `string`      |
-| **Required** | No            |
-| **Default**  | `"pool_user"` |
+#### <a name="Pool_DB_User"></a>5.4.2. `Pool.DB.User`
 
+**Default:** `"pool_user"`
 **Description:** User name
 
-#### <a name="Pool_DB_Password"></a>5.4.3. Property `root > Pool > DB > Password`
+#### Example setting the default value ("pool_user")
+```
+[Pool.DB]
+User="pool_user"
+```
 
-|              |                   |
-| ------------ | ----------------- |
-| **Type**     | `string`          |
-| **Required** | No                |
-| **Default**  | `"pool_password"` |
+#### <a name="Pool_DB_Password"></a>5.4.3. `Pool.DB.Password`
 
+**Default:** `"pool_password"`
 **Description:** Password of the user
 
-#### <a name="Pool_DB_Host"></a>5.4.4. Property `root > Pool > DB > Host`
+#### Example setting the default value ("pool_password")
+```
+[Pool.DB]
+Password="pool_password"
+```
 
-|              |                   |
-| ------------ | ----------------- |
-| **Type**     | `string`          |
-| **Required** | No                |
-| **Default**  | `"zkevm-pool-db"` |
+#### <a name="Pool_DB_Host"></a>5.4.4. `Pool.DB.Host`
 
+**Default:** `"zkevm-pool-db"`
 **Description:** Host address
 
-#### <a name="Pool_DB_Port"></a>5.4.5. Property `root > Pool > DB > Port`
+#### Example setting the default value ("zkevm-pool-db")
+```
+[Pool.DB]
+Host="zkevm-pool-db"
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `"5432"` |
+#### <a name="Pool_DB_Port"></a>5.4.5. `Pool.DB.Port`
 
+**Default:** `"5432"`
 **Description:** Port Number
 
-#### <a name="Pool_DB_EnableLog"></a>5.4.6. Property `root > Pool > DB > EnableLog`
+#### Example setting the default value ("5432")
+```
+[Pool.DB]
+Port="5432"
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `boolean` |
-| **Required** | No        |
-| **Default**  | `false`   |
+#### <a name="Pool_DB_EnableLog"></a>5.4.6. `Pool.DB.EnableLog`
 
+**Default:** `false`
 **Description:** EnableLog
 
-#### <a name="Pool_DB_MaxConns"></a>5.4.7. Property `root > Pool > DB > MaxConns`
+#### Example setting the default value (false)
+```
+[Pool.DB]
+EnableLog=false
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `200`     |
+#### <a name="Pool_DB_MaxConns"></a>5.4.7. `Pool.DB.MaxConns`
 
+**Default:** `200`
 **Description:** MaxConns is the maximum number of connections in the pool.
 
-### <a name="Pool_DefaultMinGasPriceAllowed"></a>5.5. Property `root > Pool > DefaultMinGasPriceAllowed`
+#### Example setting the default value (200)
+```
+[Pool.DB]
+MaxConns=200
+```
 
-|              |              |
-| ------------ | ------------ |
-| **Type**     | `integer`    |
-| **Required** | No           |
-| **Default**  | `1000000000` |
+### <a name="Pool_DefaultMinGasPriceAllowed"></a>5.5. `Pool.DefaultMinGasPriceAllowed`
 
+**Default:** `1000000000`
 **Description:** DefaultMinGasPriceAllowed is the default min gas price to suggest
 
-### <a name="Pool_MinAllowedGasPriceInterval"></a>5.6. Property `root > Pool > MinAllowedGasPriceInterval`
+#### Example setting the default value (1000000000)
+```
+[Pool]
+DefaultMinGasPriceAllowed=1000000000
+```
+
+### <a name="Pool_MinAllowedGasPriceInterval"></a>5.6. `Pool.MinAllowedGasPriceInterval`
 
 **Title:** Duration
 
-|              |                              |
-| ------------ | ---------------------------- |
-| **Type**     | `string`                     |
-| **Required** | No                           |
-| **Default**  | `{"Duration": 300000000000}` |
-
+**Default:** `{"Duration": 300000000000}`
 **Description:** MinAllowedGasPriceInterval is the interval to look back of the suggested min gas price for a tx
 
 **Examples:** 
@@ -509,16 +477,11 @@ blocked address list from db to memory
 "300ms"
 ```
 
-### <a name="Pool_PollMinAllowedGasPriceInterval"></a>5.7. Property `root > Pool > PollMinAllowedGasPriceInterval`
+### <a name="Pool_PollMinAllowedGasPriceInterval"></a>5.7. `Pool.PollMinAllowedGasPriceInterval`
 
 **Title:** Duration
 
-|              |                             |
-| ------------ | --------------------------- |
-| **Type**     | `string`                    |
-| **Required** | No                          |
-| **Default**  | `{"Duration": 15000000000}` |
-
+**Default:** `{"Duration": 15000000000}`
 **Description:** PollMinAllowedGasPriceInterval is the interval to poll the suggested min gas price for a tx
 
 **Examples:** 
@@ -531,33 +494,29 @@ blocked address list from db to memory
 "300ms"
 ```
 
-### <a name="Pool_AccountQueue"></a>5.8. Property `root > Pool > AccountQueue`
+### <a name="Pool_AccountQueue"></a>5.8. `Pool.AccountQueue`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `64`      |
-
+**Default:** `64`
 **Description:** AccountQueue represents the maximum number of non-executable transaction slots permitted per account
 
-### <a name="Pool_GlobalQueue"></a>5.9. Property `root > Pool > GlobalQueue`
+#### Example setting the default value (64)
+```
+[Pool]
+AccountQueue=64
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `1024`    |
+### <a name="Pool_GlobalQueue"></a>5.9. `Pool.GlobalQueue`
 
+**Default:** `1024`
 **Description:** GlobalQueue represents the maximum number of non-executable transaction slots for all accounts
 
-## <a name="RPC"></a>6. Property `root > RPC`
+#### Example setting the default value (1024)
+```
+[Pool]
+GlobalQueue=1024
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="RPC"></a>6. `[RPC]`
 
 | Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                 |
 | ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -571,36 +530,33 @@ blocked address list from db to memory
 | - [WebSockets](#RPC_WebSockets )                                             | No      | object  | No         | -          | WebSockets configuration                                                                                          |
 | - [EnableL2SuggestedGasPricePolling](#RPC_EnableL2SuggestedGasPricePolling ) | No      | boolean | No         | -          | EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price. |
 
-### <a name="RPC_Host"></a>6.1. Property `root > RPC > Host`
+### <a name="RPC_Host"></a>6.1. `RPC.Host`
 
-|              |             |
-| ------------ | ----------- |
-| **Type**     | `string`    |
-| **Required** | No          |
-| **Default**  | `"0.0.0.0"` |
-
+**Default:** `"0.0.0.0"`
 **Description:** Host defines the network adapter that will be used to serve the HTTP requests
 
-### <a name="RPC_Port"></a>6.2. Property `root > RPC > Port`
+#### Example setting the default value ("0.0.0.0")
+```
+[RPC]
+Host="0.0.0.0"
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `8545`    |
+### <a name="RPC_Port"></a>6.2. `RPC.Port`
 
+**Default:** `8545`
 **Description:** Port defines the port to serve the endpoints via HTTP
 
-### <a name="RPC_ReadTimeout"></a>6.3. Property `root > RPC > ReadTimeout`
+#### Example setting the default value (8545)
+```
+[RPC]
+Port=8545
+```
+
+### <a name="RPC_ReadTimeout"></a>6.3. `RPC.ReadTimeout`
 
 **Title:** Duration
 
-|              |                             |
-| ------------ | --------------------------- |
-| **Type**     | `string`                    |
-| **Required** | No                          |
-| **Default**  | `{"Duration": 60000000000}` |
-
+**Default:** `{"Duration": 60000000000}`
 **Description:** ReadTimeout is the HTTP server read timeout
 check net/http.server.ReadTimeout and net/http.server.ReadHeaderTimeout
 
@@ -614,16 +570,11 @@ check net/http.server.ReadTimeout and net/http.server.ReadHeaderTimeout
 "300ms"
 ```
 
-### <a name="RPC_WriteTimeout"></a>6.4. Property `root > RPC > WriteTimeout`
+### <a name="RPC_WriteTimeout"></a>6.4. `RPC.WriteTimeout`
 
 **Title:** Duration
 
-|              |                             |
-| ------------ | --------------------------- |
-| **Type**     | `string`                    |
-| **Required** | No                          |
-| **Default**  | `{"Duration": 60000000000}` |
-
+**Default:** `{"Duration": 60000000000}`
 **Description:** WriteTimeout is the HTTP server write timeout
 check net/http.server.WriteTimeout
 
@@ -637,45 +588,42 @@ check net/http.server.WriteTimeout
 "300ms"
 ```
 
-### <a name="RPC_MaxRequestsPerIPAndSecond"></a>6.5. Property `root > RPC > MaxRequestsPerIPAndSecond`
+### <a name="RPC_MaxRequestsPerIPAndSecond"></a>6.5. `RPC.MaxRequestsPerIPAndSecond`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `number` |
-| **Required** | No       |
-| **Default**  | `500`    |
-
+**Default:** `500`
 **Description:** MaxRequestsPerIPAndSecond defines how much requests a single IP can
 send within a single second
 
-### <a name="RPC_SequencerNodeURI"></a>6.6. Property `root > RPC > SequencerNodeURI`
+#### Example setting the default value (500)
+```
+[RPC]
+MaxRequestsPerIPAndSecond=500
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+### <a name="RPC_SequencerNodeURI"></a>6.6. `RPC.SequencerNodeURI`
 
+**Default:** `""`
 **Description:** SequencerNodeURI is used allow Non-Sequencer nodes
 to relay transactions to the Sequencer node
 
-### <a name="RPC_MaxCumulativeGasUsed"></a>6.7. Property `root > RPC > MaxCumulativeGasUsed`
+#### Example setting the default value ("")
+```
+[RPC]
+SequencerNodeURI=""
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `0`       |
+### <a name="RPC_MaxCumulativeGasUsed"></a>6.7. `RPC.MaxCumulativeGasUsed`
 
+**Default:** `0`
 **Description:** MaxCumulativeGasUsed is the max gas allowed per batch
 
-### <a name="RPC_WebSockets"></a>6.8. Property `root > RPC > WebSockets`
+#### Example setting the default value (0)
+```
+[RPC]
+MaxCumulativeGasUsed=0
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+### <a name="RPC_WebSockets"></a>6.8. `[RPC.WebSockets]`
 
 **Description:** WebSockets configuration
 
@@ -685,53 +633,51 @@ to relay transactions to the Sequencer node
 | - [Host](#RPC_WebSockets_Host )       | No      | string  | No         | -          | Host defines the network adapter that will be used to serve the WS requests |
 | - [Port](#RPC_WebSockets_Port )       | No      | integer | No         | -          | Port defines the port to serve the endpoints via WS                         |
 
-#### <a name="RPC_WebSockets_Enabled"></a>6.8.1. Property `root > RPC > WebSockets > Enabled`
+#### <a name="RPC_WebSockets_Enabled"></a>6.8.1. `RPC.WebSockets.Enabled`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `boolean` |
-| **Required** | No        |
-| **Default**  | `true`    |
-
+**Default:** `true`
 **Description:** Enabled defines if the WebSocket requests are enabled or disabled
 
-#### <a name="RPC_WebSockets_Host"></a>6.8.2. Property `root > RPC > WebSockets > Host`
+#### Example setting the default value (true)
+```
+[RPC.WebSockets]
+Enabled=true
+```
 
-|              |             |
-| ------------ | ----------- |
-| **Type**     | `string`    |
-| **Required** | No          |
-| **Default**  | `"0.0.0.0"` |
+#### <a name="RPC_WebSockets_Host"></a>6.8.2. `RPC.WebSockets.Host`
 
+**Default:** `"0.0.0.0"`
 **Description:** Host defines the network adapter that will be used to serve the WS requests
 
-#### <a name="RPC_WebSockets_Port"></a>6.8.3. Property `root > RPC > WebSockets > Port`
+#### Example setting the default value ("0.0.0.0")
+```
+[RPC.WebSockets]
+Host="0.0.0.0"
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `8546`    |
+#### <a name="RPC_WebSockets_Port"></a>6.8.3. `RPC.WebSockets.Port`
 
+**Default:** `8546`
 **Description:** Port defines the port to serve the endpoints via WS
 
-### <a name="RPC_EnableL2SuggestedGasPricePolling"></a>6.9. Property `root > RPC > EnableL2SuggestedGasPricePolling`
+#### Example setting the default value (8546)
+```
+[RPC.WebSockets]
+Port=8546
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `boolean` |
-| **Required** | No        |
-| **Default**  | `true`    |
+### <a name="RPC_EnableL2SuggestedGasPricePolling"></a>6.9. `RPC.EnableL2SuggestedGasPricePolling`
 
+**Default:** `true`
 **Description:** EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.
 
-## <a name="Synchronizer"></a>7. Property `root > Synchronizer`
+#### Example setting the default value (true)
+```
+[RPC]
+EnableL2SuggestedGasPricePolling=true
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="Synchronizer"></a>7. `[Synchronizer]`
 
 **Description:** Configuration of service `Syncrhonizer`. For this service is also important the value of `IsTrustedSequencer`
 
@@ -741,16 +687,11 @@ to relay transactions to the Sequencer node
 | - [SyncChunkSize](#Synchronizer_SyncChunkSize )             | No      | integer | No         | -          | SyncChunkSize is the number of blocks to sync on each chunk              |
 | - [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL ) | No      | string  | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state |
 
-### <a name="Synchronizer_SyncInterval"></a>7.1. Property `root > Synchronizer > SyncInterval`
+### <a name="Synchronizer_SyncInterval"></a>7.1. `Synchronizer.SyncInterval`
 
 **Title:** Duration
 
-|              |                            |
-| ------------ | -------------------------- |
-| **Type**     | `string`                   |
-| **Required** | No                         |
-| **Default**  | `{"Duration": 1000000000}` |
-
+**Default:** `{"Duration": 1000000000}`
 **Description:** SyncInterval is the delay interval between reading new rollup information
 
 **Examples:** 
@@ -763,33 +704,29 @@ to relay transactions to the Sequencer node
 "300ms"
 ```
 
-### <a name="Synchronizer_SyncChunkSize"></a>7.2. Property `root > Synchronizer > SyncChunkSize`
+### <a name="Synchronizer_SyncChunkSize"></a>7.2. `Synchronizer.SyncChunkSize`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `100`     |
-
+**Default:** `100`
 **Description:** SyncChunkSize is the number of blocks to sync on each chunk
 
-### <a name="Synchronizer_TrustedSequencerURL"></a>7.3. Property `root > Synchronizer > TrustedSequencerURL`
+#### Example setting the default value (100)
+```
+[Synchronizer]
+SyncChunkSize=100
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+### <a name="Synchronizer_TrustedSequencerURL"></a>7.3. `Synchronizer.TrustedSequencerURL`
 
+**Default:** `""`
 **Description:** TrustedSequencerURL is the rpc url to connect and sync the trusted state
 
-## <a name="Sequencer"></a>8. Property `root > Sequencer`
+#### Example setting the default value ("")
+```
+[Synchronizer]
+TrustedSequencerURL=""
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="Sequencer"></a>8. `[Sequencer]`
 
 | Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                  |
 | ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -821,16 +758,11 @@ to relay transactions to the Sequencer node
 | - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                                                                             |
 | - [Worker](#Sequencer_Worker )                                               | No      | object  | No         | -          | Worker's specific config properties                                                                                                                |
 
-### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>8.1. Property `root > Sequencer > WaitPeriodPoolIsEmpty`
+### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>8.1. `Sequencer.WaitPeriodPoolIsEmpty`
 
 **Title:** Duration
 
-|              |                            |
-| ------------ | -------------------------- |
-| **Type**     | `string`                   |
-| **Required** | No                         |
-| **Default**  | `{"Duration": 1000000000}` |
-
+**Default:** `{"Duration": 1000000000}`
 **Description:** WaitPeriodPoolIsEmpty is the time the sequencer waits until
 trying to add new txs to the state
 
@@ -844,26 +776,22 @@ trying to add new txs to the state
 "300ms"
 ```
 
-### <a name="Sequencer_BlocksAmountForTxsToBeDeleted"></a>8.2. Property `root > Sequencer > BlocksAmountForTxsToBeDeleted`
+### <a name="Sequencer_BlocksAmountForTxsToBeDeleted"></a>8.2. `Sequencer.BlocksAmountForTxsToBeDeleted`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `100`     |
-
+**Default:** `100`
 **Description:** BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
 
-### <a name="Sequencer_FrequencyToCheckTxsForDelete"></a>8.3. Property `root > Sequencer > FrequencyToCheckTxsForDelete`
+#### Example setting the default value (100)
+```
+[Sequencer]
+BlocksAmountForTxsToBeDeleted=100
+```
+
+### <a name="Sequencer_FrequencyToCheckTxsForDelete"></a>8.3. `Sequencer.FrequencyToCheckTxsForDelete`
 
 **Title:** Duration
 
-|              |                                |
-| ------------ | ------------------------------ |
-| **Type**     | `string`                       |
-| **Required** | No                             |
-| **Default**  | `{"Duration": 43200000000000}` |
-
+**Default:** `{"Duration": 43200000000000}`
 **Description:** FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
 
 **Examples:** 
@@ -876,207 +804,221 @@ trying to add new txs to the state
 "300ms"
 ```
 
-### <a name="Sequencer_MaxTxsPerBatch"></a>8.4. Property `root > Sequencer > MaxTxsPerBatch`
+### <a name="Sequencer_MaxTxsPerBatch"></a>8.4. `Sequencer.MaxTxsPerBatch`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `300`     |
-
+**Default:** `300`
 **Description:** MaxTxsPerBatch is the maximum amount of transactions in the batch
 
-### <a name="Sequencer_MaxBatchBytesSize"></a>8.5. Property `root > Sequencer > MaxBatchBytesSize`
+#### Example setting the default value (300)
+```
+[Sequencer]
+MaxTxsPerBatch=300
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `120000`  |
+### <a name="Sequencer_MaxBatchBytesSize"></a>8.5. `Sequencer.MaxBatchBytesSize`
 
+**Default:** `120000`
 **Description:** MaxBatchBytesSize is the maximum batch size in bytes
 (subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)
 
-### <a name="Sequencer_MaxCumulativeGasUsed"></a>8.6. Property `root > Sequencer > MaxCumulativeGasUsed`
+#### Example setting the default value (120000)
+```
+[Sequencer]
+MaxBatchBytesSize=120000
+```
 
-|              |            |
-| ------------ | ---------- |
-| **Type**     | `integer`  |
-| **Required** | No         |
-| **Default**  | `30000000` |
+### <a name="Sequencer_MaxCumulativeGasUsed"></a>8.6. `Sequencer.MaxCumulativeGasUsed`
 
+**Default:** `30000000`
 **Description:** MaxCumulativeGasUsed is max gas amount used by batch
 
-### <a name="Sequencer_MaxKeccakHashes"></a>8.7. Property `root > Sequencer > MaxKeccakHashes`
+#### Example setting the default value (30000000)
+```
+[Sequencer]
+MaxCumulativeGasUsed=30000000
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `2145`    |
+### <a name="Sequencer_MaxKeccakHashes"></a>8.7. `Sequencer.MaxKeccakHashes`
 
+**Default:** `2145`
 **Description:** MaxKeccakHashes is max keccak hashes used by batch
 
-### <a name="Sequencer_MaxPoseidonHashes"></a>8.8. Property `root > Sequencer > MaxPoseidonHashes`
+#### Example setting the default value (2145)
+```
+[Sequencer]
+MaxKeccakHashes=2145
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `252357`  |
+### <a name="Sequencer_MaxPoseidonHashes"></a>8.8. `Sequencer.MaxPoseidonHashes`
 
+**Default:** `252357`
 **Description:** MaxPoseidonHashes is max poseidon hashes batch can handle
 
-### <a name="Sequencer_MaxPoseidonPaddings"></a>8.9. Property `root > Sequencer > MaxPoseidonPaddings`
+#### Example setting the default value (252357)
+```
+[Sequencer]
+MaxPoseidonHashes=252357
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `135191`  |
+### <a name="Sequencer_MaxPoseidonPaddings"></a>8.9. `Sequencer.MaxPoseidonPaddings`
 
+**Default:** `135191`
 **Description:** MaxPoseidonPaddings is max poseidon paddings batch can handle
 
-### <a name="Sequencer_MaxMemAligns"></a>8.10. Property `root > Sequencer > MaxMemAligns`
+#### Example setting the default value (135191)
+```
+[Sequencer]
+MaxPoseidonPaddings=135191
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `236585`  |
+### <a name="Sequencer_MaxMemAligns"></a>8.10. `Sequencer.MaxMemAligns`
 
+**Default:** `236585`
 **Description:** MaxMemAligns is max mem aligns batch can handle
 
-### <a name="Sequencer_MaxArithmetics"></a>8.11. Property `root > Sequencer > MaxArithmetics`
+#### Example setting the default value (236585)
+```
+[Sequencer]
+MaxMemAligns=236585
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `236585`  |
+### <a name="Sequencer_MaxArithmetics"></a>8.11. `Sequencer.MaxArithmetics`
 
+**Default:** `236585`
 **Description:** MaxArithmetics is max arithmetics batch can handle
 
-### <a name="Sequencer_MaxBinaries"></a>8.12. Property `root > Sequencer > MaxBinaries`
+#### Example setting the default value (236585)
+```
+[Sequencer]
+MaxArithmetics=236585
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `473170`  |
+### <a name="Sequencer_MaxBinaries"></a>8.12. `Sequencer.MaxBinaries`
 
+**Default:** `473170`
 **Description:** MaxBinaries is max binaries batch can handle
 
-### <a name="Sequencer_MaxSteps"></a>8.13. Property `root > Sequencer > MaxSteps`
+#### Example setting the default value (473170)
+```
+[Sequencer]
+MaxBinaries=473170
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `7570538` |
+### <a name="Sequencer_MaxSteps"></a>8.13. `Sequencer.MaxSteps`
 
+**Default:** `7570538`
 **Description:** MaxSteps is max steps batch can handle
 
-### <a name="Sequencer_WeightBatchBytesSize"></a>8.14. Property `root > Sequencer > WeightBatchBytesSize`
+#### Example setting the default value (7570538)
+```
+[Sequencer]
+MaxSteps=7570538
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `1`       |
+### <a name="Sequencer_WeightBatchBytesSize"></a>8.14. `Sequencer.WeightBatchBytesSize`
 
+**Default:** `1`
 **Description:** WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
 
-### <a name="Sequencer_WeightCumulativeGasUsed"></a>8.15. Property `root > Sequencer > WeightCumulativeGasUsed`
+#### Example setting the default value (1)
+```
+[Sequencer]
+WeightBatchBytesSize=1
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `1`       |
+### <a name="Sequencer_WeightCumulativeGasUsed"></a>8.15. `Sequencer.WeightCumulativeGasUsed`
 
+**Default:** `1`
 **Description:** WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource
 
-### <a name="Sequencer_WeightKeccakHashes"></a>8.16. Property `root > Sequencer > WeightKeccakHashes`
+#### Example setting the default value (1)
+```
+[Sequencer]
+WeightCumulativeGasUsed=1
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `1`       |
+### <a name="Sequencer_WeightKeccakHashes"></a>8.16. `Sequencer.WeightKeccakHashes`
 
+**Default:** `1`
 **Description:** WeightKeccakHashes is the cost weight for the KeccakHashes batch resource
 
-### <a name="Sequencer_WeightPoseidonHashes"></a>8.17. Property `root > Sequencer > WeightPoseidonHashes`
+#### Example setting the default value (1)
+```
+[Sequencer]
+WeightKeccakHashes=1
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `1`       |
+### <a name="Sequencer_WeightPoseidonHashes"></a>8.17. `Sequencer.WeightPoseidonHashes`
 
+**Default:** `1`
 **Description:** WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource
 
-### <a name="Sequencer_WeightPoseidonPaddings"></a>8.18. Property `root > Sequencer > WeightPoseidonPaddings`
+#### Example setting the default value (1)
+```
+[Sequencer]
+WeightPoseidonHashes=1
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `1`       |
+### <a name="Sequencer_WeightPoseidonPaddings"></a>8.18. `Sequencer.WeightPoseidonPaddings`
 
+**Default:** `1`
 **Description:** WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource
 
-### <a name="Sequencer_WeightMemAligns"></a>8.19. Property `root > Sequencer > WeightMemAligns`
+#### Example setting the default value (1)
+```
+[Sequencer]
+WeightPoseidonPaddings=1
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `1`       |
+### <a name="Sequencer_WeightMemAligns"></a>8.19. `Sequencer.WeightMemAligns`
 
+**Default:** `1`
 **Description:** WeightMemAligns is the cost weight for the MemAligns batch resource
 
-### <a name="Sequencer_WeightArithmetics"></a>8.20. Property `root > Sequencer > WeightArithmetics`
+#### Example setting the default value (1)
+```
+[Sequencer]
+WeightMemAligns=1
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `1`       |
+### <a name="Sequencer_WeightArithmetics"></a>8.20. `Sequencer.WeightArithmetics`
 
+**Default:** `1`
 **Description:** WeightArithmetics is the cost weight for the Arithmetics batch resource
 
-### <a name="Sequencer_WeightBinaries"></a>8.21. Property `root > Sequencer > WeightBinaries`
+#### Example setting the default value (1)
+```
+[Sequencer]
+WeightArithmetics=1
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `1`       |
+### <a name="Sequencer_WeightBinaries"></a>8.21. `Sequencer.WeightBinaries`
 
+**Default:** `1`
 **Description:** WeightBinaries is the cost weight for the Binaries batch resource
 
-### <a name="Sequencer_WeightSteps"></a>8.22. Property `root > Sequencer > WeightSteps`
+#### Example setting the default value (1)
+```
+[Sequencer]
+WeightBinaries=1
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `1`       |
+### <a name="Sequencer_WeightSteps"></a>8.22. `Sequencer.WeightSteps`
 
+**Default:** `1`
 **Description:** WeightSteps is the cost weight for the Steps batch resource
 
-### <a name="Sequencer_TxLifetimeCheckTimeout"></a>8.23. Property `root > Sequencer > TxLifetimeCheckTimeout`
+#### Example setting the default value (1)
+```
+[Sequencer]
+WeightSteps=1
+```
+
+### <a name="Sequencer_TxLifetimeCheckTimeout"></a>8.23. `Sequencer.TxLifetimeCheckTimeout`
 
 **Title:** Duration
 
-|              |                              |
-| ------------ | ---------------------------- |
-| **Type**     | `string`                     |
-| **Required** | No                           |
-| **Default**  | `{"Duration": 600000000000}` |
-
+**Default:** `{"Duration": 600000000000}`
 **Description:** TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
 
 **Examples:** 
@@ -1089,16 +1031,11 @@ trying to add new txs to the state
 "300ms"
 ```
 
-### <a name="Sequencer_MaxTxLifetime"></a>8.24. Property `root > Sequencer > MaxTxLifetime`
+### <a name="Sequencer_MaxTxLifetime"></a>8.24. `Sequencer.MaxTxLifetime`
 
 **Title:** Duration
 
-|              |                                |
-| ------------ | ------------------------------ |
-| **Type**     | `string`                       |
-| **Required** | No                             |
-| **Default**  | `{"Duration": 10800000000000}` |
-
+**Default:** `{"Duration": 10800000000000}`
 **Description:** MaxTxLifetime is the time a tx can be in the sequencer memory
 
 **Examples:** 
@@ -1111,13 +1048,7 @@ trying to add new txs to the state
 "300ms"
 ```
 
-### <a name="Sequencer_Finalizer"></a>8.25. Property `root > Sequencer > Finalizer`
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+### <a name="Sequencer_Finalizer"></a>8.25. `[Sequencer.Finalizer]`
 
 **Description:** Finalizer's specific config properties
 
@@ -1134,16 +1065,11 @@ trying to add new txs to the state
 | - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                               |
 | - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                    |
 
-#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>8.25.1. Property `root > Sequencer > Finalizer > GERDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>8.25.1. `Sequencer.Finalizer.GERDeadlineTimeout`
 
 **Title:** Duration
 
-|              |                            |
-| ------------ | -------------------------- |
-| **Type**     | `string`                   |
-| **Required** | No                         |
-| **Default**  | `{"Duration": 5000000000}` |
-
+**Default:** `{"Duration": 5000000000}`
 **Description:** GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root
 
 **Examples:** 
@@ -1156,16 +1082,11 @@ trying to add new txs to the state
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>8.25.2. Property `root > Sequencer > Finalizer > ForcedBatchDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>8.25.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
 
 **Title:** Duration
 
-|              |                             |
-| ------------ | --------------------------- |
-| **Type**     | `string`                    |
-| **Required** | No                          |
-| **Default**  | `{"Duration": 60000000000}` |
-
+**Default:** `{"Duration": 60000000000}`
 **Description:** ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
 
 **Examples:** 
@@ -1178,16 +1099,11 @@ trying to add new txs to the state
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_SleepDuration"></a>8.25.3. Property `root > Sequencer > Finalizer > SleepDuration`
+#### <a name="Sequencer_Finalizer_SleepDuration"></a>8.25.3. `Sequencer.Finalizer.SleepDuration`
 
 **Title:** Duration
 
-|              |                           |
-| ------------ | ------------------------- |
-| **Type**     | `string`                  |
-| **Required** | No                        |
-| **Default**  | `{"Duration": 100000000}` |
-
+**Default:** `{"Duration": 100000000}`
 **Description:** SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
 
 **Examples:** 
@@ -1200,36 +1116,33 @@ trying to add new txs to the state
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>8.25.4. Property `root > Sequencer > Finalizer > ResourcePercentageToCloseBatch`
+#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>8.25.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `10`      |
-
+**Default:** `10`
 **Description:** ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
 
-#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>8.25.5. Property `root > Sequencer > Finalizer > GERFinalityNumberOfBlocks`
+#### Example setting the default value (10)
+```
+[Sequencer.Finalizer]
+ResourcePercentageToCloseBatch=10
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `64`      |
+#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>8.25.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
 
+**Default:** `64`
 **Description:** GERFinalityNumberOfBlocks is number of blocks to consider GER final
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>8.25.6. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingL1Timeout`
+#### Example setting the default value (64)
+```
+[Sequencer.Finalizer]
+GERFinalityNumberOfBlocks=64
+```
+
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>8.25.6. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
 
 **Title:** Duration
 
-|              |                             |
-| ------------ | --------------------------- |
-| **Type**     | `string`                    |
-| **Required** | No                          |
-| **Default**  | `{"Duration": 10000000000}` |
-
+**Default:** `{"Duration": 10000000000}`
 **Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
 
 **Examples:** 
@@ -1242,16 +1155,11 @@ trying to add new txs to the state
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>8.25.7. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingGER`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>8.25.7. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
 
 **Title:** Duration
 
-|              |                             |
-| ------------ | --------------------------- |
-| **Type**     | `string`                    |
-| **Required** | No                          |
-| **Default**  | `{"Duration": 10000000000}` |
-
+**Default:** `{"Duration": 10000000000}`
 **Description:** ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation
 
 **Examples:** 
@@ -1264,16 +1172,11 @@ trying to add new txs to the state
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>8.25.8. Property `root > Sequencer > Finalizer > ClosingSignalsManagerWaitForCheckingForcedBatches`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>8.25.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
 
 **Title:** Duration
 
-|              |                             |
-| ------------ | --------------------------- |
-| **Type**     | `string`                    |
-| **Required** | No                          |
-| **Default**  | `{"Duration": 10000000000}` |
-
+**Default:** `{"Duration": 10000000000}`
 **Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
 
 **Examples:** 
@@ -1286,26 +1189,22 @@ trying to add new txs to the state
 "300ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>8.25.9. Property `root > Sequencer > Finalizer > ForcedBatchesFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>8.25.9. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `64`      |
-
+**Default:** `64`
 **Description:** ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
 
-#### <a name="Sequencer_Finalizer_TimestampResolution"></a>8.25.10. Property `root > Sequencer > Finalizer > TimestampResolution`
+#### Example setting the default value (64)
+```
+[Sequencer.Finalizer]
+ForcedBatchesFinalityNumberOfBlocks=64
+```
+
+#### <a name="Sequencer_Finalizer_TimestampResolution"></a>8.25.10. `Sequencer.Finalizer.TimestampResolution`
 
 **Title:** Duration
 
-|              |                             |
-| ------------ | --------------------------- |
-| **Type**     | `string`                    |
-| **Required** | No                          |
-| **Default**  | `{"Duration": 10000000000}` |
-
+**Default:** `{"Duration": 10000000000}`
 **Description:** TimestampResolution is the resolution of the timestamp used to close a batch
 
 **Examples:** 
@@ -1318,13 +1217,7 @@ trying to add new txs to the state
 "300ms"
 ```
 
-### <a name="Sequencer_DBManager"></a>8.26. Property `root > Sequencer > DBManager`
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+### <a name="Sequencer_DBManager"></a>8.26. `[Sequencer.DBManager]`
 
 **Description:** DBManager's specific config properties
 
@@ -1333,15 +1226,11 @@ trying to add new txs to the state
 | - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
 | - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
 
-#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>8.26.1. Property `root > Sequencer > DBManager > PoolRetrievalInterval`
+#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>8.26.1. `Sequencer.DBManager.PoolRetrievalInterval`
 
 **Title:** Duration
 
-|              |                           |
-| ------------ | ------------------------- |
-| **Type**     | `string`                  |
-| **Required** | No                        |
-| **Default**  | `{"Duration": 500000000}` |
+**Default:** `{"Duration": 500000000}`
 
 **Examples:** 
 
@@ -1353,15 +1242,11 @@ trying to add new txs to the state
 "300ms"
 ```
 
-#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>8.26.2. Property `root > Sequencer > DBManager > L2ReorgRetrievalInterval`
+#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>8.26.2. `Sequencer.DBManager.L2ReorgRetrievalInterval`
 
 **Title:** Duration
 
-|              |                            |
-| ------------ | -------------------------- |
-| **Type**     | `string`                   |
-| **Required** | No                         |
-| **Default**  | `{"Duration": 5000000000}` |
+**Default:** `{"Duration": 5000000000}`
 
 **Examples:** 
 
@@ -1373,13 +1258,7 @@ trying to add new txs to the state
 "300ms"
 ```
 
-### <a name="Sequencer_Worker"></a>8.27. Property `root > Sequencer > Worker`
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+### <a name="Sequencer_Worker"></a>8.27. `[Sequencer.Worker]`
 
 **Description:** Worker's specific config properties
 
@@ -1387,23 +1266,18 @@ trying to add new txs to the state
 | --------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | -------------------------------------------------------------- |
 | - [ResourceCostMultiplier](#Sequencer_Worker_ResourceCostMultiplier ) | No      | number | No         | -          | ResourceCostMultiplier is the multiplier for the resource cost |
 
-#### <a name="Sequencer_Worker_ResourceCostMultiplier"></a>8.27.1. Property `root > Sequencer > Worker > ResourceCostMultiplier`
+#### <a name="Sequencer_Worker_ResourceCostMultiplier"></a>8.27.1. `Sequencer.Worker.ResourceCostMultiplier`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `number` |
-| **Required** | No       |
-| **Default**  | `1000`   |
-
+**Default:** `1000`
 **Description:** ResourceCostMultiplier is the multiplier for the resource cost
 
-## <a name="SequenceSender"></a>9. Property `root > SequenceSender`
+#### Example setting the default value (1000)
+```
+[Sequencer.Worker]
+ResourceCostMultiplier=1000
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="SequenceSender"></a>9. `[SequenceSender]`
 
 | Property                                                                                                | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -1413,16 +1287,11 @@ trying to add new txs to the state
 | - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | string          | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                    |
 | - [PrivateKeys](#SequenceSender_PrivateKeys )                                                           | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                 |
 
-### <a name="SequenceSender_WaitPeriodSendSequence"></a>9.1. Property `root > SequenceSender > WaitPeriodSendSequence`
+### <a name="SequenceSender_WaitPeriodSendSequence"></a>9.1. `SequenceSender.WaitPeriodSendSequence`
 
 **Title:** Duration
 
-|              |                            |
-| ------------ | -------------------------- |
-| **Type**     | `string`                   |
-| **Required** | No                         |
-| **Default**  | `{"Duration": 5000000000}` |
-
+**Default:** `{"Duration": 5000000000}`
 **Description:** WaitPeriodSendSequence is the time the sequencer waits until
 trying to send a sequence to L1
 
@@ -1436,16 +1305,11 @@ trying to send a sequence to L1
 "300ms"
 ```
 
-### <a name="SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod"></a>9.2. Property `root > SequenceSender > LastBatchVirtualizationTimeMaxWaitPeriod`
+### <a name="SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod"></a>9.2. `SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod`
 
 **Title:** Duration
 
-|              |                            |
-| ------------ | -------------------------- |
-| **Type**     | `string`                   |
-| **Required** | No                         |
-| **Default**  | `{"Duration": 5000000000}` |
-
+**Default:** `{"Duration": 5000000000}`
 **Description:** LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
 
 **Examples:** 
@@ -1458,39 +1322,43 @@ trying to send a sequence to L1
 "300ms"
 ```
 
-### <a name="SequenceSender_MaxTxSizeForL1"></a>9.3. Property `root > SequenceSender > MaxTxSizeForL1`
+### <a name="SequenceSender_MaxTxSizeForL1"></a>9.3. `SequenceSender.MaxTxSizeForL1`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `131072`  |
-
+**Default:** `131072`
 **Description:** MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
 non-trivial consequences: larger transactions than 128KB are significantly harder and
 more expensive to propagate; larger transactions also take more resources
 to validate whether they fit into the pool or not.
 
-### <a name="SequenceSender_SenderAddress"></a>9.4. Property `root > SequenceSender > SenderAddress`
+#### Example setting the default value (131072)
+```
+[SequenceSender]
+MaxTxSizeForL1=131072
+```
 
-|              |                                                |
-| ------------ | ---------------------------------------------- |
-| **Type**     | `string`                                       |
-| **Required** | No                                             |
-| **Default**  | `"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"` |
+### <a name="SequenceSender_SenderAddress"></a>9.4. `SequenceSender.SenderAddress`
 
+**Default:** `"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"`
 **Description:** SenderAddress defines which private key the eth tx manager needs to use
 to sign the L1 txs
 
-### <a name="SequenceSender_PrivateKeys"></a>9.5. Property `root > SequenceSender > PrivateKeys`
+#### Example setting the default value ("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266")
+```
+[SequenceSender]
+SenderAddress="0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+```
 
-|              |                   |
-| ------------ | ----------------- |
-| **Type**     | `array of object` |
-| **Required** | No                |
+### <a name="SequenceSender_PrivateKeys"></a>9.5. `SequenceSender.PrivateKeys`
 
+**Default:** `None`
 **Description:** PrivateKeys defines all the key store files that are going
 to be read in order to provide the private keys to sign the L1 txs
+
+#### Example setting the default value (None)
+```
+[SequenceSender]
+PrivateKeys=None
+```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1504,13 +1372,7 @@ to be read in order to provide the private keys to sign the L1 txs
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | [PrivateKeys items](#SequenceSender_PrivateKeys_items) | KeystoreFileConfig has all the information needed to load a private key from a k ... |
 
-#### <a name="autogenerated_heading_4"></a>9.5.1. root > SequenceSender > PrivateKeys > PrivateKeys items
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+#### <a name="autogenerated_heading_4"></a>9.5.1. [SequenceSender.PrivateKeys.PrivateKeys items]
 
 **Description:** KeystoreFileConfig has all the information needed to load a private key from a key store file
 
@@ -1519,31 +1381,29 @@ to be read in order to provide the private keys to sign the L1 txs
 | - [Path](#SequenceSender_PrivateKeys_items_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
 | - [Password](#SequenceSender_PrivateKeys_items_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
-##### <a name="SequenceSender_PrivateKeys_items_Path"></a>9.5.1.1. Property `root > SequenceSender > PrivateKeys > PrivateKeys items > Path`
+##### <a name="SequenceSender_PrivateKeys_items_Path"></a>9.5.1.1. `SequenceSender.PrivateKeys.PrivateKeys items.Path`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-
+**Default:** `None`
 **Description:** Path is the file path for the key store file
 
-##### <a name="SequenceSender_PrivateKeys_items_Password"></a>9.5.1.2. Property `root > SequenceSender > PrivateKeys > PrivateKeys items > Password`
+#### Example setting the default value (None)
+```
+[SequenceSender.PrivateKeys items]
+Path=None
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
+##### <a name="SequenceSender_PrivateKeys_items_Password"></a>9.5.1.2. `SequenceSender.PrivateKeys.PrivateKeys items.Password`
 
+**Default:** `None`
 **Description:** Password is the password to decrypt the key store file
 
-## <a name="Aggregator"></a>10. Property `root > Aggregator`
+#### Example setting the default value (None)
+```
+[SequenceSender.PrivateKeys items]
+Password=None
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="Aggregator"></a>10. `[Aggregator]`
 
 | Property                                                                                            | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1561,36 +1421,33 @@ to be read in order to provide the private keys to sign the L1 txs
 | - [CleanupLockedProofsInterval](#Aggregator_CleanupLockedProofsInterval )                           | No      | string  | No         | -          | Duration                                                                                                                                                                    |
 | - [GeneratingProofCleanupThreshold](#Aggregator_GeneratingProofCleanupThreshold )                   | No      | string  | No         | -          | GeneratingProofCleanupThreshold represents the time interval after<br />which a proof in generating state is considered to be stuck and<br />allowed to be cleared.         |
 
-### <a name="Aggregator_Host"></a>10.1. Property `root > Aggregator > Host`
+### <a name="Aggregator_Host"></a>10.1. `Aggregator.Host`
 
-|              |             |
-| ------------ | ----------- |
-| **Type**     | `string`    |
-| **Required** | No          |
-| **Default**  | `"0.0.0.0"` |
-
+**Default:** `"0.0.0.0"`
 **Description:** Host for the grpc server
 
-### <a name="Aggregator_Port"></a>10.2. Property `root > Aggregator > Port`
+#### Example setting the default value ("0.0.0.0")
+```
+[Aggregator]
+Host="0.0.0.0"
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `50081`   |
+### <a name="Aggregator_Port"></a>10.2. `Aggregator.Port`
 
+**Default:** `50081`
 **Description:** Port for the grpc server
 
-### <a name="Aggregator_RetryTime"></a>10.3. Property `root > Aggregator > RetryTime`
+#### Example setting the default value (50081)
+```
+[Aggregator]
+Port=50081
+```
+
+### <a name="Aggregator_RetryTime"></a>10.3. `Aggregator.RetryTime`
 
 **Title:** Duration
 
-|              |                            |
-| ------------ | -------------------------- |
-| **Type**     | `string`                   |
-| **Required** | No                         |
-| **Default**  | `{"Duration": 5000000000}` |
-
+**Default:** `{"Duration": 5000000000}`
 **Description:** RetryTime is the time the aggregator main loop sleeps if there are no proofs to aggregate
 or batches to generate proofs. It is also used in the isSynced loop
 
@@ -1604,16 +1461,11 @@ or batches to generate proofs. It is also used in the isSynced loop
 "300ms"
 ```
 
-### <a name="Aggregator_VerifyProofInterval"></a>10.4. Property `root > Aggregator > VerifyProofInterval`
+### <a name="Aggregator_VerifyProofInterval"></a>10.4. `Aggregator.VerifyProofInterval`
 
 **Title:** Duration
 
-|              |                             |
-| ------------ | --------------------------- |
-| **Type**     | `string`                    |
-| **Required** | No                          |
-| **Default**  | `{"Duration": 90000000000}` |
-
+**Default:** `{"Duration": 90000000000}`
 **Description:** VerifyProofInterval is the interval of time to verify/send an proof in L1
 
 **Examples:** 
@@ -1626,16 +1478,11 @@ or batches to generate proofs. It is also used in the isSynced loop
 "300ms"
 ```
 
-### <a name="Aggregator_ProofStatePollingInterval"></a>10.5. Property `root > Aggregator > ProofStatePollingInterval`
+### <a name="Aggregator_ProofStatePollingInterval"></a>10.5. `Aggregator.ProofStatePollingInterval`
 
 **Title:** Duration
 
-|              |                            |
-| ------------ | -------------------------- |
-| **Type**     | `string`                   |
-| **Required** | No                         |
-| **Default**  | `{"Duration": 5000000000}` |
-
+**Default:** `{"Duration": 5000000000}`
 **Description:** ProofStatePollingInterval is the interval time to polling the prover about the generation state of a proof
 
 **Examples:** 
@@ -1648,38 +1495,28 @@ or batches to generate proofs. It is also used in the isSynced loop
 "300ms"
 ```
 
-### <a name="Aggregator_TxProfitabilityCheckerType"></a>10.6. Property `root > Aggregator > TxProfitabilityCheckerType`
+### <a name="Aggregator_TxProfitabilityCheckerType"></a>10.6. `Aggregator.TxProfitabilityCheckerType`
 
-|              |               |
-| ------------ | ------------- |
-| **Type**     | `string`      |
-| **Required** | No            |
-| **Default**  | `"acceptall"` |
-
+**Default:** `"acceptall"`
 **Description:** TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
 possible values: base/acceptall
 
-### <a name="Aggregator_TxProfitabilityMinReward"></a>10.7. Property `root > Aggregator > TxProfitabilityMinReward`
+#### Example setting the default value ("acceptall")
+```
+[Aggregator]
+TxProfitabilityCheckerType="acceptall"
+```
 
-|                           |                                                                           |
-| ------------------------- | ------------------------------------------------------------------------- |
-| **Type**                  | `object`                                                                  |
-| **Required**              | No                                                                        |
-| **Additional properties** | [[Any type: allowed]](# "Additional Properties of any type are allowed.") |
+### <a name="Aggregator_TxProfitabilityMinReward"></a>10.7. `[Aggregator.TxProfitabilityMinReward]`
 
 **Description:** TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
 this parameter is used for the base tx profitability checker
 
-### <a name="Aggregator_IntervalAfterWhichBatchConsolidateAnyway"></a>10.8. Property `root > Aggregator > IntervalAfterWhichBatchConsolidateAnyway`
+### <a name="Aggregator_IntervalAfterWhichBatchConsolidateAnyway"></a>10.8. `Aggregator.IntervalAfterWhichBatchConsolidateAnyway`
 
 **Title:** Duration
 
-|              |                   |
-| ------------ | ----------------- |
-| **Type**     | `string`          |
-| **Required** | No                |
-| **Default**  | `{"Duration": 0}` |
-
+**Default:** `{"Duration": 0}`
 **Description:** IntervalAfterWhichBatchConsolidateAnyway this is interval for the main sequencer, that will check if there is no transactions
 
 **Examples:** 
@@ -1692,47 +1529,45 @@ this parameter is used for the base tx profitability checker
 "300ms"
 ```
 
-### <a name="Aggregator_ChainID"></a>10.9. Property `root > Aggregator > ChainID`
+### <a name="Aggregator_ChainID"></a>10.9. `Aggregator.ChainID`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `0`       |
-
+**Default:** `0`
 **Description:** ChainID is the L2 ChainID provided by the Network Config
 
-### <a name="Aggregator_ForkId"></a>10.10. Property `root > Aggregator > ForkId`
+#### Example setting the default value (0)
+```
+[Aggregator]
+ChainID=0
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `2`       |
+### <a name="Aggregator_ForkId"></a>10.10. `Aggregator.ForkId`
 
+**Default:** `2`
 **Description:** ForkID is the L2 ForkID provided by the Network Config
 
-### <a name="Aggregator_SenderAddress"></a>10.11. Property `root > Aggregator > SenderAddress`
+#### Example setting the default value (2)
+```
+[Aggregator]
+ForkId=2
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+### <a name="Aggregator_SenderAddress"></a>10.11. `Aggregator.SenderAddress`
 
+**Default:** `""`
 **Description:** SenderAddress defines which private key the eth tx manager needs to use
 to sign the L1 txs
 
-### <a name="Aggregator_CleanupLockedProofsInterval"></a>10.12. Property `root > Aggregator > CleanupLockedProofsInterval`
+#### Example setting the default value ("")
+```
+[Aggregator]
+SenderAddress=""
+```
+
+### <a name="Aggregator_CleanupLockedProofsInterval"></a>10.12. `Aggregator.CleanupLockedProofsInterval`
 
 **Title:** Duration
 
-|              |                              |
-| ------------ | ---------------------------- |
-| **Type**     | `string`                     |
-| **Required** | No                           |
-| **Default**  | `{"Duration": 120000000000}` |
-
+**Default:** `{"Duration": 120000000000}`
 **Description:** CleanupLockedProofsInterval is the interval of time to clean up locked proofs.
 
 **Examples:** 
@@ -1745,25 +1580,20 @@ to sign the L1 txs
 "300ms"
 ```
 
-### <a name="Aggregator_GeneratingProofCleanupThreshold"></a>10.13. Property `root > Aggregator > GeneratingProofCleanupThreshold`
+### <a name="Aggregator_GeneratingProofCleanupThreshold"></a>10.13. `Aggregator.GeneratingProofCleanupThreshold`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `"10m"`  |
-
+**Default:** `"10m"`
 **Description:** GeneratingProofCleanupThreshold represents the time interval after
 which a proof in generating state is considered to be stuck and
 allowed to be cleared.
 
-## <a name="NetworkConfig"></a>11. Property `root > NetworkConfig`
+#### Example setting the default value ("10m")
+```
+[Aggregator]
+GeneratingProofCleanupThreshold="10m"
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="NetworkConfig"></a>11. `[NetworkConfig]`
 
 | Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description |
 | ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
@@ -1773,13 +1603,7 @@ allowed to be cleared.
 | - [Genesis](#NetworkConfig_Genesis )                                         | No      | object           | No         | -          | -                 |
 | - [MaxCumulativeGasUsed](#NetworkConfig_MaxCumulativeGasUsed )               | No      | integer          | No         | -          | -                 |
 
-### <a name="NetworkConfig_l1Config"></a>11.1. Property `root > NetworkConfig > l1Config`
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+### <a name="NetworkConfig_l1Config"></a>11.1. `[NetworkConfig.l1Config]`
 
 | Property                                                                                          | Pattern | Type             | Deprecated | Definition | Title/Description |
 | ------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
@@ -1788,20 +1612,25 @@ allowed to be cleared.
 | - [maticTokenAddress](#NetworkConfig_l1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | -                 |
 | - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | -                 |
 
-#### <a name="NetworkConfig_l1Config_chainId"></a>11.1.1. Property `root > NetworkConfig > l1Config > chainId`
+#### <a name="NetworkConfig_l1Config_chainId"></a>11.1.1. `NetworkConfig.l1Config.chainId`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `0`       |
+**Default:** `0`
 
-#### <a name="NetworkConfig_l1Config_polygonZkEVMAddress"></a>11.1.2. Property `root > NetworkConfig > l1Config > polygonZkEVMAddress`
+#### Example setting the default value (0)
+```
+[NetworkConfig.l1Config]
+chainId=0
+```
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `array of integer` |
-| **Required** | No                 |
+#### <a name="NetworkConfig_l1Config_polygonZkEVMAddress"></a>11.1.2. `NetworkConfig.l1Config.polygonZkEVMAddress`
+
+**Default:** `None`
+
+#### Example setting the default value (None)
+```
+[NetworkConfig.l1Config]
+polygonZkEVMAddress=None
+```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1815,19 +1644,25 @@ allowed to be cleared.
 | ------------------------------------------------------------------------------ | ----------- |
 | [polygonZkEVMAddress items](#NetworkConfig_l1Config_polygonZkEVMAddress_items) | -           |
 
-##### <a name="autogenerated_heading_5"></a>11.1.2.1. root > NetworkConfig > l1Config > polygonZkEVMAddress > polygonZkEVMAddress items
+##### <a name="autogenerated_heading_5"></a>11.1.2.1. NetworkConfig.l1Config.polygonZkEVMAddress.polygonZkEVMAddress items
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
+**Default:** `None`
 
-#### <a name="NetworkConfig_l1Config_maticTokenAddress"></a>11.1.3. Property `root > NetworkConfig > l1Config > maticTokenAddress`
+#### Example setting the default value (None)
+```
+[NetworkConfig.l1Config]
+polygonZkEVMAddress items=None
+```
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `array of integer` |
-| **Required** | No                 |
+#### <a name="NetworkConfig_l1Config_maticTokenAddress"></a>11.1.3. `NetworkConfig.l1Config.maticTokenAddress`
+
+**Default:** `None`
+
+#### Example setting the default value (None)
+```
+[NetworkConfig.l1Config]
+maticTokenAddress=None
+```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1841,19 +1676,25 @@ allowed to be cleared.
 | -------------------------------------------------------------------------- | ----------- |
 | [maticTokenAddress items](#NetworkConfig_l1Config_maticTokenAddress_items) | -           |
 
-##### <a name="autogenerated_heading_6"></a>11.1.3.1. root > NetworkConfig > l1Config > maticTokenAddress > maticTokenAddress items
+##### <a name="autogenerated_heading_6"></a>11.1.3.1. NetworkConfig.l1Config.maticTokenAddress.maticTokenAddress items
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
+**Default:** `None`
 
-#### <a name="NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress"></a>11.1.4. Property `root > NetworkConfig > l1Config > polygonZkEVMGlobalExitRootAddress`
+#### Example setting the default value (None)
+```
+[NetworkConfig.l1Config]
+maticTokenAddress items=None
+```
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `array of integer` |
-| **Required** | No                 |
+#### <a name="NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress"></a>11.1.4. `NetworkConfig.l1Config.polygonZkEVMGlobalExitRootAddress`
+
+**Default:** `None`
+
+#### Example setting the default value (None)
+```
+[NetworkConfig.l1Config]
+polygonZkEVMGlobalExitRootAddress=None
+```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1867,19 +1708,25 @@ allowed to be cleared.
 | ---------------------------------------------------------------------------------------------------------- | ----------- |
 | [polygonZkEVMGlobalExitRootAddress items](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress_items) | -           |
 
-##### <a name="autogenerated_heading_7"></a>11.1.4.1. root > NetworkConfig > l1Config > polygonZkEVMGlobalExitRootAddress > polygonZkEVMGlobalExitRootAddress items
+##### <a name="autogenerated_heading_7"></a>11.1.4.1. NetworkConfig.l1Config.polygonZkEVMGlobalExitRootAddress.polygonZkEVMGlobalExitRootAddress items
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
+**Default:** `None`
 
-### <a name="NetworkConfig_L2GlobalExitRootManagerAddr"></a>11.2. Property `root > NetworkConfig > L2GlobalExitRootManagerAddr`
+#### Example setting the default value (None)
+```
+[NetworkConfig.l1Config]
+polygonZkEVMGlobalExitRootAddress items=None
+```
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `array of integer` |
-| **Required** | No                 |
+### <a name="NetworkConfig_L2GlobalExitRootManagerAddr"></a>11.2. `NetworkConfig.L2GlobalExitRootManagerAddr`
+
+**Default:** `None`
+
+#### Example setting the default value (None)
+```
+[NetworkConfig]
+L2GlobalExitRootManagerAddr=None
+```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1893,19 +1740,25 @@ allowed to be cleared.
 | ------------------------------------------------------------------------------------- | ----------- |
 | [L2GlobalExitRootManagerAddr items](#NetworkConfig_L2GlobalExitRootManagerAddr_items) | -           |
 
-#### <a name="autogenerated_heading_8"></a>11.2.1. root > NetworkConfig > L2GlobalExitRootManagerAddr > L2GlobalExitRootManagerAddr items
+#### <a name="autogenerated_heading_8"></a>11.2.1. NetworkConfig.L2GlobalExitRootManagerAddr.L2GlobalExitRootManagerAddr items
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
+**Default:** `None`
 
-### <a name="NetworkConfig_L2BridgeAddr"></a>11.3. Property `root > NetworkConfig > L2BridgeAddr`
+#### Example setting the default value (None)
+```
+[NetworkConfig]
+L2GlobalExitRootManagerAddr items=None
+```
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `array of integer` |
-| **Required** | No                 |
+### <a name="NetworkConfig_L2BridgeAddr"></a>11.3. `NetworkConfig.L2BridgeAddr`
+
+**Default:** `None`
+
+#### Example setting the default value (None)
+```
+[NetworkConfig]
+L2BridgeAddr=None
+```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1919,20 +1772,17 @@ allowed to be cleared.
 | ------------------------------------------------------- | ----------- |
 | [L2BridgeAddr items](#NetworkConfig_L2BridgeAddr_items) | -           |
 
-#### <a name="autogenerated_heading_9"></a>11.3.1. root > NetworkConfig > L2BridgeAddr > L2BridgeAddr items
+#### <a name="autogenerated_heading_9"></a>11.3.1. NetworkConfig.L2BridgeAddr.L2BridgeAddr items
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
+**Default:** `None`
 
-### <a name="NetworkConfig_Genesis"></a>11.4. Property `root > NetworkConfig > Genesis`
+#### Example setting the default value (None)
+```
+[NetworkConfig]
+L2BridgeAddr items=None
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+### <a name="NetworkConfig_Genesis"></a>11.4. `[NetworkConfig.Genesis]`
 
 | Property                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                           |
 | ------------------------------------------------------------ | ------- | ---------------- | ---------- | ---------- | --------------------------------------------------------------------------- |
@@ -1940,22 +1790,26 @@ allowed to be cleared.
 | - [Root](#NetworkConfig_Genesis_Root )                       | No      | array of integer | No         | -          | -                                                                           |
 | - [GenesisActions](#NetworkConfig_Genesis_GenesisActions )   | No      | array of object  | No         | -          | -                                                                           |
 
-#### <a name="NetworkConfig_Genesis_GenesisBlockNum"></a>11.4.1. Property `root > NetworkConfig > Genesis > GenesisBlockNum`
+#### <a name="NetworkConfig_Genesis_GenesisBlockNum"></a>11.4.1. `NetworkConfig.Genesis.GenesisBlockNum`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `0`       |
-
+**Default:** `0`
 **Description:** GenesisBlockNum is the block number where the polygonZKEVM smc was deployed
 
-#### <a name="NetworkConfig_Genesis_Root"></a>11.4.2. Property `root > NetworkConfig > Genesis > Root`
+#### Example setting the default value (0)
+```
+[NetworkConfig.Genesis]
+GenesisBlockNum=0
+```
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `array of integer` |
-| **Required** | No                 |
+#### <a name="NetworkConfig_Genesis_Root"></a>11.4.2. `NetworkConfig.Genesis.Root`
+
+**Default:** `None`
+
+#### Example setting the default value (None)
+```
+[NetworkConfig.Genesis]
+Root=None
+```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1969,19 +1823,25 @@ allowed to be cleared.
 | ----------------------------------------------- | ----------- |
 | [Root items](#NetworkConfig_Genesis_Root_items) | -           |
 
-##### <a name="autogenerated_heading_10"></a>11.4.2.1. root > NetworkConfig > Genesis > Root > Root items
+##### <a name="autogenerated_heading_10"></a>11.4.2.1. NetworkConfig.Genesis.Root.Root items
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
+**Default:** `None`
 
-#### <a name="NetworkConfig_Genesis_GenesisActions"></a>11.4.3. Property `root > NetworkConfig > Genesis > GenesisActions`
+#### Example setting the default value (None)
+```
+[NetworkConfig.Genesis]
+Root items=None
+```
 
-|              |                   |
-| ------------ | ----------------- |
-| **Type**     | `array of object` |
-| **Required** | No                |
+#### <a name="NetworkConfig_Genesis_GenesisActions"></a>11.4.3. `NetworkConfig.Genesis.GenesisActions`
+
+**Default:** `None`
+
+#### Example setting the default value (None)
+```
+[NetworkConfig.Genesis]
+GenesisActions=None
+```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -1995,13 +1855,7 @@ allowed to be cleared.
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | [GenesisActions items](#NetworkConfig_Genesis_GenesisActions_items) | GenesisAction represents one of the values set on the SMT during genesis. |
 
-##### <a name="autogenerated_heading_11"></a>11.4.3.1. root > NetworkConfig > Genesis > GenesisActions > GenesisActions items
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+##### <a name="autogenerated_heading_11"></a>11.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
 
 **Description:** GenesisAction represents one of the values set on the SMT during genesis.
 
@@ -2015,70 +1869,87 @@ allowed to be cleared.
 | - [value](#NetworkConfig_Genesis_GenesisActions_items_value )                     | No      | string  | No         | -          | -                 |
 | - [root](#NetworkConfig_Genesis_GenesisActions_items_root )                       | No      | string  | No         | -          | -                 |
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_address"></a>11.4.3.1.1. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > address`
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_address"></a>11.4.3.1.1. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.address`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
+**Default:** `None`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_type"></a>11.4.3.1.2. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > type`
+#### Example setting the default value (None)
+```
+[NetworkConfig.Genesis.GenesisActions items]
+address=None
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_type"></a>11.4.3.1.2. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.type`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_storagePosition"></a>11.4.3.1.3. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > storagePosition`
+**Default:** `None`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
+#### Example setting the default value (None)
+```
+[NetworkConfig.Genesis.GenesisActions items]
+type=None
+```
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_bytecode"></a>11.4.3.1.4. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > bytecode`
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_storagePosition"></a>11.4.3.1.3. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.storagePosition`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
+**Default:** `None`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_key"></a>11.4.3.1.5. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > key`
+#### Example setting the default value (None)
+```
+[NetworkConfig.Genesis.GenesisActions items]
+storagePosition=None
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_bytecode"></a>11.4.3.1.4. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.bytecode`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_value"></a>11.4.3.1.6. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > value`
+**Default:** `None`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
+#### Example setting the default value (None)
+```
+[NetworkConfig.Genesis.GenesisActions items]
+bytecode=None
+```
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_root"></a>11.4.3.1.7. Property `root > NetworkConfig > Genesis > GenesisActions > GenesisActions items > root`
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_key"></a>11.4.3.1.5. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.key`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
+**Default:** `None`
 
-### <a name="NetworkConfig_MaxCumulativeGasUsed"></a>11.5. Property `root > NetworkConfig > MaxCumulativeGasUsed`
+#### Example setting the default value (None)
+```
+[NetworkConfig.Genesis.GenesisActions items]
+key=None
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `0`       |
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_value"></a>11.4.3.1.6. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.value`
 
-## <a name="L2GasPriceSuggester"></a>12. Property `root > L2GasPriceSuggester`
+**Default:** `None`
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+#### Example setting the default value (None)
+```
+[NetworkConfig.Genesis.GenesisActions items]
+value=None
+```
+
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_root"></a>11.4.3.1.7. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.root`
+
+**Default:** `None`
+
+#### Example setting the default value (None)
+```
+[NetworkConfig.Genesis.GenesisActions items]
+root=None
+```
+
+### <a name="NetworkConfig_MaxCumulativeGasUsed"></a>11.5. `NetworkConfig.MaxCumulativeGasUsed`
+
+**Default:** `0`
+
+#### Example setting the default value (0)
+```
+[NetworkConfig]
+MaxCumulativeGasUsed=0
+```
+
+## <a name="L2GasPriceSuggester"></a>12. `[L2GasPriceSuggester]`
 
 | Property                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description |
 | ------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------- |
@@ -2093,63 +1964,55 @@ allowed to be cleared.
 | - [CleanHistoryTimeRetention](#L2GasPriceSuggester_CleanHistoryTimeRetention ) | No      | string  | No         | -          | Duration          |
 | - [Factor](#L2GasPriceSuggester_Factor )                                       | No      | number  | No         | -          | -                 |
 
-### <a name="L2GasPriceSuggester_Type"></a>12.1. Property `root > L2GasPriceSuggester > Type`
+### <a name="L2GasPriceSuggester_Type"></a>12.1. `L2GasPriceSuggester.Type`
 
-|              |              |
-| ------------ | ------------ |
-| **Type**     | `string`     |
-| **Required** | No           |
-| **Default**  | `"follower"` |
+**Default:** `"follower"`
 
-### <a name="L2GasPriceSuggester_DefaultGasPriceWei"></a>12.2. Property `root > L2GasPriceSuggester > DefaultGasPriceWei`
+#### Example setting the default value ("follower")
+```
+[L2GasPriceSuggester]
+Type="follower"
+```
 
-|              |              |
-| ------------ | ------------ |
-| **Type**     | `integer`    |
-| **Required** | No           |
-| **Default**  | `2000000000` |
+### <a name="L2GasPriceSuggester_DefaultGasPriceWei"></a>12.2. `L2GasPriceSuggester.DefaultGasPriceWei`
 
-### <a name="L2GasPriceSuggester_MaxPrice"></a>12.3. Property `root > L2GasPriceSuggester > MaxPrice`
+**Default:** `2000000000`
 
-|                           |                                                                           |
-| ------------------------- | ------------------------------------------------------------------------- |
-| **Type**                  | `object`                                                                  |
-| **Required**              | No                                                                        |
-| **Additional properties** | [[Any type: allowed]](# "Additional Properties of any type are allowed.") |
+#### Example setting the default value (2000000000)
+```
+[L2GasPriceSuggester]
+DefaultGasPriceWei=2000000000
+```
 
-### <a name="L2GasPriceSuggester_IgnorePrice"></a>12.4. Property `root > L2GasPriceSuggester > IgnorePrice`
+### <a name="L2GasPriceSuggester_MaxPrice"></a>12.3. `[L2GasPriceSuggester.MaxPrice]`
 
-|                           |                                                                           |
-| ------------------------- | ------------------------------------------------------------------------- |
-| **Type**                  | `object`                                                                  |
-| **Required**              | No                                                                        |
-| **Additional properties** | [[Any type: allowed]](# "Additional Properties of any type are allowed.") |
+### <a name="L2GasPriceSuggester_IgnorePrice"></a>12.4. `[L2GasPriceSuggester.IgnorePrice]`
 
-### <a name="L2GasPriceSuggester_CheckBlocks"></a>12.5. Property `root > L2GasPriceSuggester > CheckBlocks`
+### <a name="L2GasPriceSuggester_CheckBlocks"></a>12.5. `L2GasPriceSuggester.CheckBlocks`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `0`       |
+**Default:** `0`
 
-### <a name="L2GasPriceSuggester_Percentile"></a>12.6. Property `root > L2GasPriceSuggester > Percentile`
+#### Example setting the default value (0)
+```
+[L2GasPriceSuggester]
+CheckBlocks=0
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `0`       |
+### <a name="L2GasPriceSuggester_Percentile"></a>12.6. `L2GasPriceSuggester.Percentile`
 
-### <a name="L2GasPriceSuggester_UpdatePeriod"></a>12.7. Property `root > L2GasPriceSuggester > UpdatePeriod`
+**Default:** `0`
+
+#### Example setting the default value (0)
+```
+[L2GasPriceSuggester]
+Percentile=0
+```
+
+### <a name="L2GasPriceSuggester_UpdatePeriod"></a>12.7. `L2GasPriceSuggester.UpdatePeriod`
 
 **Title:** Duration
 
-|              |                             |
-| ------------ | --------------------------- |
-| **Type**     | `string`                    |
-| **Required** | No                          |
-| **Default**  | `{"Duration": 10000000000}` |
+**Default:** `{"Duration": 10000000000}`
 
 **Examples:** 
 
@@ -2161,15 +2024,11 @@ allowed to be cleared.
 "300ms"
 ```
 
-### <a name="L2GasPriceSuggester_CleanHistoryPeriod"></a>12.8. Property `root > L2GasPriceSuggester > CleanHistoryPeriod`
+### <a name="L2GasPriceSuggester_CleanHistoryPeriod"></a>12.8. `L2GasPriceSuggester.CleanHistoryPeriod`
 
 **Title:** Duration
 
-|              |                               |
-| ------------ | ----------------------------- |
-| **Type**     | `string`                      |
-| **Required** | No                            |
-| **Default**  | `{"Duration": 3600000000000}` |
+**Default:** `{"Duration": 3600000000000}`
 
 **Examples:** 
 
@@ -2181,15 +2040,11 @@ allowed to be cleared.
 "300ms"
 ```
 
-### <a name="L2GasPriceSuggester_CleanHistoryTimeRetention"></a>12.9. Property `root > L2GasPriceSuggester > CleanHistoryTimeRetention`
+### <a name="L2GasPriceSuggester_CleanHistoryTimeRetention"></a>12.9. `L2GasPriceSuggester.CleanHistoryTimeRetention`
 
 **Title:** Duration
 
-|              |                              |
-| ------------ | ---------------------------- |
-| **Type**     | `string`                     |
-| **Required** | No                           |
-| **Default**  | `{"Duration": 300000000000}` |
+**Default:** `{"Duration": 300000000000}`
 
 **Examples:** 
 
@@ -2201,21 +2056,17 @@ allowed to be cleared.
 "300ms"
 ```
 
-### <a name="L2GasPriceSuggester_Factor"></a>12.10. Property `root > L2GasPriceSuggester > Factor`
+### <a name="L2GasPriceSuggester_Factor"></a>12.10. `L2GasPriceSuggester.Factor`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `number` |
-| **Required** | No       |
-| **Default**  | `0.15`   |
+**Default:** `0.15`
 
-## <a name="Executor"></a>13. Property `root > Executor`
+#### Example setting the default value (0.15)
+```
+[L2GasPriceSuggester]
+Factor=0.15
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="Executor"></a>13. `[Executor]`
 
 | Property                                                                  | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                       |
 | ------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -2224,34 +2075,32 @@ allowed to be cleared.
 | - [WaitOnResourceExhaustion](#Executor_WaitOnResourceExhaustion )         | No      | string  | No         | -          | Duration                                                                                                                |
 | - [MaxGRPCMessageSize](#Executor_MaxGRPCMessageSize )                     | No      | integer | No         | -          | -                                                                                                                       |
 
-### <a name="Executor_URI"></a>13.1. Property `root > Executor > URI`
+### <a name="Executor_URI"></a>13.1. `Executor.URI`
 
-|              |                        |
-| ------------ | ---------------------- |
-| **Type**     | `string`               |
-| **Required** | No                     |
-| **Default**  | `"zkevm-prover:50071"` |
+**Default:** `"zkevm-prover:50071"`
 
-### <a name="Executor_MaxResourceExhaustedAttempts"></a>13.2. Property `root > Executor > MaxResourceExhaustedAttempts`
+#### Example setting the default value ("zkevm-prover:50071")
+```
+[Executor]
+URI="zkevm-prover:50071"
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `3`       |
+### <a name="Executor_MaxResourceExhaustedAttempts"></a>13.2. `Executor.MaxResourceExhaustedAttempts`
 
+**Default:** `3`
 **Description:** MaxResourceExhaustedAttempts is the max number of attempts to make a transaction succeed because of resource exhaustion
 
-### <a name="Executor_WaitOnResourceExhaustion"></a>13.3. Property `root > Executor > WaitOnResourceExhaustion`
+#### Example setting the default value (3)
+```
+[Executor]
+MaxResourceExhaustedAttempts=3
+```
+
+### <a name="Executor_WaitOnResourceExhaustion"></a>13.3. `Executor.WaitOnResourceExhaustion`
 
 **Title:** Duration
 
-|              |                            |
-| ------------ | -------------------------- |
-| **Type**     | `string`                   |
-| **Required** | No                         |
-| **Default**  | `{"Duration": 1000000000}` |
-
+**Default:** `{"Duration": 1000000000}`
 **Description:** WaitOnResourceExhaustion is the time to wait before retrying a transaction because of resource exhaustion
 
 **Examples:** 
@@ -2264,43 +2113,34 @@ allowed to be cleared.
 "300ms"
 ```
 
-### <a name="Executor_MaxGRPCMessageSize"></a>13.4. Property `root > Executor > MaxGRPCMessageSize`
+### <a name="Executor_MaxGRPCMessageSize"></a>13.4. `Executor.MaxGRPCMessageSize`
 
-|              |             |
-| ------------ | ----------- |
-| **Type**     | `integer`   |
-| **Required** | No          |
-| **Default**  | `100000000` |
+**Default:** `100000000`
 
-## <a name="MTClient"></a>14. Property `root > MTClient`
+#### Example setting the default value (100000000)
+```
+[Executor]
+MaxGRPCMessageSize=100000000
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="MTClient"></a>14. `[MTClient]`
 
 | Property                | Pattern | Type   | Deprecated | Definition | Title/Description      |
 | ----------------------- | ------- | ------ | ---------- | ---------- | ---------------------- |
 | - [URI](#MTClient_URI ) | No      | string | No         | -          | URI is the server URI. |
 
-### <a name="MTClient_URI"></a>14.1. Property `root > MTClient > URI`
+### <a name="MTClient_URI"></a>14.1. `MTClient.URI`
 
-|              |                        |
-| ------------ | ---------------------- |
-| **Type**     | `string`               |
-| **Required** | No                     |
-| **Default**  | `"zkevm-prover:50061"` |
-
+**Default:** `"zkevm-prover:50061"`
 **Description:** URI is the server URI.
 
-## <a name="StateDB"></a>15. Property `root > StateDB`
+#### Example setting the default value ("zkevm-prover:50061")
+```
+[MTClient]
+URI="zkevm-prover:50061"
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="StateDB"></a>15. `[StateDB]`
 
 | Property                           | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
 | ---------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
@@ -2312,83 +2152,84 @@ allowed to be cleared.
 | - [EnableLog](#StateDB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#StateDB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-### <a name="StateDB_Name"></a>15.1. Property `root > StateDB > Name`
+### <a name="StateDB_Name"></a>15.1. `StateDB.Name`
 
-|              |              |
-| ------------ | ------------ |
-| **Type**     | `string`     |
-| **Required** | No           |
-| **Default**  | `"state_db"` |
-
+**Default:** `"state_db"`
 **Description:** Database name
 
-### <a name="StateDB_User"></a>15.2. Property `root > StateDB > User`
+#### Example setting the default value ("state_db")
+```
+[StateDB]
+Name="state_db"
+```
 
-|              |                |
-| ------------ | -------------- |
-| **Type**     | `string`       |
-| **Required** | No             |
-| **Default**  | `"state_user"` |
+### <a name="StateDB_User"></a>15.2. `StateDB.User`
 
+**Default:** `"state_user"`
 **Description:** User name
 
-### <a name="StateDB_Password"></a>15.3. Property `root > StateDB > Password`
+#### Example setting the default value ("state_user")
+```
+[StateDB]
+User="state_user"
+```
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `string`           |
-| **Required** | No                 |
-| **Default**  | `"state_password"` |
+### <a name="StateDB_Password"></a>15.3. `StateDB.Password`
 
+**Default:** `"state_password"`
 **Description:** Password of the user
 
-### <a name="StateDB_Host"></a>15.4. Property `root > StateDB > Host`
+#### Example setting the default value ("state_password")
+```
+[StateDB]
+Password="state_password"
+```
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `string`           |
-| **Required** | No                 |
-| **Default**  | `"zkevm-state-db"` |
+### <a name="StateDB_Host"></a>15.4. `StateDB.Host`
 
+**Default:** `"zkevm-state-db"`
 **Description:** Host address
 
-### <a name="StateDB_Port"></a>15.5. Property `root > StateDB > Port`
+#### Example setting the default value ("zkevm-state-db")
+```
+[StateDB]
+Host="zkevm-state-db"
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `"5432"` |
+### <a name="StateDB_Port"></a>15.5. `StateDB.Port`
 
+**Default:** `"5432"`
 **Description:** Port Number
 
-### <a name="StateDB_EnableLog"></a>15.6. Property `root > StateDB > EnableLog`
+#### Example setting the default value ("5432")
+```
+[StateDB]
+Port="5432"
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `boolean` |
-| **Required** | No        |
-| **Default**  | `false`   |
+### <a name="StateDB_EnableLog"></a>15.6. `StateDB.EnableLog`
 
+**Default:** `false`
 **Description:** EnableLog
 
-### <a name="StateDB_MaxConns"></a>15.7. Property `root > StateDB > MaxConns`
+#### Example setting the default value (false)
+```
+[StateDB]
+EnableLog=false
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `200`     |
+### <a name="StateDB_MaxConns"></a>15.7. `StateDB.MaxConns`
 
+**Default:** `200`
 **Description:** MaxConns is the maximum number of connections in the pool.
 
-## <a name="Metrics"></a>16. Property `root > Metrics`
+#### Example setting the default value (200)
+```
+[StateDB]
+MaxConns=200
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="Metrics"></a>16. `[Metrics]`
 
 | Property                                         | Pattern | Type    | Deprecated | Definition | Title/Description |
 | ------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------- |
@@ -2399,73 +2240,73 @@ allowed to be cleared.
 | - [ProfilingPort](#Metrics_ProfilingPort )       | No      | integer | No         | -          | -                 |
 | - [ProfilingEnabled](#Metrics_ProfilingEnabled ) | No      | boolean | No         | -          | -                 |
 
-### <a name="Metrics_Host"></a>16.1. Property `root > Metrics > Host`
+### <a name="Metrics_Host"></a>16.1. `Metrics.Host`
 
-|              |             |
-| ------------ | ----------- |
-| **Type**     | `string`    |
-| **Required** | No          |
-| **Default**  | `"0.0.0.0"` |
+**Default:** `"0.0.0.0"`
 
-### <a name="Metrics_Port"></a>16.2. Property `root > Metrics > Port`
+#### Example setting the default value ("0.0.0.0")
+```
+[Metrics]
+Host="0.0.0.0"
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `9091`    |
+### <a name="Metrics_Port"></a>16.2. `Metrics.Port`
 
-### <a name="Metrics_Enabled"></a>16.3. Property `root > Metrics > Enabled`
+**Default:** `9091`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `boolean` |
-| **Required** | No        |
-| **Default**  | `false`   |
+#### Example setting the default value (9091)
+```
+[Metrics]
+Port=9091
+```
 
-### <a name="Metrics_ProfilingHost"></a>16.4. Property `root > Metrics > ProfilingHost`
+### <a name="Metrics_Enabled"></a>16.3. `Metrics.Enabled`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+**Default:** `false`
 
-### <a name="Metrics_ProfilingPort"></a>16.5. Property `root > Metrics > ProfilingPort`
+#### Example setting the default value (false)
+```
+[Metrics]
+Enabled=false
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `0`       |
+### <a name="Metrics_ProfilingHost"></a>16.4. `Metrics.ProfilingHost`
 
-### <a name="Metrics_ProfilingEnabled"></a>16.6. Property `root > Metrics > ProfilingEnabled`
+**Default:** `""`
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `boolean` |
-| **Required** | No        |
-| **Default**  | `false`   |
+#### Example setting the default value ("")
+```
+[Metrics]
+ProfilingHost=""
+```
 
-## <a name="EventLog"></a>17. Property `root > EventLog`
+### <a name="Metrics_ProfilingPort"></a>16.5. `Metrics.ProfilingPort`
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+**Default:** `0`
+
+#### Example setting the default value (0)
+```
+[Metrics]
+ProfilingPort=0
+```
+
+### <a name="Metrics_ProfilingEnabled"></a>16.6. `Metrics.ProfilingEnabled`
+
+**Default:** `false`
+
+#### Example setting the default value (false)
+```
+[Metrics]
+ProfilingEnabled=false
+```
+
+## <a name="EventLog"></a>17. `[EventLog]`
 
 | Property              | Pattern | Type   | Deprecated | Definition | Title/Description                |
 | --------------------- | ------- | ------ | ---------- | ---------- | -------------------------------- |
 | - [DB](#EventLog_DB ) | No      | object | No         | -          | DB is the database configuration |
 
-### <a name="EventLog_DB"></a>17.1. Property `root > EventLog > DB`
-
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+### <a name="EventLog_DB"></a>17.1. `[EventLog.DB]`
 
 **Description:** DB is the database configuration
 
@@ -2479,83 +2320,84 @@ allowed to be cleared.
 | - [EnableLog](#EventLog_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#EventLog_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-#### <a name="EventLog_DB_Name"></a>17.1.1. Property `root > EventLog > DB > Name`
+#### <a name="EventLog_DB_Name"></a>17.1.1. `EventLog.DB.Name`
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
-
+**Default:** `""`
 **Description:** Database name
 
-#### <a name="EventLog_DB_User"></a>17.1.2. Property `root > EventLog > DB > User`
+#### Example setting the default value ("")
+```
+[EventLog.DB]
+Name=""
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+#### <a name="EventLog_DB_User"></a>17.1.2. `EventLog.DB.User`
 
+**Default:** `""`
 **Description:** User name
 
-#### <a name="EventLog_DB_Password"></a>17.1.3. Property `root > EventLog > DB > Password`
+#### Example setting the default value ("")
+```
+[EventLog.DB]
+User=""
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+#### <a name="EventLog_DB_Password"></a>17.1.3. `EventLog.DB.Password`
 
+**Default:** `""`
 **Description:** Password of the user
 
-#### <a name="EventLog_DB_Host"></a>17.1.4. Property `root > EventLog > DB > Host`
+#### Example setting the default value ("")
+```
+[EventLog.DB]
+Password=""
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+#### <a name="EventLog_DB_Host"></a>17.1.4. `EventLog.DB.Host`
 
+**Default:** `""`
 **Description:** Host address
 
-#### <a name="EventLog_DB_Port"></a>17.1.5. Property `root > EventLog > DB > Port`
+#### Example setting the default value ("")
+```
+[EventLog.DB]
+Host=""
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `""`     |
+#### <a name="EventLog_DB_Port"></a>17.1.5. `EventLog.DB.Port`
 
+**Default:** `""`
 **Description:** Port Number
 
-#### <a name="EventLog_DB_EnableLog"></a>17.1.6. Property `root > EventLog > DB > EnableLog`
+#### Example setting the default value ("")
+```
+[EventLog.DB]
+Port=""
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `boolean` |
-| **Required** | No        |
-| **Default**  | `false`   |
+#### <a name="EventLog_DB_EnableLog"></a>17.1.6. `EventLog.DB.EnableLog`
 
+**Default:** `false`
 **Description:** EnableLog
 
-#### <a name="EventLog_DB_MaxConns"></a>17.1.7. Property `root > EventLog > DB > MaxConns`
+#### Example setting the default value (false)
+```
+[EventLog.DB]
+EnableLog=false
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `0`       |
+#### <a name="EventLog_DB_MaxConns"></a>17.1.7. `EventLog.DB.MaxConns`
 
+**Default:** `0`
 **Description:** MaxConns is the maximum number of connections in the pool.
 
-## <a name="HashDB"></a>18. Property `root > HashDB`
+#### Example setting the default value (0)
+```
+[EventLog.DB]
+MaxConns=0
+```
 
-|                           |                                                         |
-| ------------------------- | ------------------------------------------------------- |
-| **Type**                  | `object`                                                |
-| **Required**              | No                                                      |
-| **Additional properties** | [[Not allowed]](# "Additional Properties not allowed.") |
+## <a name="HashDB"></a>18. `[HashDB]`
 
 | Property                          | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
 | --------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
@@ -2567,75 +2409,82 @@ allowed to be cleared.
 | - [EnableLog](#HashDB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#HashDB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-### <a name="HashDB_Name"></a>18.1. Property `root > HashDB > Name`
+### <a name="HashDB_Name"></a>18.1. `HashDB.Name`
 
-|              |               |
-| ------------ | ------------- |
-| **Type**     | `string`      |
-| **Required** | No            |
-| **Default**  | `"prover_db"` |
-
+**Default:** `"prover_db"`
 **Description:** Database name
 
-### <a name="HashDB_User"></a>18.2. Property `root > HashDB > User`
+#### Example setting the default value ("prover_db")
+```
+[HashDB]
+Name="prover_db"
+```
 
-|              |                 |
-| ------------ | --------------- |
-| **Type**     | `string`        |
-| **Required** | No              |
-| **Default**  | `"prover_user"` |
+### <a name="HashDB_User"></a>18.2. `HashDB.User`
 
+**Default:** `"prover_user"`
 **Description:** User name
 
-### <a name="HashDB_Password"></a>18.3. Property `root > HashDB > Password`
+#### Example setting the default value ("prover_user")
+```
+[HashDB]
+User="prover_user"
+```
 
-|              |                 |
-| ------------ | --------------- |
-| **Type**     | `string`        |
-| **Required** | No              |
-| **Default**  | `"prover_pass"` |
+### <a name="HashDB_Password"></a>18.3. `HashDB.Password`
 
+**Default:** `"prover_pass"`
 **Description:** Password of the user
 
-### <a name="HashDB_Host"></a>18.4. Property `root > HashDB > Host`
+#### Example setting the default value ("prover_pass")
+```
+[HashDB]
+Password="prover_pass"
+```
 
-|              |                    |
-| ------------ | ------------------ |
-| **Type**     | `string`           |
-| **Required** | No                 |
-| **Default**  | `"zkevm-state-db"` |
+### <a name="HashDB_Host"></a>18.4. `HashDB.Host`
 
+**Default:** `"zkevm-state-db"`
 **Description:** Host address
 
-### <a name="HashDB_Port"></a>18.5. Property `root > HashDB > Port`
+#### Example setting the default value ("zkevm-state-db")
+```
+[HashDB]
+Host="zkevm-state-db"
+```
 
-|              |          |
-| ------------ | -------- |
-| **Type**     | `string` |
-| **Required** | No       |
-| **Default**  | `"5432"` |
+### <a name="HashDB_Port"></a>18.5. `HashDB.Port`
 
+**Default:** `"5432"`
 **Description:** Port Number
 
-### <a name="HashDB_EnableLog"></a>18.6. Property `root > HashDB > EnableLog`
+#### Example setting the default value ("5432")
+```
+[HashDB]
+Port="5432"
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `boolean` |
-| **Required** | No        |
-| **Default**  | `false`   |
+### <a name="HashDB_EnableLog"></a>18.6. `HashDB.EnableLog`
 
+**Default:** `false`
 **Description:** EnableLog
 
-### <a name="HashDB_MaxConns"></a>18.7. Property `root > HashDB > MaxConns`
+#### Example setting the default value (false)
+```
+[HashDB]
+EnableLog=false
+```
 
-|              |           |
-| ------------ | --------- |
-| **Type**     | `integer` |
-| **Required** | No        |
-| **Default**  | `200`     |
+### <a name="HashDB_MaxConns"></a>18.7. `HashDB.MaxConns`
 
+**Default:** `200`
 **Description:** MaxConns is the maximum number of connections in the pool.
+
+#### Example setting the default value (200)
+```
+[HashDB]
+MaxConns=200
+```
 
 ----------------------------------------------------------------------------------------------------------------------------
 Generated using [json-schema-for-humans](https://github.com/coveooss/json-schema-for-humans)
