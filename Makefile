@@ -79,7 +79,7 @@ config-doc-gen: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema  an
 	go run ./cmd generate-json-schema --output=docs/config-file/config-schema.json
 	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true --config footer_show_time=false --config expand_buttons=true --config custom_template_path=docs/config-file/templates/js/base.html docs/config-file/config-schema.json docs/config-file/config-doc.html
 	#generate-schema-doc --config show_breadcrumbs=true --config footer_show_time=false --config expand_buttons=true   docs/config-file/config-schema.json docs/config-file/config-doc-reference.html
-	#generate-schema-doc  --config custom_template_path=docs/config-file/templates/md/base.md --config footer_show_time=false docs/config-file/config-schema.json docs/config-file/config-doc.md
+	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=docs/config-file/templates/md/base.md --config footer_show_time=false docs/config-file/config-schema.json docs/config-file/config-doc.md
 
 .PHONY: update-external-dependencies
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files

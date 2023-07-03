@@ -79,7 +79,6 @@ func TestGenerateJsonSchemaCommentsWithMultiplesLines(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 1234, v.Default)
 	require.NotEmpty(t, v.Description)
-
 }
 
 // This test is just to check what is the behaviour of reading a file
@@ -154,7 +153,6 @@ func TestGenerateJsonSchemaCustomWithNameChangingUsingMapstrucutMustPanic(t *tes
 		_, err := generator.GenerateJsonSchema(cli)
 		require.NoError(t, err)
 	})
-
 }
 
 // This case is a field that is mapped with another name in the json file
@@ -196,7 +194,6 @@ func TestGenerateJsonSchemaCustomSetDefault(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, schema)
 	checkDefaultValue(t, schema, []string{"F1"}, "defaultf1")
-
 }
 
 func TestGenerateJsonSchemaInjectDefaultValue1stLevel(t *testing.T) {
