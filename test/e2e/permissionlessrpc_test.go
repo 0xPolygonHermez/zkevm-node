@@ -10,6 +10,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum"
@@ -115,7 +116,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 		operations.PermissionlessL2NetworkURL,
 	)
 	require.NoError(t, err)
-	sqlDB, err := db.NewSQLDB(db.Config{
+	sqlDBPless, err := db.NewSQLDB(db.Config{
 		User:      testutils.GetEnv("PERMISSIONLESSPGUSER", "test_user"),
 		Password:  testutils.GetEnv("PERMISSIONLESSPGPASSWORD", "test_password"),
 		Name:      testutils.GetEnv("PERMISSIONLESSPGDATABASE", "state_db"),
@@ -125,8 +126,10 @@ func TestPermissionlessJRPC(t *testing.T) {
 		MaxConns:  4,
 	})
 	require.NoError(t, err)
+	sqlDBTrusted, err := db.NewSQLDB(dbutils.NewStateConfigFromEnv())
+	require.NoError(t, err)
 	const isThereL2ReorgQuery = "SELECT COUNT(*) > 0 FROM state.trusted_reorg;"
-	row := sqlDB.QueryRow(context.Background(), isThereL2ReorgQuery)
+	row := sqlDBPless.QueryRow(context.Background(), isThereL2ReorgQuery)
 	isThereL2Reorg := true
 	require.NoError(t, row.Scan(&isThereL2Reorg))
 	require.False(t, isThereL2Reorg)
@@ -148,20 +151,28 @@ func TestPermissionlessJRPC(t *testing.T) {
 			log.Infof("trustless is at block %d, waiting to reach %d", blockNumLess, blockNum)
 		}
 	}
-	for i := 0; i <= int(blockNum); i++ {
+	const timestampQuery = "select floor(extract(epoch from timestamp))::integer from state.batch b inner join state.l2block l on b.batch_num = l.batch_num where l.block_num = $1;"
+	for i := 1; i <= int(blockNum); i++ {
 		blockNumBig = big.NewInt(int64(i))
 		expectedBlock, err := clientTrusted.BlockByNumber(ctx, blockNumBig)
 		require.NoError(t, err)
 		actualBlock, err := client.BlockByNumber(ctx, blockNumBig)
 		require.NoError(t, err)
 		atBlockStr := fmt.Sprintf("missmatch at L2 block %d", i)
-		// assert.Equal(
-		// 	t, expectedBlock.Header().Root.Hex(), actualBlock.Header().Root.Hex(),
-		// 	atBlockStr,
-		// )
 		assert.Equal(
 			t, expectedBlock.Header().Time, actualBlock.Header().Time,
 			atBlockStr,
+		)
+
+		row := sqlDBPless.QueryRow(context.Background(), timestampQuery, i)
+		var timestampFromPlessDB uint64
+		require.NoError(t, row.Scan(&timestampFromPlessDB))
+		row = sqlDBTrusted.QueryRow(context.Background(), timestampQuery, i)
+		var timestampFromTrustedDB uint64
+		require.NoError(t, row.Scan(&timestampFromTrustedDB))
+		log.Infof(
+			"Block %d. Timestamp trusted-RPC: %d, pless-RPC: %d, trusted-DB: %d, pless-DB: %d",
+			i, expectedBlock.Header().Time, actualBlock.Header().Time, timestampFromTrustedDB, timestampFromPlessDB,
 		)
 		// assert.Equal(
 		// 	t, expectedBlock.Header().ReceiptHash.Hex(), actualBlock.Header().ReceiptHash.Hex(),
@@ -175,4 +186,5 @@ func TestPermissionlessJRPC(t *testing.T) {
 		// log.Info(string(ja))
 		// assert.Equal(t, string(je), string(ja))
 	}
+	log.Info("done")
 }
