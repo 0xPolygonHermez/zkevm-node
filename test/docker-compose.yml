@@ -415,6 +415,7 @@ services:
       - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
       - ZKEVM_NODE_MTCLIENT_URI=zkevm-permissionless-prover:50061
       - ZKEVM_NODE_EXECUTOR_URI=zkevm-permissionless-prover:50071
+      # - ZKEVM_NODE_SYNCHRONIZER_TRUSTEDSEQUENCERURL=http://you-cant-touch-this:8123
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
