@@ -30,7 +30,8 @@ const mainnet network = "mainnet"
 const testnet network = "testnet"
 const custom network = "custom"
 
-type genesisFromJSON struct {
+// GenesisFromJSON is the config file for network_custom
+type GenesisFromJSON struct {
 	Root            string                   `json:"root"`
 	GenesisBlockNum uint64                   `json:"genesisBlockNumber"`
 	Genesis         []genesisAccountFromJSON `json:"genesis"`
@@ -96,7 +97,7 @@ func loadGenesisFileAsString(ctx *cli.Context) (string, error) {
 func loadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 	var cfg NetworkConfig
 
-	var cfgJSON genesisFromJSON
+	var cfgJSON GenesisFromJSON
 	if err := json.Unmarshal([]byte(jsonStr), &cfgJSON); err != nil {
 		return NetworkConfig{}, err
 	}

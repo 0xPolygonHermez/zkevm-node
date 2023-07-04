@@ -1,0 +1,80 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "github.com/0xPolygonHermez/zkevm-node/config/config",
+	"properties": {
+		"root": {
+			"type": "string"
+		},
+		"genesisBlockNumber": {
+			"type": "integer"
+		},
+		"genesis": {
+			"items": {
+				"properties": {
+					"balance": {
+						"type": "string"
+					},
+					"nonce": {
+						"type": "string"
+					},
+					"address": {
+						"type": "string"
+					},
+					"bytecode": {
+						"type": "string"
+					},
+					"storage": {
+						"patternProperties": {
+							".*": {
+								"type": "string"
+							}
+						},
+						"type": "object"
+					},
+					"contractName": {
+						"type": "string"
+					}
+				},
+				"additionalProperties": false,
+				"type": "object"
+			},
+			"type": "array"
+		},
+		"L1Config": {
+			"properties": {
+				"chainId": {
+					"type": "integer"
+				},
+				"polygonZkEVMAddress": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20
+				},
+				"maticTokenAddress": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20
+				},
+				"polygonZkEVMGlobalExitRootAddress": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	},
+	"additionalProperties": false,
+	"type": "object",
+	"description": "GenesisFromJSON is the config file for network_custom"
+}

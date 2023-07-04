@@ -1,0 +1,10 @@
+<div class="breadcrumbs">
+{% set my_string = [] %}
+{%- for node in schema.nodes_from_root -%}    
+        {%- if not loop.first -%}
+            <!-- {{ my_string.append(node.name_for_breadcrumbs) }} -->
+        {%- endif -%}
+{%- endfor -%}
+<a href="#{{ my_string|join('.') }}" onclick="anchorLink('{{ my_string|join('.') }}')">{{ my_string|join('.') }}=</a>
+
+</div>
