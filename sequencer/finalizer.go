@@ -176,11 +176,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
-			// Timestamp resolution
-			if f.batch.isEmpty() {
-				f.batch.timestamp = now()
-			}
-
 			f.sharedResourcesMux.Lock()
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
 			_, err := f.processTransaction(ctx, tx)
