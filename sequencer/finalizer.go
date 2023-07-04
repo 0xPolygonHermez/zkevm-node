@@ -263,7 +263,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
 
-			// reset the count of effective GasPrice process attemps (since the tx may have been tried to be processed before)
+			// reset the count of effective GasPrice process attempts (since the tx may have been tried to be processed before)
 			tx.EffectiveGasPriceProcessCount = 0
 
 			f.sharedResourcesMux.Lock()
