@@ -20,9 +20,10 @@ This file is used for trusted and for permisionless nodes. In the case of permis
 
 
 ### Network Genesis Config
-This contain all the info information relating to the genesis of the network (e.g. contracts, etc..)
+This file is a [JSON](https://en.wikipedia.org/wiki/JSON) formatted file. 
+This contain all the info information relating to the relation between L1 and L2 network's (e.g. contracts, etc..) also known as genesis file
 
-You could find some examples here: 
+You could find an example here: 
 - `config/environments/local/local.genesis.config.json`:
 
 For details about the contents you can read specifications [here](config-file/custom_network-config-doc.md)
