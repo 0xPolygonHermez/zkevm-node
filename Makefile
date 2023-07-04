@@ -74,8 +74,12 @@ $(GENERATE_SCHEMA_DOC): $(VENV_PYTHON)
 	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install json-schema-for-humans
 
-.PHONY: config-doc-gen
-config-doc-gen: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema  and the HTML documentation
+PHONY: config-doc-gen
+config-doc-gen: config-doc-node config-doc-custom_network ## Generate config file's json-schema for node and custom_network  and documentation
+	#
+
+.PHONY: config-doc-node
+config-doc-node: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema for node and documentation
 	go run ./cmd generate-json-schema --config-file=node --output=docs/config-file/node-config-schema.json
 	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true \
 							--config footer_show_time=false \
@@ -87,6 +91,9 @@ config-doc-gen: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema  an
 							--config footer_show_time=false \
 							docs/config-file/node-config-schema.json \
 							docs/config-file/node-config-doc.md
+
+.PHONY: config-doc-custom_network
+config-doc-custom_network: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema for custom_network and documentation
 	go run ./cmd generate-json-schema --config-file=custom_network --output=docs/config-file/custom_network-config-schema.json
 	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true --config footer_show_time=false \
 							--config expand_buttons=true \
@@ -95,6 +102,7 @@ config-doc-gen: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema  an
 							docs/config-file/genesis-config-doc.html
 	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=docs/config-file/templates/md/base.md \
 							--config footer_show_time=false \
+							--config example_format=JSON \
 							docs/config-file/custom_network-config-schema.json \
 							docs/config-file/custom_network-config-doc.md
 	
