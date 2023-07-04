@@ -708,26 +708,30 @@ func TestGasPrice(t *testing.T) {
 	defer s.Stop()
 
 	testCases := []struct {
-		name             string
-		gasPrice         uint64
-		error            error
-		expectedGasPrice uint64
+		name               string
+		gasPrice           uint64
+		error              error
+		expectedL2GasPrice uint64
+		expectedL1GasPrice uint64
 	}{
-		{"GasPrice nil", 0, nil, 0},
-		{"GasPrice with value", 50, nil, 50},
-		{"failed to get gas price", 50, errors.New("failed to get gas price"), 0},
+		{"GasPrice nil", 0, nil, 0, 0},
+		{"GasPrice with value", 50, nil, 50, 100},
+		{"failed to get gas price", 50, errors.New("failed to get gas price"), 0, 0},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			m.Pool.
-				On("GetGasPrice", context.Background()).
-				Return(testCase.gasPrice, testCase.error).
+				On("GetGasPrices", context.Background()).
+				Return(pool.GasPrices{
+					L2GasPrice: testCase.gasPrice,
+					L1GasPrice: testCase.gasPrice,
+				}, testCase.error).
 				Once()
 
-			gasPrice, err := c.SuggestGasPrice(context.Background())
+			gasPrices, err := c.SuggestGasPrice(context.Background())
 			require.NoError(t, err)
-			assert.Equal(t, testCase.expectedGasPrice, gasPrice.Uint64())
+			assert.Equal(t, testCase.expectedL2GasPrice, gasPrices.Uint64())
 		})
 	}
 }

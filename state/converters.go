@@ -75,10 +75,13 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 		UsedZkCounters:       convertToCounters(response),
 		Responses:            responses,
 		ExecutorError:        executor.ExecutorErr(response.Error),
+		ReadWriteAddresses:   readWriteAddresses,
+		FlushID:              response.FlushId,
+		StoredFlushID:        response.StoredFlushId,
+		ProverID:             response.ProverId,
 		IsExecutorLevelError: isExecutorLevelError,
 		IsRomLevelError:      isRomLevelError,
 		IsRomOOCError:        isRomOOCError,
-		ReadWriteAddresses:   readWriteAddresses,
 	}, nil
 }
 
@@ -147,6 +150,8 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 			return nil, err
 		}
 		result.CallTrace = *callTrace
+		result.EffectiveGasPrice = response.EffectiveGasPrice
+		result.EffectivePercentage = response.EffectivePercentage
 		result.Tx = txs[i]
 
 		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
@@ -178,6 +183,8 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
 		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
 		log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
+		log.Debugf("ProcessTransactionResponse[EffectiveGasPrice]: %v", result.EffectiveGasPrice)
+		log.Debugf("ProcessTransactionResponse[EffectivePercentage]: %v", result.EffectivePercentage)
 	}
 
 	return results, nil

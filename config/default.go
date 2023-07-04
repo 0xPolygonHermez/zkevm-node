@@ -3,6 +3,8 @@ package config
 // DefaultValues is the default configuration
 const DefaultValues = `
 IsTrustedSequencer = false
+ForkUpgradeBatchNumber = 0
+ForkUpgradeNewForkId = 0
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -20,6 +22,7 @@ MaxConns = 200
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
+IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=100132
 MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
@@ -35,6 +38,10 @@ GlobalQueue = 1024
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
+	[Pool.EffectiveGasPrice]
+	L1GasPriceFactor = 0.25
+	ByteGasCost = 16
+	MarginFactor = 1
 
 [Etherman]
 URL = "http://localhost:8545"
@@ -100,12 +107,15 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
-		TimestampResolution = "10s"	
+		TimestampResolution = "10s"
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
+	[Sequencer.EffectiveGasPrice]
+		MaxBreakEvenGasPriceDeviationPercentage = 10
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "5s"
@@ -117,7 +127,6 @@ PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-ForkId = 2
 RetryTime = "5s"
 VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"

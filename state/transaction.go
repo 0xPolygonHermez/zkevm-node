@@ -183,7 +183,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		receipt.BlockHash = block.Hash()
 
 		// Store L2 block and its transaction
-		if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
+		if err := s.AddL2Block(ctx, batchNumber, block, receipts, uint8(processedTx.EffectivePercentage), dbTx); err != nil {
 			return err
 		}
 	}
@@ -220,17 +220,13 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	// generate batch l2 data for the transaction
-	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx})
-	if err != nil {
-		return nil, err
-	}
-
 	// gets batch that including the l2 block
 	batch, err := s.GetBatchByL2BlockNumber(ctx, block.NumberU64(), dbTx)
 	if err != nil {
 		return nil, err
 	}
+
+	forkId := s.GetForkIDByBatchNumber(batch.BatchNumber)
 
 	// gets batch that including the previous l2 block
 	previousBatch, err := s.GetBatchByL2BlockNumber(ctx, previousBlock.NumberU64(), dbTx)
@@ -238,7 +234,11 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	forkId := s.GetForkIDByBatchNumber(batch.BatchNumber)
+	// generate batch l2 data for the transaction
+	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx}, []uint8{MaxEffectivePercentage}, forkId)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create Batch
 	traceConfigRequest := &pb.TraceConfig{
@@ -297,7 +297,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	txs, _, err := DecodeTxs(batchL2Data)
+	txs, _, _, err := DecodeTxs(batchL2Data, forkId)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		return nil, err
 	}
@@ -799,7 +799,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
-	forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
+	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber,
@@ -886,7 +886,7 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 	return tx.To() == nil && len(tx.Data()) > 0
 }
 
-// StoreTransaction is used by the sequencer to add process a transaction
+// StoreTransaction is used by the sequencer and trusted state synchronizer to add process a transaction.
 func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
@@ -924,7 +924,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	receipt.BlockHash = block.Hash()
 
 	// Store L2 block and its transaction
-	if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, block, receipts, uint8(processedTx.EffectivePercentage), dbTx); err != nil {
 		return err
 	}
 
@@ -1042,7 +1042,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, false, gasUsed, nil, err
 		}
 
-		forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
+		forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
 		// Create a batch to be sent to the executor
 		processBatchRequest := &pb.ProcessBatchRequest{
 			OldBatchNum:      lastBatch.BatchNumber,

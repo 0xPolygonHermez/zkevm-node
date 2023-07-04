@@ -12,25 +12,30 @@ import (
 
 // TxTracker is a struct that contains all the tx data needed to be managed by the worker
 type TxTracker struct {
-	Hash                   common.Hash
-	HashStr                string
-	From                   common.Address
-	FromStr                string
-	Nonce                  uint64
-	Gas                    uint64 // To check if it fits into a batch
-	GasPrice               *big.Int
-	Cost                   *big.Int             // Cost = Amount + Benefit
-	Benefit                *big.Int             // GasLimit * GasPrice
-	BatchResources         state.BatchResources // To check if it fits into a batch
-	Efficiency             float64
-	RawTx                  []byte
-	ReceivedAt             time.Time // To check if it has been in the efficiency list for too long
-	IP                     string    // IP of the tx sender
-	FailedReason           *string   // FailedReason is the reason why the tx failed, if it failed
-	constraints            batchConstraintsFloat64
-	weightMultipliers      batchResourceWeightMultipliers
-	resourceCostMultiplier float64
-	totalWeight            float64
+	Hash                              common.Hash
+	HashStr                           string
+	From                              common.Address
+	FromStr                           string
+	Nonce                             uint64
+	Gas                               uint64 // To check if it fits into a batch
+	GasPrice                          *big.Int
+	Cost                              *big.Int             // Cost = Amount + Benefit
+	Benefit                           *big.Int             // GasLimit * GasPrice
+	BatchResources                    state.BatchResources // To check if it fits into a batch
+	Efficiency                        float64
+	RawTx                             []byte
+	ReceivedAt                        time.Time // To check if it has been in the efficiency list for too long
+	IP                                string    // IP of the tx sender
+	FailedReason                      *string   // FailedReason is the reason why the tx failed, if it failed
+	Constraints                       batchConstraintsFloat64
+	WeightMultipliers                 batchResourceWeightMultipliers
+	ResourceCostMultiplier            float64
+	TotalWeight                       float64
+	BreakEvenGasPrice                 *big.Int
+	GasPriceEffectivePercentage       uint8
+	EffectiveGasPriceProcessCount     uint8
+	IsEffectiveGasPriceFinalExecution bool
+	L1GasPRice                        uint64
 }
 
 // batchResourceWeightMultipliers is a struct that contains the weight multipliers for each resource
@@ -46,7 +51,7 @@ type batchResourceWeightMultipliers struct {
 	batchBytesSize    float64
 }
 
-// batchConstraints represents the constraints for a batch in float64
+// batchConstraints represents the Constraints for a batch in float64
 type batchConstraintsFloat64 struct {
 	maxTxsPerBatch       float64
 	maxBatchBytesSize    float64
@@ -69,7 +74,8 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints b
 
 	totalWeight := float64(weights.WeightArithmetics + weights.WeightBatchBytesSize + weights.WeightBinaries + weights.WeightCumulativeGasUsed +
 		weights.WeightKeccakHashes + weights.WeightMemAligns + weights.WeightPoseidonHashes + weights.WeightPoseidonPaddings + weights.WeightSteps)
-	rawTx, err := state.EncodeTransactions([]types.Transaction{tx})
+
+	rawTx, err := state.EncodeTransactionWithoutEffectivePercentage(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -87,14 +93,17 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints b
 			Bytes:      tx.Size(),
 			ZKCounters: counters,
 		},
-		Efficiency:             0,
-		RawTx:                  rawTx,
-		ReceivedAt:             time.Now(),
-		IP:                     ip,
-		constraints:            constraints,
-		weightMultipliers:      calculateWeightMultipliers(weights, totalWeight),
-		resourceCostMultiplier: resourceCostMultiplier,
-		totalWeight:            totalWeight,
+		Efficiency:                        0,
+		RawTx:                             rawTx,
+		ReceivedAt:                        time.Now(),
+		IP:                                ip,
+		Constraints:                       constraints,
+		WeightMultipliers:                 calculateWeightMultipliers(weights, totalWeight),
+		ResourceCostMultiplier:            resourceCostMultiplier,
+		TotalWeight:                       totalWeight,
+		BreakEvenGasPrice:                 new(big.Int).SetUint64(0),
+		EffectiveGasPriceProcessCount:     0,
+		IsEffectiveGasPriceFinalExecution: false,
 	}
 	txTracker.calculateEfficiency(constraints, weights)
 
@@ -125,7 +134,7 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraintsFloat64, we
 		(float64(tx.BatchResources.ZKCounters.UsedSteps)/constraints.maxSteps)*float64(weights.WeightSteps)/totalWeight +
 		(float64(tx.BatchResources.Bytes)/constraints.maxBatchBytesSize)*float64(weights.WeightBatchBytesSize)/totalWeight //Meto config
 
-	resourceCost = resourceCost * tx.resourceCostMultiplier
+	resourceCost = resourceCost * tx.ResourceCostMultiplier
 
 	var eff *big.Float
 

@@ -68,10 +68,11 @@ You could find some examples:
 type Config struct {
 	// This define is a trusted node (`true`) or a permission less (`false`). If you don't known
 	// set to `false`
-	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer"`
+	IsTrustedSequencer     bool   `mapstructure:"IsTrustedSequencer"`
+	ForkUpgradeBatchNumber uint64 `mapstructure:"ForkUpgradeBatchNumber"`
+	ForkUpgradeNewForkId   uint64 `mapstructure:"ForkUpgradeNewForkId"`
 	// Configure Log level for all the services, allow also to store the logs in a file
-	Log log.Config
-	// Configure service `Etherman` responsible to interact with L1.
+	Log          log.Config
 	Etherman     etherman.Config
 	EthTxManager ethtxmanager.Config
 	Pool         pool.Config

@@ -559,9 +559,10 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 	var newStateRoot [32]byte
 	copy(newStateRoot[:], inputs.NewStateRoot)
 
-	proof, err := encoding.DecodeBytes(&inputs.FinalProof.Proof)
+	proof, err := convertProof(inputs.FinalProof.Proof)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode proof, err: %w", err)
+		log.Errorf("error converting proof. Error: %v, Proof: %s", err, inputs.FinalProof.Proof)
+		return nil, nil, err
 	}
 
 	const pendStateNum = 0 // TODO hardcoded for now until we implement the pending state feature
@@ -583,6 +584,25 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 	}
 
 	return tx.To(), tx.Data(), nil
+}
+
+func convertProof(p string) ([24][32]byte, error) {
+	if len(p) != 24*32*2+2 {
+		return [24][32]byte{}, fmt.Errorf("invalid proof length. Length: %d", len(p))
+	}
+	p = strings.TrimPrefix(p, "0x")
+	proof := [24][32]byte{}
+	for i := 0; i < 24; i++ {
+		data := p[i*64 : (i+1)*64]
+		p, err := encoding.DecodeBytes(&data)
+		if err != nil {
+			return [24][32]byte{}, fmt.Errorf("failed to decode proof, err: %w", err)
+		}
+		var aux [32]byte
+		copy(aux[:], p)
+		proof[i] = aux
+	}
+	return proof, nil
 }
 
 // GetSendSequenceFee get super/trusted sequencer fee
@@ -994,18 +1014,6 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 // GetL2ChainID returns L2 Chain ID
 func (etherMan *Client) GetL2ChainID() (uint64, error) {
 	return etherMan.ZkEVM.ChainID(&bind.CallOpts{Pending: false})
-}
-
-// GetL2ForkID returns current L2 Fork ID
-func (etherMan *Client) GetL2ForkID() (uint64, error) {
-	// TODO: implement this
-	return 1, nil
-}
-
-// GetL2ForkIDIntervals return L2 Fork ID intervals
-func (etherMan *Client) GetL2ForkIDIntervals() ([]state.ForkIDInterval, error) {
-	// TODO: implement this
-	return []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: 1}}, nil
 }
 
 // GetL1GasPrice gets the l1 gas price

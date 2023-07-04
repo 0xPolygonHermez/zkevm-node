@@ -52,6 +52,32 @@ func (_m *DbManagerMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, err
 	return r0, r1
 }
 
+// CalculateTxBreakEvenGasPrice provides a mock function with given fields: ctx, txDataLength, gasUsed, l1GasPrice
+func (_m *DbManagerMock) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
+	ret := _m.Called(ctx, txDataLength, gasUsed, l1GasPrice)
+
+	var r0 *big.Int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, uint64) (*big.Int, error)); ok {
+		return rf(ctx, txDataLength, gasUsed, l1GasPrice)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, uint64) *big.Int); ok {
+		r0 = rf(ctx, txDataLength, gasUsed, l1GasPrice)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*big.Int)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, uint64) error); ok {
+		r1 = rf(ctx, txDataLength, gasUsed, l1GasPrice)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CloseBatch provides a mock function with given fields: ctx, params
 func (_m *DbManagerMock) CloseBatch(ctx context.Context, params ClosingBatchParameters) error {
 	ret := _m.Called(ctx, params)
@@ -229,6 +255,30 @@ func (_m *DbManagerMock) GetForcedBatchesSince(ctx context.Context, forcedBatchN
 
 	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
 		r1 = rf(ctx, forcedBatchNumber, maxBlockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetGasPrices provides a mock function with given fields: ctx
+func (_m *DbManagerMock) GetGasPrices(ctx context.Context) (pool.GasPrices, error) {
+	ret := _m.Called(ctx)
+
+	var r0 pool.GasPrices
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (pool.GasPrices, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) pool.GasPrices); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(pool.GasPrices)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -469,13 +519,45 @@ func (_m *DbManagerMock) GetLatestVirtualBatchTimestamp(ctx context.Context, dbT
 	return r0, r1
 }
 
+// GetStoredFlushID provides a mock function with given fields: ctx
+func (_m *DbManagerMock) GetStoredFlushID(ctx context.Context) (uint64, string, error) {
+	ret := _m.Called(ctx)
+
+	var r0 uint64
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context) (uint64, string, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) string); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context) error); ok {
+		r2 = rf(ctx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // GetTransactionsByBatchNumber provides a mock function with given fields: ctx, batchNumber
-func (_m *DbManagerMock) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) ([]types.Transaction, error) {
+func (_m *DbManagerMock) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) ([]types.Transaction, []uint8, error) {
 	ret := _m.Called(ctx, batchNumber)
 
 	var r0 []types.Transaction
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) ([]types.Transaction, error)); ok {
+	var r1 []uint8
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) ([]types.Transaction, []uint8, error)); ok {
 		return rf(ctx, batchNumber)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uint64) []types.Transaction); ok {
@@ -486,13 +568,21 @@ func (_m *DbManagerMock) GetTransactionsByBatchNumber(ctx context.Context, batch
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) []uint8); ok {
 		r1 = rf(ctx, batchNumber)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]uint8)
+		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, uint64) error); ok {
+		r2 = rf(ctx, batchNumber)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetWIPBatch provides a mock function with given fields: ctx
@@ -585,13 +675,13 @@ func (_m *DbManagerMock) ProcessForcedBatch(ForcedBatchNumber uint64, request st
 	return r0, r1
 }
 
-// StoreProcessedTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, dbTx
-func (_m *DbManagerMock) StoreProcessedTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+// StoreProcessedTxAndDeleteFromPool provides a mock function with given fields: ctx, tx
+func (_m *DbManagerMock) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error {
+	ret := _m.Called(ctx, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, transactionToStore) error); ok {
+		r0 = rf(ctx, tx)
 	} else {
 		r0 = ret.Error(0)
 	}

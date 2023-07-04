@@ -28,6 +28,8 @@ You could find some examples here:
 
 ### Prover Config
 
+Please check [prover repository](https://github.com/0xPolygonHermez/zkevm-prover)  for further information
+
 Examples: 
  - `config/environments/mainnet/public.prover.config.json`
  - `config/environments/testnet/testnet.prover.config.json`

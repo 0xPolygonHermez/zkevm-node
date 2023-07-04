@@ -57,6 +57,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 		Type:              uint8(tx.Type()),
 		PostState:         state.ZeroHash.Bytes(),
 		CumulativeGasUsed: 0,
+		EffectiveGasPrice: big.NewInt(0),
 		BlockNumber:       blockNumber,
 		GasUsed:           tx.Gas(),
 		TxHash:            tx.Hash(),
@@ -81,7 +82,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
 	receipt.BlockHash = l2Block.Hash()
 
-	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, dbTx)
+	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
 	require.NoError(t, err)
 	result, err := pgStateStorage.BatchNumberByL2BlockNumber(ctx, l2Block.Number().Uint64(), dbTx)
 	require.NoError(t, err)

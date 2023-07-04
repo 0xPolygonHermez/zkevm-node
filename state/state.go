@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -139,4 +140,17 @@ func (s *State) FlushMerkleTree(ctx context.Context) error {
 		return ErrStateTreeNil
 	}
 	return s.tree.Flush(ctx)
+}
+
+// GetStoredFlushID returns the stored flush ID and Prover ID
+func (s *State) GetStoredFlushID(ctx context.Context) (uint64, string, error) {
+	if s.executorClient == nil {
+		return 0, "", ErrExecutorNil
+	}
+	res, err := s.executorClient.GetFlushStatus(ctx, &emptypb.Empty{})
+	if err != nil {
+		return 0, "", err
+	}
+
+	return res.StoredFlushId, res.ProverId, nil
 }

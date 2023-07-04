@@ -179,11 +179,11 @@ func (e *EthEndpoints) GasPrice() (interface{}, types.Error) {
 	if e.cfg.SequencerNodeURI != "" {
 		return e.getPriceFromSequencerNode()
 	}
-	gasPrice, err := e.pool.GetGasPrice(ctx)
+	gasPrices, err := e.pool.GetGasPrices(ctx)
 	if err != nil {
 		return "0x0", nil
 	}
-	return hex.EncodeUint64(gasPrice), nil
+	return hex.EncodeUint64(gasPrices.L2GasPrice), nil
 }
 
 func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {

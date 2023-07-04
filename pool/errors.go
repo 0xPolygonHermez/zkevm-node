@@ -64,4 +64,7 @@ var (
 
 	// ErrGasPrice is returned if the transaction has specified lower gas price than the minimum allowed.
 	ErrGasPrice = errors.New("gas price too low")
+
+	// ErrReceivedZeroL1GasPrice is returned if the L1 gas price is 0.
+	ErrReceivedZeroL1GasPrice = errors.New("received L1 gas price 0")
 )

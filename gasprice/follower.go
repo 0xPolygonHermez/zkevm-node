@@ -13,13 +13,13 @@ import (
 // FollowerGasPrice struct.
 type FollowerGasPrice struct {
 	cfg  Config
-	pool pool
+	pool poolInterface
 	ctx  context.Context
 	eth  ethermanInterface
 }
 
 // newFollowerGasPriceSuggester inits l2 follower gas price suggester which is based on the l1 gas price.
-func newFollowerGasPriceSuggester(ctx context.Context, cfg Config, pool pool, ethMan ethermanInterface) *FollowerGasPrice {
+func newFollowerGasPriceSuggester(ctx context.Context, cfg Config, pool poolInterface, ethMan ethermanInterface) *FollowerGasPrice {
 	gps := &FollowerGasPrice{
 		cfg:  cfg,
 		pool: pool,
@@ -34,14 +34,15 @@ func newFollowerGasPriceSuggester(ctx context.Context, cfg Config, pool pool, et
 func (f *FollowerGasPrice) UpdateGasPriceAvg() {
 	ctx := context.Background()
 	// Get L1 gasprice
-	gp := f.eth.GetL1GasPrice(f.ctx)
-	if big.NewInt(0).Cmp(gp) == 0 {
+	l1GasPrice := f.eth.GetL1GasPrice(f.ctx)
+	if big.NewInt(0).Cmp(l1GasPrice) == 0 {
 		log.Warn("gas price 0 received. Skipping update...")
 		return
 	}
+
 	// Apply factor to calculate l2 gasPrice
 	factor := big.NewFloat(0).SetFloat64(f.cfg.Factor)
-	res := new(big.Float).Mul(factor, big.NewFloat(0).SetInt(gp))
+	res := new(big.Float).Mul(factor, big.NewFloat(0).SetInt(l1GasPrice))
 
 	// Store l2 gasPrice calculated
 	result := new(big.Int)
@@ -67,7 +68,7 @@ func (f *FollowerGasPrice) UpdateGasPriceAvg() {
 	}
 	log.Debug("Storing truncated L2 gas price: ", truncateValue)
 	if truncateValue != nil {
-		err := f.pool.SetGasPrice(ctx, truncateValue.Uint64())
+		err := f.pool.SetGasPrices(ctx, truncateValue.Uint64(), l1GasPrice.Uint64())
 		if err != nil {
 			log.Errorf("failed to update gas price in poolDB, err: %v", err)
 		}

@@ -22,11 +22,12 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
-	"github.com/0xPolygonHermez/zkevm-node/state"
+	state "github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
@@ -61,13 +62,13 @@ var (
 		ForkIDIntervals: []state.ForkIDInterval{{
 			FromBatchNumber: 0,
 			ToBatchNumber:   math.MaxUint64,
-			ForkId:          0,
+			ForkId:          5,
 			Version:         "",
 		}},
 	}
-	forkID                             uint64 = 2
+	forkID                             uint64 = 5
 	executorClient                     executorclientpb.ExecutorServiceClient
-	mtDBServiceClient                  mtDBclientpb.StateDBServiceClient
+	mtDBServiceClient                  mtDBclientpb.HashDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
 	batchResources                     = state.BatchResources{
 		ZKCounters: state.ZKCounters{
@@ -241,7 +242,7 @@ func TestOpenCloseBatch(t *testing.T) {
 		},
 	}
 
-	data, err := state.EncodeTransactions([]types.Transaction{tx1, tx2})
+	data, err := state.EncodeTransactions([]types.Transaction{tx1, tx2}, constants.TwoEffectivePercentages, forkID)
 	require.NoError(t, err)
 	receipt1.BatchL2Data = data
 
@@ -276,7 +277,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	// Get batch #1 from DB and compare with on memory batch
 	actualBatch, err := testState.GetBatchByNumber(ctx, 1, dbTx)
 	require.NoError(t, err)
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{tx1, tx2})
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{tx1, tx2}, constants.TwoEffectivePercentages, forkID)
 	require.NoError(t, err)
 	assertBatch(t, state.Batch{
 		BatchNumber:    1,
@@ -725,6 +726,9 @@ func TestGenesis(t *testing.T) {
 			require.Equal(t, new(big.Int).SetBytes(common.Hex2Bytes(action.Value)), st)
 		}
 	}
+
+	err = testState.GetTree().Flush(ctx)
+	require.NoError(t, err)
 }
 
 func TestExecutor(t *testing.T) {
@@ -742,7 +746,7 @@ func TestExecutor(t *testing.T) {
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
 		OldBatchNum:      0,
 		Coinbase:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").String(),
-		BatchL2Data:      common.Hex2Bytes("ee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b"),
+		BatchL2Data:      common.Hex2Bytes("ee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731bff"),
 		OldStateRoot:     common.Hex2Bytes("2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90"),
 		GlobalExitRoot:   common.Hex2Bytes("090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"),
 		OldAccInputHash:  common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
@@ -816,7 +820,7 @@ func TestExecutorRevert(t *testing.T) {
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
 
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx0, *signedTx1})
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx0, *signedTx1}, constants.TwoEffectivePercentages, forkID)
 	require.NoError(t, err)
 
 	// Create Batch
@@ -832,7 +836,7 @@ func TestExecutorRevert(t *testing.T) {
 		ChainId:          stateCfg.ChainID,
 		ForkId:           forkID,
 	}
-
+	fmt.Println("batchL2Data: ", batchL2Data)
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 	assert.Equal(t, runtime.ErrExecutionReverted, executor.RomErr(processBatchResponse.Responses[1].Error))
@@ -880,7 +884,7 @@ func TestExecutorRevert(t *testing.T) {
 
 	receipt.BlockHash = l2Block.Hash()
 
-	err = testState.AddL2Block(ctx, 0, l2Block, receipts, dbTx)
+	err = testState.AddL2Block(ctx, 0, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
 	require.NoError(t, err)
 	l2Block, err = testState.GetL2BlockByHash(ctx, l2Block.Hash(), dbTx)
 	require.NoError(t, err)
@@ -1020,7 +1024,7 @@ func TestExecutorTransfer(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx})
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID)
 	require.NoError(t, err)
 
 	// Create Batch
@@ -1167,7 +1171,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 
 		require.Equal(t, testCase.Hash, tx.Hash().String())
 
-		batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx})
+		batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx}, constants.EffectivePercentage, forkID)
 		require.NoError(t, err)
 
 		// Create Batch
@@ -1276,7 +1280,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 			require.NoError(t, err)
 
 			// encode txs
-			batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx})
+			batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID)
 			require.NoError(t, err)
 
 			// Create Batch
@@ -1610,8 +1614,8 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		*signedTxFirstIncrement,
 		*signedTxFirstRetrieve,
 	}
-
-	batchL2Data, err := state.EncodeTransactions(signedTxs)
+	threeEffectivePercentages := []uint8{state.MaxEffectivePercentage, state.MaxEffectivePercentage, state.MaxEffectivePercentage}
+	batchL2Data, err := state.EncodeTransactions(signedTxs, threeEffectivePercentages, forkID)
 	require.NoError(t, err)
 
 	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, metrics.SequencerCallerLabel, dbTx)
@@ -1720,7 +1724,7 @@ func TestAddGetL2Block(t *testing.T) {
 
 	receipt.BlockHash = l2Block.Hash()
 
-	err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, dbTx)
+	err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
 	require.NoError(t, err)
 	result, err := testState.GetL2BlockByHash(ctx, l2Block.Hash(), dbTx)
 	require.NoError(t, err)
@@ -2013,7 +2017,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
 
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx0, *signedTx1})
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx0, *signedTx1}, constants.TwoEffectivePercentages, forkID)
 	require.NoError(t, err)
 
 	// Create Batch
@@ -2363,8 +2367,11 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	require.NoError(t, err)
 
 	transactions := []types.Transaction{*signedTx0, *signedTx1, *signedTx2, *signedTx3, *signedTx4, *signedTx5}
-
-	batchL2Data, err := state.EncodeTransactions(transactions)
+	effectivePercentages := make([]uint8, 0, len(transactions))
+	for range transactions {
+		effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
+	}
+	batchL2Data, err := state.EncodeTransactions(transactions, effectivePercentages, forkID)
 	require.NoError(t, err)
 
 	// Create Batch
@@ -2452,7 +2459,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	signedTx6, err = auth.Signer(auth.From, tx6)
 	require.NoError(t, err)
 
-	batchL2Data, err = state.EncodeTransactions([]types.Transaction{*signedTx6})
+	batchL2Data, err = state.EncodeTransactions([]types.Transaction{*signedTx6}, constants.EffectivePercentage, forkID)
 	require.NoError(t, err)
 
 	processBatchRequest = &executorclientpb.ProcessBatchRequest{
@@ -2508,7 +2515,7 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 		*signedTxDeploy,
 	}
 
-	batchL2Data, err := state.EncodeTransactions(signedTxs)
+	batchL2Data, err := state.EncodeTransactions(signedTxs, constants.EffectivePercentage, forkID)
 	require.NoError(t, err)
 
 	// Create Batch
@@ -2567,7 +2574,7 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 		*signedTxFirstRetrieve,
 	}
 
-	batchL2Data2, err := state.EncodeTransactions(signedTxs2)
+	batchL2Data2, err := state.EncodeTransactions(signedTxs2, constants.TwoEffectivePercentages, forkID)
 	require.NoError(t, err)
 
 	// Create Batch 2
@@ -2653,8 +2660,12 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 		*tx2,
 		*tx3,
 	}
+	effectivePercentages := make([]uint8, 0, len(signedTxs))
+	for range signedTxs {
+		effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
+	}
 
-	batchL2Data, err := state.EncodeTransactions(signedTxs)
+	batchL2Data, err := state.EncodeTransactions(signedTxs, effectivePercentages, forkID)
 	require.NoError(t, err)
 
 	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, metrics.SequencerCallerLabel, dbTx)

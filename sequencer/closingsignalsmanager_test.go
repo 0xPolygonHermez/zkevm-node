@@ -31,7 +31,7 @@ var (
 	localTestDbManager                           *dbManager
 	localCtx                                     context.Context
 	localMtDBCancel, localExecutorCancel         context.CancelFunc
-	localMtDBServiceClient                       mtDBclientpb.StateDBServiceClient
+	localMtDBServiceClient                       mtDBclientpb.HashDBServiceClient
 	localMtDBClientConn, localExecutorClientConn *grpc.ClientConn
 	localState                                   *state.State
 	localExecutorClient                          executorclientpb.ExecutorServiceClient
@@ -88,7 +88,7 @@ func setupTest(t *testing.T) {
 		MaxSteps:             7570538,
 	}
 
-	localTestDbManager = newDBManager(localCtx, dbManagerCfg, nil, localState, nil, closingSignalCh, txsStore, batchConstraints)
+	localTestDbManager = newDBManager(localCtx, dbManagerCfg, nil, localState, nil, closingSignalCh, batchConstraints)
 
 	// Set genesis batch
 	dbTx, err := localState.BeginStateTransaction(localCtx)
