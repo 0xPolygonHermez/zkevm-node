@@ -300,7 +300,7 @@ func TestGenerateJsonSchemaCustomSetDefault(t *testing.T) {
 
 func TestGenerateJsonSchemaInjectDefaultValue1stLevel(t *testing.T) {
 	cli := cli.NewContext(nil, nil, nil)
-	generator := NewConfigJsonSchemaGenerater()
+	generator := NewNodeConfigJsonSchemaGenerater()
 	generator.pathSourceCode = "../"
 	generator.defaultValues.IsTrustedSequencer = false
 	schema, err := generator.GenerateJsonSchema(cli)
@@ -313,7 +313,7 @@ func TestGenerateJsonSchemaInjectDefaultValue1stLevel(t *testing.T) {
 
 func TestGenerateJsonSchemaInjectDefaultValue2stLevel(t *testing.T) {
 	cli := cli.NewContext(nil, nil, nil)
-	generator := NewConfigJsonSchemaGenerater()
+	generator := NewNodeConfigJsonSchemaGenerater()
 	generator.pathSourceCode = "../"
 	// This is a hack, we are not at root folder, then to store the comment is joining .. with reponame
 	// and doesn't find out the comment

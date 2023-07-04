@@ -52,6 +52,8 @@ const (
 	FlagOutputFile = "output"
 	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
 	FlagMaxAmount = "max-amount"
+	// FlagOutputFile is the flag for the output file
+	FlagDocumentationFileType = "config-file"
 )
 
 /*
@@ -68,9 +70,17 @@ You could find some examples:
 type Config struct {
 	// This define is a trusted node (`true`) or a permission less (`false`). If you don't known
 	// set to `false`
-	IsTrustedSequencer     bool   `mapstructure:"IsTrustedSequencer"`
+	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer"`
+	// Last batch number before  a forkid change (fork upgrade). That implies that
+	// greater batch numbers are going to be trusted but no virtualized neither verified.
+	// So after the batch number `ForkUpgradeBatchNumber` is virtualized and verified you could update
+	// the system (SC,...) to new forkId and remove this value to allow the system to keep
+	// Virtualizing and verifying the new batchs.
+	// Check issue [#2236](https://github.com/0xPolygonHermez/zkevm-node/issues/2236) to known more
+	// This value overwrite `SequenceSender.ForkUpgradeBatchNumber`
 	ForkUpgradeBatchNumber uint64 `mapstructure:"ForkUpgradeBatchNumber"`
-	ForkUpgradeNewForkId   uint64 `mapstructure:"ForkUpgradeNewForkId"`
+	// Which is the new forkId
+	ForkUpgradeNewForkId uint64 `mapstructure:"ForkUpgradeNewForkId"`
 	// Configure Log level for all the services, allow also to store the logs in a file
 	Log          log.Config
 	Etherman     etherman.Config

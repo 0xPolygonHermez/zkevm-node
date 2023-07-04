@@ -30,6 +30,13 @@ const (
 	SEQUENCE_SENDER = "sequence-sender"
 )
 
+const (
+	// NODE_CONFIGFILE name to identify the node config-file
+	NODE_CONFIGFILE = "node"
+	// NODE_CONFIGFILE name to identify the genesis config-file
+	NETWORK_CONFIGFILE = "custom_network"
+)
+
 var (
 	configFileFlag = cli.StringFlag{
 		Name:     config.FlagCfg,
@@ -78,6 +85,11 @@ var (
 	outputFileFlag = cli.StringFlag{
 		Name:     config.FlagOutputFile,
 		Usage:    "Indicate the output file",
+		Required: true,
+	}
+	documentationFileTypeFlag = cli.StringFlag{
+		Name:     config.FlagDocumentationFileType,
+		Usage:    fmt.Sprintf("Indicate the type of file to generate json-schema: %v,%v ", NODE_CONFIGFILE, NETWORK_CONFIGFILE),
 		Required: true,
 	}
 )
@@ -158,7 +170,7 @@ func main() {
 			Name:   "generate-json-schema",
 			Usage:  "Generate the json-schema for the configuration file, and store it on docs/schema.json",
 			Action: genJSONSchema,
-			Flags:  []cli.Flag{&outputFileFlag},
+			Flags:  []cli.Flag{&outputFileFlag, &documentationFileTypeFlag},
 		},
 		{
 			Name:    "snapshot",

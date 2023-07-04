@@ -5,26 +5,28 @@
 
 [TOML format]: https://en.wikipedia.org/wiki/TOML
 
-| Property                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                   |
-| ---------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
-| - [IsTrustedSequencer](#IsTrustedSequencer )   | No      | boolean | No         | -          | This define is a trusted node (\`true\`) or a permission less (\`false\`). If you don't known<br />set to \`false\` |
-| - [Log](#Log )                                 | No      | object  | No         | -          | Configure Log level for all the services, allow also to store the logs in a file                                    |
-| - [Etherman](#Etherman )                       | No      | object  | No         | -          | Configure service \`Etherman\` responsible to interact with L1.                                                     |
-| - [EthTxManager](#EthTxManager )               | No      | object  | No         | -          | -                                                                                                                   |
-| - [Pool](#Pool )                               | No      | object  | No         | -          | -                                                                                                                   |
-| - [RPC](#RPC )                                 | No      | object  | No         | -          | -                                                                                                                   |
-| - [Synchronizer](#Synchronizer )               | No      | object  | No         | -          | Configuration of service \`Syncrhonizer\`. For this service is also important the value of \`IsTrustedSequencer\`   |
-| - [Sequencer](#Sequencer )                     | No      | object  | No         | -          | -                                                                                                                   |
-| - [SequenceSender](#SequenceSender )           | No      | object  | No         | -          | -                                                                                                                   |
-| - [Aggregator](#Aggregator )                   | No      | object  | No         | -          | -                                                                                                                   |
-| - [NetworkConfig](#NetworkConfig )             | No      | object  | No         | -          | -                                                                                                                   |
-| - [L2GasPriceSuggester](#L2GasPriceSuggester ) | No      | object  | No         | -          | -                                                                                                                   |
-| - [Executor](#Executor )                       | No      | object  | No         | -          | -                                                                                                                   |
-| - [MTClient](#MTClient )                       | No      | object  | No         | -          | -                                                                                                                   |
-| - [StateDB](#StateDB )                         | No      | object  | No         | -          | -                                                                                                                   |
-| - [Metrics](#Metrics )                         | No      | object  | No         | -          | -                                                                                                                   |
-| - [EventLog](#EventLog )                       | No      | object  | No         | -          | -                                                                                                                   |
-| - [HashDB](#HashDB )                           | No      | object  | No         | -          | -                                                                                                                   |
+| Property                                             | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [IsTrustedSequencer](#IsTrustedSequencer )         | No      | boolean | No         | -          | This define is a trusted node (\`true\`) or a permission less (\`false\`). If you don't known<br />set to \`false\`                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| - [ForkUpgradeBatchNumber](#ForkUpgradeBatchNumber ) | No      | integer | No         | -          | Last batch number before  a forkid change (fork upgrade). That implies that<br />greater batch numbers are going to be trusted but no virtualized neither verified.<br />So after the batch number \`ForkUpgradeBatchNumber\` is virtualized and verified you could update<br />the system (SC,...) to new forkId and remove this value to allow the system to keep<br />Virtualizing and verifying the new batchs.<br />Check issue [#2236](https://github.com/0xPolygonHermez/zkevm-node/issues/2236) to known more<br />This value overwrite \`SequenceSender.ForkUpgradeBatchNumber\` |
+| - [ForkUpgradeNewForkId](#ForkUpgradeNewForkId )     | No      | integer | No         | -          | Which is the new forkId                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| - [Log](#Log )                                       | No      | object  | No         | -          | Configure Log level for all the services, allow also to store the logs in a file                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| - [Etherman](#Etherman )                             | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [EthTxManager](#EthTxManager )                     | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [Pool](#Pool )                                     | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [RPC](#RPC )                                       | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [Synchronizer](#Synchronizer )                     | No      | object  | No         | -          | Configuration of service \`Syncrhonizer\`. For this service is also important the value of \`IsTrustedSequencer\`                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [Sequencer](#Sequencer )                           | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [SequenceSender](#SequenceSender )                 | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [Aggregator](#Aggregator )                         | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [NetworkConfig](#NetworkConfig )                   | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [L2GasPriceSuggester](#L2GasPriceSuggester )       | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [Executor](#Executor )                             | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [MTClient](#MTClient )                             | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [StateDB](#StateDB )                               | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [Metrics](#Metrics )                               | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [EventLog](#EventLog )                             | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [HashDB](#HashDB )                                 | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ## <a name="IsTrustedSequencer"></a>1. `IsTrustedSequencer`
 
@@ -40,7 +42,39 @@ set to `false`
 IsTrustedSequencer=false
 ```
 
-## <a name="Log"></a>2. `[Log]`
+## <a name="ForkUpgradeBatchNumber"></a>2. `ForkUpgradeBatchNumber`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Last batch number before  a forkid change (fork upgrade). That implies that
+greater batch numbers are going to be trusted but no virtualized neither verified.
+So after the batch number `ForkUpgradeBatchNumber` is virtualized and verified you could update
+the system (SC,...) to new forkId and remove this value to allow the system to keep
+Virtualizing and verifying the new batchs.
+Check issue [#2236](https://github.com/0xPolygonHermez/zkevm-node/issues/2236) to known more
+This value overwrite `SequenceSender.ForkUpgradeBatchNumber`
+
+**Example setting the default value** (0):
+```
+ForkUpgradeBatchNumber=0
+```
+
+## <a name="ForkUpgradeNewForkId"></a>3. `ForkUpgradeNewForkId`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Which is the new forkId
+
+**Example setting the default value** (0):
+```
+ForkUpgradeNewForkId=0
+```
+
+## <a name="Log"></a>4. `[Log]`
 
 **Type:** : `object`
 **Description:** Configure Log level for all the services, allow also to store the logs in a file
@@ -51,7 +85,7 @@ IsTrustedSequencer=false
 | - [Level](#Log_Level )             | No      | enum (of string) | No         | -          | Level of log. As lower value more logs are going to be generated                                                                                                                                                                                                                                                                                                                                |
 | - [Outputs](#Log_Outputs )         | No      | array of string  | No         | -          | Outputs                                                                                                                                                                                                                                                                                                                                                                                         |
 
-### <a name="Log_Environment"></a>2.1. `Log.Environment`
+### <a name="Log_Environment"></a>4.1. `Log.Environment`
 
 **Type:** : `enum (of string)`
 
@@ -71,7 +105,7 @@ Must be one of:
 * "production"
 * "development"
 
-### <a name="Log_Level"></a>2.2. `Log.Level`
+### <a name="Log_Level"></a>4.2. `Log.Level`
 
 **Type:** : `enum (of string)`
 
@@ -94,7 +128,7 @@ Must be one of:
 * "panic"
 * "fatal"
 
-### <a name="Log_Outputs"></a>2.3. `Log.Outputs`
+### <a name="Log_Outputs"></a>4.3. `Log.Outputs`
 
 **Type:** : `array of string`
 
@@ -108,10 +142,9 @@ Must be one of:
 Outputs=["stderr"]
 ```
 
-## <a name="Etherman"></a>3. `[Etherman]`
+## <a name="Etherman"></a>5. `[Etherman]`
 
 **Type:** : `object`
-**Description:** Configure service `Etherman` responsible to interact with L1.
 
 | Property                                              | Pattern | Type    | Deprecated | Definition | Title/Description |
 | ----------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
@@ -121,7 +154,7 @@ Outputs=["stderr"]
 | - [MultiGasProvider](#Etherman_MultiGasProvider )     | No      | boolean | No         | -          | -                 |
 | - [Etherscan](#Etherman_Etherscan )                   | No      | object  | No         | -          | -                 |
 
-### <a name="Etherman_URL"></a>3.1. `Etherman.URL`
+### <a name="Etherman_URL"></a>5.1. `Etherman.URL`
 
 **Type:** : `string`
 
@@ -133,7 +166,7 @@ Outputs=["stderr"]
 URL="http://localhost:8545"
 ```
 
-### <a name="Etherman_PrivateKeyPath"></a>3.2. `Etherman.PrivateKeyPath`
+### <a name="Etherman_PrivateKeyPath"></a>5.2. `Etherman.PrivateKeyPath`
 
 **Type:** : `string`
 
@@ -145,7 +178,7 @@ URL="http://localhost:8545"
 PrivateKeyPath=""
 ```
 
-### <a name="Etherman_PrivateKeyPassword"></a>3.3. `Etherman.PrivateKeyPassword`
+### <a name="Etherman_PrivateKeyPassword"></a>5.3. `Etherman.PrivateKeyPassword`
 
 **Type:** : `string`
 
@@ -157,7 +190,7 @@ PrivateKeyPath=""
 PrivateKeyPassword=""
 ```
 
-### <a name="Etherman_MultiGasProvider"></a>3.4. `Etherman.MultiGasProvider`
+### <a name="Etherman_MultiGasProvider"></a>5.4. `Etherman.MultiGasProvider`
 
 **Type:** : `boolean`
 
@@ -169,7 +202,7 @@ PrivateKeyPassword=""
 MultiGasProvider=false
 ```
 
-### <a name="Etherman_Etherscan"></a>3.5. `[Etherman.Etherscan]`
+### <a name="Etherman_Etherscan"></a>5.5. `[Etherman.Etherscan]`
 
 **Type:** : `object`
 
@@ -178,7 +211,7 @@ MultiGasProvider=false
 | - [ApiKey](#Etherman_Etherscan_ApiKey ) | No      | string | No         | -          | -                 |
 | - [Url](#Etherman_Etherscan_Url )       | No      | string | No         | -          | -                 |
 
-#### <a name="Etherman_Etherscan_ApiKey"></a>3.5.1. `Etherman.Etherscan.ApiKey`
+#### <a name="Etherman_Etherscan_ApiKey"></a>5.5.1. `Etherman.Etherscan.ApiKey`
 
 **Type:** : `string`
 
@@ -190,7 +223,7 @@ MultiGasProvider=false
 ApiKey=""
 ```
 
-#### <a name="Etherman_Etherscan_Url"></a>3.5.2. `Etherman.Etherscan.Url`
+#### <a name="Etherman_Etherscan_Url"></a>5.5.2. `Etherman.Etherscan.Url`
 
 **Type:** : `string`
 
@@ -202,7 +235,7 @@ ApiKey=""
 Url=""
 ```
 
-## <a name="EthTxManager"></a>4. `[EthTxManager]`
+## <a name="EthTxManager"></a>6. `[EthTxManager]`
 
 **Type:** : `object`
 
@@ -213,7 +246,7 @@ Url=""
 | - [PrivateKeys](#EthTxManager_PrivateKeys )                     | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs |
 | - [ForcedGas](#EthTxManager_ForcedGas )                         | No      | integer         | No         | -          | ForcedGas is the amount of gas to be forced in case of gas estimation error                                                        |
 
-### <a name="EthTxManager_FrequencyToMonitorTxs"></a>4.1. `EthTxManager.FrequencyToMonitorTxs`
+### <a name="EthTxManager_FrequencyToMonitorTxs"></a>6.1. `EthTxManager.FrequencyToMonitorTxs`
 
 **Title:** Duration
 
@@ -239,7 +272,7 @@ Url=""
 FrequencyToMonitorTxs="1s"
 ```
 
-### <a name="EthTxManager_WaitTxToBeMined"></a>4.2. `EthTxManager.WaitTxToBeMined`
+### <a name="EthTxManager_WaitTxToBeMined"></a>6.2. `EthTxManager.WaitTxToBeMined`
 
 **Title:** Duration
 
@@ -265,20 +298,11 @@ FrequencyToMonitorTxs="1s"
 WaitTxToBeMined="2m0s"
 ```
 
-### <a name="EthTxManager_PrivateKeys"></a>4.3. `EthTxManager.PrivateKeys`
+### <a name="EthTxManager_PrivateKeys"></a>6.3. `EthTxManager.PrivateKeys`
 
 **Type:** : `array of object`
-
-**Default:** `null`
-
 **Description:** PrivateKeys defines all the key store files that are going
 to be read in order to provide the private keys to sign the L1 txs
-
-**Example setting the default value** (null):
-```
-[EthTxManager]
-PrivateKeys=null
-```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -292,7 +316,7 @@ PrivateKeys=null
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | [PrivateKeys items](#EthTxManager_PrivateKeys_items) | KeystoreFileConfig has all the information needed to load a private key from a k ... |
 
-#### <a name="autogenerated_heading_2"></a>4.3.1. [EthTxManager.PrivateKeys.PrivateKeys items]
+#### <a name="autogenerated_heading_2"></a>6.3.1. [EthTxManager.PrivateKeys.PrivateKeys items]
 
 **Type:** : `object`
 **Description:** KeystoreFileConfig has all the information needed to load a private key from a key store file
@@ -302,17 +326,17 @@ PrivateKeys=null
 | - [Path](#EthTxManager_PrivateKeys_items_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
 | - [Password](#EthTxManager_PrivateKeys_items_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
-##### <a name="EthTxManager_PrivateKeys_items_Path"></a>4.3.1.1. `EthTxManager.PrivateKeys.PrivateKeys items.Path`
+##### <a name="EthTxManager_PrivateKeys_items_Path"></a>6.3.1.1. `EthTxManager.PrivateKeys.PrivateKeys items.Path`
 
 **Type:** : `string`
 **Description:** Path is the file path for the key store file
 
-##### <a name="EthTxManager_PrivateKeys_items_Password"></a>4.3.1.2. `EthTxManager.PrivateKeys.PrivateKeys items.Password`
+##### <a name="EthTxManager_PrivateKeys_items_Password"></a>6.3.1.2. `EthTxManager.PrivateKeys.PrivateKeys items.Password`
 
 **Type:** : `string`
 **Description:** Password is the password to decrypt the key store file
 
-### <a name="EthTxManager_ForcedGas"></a>4.4. `EthTxManager.ForcedGas`
+### <a name="EthTxManager_ForcedGas"></a>6.4. `EthTxManager.ForcedGas`
 
 **Type:** : `integer`
 
@@ -326,23 +350,25 @@ PrivateKeys=null
 ForcedGas=0
 ```
 
-## <a name="Pool"></a>5. `[Pool]`
+## <a name="Pool"></a>7. `[Pool]`
 
 **Type:** : `object`
 
 | Property                                                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                    |
 | ------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------- |
 | - [IntervalToRefreshBlockedAddresses](#Pool_IntervalToRefreshBlockedAddresses ) | No      | string  | No         | -          | Duration                                                                                             |
+| - [IntervalToRefreshGasPrices](#Pool_IntervalToRefreshGasPrices )               | No      | string  | No         | -          | Duration                                                                                             |
 | - [MaxTxBytesSize](#Pool_MaxTxBytesSize )                                       | No      | integer | No         | -          | MaxTxBytesSize is the max size of a transaction in bytes                                             |
 | - [MaxTxDataBytesSize](#Pool_MaxTxDataBytesSize )                               | No      | integer | No         | -          | MaxTxDataBytesSize is the max size of the data field of a transaction in bytes                       |
 | - [DB](#Pool_DB )                                                               | No      | object  | No         | -          | DB is the database configuration                                                                     |
 | - [DefaultMinGasPriceAllowed](#Pool_DefaultMinGasPriceAllowed )                 | No      | integer | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest                                    |
 | - [MinAllowedGasPriceInterval](#Pool_MinAllowedGasPriceInterval )               | No      | string  | No         | -          | Duration                                                                                             |
 | - [PollMinAllowedGasPriceInterval](#Pool_PollMinAllowedGasPriceInterval )       | No      | string  | No         | -          | Duration                                                                                             |
+| - [EffectiveGasPrice](#Pool_EffectiveGasPrice )                                 | No      | object  | No         | -          | EffectiveGasPrice is the configuration for the break even and effective gas price calculation        |
 | - [AccountQueue](#Pool_AccountQueue )                                           | No      | integer | No         | -          | AccountQueue represents the maximum number of non-executable transaction slots permitted per account |
 | - [GlobalQueue](#Pool_GlobalQueue )                                             | No      | integer | No         | -          | GlobalQueue represents the maximum number of non-executable transaction slots for all accounts       |
 
-### <a name="Pool_IntervalToRefreshBlockedAddresses"></a>5.1. `Pool.IntervalToRefreshBlockedAddresses`
+### <a name="Pool_IntervalToRefreshBlockedAddresses"></a>7.1. `Pool.IntervalToRefreshBlockedAddresses`
 
 **Title:** Duration
 
@@ -369,7 +395,33 @@ blocked address list from db to memory
 IntervalToRefreshBlockedAddresses="5m0s"
 ```
 
-### <a name="Pool_MaxTxBytesSize"></a>5.2. `Pool.MaxTxBytesSize`
+### <a name="Pool_IntervalToRefreshGasPrices"></a>7.2. `Pool.IntervalToRefreshGasPrices`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5s"`
+
+**Description:** IntervalToRefreshGasPrices is the time to wait to refresh the gas prices
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5s"):
+```
+[Pool]
+IntervalToRefreshGasPrices="5s"
+```
+
+### <a name="Pool_MaxTxBytesSize"></a>7.3. `Pool.MaxTxBytesSize`
 
 **Type:** : `integer`
 
@@ -383,7 +435,7 @@ IntervalToRefreshBlockedAddresses="5m0s"
 MaxTxBytesSize=100132
 ```
 
-### <a name="Pool_MaxTxDataBytesSize"></a>5.3. `Pool.MaxTxDataBytesSize`
+### <a name="Pool_MaxTxDataBytesSize"></a>7.4. `Pool.MaxTxDataBytesSize`
 
 **Type:** : `integer`
 
@@ -397,7 +449,7 @@ MaxTxBytesSize=100132
 MaxTxDataBytesSize=100000
 ```
 
-### <a name="Pool_DB"></a>5.4. `[Pool.DB]`
+### <a name="Pool_DB"></a>7.5. `[Pool.DB]`
 
 **Type:** : `object`
 **Description:** DB is the database configuration
@@ -412,7 +464,7 @@ MaxTxDataBytesSize=100000
 | - [EnableLog](#Pool_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#Pool_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-#### <a name="Pool_DB_Name"></a>5.4.1. `Pool.DB.Name`
+#### <a name="Pool_DB_Name"></a>7.5.1. `Pool.DB.Name`
 
 **Type:** : `string`
 
@@ -426,7 +478,7 @@ MaxTxDataBytesSize=100000
 Name="pool_db"
 ```
 
-#### <a name="Pool_DB_User"></a>5.4.2. `Pool.DB.User`
+#### <a name="Pool_DB_User"></a>7.5.2. `Pool.DB.User`
 
 **Type:** : `string`
 
@@ -440,7 +492,7 @@ Name="pool_db"
 User="pool_user"
 ```
 
-#### <a name="Pool_DB_Password"></a>5.4.3. `Pool.DB.Password`
+#### <a name="Pool_DB_Password"></a>7.5.3. `Pool.DB.Password`
 
 **Type:** : `string`
 
@@ -454,7 +506,7 @@ User="pool_user"
 Password="pool_password"
 ```
 
-#### <a name="Pool_DB_Host"></a>5.4.4. `Pool.DB.Host`
+#### <a name="Pool_DB_Host"></a>7.5.4. `Pool.DB.Host`
 
 **Type:** : `string`
 
@@ -468,7 +520,7 @@ Password="pool_password"
 Host="zkevm-pool-db"
 ```
 
-#### <a name="Pool_DB_Port"></a>5.4.5. `Pool.DB.Port`
+#### <a name="Pool_DB_Port"></a>7.5.5. `Pool.DB.Port`
 
 **Type:** : `string`
 
@@ -482,7 +534,7 @@ Host="zkevm-pool-db"
 Port="5432"
 ```
 
-#### <a name="Pool_DB_EnableLog"></a>5.4.6. `Pool.DB.EnableLog`
+#### <a name="Pool_DB_EnableLog"></a>7.5.6. `Pool.DB.EnableLog`
 
 **Type:** : `boolean`
 
@@ -496,7 +548,7 @@ Port="5432"
 EnableLog=false
 ```
 
-#### <a name="Pool_DB_MaxConns"></a>5.4.7. `Pool.DB.MaxConns`
+#### <a name="Pool_DB_MaxConns"></a>7.5.7. `Pool.DB.MaxConns`
 
 **Type:** : `integer`
 
@@ -510,7 +562,7 @@ EnableLog=false
 MaxConns=200
 ```
 
-### <a name="Pool_DefaultMinGasPriceAllowed"></a>5.5. `Pool.DefaultMinGasPriceAllowed`
+### <a name="Pool_DefaultMinGasPriceAllowed"></a>7.6. `Pool.DefaultMinGasPriceAllowed`
 
 **Type:** : `integer`
 
@@ -524,7 +576,7 @@ MaxConns=200
 DefaultMinGasPriceAllowed=1000000000
 ```
 
-### <a name="Pool_MinAllowedGasPriceInterval"></a>5.6. `Pool.MinAllowedGasPriceInterval`
+### <a name="Pool_MinAllowedGasPriceInterval"></a>7.7. `Pool.MinAllowedGasPriceInterval`
 
 **Title:** Duration
 
@@ -550,7 +602,7 @@ DefaultMinGasPriceAllowed=1000000000
 MinAllowedGasPriceInterval="5m0s"
 ```
 
-### <a name="Pool_PollMinAllowedGasPriceInterval"></a>5.7. `Pool.PollMinAllowedGasPriceInterval`
+### <a name="Pool_PollMinAllowedGasPriceInterval"></a>7.8. `Pool.PollMinAllowedGasPriceInterval`
 
 **Title:** Duration
 
@@ -576,7 +628,60 @@ MinAllowedGasPriceInterval="5m0s"
 PollMinAllowedGasPriceInterval="15s"
 ```
 
-### <a name="Pool_AccountQueue"></a>5.8. `Pool.AccountQueue`
+### <a name="Pool_EffectiveGasPrice"></a>7.9. `[Pool.EffectiveGasPrice]`
+
+**Type:** : `object`
+**Description:** EffectiveGasPrice is the configuration for the break even and effective gas price calculation
+
+| Property                                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                |
+| --------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------ |
+| - [L1GasPriceFactor](#Pool_EffectiveGasPrice_L1GasPriceFactor ) | No      | number  | No         | -          | L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price |
+| - [ByteGasCost](#Pool_EffectiveGasPrice_ByteGasCost )           | No      | integer | No         | -          | ByteGasCost is the gas cost per byte                                                             |
+| - [MarginFactor](#Pool_EffectiveGasPrice_MarginFactor )         | No      | number  | No         | -          | MarginFactor is the margin factor percentage to be added to the L2 min gas price                 |
+
+#### <a name="Pool_EffectiveGasPrice_L1GasPriceFactor"></a>7.9.1. `Pool.EffectiveGasPrice.L1GasPriceFactor`
+
+**Type:** : `number`
+
+**Default:** `0.25`
+
+**Description:** L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price
+
+**Example setting the default value** (0.25):
+```
+[Pool.EffectiveGasPrice]
+L1GasPriceFactor=0.25
+```
+
+#### <a name="Pool_EffectiveGasPrice_ByteGasCost"></a>7.9.2. `Pool.EffectiveGasPrice.ByteGasCost`
+
+**Type:** : `integer`
+
+**Default:** `16`
+
+**Description:** ByteGasCost is the gas cost per byte
+
+**Example setting the default value** (16):
+```
+[Pool.EffectiveGasPrice]
+ByteGasCost=16
+```
+
+#### <a name="Pool_EffectiveGasPrice_MarginFactor"></a>7.9.3. `Pool.EffectiveGasPrice.MarginFactor`
+
+**Type:** : `number`
+
+**Default:** `1`
+
+**Description:** MarginFactor is the margin factor percentage to be added to the L2 min gas price
+
+**Example setting the default value** (1):
+```
+[Pool.EffectiveGasPrice]
+MarginFactor=1
+```
+
+### <a name="Pool_AccountQueue"></a>7.10. `Pool.AccountQueue`
 
 **Type:** : `integer`
 
@@ -590,7 +695,7 @@ PollMinAllowedGasPriceInterval="15s"
 AccountQueue=64
 ```
 
-### <a name="Pool_GlobalQueue"></a>5.9. `Pool.GlobalQueue`
+### <a name="Pool_GlobalQueue"></a>7.11. `Pool.GlobalQueue`
 
 **Type:** : `integer`
 
@@ -604,7 +709,7 @@ AccountQueue=64
 GlobalQueue=1024
 ```
 
-## <a name="RPC"></a>6. `[RPC]`
+## <a name="RPC"></a>8. `[RPC]`
 
 **Type:** : `object`
 
@@ -620,7 +725,7 @@ GlobalQueue=1024
 | - [WebSockets](#RPC_WebSockets )                                             | No      | object  | No         | -          | WebSockets configuration                                                                                          |
 | - [EnableL2SuggestedGasPricePolling](#RPC_EnableL2SuggestedGasPricePolling ) | No      | boolean | No         | -          | EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price. |
 
-### <a name="RPC_Host"></a>6.1. `RPC.Host`
+### <a name="RPC_Host"></a>8.1. `RPC.Host`
 
 **Type:** : `string`
 
@@ -634,7 +739,7 @@ GlobalQueue=1024
 Host="0.0.0.0"
 ```
 
-### <a name="RPC_Port"></a>6.2. `RPC.Port`
+### <a name="RPC_Port"></a>8.2. `RPC.Port`
 
 **Type:** : `integer`
 
@@ -648,7 +753,7 @@ Host="0.0.0.0"
 Port=8545
 ```
 
-### <a name="RPC_ReadTimeout"></a>6.3. `RPC.ReadTimeout`
+### <a name="RPC_ReadTimeout"></a>8.3. `RPC.ReadTimeout`
 
 **Title:** Duration
 
@@ -675,7 +780,7 @@ check net/http.server.ReadTimeout and net/http.server.ReadHeaderTimeout
 ReadTimeout="1m0s"
 ```
 
-### <a name="RPC_WriteTimeout"></a>6.4. `RPC.WriteTimeout`
+### <a name="RPC_WriteTimeout"></a>8.4. `RPC.WriteTimeout`
 
 **Title:** Duration
 
@@ -702,7 +807,7 @@ check net/http.server.WriteTimeout
 WriteTimeout="1m0s"
 ```
 
-### <a name="RPC_MaxRequestsPerIPAndSecond"></a>6.5. `RPC.MaxRequestsPerIPAndSecond`
+### <a name="RPC_MaxRequestsPerIPAndSecond"></a>8.5. `RPC.MaxRequestsPerIPAndSecond`
 
 **Type:** : `number`
 
@@ -717,7 +822,7 @@ send within a single second
 MaxRequestsPerIPAndSecond=500
 ```
 
-### <a name="RPC_SequencerNodeURI"></a>6.6. `RPC.SequencerNodeURI`
+### <a name="RPC_SequencerNodeURI"></a>8.6. `RPC.SequencerNodeURI`
 
 **Type:** : `string`
 
@@ -732,7 +837,7 @@ to relay transactions to the Sequencer node
 SequencerNodeURI=""
 ```
 
-### <a name="RPC_MaxCumulativeGasUsed"></a>6.7. `RPC.MaxCumulativeGasUsed`
+### <a name="RPC_MaxCumulativeGasUsed"></a>8.7. `RPC.MaxCumulativeGasUsed`
 
 **Type:** : `integer`
 
@@ -746,7 +851,7 @@ SequencerNodeURI=""
 MaxCumulativeGasUsed=0
 ```
 
-### <a name="RPC_WebSockets"></a>6.8. `[RPC.WebSockets]`
+### <a name="RPC_WebSockets"></a>8.8. `[RPC.WebSockets]`
 
 **Type:** : `object`
 **Description:** WebSockets configuration
@@ -757,7 +862,7 @@ MaxCumulativeGasUsed=0
 | - [Host](#RPC_WebSockets_Host )       | No      | string  | No         | -          | Host defines the network adapter that will be used to serve the WS requests |
 | - [Port](#RPC_WebSockets_Port )       | No      | integer | No         | -          | Port defines the port to serve the endpoints via WS                         |
 
-#### <a name="RPC_WebSockets_Enabled"></a>6.8.1. `RPC.WebSockets.Enabled`
+#### <a name="RPC_WebSockets_Enabled"></a>8.8.1. `RPC.WebSockets.Enabled`
 
 **Type:** : `boolean`
 
@@ -771,7 +876,7 @@ MaxCumulativeGasUsed=0
 Enabled=true
 ```
 
-#### <a name="RPC_WebSockets_Host"></a>6.8.2. `RPC.WebSockets.Host`
+#### <a name="RPC_WebSockets_Host"></a>8.8.2. `RPC.WebSockets.Host`
 
 **Type:** : `string`
 
@@ -785,7 +890,7 @@ Enabled=true
 Host="0.0.0.0"
 ```
 
-#### <a name="RPC_WebSockets_Port"></a>6.8.3. `RPC.WebSockets.Port`
+#### <a name="RPC_WebSockets_Port"></a>8.8.3. `RPC.WebSockets.Port`
 
 **Type:** : `integer`
 
@@ -799,7 +904,7 @@ Host="0.0.0.0"
 Port=8546
 ```
 
-### <a name="RPC_EnableL2SuggestedGasPricePolling"></a>6.9. `RPC.EnableL2SuggestedGasPricePolling`
+### <a name="RPC_EnableL2SuggestedGasPricePolling"></a>8.9. `RPC.EnableL2SuggestedGasPricePolling`
 
 **Type:** : `boolean`
 
@@ -813,7 +918,7 @@ Port=8546
 EnableL2SuggestedGasPricePolling=true
 ```
 
-## <a name="Synchronizer"></a>7. `[Synchronizer]`
+## <a name="Synchronizer"></a>9. `[Synchronizer]`
 
 **Type:** : `object`
 **Description:** Configuration of service `Syncrhonizer`. For this service is also important the value of `IsTrustedSequencer`
@@ -824,7 +929,7 @@ EnableL2SuggestedGasPricePolling=true
 | - [SyncChunkSize](#Synchronizer_SyncChunkSize )             | No      | integer | No         | -          | SyncChunkSize is the number of blocks to sync on each chunk              |
 | - [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL ) | No      | string  | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state |
 
-### <a name="Synchronizer_SyncInterval"></a>7.1. `Synchronizer.SyncInterval`
+### <a name="Synchronizer_SyncInterval"></a>9.1. `Synchronizer.SyncInterval`
 
 **Title:** Duration
 
@@ -850,7 +955,7 @@ EnableL2SuggestedGasPricePolling=true
 SyncInterval="1s"
 ```
 
-### <a name="Synchronizer_SyncChunkSize"></a>7.2. `Synchronizer.SyncChunkSize`
+### <a name="Synchronizer_SyncChunkSize"></a>9.2. `Synchronizer.SyncChunkSize`
 
 **Type:** : `integer`
 
@@ -864,7 +969,7 @@ SyncInterval="1s"
 SyncChunkSize=100
 ```
 
-### <a name="Synchronizer_TrustedSequencerURL"></a>7.3. `Synchronizer.TrustedSequencerURL`
+### <a name="Synchronizer_TrustedSequencerURL"></a>9.3. `Synchronizer.TrustedSequencerURL`
 
 **Type:** : `string`
 
@@ -878,7 +983,7 @@ SyncChunkSize=100
 TrustedSequencerURL=""
 ```
 
-## <a name="Sequencer"></a>8. `[Sequencer]`
+## <a name="Sequencer"></a>10. `[Sequencer]`
 
 **Type:** : `object`
 
@@ -911,8 +1016,9 @@ TrustedSequencerURL=""
 | - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                                                                             |
 | - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                                                                             |
 | - [Worker](#Sequencer_Worker )                                               | No      | object  | No         | -          | Worker's specific config properties                                                                                                                |
+| - [EffectiveGasPrice](#Sequencer_EffectiveGasPrice )                         | No      | object  | No         | -          | EffectiveGasPrice is the config for the gas price                                                                                                  |
 
-### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>8.1. `Sequencer.WaitPeriodPoolIsEmpty`
+### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
 
 **Title:** Duration
 
@@ -939,7 +1045,7 @@ trying to add new txs to the state
 WaitPeriodPoolIsEmpty="1s"
 ```
 
-### <a name="Sequencer_BlocksAmountForTxsToBeDeleted"></a>8.2. `Sequencer.BlocksAmountForTxsToBeDeleted`
+### <a name="Sequencer_BlocksAmountForTxsToBeDeleted"></a>10.2. `Sequencer.BlocksAmountForTxsToBeDeleted`
 
 **Type:** : `integer`
 
@@ -953,7 +1059,7 @@ WaitPeriodPoolIsEmpty="1s"
 BlocksAmountForTxsToBeDeleted=100
 ```
 
-### <a name="Sequencer_FrequencyToCheckTxsForDelete"></a>8.3. `Sequencer.FrequencyToCheckTxsForDelete`
+### <a name="Sequencer_FrequencyToCheckTxsForDelete"></a>10.3. `Sequencer.FrequencyToCheckTxsForDelete`
 
 **Title:** Duration
 
@@ -979,7 +1085,7 @@ BlocksAmountForTxsToBeDeleted=100
 FrequencyToCheckTxsForDelete="12h0m0s"
 ```
 
-### <a name="Sequencer_MaxTxsPerBatch"></a>8.4. `Sequencer.MaxTxsPerBatch`
+### <a name="Sequencer_MaxTxsPerBatch"></a>10.4. `Sequencer.MaxTxsPerBatch`
 
 **Type:** : `integer`
 
@@ -993,7 +1099,7 @@ FrequencyToCheckTxsForDelete="12h0m0s"
 MaxTxsPerBatch=300
 ```
 
-### <a name="Sequencer_MaxBatchBytesSize"></a>8.5. `Sequencer.MaxBatchBytesSize`
+### <a name="Sequencer_MaxBatchBytesSize"></a>10.5. `Sequencer.MaxBatchBytesSize`
 
 **Type:** : `integer`
 
@@ -1008,7 +1114,7 @@ MaxTxsPerBatch=300
 MaxBatchBytesSize=120000
 ```
 
-### <a name="Sequencer_MaxCumulativeGasUsed"></a>8.6. `Sequencer.MaxCumulativeGasUsed`
+### <a name="Sequencer_MaxCumulativeGasUsed"></a>10.6. `Sequencer.MaxCumulativeGasUsed`
 
 **Type:** : `integer`
 
@@ -1022,7 +1128,7 @@ MaxBatchBytesSize=120000
 MaxCumulativeGasUsed=30000000
 ```
 
-### <a name="Sequencer_MaxKeccakHashes"></a>8.7. `Sequencer.MaxKeccakHashes`
+### <a name="Sequencer_MaxKeccakHashes"></a>10.7. `Sequencer.MaxKeccakHashes`
 
 **Type:** : `integer`
 
@@ -1036,7 +1142,7 @@ MaxCumulativeGasUsed=30000000
 MaxKeccakHashes=2145
 ```
 
-### <a name="Sequencer_MaxPoseidonHashes"></a>8.8. `Sequencer.MaxPoseidonHashes`
+### <a name="Sequencer_MaxPoseidonHashes"></a>10.8. `Sequencer.MaxPoseidonHashes`
 
 **Type:** : `integer`
 
@@ -1050,7 +1156,7 @@ MaxKeccakHashes=2145
 MaxPoseidonHashes=252357
 ```
 
-### <a name="Sequencer_MaxPoseidonPaddings"></a>8.9. `Sequencer.MaxPoseidonPaddings`
+### <a name="Sequencer_MaxPoseidonPaddings"></a>10.9. `Sequencer.MaxPoseidonPaddings`
 
 **Type:** : `integer`
 
@@ -1064,7 +1170,7 @@ MaxPoseidonHashes=252357
 MaxPoseidonPaddings=135191
 ```
 
-### <a name="Sequencer_MaxMemAligns"></a>8.10. `Sequencer.MaxMemAligns`
+### <a name="Sequencer_MaxMemAligns"></a>10.10. `Sequencer.MaxMemAligns`
 
 **Type:** : `integer`
 
@@ -1078,7 +1184,7 @@ MaxPoseidonPaddings=135191
 MaxMemAligns=236585
 ```
 
-### <a name="Sequencer_MaxArithmetics"></a>8.11. `Sequencer.MaxArithmetics`
+### <a name="Sequencer_MaxArithmetics"></a>10.11. `Sequencer.MaxArithmetics`
 
 **Type:** : `integer`
 
@@ -1092,7 +1198,7 @@ MaxMemAligns=236585
 MaxArithmetics=236585
 ```
 
-### <a name="Sequencer_MaxBinaries"></a>8.12. `Sequencer.MaxBinaries`
+### <a name="Sequencer_MaxBinaries"></a>10.12. `Sequencer.MaxBinaries`
 
 **Type:** : `integer`
 
@@ -1106,7 +1212,7 @@ MaxArithmetics=236585
 MaxBinaries=473170
 ```
 
-### <a name="Sequencer_MaxSteps"></a>8.13. `Sequencer.MaxSteps`
+### <a name="Sequencer_MaxSteps"></a>10.13. `Sequencer.MaxSteps`
 
 **Type:** : `integer`
 
@@ -1120,7 +1226,7 @@ MaxBinaries=473170
 MaxSteps=7570538
 ```
 
-### <a name="Sequencer_WeightBatchBytesSize"></a>8.14. `Sequencer.WeightBatchBytesSize`
+### <a name="Sequencer_WeightBatchBytesSize"></a>10.14. `Sequencer.WeightBatchBytesSize`
 
 **Type:** : `integer`
 
@@ -1134,7 +1240,7 @@ MaxSteps=7570538
 WeightBatchBytesSize=1
 ```
 
-### <a name="Sequencer_WeightCumulativeGasUsed"></a>8.15. `Sequencer.WeightCumulativeGasUsed`
+### <a name="Sequencer_WeightCumulativeGasUsed"></a>10.15. `Sequencer.WeightCumulativeGasUsed`
 
 **Type:** : `integer`
 
@@ -1148,7 +1254,7 @@ WeightBatchBytesSize=1
 WeightCumulativeGasUsed=1
 ```
 
-### <a name="Sequencer_WeightKeccakHashes"></a>8.16. `Sequencer.WeightKeccakHashes`
+### <a name="Sequencer_WeightKeccakHashes"></a>10.16. `Sequencer.WeightKeccakHashes`
 
 **Type:** : `integer`
 
@@ -1162,7 +1268,7 @@ WeightCumulativeGasUsed=1
 WeightKeccakHashes=1
 ```
 
-### <a name="Sequencer_WeightPoseidonHashes"></a>8.17. `Sequencer.WeightPoseidonHashes`
+### <a name="Sequencer_WeightPoseidonHashes"></a>10.17. `Sequencer.WeightPoseidonHashes`
 
 **Type:** : `integer`
 
@@ -1176,7 +1282,7 @@ WeightKeccakHashes=1
 WeightPoseidonHashes=1
 ```
 
-### <a name="Sequencer_WeightPoseidonPaddings"></a>8.18. `Sequencer.WeightPoseidonPaddings`
+### <a name="Sequencer_WeightPoseidonPaddings"></a>10.18. `Sequencer.WeightPoseidonPaddings`
 
 **Type:** : `integer`
 
@@ -1190,7 +1296,7 @@ WeightPoseidonHashes=1
 WeightPoseidonPaddings=1
 ```
 
-### <a name="Sequencer_WeightMemAligns"></a>8.19. `Sequencer.WeightMemAligns`
+### <a name="Sequencer_WeightMemAligns"></a>10.19. `Sequencer.WeightMemAligns`
 
 **Type:** : `integer`
 
@@ -1204,7 +1310,7 @@ WeightPoseidonPaddings=1
 WeightMemAligns=1
 ```
 
-### <a name="Sequencer_WeightArithmetics"></a>8.20. `Sequencer.WeightArithmetics`
+### <a name="Sequencer_WeightArithmetics"></a>10.20. `Sequencer.WeightArithmetics`
 
 **Type:** : `integer`
 
@@ -1218,7 +1324,7 @@ WeightMemAligns=1
 WeightArithmetics=1
 ```
 
-### <a name="Sequencer_WeightBinaries"></a>8.21. `Sequencer.WeightBinaries`
+### <a name="Sequencer_WeightBinaries"></a>10.21. `Sequencer.WeightBinaries`
 
 **Type:** : `integer`
 
@@ -1232,7 +1338,7 @@ WeightArithmetics=1
 WeightBinaries=1
 ```
 
-### <a name="Sequencer_WeightSteps"></a>8.22. `Sequencer.WeightSteps`
+### <a name="Sequencer_WeightSteps"></a>10.22. `Sequencer.WeightSteps`
 
 **Type:** : `integer`
 
@@ -1246,7 +1352,7 @@ WeightBinaries=1
 WeightSteps=1
 ```
 
-### <a name="Sequencer_TxLifetimeCheckTimeout"></a>8.23. `Sequencer.TxLifetimeCheckTimeout`
+### <a name="Sequencer_TxLifetimeCheckTimeout"></a>10.23. `Sequencer.TxLifetimeCheckTimeout`
 
 **Title:** Duration
 
@@ -1272,7 +1378,7 @@ WeightSteps=1
 TxLifetimeCheckTimeout="10m0s"
 ```
 
-### <a name="Sequencer_MaxTxLifetime"></a>8.24. `Sequencer.MaxTxLifetime`
+### <a name="Sequencer_MaxTxLifetime"></a>10.24. `Sequencer.MaxTxLifetime`
 
 **Title:** Duration
 
@@ -1298,7 +1404,7 @@ TxLifetimeCheckTimeout="10m0s"
 MaxTxLifetime="3h0m0s"
 ```
 
-### <a name="Sequencer_Finalizer"></a>8.25. `[Sequencer.Finalizer]`
+### <a name="Sequencer_Finalizer"></a>10.25. `[Sequencer.Finalizer]`
 
 **Type:** : `object`
 **Description:** Finalizer's specific config properties
@@ -1315,8 +1421,9 @@ MaxTxLifetime="3h0m0s"
 | - [ClosingSignalsManagerWaitForCheckingForcedBatches](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches ) | No      | string  | No         | -          | Duration                                                                                                    |
 | - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                               |
 | - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                    |
+| - [ForkID](#Sequencer_Finalizer_ForkID )                                                                                       | No      | integer | No         | -          | ForkID is the fork id of the chain                                                                          |
 
-#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>8.25.1. `Sequencer.Finalizer.GERDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.25.1. `Sequencer.Finalizer.GERDeadlineTimeout`
 
 **Title:** Duration
 
@@ -1342,7 +1449,7 @@ MaxTxLifetime="3h0m0s"
 GERDeadlineTimeout="5s"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>8.25.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.25.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
 
 **Title:** Duration
 
@@ -1368,7 +1475,7 @@ GERDeadlineTimeout="5s"
 ForcedBatchDeadlineTimeout="1m0s"
 ```
 
-#### <a name="Sequencer_Finalizer_SleepDuration"></a>8.25.3. `Sequencer.Finalizer.SleepDuration`
+#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.25.3. `Sequencer.Finalizer.SleepDuration`
 
 **Title:** Duration
 
@@ -1394,7 +1501,7 @@ ForcedBatchDeadlineTimeout="1m0s"
 SleepDuration="100ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>8.25.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
+#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.25.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
 
 **Type:** : `integer`
 
@@ -1408,7 +1515,7 @@ SleepDuration="100ms"
 ResourcePercentageToCloseBatch=10
 ```
 
-#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>8.25.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>10.25.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
 
 **Type:** : `integer`
 
@@ -1422,7 +1529,7 @@ ResourcePercentageToCloseBatch=10
 GERFinalityNumberOfBlocks=64
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>8.25.6. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.25.6. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
 
 **Title:** Duration
 
@@ -1448,7 +1555,7 @@ GERFinalityNumberOfBlocks=64
 ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>8.25.7. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.25.7. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
 
 **Title:** Duration
 
@@ -1474,7 +1581,7 @@ ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
 ClosingSignalsManagerWaitForCheckingGER="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>8.25.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.25.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
 
 **Title:** Duration
 
@@ -1500,7 +1607,7 @@ ClosingSignalsManagerWaitForCheckingGER="10s"
 ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>8.25.9. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.25.9. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
 
 **Type:** : `integer`
 
@@ -1514,7 +1621,7 @@ ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 ForcedBatchesFinalityNumberOfBlocks=64
 ```
 
-#### <a name="Sequencer_Finalizer_TimestampResolution"></a>8.25.10. `Sequencer.Finalizer.TimestampResolution`
+#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.25.10. `Sequencer.Finalizer.TimestampResolution`
 
 **Title:** Duration
 
@@ -1540,17 +1647,32 @@ ForcedBatchesFinalityNumberOfBlocks=64
 TimestampResolution="10s"
 ```
 
-### <a name="Sequencer_DBManager"></a>8.26. `[Sequencer.DBManager]`
+#### <a name="Sequencer_Finalizer_ForkID"></a>10.25.11. `Sequencer.Finalizer.ForkID`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** ForkID is the fork id of the chain
+
+**Example setting the default value** (0):
+```
+[Sequencer.Finalizer]
+ForkID=0
+```
+
+### <a name="Sequencer_DBManager"></a>10.26. `[Sequencer.DBManager]`
 
 **Type:** : `object`
 **Description:** DBManager's specific config properties
 
-| Property                                                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
-| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
+| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description |
+| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string  | No         | -          | Duration          |
+| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string  | No         | -          | Duration          |
+| - [ForkID](#Sequencer_DBManager_ForkID )                                     | No      | integer | No         | -          | -                 |
 
-#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>8.26.1. `Sequencer.DBManager.PoolRetrievalInterval`
+#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.26.1. `Sequencer.DBManager.PoolRetrievalInterval`
 
 **Title:** Duration
 
@@ -1574,7 +1696,7 @@ TimestampResolution="10s"
 PoolRetrievalInterval="500ms"
 ```
 
-#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>8.26.2. `Sequencer.DBManager.L2ReorgRetrievalInterval`
+#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>10.26.2. `Sequencer.DBManager.L2ReorgRetrievalInterval`
 
 **Title:** Duration
 
@@ -1598,7 +1720,19 @@ PoolRetrievalInterval="500ms"
 L2ReorgRetrievalInterval="5s"
 ```
 
-### <a name="Sequencer_Worker"></a>8.27. `[Sequencer.Worker]`
+#### <a name="Sequencer_DBManager_ForkID"></a>10.26.3. `Sequencer.DBManager.ForkID`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[Sequencer.DBManager]
+ForkID=0
+```
+
+### <a name="Sequencer_Worker"></a>10.27. `[Sequencer.Worker]`
 
 **Type:** : `object`
 **Description:** Worker's specific config properties
@@ -1607,7 +1741,7 @@ L2ReorgRetrievalInterval="5s"
 | --------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | -------------------------------------------------------------- |
 | - [ResourceCostMultiplier](#Sequencer_Worker_ResourceCostMultiplier ) | No      | number | No         | -          | ResourceCostMultiplier is the multiplier for the resource cost |
 
-#### <a name="Sequencer_Worker_ResourceCostMultiplier"></a>8.27.1. `Sequencer.Worker.ResourceCostMultiplier`
+#### <a name="Sequencer_Worker_ResourceCostMultiplier"></a>10.27.1. `Sequencer.Worker.ResourceCostMultiplier`
 
 **Type:** : `number`
 
@@ -1621,7 +1755,45 @@ L2ReorgRetrievalInterval="5s"
 ResourceCostMultiplier=1000
 ```
 
-## <a name="SequenceSender"></a>9. `[SequenceSender]`
+### <a name="Sequencer_EffectiveGasPrice"></a>10.28. `[Sequencer.EffectiveGasPrice]`
+
+**Type:** : `object`
+**Description:** EffectiveGasPrice is the config for the gas price
+
+| Property                                                                                                           | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| - [MaxBreakEvenGasPriceDeviationPercentage](#Sequencer_EffectiveGasPrice_MaxBreakEvenGasPriceDeviationPercentage ) | No      | integer | No         | -          | MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation |
+| - [Enabled](#Sequencer_EffectiveGasPrice_Enabled )                                                                 | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                         |
+
+#### <a name="Sequencer_EffectiveGasPrice_MaxBreakEvenGasPriceDeviationPercentage"></a>10.28.1. `Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage`
+
+**Type:** : `integer`
+
+**Default:** `10`
+
+**Description:** MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
+
+**Example setting the default value** (10):
+```
+[Sequencer.EffectiveGasPrice]
+MaxBreakEvenGasPriceDeviationPercentage=10
+```
+
+#### <a name="Sequencer_EffectiveGasPrice_Enabled"></a>10.28.2. `Sequencer.EffectiveGasPrice.Enabled`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** Enabled is a flag to enable/disable the effective gas price
+
+**Example setting the default value** (false):
+```
+[Sequencer.EffectiveGasPrice]
+Enabled=false
+```
+
+## <a name="SequenceSender"></a>11. `[SequenceSender]`
 
 **Type:** : `object`
 
@@ -1632,8 +1804,9 @@ ResourceCostMultiplier=1000
 | - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer         | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not. |
 | - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | string          | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                    |
 | - [PrivateKeys](#SequenceSender_PrivateKeys )                                                           | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                 |
+| - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer         | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                         |
 
-### <a name="SequenceSender_WaitPeriodSendSequence"></a>9.1. `SequenceSender.WaitPeriodSendSequence`
+### <a name="SequenceSender_WaitPeriodSendSequence"></a>11.1. `SequenceSender.WaitPeriodSendSequence`
 
 **Title:** Duration
 
@@ -1660,7 +1833,7 @@ trying to send a sequence to L1
 WaitPeriodSendSequence="5s"
 ```
 
-### <a name="SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod"></a>9.2. `SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod`
+### <a name="SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod"></a>11.2. `SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod`
 
 **Title:** Duration
 
@@ -1686,7 +1859,7 @@ WaitPeriodSendSequence="5s"
 LastBatchVirtualizationTimeMaxWaitPeriod="5s"
 ```
 
-### <a name="SequenceSender_MaxTxSizeForL1"></a>9.3. `SequenceSender.MaxTxSizeForL1`
+### <a name="SequenceSender_MaxTxSizeForL1"></a>11.3. `SequenceSender.MaxTxSizeForL1`
 
 **Type:** : `integer`
 
@@ -1703,7 +1876,7 @@ to validate whether they fit into the pool or not.
 MaxTxSizeForL1=131072
 ```
 
-### <a name="SequenceSender_SenderAddress"></a>9.4. `SequenceSender.SenderAddress`
+### <a name="SequenceSender_SenderAddress"></a>11.4. `SequenceSender.SenderAddress`
 
 **Type:** : `string`
 
@@ -1718,7 +1891,7 @@ to sign the L1 txs
 SenderAddress="0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 ```
 
-### <a name="SequenceSender_PrivateKeys"></a>9.5. `SequenceSender.PrivateKeys`
+### <a name="SequenceSender_PrivateKeys"></a>11.5. `SequenceSender.PrivateKeys`
 
 **Type:** : `array of object`
 
@@ -1745,7 +1918,7 @@ PrivateKeys=[{"Path": "/pk/sequencer.keystore", "Password": "testonly"}]
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | [PrivateKeys items](#SequenceSender_PrivateKeys_items) | KeystoreFileConfig has all the information needed to load a private key from a k ... |
 
-#### <a name="autogenerated_heading_3"></a>9.5.1. [SequenceSender.PrivateKeys.PrivateKeys items]
+#### <a name="autogenerated_heading_3"></a>11.5.1. [SequenceSender.PrivateKeys.PrivateKeys items]
 
 **Type:** : `object`
 **Description:** KeystoreFileConfig has all the information needed to load a private key from a key store file
@@ -1755,17 +1928,31 @@ PrivateKeys=[{"Path": "/pk/sequencer.keystore", "Password": "testonly"}]
 | - [Path](#SequenceSender_PrivateKeys_items_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
 | - [Password](#SequenceSender_PrivateKeys_items_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
-##### <a name="SequenceSender_PrivateKeys_items_Path"></a>9.5.1.1. `SequenceSender.PrivateKeys.PrivateKeys items.Path`
+##### <a name="SequenceSender_PrivateKeys_items_Path"></a>11.5.1.1. `SequenceSender.PrivateKeys.PrivateKeys items.Path`
 
 **Type:** : `string`
 **Description:** Path is the file path for the key store file
 
-##### <a name="SequenceSender_PrivateKeys_items_Password"></a>9.5.1.2. `SequenceSender.PrivateKeys.PrivateKeys items.Password`
+##### <a name="SequenceSender_PrivateKeys_items_Password"></a>11.5.1.2. `SequenceSender.PrivateKeys.PrivateKeys items.Password`
 
 **Type:** : `string`
 **Description:** Password is the password to decrypt the key store file
 
-## <a name="Aggregator"></a>10. `[Aggregator]`
+### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.6. `SequenceSender.ForkUpgradeBatchNumber`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Batch number where there is a forkid change (fork upgrade)
+
+**Example setting the default value** (0):
+```
+[SequenceSender]
+ForkUpgradeBatchNumber=0
+```
+
+## <a name="Aggregator"></a>12. `[Aggregator]`
 
 **Type:** : `object`
 
@@ -1785,7 +1972,7 @@ PrivateKeys=[{"Path": "/pk/sequencer.keystore", "Password": "testonly"}]
 | - [CleanupLockedProofsInterval](#Aggregator_CleanupLockedProofsInterval )                           | No      | string  | No         | -          | Duration                                                                                                                                                                    |
 | - [GeneratingProofCleanupThreshold](#Aggregator_GeneratingProofCleanupThreshold )                   | No      | string  | No         | -          | GeneratingProofCleanupThreshold represents the time interval after<br />which a proof in generating state is considered to be stuck and<br />allowed to be cleared.         |
 
-### <a name="Aggregator_Host"></a>10.1. `Aggregator.Host`
+### <a name="Aggregator_Host"></a>12.1. `Aggregator.Host`
 
 **Type:** : `string`
 
@@ -1799,7 +1986,7 @@ PrivateKeys=[{"Path": "/pk/sequencer.keystore", "Password": "testonly"}]
 Host="0.0.0.0"
 ```
 
-### <a name="Aggregator_Port"></a>10.2. `Aggregator.Port`
+### <a name="Aggregator_Port"></a>12.2. `Aggregator.Port`
 
 **Type:** : `integer`
 
@@ -1813,7 +2000,7 @@ Host="0.0.0.0"
 Port=50081
 ```
 
-### <a name="Aggregator_RetryTime"></a>10.3. `Aggregator.RetryTime`
+### <a name="Aggregator_RetryTime"></a>12.3. `Aggregator.RetryTime`
 
 **Title:** Duration
 
@@ -1840,7 +2027,7 @@ or batches to generate proofs. It is also used in the isSynced loop
 RetryTime="5s"
 ```
 
-### <a name="Aggregator_VerifyProofInterval"></a>10.4. `Aggregator.VerifyProofInterval`
+### <a name="Aggregator_VerifyProofInterval"></a>12.4. `Aggregator.VerifyProofInterval`
 
 **Title:** Duration
 
@@ -1866,7 +2053,7 @@ RetryTime="5s"
 VerifyProofInterval="1m30s"
 ```
 
-### <a name="Aggregator_ProofStatePollingInterval"></a>10.5. `Aggregator.ProofStatePollingInterval`
+### <a name="Aggregator_ProofStatePollingInterval"></a>12.5. `Aggregator.ProofStatePollingInterval`
 
 **Title:** Duration
 
@@ -1892,7 +2079,7 @@ VerifyProofInterval="1m30s"
 ProofStatePollingInterval="5s"
 ```
 
-### <a name="Aggregator_TxProfitabilityCheckerType"></a>10.6. `Aggregator.TxProfitabilityCheckerType`
+### <a name="Aggregator_TxProfitabilityCheckerType"></a>12.6. `Aggregator.TxProfitabilityCheckerType`
 
 **Type:** : `string`
 
@@ -1907,13 +2094,13 @@ possible values: base/acceptall
 TxProfitabilityCheckerType="acceptall"
 ```
 
-### <a name="Aggregator_TxProfitabilityMinReward"></a>10.7. `[Aggregator.TxProfitabilityMinReward]`
+### <a name="Aggregator_TxProfitabilityMinReward"></a>12.7. `[Aggregator.TxProfitabilityMinReward]`
 
 **Type:** : `object`
 **Description:** TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
 this parameter is used for the base tx profitability checker
 
-### <a name="Aggregator_IntervalAfterWhichBatchConsolidateAnyway"></a>10.8. `Aggregator.IntervalAfterWhichBatchConsolidateAnyway`
+### <a name="Aggregator_IntervalAfterWhichBatchConsolidateAnyway"></a>12.8. `Aggregator.IntervalAfterWhichBatchConsolidateAnyway`
 
 **Title:** Duration
 
@@ -1939,7 +2126,7 @@ this parameter is used for the base tx profitability checker
 IntervalAfterWhichBatchConsolidateAnyway="0s"
 ```
 
-### <a name="Aggregator_ChainID"></a>10.9. `Aggregator.ChainID`
+### <a name="Aggregator_ChainID"></a>12.9. `Aggregator.ChainID`
 
 **Type:** : `integer`
 
@@ -1953,21 +2140,21 @@ IntervalAfterWhichBatchConsolidateAnyway="0s"
 ChainID=0
 ```
 
-### <a name="Aggregator_ForkId"></a>10.10. `Aggregator.ForkId`
+### <a name="Aggregator_ForkId"></a>12.10. `Aggregator.ForkId`
 
 **Type:** : `integer`
 
-**Default:** `2`
+**Default:** `0`
 
 **Description:** ForkID is the L2 ForkID provided by the Network Config
 
-**Example setting the default value** (2):
+**Example setting the default value** (0):
 ```
 [Aggregator]
-ForkId=2
+ForkId=0
 ```
 
-### <a name="Aggregator_SenderAddress"></a>10.11. `Aggregator.SenderAddress`
+### <a name="Aggregator_SenderAddress"></a>12.11. `Aggregator.SenderAddress`
 
 **Type:** : `string`
 
@@ -1982,7 +2169,7 @@ to sign the L1 txs
 SenderAddress=""
 ```
 
-### <a name="Aggregator_CleanupLockedProofsInterval"></a>10.12. `Aggregator.CleanupLockedProofsInterval`
+### <a name="Aggregator_CleanupLockedProofsInterval"></a>12.12. `Aggregator.CleanupLockedProofsInterval`
 
 **Title:** Duration
 
@@ -2008,7 +2195,7 @@ SenderAddress=""
 CleanupLockedProofsInterval="2m0s"
 ```
 
-### <a name="Aggregator_GeneratingProofCleanupThreshold"></a>10.13. `Aggregator.GeneratingProofCleanupThreshold`
+### <a name="Aggregator_GeneratingProofCleanupThreshold"></a>12.13. `Aggregator.GeneratingProofCleanupThreshold`
 
 **Type:** : `string`
 
@@ -2024,7 +2211,7 @@ allowed to be cleared.
 GeneratingProofCleanupThreshold="10m"
 ```
 
-## <a name="NetworkConfig"></a>11. `[NetworkConfig]`
+## <a name="NetworkConfig"></a>13. `[NetworkConfig]`
 
 **Type:** : `object`
 
@@ -2036,7 +2223,7 @@ GeneratingProofCleanupThreshold="10m"
 | - [Genesis](#NetworkConfig_Genesis )                                         | No      | object           | No         | -          | -                 |
 | - [MaxCumulativeGasUsed](#NetworkConfig_MaxCumulativeGasUsed )               | No      | integer          | No         | -          | -                 |
 
-### <a name="NetworkConfig_l1Config"></a>11.1. `[NetworkConfig.l1Config]`
+### <a name="NetworkConfig_l1Config"></a>13.1. `[NetworkConfig.l1Config]`
 
 **Type:** : `object`
 
@@ -2047,7 +2234,7 @@ GeneratingProofCleanupThreshold="10m"
 | - [maticTokenAddress](#NetworkConfig_l1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | -                 |
 | - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | -                 |
 
-#### <a name="NetworkConfig_l1Config_chainId"></a>11.1.1. `NetworkConfig.l1Config.chainId`
+#### <a name="NetworkConfig_l1Config_chainId"></a>13.1.1. `NetworkConfig.l1Config.chainId`
 
 **Type:** : `integer`
 
@@ -2059,67 +2246,27 @@ GeneratingProofCleanupThreshold="10m"
 chainId=0
 ```
 
-#### <a name="NetworkConfig_l1Config_polygonZkEVMAddress"></a>11.1.2. `NetworkConfig.l1Config.polygonZkEVMAddress`
+#### <a name="NetworkConfig_l1Config_polygonZkEVMAddress"></a>13.1.2. `NetworkConfig.l1Config.polygonZkEVMAddress`
 
 **Type:** : `array of integer`
 
-**Default:** `"0x0000000000000000000000000000000000000000"`
-
-**Example setting the default value** ("0x0000000000000000000000000000000000000000"):
-```
-[NetworkConfig.l1Config]
-polygonZkEVMAddress="0x0000000000000000000000000000000000000000"
-```
-
-#### <a name="NetworkConfig_l1Config_maticTokenAddress"></a>11.1.3. `NetworkConfig.l1Config.maticTokenAddress`
+#### <a name="NetworkConfig_l1Config_maticTokenAddress"></a>13.1.3. `NetworkConfig.l1Config.maticTokenAddress`
 
 **Type:** : `array of integer`
 
-**Default:** `"0x0000000000000000000000000000000000000000"`
-
-**Example setting the default value** ("0x0000000000000000000000000000000000000000"):
-```
-[NetworkConfig.l1Config]
-maticTokenAddress="0x0000000000000000000000000000000000000000"
-```
-
-#### <a name="NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress"></a>11.1.4. `NetworkConfig.l1Config.polygonZkEVMGlobalExitRootAddress`
+#### <a name="NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress"></a>13.1.4. `NetworkConfig.l1Config.polygonZkEVMGlobalExitRootAddress`
 
 **Type:** : `array of integer`
 
-**Default:** `"0x0000000000000000000000000000000000000000"`
-
-**Example setting the default value** ("0x0000000000000000000000000000000000000000"):
-```
-[NetworkConfig.l1Config]
-polygonZkEVMGlobalExitRootAddress="0x0000000000000000000000000000000000000000"
-```
-
-### <a name="NetworkConfig_L2GlobalExitRootManagerAddr"></a>11.2. `NetworkConfig.L2GlobalExitRootManagerAddr`
+### <a name="NetworkConfig_L2GlobalExitRootManagerAddr"></a>13.2. `NetworkConfig.L2GlobalExitRootManagerAddr`
 
 **Type:** : `array of integer`
 
-**Default:** `"0x0000000000000000000000000000000000000000"`
-
-**Example setting the default value** ("0x0000000000000000000000000000000000000000"):
-```
-[NetworkConfig]
-L2GlobalExitRootManagerAddr="0x0000000000000000000000000000000000000000"
-```
-
-### <a name="NetworkConfig_L2BridgeAddr"></a>11.3. `NetworkConfig.L2BridgeAddr`
+### <a name="NetworkConfig_L2BridgeAddr"></a>13.3. `NetworkConfig.L2BridgeAddr`
 
 **Type:** : `array of integer`
 
-**Default:** `"0x0000000000000000000000000000000000000000"`
-
-**Example setting the default value** ("0x0000000000000000000000000000000000000000"):
-```
-[NetworkConfig]
-L2BridgeAddr="0x0000000000000000000000000000000000000000"
-```
-
-### <a name="NetworkConfig_Genesis"></a>11.4. `[NetworkConfig.Genesis]`
+### <a name="NetworkConfig_Genesis"></a>13.4. `[NetworkConfig.Genesis]`
 
 **Type:** : `object`
 
@@ -2129,7 +2276,7 @@ L2BridgeAddr="0x0000000000000000000000000000000000000000"
 | - [Root](#NetworkConfig_Genesis_Root )                       | No      | array of integer | No         | -          | -                                                                           |
 | - [GenesisActions](#NetworkConfig_Genesis_GenesisActions )   | No      | array of object  | No         | -          | -                                                                           |
 
-#### <a name="NetworkConfig_Genesis_GenesisBlockNum"></a>11.4.1. `NetworkConfig.Genesis.GenesisBlockNum`
+#### <a name="NetworkConfig_Genesis_GenesisBlockNum"></a>13.4.1. `NetworkConfig.Genesis.GenesisBlockNum`
 
 **Type:** : `integer`
 
@@ -2143,29 +2290,13 @@ L2BridgeAddr="0x0000000000000000000000000000000000000000"
 GenesisBlockNum=0
 ```
 
-#### <a name="NetworkConfig_Genesis_Root"></a>11.4.2. `NetworkConfig.Genesis.Root`
+#### <a name="NetworkConfig_Genesis_Root"></a>13.4.2. `NetworkConfig.Genesis.Root`
 
 **Type:** : `array of integer`
 
-**Default:** `"0x0000000000000000000000000000000000000000000000000000000000000000"`
-
-**Example setting the default value** ("0x0000000000000000000000000000000000000000000000000000000000000000"):
-```
-[NetworkConfig.Genesis]
-Root="0x0000000000000000000000000000000000000000000000000000000000000000"
-```
-
-#### <a name="NetworkConfig_Genesis_GenesisActions"></a>11.4.3. `NetworkConfig.Genesis.GenesisActions`
+#### <a name="NetworkConfig_Genesis_GenesisActions"></a>13.4.3. `NetworkConfig.Genesis.GenesisActions`
 
 **Type:** : `array of object`
-
-**Default:** `null`
-
-**Example setting the default value** (null):
-```
-[NetworkConfig.Genesis]
-GenesisActions=null
-```
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -2179,7 +2310,7 @@ GenesisActions=null
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | [GenesisActions items](#NetworkConfig_Genesis_GenesisActions_items) | GenesisAction represents one of the values set on the SMT during genesis. |
 
-##### <a name="autogenerated_heading_4"></a>11.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
+##### <a name="autogenerated_heading_4"></a>13.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
 
 **Type:** : `object`
 **Description:** GenesisAction represents one of the values set on the SMT during genesis.
@@ -2194,35 +2325,35 @@ GenesisActions=null
 | - [value](#NetworkConfig_Genesis_GenesisActions_items_value )                     | No      | string  | No         | -          | -                 |
 | - [root](#NetworkConfig_Genesis_GenesisActions_items_root )                       | No      | string  | No         | -          | -                 |
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_address"></a>11.4.3.1.1. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.address`
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_address"></a>13.4.3.1.1. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.address`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_type"></a>11.4.3.1.2. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.type`
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_type"></a>13.4.3.1.2. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.type`
 
 **Type:** : `integer`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_storagePosition"></a>11.4.3.1.3. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.storagePosition`
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_storagePosition"></a>13.4.3.1.3. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.storagePosition`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_bytecode"></a>11.4.3.1.4. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.bytecode`
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_bytecode"></a>13.4.3.1.4. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.bytecode`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_key"></a>11.4.3.1.5. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.key`
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_key"></a>13.4.3.1.5. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.key`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_value"></a>11.4.3.1.6. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.value`
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_value"></a>13.4.3.1.6. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.value`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_root"></a>11.4.3.1.7. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.root`
+##### <a name="NetworkConfig_Genesis_GenesisActions_items_root"></a>13.4.3.1.7. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.root`
 
 **Type:** : `string`
 
-### <a name="NetworkConfig_MaxCumulativeGasUsed"></a>11.5. `NetworkConfig.MaxCumulativeGasUsed`
+### <a name="NetworkConfig_MaxCumulativeGasUsed"></a>13.5. `NetworkConfig.MaxCumulativeGasUsed`
 
 **Type:** : `integer`
 
@@ -2234,7 +2365,7 @@ GenesisActions=null
 MaxCumulativeGasUsed=0
 ```
 
-## <a name="L2GasPriceSuggester"></a>12. `[L2GasPriceSuggester]`
+## <a name="L2GasPriceSuggester"></a>14. `[L2GasPriceSuggester]`
 
 **Type:** : `object`
 
@@ -2251,7 +2382,7 @@ MaxCumulativeGasUsed=0
 | - [CleanHistoryTimeRetention](#L2GasPriceSuggester_CleanHistoryTimeRetention ) | No      | string  | No         | -          | Duration          |
 | - [Factor](#L2GasPriceSuggester_Factor )                                       | No      | number  | No         | -          | -                 |
 
-### <a name="L2GasPriceSuggester_Type"></a>12.1. `L2GasPriceSuggester.Type`
+### <a name="L2GasPriceSuggester_Type"></a>14.1. `L2GasPriceSuggester.Type`
 
 **Type:** : `string`
 
@@ -2263,7 +2394,7 @@ MaxCumulativeGasUsed=0
 Type="follower"
 ```
 
-### <a name="L2GasPriceSuggester_DefaultGasPriceWei"></a>12.2. `L2GasPriceSuggester.DefaultGasPriceWei`
+### <a name="L2GasPriceSuggester_DefaultGasPriceWei"></a>14.2. `L2GasPriceSuggester.DefaultGasPriceWei`
 
 **Type:** : `integer`
 
@@ -2275,15 +2406,15 @@ Type="follower"
 DefaultGasPriceWei=2000000000
 ```
 
-### <a name="L2GasPriceSuggester_MaxPrice"></a>12.3. `[L2GasPriceSuggester.MaxPrice]`
+### <a name="L2GasPriceSuggester_MaxPrice"></a>14.3. `[L2GasPriceSuggester.MaxPrice]`
 
 **Type:** : `object`
 
-### <a name="L2GasPriceSuggester_IgnorePrice"></a>12.4. `[L2GasPriceSuggester.IgnorePrice]`
+### <a name="L2GasPriceSuggester_IgnorePrice"></a>14.4. `[L2GasPriceSuggester.IgnorePrice]`
 
 **Type:** : `object`
 
-### <a name="L2GasPriceSuggester_CheckBlocks"></a>12.5. `L2GasPriceSuggester.CheckBlocks`
+### <a name="L2GasPriceSuggester_CheckBlocks"></a>14.5. `L2GasPriceSuggester.CheckBlocks`
 
 **Type:** : `integer`
 
@@ -2295,7 +2426,7 @@ DefaultGasPriceWei=2000000000
 CheckBlocks=0
 ```
 
-### <a name="L2GasPriceSuggester_Percentile"></a>12.6. `L2GasPriceSuggester.Percentile`
+### <a name="L2GasPriceSuggester_Percentile"></a>14.6. `L2GasPriceSuggester.Percentile`
 
 **Type:** : `integer`
 
@@ -2307,7 +2438,7 @@ CheckBlocks=0
 Percentile=0
 ```
 
-### <a name="L2GasPriceSuggester_UpdatePeriod"></a>12.7. `L2GasPriceSuggester.UpdatePeriod`
+### <a name="L2GasPriceSuggester_UpdatePeriod"></a>14.7. `L2GasPriceSuggester.UpdatePeriod`
 
 **Title:** Duration
 
@@ -2331,7 +2462,7 @@ Percentile=0
 UpdatePeriod="10s"
 ```
 
-### <a name="L2GasPriceSuggester_CleanHistoryPeriod"></a>12.8. `L2GasPriceSuggester.CleanHistoryPeriod`
+### <a name="L2GasPriceSuggester_CleanHistoryPeriod"></a>14.8. `L2GasPriceSuggester.CleanHistoryPeriod`
 
 **Title:** Duration
 
@@ -2355,7 +2486,7 @@ UpdatePeriod="10s"
 CleanHistoryPeriod="1h0m0s"
 ```
 
-### <a name="L2GasPriceSuggester_CleanHistoryTimeRetention"></a>12.9. `L2GasPriceSuggester.CleanHistoryTimeRetention`
+### <a name="L2GasPriceSuggester_CleanHistoryTimeRetention"></a>14.9. `L2GasPriceSuggester.CleanHistoryTimeRetention`
 
 **Title:** Duration
 
@@ -2379,7 +2510,7 @@ CleanHistoryPeriod="1h0m0s"
 CleanHistoryTimeRetention="5m0s"
 ```
 
-### <a name="L2GasPriceSuggester_Factor"></a>12.10. `L2GasPriceSuggester.Factor`
+### <a name="L2GasPriceSuggester_Factor"></a>14.10. `L2GasPriceSuggester.Factor`
 
 **Type:** : `number`
 
@@ -2391,7 +2522,7 @@ CleanHistoryTimeRetention="5m0s"
 Factor=0.15
 ```
 
-## <a name="Executor"></a>13. `[Executor]`
+## <a name="Executor"></a>15. `[Executor]`
 
 **Type:** : `object`
 
@@ -2402,7 +2533,7 @@ Factor=0.15
 | - [WaitOnResourceExhaustion](#Executor_WaitOnResourceExhaustion )         | No      | string  | No         | -          | Duration                                                                                                                |
 | - [MaxGRPCMessageSize](#Executor_MaxGRPCMessageSize )                     | No      | integer | No         | -          | -                                                                                                                       |
 
-### <a name="Executor_URI"></a>13.1. `Executor.URI`
+### <a name="Executor_URI"></a>15.1. `Executor.URI`
 
 **Type:** : `string`
 
@@ -2414,7 +2545,7 @@ Factor=0.15
 URI="zkevm-prover:50071"
 ```
 
-### <a name="Executor_MaxResourceExhaustedAttempts"></a>13.2. `Executor.MaxResourceExhaustedAttempts`
+### <a name="Executor_MaxResourceExhaustedAttempts"></a>15.2. `Executor.MaxResourceExhaustedAttempts`
 
 **Type:** : `integer`
 
@@ -2428,7 +2559,7 @@ URI="zkevm-prover:50071"
 MaxResourceExhaustedAttempts=3
 ```
 
-### <a name="Executor_WaitOnResourceExhaustion"></a>13.3. `Executor.WaitOnResourceExhaustion`
+### <a name="Executor_WaitOnResourceExhaustion"></a>15.3. `Executor.WaitOnResourceExhaustion`
 
 **Title:** Duration
 
@@ -2454,7 +2585,7 @@ MaxResourceExhaustedAttempts=3
 WaitOnResourceExhaustion="1s"
 ```
 
-### <a name="Executor_MaxGRPCMessageSize"></a>13.4. `Executor.MaxGRPCMessageSize`
+### <a name="Executor_MaxGRPCMessageSize"></a>15.4. `Executor.MaxGRPCMessageSize`
 
 **Type:** : `integer`
 
@@ -2466,7 +2597,7 @@ WaitOnResourceExhaustion="1s"
 MaxGRPCMessageSize=100000000
 ```
 
-## <a name="MTClient"></a>14. `[MTClient]`
+## <a name="MTClient"></a>16. `[MTClient]`
 
 **Type:** : `object`
 
@@ -2474,7 +2605,7 @@ MaxGRPCMessageSize=100000000
 | ----------------------- | ------- | ------ | ---------- | ---------- | ---------------------- |
 | - [URI](#MTClient_URI ) | No      | string | No         | -          | URI is the server URI. |
 
-### <a name="MTClient_URI"></a>14.1. `MTClient.URI`
+### <a name="MTClient_URI"></a>16.1. `MTClient.URI`
 
 **Type:** : `string`
 
@@ -2488,7 +2619,7 @@ MaxGRPCMessageSize=100000000
 URI="zkevm-prover:50061"
 ```
 
-## <a name="StateDB"></a>15. `[StateDB]`
+## <a name="StateDB"></a>17. `[StateDB]`
 
 **Type:** : `object`
 
@@ -2502,7 +2633,7 @@ URI="zkevm-prover:50061"
 | - [EnableLog](#StateDB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#StateDB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-### <a name="StateDB_Name"></a>15.1. `StateDB.Name`
+### <a name="StateDB_Name"></a>17.1. `StateDB.Name`
 
 **Type:** : `string`
 
@@ -2516,7 +2647,7 @@ URI="zkevm-prover:50061"
 Name="state_db"
 ```
 
-### <a name="StateDB_User"></a>15.2. `StateDB.User`
+### <a name="StateDB_User"></a>17.2. `StateDB.User`
 
 **Type:** : `string`
 
@@ -2530,7 +2661,7 @@ Name="state_db"
 User="state_user"
 ```
 
-### <a name="StateDB_Password"></a>15.3. `StateDB.Password`
+### <a name="StateDB_Password"></a>17.3. `StateDB.Password`
 
 **Type:** : `string`
 
@@ -2544,7 +2675,7 @@ User="state_user"
 Password="state_password"
 ```
 
-### <a name="StateDB_Host"></a>15.4. `StateDB.Host`
+### <a name="StateDB_Host"></a>17.4. `StateDB.Host`
 
 **Type:** : `string`
 
@@ -2558,7 +2689,7 @@ Password="state_password"
 Host="zkevm-state-db"
 ```
 
-### <a name="StateDB_Port"></a>15.5. `StateDB.Port`
+### <a name="StateDB_Port"></a>17.5. `StateDB.Port`
 
 **Type:** : `string`
 
@@ -2572,7 +2703,7 @@ Host="zkevm-state-db"
 Port="5432"
 ```
 
-### <a name="StateDB_EnableLog"></a>15.6. `StateDB.EnableLog`
+### <a name="StateDB_EnableLog"></a>17.6. `StateDB.EnableLog`
 
 **Type:** : `boolean`
 
@@ -2586,7 +2717,7 @@ Port="5432"
 EnableLog=false
 ```
 
-### <a name="StateDB_MaxConns"></a>15.7. `StateDB.MaxConns`
+### <a name="StateDB_MaxConns"></a>17.7. `StateDB.MaxConns`
 
 **Type:** : `integer`
 
@@ -2600,7 +2731,7 @@ EnableLog=false
 MaxConns=200
 ```
 
-## <a name="Metrics"></a>16. `[Metrics]`
+## <a name="Metrics"></a>18. `[Metrics]`
 
 **Type:** : `object`
 
@@ -2613,7 +2744,7 @@ MaxConns=200
 | - [ProfilingPort](#Metrics_ProfilingPort )       | No      | integer | No         | -          | -                 |
 | - [ProfilingEnabled](#Metrics_ProfilingEnabled ) | No      | boolean | No         | -          | -                 |
 
-### <a name="Metrics_Host"></a>16.1. `Metrics.Host`
+### <a name="Metrics_Host"></a>18.1. `Metrics.Host`
 
 **Type:** : `string`
 
@@ -2625,7 +2756,7 @@ MaxConns=200
 Host="0.0.0.0"
 ```
 
-### <a name="Metrics_Port"></a>16.2. `Metrics.Port`
+### <a name="Metrics_Port"></a>18.2. `Metrics.Port`
 
 **Type:** : `integer`
 
@@ -2637,7 +2768,7 @@ Host="0.0.0.0"
 Port=9091
 ```
 
-### <a name="Metrics_Enabled"></a>16.3. `Metrics.Enabled`
+### <a name="Metrics_Enabled"></a>18.3. `Metrics.Enabled`
 
 **Type:** : `boolean`
 
@@ -2649,7 +2780,7 @@ Port=9091
 Enabled=false
 ```
 
-### <a name="Metrics_ProfilingHost"></a>16.4. `Metrics.ProfilingHost`
+### <a name="Metrics_ProfilingHost"></a>18.4. `Metrics.ProfilingHost`
 
 **Type:** : `string`
 
@@ -2661,7 +2792,7 @@ Enabled=false
 ProfilingHost=""
 ```
 
-### <a name="Metrics_ProfilingPort"></a>16.5. `Metrics.ProfilingPort`
+### <a name="Metrics_ProfilingPort"></a>18.5. `Metrics.ProfilingPort`
 
 **Type:** : `integer`
 
@@ -2673,7 +2804,7 @@ ProfilingHost=""
 ProfilingPort=0
 ```
 
-### <a name="Metrics_ProfilingEnabled"></a>16.6. `Metrics.ProfilingEnabled`
+### <a name="Metrics_ProfilingEnabled"></a>18.6. `Metrics.ProfilingEnabled`
 
 **Type:** : `boolean`
 
@@ -2685,7 +2816,7 @@ ProfilingPort=0
 ProfilingEnabled=false
 ```
 
-## <a name="EventLog"></a>17. `[EventLog]`
+## <a name="EventLog"></a>19. `[EventLog]`
 
 **Type:** : `object`
 
@@ -2693,7 +2824,7 @@ ProfilingEnabled=false
 | --------------------- | ------- | ------ | ---------- | ---------- | -------------------------------- |
 | - [DB](#EventLog_DB ) | No      | object | No         | -          | DB is the database configuration |
 
-### <a name="EventLog_DB"></a>17.1. `[EventLog.DB]`
+### <a name="EventLog_DB"></a>19.1. `[EventLog.DB]`
 
 **Type:** : `object`
 **Description:** DB is the database configuration
@@ -2708,7 +2839,7 @@ ProfilingEnabled=false
 | - [EnableLog](#EventLog_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#EventLog_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-#### <a name="EventLog_DB_Name"></a>17.1.1. `EventLog.DB.Name`
+#### <a name="EventLog_DB_Name"></a>19.1.1. `EventLog.DB.Name`
 
 **Type:** : `string`
 
@@ -2722,7 +2853,7 @@ ProfilingEnabled=false
 Name=""
 ```
 
-#### <a name="EventLog_DB_User"></a>17.1.2. `EventLog.DB.User`
+#### <a name="EventLog_DB_User"></a>19.1.2. `EventLog.DB.User`
 
 **Type:** : `string`
 
@@ -2736,7 +2867,7 @@ Name=""
 User=""
 ```
 
-#### <a name="EventLog_DB_Password"></a>17.1.3. `EventLog.DB.Password`
+#### <a name="EventLog_DB_Password"></a>19.1.3. `EventLog.DB.Password`
 
 **Type:** : `string`
 
@@ -2750,7 +2881,7 @@ User=""
 Password=""
 ```
 
-#### <a name="EventLog_DB_Host"></a>17.1.4. `EventLog.DB.Host`
+#### <a name="EventLog_DB_Host"></a>19.1.4. `EventLog.DB.Host`
 
 **Type:** : `string`
 
@@ -2764,7 +2895,7 @@ Password=""
 Host=""
 ```
 
-#### <a name="EventLog_DB_Port"></a>17.1.5. `EventLog.DB.Port`
+#### <a name="EventLog_DB_Port"></a>19.1.5. `EventLog.DB.Port`
 
 **Type:** : `string`
 
@@ -2778,7 +2909,7 @@ Host=""
 Port=""
 ```
 
-#### <a name="EventLog_DB_EnableLog"></a>17.1.6. `EventLog.DB.EnableLog`
+#### <a name="EventLog_DB_EnableLog"></a>19.1.6. `EventLog.DB.EnableLog`
 
 **Type:** : `boolean`
 
@@ -2792,7 +2923,7 @@ Port=""
 EnableLog=false
 ```
 
-#### <a name="EventLog_DB_MaxConns"></a>17.1.7. `EventLog.DB.MaxConns`
+#### <a name="EventLog_DB_MaxConns"></a>19.1.7. `EventLog.DB.MaxConns`
 
 **Type:** : `integer`
 
@@ -2806,7 +2937,7 @@ EnableLog=false
 MaxConns=0
 ```
 
-## <a name="HashDB"></a>18. `[HashDB]`
+## <a name="HashDB"></a>20. `[HashDB]`
 
 **Type:** : `object`
 
@@ -2820,7 +2951,7 @@ MaxConns=0
 | - [EnableLog](#HashDB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#HashDB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-### <a name="HashDB_Name"></a>18.1. `HashDB.Name`
+### <a name="HashDB_Name"></a>20.1. `HashDB.Name`
 
 **Type:** : `string`
 
@@ -2834,7 +2965,7 @@ MaxConns=0
 Name="prover_db"
 ```
 
-### <a name="HashDB_User"></a>18.2. `HashDB.User`
+### <a name="HashDB_User"></a>20.2. `HashDB.User`
 
 **Type:** : `string`
 
@@ -2848,7 +2979,7 @@ Name="prover_db"
 User="prover_user"
 ```
 
-### <a name="HashDB_Password"></a>18.3. `HashDB.Password`
+### <a name="HashDB_Password"></a>20.3. `HashDB.Password`
 
 **Type:** : `string`
 
@@ -2862,7 +2993,7 @@ User="prover_user"
 Password="prover_pass"
 ```
 
-### <a name="HashDB_Host"></a>18.4. `HashDB.Host`
+### <a name="HashDB_Host"></a>20.4. `HashDB.Host`
 
 **Type:** : `string`
 
@@ -2876,7 +3007,7 @@ Password="prover_pass"
 Host="zkevm-state-db"
 ```
 
-### <a name="HashDB_Port"></a>18.5. `HashDB.Port`
+### <a name="HashDB_Port"></a>20.5. `HashDB.Port`
 
 **Type:** : `string`
 
@@ -2890,7 +3021,7 @@ Host="zkevm-state-db"
 Port="5432"
 ```
 
-### <a name="HashDB_EnableLog"></a>18.6. `HashDB.EnableLog`
+### <a name="HashDB_EnableLog"></a>20.6. `HashDB.EnableLog`
 
 **Type:** : `boolean`
 
@@ -2904,7 +3035,7 @@ Port="5432"
 EnableLog=false
 ```
 
-### <a name="HashDB_MaxConns"></a>18.7. `HashDB.MaxConns`
+### <a name="HashDB_MaxConns"></a>20.7. `HashDB.MaxConns`
 
 **Type:** : `integer`
 

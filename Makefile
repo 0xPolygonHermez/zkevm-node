@@ -76,10 +76,28 @@ $(GENERATE_SCHEMA_DOC): $(VENV_PYTHON)
 
 .PHONY: config-doc-gen
 config-doc-gen: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema  and the HTML documentation
-	go run ./cmd generate-json-schema --output=docs/config-file/config-schema.json
-	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true --config footer_show_time=false --config expand_buttons=true --config custom_template_path=docs/config-file/templates/js/base.html docs/config-file/config-schema.json docs/config-file/config-doc.html
-	#generate-schema-doc --config show_breadcrumbs=true --config footer_show_time=false --config expand_buttons=true   docs/config-file/config-schema.json docs/config-file/config-doc-reference.html
-	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=docs/config-file/templates/md/base.md --config footer_show_time=false docs/config-file/config-schema.json docs/config-file/config-doc.md
+	go run ./cmd generate-json-schema --config-file=node --output=docs/config-file/node-config-schema.json
+	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true \
+							--config footer_show_time=false \
+							--config expand_buttons=true \
+							--config custom_template_path=docs/config-file/templates/js/base.html \
+							docs/config-file/node-config-schema.json \
+							docs/config-file/node-config-doc.html
+	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=docs/config-file/templates/md/base.md \
+							--config footer_show_time=false \
+							docs/config-file/node-config-schema.json \
+							docs/config-file/node-config-doc.md
+	go run ./cmd generate-json-schema --config-file=custom_network --output=docs/config-file/custom_network-config-schema.json
+	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true --config footer_show_time=false \
+							--config expand_buttons=true \
+							--config custom_template_path=docs/config-file/templates/js/base.html \
+							docs/config-file/genesis-config-schema.json \
+							docs/config-file/genesis-config-doc.html
+	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=docs/config-file/templates/md/base.md \
+							--config footer_show_time=false \
+							docs/config-file/custom_network-config-schema.json \
+							docs/config-file/custom_network-config-doc.md
+	
 
 .PHONY: update-external-dependencies
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files

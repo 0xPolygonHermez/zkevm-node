@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"os"
 	"reflect"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
@@ -18,6 +19,8 @@ type ConfigJsonSchemaGenerater[T any] struct {
 	cleanRequiredField bool
 	// It read the comments in the code and add as description in schema
 	addCodeCommentsToSchema bool
+	// Check if there are mapstructure that renames the fields
+	checkNoMapStructureIsRenamingFields bool
 	// source directories for extract comments
 	pathSourceCode string
 	// Struct with the default values to set
@@ -27,14 +30,15 @@ type ConfigJsonSchemaGenerater[T any] struct {
 	removeNetworkConfig bool
 }
 
-// NewConfigJsonSchemaGenerater returns a new class for generating json-schema of the general config file (.toml)
-func NewConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[Config] {
+// NewNodeConfigJsonSchemaGenerater returns a new class for generating json-schema of the general config file (.toml)
+func NewNodeConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[Config] {
 	res := ConfigJsonSchemaGenerater[Config]{}
 	res.repoName = "github.com/0xPolygonHermez/zkevm-node"
 	res.repoNameSuffix = "/config/config"
 	res.addCodeCommentsToSchema = true
 	res.pathSourceCode = "./"
 	res.cleanRequiredField = true
+	res.checkNoMapStructureIsRenamingFields = true
 	config_default_values, err := Default()
 	res.defaultValues = config_default_values
 	if err != nil {
@@ -43,9 +47,23 @@ func NewConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[Config] {
 	return res
 }
 
+func NewNetworkConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[GenesisFromJSON] {
+	res := ConfigJsonSchemaGenerater[GenesisFromJSON]{}
+	res.repoName = "github.com/0xPolygonHermez/zkevm-node"
+	res.repoNameSuffix = "/config/config"
+	res.addCodeCommentsToSchema = true
+	res.pathSourceCode = "./"
+	res.cleanRequiredField = true
+	res.checkNoMapStructureIsRenamingFields = false
+	res.defaultValues = nil
+	return res
+}
+
 // GenerateJsonSchema launchs the generation, and returns the schema
 func (s ConfigJsonSchemaGenerater[T]) GenerateJsonSchema(cli *cli.Context) (*jsonschema.Schema, error) {
-	checkNoMapStructureIsRenamingFields(s.defaultValues)
+	if s.checkNoMapStructureIsRenamingFields {
+		checkNoMapStructureIsRenamingFields(s.defaultValues)
+	}
 
 	r := new(jsonschema.Reflector)
 	repoName := s.repoName
@@ -85,6 +103,23 @@ func (s ConfigJsonSchemaGenerater[T]) SerializeJsonSchema(schema *jsonschema.Sch
 		return nil, err
 	}
 	return file, nil
+}
+
+func (s ConfigJsonSchemaGenerater[T]) GenerateJsonSchemaAndWriteToFile(cli *cli.Context, output_filename string) error {
+	schema, err := s.GenerateJsonSchema(cli)
+	if err != nil {
+		return err
+	}
+	file, err := s.SerializeJsonSchema(schema)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(output_filename, file, 0600) //nolint:gomnd
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // The tag `magstructure` is not supported by `jsonschema` module
