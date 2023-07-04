@@ -53,7 +53,10 @@ var (
 	}
 	effectiveGasPriceCfg = EffectiveGasPriceCfg{
 		MaxBreakEvenGasPriceDeviationPercentage: 10,
-		Enabled:                                 true,
+		L1GasPriceFactor:                        0.25,
+		ByteGasCost:                             16,
+		MarginFactor:                            1,
+		Enabled:                                 false,
 	}
 	cfg = FinalizerCfg{
 		GERDeadlineTimeout: cfgTypes.Duration{
@@ -99,7 +102,9 @@ var (
 	testBatchL2DataAsString = "0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e980801186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb9700910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c012259687999074321bff"
 	decodedBatchL2Data      []byte
 	done                    chan bool
+	gasPrice                = big.NewInt(1000000)
 	breakEvenGasPrice       = big.NewInt(1000000)
+	l1GasPrice              = uint64(1000000)
 )
 
 func testNow() time.Time {
@@ -130,9 +135,13 @@ func TestNewFinalizer(t *testing.T) {
 func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 	f = setupFinalizer(true)
 	ctx = context.Background()
-	txTracker := &TxTracker{Hash: txHash, From: senderAddr, Nonce: 1, BreakEvenGasPrice: breakEvenGasPrice, BatchResources: state.BatchResources{
+	txTracker := &TxTracker{Hash: txHash, From: senderAddr, Nonce: 1, GasPrice: gasPrice, BreakEvenGasPrice: breakEvenGasPrice, L1GasPrice: l1GasPrice, BatchResources: state.BatchResources{
 		Bytes: 1000,
+		ZKCounters: state.ZKCounters{
+			CumulativeGasUsed: 500,
+		},
 	}}
+
 	txResponse := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
 		StateRoot: newHash2,
@@ -272,7 +281,6 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 					done <- true // signal that the goroutine is done
 				}()
 			}
-
 			if tc.expectedDeleteTxCall {
 				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
 			}
@@ -284,8 +292,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				workerMock.On("UpdateTx", txTracker.Hash, txTracker.From, tc.executorResponse.UsedZkCounters).Return().Once()
 			}
 			if tc.expectedError == nil {
-				dbManagerMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L1GasPrice: 0, L2GasPrice: 0}, nilErr).Once()
-				dbManagerMock.On("GetL1GasPrice", ctx).Return(0).Once()
+				//dbManagerMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L1GasPrice: 0, L2GasPrice: 0}, nilErr).Once()
 				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", txTracker.From, tc.executorResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
 			}
@@ -507,6 +514,7 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 				dbManagerMock.On("CloseBatch", ctx, tc.closeBatchParams).Return(tc.closeBatchErr).Once()
 				dbManagerMock.On("GetBatchByNumber", ctx, f.batch.batchNumber, nil).Return(tc.batches[0], nilErr).Once()
 				dbManagerMock.On("GetTransactionsByBatchNumber", ctx, f.batch.batchNumber).Return(currTxs, constants.EffectivePercentage, nilErr).Once()
+				dbManagerMock.On("GetForkIDByBatchNumber", f.batch.batchNumber).Return(uint64(5)).Once()
 				if tc.forcedBatches != nil && len(tc.forcedBatches) > 0 {
 					processRequest := f.processRequest
 					processRequest.BatchNumber = f.processRequest.BatchNumber + 1
@@ -1406,6 +1414,9 @@ func Test_processTransaction(t *testing.T) {
 		GasPrice:          breakEvenGasPrice,
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
+			ZKCounters: state.ZKCounters{
+				CumulativeGasUsed: 500,
+			},
 		},
 	}
 	successfulTxResponse := &state.ProcessTransactionResponse{
@@ -1496,6 +1507,7 @@ func Test_processTransaction(t *testing.T) {
 				}()
 			}
 
+			dbManagerMock.On("GetL1GasPrice").Return(uint64(1000000)).Once()
 			executorMock.On("ProcessBatch", tc.ctx, mock.Anything, true).Return(tc.expectedResponse, tc.executorErr).Once()
 			if tc.executorErr == nil {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
@@ -1956,6 +1968,9 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			if tc.mockGetBatchByNumberErr == nil && tc.expectedDecodeErr == nil {
 				executorMock.On("ProcessBatch", context.Background(), mock.Anything, false).Return(tc.expectedExecutorResponse, tc.expectedExecutorErr)
 			}
+			if tc.name != "Error while getting batch by number" {
+				dbManagerMock.On("GetForkIDByBatchNumber", f.batch.batchNumber).Return(uint64(5)).Once()
+			}
 
 			// act
 			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, newHash)
@@ -2374,6 +2389,77 @@ func Test_sortForcedBatches(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			result := f.sortForcedBatches(testCase.input)
 			assert.Equal(t, testCase.expected, result, "They should be equal")
+		})
+	}
+}
+
+func Test_calculateEffectiveGasPricePercentage(t *testing.T) {
+	testCases := []struct {
+		name              string
+		gasPrice          *big.Int
+		breakEvenGasPrice *big.Int
+		expected          uint8
+	}{
+		{
+			name:              "100% (255) effective percentage",
+			gasPrice:          big.NewInt(1000),
+			breakEvenGasPrice: big.NewInt(1000),
+			expected:          255,
+		},
+		{
+			name:              "50% (128) effective percentage",
+			gasPrice:          big.NewInt(1000),
+			breakEvenGasPrice: big.NewInt(500),
+			expected:          128,
+		},
+		{
+			name:              "(41) effective percentage",
+			gasPrice:          big.NewInt(1000),
+			breakEvenGasPrice: big.NewInt(157),
+			expected:          41,
+		},
+		{
+			name:              "(1) effective percentage",
+			gasPrice:          big.NewInt(1000),
+			breakEvenGasPrice: big.NewInt(1),
+			expected:          1,
+		},
+		{
+			name:              "(2) effective percentage",
+			gasPrice:          big.NewInt(1000),
+			breakEvenGasPrice: big.NewInt(4),
+			expected:          2,
+		},
+		{
+			name:              "breakEvenGasPrice > gasPrice",
+			gasPrice:          big.NewInt(1000),
+			breakEvenGasPrice: big.NewInt(1001),
+			expected:          255,
+		},
+		{
+			name:              "breakEvenGasPrice = 0",
+			gasPrice:          big.NewInt(1000),
+			breakEvenGasPrice: big.NewInt(0),
+			expected:          0,
+		},
+		{
+			name:              "gasPrice = 0",
+			gasPrice:          big.NewInt(0),
+			breakEvenGasPrice: big.NewInt(1001),
+			expected:          0,
+		},
+		{
+			name:              "gasPrice = 0 & breakEvenGasPrice = 0",
+			gasPrice:          big.NewInt(0),
+			breakEvenGasPrice: big.NewInt(0),
+			expected:          0,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			egp, _ := CalculateEffectiveGasPricePercentage(testCase.gasPrice, testCase.breakEvenGasPrice)
+			assert.Equal(t, testCase.expected, egp, "They should be equal")
 		})
 	}
 }

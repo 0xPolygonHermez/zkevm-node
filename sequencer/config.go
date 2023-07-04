@@ -154,4 +154,8 @@ type EffectiveGasPriceCfg struct {
 
 	// Enabled is a flag to enable/disable the effective gas price
 	Enabled bool `mapstructure:"Enabled"`
+
+	// DefaultMinGasPriceAllowed is the default min gas price to suggest
+	// This value is assigned from [Pool].DefaultMinGasPriceAllowed
+	DefaultMinGasPriceAllowed uint64
 }

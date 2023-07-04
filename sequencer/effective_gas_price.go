@@ -12,7 +12,7 @@ import (
 )
 
 // CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
-func (f *finalizer) CalculateTxBreakEvenGasPrice(tx *TxTracker) (*big.Int, error) {
+func (f *finalizer) CalculateTxBreakEvenGasPrice(tx *TxTracker, gasUsed uint64) (*big.Int, error) {
 	const (
 		// constants used in calculation of BreakEvenGasPrice
 		signatureBytesLength           = 65
@@ -21,46 +21,57 @@ func (f *finalizer) CalculateTxBreakEvenGasPrice(tx *TxTracker) (*big.Int, error
 	)
 
 	if tx.L1GasPrice == 0 {
-		log.Warn("CalculateTxBreakEvenGasPrice: L1 gas price 0. Skipping estimation...")
+		log.Warn("CalculateTxBreakEvenGasPrice: L1 gas price 0. Skipping estimation for tx %s", tx.HashStr)
 		return nil, ErrZeroL1GasPrice
 	}
 
 	// Get L2 Min Gas Price
 	l2MinGasPrice := uint64(float64(tx.L1GasPrice) * f.effectiveGasPriceCfg.L1GasPriceFactor)
-	if l2MinGasPrice < f.dbManager.GetDefaultMinGasPriceAllowed() {
-		l2MinGasPrice = f.dbManager.GetDefaultMinGasPriceAllowed()
+	if l2MinGasPrice < f.defaultMinGasPriceAllowed {
+		l2MinGasPrice = f.defaultMinGasPriceAllowed
 	}
 
 	// Calculate BreakEvenGasPrice
-	totalTxPrice := (tx.BatchResources.ZKCounters.CumulativeGasUsed * l2MinGasPrice) + (totalRlpFieldsLength * tx.BatchResources.Bytes * tx.L1GasPrice)
-	breakEvenGasPrice := big.NewInt(0).SetUint64(uint64(float64(totalTxPrice/tx.BatchResources.ZKCounters.CumulativeGasUsed) * f.effectiveGasPriceCfg.MarginFactor))
+	totalTxPrice := (gasUsed * l2MinGasPrice) + ((totalRlpFieldsLength + tx.BatchResources.Bytes) * f.effectiveGasPriceCfg.ByteGasCost * tx.L1GasPrice)
+	breakEvenGasPrice := big.NewInt(0).SetUint64(uint64(float64(totalTxPrice/gasUsed) * f.effectiveGasPriceCfg.MarginFactor))
 
 	return breakEvenGasPrice, nil
 }
 
+// CompareTxBreakEvenGasPrice calculates the newBreakEvenGasPrice with the newGasUsed and compares it with
+// the tx.BreakEvenGasPrice. It returns ErrEffectiveGasPriceReprocess if the tx needs to be reprocessed with
+// the tx.BreakEvenGasPrice updated, otherwise it returns nil
 func (f *finalizer) CompareTxBreakEvenGasPrice(ctx context.Context, tx *TxTracker, newGasUsed uint64) error {
 	// Increase nunber of executions related to gas price
 	tx.EffectiveGasPriceProcessCount++
 
-	newBreakEvenGasPrice, err := f.CalculateTxBreakEvenGasPrice(tx)
+	newBreakEvenGasPrice, err := f.CalculateTxBreakEvenGasPrice(tx, newGasUsed)
 	if err != nil {
-		log.Errorf("failed to calculate breakEvenPrice with new gasUsed: %s", err.Error())
+		log.Errorf("failed to calculate breakEvenPrice with new gasUsed for tx %s, error: %s", tx.HashStr, err.Error())
 		return err
 	}
 
-	// if newBreakEvenGasPrice < tx.BreakEvenGasPrice
-	if newBreakEvenGasPrice.Cmp(tx.BreakEvenGasPrice) == -1 {
-		// Compute the difference
-		diff := new(big.Int).Sub(tx.BreakEvenGasPrice, newBreakEvenGasPrice)
-		// Compute deviation of breakEvenPrice
-		deviation := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
+	// if newBreakEvenGasPrice >= tx.GasPrice then we do a final reprocess using tx.GasPrice
+	if newBreakEvenGasPrice.Cmp(tx.GasPrice) >= 0 {
+		tx.BreakEvenGasPrice = tx.GasPrice
+		tx.IsEffectiveGasPriceFinalExecution = true
+		return ErrEffectiveGasPriceReprocess
+	} else { //newBreakEvenGasPrice < tx.GasPrice
+		// Compute the abosulte difference between tx.BreakEvenGasPrice - newBreakEvenGasPrice
+		diff := new(big.Int).Abs(new(big.Int).Sub(tx.BreakEvenGasPrice, newBreakEvenGasPrice))
+		// Compute max difference allowed of breakEvenGasPrice
+		maxDiff := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
 
-		// tx.BreakEvenGasPrice - newBreakEventGasPrice is greater than the max deviation allowed
-		if diff.Cmp(deviation) == 1 {
+		// if diff is greater than the maxDiff allowed
+		if diff.Cmp(maxDiff) == 1 {
 			if tx.EffectiveGasPriceProcessCount < 2 { //nolint:gomnd
+				// it is the first process of the tx we reprocess it with the newBreakEvenGasPrice
 				tx.BreakEvenGasPrice = newBreakEvenGasPrice
 				return ErrEffectiveGasPriceReprocess
 			} else {
+				// it is the second process attempt. It makes no sense to have a big diff at
+				// this point, for this reason we do a final reprocess using tx.GasPrice.
+				// Also we generate a critical event as this tx needs to be analized since
 				tx.BreakEvenGasPrice = tx.GasPrice
 				tx.IsEffectiveGasPriceFinalExecution = true
 				ev := &event.Event{
@@ -81,7 +92,7 @@ func (f *finalizer) CompareTxBreakEvenGasPrice(ctx context.Context, tx *TxTracke
 						preExecutionBreakEvenGasPrice: tx.BreakEvenGasPrice.String(),
 						newBreakEvenGasPrice:          newBreakEvenGasPrice.String(),
 						diff:                          diff.String(),
-						deviation:                     deviation.String(),
+						deviation:                     maxDiff.String(),
 					},
 				}
 				err = f.eventLog.LogEvent(ctx, ev)
@@ -90,11 +101,7 @@ func (f *finalizer) CompareTxBreakEvenGasPrice(ctx context.Context, tx *TxTracke
 				}
 				return ErrEffectiveGasPriceReprocess
 			}
-		} // TODO: Review this check regarding tx.GasPrice being nil
-	} else if tx.GasPrice != nil && newBreakEvenGasPrice.Cmp(tx.GasPrice) == 1 {
-		tx.BreakEvenGasPrice = tx.GasPrice
-		tx.IsEffectiveGasPriceFinalExecution = true
-		return ErrEffectiveGasPriceReprocess
+		} // if the diff < maxDiff it is ok, no reprocess of the tx is needed
 	}
 
 	return nil

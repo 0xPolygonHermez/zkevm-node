@@ -57,6 +57,7 @@ type finalizer struct {
 	eventLog *event.EventLog
 	// effective gas price calculation
 	maxBreakEvenGasPriceDeviationPercentage *big.Int
+	defaultMinGasPriceAllowed               uint64
 	// Processed txs
 	pendingTransactionsToStore    chan transactionToStore
 	pendingTransactionsToStoreWG  *sync.WaitGroup
@@ -151,6 +152,8 @@ func newFinalizer(
 
 // Start starts the finalizer.
 func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *state.ProcessRequest) {
+	f.defaultMinGasPriceAllowed = f.dbManager.GetDefaultMinGasPriceAllowed()
+
 	var err error
 	if batch != nil {
 		f.batch = batch
@@ -259,6 +262,10 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			}
 
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
+
+			// reset the count of effective GasPrice process attemps (since the tx may have been tried to be processed before)
+			tx.EffectiveGasPriceProcessCount = 0
+
 			f.sharedResourcesMux.Lock()
 			for {
 				_, err := f.processTransaction(ctx, tx)
@@ -520,13 +527,14 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 		f.processRequest.Transactions = tx.RawTx
 		hashStr = tx.HashStr
 
+		log.Infof("EffectiveGasPriceProcessCount=%d", tx.EffectiveGasPriceProcessCount)
 		// If it is the first time we process this tx then we calculate the BreakEvenGasPrice
 		if tx.EffectiveGasPriceProcessCount == 0 {
 			// Get L1 gas price and store in txTracker to make it consistent during the lifespan of the transaction
 			tx.L1GasPrice = f.dbManager.GetL1GasPrice()
-
+			log.Infof("tx.L1GasPrice=%d", tx.L1GasPrice)
 			// Calculate the new breakEvenPrice
-			tx.BreakEvenGasPrice, err = f.CalculateTxBreakEvenGasPrice(tx)
+			tx.BreakEvenGasPrice, err = f.CalculateTxBreakEvenGasPrice(tx, tx.BatchResources.ZKCounters.CumulativeGasUsed)
 			if err != nil {
 				if f.effectiveGasPriceCfg.Enabled {
 					return nil, err
