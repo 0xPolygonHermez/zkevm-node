@@ -13,17 +13,19 @@ You could find some examples here:
   - `config/environments/public/public.node.config.toml`
   - `test/config/test.node.config.toml`: configuration for a trusted node used in CI
 
-  For details about the contents you can read specifications [here](config-file/config-doc.md)
+  For details about the contents you can read specifications [here](config-file/node-config-doc.md)
 
 This file is used for trusted and for permisionless nodes. In the case of permissionless node you only need to setup next sections: 
 
 
 
-### Genesis Config
-This contain all the info information relating to contracts, etc..
+### Network Genesis Config
+This contain all the info information relating to the genesis of the network (e.g. contracts, etc..)
 
 You could find some examples here: 
 - `config/environments/local/local.genesis.config.json`:
+
+For details about the contents you can read specifications [here](config-file/custom_network-config-doc.md)
 
 
 ### Prover Config
