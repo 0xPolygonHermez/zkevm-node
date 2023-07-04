@@ -143,6 +143,15 @@ type EffectiveGasPriceCfg struct {
 	// MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
 	MaxBreakEvenGasPriceDeviationPercentage uint64 `mapstructure:"MaxBreakEvenGasPriceDeviationPercentage"`
 
+	// L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price
+	L1GasPriceFactor float64 `mapstructure:"L1GasPriceFactor"`
+
+	// ByteGasCost is the gas cost per byte
+	ByteGasCost uint64 `mapstructure:"ByteGasCost"`
+
+	// MarginFactor is the margin factor percentage to be added to the L2 min gas price
+	MarginFactor float64 `mapstructure:"MarginFactor"`
+
 	// Enabled is a flag to enable/disable the effective gas price
 	Enabled bool `mapstructure:"Enabled"`
 }

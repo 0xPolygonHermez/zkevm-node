@@ -560,9 +560,13 @@ func (d *dbManager) GetGasPrices(ctx context.Context) (pool.GasPrices, error) {
 	return d.txPool.GetGasPrices(ctx)
 }
 
-// CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
-func (d *dbManager) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
-	return d.txPool.CalculateTxBreakEvenGasPrice(ctx, txDataLength, gasUsed, l1GasPrice)
+// GetDefaultMinGasPriceAllowed return the configured DefaultMinGasPriceAllowed value
+func (d *dbManager) GetDefaultMinGasPriceAllowed() uint64 {
+	return d.txPool.GetDefaultMinGasPriceAllowed()
+}
+
+func (d *dbManager) GetL1GasPrice() uint64 {
+	return d.txPool.GetL1GasPrice()
 }
 
 // GetStoredFlushID returns the stored flush ID and prover ID
