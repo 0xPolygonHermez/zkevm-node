@@ -30,7 +30,7 @@ type ConfigJsonSchemaGenerater[T any] struct {
 	removeNetworkConfig bool
 }
 
-// NewNodeConfigJsonSchemaGenerater returns a new class for generating json-schema of the general config file (.toml)
+// NewNodeConfigJsonSchemaGenerater returns a new class for generating json-schema of the node config file (.toml)
 func NewNodeConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[Config] {
 	res := ConfigJsonSchemaGenerater[Config]{}
 	res.repoName = "github.com/0xPolygonHermez/zkevm-node"
@@ -47,6 +47,7 @@ func NewNodeConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[Config] {
 	return res
 }
 
+// NewNetworkConfigJsonSchemaGenerater returns a new class for generating json-schema of the network-custom config file (.json)
 func NewNetworkConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[GenesisFromJSON] {
 	res := ConfigJsonSchemaGenerater[GenesisFromJSON]{}
 	res.repoName = "github.com/0xPolygonHermez/zkevm-node"
@@ -105,6 +106,7 @@ func (s ConfigJsonSchemaGenerater[T]) SerializeJsonSchema(schema *jsonschema.Sch
 	return file, nil
 }
 
+// GenerateJsonSchemaAndWriteToFile generate the schema and store in `output_filename` file
 func (s ConfigJsonSchemaGenerater[T]) GenerateJsonSchemaAndWriteToFile(cli *cli.Context, output_filename string) error {
 	schema, err := s.GenerateJsonSchema(cli)
 	if err != nil {

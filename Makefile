@@ -26,6 +26,8 @@ VENV_PYTHON    = $(VENV)/bin/python
 SYSTEM_PYTHON  = $(or $(shell which python3), $(shell which python))
 PYTHON         = $(or $(wildcard $(VENV_PYTHON)), "install_first_venv")
 GENERATE_SCHEMA_DOC = $(VENV)/bin/generate-schema-doc
+GENERATE_DOC_PATH=  "docs/config-file/"
+GENERATE_DOC_TEMPLATES_PATH=  "docs/config-file/templates/"
 
 .PHONY: build
 build: ## Builds the binary locally into ./dist
@@ -80,31 +82,31 @@ config-doc-gen: config-doc-node config-doc-custom_network ## Generate config fil
 
 .PHONY: config-doc-node
 config-doc-node: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema for node and documentation
-	go run ./cmd generate-json-schema --config-file=node --output=docs/config-file/node-config-schema.json
+	go run ./cmd generate-json-schema --config-file=node --output=$(GENERATE_DOC_PATH)node-config-schema.json
 	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true \
 							--config footer_show_time=false \
 							--config expand_buttons=true \
-							--config custom_template_path=docs/config-file/templates/js/base.html \
-							docs/config-file/node-config-schema.json \
-							docs/config-file/node-config-doc.html
-	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=docs/config-file/templates/md/base.md \
+							--config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/js/base.html \
+							$(GENERATE_DOC_PATH)node-config-schema.json \
+							$(GENERATE_DOC_PATH)node-config-doc.html
+	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/md/base.md \
 							--config footer_show_time=false \
-							docs/config-file/node-config-schema.json \
-							docs/config-file/node-config-doc.md
+							$(GENERATE_DOC_PATH)node-config-schema.json \
+							$(GENERATE_DOC_PATH)node-config-doc.md
 
 .PHONY: config-doc-custom_network
 config-doc-custom_network: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema for custom_network and documentation
-	go run ./cmd generate-json-schema --config-file=custom_network --output=docs/config-file/custom_network-config-schema.json
+	go run ./cmd generate-json-schema --config-file=custom_network --output=$(GENERATE_DOC_PATH)custom_network-config-schema.json
 	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true --config footer_show_time=false \
 							--config expand_buttons=true \
-							--config custom_template_path=docs/config-file/templates/js/base.html \
-							docs/config-file/custom_network-config-schema.json \
-							docs/config-file/custom_network-config-doc.html
-	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=docs/config-file/templates/md/base.md \
+							--config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/js/base.html \
+							$(GENERATE_DOC_PATH)custom_network-config-schema.json \
+							$(GENERATE_DOC_PATH)custom_network-config-doc.html
+	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/md/base.md \
 							--config footer_show_time=false \
 							--config example_format=JSON \
-							docs/config-file/custom_network-config-schema.json \
-							docs/config-file/custom_network-config-doc.md
+							$(GENERATE_DOC_PATH)custom_network-config-schema.json \
+							$(GENERATE_DOC_PATH)custom_network-config-doc.md
 	
 
 .PHONY: update-external-dependencies

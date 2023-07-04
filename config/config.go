@@ -52,7 +52,7 @@ const (
 	FlagOutputFile = "output"
 	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
 	FlagMaxAmount = "max-amount"
-	// FlagOutputFile is the flag for the output file
+	// FlagDocumentationFileType is the flag for the choose which file generate json-schema
 	FlagDocumentationFileType = "config-file"
 )
 

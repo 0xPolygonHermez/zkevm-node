@@ -22,5 +22,4 @@ func genJSONSchema(cli *cli.Context) error {
 	default:
 		panic("Not supported this config file: " + file_config)
 	}
-
 }

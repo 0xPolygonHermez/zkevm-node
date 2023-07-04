@@ -30,6 +30,7 @@ const mainnet network = "mainnet"
 const testnet network = "testnet"
 const custom network = "custom"
 
+// GenesisFromJSON is the config file for network_custom
 type GenesisFromJSON struct {
 	Root            string                   `json:"root"`
 	GenesisBlockNum uint64                   `json:"genesisBlockNumber"`

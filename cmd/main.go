@@ -33,7 +33,7 @@ const (
 const (
 	// NODE_CONFIGFILE name to identify the node config-file
 	NODE_CONFIGFILE = "node"
-	// NODE_CONFIGFILE name to identify the genesis config-file
+	// NETWORK_CONFIGFILE name to identify the netowk_custom (genesis) config-file
 	NETWORK_CONFIGFILE = "custom_network"
 )
 
