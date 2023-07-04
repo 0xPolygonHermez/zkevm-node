@@ -98,8 +98,8 @@ config-doc-custom_network: $(GENERATE_SCHEMA_DOC) ## Generate config file's json
 	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true --config footer_show_time=false \
 							--config expand_buttons=true \
 							--config custom_template_path=docs/config-file/templates/js/base.html \
-							docs/config-file/genesis-config-schema.json \
-							docs/config-file/genesis-config-doc.html
+							docs/config-file/custom_network-config-schema.json \
+							docs/config-file/custom_network-config-doc.html
 	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=docs/config-file/templates/md/base.md \
 							--config footer_show_time=false \
 							--config example_format=JSON \
