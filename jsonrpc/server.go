@@ -79,7 +79,7 @@ func NewServer(
 	}
 
 	if _, ok := apis[APIDebug]; ok {
-		debugEndpoints := &DebugEndpoints{state: s}
+		debugEndpoints := &DebugEndpoints{cfg: cfg, state: s}
 		handler.registerService(APIDebug, debugEndpoints)
 	}
 
