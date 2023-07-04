@@ -75,5 +75,6 @@
 		}
 	},
 	"additionalProperties": false,
-	"type": "object"
+	"type": "object",
+	"description": "GenesisFromJSON is the config file for network_custom"
 }

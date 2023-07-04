@@ -40,9 +40,8 @@ jobs:
         NOT_UPDATED_MSG="JSON Schema is not up to date, run 'make config-doc-gen' before creating the PR"
 
         echo "Checking if JSON schema is up to date..."
-        make GENERATE_DOC_PATH=/tmp/ config-doc-node
-        go run ./cmd generate-json-schema --output=docs/config-file/actual-schema.json
-        for check_file in "node-config-schema.json" "node-config-doc.md"; do
+        make GENERATE_DOC_PATH=/tmp/ config-doc-gen
+        for check_file in "node-config-schema.json" "node-config-doc.md" "node-config-doc.html" "custom_network-config-schema.json" "custom_network-config-doc.md" "custom_network-config-doc.html"; do
         ACTUAL_DIFF_JSON_SCHEMA=$(diff /tmp/$check_file docs/config-file/$check_file)
         if [ "$ACTUAL_DIFF_JSON_SCHEMA" != "$EXPECTED_DIFF" ]; then
           echo $ACTUAL_DIFF_JSON_SCHEMA

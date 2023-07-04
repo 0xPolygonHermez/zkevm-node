@@ -1,6 +1,7 @@
 # Schema Docs
 
 **Type:** : `object`
+**Description:** GenesisFromJSON is the config file for network_custom
 
 | Property                                     | Pattern | Type            | Deprecated | Definition | Title/Description |
 | -------------------------------------------- | ------- | --------------- | ---------- | ---------- | ----------------- |
