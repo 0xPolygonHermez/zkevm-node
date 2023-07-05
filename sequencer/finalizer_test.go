@@ -1954,10 +1954,12 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			// arrange
 			f := setupFinalizer(true)
 			dbManagerMock.On("GetBatchByNumber", context.Background(), tc.batchNum, nil).Return(tc.mockGetBatchByNumber, tc.mockGetBatchByNumberErr).Once()
-			if tc.mockGetBatchByNumberErr == nil && tc.expectedDecodeErr == nil {
-				executorMock.On("ProcessBatch", context.Background(), mock.Anything, false).Return(tc.expectedExecutorResponse, tc.expectedExecutorErr)
+			if tc.mockGetBatchByNumberErr == nil {
+				dbManagerMock.On("GetForkIDByBatchNumber", tc.batchNum).Return(uint64(4)).Once()
+				if tc.expectedDecodeErr == nil {
+					executorMock.On("ProcessBatch", context.Background(), mock.Anything, false).Return(tc.expectedExecutorResponse, tc.expectedExecutorErr)
+				}
 			}
-
 			// act
 			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, newHash)
 
