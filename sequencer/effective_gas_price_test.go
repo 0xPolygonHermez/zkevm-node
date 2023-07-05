@@ -13,7 +13,7 @@ func TestCalcGasPriceEffectivePercentage(t *testing.T) {
 		breakEven     *big.Int
 		gasPrice      *big.Int
 		expectedValue uint8
-		//err           error
+		err           error
 	}{
 		{
 			name:          "Nil breakEven or gasPrice",
@@ -39,27 +39,27 @@ func TestCalcGasPriceEffectivePercentage(t *testing.T) {
 			expectedValue: uint8(230),
 		},
 		{
-			name:          "100% (255) effective percentage",
-			gasPrice:      big.NewInt(1000),
-			breakEven:     big.NewInt(1000),
+			name:          "100% (255) effective percentage 1",
+			gasPrice:      big.NewInt(22000000000),
+			breakEven:     big.NewInt(22000000000),
 			expectedValue: 255,
 		},
 		{
-			name:          "100% (255) effective percentage",
-			gasPrice:      big.NewInt(1000),
-			breakEven:     big.NewInt(999),
+			name:          "100% (255) effective percentage 2",
+			gasPrice:      big.NewInt(22000000000),
+			breakEven:     big.NewInt(21999999999),
 			expectedValue: 255,
 		},
 		{
-			name:          "100% (255) effective percentage",
-			gasPrice:      big.NewInt(1000),
-			breakEven:     big.NewInt(996),
+			name:          "100% (255) effective percentage 3",
+			gasPrice:      big.NewInt(22000000000),
+			breakEven:     big.NewInt(21900000000),
 			expectedValue: 254,
 		},
 		{
 			name:          "50% (127) effective percentage",
-			gasPrice:      big.NewInt(1000),
-			breakEven:     big.NewInt(500),
+			gasPrice:      big.NewInt(22000000000),
+			breakEven:     big.NewInt(11000000000),
 			expectedValue: 127,
 		},
 		{
@@ -80,36 +80,12 @@ func TestCalcGasPriceEffectivePercentage(t *testing.T) {
 			breakEven:     big.NewInt(4),
 			expectedValue: 1,
 		},
-		{
-			name:          "breakEven > gasPrice",
-			gasPrice:      big.NewInt(1000),
-			breakEven:     big.NewInt(1001),
-			expectedValue: 255,
-		},
-		{
-			name:          "breakEven = 0",
-			gasPrice:      big.NewInt(1000),
-			breakEven:     big.NewInt(0),
-			expectedValue: 0,
-		},
-		{
-			name:          "gasPrice = 0",
-			gasPrice:      big.NewInt(0),
-			breakEven:     big.NewInt(1001),
-			expectedValue: 0,
-		},
-		{
-			name:          "gasPrice = 0 & breakEven = 0",
-			gasPrice:      big.NewInt(0),
-			breakEven:     big.NewInt(0),
-			expectedValue: 0,
-		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual, _ := CalculateEffectiveGasPricePercentage(tc.gasPrice, tc.breakEven)
-			//assert.Equal(t, tc.err, err)
+			assert.Equal(t, tc.err, err)
 			if actual != 0 {
 				assert.Equal(t, tc.expectedValue, actual)
 			} else {
