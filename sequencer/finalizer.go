@@ -256,11 +256,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
-			// Timestamp resolution
-			if f.batch.isEmpty() {
-				f.batch.timestamp = now()
-			}
-
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
 
 			// reset the count of effective GasPrice process attempts (since the tx may have been tried to be processed before)
