@@ -15,13 +15,15 @@ import (
 
 // ZKEVMEndpoints contains implementations for the "zkevm" RPC endpoints
 type ZKEVMEndpoints struct {
+	cfg   Config
 	state types.StateInterface
 	txMan DBTxManager
 }
 
 // NewZKEVMEndpoints returns ZKEVMEndpoints
-func NewZKEVMEndpoints(state types.StateInterface) *ZKEVMEndpoints {
+func NewZKEVMEndpoints(cfg Config, state types.StateInterface) *ZKEVMEndpoints {
 	return &ZKEVMEndpoints{
+		cfg:   cfg,
 		state: state,
 	}
 }

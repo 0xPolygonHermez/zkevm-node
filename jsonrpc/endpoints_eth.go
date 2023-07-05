@@ -31,8 +31,8 @@ const (
 
 // EthEndpoints contains implementations for the "eth" RPC endpoints
 type EthEndpoints struct {
-	cfg     Config
 	chainID uint64
+	cfg     Config
 	pool    types.PoolInterface
 	state   types.StateInterface
 	storage storageInterface
