@@ -31,13 +31,6 @@ var (
 	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
 )
 
-const (
-	// constants used in calculation of BreakEvenGasPrice
-	signatureBytesLength           = 65
-	effectivePercentageBytesLength = 1
-	totalRlpFieldsLength           = signatureBytesLength + effectivePercentageBytesLength
-)
-
 // Pool is an implementation of the Pool interface
 // that uses a postgres database to store the data
 type Pool struct {
@@ -528,31 +521,18 @@ func (p *Pool) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bo
 	return p.storage.UpdateTxWIPStatus(ctx, hash, isWIP)
 }
 
-// CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
-func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
+// GetDefaultMinGasPriceAllowed return the configured DefaultMinGasPriceAllowed value
+func (p *Pool) GetDefaultMinGasPriceAllowed() uint64 {
+	return p.cfg.DefaultMinGasPriceAllowed
+}
+
+// GetL1GasPrice returns the L1 gas price
+func (p *Pool) GetL1GasPrice() uint64 {
 	p.gasPricesMux.RLock()
 	gasPrices := p.gasPrices
 	p.gasPricesMux.RUnlock()
 
-	// We enforce l1GasPrice to make it consistent during the lifespan of the transaction
-	gasPrices.L1GasPrice = l1GasPrice
-
-	if gasPrices.L1GasPrice == 0 {
-		log.Warn("Received L1 gas price 0. Skipping estimation...")
-		return big.NewInt(0), ErrReceivedZeroL1GasPrice
-	}
-
-	// Get L2 Min Gas Price
-	l2MinGasPrice := uint64(float64(gasPrices.L1GasPrice) * p.cfg.EffectiveGasPrice.L1GasPriceFactor)
-	if l2MinGasPrice < p.cfg.DefaultMinGasPriceAllowed {
-		l2MinGasPrice = p.cfg.DefaultMinGasPriceAllowed
-	}
-
-	// Calculate break even gas price
-	totalTxPrice := (gasUsed * l2MinGasPrice) + (totalRlpFieldsLength * txDataLength * gasPrices.L1GasPrice)
-	breakEvenGasPrice := uint64(float64(totalTxPrice/gasUsed) * p.cfg.EffectiveGasPrice.MarginFactor)
-
-	return big.NewInt(0).SetUint64(breakEvenGasPrice), nil
+	return gasPrices.L1GasPrice
 }
 
 const (

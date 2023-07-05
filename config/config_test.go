@@ -181,6 +181,18 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(10),
 		},
 		{
+			path:          "Sequencer.EffectiveGasPrice.L1GasPriceFactor",
+			expectedValue: float64(0.25),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.ByteGasCost",
+			expectedValue: uint64(16),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.MarginFactor",
+			expectedValue: float64(1),
+		},
+		{
 			path:          "Sequencer.EffectiveGasPrice.Enabled",
 			expectedValue: false,
 		},
@@ -344,18 +356,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.DB.MaxConns",
 			expectedValue: 200,
-		},
-		{
-			path:          "Pool.EffectiveGasPrice.L1GasPriceFactor",
-			expectedValue: float64(0.25),
-		},
-		{
-			path:          "Pool.EffectiveGasPrice.ByteGasCost",
-			expectedValue: uint64(16),
-		},
-		{
-			path:          "Pool.EffectiveGasPrice.MarginFactor",
-			expectedValue: float64(1),
 		},
 		{
 			path:          "RPC.Host",

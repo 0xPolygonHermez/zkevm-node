@@ -38,10 +38,6 @@ GlobalQueue = 1024
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
-	[Pool.EffectiveGasPrice]
-	L1GasPriceFactor = 0.25
-	ByteGasCost = 16
-	MarginFactor = 1
 
 [Etherman]
 URL = "http://localhost:8545"
@@ -116,6 +112,9 @@ MaxTxLifetime = "3h"
 		ResourceCostMultiplier = 1000
 	[Sequencer.EffectiveGasPrice]
 		MaxBreakEvenGasPriceDeviationPercentage = 10
+		L1GasPriceFactor = 0.25
+		ByteGasCost = 16
+		MarginFactor = 1
 		Enabled = false
 
 [SequenceSender]

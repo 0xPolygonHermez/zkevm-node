@@ -52,32 +52,6 @@ func (_m *DbManagerMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, err
 	return r0, r1
 }
 
-// CalculateTxBreakEvenGasPrice provides a mock function with given fields: ctx, txDataLength, gasUsed, l1GasPrice
-func (_m *DbManagerMock) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
-	ret := _m.Called(ctx, txDataLength, gasUsed, l1GasPrice)
-
-	var r0 *big.Int
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, uint64) (*big.Int, error)); ok {
-		return rf(ctx, txDataLength, gasUsed, l1GasPrice)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, uint64) *big.Int); ok {
-		r0 = rf(ctx, txDataLength, gasUsed, l1GasPrice)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*big.Int)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, uint64) error); ok {
-		r1 = rf(ctx, txDataLength, gasUsed, l1GasPrice)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // CloseBatch provides a mock function with given fields: ctx, params
 func (_m *DbManagerMock) CloseBatch(ctx context.Context, params ClosingBatchParameters) error {
 	ret := _m.Called(ctx, params)
@@ -210,6 +184,20 @@ func (_m *DbManagerMock) GetBatchByNumber(ctx context.Context, batchNumber uint6
 	return r0, r1
 }
 
+// GetDefaultMinGasPriceAllowed provides a mock function with given fields:
+func (_m *DbManagerMock) GetDefaultMinGasPriceAllowed() uint64 {
+	ret := _m.Called()
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func() uint64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	return r0
+}
+
 // GetForcedBatch provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
 func (_m *DbManagerMock) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error) {
 	ret := _m.Called(ctx, forcedBatchNumber, dbTx)
@@ -298,6 +286,20 @@ func (_m *DbManagerMock) GetGasPrices(ctx context.Context) (pool.GasPrices, erro
 	}
 
 	return r0, r1
+}
+
+// GetL1GasPrice provides a mock function with given fields:
+func (_m *DbManagerMock) GetL1GasPrice() uint64 {
+	ret := _m.Called()
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func() uint64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	return r0
 }
 
 // GetLastBatch provides a mock function with given fields: ctx
