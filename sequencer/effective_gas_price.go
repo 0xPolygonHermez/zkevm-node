@@ -126,6 +126,8 @@ func CalculateEffectiveGasPricePercentage(gasPrice *big.Int, breakEven *big.Int)
 	b = b.Add(b, gasPrice)
 	b = b.Sub(b, big.NewInt(1)) //nolint:gomnd
 	b = b.Div(b, gasPrice)
+	// At this point we have a percentage between 1-256, we need to sub 1 to have it between 0-255 (byte)
+	b = b.Sub(b, big.NewInt(1)) //nolint:gomnd
 
 	return uint8(b.Uint64()), nil
 }
