@@ -515,7 +515,6 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 				dbManagerMock.On("GetBatchByNumber", ctx, f.batch.batchNumber, nil).Return(tc.batches[0], nilErr).Once()
 				dbManagerMock.On("GetForkIDByBatchNumber", f.batch.batchNumber).Return(uint64(5)).Once()
 				dbManagerMock.On("GetTransactionsByBatchNumber", ctx, f.batch.batchNumber).Return(currTxs, constants.EffectivePercentage, nilErr).Once()
-				dbManagerMock.On("GetForkIDByBatchNumber", f.batch.batchNumber).Return(uint64(5)).Once()
 				if tc.forcedBatches != nil && len(tc.forcedBatches) > 0 {
 					processRequest := f.processRequest
 					processRequest.BatchNumber = f.processRequest.BatchNumber + 1
@@ -1966,14 +1965,11 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			// arrange
 			f := setupFinalizer(true)
 			dbManagerMock.On("GetBatchByNumber", context.Background(), tc.batchNum, nil).Return(tc.mockGetBatchByNumber, tc.mockGetBatchByNumberErr).Once()
-			if tc.mockGetBatchByNumberErr == nil {
-				dbManagerMock.On("GetForkIDByBatchNumber", tc.batchNum).Return(uint64(4)).Once()
-				if tc.expectedDecodeErr == nil {
-					executorMock.On("ProcessBatch", context.Background(), mock.Anything, false).Return(tc.expectedExecutorResponse, tc.expectedExecutorErr)
-				}
-			}
 			if tc.name != "Error while getting batch by number" {
 				dbManagerMock.On("GetForkIDByBatchNumber", f.batch.batchNumber).Return(uint64(5)).Once()
+			}
+			if tc.mockGetBatchByNumberErr == nil && tc.expectedDecodeErr == nil {
+				executorMock.On("ProcessBatch", context.Background(), mock.Anything, false).Return(tc.expectedExecutorResponse, tc.expectedExecutorErr)
 			}
 
 			// act
