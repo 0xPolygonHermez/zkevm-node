@@ -518,7 +518,7 @@ type Receipt struct {
 	ToAddr            *common.Address `json:"to"`
 	ContractAddress   *common.Address `json:"contractAddress"`
 	Type              ArgUint64       `json:"type"`
-	EffectiveGasPrice *ArgBig          `json:"effectiveGasPrice,omitempty"`
+	EffectiveGasPrice *ArgBig         `json:"effectiveGasPrice,omitempty"`
 }
 
 // NewReceipt creates a new Receipt instance
