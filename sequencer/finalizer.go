@@ -1159,6 +1159,7 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	// Forced batch deadline
 	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
 		log.Infof("Closing batch: %d, forced batch deadline encountered.", f.batch.batchNumber)
+		f.batch.closingReason = state.ForcedBatchDeadlineClosingReason
 		return true
 	}
 	// Global Exit Root deadline
