@@ -206,10 +206,11 @@ func TestExploratoryForCheckReadFromFile(t *testing.T) {
 func TestGenerateJsonSchemaCustomWithNameChangingUsingMapsInSubFieldtrucutMustPanic(t *testing.T) {
 	cli := cli.NewContext(nil, nil, nil)
 	generator := ConfigJsonSchemaGenerater[MyTestConfigWithMapstructureRenamingInSubStruct]{
-		repoName:                "mytest",
-		cleanRequiredField:      true,
-		addCodeCommentsToSchema: true,
-		pathSourceCode:          "./",
+		repoName:                            "mytest",
+		cleanRequiredField:                  true,
+		addCodeCommentsToSchema:             true,
+		pathSourceCode:                      "./",
+		checkNoMapStructureIsRenamingFields: true,
 		defaultValues: &MyTestConfigWithMapstructureRenamingInSubStruct{
 			F1: "defaultf1",
 			F2: 1234,
@@ -233,10 +234,11 @@ func TestGenerateJsonSchemaCustomWithNameChangingUsingMapsInSubFieldtrucutMustPa
 func TestGenerateJsonSchemaCustomWithNameChangingUsingMapstrucutMustPanic(t *testing.T) {
 	cli := cli.NewContext(nil, nil, nil)
 	generator := ConfigJsonSchemaGenerater[MyTestConfigWithMapstructureRenaming]{
-		repoName:                "mytest",
-		cleanRequiredField:      true,
-		addCodeCommentsToSchema: true,
-		pathSourceCode:          "./",
+		repoName:                            "mytest",
+		cleanRequiredField:                  true,
+		addCodeCommentsToSchema:             true,
+		pathSourceCode:                      "./",
+		checkNoMapStructureIsRenamingFields: true,
 		defaultValues: &MyTestConfigWithMapstructureRenaming{
 			F1: "defaultf1",
 			F2: 1234,
