@@ -354,7 +354,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 
 	// check if sender has reached the limit of transactions in the pool
 	if p.cfg.AccountQueue > 0 {
-		// txCount, err := p.storage.CountTransactionsByFromAndStatus(ctx, from, TxStatusPending, TxStatusFailed)
+		// txCount, err := p.storage.CountTransactionsByFromAndStatus(ctx, from, TxStatusPending)
 		// if err != nil {
 		// 	return err
 		// }
@@ -371,7 +371,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 
 	// check if the pool is full
 	if p.cfg.GlobalQueue > 0 {
-		txCount, err := p.storage.CountTransactionsByStatus(ctx, TxStatusPending, TxStatusFailed)
+		txCount, err := p.storage.CountTransactionsByStatus(ctx, TxStatusPending)
 		if err != nil {
 			return err
 		}

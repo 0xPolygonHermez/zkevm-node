@@ -339,14 +339,14 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	if _, ok := apis[jsonrpc.APINet]; ok {
 		services = append(services, jsonrpc.Service{
 			Name:    jsonrpc.APINet,
-			Service: jsonrpc.NewNetEndpoints(chainID),
+			Service: jsonrpc.NewNetEndpoints(c.RPC, chainID),
 		})
 	}
 
 	if _, ok := apis[jsonrpc.APIZKEVM]; ok {
 		services = append(services, jsonrpc.Service{
 			Name:    jsonrpc.APIZKEVM,
-			Service: jsonrpc.NewZKEVMEndpoints(st),
+			Service: jsonrpc.NewZKEVMEndpoints(c.RPC, st),
 		})
 	}
 
@@ -360,7 +360,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	if _, ok := apis[jsonrpc.APIDebug]; ok {
 		services = append(services, jsonrpc.Service{
 			Name:    jsonrpc.APIDebug,
-			Service: jsonrpc.NewDebugEndpoints(st),
+			Service: jsonrpc.NewDebugEndpoints(c.RPC, st),
 		})
 	}
 
