@@ -170,6 +170,25 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	preExecutionResponse, err := p.preExecuteTx(ctx, tx)
 	if errors.Is(err, runtime.ErrIntrinsicInvalidBatchGasLimit) {
 		return ErrGasLimit
+	} else if errors.Is(err, runtime.ErrFea2Scalar) ||
+		errors.Is(err, runtime.ErrBalanceMismatch) ||
+		errors.Is(err, runtime.ErrTos32) {
+		event := &event.Event{
+			ReceivedAt:  time.Now(),
+			IPAddress:   ip,
+			Source:      event.Source_Node,
+			Component:   event.Component_Pool,
+			Level:       event.Level_Critical,
+			EventID:     event.EventID_ExecutorError,
+			Description: tx.Hash().String(),
+		}
+
+		err := p.eventLog.LogEvent(ctx, event)
+		if err != nil {
+			log.Errorf("error adding event: %v", err)
+		}
+		// Do not add tx to the pool
+		return err
 	} else if err != nil {
 		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
 	}
