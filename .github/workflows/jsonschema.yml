@@ -36,19 +36,22 @@ jobs:
 
     - name: Check if JSON schema and generated doc is up to date
       run: |
-        EXPECTED_DIFF=""
-        NOT_UPDATED_MSG="JSON Schema is not up to date, run 'make config-doc-gen' before creating the PR"
+          EXPECTED_DIFF=""
+          NOT_UPDATED_MSG="JSON Schema is not up to date, run 'make config-doc-gen' before creating the PR"
 
-        echo "Checking if JSON schema is up to date..."
-        make GENERATE_DOC_PATH=/tmp/ config-doc-gen
-        for CHECK_FILE in "node-config-schema.json" "node-config-doc.md" "node-config-doc.html" "custom_network-config-schema.json" "custom_network-config-doc.md" "custom_network-config-doc.html"; do
-          echo "cheking $CHECK_FILE ...."
-          ACTUAL_DIFF_JSON_SCHEMA=$(diff /tmp/$CHECK_FILE docs/config-file/$CHECK_FILE)
-          if [ "$ACTUAL_DIFF_JSON_SCHEMA" != "$EXPECTED_DIFF" ]; then
-            echo $ACTUAL_DIFF_JSON_SCHEMA
-            echo $NOT_UPDATED_MSG
-            exit 1
-          fi
-        done
+          echo "Checking if JSON schema is up to date..."
+          make GENERATE_DOC_PATH=/tmp/ config-doc-gen
+          for CHECK_FILE in "node-config-schema.json" "node-config-doc.md" "node-config-doc.html" "custom_network-config-schema.json" "custom_network-config-doc.md" "custom_network-config-doc.html"; do
+            EXPECTED_FILE=tmp/$CHECK_FILE
+            REAL_FILE=docs/config-file/$CHECK_FILE
+            echo "checking $CHECK_FILE ...."
+            diff /tmp/$CHECK_FILE docs/config-file/$CHECK_FILE
+            if [ $? -ne 0  ]; then
+              echo "  FAILED file $CHECK_FILE!"
+              exit 1
+            fi
+            echo "checked $CHECK_FILE OK"
+          done
 
-        echo "Everything up to date"
+          echo "Everything up to date"
+
