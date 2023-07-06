@@ -3,10 +3,12 @@
 	"$id": "github.com/0xPolygonHermez/zkevm-node/config/config",
 	"properties": {
 		"root": {
-			"type": "string"
+			"type": "string",
+			"description": "L1: root hash of the genesis block"
 		},
 		"genesisBlockNumber": {
-			"type": "integer"
+			"type": "integer",
+			"description": "L1: block number of the genesis block"
 		},
 		"genesis": {
 			"items": {
@@ -38,12 +40,14 @@
 				"additionalProperties": false,
 				"type": "object"
 			},
-			"type": "array"
+			"type": "array",
+			"description": "L1:  List of contracts depoyed"
 		},
 		"L1Config": {
 			"properties": {
 				"chainId": {
-					"type": "integer"
+					"type": "integer",
+					"description": "Chain ID of the L1 network"
 				},
 				"polygonZkEVMAddress": {
 					"items": {
@@ -51,7 +55,8 @@
 					},
 					"type": "array",
 					"maxItems": 20,
-					"minItems": 20
+					"minItems": 20,
+					"description": "Address of the L1 contract"
 				},
 				"maticTokenAddress": {
 					"items": {
@@ -59,7 +64,8 @@
 					},
 					"type": "array",
 					"maxItems": 20,
-					"minItems": 20
+					"minItems": 20,
+					"description": "Address of the L1 Matic token Contract"
 				},
 				"polygonZkEVMGlobalExitRootAddress": {
 					"items": {
@@ -67,11 +73,13 @@
 					},
 					"type": "array",
 					"maxItems": 20,
-					"minItems": 20
+					"minItems": 20,
+					"description": "Address of the L1 GlobalExitRootManager contract"
 				}
 			},
 			"additionalProperties": false,
-			"type": "object"
+			"type": "object",
+			"description": "L1: configuration of the network"
 		}
 	},
 	"additionalProperties": false,

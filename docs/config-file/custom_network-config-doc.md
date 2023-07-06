@@ -3,24 +3,27 @@
 **Type:** : `object`
 **Description:** GenesisFromJSON is the config file for network_custom
 
-| Property                                     | Pattern | Type            | Deprecated | Definition | Title/Description |
-| -------------------------------------------- | ------- | --------------- | ---------- | ---------- | ----------------- |
-| - [root](#root )                             | No      | string          | No         | -          | -                 |
-| - [genesisBlockNumber](#genesisBlockNumber ) | No      | integer         | No         | -          | -                 |
-| - [genesis](#genesis )                       | No      | array of object | No         | -          | -                 |
-| - [L1Config](#L1Config )                     | No      | object          | No         | -          | -                 |
+| Property                                     | Pattern | Type            | Deprecated | Definition | Title/Description                     |
+| -------------------------------------------- | ------- | --------------- | ---------- | ---------- | ------------------------------------- |
+| - [root](#root )                             | No      | string          | No         | -          | L1: root hash of the genesis block    |
+| - [genesisBlockNumber](#genesisBlockNumber ) | No      | integer         | No         | -          | L1: block number of the genesis block |
+| - [genesis](#genesis )                       | No      | array of object | No         | -          | L1:  List of contracts depoyed        |
+| - [L1Config](#L1Config )                     | No      | object          | No         | -          | L1: configuration of the network      |
 
 ## <a name="root"></a>1. `root`
 
 **Type:** : `string`
+**Description:** L1: root hash of the genesis block
 
 ## <a name="genesisBlockNumber"></a>2. `genesisBlockNumber`
 
 **Type:** : `integer`
+**Description:** L1: block number of the genesis block
 
 ## <a name="genesis"></a>3. `genesis`
 
 **Type:** : `array of object`
+**Description:** L1:  List of contracts depoyed
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -85,29 +88,34 @@ must respect the following conditions
 ## <a name="L1Config"></a>4. `[L1Config]`
 
 **Type:** : `object`
+**Description:** L1: configuration of the network
 
-| Property                                                                            | Pattern | Type             | Deprecated | Definition | Title/Description |
-| ----------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
-| - [chainId](#L1Config_chainId )                                                     | No      | integer          | No         | -          | -                 |
-| - [polygonZkEVMAddress](#L1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | -                 |
-| - [maticTokenAddress](#L1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | -                 |
-| - [polygonZkEVMGlobalExitRootAddress](#L1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | -                 |
+| Property                                                                            | Pattern | Type             | Deprecated | Definition | Title/Description                                |
+| ----------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------ |
+| - [chainId](#L1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                       |
+| - [polygonZkEVMAddress](#L1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | Address of the L1 contract                       |
+| - [maticTokenAddress](#L1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | Address of the L1 Matic token Contract           |
+| - [polygonZkEVMGlobalExitRootAddress](#L1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | Address of the L1 GlobalExitRootManager contract |
 
 ### <a name="L1Config_chainId"></a>4.1. `L1Config.chainId`
 
 **Type:** : `integer`
+**Description:** Chain ID of the L1 network
 
 ### <a name="L1Config_polygonZkEVMAddress"></a>4.2. `L1Config.polygonZkEVMAddress`
 
 **Type:** : `array of integer`
+**Description:** Address of the L1 contract
 
 ### <a name="L1Config_maticTokenAddress"></a>4.3. `L1Config.maticTokenAddress`
 
 **Type:** : `array of integer`
+**Description:** Address of the L1 Matic token Contract
 
 ### <a name="L1Config_polygonZkEVMGlobalExitRootAddress"></a>4.4. `L1Config.polygonZkEVMGlobalExitRootAddress`
 
 **Type:** : `array of integer`
+**Description:** Address of the L1 GlobalExitRootManager contract
 
 ----------------------------------------------------------------------------------------------------------------------------
 Generated using [json-schema-for-humans](https://github.com/coveooss/json-schema-for-humans)

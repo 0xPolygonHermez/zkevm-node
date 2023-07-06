@@ -11,22 +11,22 @@
 | - [ForkUpgradeBatchNumber](#ForkUpgradeBatchNumber ) | No      | integer | No         | -          | Last batch number before  a forkid change (fork upgrade). That implies that<br />greater batch numbers are going to be trusted but no virtualized neither verified.<br />So after the batch number \`ForkUpgradeBatchNumber\` is virtualized and verified you could update<br />the system (SC,...) to new forkId and remove this value to allow the system to keep<br />Virtualizing and verifying the new batchs.<br />Check issue [#2236](https://github.com/0xPolygonHermez/zkevm-node/issues/2236) to known more<br />This value overwrite \`SequenceSender.ForkUpgradeBatchNumber\` |
 | - [ForkUpgradeNewForkId](#ForkUpgradeNewForkId )     | No      | integer | No         | -          | Which is the new forkId                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | - [Log](#Log )                                       | No      | object  | No         | -          | Configure Log level for all the services, allow also to store the logs in a file                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| - [Etherman](#Etherman )                             | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [EthTxManager](#EthTxManager )                     | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [Pool](#Pool )                                     | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [RPC](#RPC )                                       | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [Synchronizer](#Synchronizer )                     | No      | object  | No         | -          | Configuration of service \`Syncrhonizer\`. For this service is also important the value of \`IsTrustedSequencer\`                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [Sequencer](#Sequencer )                           | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [SequenceSender](#SequenceSender )                 | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [Aggregator](#Aggregator )                         | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [NetworkConfig](#NetworkConfig )                   | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [L2GasPriceSuggester](#L2GasPriceSuggester )       | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [Executor](#Executor )                             | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [MTClient](#MTClient )                             | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [StateDB](#StateDB )                               | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [Metrics](#Metrics )                               | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [EventLog](#EventLog )                             | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| - [HashDB](#HashDB )                                 | No      | object  | No         | -          | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [Etherman](#Etherman )                             | No      | object  | No         | -          | Configuration of the etherman (client for access L1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| - [EthTxManager](#EthTxManager )                     | No      | object  | No         | -          | Configuration for ethereum transaction manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| - [Pool](#Pool )                                     | No      | object  | No         | -          | Pool service configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| - [RPC](#RPC )                                       | No      | object  | No         | -          | Configuration for RPC service. THis one offers a extended Ethereum JSON-RPC API interface to interact with the node                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| - [Synchronizer](#Synchronizer )                     | No      | object  | No         | -          | Configuration of service \`Syncrhonizer\`. For this service is also really important the value of \`IsTrustedSequencer\`<br />because depending of this values is going to ask to a trusted node for trusted transactions or not                                                                                                                                                                                                                                                                                                                                                          |
+| - [Sequencer](#Sequencer )                           | No      | object  | No         | -          | Configuration of the sequencer service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| - [SequenceSender](#SequenceSender )                 | No      | object  | No         | -          | Configuration of the sequence sender service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| - [Aggregator](#Aggregator )                         | No      | object  | No         | -          | Configuration of the aggregator service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| - [NetworkConfig](#NetworkConfig )                   | No      | object  | No         | -          | Configuration of the genesis of the network. This is used to known the initial state of the network                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| - [L2GasPriceSuggester](#L2GasPriceSuggester )       | No      | object  | No         | -          | Configuration of the gas price suggester service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| - [Executor](#Executor )                             | No      | object  | No         | -          | Configuration of the executor service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| - [MTClient](#MTClient )                             | No      | object  | No         | -          | Configuration of the merkle tree client service. Not use in the node, only for testing                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| - [StateDB](#StateDB )                               | No      | object  | No         | -          | Configuration of the state database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| - [Metrics](#Metrics )                               | No      | object  | No         | -          | Configuration of the metrics service, basically is where is going to publish the metrics                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| - [EventLog](#EventLog )                             | No      | object  | No         | -          | Configuration of the event database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| - [HashDB](#HashDB )                                 | No      | object  | No         | -          | Configuration of the hash database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 ## <a name="IsTrustedSequencer"></a>1. `IsTrustedSequencer`
 
@@ -145,14 +145,13 @@ Outputs=["stderr"]
 ## <a name="Etherman"></a>5. `[Etherman]`
 
 **Type:** : `object`
+**Description:** Configuration of the etherman (client for access L1)
 
-| Property                                              | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ----------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [URL](#Etherman_URL )                               | No      | string  | No         | -          | -                 |
-| - [PrivateKeyPath](#Etherman_PrivateKeyPath )         | No      | string  | No         | -          | -                 |
-| - [PrivateKeyPassword](#Etherman_PrivateKeyPassword ) | No      | string  | No         | -          | -                 |
-| - [MultiGasProvider](#Etherman_MultiGasProvider )     | No      | boolean | No         | -          | -                 |
-| - [Etherscan](#Etherman_Etherscan )                   | No      | object  | No         | -          | -                 |
+| Property                                          | Pattern | Type    | Deprecated | Definition | Title/Description                                                                       |
+| ------------------------------------------------- | ------- | ------- | ---------- | ---------- | --------------------------------------------------------------------------------------- |
+| - [URL](#Etherman_URL )                           | No      | string  | No         | -          | URL is the URL of the Ethereum node for L1                                              |
+| - [MultiGasProvider](#Etherman_MultiGasProvider ) | No      | boolean | No         | -          | -                                                                                       |
+| - [Etherscan](#Etherman_Etherscan )               | No      | object  | No         | -          | Configuration for use Etherscan as used as gas provider, basically it needs the API-KEY |
 
 ### <a name="Etherman_URL"></a>5.1. `Etherman.URL`
 
@@ -160,37 +159,15 @@ Outputs=["stderr"]
 
 **Default:** `"http://localhost:8545"`
 
+**Description:** URL is the URL of the Ethereum node for L1
+
 **Example setting the default value** ("http://localhost:8545"):
 ```
 [Etherman]
 URL="http://localhost:8545"
 ```
 
-### <a name="Etherman_PrivateKeyPath"></a>5.2. `Etherman.PrivateKeyPath`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[Etherman]
-PrivateKeyPath=""
-```
-
-### <a name="Etherman_PrivateKeyPassword"></a>5.3. `Etherman.PrivateKeyPassword`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[Etherman]
-PrivateKeyPassword=""
-```
-
-### <a name="Etherman_MultiGasProvider"></a>5.4. `Etherman.MultiGasProvider`
+### <a name="Etherman_MultiGasProvider"></a>5.2. `Etherman.MultiGasProvider`
 
 **Type:** : `boolean`
 
@@ -202,20 +179,23 @@ PrivateKeyPassword=""
 MultiGasProvider=false
 ```
 
-### <a name="Etherman_Etherscan"></a>5.5. `[Etherman.Etherscan]`
+### <a name="Etherman_Etherscan"></a>5.3. `[Etherman.Etherscan]`
 
 **Type:** : `object`
+**Description:** Configuration for use Etherscan as used as gas provider, basically it needs the API-KEY
 
-| Property                                | Pattern | Type   | Deprecated | Definition | Title/Description |
-| --------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| - [ApiKey](#Etherman_Etherscan_ApiKey ) | No      | string | No         | -          | -                 |
-| - [Url](#Etherman_Etherscan_Url )       | No      | string | No         | -          | -                 |
+| Property                                | Pattern | Type   | Deprecated | Definition | Title/Description                                                                                                                     |
+| --------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| - [ApiKey](#Etherman_Etherscan_ApiKey ) | No      | string | No         | -          | Need API key to use etherscan, if it's empty etherscan is not used                                                                    |
+| - [Url](#Etherman_Etherscan_Url )       | No      | string | No         | -          | URL of the etherscan API. Overwritten with a hardcoded URL: "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=" |
 
-#### <a name="Etherman_Etherscan_ApiKey"></a>5.5.1. `Etherman.Etherscan.ApiKey`
+#### <a name="Etherman_Etherscan_ApiKey"></a>5.3.1. `Etherman.Etherscan.ApiKey`
 
 **Type:** : `string`
 
 **Default:** `""`
+
+**Description:** Need API key to use etherscan, if it's empty etherscan is not used
 
 **Example setting the default value** (""):
 ```
@@ -223,11 +203,13 @@ MultiGasProvider=false
 ApiKey=""
 ```
 
-#### <a name="Etherman_Etherscan_Url"></a>5.5.2. `Etherman.Etherscan.Url`
+#### <a name="Etherman_Etherscan_Url"></a>5.3.2. `Etherman.Etherscan.Url`
 
 **Type:** : `string`
 
 **Default:** `""`
+
+**Description:** URL of the etherscan API. Overwritten with a hardcoded URL: "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey="
 
 **Example setting the default value** (""):
 ```
@@ -238,6 +220,7 @@ Url=""
 ## <a name="EthTxManager"></a>6. `[EthTxManager]`
 
 **Type:** : `object`
+**Description:** Configuration for ethereum transaction manager
 
 | Property                                                        | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                  |
 | --------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -353,6 +336,7 @@ ForcedGas=0
 ## <a name="Pool"></a>7. `[Pool]`
 
 **Type:** : `object`
+**Description:** Pool service configuration
 
 | Property                                                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                    |
 | ------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------- |
@@ -457,10 +441,10 @@ MaxTxDataBytesSize=100000
 | Property                           | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
 | ---------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
 | - [Name](#Pool_DB_Name )           | No      | string  | No         | -          | Database name                                              |
-| - [User](#Pool_DB_User )           | No      | string  | No         | -          | User name                                                  |
-| - [Password](#Pool_DB_Password )   | No      | string  | No         | -          | Password of the user                                       |
-| - [Host](#Pool_DB_Host )           | No      | string  | No         | -          | Host address                                               |
-| - [Port](#Pool_DB_Port )           | No      | string  | No         | -          | Port Number                                                |
+| - [User](#Pool_DB_User )           | No      | string  | No         | -          | Database User name                                         |
+| - [Password](#Pool_DB_Password )   | No      | string  | No         | -          | Database Password of the user                              |
+| - [Host](#Pool_DB_Host )           | No      | string  | No         | -          | Host address of database                                   |
+| - [Port](#Pool_DB_Port )           | No      | string  | No         | -          | Port Number of database                                    |
 | - [EnableLog](#Pool_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#Pool_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
@@ -484,7 +468,7 @@ Name="pool_db"
 
 **Default:** `"pool_user"`
 
-**Description:** User name
+**Description:** Database User name
 
 **Example setting the default value** ("pool_user"):
 ```
@@ -498,7 +482,7 @@ User="pool_user"
 
 **Default:** `"pool_password"`
 
-**Description:** Password of the user
+**Description:** Database Password of the user
 
 **Example setting the default value** ("pool_password"):
 ```
@@ -512,7 +496,7 @@ Password="pool_password"
 
 **Default:** `"zkevm-pool-db"`
 
-**Description:** Host address
+**Description:** Host address of database
 
 **Example setting the default value** ("zkevm-pool-db"):
 ```
@@ -526,7 +510,7 @@ Host="zkevm-pool-db"
 
 **Default:** `"5432"`
 
-**Description:** Port Number
+**Description:** Port Number of database
 
 **Example setting the default value** ("5432"):
 ```
@@ -712,6 +696,7 @@ GlobalQueue=1024
 ## <a name="RPC"></a>8. `[RPC]`
 
 **Type:** : `object`
+**Description:** Configuration for RPC service. THis one offers a extended Ethereum JSON-RPC API interface to interact with the node
 
 | Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                 |
 | ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -921,7 +906,8 @@ EnableL2SuggestedGasPricePolling=true
 ## <a name="Synchronizer"></a>9. `[Synchronizer]`
 
 **Type:** : `object`
-**Description:** Configuration of service `Syncrhonizer`. For this service is also important the value of `IsTrustedSequencer`
+**Description:** Configuration of service `Syncrhonizer`. For this service is also really important the value of `IsTrustedSequencer`
+because depending of this values is going to ask to a trusted node for trusted transactions or not
 
 | Property                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                        |
 | ----------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------ |
@@ -986,6 +972,7 @@ TrustedSequencerURL=""
 ## <a name="Sequencer"></a>10. `[Sequencer]`
 
 **Type:** : `object`
+**Description:** Configuration of the sequencer service
 
 | Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                  |
 | ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1796,6 +1783,7 @@ Enabled=false
 ## <a name="SequenceSender"></a>11. `[SequenceSender]`
 
 **Type:** : `object`
+**Description:** Configuration of the sequence sender service
 
 | Property                                                                                                | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -1955,6 +1943,7 @@ ForkUpgradeBatchNumber=0
 ## <a name="Aggregator"></a>12. `[Aggregator]`
 
 **Type:** : `object`
+**Description:** Configuration of the aggregator service
 
 | Property                                                                                            | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                           |
 | --------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2214,31 +2203,34 @@ GeneratingProofCleanupThreshold="10m"
 ## <a name="NetworkConfig"></a>13. `[NetworkConfig]`
 
 **Type:** : `object`
+**Description:** Configuration of the genesis of the network. This is used to known the initial state of the network
 
-| Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
-| - [l1Config](#NetworkConfig_l1Config )                                       | No      | object           | No         | -          | -                 |
-| - [L2GlobalExitRootManagerAddr](#NetworkConfig_L2GlobalExitRootManagerAddr ) | No      | array of integer | No         | -          | -                 |
-| - [L2BridgeAddr](#NetworkConfig_L2BridgeAddr )                               | No      | array of integer | No         | -          | -                 |
-| - [Genesis](#NetworkConfig_Genesis )                                         | No      | object           | No         | -          | -                 |
-| - [MaxCumulativeGasUsed](#NetworkConfig_MaxCumulativeGasUsed )               | No      | integer          | No         | -          | -                 |
+| Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                      |
+| ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------------ |
+| - [l1Config](#NetworkConfig_l1Config )                                       | No      | object           | No         | -          | L1: Configuration related to L1                        |
+| - [L2GlobalExitRootManagerAddr](#NetworkConfig_L2GlobalExitRootManagerAddr ) | No      | array of integer | No         | -          | L2: address of the L2GlobalExitRootManager contract    |
+| - [L2BridgeAddr](#NetworkConfig_L2BridgeAddr )                               | No      | array of integer | No         | -          | L2: address of the L2Bridge contract                   |
+| - [Genesis](#NetworkConfig_Genesis )                                         | No      | object           | No         | -          | L1: Genesis of the rollup, first block number and root |
 
 ### <a name="NetworkConfig_l1Config"></a>13.1. `[NetworkConfig.l1Config]`
 
 **Type:** : `object`
+**Description:** L1: Configuration related to L1
 
-| Property                                                                                          | Pattern | Type             | Deprecated | Definition | Title/Description |
-| ------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
-| - [chainId](#NetworkConfig_l1Config_chainId )                                                     | No      | integer          | No         | -          | -                 |
-| - [polygonZkEVMAddress](#NetworkConfig_l1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | -                 |
-| - [maticTokenAddress](#NetworkConfig_l1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | -                 |
-| - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | -                 |
+| Property                                                                                          | Pattern | Type             | Deprecated | Definition | Title/Description                                |
+| ------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------ |
+| - [chainId](#NetworkConfig_l1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                       |
+| - [polygonZkEVMAddress](#NetworkConfig_l1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | Address of the L1 contract                       |
+| - [maticTokenAddress](#NetworkConfig_l1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | Address of the L1 Matic token Contract           |
+| - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | Address of the L1 GlobalExitRootManager contract |
 
 #### <a name="NetworkConfig_l1Config_chainId"></a>13.1.1. `NetworkConfig.l1Config.chainId`
 
 **Type:** : `integer`
 
 **Default:** `0`
+
+**Description:** Chain ID of the L1 network
 
 **Example setting the default value** (0):
 ```
@@ -2249,26 +2241,32 @@ chainId=0
 #### <a name="NetworkConfig_l1Config_polygonZkEVMAddress"></a>13.1.2. `NetworkConfig.l1Config.polygonZkEVMAddress`
 
 **Type:** : `array of integer`
+**Description:** Address of the L1 contract
 
 #### <a name="NetworkConfig_l1Config_maticTokenAddress"></a>13.1.3. `NetworkConfig.l1Config.maticTokenAddress`
 
 **Type:** : `array of integer`
+**Description:** Address of the L1 Matic token Contract
 
 #### <a name="NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress"></a>13.1.4. `NetworkConfig.l1Config.polygonZkEVMGlobalExitRootAddress`
 
 **Type:** : `array of integer`
+**Description:** Address of the L1 GlobalExitRootManager contract
 
 ### <a name="NetworkConfig_L2GlobalExitRootManagerAddr"></a>13.2. `NetworkConfig.L2GlobalExitRootManagerAddr`
 
 **Type:** : `array of integer`
+**Description:** L2: address of the L2GlobalExitRootManager contract
 
 ### <a name="NetworkConfig_L2BridgeAddr"></a>13.3. `NetworkConfig.L2BridgeAddr`
 
 **Type:** : `array of integer`
+**Description:** L2: address of the L2Bridge contract
 
 ### <a name="NetworkConfig_Genesis"></a>13.4. `[NetworkConfig.Genesis]`
 
 **Type:** : `object`
+**Description:** L1: Genesis of the rollup, first block number and root
 
 | Property                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                           |
 | ------------------------------------------------------------ | ------- | ---------------- | ---------- | ---------- | --------------------------------------------------------------------------- |
@@ -2353,21 +2351,10 @@ GenesisBlockNum=0
 
 **Type:** : `string`
 
-### <a name="NetworkConfig_MaxCumulativeGasUsed"></a>13.5. `NetworkConfig.MaxCumulativeGasUsed`
-
-**Type:** : `integer`
-
-**Default:** `0`
-
-**Example setting the default value** (0):
-```
-[NetworkConfig]
-MaxCumulativeGasUsed=0
-```
-
 ## <a name="L2GasPriceSuggester"></a>14. `[L2GasPriceSuggester]`
 
 **Type:** : `object`
+**Description:** Configuration of the gas price suggester service
 
 | Property                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description |
 | ------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------- |
@@ -2525,6 +2512,7 @@ Factor=0.15
 ## <a name="Executor"></a>15. `[Executor]`
 
 **Type:** : `object`
+**Description:** Configuration of the executor service
 
 | Property                                                                  | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                       |
 | ------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -2600,6 +2588,7 @@ MaxGRPCMessageSize=100000000
 ## <a name="MTClient"></a>16. `[MTClient]`
 
 **Type:** : `object`
+**Description:** Configuration of the merkle tree client service. Not use in the node, only for testing
 
 | Property                | Pattern | Type   | Deprecated | Definition | Title/Description      |
 | ----------------------- | ------- | ------ | ---------- | ---------- | ---------------------- |
@@ -2622,14 +2611,15 @@ URI="zkevm-prover:50061"
 ## <a name="StateDB"></a>17. `[StateDB]`
 
 **Type:** : `object`
+**Description:** Configuration of the state database connection
 
 | Property                           | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
 | ---------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
 | - [Name](#StateDB_Name )           | No      | string  | No         | -          | Database name                                              |
-| - [User](#StateDB_User )           | No      | string  | No         | -          | User name                                                  |
-| - [Password](#StateDB_Password )   | No      | string  | No         | -          | Password of the user                                       |
-| - [Host](#StateDB_Host )           | No      | string  | No         | -          | Host address                                               |
-| - [Port](#StateDB_Port )           | No      | string  | No         | -          | Port Number                                                |
+| - [User](#StateDB_User )           | No      | string  | No         | -          | Database User name                                         |
+| - [Password](#StateDB_Password )   | No      | string  | No         | -          | Database Password of the user                              |
+| - [Host](#StateDB_Host )           | No      | string  | No         | -          | Host address of database                                   |
+| - [Port](#StateDB_Port )           | No      | string  | No         | -          | Port Number of database                                    |
 | - [EnableLog](#StateDB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#StateDB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
@@ -2653,7 +2643,7 @@ Name="state_db"
 
 **Default:** `"state_user"`
 
-**Description:** User name
+**Description:** Database User name
 
 **Example setting the default value** ("state_user"):
 ```
@@ -2667,7 +2657,7 @@ User="state_user"
 
 **Default:** `"state_password"`
 
-**Description:** Password of the user
+**Description:** Database Password of the user
 
 **Example setting the default value** ("state_password"):
 ```
@@ -2681,7 +2671,7 @@ Password="state_password"
 
 **Default:** `"zkevm-state-db"`
 
-**Description:** Host address
+**Description:** Host address of database
 
 **Example setting the default value** ("zkevm-state-db"):
 ```
@@ -2695,7 +2685,7 @@ Host="zkevm-state-db"
 
 **Default:** `"5432"`
 
-**Description:** Port Number
+**Description:** Port Number of database
 
 **Example setting the default value** ("5432"):
 ```
@@ -2734,21 +2724,24 @@ MaxConns=200
 ## <a name="Metrics"></a>18. `[Metrics]`
 
 **Type:** : `object`
+**Description:** Configuration of the metrics service, basically is where is going to publish the metrics
 
-| Property                                         | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [Host](#Metrics_Host )                         | No      | string  | No         | -          | -                 |
-| - [Port](#Metrics_Port )                         | No      | integer | No         | -          | -                 |
-| - [Enabled](#Metrics_Enabled )                   | No      | boolean | No         | -          | -                 |
-| - [ProfilingHost](#Metrics_ProfilingHost )       | No      | string  | No         | -          | -                 |
-| - [ProfilingPort](#Metrics_ProfilingPort )       | No      | integer | No         | -          | -                 |
-| - [ProfilingEnabled](#Metrics_ProfilingEnabled ) | No      | boolean | No         | -          | -                 |
+| Property                                         | Pattern | Type    | Deprecated | Definition | Title/Description                                                   |
+| ------------------------------------------------ | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------- |
+| - [Host](#Metrics_Host )                         | No      | string  | No         | -          | Host is the address to bind the metrics server                      |
+| - [Port](#Metrics_Port )                         | No      | integer | No         | -          | Port is the port to bind the metrics server                         |
+| - [Enabled](#Metrics_Enabled )                   | No      | boolean | No         | -          | Enabled is the flag to enable/disable the metrics server            |
+| - [ProfilingHost](#Metrics_ProfilingHost )       | No      | string  | No         | -          | ProfilingHost is the address to bind the profiling server           |
+| - [ProfilingPort](#Metrics_ProfilingPort )       | No      | integer | No         | -          | ProfilingPort is the port to bind the profiling server              |
+| - [ProfilingEnabled](#Metrics_ProfilingEnabled ) | No      | boolean | No         | -          | ProfilingEnabled is the flag to enable/disable the profiling server |
 
 ### <a name="Metrics_Host"></a>18.1. `Metrics.Host`
 
 **Type:** : `string`
 
 **Default:** `"0.0.0.0"`
+
+**Description:** Host is the address to bind the metrics server
 
 **Example setting the default value** ("0.0.0.0"):
 ```
@@ -2762,6 +2755,8 @@ Host="0.0.0.0"
 
 **Default:** `9091`
 
+**Description:** Port is the port to bind the metrics server
+
 **Example setting the default value** (9091):
 ```
 [Metrics]
@@ -2773,6 +2768,8 @@ Port=9091
 **Type:** : `boolean`
 
 **Default:** `false`
+
+**Description:** Enabled is the flag to enable/disable the metrics server
 
 **Example setting the default value** (false):
 ```
@@ -2786,6 +2783,8 @@ Enabled=false
 
 **Default:** `""`
 
+**Description:** ProfilingHost is the address to bind the profiling server
+
 **Example setting the default value** (""):
 ```
 [Metrics]
@@ -2797,6 +2796,8 @@ ProfilingHost=""
 **Type:** : `integer`
 
 **Default:** `0`
+
+**Description:** ProfilingPort is the port to bind the profiling server
 
 **Example setting the default value** (0):
 ```
@@ -2810,6 +2811,8 @@ ProfilingPort=0
 
 **Default:** `false`
 
+**Description:** ProfilingEnabled is the flag to enable/disable the profiling server
+
 **Example setting the default value** (false):
 ```
 [Metrics]
@@ -2819,6 +2822,7 @@ ProfilingEnabled=false
 ## <a name="EventLog"></a>19. `[EventLog]`
 
 **Type:** : `object`
+**Description:** Configuration of the event database connection
 
 | Property              | Pattern | Type   | Deprecated | Definition | Title/Description                |
 | --------------------- | ------- | ------ | ---------- | ---------- | -------------------------------- |
@@ -2832,10 +2836,10 @@ ProfilingEnabled=false
 | Property                               | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
 | -------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
 | - [Name](#EventLog_DB_Name )           | No      | string  | No         | -          | Database name                                              |
-| - [User](#EventLog_DB_User )           | No      | string  | No         | -          | User name                                                  |
-| - [Password](#EventLog_DB_Password )   | No      | string  | No         | -          | Password of the user                                       |
-| - [Host](#EventLog_DB_Host )           | No      | string  | No         | -          | Host address                                               |
-| - [Port](#EventLog_DB_Port )           | No      | string  | No         | -          | Port Number                                                |
+| - [User](#EventLog_DB_User )           | No      | string  | No         | -          | Database User name                                         |
+| - [Password](#EventLog_DB_Password )   | No      | string  | No         | -          | Database Password of the user                              |
+| - [Host](#EventLog_DB_Host )           | No      | string  | No         | -          | Host address of database                                   |
+| - [Port](#EventLog_DB_Port )           | No      | string  | No         | -          | Port Number of database                                    |
 | - [EnableLog](#EventLog_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#EventLog_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
@@ -2859,7 +2863,7 @@ Name=""
 
 **Default:** `""`
 
-**Description:** User name
+**Description:** Database User name
 
 **Example setting the default value** (""):
 ```
@@ -2873,7 +2877,7 @@ User=""
 
 **Default:** `""`
 
-**Description:** Password of the user
+**Description:** Database Password of the user
 
 **Example setting the default value** (""):
 ```
@@ -2887,7 +2891,7 @@ Password=""
 
 **Default:** `""`
 
-**Description:** Host address
+**Description:** Host address of database
 
 **Example setting the default value** (""):
 ```
@@ -2901,7 +2905,7 @@ Host=""
 
 **Default:** `""`
 
-**Description:** Port Number
+**Description:** Port Number of database
 
 **Example setting the default value** (""):
 ```
@@ -2940,14 +2944,15 @@ MaxConns=0
 ## <a name="HashDB"></a>20. `[HashDB]`
 
 **Type:** : `object`
+**Description:** Configuration of the hash database connection
 
 | Property                          | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
 | --------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
 | - [Name](#HashDB_Name )           | No      | string  | No         | -          | Database name                                              |
-| - [User](#HashDB_User )           | No      | string  | No         | -          | User name                                                  |
-| - [Password](#HashDB_Password )   | No      | string  | No         | -          | Password of the user                                       |
-| - [Host](#HashDB_Host )           | No      | string  | No         | -          | Host address                                               |
-| - [Port](#HashDB_Port )           | No      | string  | No         | -          | Port Number                                                |
+| - [User](#HashDB_User )           | No      | string  | No         | -          | Database User name                                         |
+| - [Password](#HashDB_Password )   | No      | string  | No         | -          | Database Password of the user                              |
+| - [Host](#HashDB_Host )           | No      | string  | No         | -          | Host address of database                                   |
+| - [Port](#HashDB_Port )           | No      | string  | No         | -          | Port Number of database                                    |
 | - [EnableLog](#HashDB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#HashDB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
@@ -2971,7 +2976,7 @@ Name="prover_db"
 
 **Default:** `"prover_user"`
 
-**Description:** User name
+**Description:** Database User name
 
 **Example setting the default value** ("prover_user"):
 ```
@@ -2985,7 +2990,7 @@ User="prover_user"
 
 **Default:** `"prover_pass"`
 
-**Description:** Password of the user
+**Description:** Database Password of the user
 
 **Example setting the default value** ("prover_pass"):
 ```
@@ -2999,7 +3004,7 @@ Password="prover_pass"
 
 **Default:** `"zkevm-state-db"`
 
-**Description:** Host address
+**Description:** Host address of database
 
 **Example setting the default value** ("zkevm-state-db"):
 ```
@@ -3013,7 +3018,7 @@ Host="zkevm-state-db"
 
 **Default:** `"5432"`
 
-**Description:** Port Number
+**Description:** Port Number of database
 
 **Example setting the default value** ("5432"):
 ```

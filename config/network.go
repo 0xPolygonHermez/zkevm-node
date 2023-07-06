@@ -17,11 +17,16 @@ import (
 
 // NetworkConfig is the configuration struct for the different environments
 type NetworkConfig struct {
-	L1Config                    etherman.L1Config `json:"l1Config"`
+	// L1: Configuration related to L1
+	L1Config etherman.L1Config `json:"l1Config"`
+	// L2: address of the L2GlobalExitRootManager contract
 	L2GlobalExitRootManagerAddr common.Address
-	L2BridgeAddr                common.Address
-	Genesis                     state.Genesis
-	MaxCumulativeGasUsed        uint64
+	// L2: address of the L2Bridge contract
+	L2BridgeAddr common.Address
+	// L1: Genesis of the rollup, first block number and root
+	Genesis state.Genesis
+	// Removed beacause is not in use
+	//MaxCumulativeGasUsed uint64
 }
 
 type network string
@@ -32,19 +37,29 @@ const custom network = "custom"
 
 // GenesisFromJSON is the config file for network_custom
 type GenesisFromJSON struct {
-	Root            string                   `json:"root"`
-	GenesisBlockNum uint64                   `json:"genesisBlockNumber"`
-	Genesis         []genesisAccountFromJSON `json:"genesis"`
-	L1Config        etherman.L1Config
+	// L1: root hash of the genesis block
+	Root string `json:"root"`
+	// L1: block number of the genesis block
+	GenesisBlockNum uint64 `json:"genesisBlockNumber"`
+	// L1:  List of contracts depoyed
+	Genesis []genesisAccountFromJSON `json:"genesis"`
+	// L1: configuration of the network
+	L1Config etherman.L1Config
 }
 
 type genesisAccountFromJSON struct {
-	Balance      string            `json:"balance"`
-	Nonce        string            `json:"nonce"`
-	Address      string            `json:"address"`
-	Bytecode     string            `json:"bytecode"`
-	Storage      map[string]string `json:"storage"`
-	ContractName string            `json:"contractName"`
+	// Address of the account
+	Balance string `json:"balance"`
+	// Nonce of the account
+	Nonce string `json:"nonce"`
+	// Address of the contract
+	Address string `json:"address"`
+	// Byte code of the contract
+	Bytecode string `json:"bytecode"`
+	// Initial storage of the contract
+	Storage map[string]string `json:"storage"`
+	// Name of the contract in L1 (e.g. "PolygonZkEVMDeployer", "PolygonZkEVMBridge",...)
+	ContractName string `json:"contractName"`
 }
 
 func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {

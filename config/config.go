@@ -82,24 +82,40 @@ type Config struct {
 	// Which is the new forkId
 	ForkUpgradeNewForkId uint64 `mapstructure:"ForkUpgradeNewForkId"`
 	// Configure Log level for all the services, allow also to store the logs in a file
-	Log          log.Config
-	Etherman     etherman.Config
+	Log log.Config
+	// Configuration of the etherman (client for access L1)
+	Etherman etherman.Config
+	// Configuration for ethereum transaction manager
 	EthTxManager ethtxmanager.Config
-	Pool         pool.Config
-	RPC          jsonrpc.Config
-	// Configuration of service `Syncrhonizer`. For this service is also important the value of `IsTrustedSequencer`
-	Synchronizer        synchronizer.Config
-	Sequencer           sequencer.Config
-	SequenceSender      sequencesender.Config
-	Aggregator          aggregator.Config
-	NetworkConfig       NetworkConfig
+	// Pool service configuration
+	Pool pool.Config
+	// Configuration for RPC service. THis one offers a extended Ethereum JSON-RPC API interface to interact with the node
+	RPC jsonrpc.Config
+	// Configuration of service `Syncrhonizer`. For this service is also really important the value of `IsTrustedSequencer`
+	// because depending of this values is going to ask to a trusted node for trusted transactions or not
+	Synchronizer synchronizer.Config
+	// Configuration of the sequencer service
+	Sequencer sequencer.Config
+	// Configuration of the sequence sender service
+	SequenceSender sequencesender.Config
+	// Configuration of the aggregator service
+	Aggregator aggregator.Config
+	// Configuration of the genesis of the network. This is used to known the initial state of the network
+	NetworkConfig NetworkConfig
+	// Configuration of the gas price suggester service
 	L2GasPriceSuggester gasprice.Config
-	Executor            executor.Config
-	MTClient            merkletree.Config
-	StateDB             db.Config
-	Metrics             metrics.Config
-	EventLog            event.Config
-	HashDB              db.Config
+	// Configuration of the executor service
+	Executor executor.Config
+	// Configuration of the merkle tree client service. Not use in the node, only for testing
+	MTClient merkletree.Config
+	// Configuration of the state database connection
+	StateDB db.Config
+	// Configuration of the metrics service, basically is where is going to publish the metrics
+	Metrics metrics.Config
+	// Configuration of the event database connection
+	EventLog event.Config
+	// Configuration of the hash database connection
+	HashDB db.Config
 }
 
 // Default parses the default configuration values.
