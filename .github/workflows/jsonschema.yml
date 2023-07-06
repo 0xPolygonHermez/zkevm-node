@@ -41,13 +41,14 @@ jobs:
 
         echo "Checking if JSON schema is up to date..."
         make GENERATE_DOC_PATH=/tmp/ config-doc-gen
-        for check_file in "node-config-schema.json" "node-config-doc.md" "node-config-doc.html" "custom_network-config-schema.json" "custom_network-config-doc.md" "custom_network-config-doc.html"; do
-        ACTUAL_DIFF_JSON_SCHEMA=$(diff /tmp/$check_file docs/config-file/$check_file)
-        if [ "$ACTUAL_DIFF_JSON_SCHEMA" != "$EXPECTED_DIFF" ]; then
-          echo $ACTUAL_DIFF_JSON_SCHEMA
-          echo $NOT_UPDATED_MSG
-          exit 1
-        fi
+        for CHECK_FILE in "node-config-schema.json" "node-config-doc.md" "node-config-doc.html" "custom_network-config-schema.json" "custom_network-config-doc.md" "custom_network-config-doc.html"; do
+          echo "cheking $CHECK_FILE ...."
+          ACTUAL_DIFF_JSON_SCHEMA=$(diff /tmp/$CHECK_FILE docs/config-file/$CHECK_FILE)
+          if [ "$ACTUAL_DIFF_JSON_SCHEMA" != "$EXPECTED_DIFF" ]; then
+            echo $ACTUAL_DIFF_JSON_SCHEMA
+            echo $NOT_UPDATED_MSG
+            exit 1
+          fi
         done
 
         echo "Everything up to date"
