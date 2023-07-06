@@ -25,6 +25,11 @@ func (f *finalizer) CalculateTxBreakEvenGasPrice(tx *TxTracker, gasUsed uint64) 
 		return nil, ErrZeroL1GasPrice
 	}
 
+	if gasUsed == 0 {
+		// Returns tx.GasPrice as the breakEvenGasPrice
+		return tx.GasPrice, nil
+	}
+
 	// Get L2 Min Gas Price
 	l2MinGasPrice := uint64(float64(tx.L1GasPrice) * f.effectiveGasPriceCfg.L1GasPriceFactor)
 	if l2MinGasPrice < f.defaultMinGasPriceAllowed {
@@ -32,13 +37,8 @@ func (f *finalizer) CalculateTxBreakEvenGasPrice(tx *TxTracker, gasUsed uint64) 
 	}
 
 	// Calculate BreakEvenGasPrice
-	var breakEvenGasPrice *big.Int
-	if gasUsed == 0 {
-		breakEvenGasPrice = tx.GasPrice
-	} else {
-		totalTxPrice := (gasUsed * l2MinGasPrice) + ((totalRlpFieldsLength + tx.BatchResources.Bytes) * f.effectiveGasPriceCfg.ByteGasCost * tx.L1GasPrice)
-		breakEvenGasPrice = big.NewInt(0).SetUint64(uint64(float64(totalTxPrice/gasUsed) * f.effectiveGasPriceCfg.MarginFactor))
-	}
+	totalTxPrice := (gasUsed * l2MinGasPrice) + ((totalRlpFieldsLength + tx.BatchResources.Bytes) * f.effectiveGasPriceCfg.ByteGasCost * tx.L1GasPrice)
+	breakEvenGasPrice := big.NewInt(0).SetUint64(uint64(float64(totalTxPrice/gasUsed) * f.effectiveGasPriceCfg.MarginFactor))
 
 	return breakEvenGasPrice, nil
 }
