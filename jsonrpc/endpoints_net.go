@@ -9,12 +9,14 @@ import (
 
 // NetEndpoints contains implementations for the "net" RPC endpoints
 type NetEndpoints struct {
+	cfg     Config
 	chainID uint64
 }
 
 // NewNetEndpoints returns NetEndpoints
-func NewNetEndpoints(chainID uint64) *NetEndpoints {
+func NewNetEndpoints(cfg Config, chainID uint64) *NetEndpoints {
 	return &NetEndpoints{
+		cfg:     cfg,
 		chainID: chainID,
 	}
 }
