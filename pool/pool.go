@@ -180,7 +180,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			Component:   event.Component_Pool,
 			Level:       event.Level_Critical,
 			EventID:     event.EventID_ExecutorError,
-			Description: tx.Hash().String(),
+			Description: fmt.Sprintf("Error: %s. TxHash: %s", err.Error(), tx.Hash().String()),
 		}
 
 		err := p.eventLog.LogEvent(ctx, event)
