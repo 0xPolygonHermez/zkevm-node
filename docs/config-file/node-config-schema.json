@@ -66,6 +66,7 @@
 				},
 				"MultiGasProvider": {
 					"type": "boolean",
+					"description": "allow that L1 gas price calculation use multiples sources",
 					"default": false
 				},
 				"Etherscan": {
@@ -349,6 +350,11 @@
 				"EnableL2SuggestedGasPricePolling": {
 					"type": "boolean",
 					"description": "EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.",
+					"default": true
+				},
+				"TraceBatchUseHTTPS": {
+					"type": "boolean",
+					"description": "TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)\nto do the parallel requests to RPC.debug_traceTransaction endpoint",
 					"default": true
 				}
 			},
@@ -898,7 +904,7 @@
 					"type": "array",
 					"maxItems": 20,
 					"minItems": 20,
-					"description": "L2: address of the L2GlobalExitRootManager contract"
+					"description": "DEPRECATED L2: address of the `PolygonZkEVMGlobalExitRootL2 proxy` smart contract"
 				},
 				"L2BridgeAddr": {
 					"items": {
@@ -907,13 +913,13 @@
 					"type": "array",
 					"maxItems": 20,
 					"minItems": 20,
-					"description": "L2: address of the L2Bridge contract"
+					"description": "L2: address of the `PolygonZkEVMBridge proxy` smart contract"
 				},
 				"Genesis": {
 					"properties": {
 						"GenesisBlockNum": {
 							"type": "integer",
-							"description": "GenesisBlockNum is the block number where the polygonZKEVM smc was deployed",
+							"description": "GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1",
 							"default": 0
 						},
 						"Root": {
@@ -922,7 +928,8 @@
 							},
 							"type": "array",
 							"maxItems": 32,
-							"minItems": 32
+							"minItems": 32,
+							"description": "Root hash of the genesis block"
 						},
 						"GenesisActions": {
 							"items": {
@@ -953,7 +960,8 @@
 								"type": "object",
 								"description": "GenesisAction represents one of the values set on the SMT during genesis."
 							},
-							"type": "array"
+							"type": "array",
+							"description": "Contracts to be deployed to L2"
 						}
 					},
 					"additionalProperties": false,

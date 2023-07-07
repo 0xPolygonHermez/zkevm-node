@@ -3,12 +3,12 @@
 **Type:** : `object`
 **Description:** GenesisFromJSON is the config file for network_custom
 
-| Property                                     | Pattern | Type            | Deprecated | Definition | Title/Description                     |
-| -------------------------------------------- | ------- | --------------- | ---------- | ---------- | ------------------------------------- |
-| - [root](#root )                             | No      | string          | No         | -          | L1: root hash of the genesis block    |
-| - [genesisBlockNumber](#genesisBlockNumber ) | No      | integer         | No         | -          | L1: block number of the genesis block |
-| - [genesis](#genesis )                       | No      | array of object | No         | -          | L1:  List of contracts depoyed        |
-| - [L1Config](#L1Config )                     | No      | object          | No         | -          | L1: configuration of the network      |
+| Property                                     | Pattern | Type            | Deprecated | Definition | Title/Description                                                           |
+| -------------------------------------------- | ------- | --------------- | ---------- | ---------- | --------------------------------------------------------------------------- |
+| - [root](#root )                             | No      | string          | No         | -          | L1: root hash of the genesis block                                          |
+| - [genesisBlockNumber](#genesisBlockNumber ) | No      | integer         | No         | -          | L1: block number of the genesis block                                       |
+| - [genesis](#genesis )                       | No      | array of object | No         | -          | L2:  List of states contracts used to populate merkle tree at initial state |
+| - [L1Config](#L1Config )                     | No      | object          | No         | -          | L1: configuration of the network                                            |
 
 ## <a name="root"></a>1. `root`
 
@@ -23,7 +23,7 @@
 ## <a name="genesis"></a>3. `genesis`
 
 **Type:** : `array of object`
-**Description:** L1:  List of contracts depoyed
+**Description:** L2:  List of states contracts used to populate merkle tree at initial state
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |

@@ -19,9 +19,9 @@ import (
 type NetworkConfig struct {
 	// L1: Configuration related to L1
 	L1Config etherman.L1Config `json:"l1Config"`
-	// L2: address of the L2GlobalExitRootManager contract
+	// DEPRECATED L2: address of the `PolygonZkEVMGlobalExitRootL2 proxy` smart contract
 	L2GlobalExitRootManagerAddr common.Address
-	// L2: address of the L2Bridge contract
+	// L2: address of the `PolygonZkEVMBridge proxy` smart contract
 	L2BridgeAddr common.Address
 	// L1: Genesis of the rollup, first block number and root
 	Genesis state.Genesis
@@ -41,7 +41,7 @@ type GenesisFromJSON struct {
 	Root string `json:"root"`
 	// L1: block number of the genesis block
 	GenesisBlockNum uint64 `json:"genesisBlockNumber"`
-	// L1:  List of contracts depoyed
+	// L2:  List of states contracts used to populate merkle tree at initial state
 	Genesis []genesisAccountFromJSON `json:"genesis"`
 	// L1: configuration of the network
 	L1Config etherman.L1Config

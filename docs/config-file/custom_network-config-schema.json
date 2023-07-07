@@ -41,7 +41,7 @@
 				"type": "object"
 			},
 			"type": "array",
-			"description": "L1:  List of contracts depoyed"
+			"description": "L2:  List of states contracts used to populate merkle tree at initial state"
 		},
 		"L1Config": {
 			"properties": {
