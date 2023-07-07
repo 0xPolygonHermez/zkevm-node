@@ -10,6 +10,7 @@ type Config struct {
 	//PrivateKeyPath     string `mapstructure:"PrivateKeyPath"`
 	//PrivateKeyPassword string `mapstructure:"PrivateKeyPassword"`
 
+	// allow that L1 gas price calculation use multiples sources
 	MultiGasProvider bool `mapstructure:"MultiGasProvider"`
 	// Configuration for use Etherscan as used as gas provider, basically it needs the API-KEY
 	Etherscan etherscan.Config
