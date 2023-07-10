@@ -32,31 +32,48 @@ func newAddrQueue(addr common.Address, nonce uint64, balance *big.Int) *addrQueu
 	}
 }
 
-// addTx adds a tx to the addrQueue and updates the ready a notReady Txs
-func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx *TxTracker, dropReason error) {
+// addTx adds a tx to the addrQueue and updates the ready a notReady Txs. Also if this tx matches
+// with an existing tx with the same nonce, we return in the replacedTx the one with lower gasPrice.
+// The replacedTx will be later set as failed in the pool
+func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx, discardedTx *TxTracker, dropReason error) {
+	var disTx *TxTracker
+
 	if a.currentNonce == tx.Nonce { // Is a possible readyTx
 		// We set the tx as readyTx if we do not have one assigned or if the gasPrice is better or equal than the current readyTx
 		if a.readyTx == nil || ((a.readyTx != nil) && (tx.GasPrice.Cmp(a.readyTx.GasPrice) >= 0)) {
 			oldReadyTx := a.readyTx
+			if (oldReadyTx != nil) && (oldReadyTx.HashStr != tx.HashStr) {
+				// if it is a different tx then we need to return the replaced tx to set as failed in the pool
+				disTx = oldReadyTx
+			}
 			if a.currentBalance.Cmp(tx.Cost) >= 0 { //
 				a.readyTx = tx
-				return tx, oldReadyTx, nil
+				return tx, oldReadyTx, disTx, nil
 			} else { // If there is not enough balance we set the new tx as notReadyTxs
 				a.readyTx = nil
 				a.notReadyTxs[tx.Nonce] = tx
-				return nil, oldReadyTx, nil
+				return nil, oldReadyTx, disTx, nil
 			}
+		} else { // We have an already readytx with the same nonce and better gas price, we discard the new tx
+			disTx = tx
+			return nil, nil, disTx, nil
 		}
 	} else if a.currentNonce > tx.Nonce {
-		return nil, nil, runtime.ErrIntrinsicInvalidNonce
+		return nil, nil, nil, runtime.ErrIntrinsicInvalidNonce
 	}
 
 	nrTx, found := a.notReadyTxs[tx.Nonce]
 	if !found || ((found) && (tx.GasPrice.Cmp(nrTx.GasPrice) >= 0)) {
+		if (found) && (nrTx.HashStr != tx.HashStr) {
+			// if it is a different tx then we need to return the replaced tx to set as failed in the pool
+			disTx = nrTx
+		}
 		a.notReadyTxs[tx.Nonce] = tx
+	} else {
+		disTx = tx
 	}
 
-	return nil, nil, nil
+	return nil, nil, disTx, nil
 }
 
 // ExpireTransactions removes the txs that have been in the queue for more than maxTime
