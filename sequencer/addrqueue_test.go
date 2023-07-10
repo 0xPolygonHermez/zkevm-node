@@ -73,7 +73,6 @@ func processAddTxTestCases(t *testing.T, testCases []addrQueueAddTxTestCase) {
 					t.Fatalf("Error discardedTx. Expected=%s, Actual=%s", tc.expectedDiscardedTx, replacedTxStr)
 				}
 			}
-
 		})
 	}
 }

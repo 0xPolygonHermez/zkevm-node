@@ -74,9 +74,10 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			from_address,
 			is_wip,
 			ip,
+			failed_reason
 		) 
 		VALUES 
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NULL)
 			ON CONFLICT (hash) DO UPDATE SET 
 			encoded = $2,
 			decoded = $3,
