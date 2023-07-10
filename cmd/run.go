@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node"
@@ -67,7 +68,13 @@ func start(cliCtx *cli.Context) error {
 			}
 		}
 	}
-	checkStateMigrations(c.StateDB)
+	// THIS IF MUST BE DELETED. ONLY VALID IN VERSION v0.1.5
+	if !strings.Contains(cliCtx.String(config.FlagComponents), AGGREGATOR) {
+		log.Info("Checking migrations")
+		checkStateMigrations(c.StateDB)
+	} else {
+		log.Info("Aggregator detected. Migrations check skipped")
+	}
 
 	// Decide if this node instance needs an executor and/or a state tree
 	var needsExecutor, needsStateTree bool
