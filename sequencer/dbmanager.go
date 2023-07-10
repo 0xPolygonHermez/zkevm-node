@@ -139,13 +139,17 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
 	if err != nil {
 		return err
 	}
-	dropReason, isWIP := d.worker.AddTxTracker(d.ctx, txTracker)
+	replacedTx, dropReason, isWIP := d.worker.AddTxTracker(d.ctx, txTracker)
 	if dropReason != nil {
 		failedReason := dropReason.Error()
 		return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
 	} else {
 		if isWIP {
 			return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
+		}
+		if replacedTx != nil {
+			failedReason := "transaction replaced"
+			return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
 		}
 	}
 

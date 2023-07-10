@@ -21,27 +21,36 @@ type WorkerMock struct {
 }
 
 // AddTxTracker provides a mock function with given fields: ctx, txTracker
-func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) (error, bool) {
+func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) (*TxTracker, error, bool) {
 	ret := _m.Called(ctx, txTracker)
 
-	var r0 error
-	var r1 bool
-	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) (error, bool)); ok {
+	var r0 *TxTracker
+	var r1 error
+	var r2 bool
+	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) (*TxTracker, error, bool)); ok {
 		return rf(ctx, txTracker)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) *TxTracker); ok {
 		r0 = rf(ctx, txTracker)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*TxTracker)
+		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *TxTracker) bool); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *TxTracker) error); ok {
 		r1 = rf(ctx, txTracker)
 	} else {
-		r1 = ret.Get(1).(bool)
+		r1 = ret.Error(1)
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, *TxTracker) bool); ok {
+		r2 = rf(ctx, txTracker)
+	} else {
+		r2 = ret.Get(2).(bool)
+	}
+
+	return r0, r1, r2
 }
 
 // DeleteTx provides a mock function with given fields: txHash, from
