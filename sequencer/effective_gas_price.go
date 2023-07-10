@@ -25,6 +25,11 @@ func (f *finalizer) CalculateTxBreakEvenGasPrice(tx *TxTracker, gasUsed uint64) 
 		return nil, ErrZeroL1GasPrice
 	}
 
+	if gasUsed == 0 {
+		// Returns tx.GasPrice as the breakEvenGasPrice
+		return tx.GasPrice, nil
+	}
+
 	// Get L2 Min Gas Price
 	l2MinGasPrice := uint64(float64(tx.L1GasPrice) * f.effectiveGasPriceCfg.L1GasPriceFactor)
 	if l2MinGasPrice < f.defaultMinGasPriceAllowed {
