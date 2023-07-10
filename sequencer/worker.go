@@ -84,7 +84,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	}
 
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
-	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s)", tx.HashStr, tx.Nonce, tx.Cost.String(), tx.FromStr)
+	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s) nonce(%d) balance(%d)", tx.HashStr, tx.Nonce, tx.Cost.String(), addr.fromStr, addr.currentNonce, addr.currentBalance)
 	var newReadyTx, prevReadyTx, repTx *TxTracker
 	newReadyTx, prevReadyTx, repTx, dropReason = addr.addTx(tx)
 	if dropReason != nil {
