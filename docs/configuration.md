@@ -17,7 +17,11 @@ You could find some examples here:
 
 This file is used for trusted and for permisionless nodes. In the case of permissionless node you only need to setup next sections: 
 
+ You could **override values with environment variables**. The variables needs to have next format:
+`ZKEVM_NODE_`[<section in uppercase\>`_`]*<var in uppercase\>`
 
+For example:
+`ZKEVM_NODE_STATEDB_HOST="localhost"` override value of section `[StateDB]` key `Host`
 
 ### Network Genesis Config
 This file is a [JSON](https://en.wikipedia.org/wiki/JSON) formatted file. 

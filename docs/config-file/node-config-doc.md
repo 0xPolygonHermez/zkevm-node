@@ -350,7 +350,6 @@ ForcedGas=0
 | - [DefaultMinGasPriceAllowed](#Pool_DefaultMinGasPriceAllowed )                 | No      | integer | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest                                    |
 | - [MinAllowedGasPriceInterval](#Pool_MinAllowedGasPriceInterval )               | No      | string  | No         | -          | Duration                                                                                             |
 | - [PollMinAllowedGasPriceInterval](#Pool_PollMinAllowedGasPriceInterval )       | No      | string  | No         | -          | Duration                                                                                             |
-| - [EffectiveGasPrice](#Pool_EffectiveGasPrice )                                 | No      | object  | No         | -          | EffectiveGasPrice is the configuration for the break even and effective gas price calculation        |
 | - [AccountQueue](#Pool_AccountQueue )                                           | No      | integer | No         | -          | AccountQueue represents the maximum number of non-executable transaction slots permitted per account |
 | - [GlobalQueue](#Pool_GlobalQueue )                                             | No      | integer | No         | -          | GlobalQueue represents the maximum number of non-executable transaction slots for all accounts       |
 
@@ -614,60 +613,7 @@ MinAllowedGasPriceInterval="5m0s"
 PollMinAllowedGasPriceInterval="15s"
 ```
 
-### <a name="Pool_EffectiveGasPrice"></a>7.9. `[Pool.EffectiveGasPrice]`
-
-**Type:** : `object`
-**Description:** EffectiveGasPrice is the configuration for the break even and effective gas price calculation
-
-| Property                                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                |
-| --------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------ |
-| - [L1GasPriceFactor](#Pool_EffectiveGasPrice_L1GasPriceFactor ) | No      | number  | No         | -          | L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price |
-| - [ByteGasCost](#Pool_EffectiveGasPrice_ByteGasCost )           | No      | integer | No         | -          | ByteGasCost is the gas cost per byte                                                             |
-| - [MarginFactor](#Pool_EffectiveGasPrice_MarginFactor )         | No      | number  | No         | -          | MarginFactor is the margin factor percentage to be added to the L2 min gas price                 |
-
-#### <a name="Pool_EffectiveGasPrice_L1GasPriceFactor"></a>7.9.1. `Pool.EffectiveGasPrice.L1GasPriceFactor`
-
-**Type:** : `number`
-
-**Default:** `0.25`
-
-**Description:** L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price
-
-**Example setting the default value** (0.25):
-```
-[Pool.EffectiveGasPrice]
-L1GasPriceFactor=0.25
-```
-
-#### <a name="Pool_EffectiveGasPrice_ByteGasCost"></a>7.9.2. `Pool.EffectiveGasPrice.ByteGasCost`
-
-**Type:** : `integer`
-
-**Default:** `16`
-
-**Description:** ByteGasCost is the gas cost per byte
-
-**Example setting the default value** (16):
-```
-[Pool.EffectiveGasPrice]
-ByteGasCost=16
-```
-
-#### <a name="Pool_EffectiveGasPrice_MarginFactor"></a>7.9.3. `Pool.EffectiveGasPrice.MarginFactor`
-
-**Type:** : `number`
-
-**Default:** `1`
-
-**Description:** MarginFactor is the margin factor percentage to be added to the L2 min gas price
-
-**Example setting the default value** (1):
-```
-[Pool.EffectiveGasPrice]
-MarginFactor=1
-```
-
-### <a name="Pool_AccountQueue"></a>7.10. `Pool.AccountQueue`
+### <a name="Pool_AccountQueue"></a>7.9. `Pool.AccountQueue`
 
 **Type:** : `integer`
 
@@ -681,7 +627,7 @@ MarginFactor=1
 AccountQueue=64
 ```
 
-### <a name="Pool_GlobalQueue"></a>7.11. `Pool.GlobalQueue`
+### <a name="Pool_GlobalQueue"></a>7.10. `Pool.GlobalQueue`
 
 **Type:** : `integer`
 
@@ -1426,7 +1372,6 @@ MaxTxLifetime="3h0m0s"
 | - [ClosingSignalsManagerWaitForCheckingForcedBatches](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches ) | No      | string  | No         | -          | Duration                                                                                                    |
 | - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                               |
 | - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                    |
-| - [ForkID](#Sequencer_Finalizer_ForkID )                                                                                       | No      | integer | No         | -          | ForkID is the fork id of the chain                                                                          |
 
 #### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.25.1. `Sequencer.Finalizer.GERDeadlineTimeout`
 
@@ -1652,30 +1597,15 @@ ForcedBatchesFinalityNumberOfBlocks=64
 TimestampResolution="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ForkID"></a>10.25.11. `Sequencer.Finalizer.ForkID`
-
-**Type:** : `integer`
-
-**Default:** `0`
-
-**Description:** ForkID is the fork id of the chain
-
-**Example setting the default value** (0):
-```
-[Sequencer.Finalizer]
-ForkID=0
-```
-
 ### <a name="Sequencer_DBManager"></a>10.26. `[Sequencer.DBManager]`
 
 **Type:** : `object`
 **Description:** DBManager's specific config properties
 
-| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string  | No         | -          | Duration          |
-| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string  | No         | -          | Duration          |
-| - [ForkID](#Sequencer_DBManager_ForkID )                                     | No      | integer | No         | -          | -                 |
+| Property                                                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
+| ---------------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
+| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
+| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
 
 #### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.26.1. `Sequencer.DBManager.PoolRetrievalInterval`
 
@@ -1725,18 +1655,6 @@ PoolRetrievalInterval="500ms"
 L2ReorgRetrievalInterval="5s"
 ```
 
-#### <a name="Sequencer_DBManager_ForkID"></a>10.26.3. `Sequencer.DBManager.ForkID`
-
-**Type:** : `integer`
-
-**Default:** `0`
-
-**Example setting the default value** (0):
-```
-[Sequencer.DBManager]
-ForkID=0
-```
-
 ### <a name="Sequencer_Worker"></a>10.27. `[Sequencer.Worker]`
 
 **Type:** : `object`
@@ -1765,10 +1683,14 @@ ResourceCostMultiplier=1000
 **Type:** : `object`
 **Description:** EffectiveGasPrice is the config for the gas price
 
-| Property                                                                                                           | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                   |
-| ------------------------------------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
-| - [MaxBreakEvenGasPriceDeviationPercentage](#Sequencer_EffectiveGasPrice_MaxBreakEvenGasPriceDeviationPercentage ) | No      | integer | No         | -          | MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation |
-| - [Enabled](#Sequencer_EffectiveGasPrice_Enabled )                                                                 | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                         |
+| Property                                                                                                           | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| - [MaxBreakEvenGasPriceDeviationPercentage](#Sequencer_EffectiveGasPrice_MaxBreakEvenGasPriceDeviationPercentage ) | No      | integer | No         | -          | MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation                 |
+| - [L1GasPriceFactor](#Sequencer_EffectiveGasPrice_L1GasPriceFactor )                                               | No      | number  | No         | -          | L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price                                    |
+| - [ByteGasCost](#Sequencer_EffectiveGasPrice_ByteGasCost )                                                         | No      | integer | No         | -          | ByteGasCost is the gas cost per byte                                                                                                |
+| - [MarginFactor](#Sequencer_EffectiveGasPrice_MarginFactor )                                                       | No      | number  | No         | -          | MarginFactor is the margin factor percentage to be added to the L2 min gas price                                                    |
+| - [Enabled](#Sequencer_EffectiveGasPrice_Enabled )                                                                 | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                                         |
+| - [DefaultMinGasPriceAllowed](#Sequencer_EffectiveGasPrice_DefaultMinGasPriceAllowed )                             | No      | integer | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest<br />This value is assigned from [Pool].DefaultMinGasPriceAllowed |
 
 #### <a name="Sequencer_EffectiveGasPrice_MaxBreakEvenGasPriceDeviationPercentage"></a>10.28.1. `Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage`
 
@@ -1784,7 +1706,49 @@ ResourceCostMultiplier=1000
 MaxBreakEvenGasPriceDeviationPercentage=10
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_Enabled"></a>10.28.2. `Sequencer.EffectiveGasPrice.Enabled`
+#### <a name="Sequencer_EffectiveGasPrice_L1GasPriceFactor"></a>10.28.2. `Sequencer.EffectiveGasPrice.L1GasPriceFactor`
+
+**Type:** : `number`
+
+**Default:** `0.25`
+
+**Description:** L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price
+
+**Example setting the default value** (0.25):
+```
+[Sequencer.EffectiveGasPrice]
+L1GasPriceFactor=0.25
+```
+
+#### <a name="Sequencer_EffectiveGasPrice_ByteGasCost"></a>10.28.3. `Sequencer.EffectiveGasPrice.ByteGasCost`
+
+**Type:** : `integer`
+
+**Default:** `16`
+
+**Description:** ByteGasCost is the gas cost per byte
+
+**Example setting the default value** (16):
+```
+[Sequencer.EffectiveGasPrice]
+ByteGasCost=16
+```
+
+#### <a name="Sequencer_EffectiveGasPrice_MarginFactor"></a>10.28.4. `Sequencer.EffectiveGasPrice.MarginFactor`
+
+**Type:** : `number`
+
+**Default:** `1`
+
+**Description:** MarginFactor is the margin factor percentage to be added to the L2 min gas price
+
+**Example setting the default value** (1):
+```
+[Sequencer.EffectiveGasPrice]
+MarginFactor=1
+```
+
+#### <a name="Sequencer_EffectiveGasPrice_Enabled"></a>10.28.5. `Sequencer.EffectiveGasPrice.Enabled`
 
 **Type:** : `boolean`
 
@@ -1796,6 +1760,21 @@ MaxBreakEvenGasPriceDeviationPercentage=10
 ```
 [Sequencer.EffectiveGasPrice]
 Enabled=false
+```
+
+#### <a name="Sequencer_EffectiveGasPrice_DefaultMinGasPriceAllowed"></a>10.28.6. `Sequencer.EffectiveGasPrice.DefaultMinGasPriceAllowed`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** DefaultMinGasPriceAllowed is the default min gas price to suggest
+This value is assigned from [Pool].DefaultMinGasPriceAllowed
+
+**Example setting the default value** (0):
+```
+[Sequencer.EffectiveGasPrice]
+DefaultMinGasPriceAllowed=0
 ```
 
 ## <a name="SequenceSender"></a>11. `[SequenceSender]`

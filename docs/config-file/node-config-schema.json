@@ -241,28 +241,6 @@
 						"300ms"
 					]
 				},
-				"EffectiveGasPrice": {
-					"properties": {
-						"L1GasPriceFactor": {
-							"type": "number",
-							"description": "L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price",
-							"default": 0.25
-						},
-						"ByteGasCost": {
-							"type": "integer",
-							"description": "ByteGasCost is the gas cost per byte",
-							"default": 16
-						},
-						"MarginFactor": {
-							"type": "number",
-							"description": "MarginFactor is the margin factor percentage to be added to the L2 min gas price",
-							"default": 1
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "EffectiveGasPrice is the configuration for the break even and effective gas price calculation"
-				},
 				"AccountQueue": {
 					"type": "integer",
 					"description": "AccountQueue represents the maximum number of non-executable transaction slots permitted per account",
@@ -617,11 +595,6 @@
 								"1m",
 								"300ms"
 							]
-						},
-						"ForkID": {
-							"type": "integer",
-							"description": "ForkID is the fork id of the chain",
-							"default": 0
 						}
 					},
 					"additionalProperties": false,
@@ -647,10 +620,6 @@
 								"1m",
 								"300ms"
 							]
-						},
-						"ForkID": {
-							"type": "integer",
-							"default": 0
 						}
 					},
 					"additionalProperties": false,
@@ -676,10 +645,30 @@
 							"description": "MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
 							"default": 10
 						},
+						"L1GasPriceFactor": {
+							"type": "number",
+							"description": "L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price",
+							"default": 0.25
+						},
+						"ByteGasCost": {
+							"type": "integer",
+							"description": "ByteGasCost is the gas cost per byte",
+							"default": 16
+						},
+						"MarginFactor": {
+							"type": "number",
+							"description": "MarginFactor is the margin factor percentage to be added to the L2 min gas price",
+							"default": 1
+						},
 						"Enabled": {
 							"type": "boolean",
 							"description": "Enabled is a flag to enable/disable the effective gas price",
 							"default": false
+						},
+						"DefaultMinGasPriceAllowed": {
+							"type": "integer",
+							"description": "DefaultMinGasPriceAllowed is the default min gas price to suggest\nThis value is assigned from [Pool].DefaultMinGasPriceAllowed",
+							"default": 0
 						}
 					},
 					"additionalProperties": false,
