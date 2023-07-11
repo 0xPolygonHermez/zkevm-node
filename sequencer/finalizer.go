@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	oneHundred                     = 100
-	pendingTxsBufferSizeMultiplier = 10
+	oneHundred                            = 100
+	pendingTxsBufferSizeMultiplier        = 10
+	forkId5                        uint64 = 5
 )
 
 var (
@@ -554,7 +555,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 				}
 			}
 		}
-
 		log.Infof("calculated breakEvenGasPrice: %d, gasPrice: %d, effectivePercentage: %d for tx: %s", tx.BreakEvenGasPrice, tx.GasPrice, effectivePercentage, tx.HashStr)
 
 		// If EGP is disabled we use tx GasPrice (MaxEffectivePercentage=255)
@@ -568,7 +568,10 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 			return nil, err
 		}
 
-		f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
+		forkId := f.dbManager.GetForkIDByBatchNumber(f.processRequest.BatchNumber)
+		if forkId >= forkId5 {
+			f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
+		}
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
