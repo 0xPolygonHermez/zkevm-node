@@ -793,13 +793,14 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		}
 	}
 
-	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce)
+	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
+
+	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce, forkID)
 	if err != nil {
 		log.Errorf("error encoding unsigned transaction ", err)
 		return nil, err
 	}
 
-	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber,
@@ -1036,13 +1037,14 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			Data:     transaction.Data(),
 		})
 
-		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, nil)
+		forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
+
+		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, nil, forkID)
 		if err != nil {
 			log.Errorf("error encoding unsigned transaction ", err)
 			return false, false, gasUsed, nil, err
 		}
 
-		forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
 		// Create a batch to be sent to the executor
 		processBatchRequest := &pb.ProcessBatchRequest{
 			OldBatchNum:      lastBatch.BatchNumber,
