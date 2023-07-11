@@ -1,0 +1,88 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "github.com/0xPolygonHermez/zkevm-node/config/config",
+	"properties": {
+		"root": {
+			"type": "string",
+			"description": "L1: root hash of the genesis block"
+		},
+		"genesisBlockNumber": {
+			"type": "integer",
+			"description": "L1: block number of the genesis block"
+		},
+		"genesis": {
+			"items": {
+				"properties": {
+					"balance": {
+						"type": "string"
+					},
+					"nonce": {
+						"type": "string"
+					},
+					"address": {
+						"type": "string"
+					},
+					"bytecode": {
+						"type": "string"
+					},
+					"storage": {
+						"patternProperties": {
+							".*": {
+								"type": "string"
+							}
+						},
+						"type": "object"
+					},
+					"contractName": {
+						"type": "string"
+					}
+				},
+				"additionalProperties": false,
+				"type": "object"
+			},
+			"type": "array",
+			"description": "L2:  List of states contracts used to populate merkle tree at initial state"
+		},
+		"L1Config": {
+			"properties": {
+				"chainId": {
+					"type": "integer",
+					"description": "Chain ID of the L1 network"
+				},
+				"polygonZkEVMAddress": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "Address of the L1 contract"
+				},
+				"maticTokenAddress": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "Address of the L1 Matic token Contract"
+				},
+				"polygonZkEVMGlobalExitRootAddress": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "Address of the L1 GlobalExitRootManager contract"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object",
+			"description": "L1: configuration of the network"
+		}
+	},
+	"additionalProperties": false,
+	"type": "object",
+	"description": "GenesisFromJSON is the config file for network_custom"
+}

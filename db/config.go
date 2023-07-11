@@ -5,16 +5,16 @@ type Config struct {
 	// Database name
 	Name string `mapstructure:"Name"`
 
-	// User name
+	// Database User name
 	User string `mapstructure:"User"`
 
-	// Password of the user
+	// Database Password of the user
 	Password string `mapstructure:"Password"`
 
-	// Host address
+	// Host address of database
 	Host string `mapstructure:"Host"`
 
-	// Port Number
+	// Port Number of database
 	Port string `mapstructure:"Port"`
 
 	// EnableLog

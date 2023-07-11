@@ -48,32 +48,74 @@ const (
 	FlagPassword = "password"
 	// FlagMigrations is the flag for migrations.
 	FlagMigrations = "migrations"
+	// FlagOutputFile is the flag for the output file
+	FlagOutputFile = "output"
 	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
 	FlagMaxAmount = "max-amount"
+	// FlagDocumentationFileType is the flag for the choose which file generate json-schema
+	FlagDocumentationFileType = "config-file"
 )
 
-// Config represents the configuration of the entire Hermez Node
+/*
+Config represents the configuration of the entire Hermez Node
+The file is [TOML format]
+You could find some examples:
+  - `config/environments/local/local.node.config.toml`: running a permisionless node
+  - `config/environments/mainnet/public.node.config.toml`
+  - `config/environments/public/public.node.config.toml`
+  - `test/config/test.node.config.toml`: configuration for a trusted node used in CI
+
+[TOML format]: https://en.wikipedia.org/wiki/TOML
+*/
 type Config struct {
-	IsTrustedSequencer     bool   `mapstructure:"IsTrustedSequencer"`
+	// This define is a trusted node (`true`) or a permission less (`false`). If you don't known
+	// set to `false`
+	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer"`
+	// Last batch number before  a forkid change (fork upgrade). That implies that
+	// greater batch numbers are going to be trusted but no virtualized neither verified.
+	// So after the batch number `ForkUpgradeBatchNumber` is virtualized and verified you could update
+	// the system (SC,...) to new forkId and remove this value to allow the system to keep
+	// Virtualizing and verifying the new batchs.
+	// Check issue [#2236](https://github.com/0xPolygonHermez/zkevm-node/issues/2236) to known more
+	// This value overwrite `SequenceSender.ForkUpgradeBatchNumber`
 	ForkUpgradeBatchNumber uint64 `mapstructure:"ForkUpgradeBatchNumber"`
-	ForkUpgradeNewForkId   uint64 `mapstructure:"ForkUpgradeNewForkId"`
-	Log                    log.Config
-	Etherman               etherman.Config
-	EthTxManager           ethtxmanager.Config
-	Pool                   pool.Config
-	RPC                    jsonrpc.Config
-	Synchronizer           synchronizer.Config
-	Sequencer              sequencer.Config
-	SequenceSender         sequencesender.Config
-	Aggregator             aggregator.Config
-	NetworkConfig          NetworkConfig
-	L2GasPriceSuggester    gasprice.Config
-	Executor               executor.Config
-	MTClient               merkletree.Config
-	StateDB                db.Config
-	Metrics                metrics.Config
-	EventLog               event.Config
-	HashDB                 db.Config
+	// Which is the new forkId
+	ForkUpgradeNewForkId uint64 `mapstructure:"ForkUpgradeNewForkId"`
+	// Configure Log level for all the services, allow also to store the logs in a file
+	Log log.Config
+	// Configuration of the etherman (client for access L1)
+	Etherman etherman.Config
+	// Configuration for ethereum transaction manager
+	EthTxManager ethtxmanager.Config
+	// Pool service configuration
+	Pool pool.Config
+	// Configuration for RPC service. THis one offers a extended Ethereum JSON-RPC API interface to interact with the node
+	RPC jsonrpc.Config
+	// Configuration of service `Syncrhonizer`. For this service is also really important the value of `IsTrustedSequencer`
+	// because depending of this values is going to ask to a trusted node for trusted transactions or not
+	Synchronizer synchronizer.Config
+	// Configuration of the sequencer service
+	Sequencer sequencer.Config
+	// Configuration of the sequence sender service
+	SequenceSender sequencesender.Config
+	// Configuration of the aggregator service
+	Aggregator aggregator.Config
+	// Configuration of the genesis of the network. This is used to known the initial state of the network
+	NetworkConfig NetworkConfig
+	// Configuration of the gas price suggester service
+	L2GasPriceSuggester gasprice.Config
+	// Configuration of the executor service
+	Executor executor.Config
+	// Configuration of the merkle tree client service. Not use in the node, only for testing
+	MTClient merkletree.Config
+	// Configuration of the state database connection
+	StateDB db.Config
+	// Configuration of the metrics service, basically is where is going to publish the metrics
+	Metrics metrics.Config
+	// Configuration of the event database connection
+	EventLog event.Config
+	// Configuration of the hash database connection
+	HashDB db.Config
 }
 
 // Default parses the default configuration values.
