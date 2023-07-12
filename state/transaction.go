@@ -174,6 +174,9 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		transactions := []*types.Transaction{&processedTx.Tx}
 
 		receipt := generateReceipt(header.Number, processedTx)
+		if !CheckLogOrder(receipt.Logs) {
+			return fmt.Errorf("error: logs received from executor are not in order")
+		}
 		receipts := []*types.Receipt{receipt}
 
 		// Create block to be able to calculate its hash

@@ -198,10 +198,8 @@ func convertToLog(protoLogs []*pb.Log) []*types.Log {
 		log.Address = common.HexToAddress(protoLog.Address)
 		log.Topics = convertToTopics(protoLog.Topics)
 		log.Data = protoLog.Data
-		log.BlockNumber = protoLog.BatchNumber
 		log.TxHash = common.BytesToHash(protoLog.TxHash)
 		log.TxIndex = uint(protoLog.TxIndex)
-		log.BlockHash = common.BytesToHash(protoLog.BatchHash)
 		log.Index = uint(protoLog.Index)
 		logs = append(logs, log)
 	}

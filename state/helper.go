@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 	"math/big"
+	"sort"
 	"strconv"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -335,4 +336,22 @@ func toPostgresInterval(duration string) (string, error) {
 	}
 
 	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
+}
+
+func CheckLogOrder(logs []*types.Log) bool {
+	logsAux := make([]*types.Log, len(logs))
+	copy(logsAux, logs)
+	sort.Slice(logsAux, func(i, j int) bool {
+		return logsAux[i].Index < logsAux[j].Index
+	})
+	if len(logs) != len(logsAux) {
+		return false
+	}
+	for i := range logs {
+		if logsAux[i].Index != logs[i].Index {
+			log.Debug("Array index: ", i, ". Index of log on each array: ", logsAux[i].Index, logs[i].Index)
+			return false
+		}
+	}
+	return true
 }
