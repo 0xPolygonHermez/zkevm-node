@@ -338,6 +338,7 @@ func toPostgresInterval(duration string) (string, error) {
 	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
 }
 
+// CheckLogOrder checks the order of the logs. The order should be incremental
 func CheckLogOrder(logs []*types.Log) bool {
 	logsAux := make([]*types.Log, len(logs))
 	copy(logsAux, logs)
