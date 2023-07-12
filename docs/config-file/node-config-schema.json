@@ -595,6 +595,11 @@
 								"1m",
 								"300ms"
 							]
+						},
+						"StopSequencerOnBatchNum": {
+							"type": "integer",
+							"description": "StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number",
+							"default": 0
 						}
 					},
 					"additionalProperties": false,

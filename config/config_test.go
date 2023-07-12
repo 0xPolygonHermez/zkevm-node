@@ -173,6 +173,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
+			path:          "Sequencer.Finalizer.StopSequencerOnBatchNum",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "Sequencer.Finalizer.TimestampResolution",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},

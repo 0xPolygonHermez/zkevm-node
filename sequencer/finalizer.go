@@ -255,6 +255,10 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	log.Debug("finalizer init loop")
 	for {
 		start := now()
+		if f.batch.batchNumber == f.cfg.StopSequencerOnBatchNum {
+			f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
+		}
+
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
