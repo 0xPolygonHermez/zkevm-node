@@ -45,14 +45,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
-			path:          "Sequencer.MaxTxsPerBatch",
-			expectedValue: uint64(300),
-		},
-		{
-			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: uint64(120000),
-		},
-		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
 			expectedValue: uint64(100),
 		},
@@ -61,80 +53,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(12 * time.Hour),
 		},
 		{
-			path:          "Sequencer.MaxCumulativeGasUsed",
-			expectedValue: uint64(30000000),
-		},
-		{
-			path:          "Sequencer.MaxKeccakHashes",
-			expectedValue: uint32(2145),
-		},
-		{
-			path:          "Sequencer.MaxPoseidonHashes",
-			expectedValue: uint32(252357),
-		},
-		{
-			path:          "Sequencer.MaxPoseidonPaddings",
-			expectedValue: uint32(135191),
-		},
-		{
-			path:          "Sequencer.MaxMemAligns",
-			expectedValue: uint32(236585),
-		},
-		{
-			path:          "Sequencer.MaxArithmetics",
-			expectedValue: uint32(236585),
-		},
-		{
-			path:          "Sequencer.MaxBinaries",
-			expectedValue: uint32(473170),
-		},
-		{
-			path:          "Sequencer.MaxSteps",
-			expectedValue: uint32(7570538),
-		},
-		{
 			path:          "Sequencer.TxLifetimeCheckTimeout",
 			expectedValue: types.NewDuration(10 * time.Minute),
 		},
 		{
 			path:          "Sequencer.MaxTxLifetime",
 			expectedValue: types.NewDuration(3 * time.Hour),
-		},
-		{
-			path:          "Sequencer.WeightBatchBytesSize",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightCumulativeGasUsed",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightKeccakHashes",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightPoseidonHashes",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightPoseidonPaddings",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightMemAligns",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightArithmetics",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightBinaries",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightSteps",
-			expectedValue: 1,
 		},
 		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
@@ -468,6 +392,83 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Aggregator.GeneratingProofCleanupThreshold",
 			expectedValue: "10m",
+		},
+
+		{
+			path:          "Batch.Constraints.MaxTxsPerBatch",
+			expectedValue: uint64(300),
+		},
+		{
+			path:          "Batch.Constraints.MaxBatchBytesSize",
+			expectedValue: uint64(120000),
+		},
+		{
+			path:          "Batch.Constraints.MaxCumulativeGasUsed",
+			expectedValue: uint64(30000000),
+		},
+		{
+			path:          "Batch.Constraints.MaxKeccakHashes",
+			expectedValue: uint32(2145),
+		},
+		{
+			path:          "Batch.Constraints.MaxPoseidonHashes",
+			expectedValue: uint32(252357),
+		},
+		{
+			path:          "Batch.Constraints.MaxPoseidonPaddings",
+			expectedValue: uint32(135191),
+		},
+		{
+			path:          "Batch.Constraints.MaxMemAligns",
+			expectedValue: uint32(236585),
+		},
+		{
+			path:          "Batch.Constraints.MaxArithmetics",
+			expectedValue: uint32(236585),
+		},
+		{
+			path:          "Batch.Constraints.MaxBinaries",
+			expectedValue: uint32(473170),
+		},
+		{
+			path:          "Batch.Constraints.MaxSteps",
+			expectedValue: uint32(7570538),
+		},
+		{
+			path:          "Batch.ResourceWeights.WeightBatchBytesSize",
+			expectedValue: 1,
+		},
+		{
+			path:          "Batch.ResourceWeights.WeightCumulativeGasUsed",
+			expectedValue: 1,
+		},
+		{
+			path:          "Batch.ResourceWeights.WeightKeccakHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "Batch.ResourceWeights.WeightPoseidonHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "Batch.ResourceWeights.WeightPoseidonPaddings",
+			expectedValue: 1,
+		},
+		{
+			path:          "Batch.ResourceWeights.WeightMemAligns",
+			expectedValue: 1,
+		},
+		{
+			path:          "Batch.ResourceWeights.WeightArithmetics",
+			expectedValue: 1,
+		},
+		{
+			path:          "Batch.ResourceWeights.WeightBinaries",
+			expectedValue: 1,
+		},
+		{
+			path:          "Batch.ResourceWeights.WeightSteps",
+			expectedValue: 1,
 		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")

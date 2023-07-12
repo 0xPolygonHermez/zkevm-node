@@ -26,6 +26,21 @@ const (
 	defaultGasPrice                       = 1000000000
 )
 
+var (
+	bc = pool.BatchConstraintsCfg{
+		MaxTxsPerBatch:       300,
+		MaxBatchBytesSize:    120000,
+		MaxCumulativeGasUsed: 30000000,
+		MaxKeccakHashes:      2145,
+		MaxPoseidonHashes:    252357,
+		MaxPoseidonPaddings:  135191,
+		MaxMemAligns:         236585,
+		MaxArithmetics:       236585,
+		MaxBinaries:          473170,
+		MaxSteps:             7570538,
+	}
+)
+
 // Environment sets up the environment for the benchmark
 func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethclient.Client, *pool.Pool, *bind.TransactOpts) {
 	if testing.Short() {
@@ -64,7 +79,7 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	require.NoError(b, err)
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	pl := pool.NewPool(config, s, st, params.ChainID, eventLog)
+	pl := pool.NewPool(config, bc, s, st, params.ChainID, eventLog)
 
 	// Print Info before send
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)

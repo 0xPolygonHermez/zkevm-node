@@ -103,7 +103,7 @@ func (e *efficiencyList) addSort(tx *TxTracker) {
 	e.sorted = append(e.sorted, nil)
 	copy(e.sorted[i+1:], e.sorted[i:])
 	e.sorted[i] = tx
-	log.Infof("Added tx(%s) to efficiencyList. With efficiency(%f) at index(%d) from total(%d)", tx.HashStr, tx.Efficiency, i, len(e.sorted))
+	//log.Infof("Added tx(%s) to efficiencyList. With efficiency(%f) at index(%d) from total(%d)", tx.HashStr, tx.Efficiency, i, len(e.sorted))
 }
 
 // isGreaterThan returns true if the tx1 has best efficiency than tx2

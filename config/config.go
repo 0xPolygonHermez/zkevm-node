@@ -116,6 +116,8 @@ type Config struct {
 	EventLog event.Config
 	// Configuration of the hash database connection
 	HashDB db.Config
+	// Configuration of the batch service
+	Batch pool.BatchConfig
 }
 
 // Default parses the default configuration values.

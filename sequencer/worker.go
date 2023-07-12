@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -16,24 +17,26 @@ import (
 
 // Worker represents the worker component of the sequencer
 type Worker struct {
-	cfg                  WorkerCfg
-	pool                 map[string]*addrQueue
-	efficiencyList       *efficiencyList
-	workerMutex          sync.Mutex
-	state                stateInterface
-	batchConstraints     batchConstraintsFloat64
-	batchResourceWeights batchResourceWeights
+	cfg                     WorkerCfg
+	pool                    map[string]*addrQueue
+	efficiencyList          *efficiencyList
+	workerMutex             sync.Mutex
+	state                   stateInterface
+	batchConstraints        pool.BatchConstraintsCfg
+	batchConstraintsFloat64 batchConstraintsFloat64
+	batchResourceWeights    pool.BatchResourceWeights
 }
 
 // NewWorker creates an init a worker
-func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
+func NewWorker(cfg WorkerCfg, state stateInterface, constraints pool.BatchConstraintsCfg, weights pool.BatchResourceWeights) *Worker {
 	w := Worker{
-		cfg:                  cfg,
-		pool:                 make(map[string]*addrQueue),
-		efficiencyList:       newEfficiencyList(),
-		state:                state,
-		batchConstraints:     convertBatchConstraintsToFloat64(constraints),
-		batchResourceWeights: weights,
+		cfg:                     cfg,
+		pool:                    make(map[string]*addrQueue),
+		efficiencyList:          newEfficiencyList(),
+		state:                   state,
+		batchConstraints:        constraints,
+		batchConstraintsFloat64: convertBatchConstraintsToFloat64(constraints),
+		batchResourceWeights:    weights,
 	}
 
 	return &w
@@ -41,7 +44,7 @@ func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints
 
 // NewTxTracker creates and inits a TxTracker
 func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
-	return newTxTracker(tx, counters, w.batchConstraints, w.batchResourceWeights, w.cfg.ResourceCostMultiplier, ip)
+	return newTxTracker(tx, counters, w.batchConstraintsFloat64, w.batchResourceWeights, w.cfg.ResourceCostMultiplier, ip)
 }
 
 // AddTxTracker adds a new Tx to the Worker
@@ -49,8 +52,18 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
-	addr, found := w.pool[tx.FromStr]
+	// Make sure the IP is valid.
+	if tx.IP != "" && !pool.IsValidIP(tx.IP) {
+		return pool.ErrInvalidIP, false
+	}
 
+	// Make sure the transaction's batch resources are within the constraints.
+	if !w.batchConstraints.IsWithinConstraints(tx.BatchResources.ZKCounters) {
+		log.Errorf("OutOfCounters Error (Node level)  for tx: %s", tx.Hash.String())
+		return pool.ErrOutOfCounters, false
+	}
+
+	addr, found := w.pool[tx.FromStr]
 	if !found {
 		// Unlock the worker to let execute other worker functions while creating the new AddrQueue
 		w.workerMutex.Unlock()
@@ -212,7 +225,7 @@ func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters stat
 	addrQueue, found := w.pool[addr.String()]
 
 	if found {
-		newReadyTx, prevReadyTx := addrQueue.UpdateTxZKCounters(txHash, counters, w.batchConstraints, w.batchResourceWeights)
+		newReadyTx, prevReadyTx := addrQueue.UpdateTxZKCounters(txHash, counters, w.batchConstraintsFloat64, w.batchResourceWeights)
 
 		// Resort the newReadyTx in efficiencyList
 		if prevReadyTx != nil {
@@ -321,7 +334,7 @@ func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
 }
 
 // convertBatchConstraintsToFloat64 converts the batch Constraints to float64
-func convertBatchConstraintsToFloat64(constraints batchConstraints) batchConstraintsFloat64 {
+func convertBatchConstraintsToFloat64(constraints pool.BatchConstraintsCfg) batchConstraintsFloat64 {
 	return batchConstraintsFloat64{
 		maxTxsPerBatch:       float64(constraints.MaxTxsPerBatch),
 		maxBatchBytesSize:    float64(constraints.MaxBatchBytesSize),

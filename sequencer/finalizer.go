@@ -42,7 +42,7 @@ type finalizer struct {
 	dbManager            dbManagerInterface
 	executor             stateInterface
 	batch                *WipBatch
-	batchConstraints     batchConstraints
+	batchConstraints     pool.BatchConstraintsCfg
 	processRequest       state.ProcessRequest
 	sharedResourcesMux   *sync.RWMutex
 	lastGERHash          common.Hash
@@ -111,7 +111,7 @@ func newFinalizer(
 	sequencerAddr common.Address,
 	isSynced func(ctx context.Context) bool,
 	closingSignalCh ClosingSignalCh,
-	batchConstraints batchConstraints,
+	batchConstraints pool.BatchConstraintsCfg,
 	eventLog *event.EventLog,
 ) *finalizer {
 	return &finalizer{
@@ -1246,7 +1246,7 @@ func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 }
 
 // getUsedBatchResources returns the used resources in the batch
-func getUsedBatchResources(constraints batchConstraints, remainingResources state.BatchResources) state.BatchResources {
+func getUsedBatchResources(constraints pool.BatchConstraintsCfg, remainingResources state.BatchResources) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
 			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.CumulativeGasUsed,
