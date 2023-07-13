@@ -124,6 +124,9 @@ type FinalizerCfg struct {
 
 	// TimestampResolution is the resolution of the timestamp used to close a batch
 	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
+
+	// StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
+	StopSequencerOnBatchNum uint64 `mapstructure:"StopSequencerOnBatchNum"`
 }
 
 // WorkerCfg contains the Worker's configuration properties
