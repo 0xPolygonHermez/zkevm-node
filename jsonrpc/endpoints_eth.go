@@ -803,6 +803,10 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 		ip := ""
 		ips := httpRequest.Header.Get("X-Forwarded-For")
 
+		// TODO: this is temporary patch remove this log
+		realIp := httpRequest.Header.Get("X-Real-IP")
+		log.Infof("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
+
 		if ips != "" {
 			ip = strings.Split(ips, ",")[0]
 		}
