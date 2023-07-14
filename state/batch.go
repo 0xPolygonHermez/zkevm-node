@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	cTrue  = 1
-	cFalse = 0
+	cTrue            = 1
+	cFalse           = 0
+	noFlushID uint64 = 0
 )
 
 // Batch struct
@@ -405,26 +406,27 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	return s.PostgresStorage.closeBatch(ctx, receipt, dbTx)
 }
 
-// ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
-func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, error) {
+// ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base. Values returned are the new stateRoot,
+// the flushID (incremental value returned by executor) and the result of closing the batch.
+func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, error) {
 	// Decode transactions
 	forkID := s.GetForkIDByBatchNumber(processingCtx.BatchNumber)
 	decodedTransactions, _, _, err := DecodeTxs(encodedTxs, forkID)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		log.Debugf("error decoding transactions: %v", err)
-		return common.Hash{}, err
+		return common.Hash{}, noFlushID, err
 	}
 
 	// Open the batch and process the txs
 	if dbTx == nil {
-		return common.Hash{}, ErrDBTxNil
+		return common.Hash{}, noFlushID, ErrDBTxNil
 	}
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, noFlushID, err
 	}
 	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, caller, dbTx)
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, noFlushID, err
 	}
 
 	// Sanity check
@@ -455,19 +457,19 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 
 	processedBatch, err := s.convertToProcessBatchResponse(decodedTransactions, processed)
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, noFlushID, err
 	}
 
 	if len(processedBatch.Responses) > 0 {
 		// Store processed txs into the batch
 		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
 		if err != nil {
-			return common.Hash{}, err
+			return common.Hash{}, noFlushID, err
 		}
 	}
 
 	// Close batch
-	return common.BytesToHash(processed.NewStateRoot), s.closeBatch(ctx, ProcessingReceipt{
+	return common.BytesToHash(processed.NewStateRoot), processed.FlushId, s.closeBatch(ctx, ProcessingReceipt{
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,

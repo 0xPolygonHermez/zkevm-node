@@ -270,10 +270,9 @@ func TestForcedBatch(t *testing.T) {
 				GlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 				ForcedBatchNum: &forced,
 			}
-			m.State. //ExecuteBatch(s.ctx, batch.BatchNumber, batch.BatchL2Data, dbTx
-					On("ExecuteBatch", ctx, sbatch, false, m.DbTx).
-					Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
-					Once()
+			m.State.On("ExecuteBatch", ctx, sbatch, false, m.DbTx).
+				Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
+				Once()
 
 			virtualBatch := &state.VirtualBatch{
 				BatchNumber: sequencedBatch.BatchNumber,
@@ -299,6 +298,11 @@ func TestForcedBatch(t *testing.T) {
 			m.State.
 				On("AddAccumulatedInputHash", ctx, sequencedBatch.BatchNumber, common.Hash{}, m.DbTx).
 				Return(nil).
+				Once()
+
+			m.State.
+				On("GetStoredFlushID", ctx).
+				Return(uint64(1), "", nil).
 				Once()
 
 			m.DbTx.
@@ -501,7 +505,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 			m.State.
 				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
-				Return(common.Hash{}, nil).
+				Return(common.Hash{}, uint64(1), nil).
 				Once()
 
 			virtualBatch := &state.VirtualBatch{
@@ -524,6 +528,11 @@ func TestSequenceForcedBatch(t *testing.T) {
 			m.State.
 				On("AddSequence", ctx, seq, m.DbTx).
 				Return(nil).
+				Once()
+
+			m.State.
+				On("GetStoredFlushID", ctx).
+				Return(uint64(1), "", nil).
 				Once()
 
 			m.DbTx.
@@ -651,7 +660,8 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		Return(batchInTrustedNode, nil).
 		Once()
 
-	m.State.On("BeginStateTransaction", sync.ctx).
+	m.State.
+		On("BeginStateTransaction", sync.ctx).
 		Return(m.DbTx, nil).
 		Once()
 
@@ -686,5 +696,13 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		Return(nil).
 		Once()
 
-	m.DbTx.On("Commit", sync.ctx).Return(nil).Once()
+	m.State.
+		On("GetStoredFlushID", sync.ctx).
+		Return(uint64(1), "", nil).
+		Once()
+
+	m.DbTx.
+		On("Commit", sync.ctx).
+		Return(nil).
+		Once()
 }
