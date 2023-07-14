@@ -271,8 +271,8 @@ func TestForcedBatch(t *testing.T) {
 				ForcedBatchNum: &forced,
 			}
 			m.State.On("ExecuteBatch", ctx, sbatch, false, m.DbTx).
-					Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
-					Once()
+				Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
+				Once()
 
 			virtualBatch := &state.VirtualBatch{
 				BatchNumber: sequencedBatch.BatchNumber,

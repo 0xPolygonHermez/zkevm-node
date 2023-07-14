@@ -1463,7 +1463,7 @@ func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
 	}
 	for storedFlushID < s.latestFlushID {
 		log.Infof("Waiting for the flushID to be stored. FlushID to be stored: %d. Latest flushID stored: %d", s.latestFlushID, storedFlushID)
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond) //nolint:gomnd
 		storedFlushID, _, err = s.state.GetStoredFlushID(s.ctx)
 		if err != nil {
 			log.Error("error getting stored flushID. Error: ", err)
