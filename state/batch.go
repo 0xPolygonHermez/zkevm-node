@@ -406,25 +406,25 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 }
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
-func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, error) {
+func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, error) {
 	// Decode transactions
 	forkID := s.GetForkIDByBatchNumber(processingCtx.BatchNumber)
 	decodedTransactions, _, _, err := DecodeTxs(encodedTxs, forkID)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		log.Debugf("error decoding transactions: %v", err)
-		return common.Hash{}, err
+		return common.Hash{}, 0, err
 	}
 
 	// Open the batch and process the txs
 	if dbTx == nil {
-		return common.Hash{}, ErrDBTxNil
+		return common.Hash{}, 0, ErrDBTxNil
 	}
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, 0, err
 	}
 	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, caller, dbTx)
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, 0, err
 	}
 
 	// Sanity check
@@ -455,19 +455,19 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 
 	processedBatch, err := s.convertToProcessBatchResponse(decodedTransactions, processed)
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, 0, err
 	}
 
 	if len(processedBatch.Responses) > 0 {
 		// Store processed txs into the batch
 		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
 		if err != nil {
-			return common.Hash{}, err
+			return common.Hash{}, 0, err
 		}
 	}
 
 	// Close batch
-	return common.BytesToHash(processed.NewStateRoot), s.closeBatch(ctx, ProcessingReceipt{
+	return common.BytesToHash(processed.NewStateRoot), processed.FlushId, s.closeBatch(ctx, ProcessingReceipt{
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
