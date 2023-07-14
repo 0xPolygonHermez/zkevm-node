@@ -221,8 +221,8 @@ func (s *ClientSynchronizer) Sync() error {
 
 			// Sync trusted state
 			if latestSyncedBatch >= latestSequencedBatchNumber {
-				log.Info("L1 state fully synchronized")
 				startTrusted := time.Now()
+				log.Info("Syncing trusted state")
 				err = s.syncTrustedState(latestSyncedBatch)
 				metrics.FullTrustedSyncTime(time.Since(startTrusted))
 				if err != nil {
@@ -246,6 +246,7 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 			}
 			metrics.FullSyncIterationTime(time.Since(start))
+			log.Info("L1 state fully synchronized")
 		}
 	}
 }
@@ -1244,6 +1245,9 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 						log.Errorf("error closing batch %d", trustedBatch.Number)
 						return nil, nil, err
 					}
+					batches[0].AccInputHash = trustedBatch.AccInputHash
+					batches[0].StateRoot = trustedBatch.StateRoot
+					batches[0].LocalExitRoot = trustedBatch.LocalExitRoot
 				}
 				return batches, &trustedBatch.StateRoot, nil
 			}
@@ -1400,6 +1404,13 @@ func checkIfSynced(batches []*state.Batch, trustedBatch *types.Batch) bool {
 		matchCoinbase && matchTimestamp && matchL2Data {
 		return true
 	}
+	log.Info("matchNumber", matchNumber)
+	log.Info("matchGER", matchGER)
+	log.Info("matchLER", matchLER)
+	log.Info("matchSR", matchSR)
+	log.Info("matchCoinbase", matchCoinbase)
+	log.Info("matchTimestamp", matchTimestamp)
+	log.Info("matchL2Data", matchL2Data)
 	return false
 }
 
