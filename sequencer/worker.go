@@ -47,7 +47,6 @@ func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, i
 // AddTxTracker adds a new Tx to the Worker
 func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropReason error, isWIP bool) {
 	w.workerMutex.Lock()
-	defer w.workerMutex.Unlock()
 
 	addr, found := w.pool[tx.FromStr]
 
@@ -89,6 +88,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropReason er
 	newReadyTx, prevReadyTx, dropReason = addr.addTx(tx)
 	if dropReason != nil {
 		log.Infof("AddTx tx(%s) dropped from addrQueue(%s)", tx.Hash.String(), tx.FromStr)
+		w.workerMutex.Unlock()
 		return dropReason, false
 	}
 
@@ -102,6 +102,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropReason er
 		w.efficiencyList.add(newReadyTx)
 	}
 
+	w.workerMutex.Unlock()
 	return nil, true
 }
 
