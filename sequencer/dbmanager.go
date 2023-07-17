@@ -149,7 +149,7 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
 		}
 		if replacedTx != nil {
 			failedReason := "duplicated nonce"
-			return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
+			return d.txPool.UpdateTxStatus(d.ctx, replacedTx.Hash, pool.TxStatusFailed, false, &failedReason)
 		}
 	}
 
