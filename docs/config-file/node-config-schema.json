@@ -977,6 +977,10 @@
 					"type": "integer",
 					"default": 2000000000
 				},
+				"MaxGasPriceWei": {
+					"type": "integer",
+					"default": 0
+				},
 				"MaxPrice": {
 					"properties": {},
 					"additionalProperties": false,
