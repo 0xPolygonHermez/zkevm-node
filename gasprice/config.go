@@ -23,6 +23,7 @@ type Config struct {
 	Type EstimatorType `mapstructure:"Type"`
 
 	DefaultGasPriceWei        uint64         `mapstructure:"DefaultGasPriceWei"`
+	MaxGasPriceWei            uint64         `mapstructure:"MaxGasPriceWei"`
 	MaxPrice                  *big.Int       `mapstructure:"MaxPrice"`
 	IgnorePrice               *big.Int       `mapstructure:"IgnorePrice"`
 	CheckBlocks               int            `mapstructure:"CheckBlocks"`
