@@ -975,10 +975,12 @@
 				},
 				"DefaultGasPriceWei": {
 					"type": "integer",
+					"description": "DefaultGasPriceWei is used to set the gas price to be used by the default gas pricer.",
 					"default": 2000000000
 				},
 				"MaxGasPriceWei": {
 					"type": "integer",
+					"description": "MaxGasPriceWei is used to limit the gas price returned by the follower gas pricer to a maximum value. It is ignored if 0.",
 					"default": 0
 				},
 				"MaxPrice": {
