@@ -45,7 +45,7 @@ func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, i
 }
 
 // AddTxTracker adds a new Tx to the Worker
-func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *TxTracker, dropReason error, isWIP bool) {
+func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *TxTracker, dropReason error) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
@@ -59,19 +59,19 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 		if err != nil {
 			dropReason = fmt.Errorf("AddTx GetLastStateRoot error: %v", err)
 			log.Error(dropReason)
-			return nil, dropReason, false
+			return nil, dropReason
 		}
 		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if err != nil {
 			dropReason = fmt.Errorf("AddTx GetNonceByStateRoot error: %v", err)
 			log.Error(dropReason)
-			return nil, dropReason, false
+			return nil, dropReason
 		}
 		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if err != nil {
 			dropReason = fmt.Errorf("AddTx GetBalanceByStateRoot error: %v", err)
 			log.Error(dropReason)
-			return nil, dropReason, false
+			return nil, dropReason
 		}
 
 		addr = newAddrQueue(tx.From, nonce.Uint64(), balance)
@@ -88,8 +88,8 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	var newReadyTx, prevReadyTx, repTx *TxTracker
 	newReadyTx, prevReadyTx, repTx, dropReason = addr.addTx(tx)
 	if dropReason != nil {
-		log.Infof("AddTx tx(%s) dropped from addrQueue(%s)", tx.HashStr, tx.FromStr)
-		return repTx, dropReason, false
+		log.Infof("AddTx tx(%s) dropped from addrQueue(%s), reason: %s", tx.HashStr, tx.FromStr, dropReason.Error())
+		return repTx, dropReason
 	}
 
 	// Update the EfficiencyList (if needed)
@@ -106,7 +106,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 		log.Infof("AddTx replacedTx(%s) nonce(%d) cost(%s) has been replaced", repTx.HashStr, repTx.Nonce, repTx.Cost.String())
 	}
 
-	return repTx, nil, true
+	return repTx, nil
 }
 
 func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker, []*TxTracker) {

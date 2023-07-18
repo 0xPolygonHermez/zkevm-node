@@ -21,13 +21,12 @@ type WorkerMock struct {
 }
 
 // AddTxTracker provides a mock function with given fields: ctx, txTracker
-func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) (*TxTracker, error, bool) {
+func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) (*TxTracker, error) {
 	ret := _m.Called(ctx, txTracker)
 
 	var r0 *TxTracker
 	var r1 error
-	var r2 bool
-	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) (*TxTracker, error, bool)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) (*TxTracker, error)); ok {
 		return rf(ctx, txTracker)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) *TxTracker); ok {
@@ -44,13 +43,7 @@ func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) (*
 		r1 = ret.Error(1)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, *TxTracker) bool); ok {
-		r2 = rf(ctx, txTracker)
-	} else {
-		r2 = ret.Get(2).(bool)
-	}
-
-	return r0, r1, r2
+	return r0, r1
 }
 
 // DeleteTx provides a mock function with given fields: txHash, from
