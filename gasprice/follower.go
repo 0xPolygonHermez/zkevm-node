@@ -49,8 +49,13 @@ func (f *FollowerGasPrice) UpdateGasPriceAvg() {
 	res.Int(result)
 	minGasPrice := big.NewInt(0).SetUint64(f.cfg.DefaultGasPriceWei)
 	if minGasPrice.Cmp(result) == 1 { // minGasPrice > result
-		log.Warn("setting minGasPrice for L2")
+		log.Warn("setting DefaultGasPriceWei for L2")
 		result = minGasPrice
+	}
+	maxGasPrice := new(big.Int).SetUint64(f.cfg.MaxGasPriceWei)
+	if f.cfg.MaxGasPriceWei > 0 && result.Cmp(maxGasPrice) == 1 { // result > maxGasPrice
+		log.Warn("setting MaxGasPriceWei for L2")
+		result = maxGasPrice
 	}
 	var truncateValue *big.Int
 	log.Debug("Full L2 gas price value: ", result, ". Length: ", len(result.String()))
