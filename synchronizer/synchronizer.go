@@ -1489,7 +1489,7 @@ func (s *ClientSynchronizer) updateAndCheckProverID(proverID string) {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
 			Source:      event.Source_Node,
-			Component:   event.Component_Sequencer,
+			Component:   event.Component_Synchronizer,
 			Level:       event.Level_Critical,
 			EventID:     event.EventID_SynchonizerRestart,
 			Description: fmt.Sprintf("proverID changed from %s to %s, restarting Synchonizer ", s.proverID, proverID),
