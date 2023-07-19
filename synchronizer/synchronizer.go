@@ -54,6 +54,8 @@ type ClientSynchronizer struct {
 	// It start with a empty string and filled in the first call later
 	// is checked that is the same (in function checkFlushID)
 	proverID string
+	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
+	previousExecutorFlushID uint64
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -71,18 +73,19 @@ func NewSynchronizer(
 	metrics.Register()
 
 	return &ClientSynchronizer{
-		isTrustedSequencer: isTrustedSequencer,
-		state:              st,
-		etherMan:           ethMan,
-		pool:               pool,
-		ctx:                ctx,
-		cancelCtx:          cancel,
-		ethTxManager:       ethTxManager,
-		zkEVMClient:        zkEVMClient,
-		eventLog:           eventLog,
-		genesis:            genesis,
-		cfg:                cfg,
-		proverID:           "",
+		isTrustedSequencer:      isTrustedSequencer,
+		state:                   st,
+		etherMan:                ethMan,
+		pool:                    pool,
+		ctx:                     ctx,
+		cancelCtx:               cancel,
+		ethTxManager:            ethTxManager,
+		zkEVMClient:             zkEVMClient,
+		eventLog:                eventLog,
+		genesis:                 genesis,
+		cfg:                     cfg,
+		proverID:                "",
+		previousExecutorFlushID: 0,
 	}, nil
 }
 
@@ -413,7 +416,7 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 			}
 			return err
 		}
-		log.Info("Checking FlushID to commit trustedState data to db")
+		log.Debug("Checking FlushID to commit trustedState data to db")
 		err = s.checkFlushID(dbTx)
 		if err != nil {
 			log.Errorf("error checking flushID. Error: %v", err)
@@ -498,7 +501,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 				}
 			}
 		}
-		log.Info("Checking FlushID to commit L1 data to db")
+		log.Debug("Checking FlushID to commit L1 data to db")
 		err = s.checkFlushID(dbTx)
 		if err != nil {
 			log.Errorf("error checking flushID. Error: %v", err)
@@ -1478,6 +1481,7 @@ func (s *ClientSynchronizer) getCurrentBatches(batches []*state.Batch, trustedBa
 
 func (s *ClientSynchronizer) updateAndCheckProverID(proverID string) {
 	if s.proverID == "" {
+		log.Infof("Current proverID is %s", proverID)
 		s.proverID = proverID
 		return
 	}
@@ -1506,11 +1510,15 @@ func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
 		log.Error("error getting stored flushID. Error: ", err)
 		return err
 	}
-	log.Infof("executor vs local: flushid=%d/%d, proverID=%s/%s", storedFlushID,
-		s.latestFlushID, proverID, s.proverID)
-
+	if (s.previousExecutorFlushID != storedFlushID) || (s.proverID != proverID) {
+		log.Infof("executor vs local: flushid=%d/%d, proverID=%s/%s", storedFlushID,
+			s.latestFlushID, proverID, s.proverID)
+	} else {
+		log.Debugf("executor vs local: flushid=%d/%d, proverID=%s/%s", storedFlushID,
+			s.latestFlushID, proverID, s.proverID)
+	}
 	s.updateAndCheckProverID(proverID)
-	log.Infof("storedFlushID: %d, latestFlushID: %d", storedFlushID, s.latestFlushID)
+	log.Debugf("storedFlushID: %d, latestFlushID: %d", storedFlushID, s.latestFlushID)
 	for storedFlushID < s.latestFlushID {
 		log.Infof("Waiting for the flushID to be stored. FlushID to be stored: %d. Latest flushID stored: %d", s.latestFlushID, storedFlushID)
 		time.Sleep(10 * time.Millisecond) //nolint:gomnd
@@ -1520,5 +1528,6 @@ func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
 			return err
 		}
 	}
+	s.previousExecutorFlushID = storedFlushID
 	return nil
 }
