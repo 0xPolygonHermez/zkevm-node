@@ -1338,26 +1338,26 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 	}{
 		{
 			name:               "Error OutOfCounters",
-			err:                pb.RomError(executor.ROM_ERROR_OUT_OF_COUNTERS_STEP),
+			err:                executor.ROM_ERROR_OUT_OF_COUNTERS_STEP,
 			updateTxStatus:     pool.TxStatusInvalid,
 			expectedDeleteCall: true,
 			isRoomOOC:          true,
 		},
 		{
 			name:             "Error IntrinsicInvalidNonce",
-			err:              pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_NONCE),
+			err:              executor.ROM_ERROR_INTRINSIC_INVALID_NONCE,
 			updateTxStatus:   pool.TxStatusFailed,
 			expectedMoveCall: true,
 		},
 		{
 			name:             "Error IntrinsicInvalidBalance",
-			err:              pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_BALANCE),
+			err:              executor.ROM_ERROR_INTRINSIC_INVALID_BALANCE,
 			updateTxStatus:   pool.TxStatusFailed,
 			expectedMoveCall: true,
 		},
 		{
 			name:               "Error IntrinsicErrorChainId",
-			err:                pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID),
+			err:                executor.ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID,
 			updateTxStatus:     pool.TxStatusFailed,
 			expectedDeleteCall: true,
 		},
