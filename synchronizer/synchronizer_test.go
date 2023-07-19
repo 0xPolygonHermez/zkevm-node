@@ -28,14 +28,18 @@ type mocks struct {
 	EthTxManager *ethTxManagerMock
 	DbTx         *dbTxMock
 	ZKEVMClient  *zkEVMClientMock
+	//EventLog     *eventLogMock
 }
+
+//func Test_Given_StartingSynchronizer_When_CallFirstTimeExecutor_Then_StoreProverID(t *testing.T) {
+//}
 
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
 //
 //	this Check partially point 2: Use previous batch stored in memory to avoid getting from database
 func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
-	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, *genesis, *cfg)
+	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg)
 	require.NoError(t, err)
 	sync, ok := sync_interface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
@@ -58,7 +62,7 @@ func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneI
 //	this Check partially point 2: Store last batch in memory (CurrentTrustedBatch)
 func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItInALocalVar(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
-	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, *genesis, *cfg)
+	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg)
 	require.NoError(t, err)
 	sync, ok := sync_interface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
@@ -91,7 +95,7 @@ func TestForcedBatch(t *testing.T) {
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 
-	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
+	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -335,7 +339,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
+	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -563,6 +567,7 @@ func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
 		Pool:        newPoolMock(t),
 		DbTx:        newDbTxMock(t),
 		ZKEVMClient: newZkEVMClientMock(t),
+		//EventLog:    newEventLogMock(t),
 	}
 	return &genesis, &cfg, &m
 }

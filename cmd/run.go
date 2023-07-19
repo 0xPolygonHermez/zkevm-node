@@ -216,7 +216,7 @@ func start(cliCtx *cli.Context) error {
 			if poolInstance == nil {
 				poolInstance = createPool(c.Pool, l2ChainID, st, eventLog)
 			}
-			go runSynchronizer(*c, etherman, etm, st, poolInstance)
+			go runSynchronizer(*c, etherman, etm, st, poolInstance, eventLog)
 		case ETHTXMANAGER:
 			ev.Component = event.Component_EthTxManager
 			ev.Description = "Running eth tx manager service"
@@ -284,7 +284,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman, nil
 }
 
-func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool) {
+func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
 	var trustedSequencerURL string
 	var err error
 	if !cfg.IsTrustedSequencer {
@@ -303,7 +303,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 
 	sy, err := synchronizer.NewSynchronizer(
 		cfg.IsTrustedSequencer, etherman, st, pool, ethTxManager,
-		zkEVMClient, cfg.NetworkConfig.Genesis, cfg.Synchronizer,
+		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer,
 	)
 	if err != nil {
 		log.Fatal(err)

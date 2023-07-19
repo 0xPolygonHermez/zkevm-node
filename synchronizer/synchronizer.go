@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -39,6 +40,7 @@ type ClientSynchronizer struct {
 	pool               poolInterface
 	ethTxManager       ethTxManager
 	zkEVMClient        zkEVMClientInterface
+	eventLog           *event.EventLog
 	ctx                context.Context
 	cancelCtx          context.CancelFunc
 	genesis            state.Genesis
@@ -47,6 +49,11 @@ type ClientSynchronizer struct {
 		lastTrustedBatches []*state.Batch
 		lastStateRoot      *common.Hash
 	}
+	// Id of the 'process' of the executor. Each time that starts this change this value
+	// This value is obtained from the call state.GetStoredFlushID
+	// It start with a empty string and filled in the first call later
+	// is checked that is the same (in function checkFlushID)
+	proverID string
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -57,6 +64,7 @@ func NewSynchronizer(
 	pool poolInterface,
 	ethTxManager ethTxManager,
 	zkEVMClient zkEVMClientInterface,
+	eventLog *event.EventLog,
 	genesis state.Genesis,
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -71,8 +79,10 @@ func NewSynchronizer(
 		cancelCtx:          cancel,
 		ethTxManager:       ethTxManager,
 		zkEVMClient:        zkEVMClient,
+		eventLog:           eventLog,
 		genesis:            genesis,
 		cfg:                cfg,
+		proverID:           "",
 	}, nil
 }
 
@@ -1466,12 +1476,41 @@ func (s *ClientSynchronizer) getCurrentBatches(batches []*state.Batch, trustedBa
 	return batches, nil
 }
 
+func (s *ClientSynchronizer) updateAndCheckProverID(proverID string) {
+	if s.proverID == "" {
+		s.proverID = proverID
+		return
+	}
+	if s.proverID != proverID {
+		event := &event.Event{
+			ReceivedAt:  time.Now(),
+			Source:      event.Source_Node,
+			Component:   event.Component_Sequencer,
+			Level:       event.Level_Critical,
+			EventID:     event.EventID_SynchonizerRestart,
+			Description: fmt.Sprintf("proverID changed from %s to %s, restarting Synchonizer ", s.proverID, proverID),
+		}
+
+		err := s.eventLog.LogEvent(context.Background(), event)
+		if err != nil {
+			log.Errorf("error storing event payload: %v", err)
+		}
+
+		log.Fatal("restarting sequencer because  executor have restarted (old=%s, new=%s)", s.proverID, proverID)
+	}
+}
+
 func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
-	storedFlushID, _, err := s.state.GetStoredFlushID(s.ctx)
+	storedFlushID, proverID, err := s.state.GetStoredFlushID(s.ctx)
 	if err != nil {
 		log.Error("error getting stored flushID. Error: ", err)
 		return err
 	}
+	log.Infof("executor vs local: flushid=%d/%d, proverID=%s/%s", storedFlushID,
+		s.latestFlushID, proverID, s.proverID)
+
+	s.updateAndCheckProverID(proverID)
+	log.Infof("storedFlushID: %d, latestFlushID: %d", storedFlushID, s.latestFlushID)
 	for storedFlushID < s.latestFlushID {
 		log.Infof("Waiting for the flushID to be stored. FlushID to be stored: %d. Latest flushID stored: %d", s.latestFlushID, storedFlushID)
 		time.Sleep(10 * time.Millisecond) //nolint:gomnd
