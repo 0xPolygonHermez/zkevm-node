@@ -14,7 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
@@ -36,7 +36,7 @@ var (
 		ChainID:              1000,
 	}
 	dbManagerCfg      = DBManagerCfg{PoolRetrievalInterval: types.NewDuration(500 * time.Millisecond)}
-	executorClient    executorclientpb.ExecutorServiceClient
+	executorClient    executor.ExecutorServiceClient
 	mtDBServiceClient mtDBclientpb.HashDBServiceClient
 	mtDBClientConn    *grpc.ClientConn
 	testDbManager     *dbManager

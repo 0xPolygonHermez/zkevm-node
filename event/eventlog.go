@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 )
 
 // EventLog is the main struct for the event log
@@ -29,7 +29,7 @@ func (e *EventLog) LogEvent(ctx context.Context, event *Event) error {
 }
 
 // LogExecutorError is used to store Executor error for runtime debugging
-func (e *EventLog) LogExecutorError(ctx context.Context, responseError pb.ExecutorError, processBatchRequest *pb.ProcessBatchRequest) {
+func (e *EventLog) LogExecutorError(ctx context.Context, responseError executor.ExecutorError, processBatchRequest *executor.ProcessBatchRequest) {
 	timestamp := time.Now()
 	log.Errorf("error found in the executor: %v at %v", responseError, timestamp)
 	payload, err := json.Marshal(processBatchRequest)
