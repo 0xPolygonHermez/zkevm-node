@@ -48,11 +48,12 @@ type Pool struct {
 }
 
 type preExecutionResponse struct {
-	usedZkCounters state.ZKCounters
-	isOOC          bool
-	isOOG          bool
-	isReverted     bool
-	txResponse     *state.ProcessTransactionResponse
+	usedZkCounters       state.ZKCounters
+	isExecutorLevelError bool
+	isOOC                bool
+	isOOG                bool
+	isReverted           bool
+	txResponse           *state.ProcessTransactionResponse
 }
 
 // GasPrices contains the gas prices for L2 and L1
@@ -170,23 +171,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	preExecutionResponse, err := p.preExecuteTx(ctx, tx)
 	if errors.Is(err, runtime.ErrIntrinsicInvalidBatchGasLimit) {
 		return ErrGasLimit
-	} else if errors.Is(err, runtime.ErrFea2Scalar) ||
-		errors.Is(err, runtime.ErrBalanceMismatch) ||
-		errors.Is(err, runtime.ErrTos32) {
-		event := &event.Event{
-			ReceivedAt:  time.Now(),
-			IPAddress:   ip,
-			Source:      event.Source_Node,
-			Component:   event.Component_Pool,
-			Level:       event.Level_Critical,
-			EventID:     event.EventID_ExecutorError,
-			Description: fmt.Sprintf("Error: %s. TxHash: %s", err.Error(), tx.Hash().String()),
-		}
-
-		err := p.eventLog.LogEvent(ctx, event)
-		if err != nil {
-			log.Errorf("error adding event: %v", err)
-		}
+	} else if preExecutionResponse.isExecutorLevelError {
 		// Do not add tx to the pool
 		return err
 	} else if err != nil {
@@ -246,6 +231,7 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
 		errorToCheck := processBatchResponse.Responses[0].RomError
 		response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
+		response.isExecutorLevelError = processBatchResponse.IsExecutorLevelError
 		response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
 		response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
 		response.usedZkCounters = processBatchResponse.UsedZkCounters

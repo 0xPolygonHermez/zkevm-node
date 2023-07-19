@@ -16,7 +16,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -588,26 +587,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 	} else if tx != nil && err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.Responses) == 0 {
 		err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
 		f.halt(ctx, err)
-	} else if tx != nil && processBatchResponse.ExecutorError == runtime.ErrBalanceMismatch ||
-		processBatchResponse.ExecutorError == runtime.ErrFea2Scalar ||
-		processBatchResponse.ExecutorError == runtime.ErrTos32 {
+	} else if tx != nil && processBatchResponse.IsExecutorLevelError {
 		log.Errorf("error received from executor. Error: %v", err)
-		// Record event
-		event := event.Event{
-			ReceivedAt:  time.Now(),
-			Source:      event.Source_Node,
-			Component:   event.Component_Executor,
-			Level:       event.Level_Critical,
-			EventID:     event.EventID_ExecutorError,
-			Description: processBatchResponse.ExecutorError.Error(),
-			Data:        f.processRequest.Transactions,
-			Json:        fmt.Sprintf("processBatchResponse: %#v. f.processRequest: %#v", processBatchResponse, f.processRequest),
-		}
-		err := f.eventLog.LogEvent(ctx, &event)
-		if err != nil {
-			log.Error("error storing event on db. Error: %s. Event: %#v", err.Error(), event)
-		}
-
 		// Delete tx from the worker
 		f.worker.DeleteTx(tx.Hash, tx.From)
 
