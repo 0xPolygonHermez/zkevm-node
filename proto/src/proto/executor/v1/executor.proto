@@ -4,7 +4,7 @@ import "google/protobuf/empty.proto";
 
 package executor.v1;
 
-option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor";
 
 service ExecutorService {
     /// Processes a batch

@@ -10,7 +10,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -180,7 +179,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 	forkID := s.GetForkIDByBatchNumber(request.BatchNumber)
 
 	// Create Batch
-	var processBatchRequest = &pb.ProcessBatchRequest{
+	var processBatchRequest = &executor.ProcessBatchRequest{
 		OldBatchNum:      request.BatchNumber - 1,
 		Coinbase:         request.Coinbase.String(),
 		BatchL2Data:      request.Transactions,
@@ -217,7 +216,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 
 // ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
 // It is also used by the sequencer in order to calculate used zkCounter of a WIPBatch
-func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -236,7 +235,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 	}
 
 	// Create Batch
-	processBatchRequest := &pb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:     batch.BatchNumber - 1,
 		Coinbase:        batch.Coinbase.String(),
 		BatchL2Data:     batch.BatchL2Data,
@@ -267,7 +266,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 	if err != nil {
 		log.Error("error executing batch: ", err)
 		return nil, err
-	} else if processBatchResponse != nil && processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+	} else if processBatchResponse != nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
 		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 	}
@@ -281,7 +280,7 @@ func uint32ToBool(value uint32) bool {
 }
 */
 
-func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*executor.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -318,7 +317,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
 
 	// Create Batch
-	processBatchRequest := &pb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber - 1,
 		Coinbase:         lastBatch.Coinbase.String(),
 		BatchL2Data:      batchL2Data,
@@ -334,7 +333,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	return s.sendBatchRequestToExecutor(ctx, processBatchRequest, caller)
 }
 
-func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequest *pb.ProcessBatchRequest, caller metrics.CallerLabel) (*pb.ProcessBatchResponse, error) {
+func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequest *executor.ProcessBatchRequest, caller metrics.CallerLabel) (*executor.ProcessBatchResponse, error) {
 	if s.executorClient == nil {
 		return nil, ErrExecutorNil
 	}
@@ -358,7 +357,7 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 		log.Errorf("Error s.executorClient.ProcessBatch: %v", err)
 		log.Errorf("Error s.executorClient.ProcessBatch: %s", err.Error())
 		log.Errorf("Error s.executorClient.ProcessBatch response: %v", res)
-	} else if res.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+	} else if res.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(res.Error)
 		s.eventLog.LogExecutorError(ctx, res.Error, processBatchRequest)
 	}
@@ -439,7 +438,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	for i := 0; i < len(processed.Responses); i++ {
 		if !IsStateRootChanged(processed.Responses[i].Error) {
 			if executor.IsROMOutOfCountersError(processed.Responses[i].Error) {
-				processed.Responses = []*pb.ProcessTransactionResponse{}
+				processed.Responses = []*executor.ProcessTransactionResponse{}
 				break
 			}
 

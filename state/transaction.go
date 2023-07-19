@@ -14,7 +14,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/js"
@@ -244,7 +243,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	// Create Batch
-	traceConfigRequest := &pb.TraceConfig{
+	traceConfigRequest := &executor.TraceConfig{
 		TxHashToGenerateCallTrace:    transactionHash.Bytes(),
 		TxHashToGenerateExecuteTrace: transactionHash.Bytes(),
 		// set the defaults to the maximum information we can have.
@@ -273,7 +272,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	oldStateRoot := previousBlock.Root()
-	processBatchRequest := &pb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:     batch.BatchNumber - 1,
 		OldStateRoot:    oldStateRoot.Bytes(),
 		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
@@ -294,7 +293,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	endTime := time.Now()
 	if err != nil {
 		return nil, err
-	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+	} else if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
 		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
@@ -805,7 +804,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	}
 
 	// Create Batch
-	processBatchRequest := &pb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber,
 		BatchL2Data:      batchL2Data,
 		From:             senderAddress.String(),
@@ -858,13 +857,13 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 				return nil, runtime.ErrGRPCResourceExhaustedAsTimeout
 			}
 			// Log this error as an executor unspecified error
-			s.eventLog.LogExecutorError(ctx, pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
+			s.eventLog.LogExecutorError(ctx, executor.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
 			log.Errorf("error processing unsigned transaction ", err)
 			return nil, err
 		}
 	}
 
-	if err == nil && processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+	if err == nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
 		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
@@ -875,7 +874,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
-	if processBatchResponse.Responses[0].Error != executor.ROM_ERROR_NO_ERROR {
+	if processBatchResponse.Responses[0].Error != executor.RomError_ROM_ERROR_NO_ERROR {
 		err := executor.RomErr(processBatchResponse.Responses[0].Error)
 		if !isEVMRevertError(err) {
 			return response, err
@@ -1049,7 +1048,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 
 		// Create a batch to be sent to the executor
-		processBatchRequest := &pb.ProcessBatchRequest{
+		processBatchRequest := &executor.ProcessBatchRequest{
 			OldBatchNum:      lastBatch.BatchNumber,
 			BatchL2Data:      batchL2Data,
 			From:             senderAddress.String(),
@@ -1083,14 +1082,14 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, false, gasUsed, nil, err
 		}
 		gasUsed = processBatchResponse.Responses[0].GasUsed
-		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
 			s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, nil, err
 		}
 
 		// Check if an out of gas error happened during EVM execution
-		if processBatchResponse.Responses[0].Error != executor.ROM_ERROR_NO_ERROR {
+		if processBatchResponse.Responses[0].Error != executor.RomError_ROM_ERROR_NO_ERROR {
 			err := executor.RomErr(processBatchResponse.Responses[0].Error)
 
 			if (isGasEVMError(err) || isGasApplyError(err)) && shouldOmitErr {

@@ -18,7 +18,6 @@ import (
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -1330,7 +1329,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 	txTracker := &TxTracker{Hash: txHash, From: senderAddr, Cost: big.NewInt(0)}
 	testCases := []struct {
 		name               string
-		err                pb.RomError
+		err                executor.RomError
 		expectedDeleteCall bool
 		updateTxStatus     pool.TxStatus
 		expectedMoveCall   bool
@@ -1338,26 +1337,26 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 	}{
 		{
 			name:               "Error OutOfCounters",
-			err:                executor.ROM_ERROR_OUT_OF_COUNTERS_STEP,
+			err:                executor.RomError_ROM_ERROR_OUT_OF_COUNTERS_STEP,
 			updateTxStatus:     pool.TxStatusInvalid,
 			expectedDeleteCall: true,
 			isRoomOOC:          true,
 		},
 		{
 			name:             "Error IntrinsicInvalidNonce",
-			err:              executor.ROM_ERROR_INTRINSIC_INVALID_NONCE,
+			err:              executor.RomError_ROM_ERROR_INTRINSIC_INVALID_NONCE,
 			updateTxStatus:   pool.TxStatusFailed,
 			expectedMoveCall: true,
 		},
 		{
 			name:             "Error IntrinsicInvalidBalance",
-			err:              executor.ROM_ERROR_INTRINSIC_INVALID_BALANCE,
+			err:              executor.RomError_ROM_ERROR_INTRINSIC_INVALID_BALANCE,
 			updateTxStatus:   pool.TxStatusFailed,
 			expectedMoveCall: true,
 		},
 		{
 			name:               "Error IntrinsicErrorChainId",
-			err:                executor.ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID,
+			err:                executor.RomError_ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID,
 			updateTxStatus:     pool.TxStatusFailed,
 			expectedDeleteCall: true,
 		},
