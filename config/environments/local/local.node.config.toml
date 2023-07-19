@@ -52,6 +52,7 @@ EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
 		Enabled = true
 		Port = 8546
+		ReadLimit = 1048576
 
 [Synchronizer]
 SyncInterval = "1s"
