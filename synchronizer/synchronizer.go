@@ -49,7 +49,7 @@ type ClientSynchronizer struct {
 		lastTrustedBatches []*state.Batch
 		lastStateRoot      *common.Hash
 	}
-	// Id of the 'process' of the executor. Each time that starts this change this value
+	// Id of the 'process' of the executor. Each time that it starts this value changes
 	// This value is obtained from the call state.GetStoredFlushID
 	// It start with a empty string and filled in the first call later
 	// is checked that is the same (in function checkFlushID)
