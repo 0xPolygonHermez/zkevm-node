@@ -13,14 +13,15 @@ type notReadyTx struct {
 }
 
 type addrQueueAddTxTestCase struct {
-	name                string
-	hash                common.Hash
-	nonce               uint64
-	gasPrice            *big.Int
-	cost                *big.Int
-	expectedReadyTx     common.Hash
-	expectedNotReadyTx  []notReadyTx
-	expectedDiscardedTx common.Hash
+	name               string
+	hash               common.Hash
+	nonce              uint64
+	gasPrice           *big.Int
+	cost               *big.Int
+	expectedReadyTx    common.Hash
+	expectedNotReadyTx []notReadyTx
+	expectedReplacedTx common.Hash
+	err                error
 }
 
 var addr addrQueue
@@ -36,7 +37,7 @@ func processAddTxTestCases(t *testing.T, testCases []addrQueueAddTxTestCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tx := newTestTxTracker(tc.hash, tc.nonce, tc.gasPrice, tc.cost)
-			newReadyTx, _, replacedTx, _ := addr.addTx(tx)
+			newReadyTx, _, replacedTx, err := addr.addTx(tx)
 			if tc.expectedReadyTx.String() == emptyHash.String() {
 				if !(addr.readyTx == nil) {
 					t.Fatalf("Error readyTx. Expected=nil, Actual=%s", addr.readyTx.HashStr)
@@ -60,17 +61,27 @@ func processAddTxTestCases(t *testing.T, testCases []addrQueueAddTxTestCase) {
 				}
 			}
 
-			if tc.expectedDiscardedTx.String() == emptyHash.String() {
+			if tc.expectedReplacedTx.String() == emptyHash.String() {
 				if !(replacedTx == nil) {
-					t.Fatalf("Error discardedTx. Expected=%s, Actual=%s", tc.expectedDiscardedTx, replacedTx.HashStr)
+					t.Fatalf("Error replacedTx. Expected=%s, Actual=%s", tc.expectedReplacedTx, replacedTx.HashStr)
 				}
 			} else {
-				if (replacedTx == nil) || ((replacedTx != nil) && !(replacedTx.Hash == tc.expectedDiscardedTx)) {
+				if (replacedTx == nil) || ((replacedTx != nil) && !(replacedTx.Hash == tc.expectedReplacedTx)) {
 					replacedTxStr := "nil"
 					if replacedTx != nil {
 						replacedTxStr = replacedTx.HashStr
 					}
-					t.Fatalf("Error discardedTx. Expected=%s, Actual=%s", tc.expectedDiscardedTx, replacedTxStr)
+					t.Fatalf("Error replacedTx. Expected=%s, Actual=%s", tc.expectedReplacedTx, replacedTxStr)
+				}
+			}
+
+			if tc.err == nil {
+				if err != nil {
+					t.Fatalf("Error returned error. Expected=nil, Actual=%s", err)
+				}
+			} else {
+				if tc.err != err {
+					t.Fatalf("Error returned error. Expected=%s, Actual=%s", tc.err, err)
 				}
 			}
 		})
@@ -101,7 +112,7 @@ func TestAddrQueue(t *testing.T) {
 			expectedNotReadyTx: []notReadyTx{
 				{nonce: 2, hash: common.Hash{0x2}},
 			},
-			expectedDiscardedTx: common.Hash{0x11},
+			expectedReplacedTx: common.Hash{0x11},
 		},
 		{
 			name: "Replace readyTx for the same tx 0x1 with best gasPrice", hash: common.Hash{0x1}, nonce: 1, gasPrice: new(big.Int).SetInt64(8), cost: new(big.Int).SetInt64(5),
@@ -125,7 +136,7 @@ func TestAddrQueue(t *testing.T) {
 				{nonce: 2, hash: common.Hash{0x2}},
 				{nonce: 4, hash: common.Hash{0x44}},
 			},
-			expectedDiscardedTx: common.Hash{0x4},
+			expectedReplacedTx: common.Hash{0x4},
 		},
 		{
 			name: "Replace tx with nonce 4 for the same tx 0x44 with best GasPrice", hash: common.Hash{0x44}, nonce: 4, gasPrice: new(big.Int).SetInt64(4), cost: new(big.Int).SetInt64(5),
@@ -134,7 +145,7 @@ func TestAddrQueue(t *testing.T) {
 				{nonce: 2, hash: common.Hash{0x2}},
 				{nonce: 4, hash: common.Hash{0x44}},
 			},
-			expectedDiscardedTx: common.Hash{},
+			expectedReplacedTx: common.Hash{},
 		},
 		{
 			name: "Add tx 0x22 with nonce 2 with lower GasPrice than 0x2", hash: common.Hash{0x22}, nonce: 2, gasPrice: new(big.Int).SetInt64(1), cost: new(big.Int).SetInt64(5),
@@ -143,7 +154,8 @@ func TestAddrQueue(t *testing.T) {
 				{nonce: 2, hash: common.Hash{0x2}},
 				{nonce: 4, hash: common.Hash{0x44}},
 			},
-			expectedDiscardedTx: common.Hash{0x22},
+			expectedReplacedTx: common.Hash{},
+			err:                ErrDuplicatedNonce,
 		},
 	}
 

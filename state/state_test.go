@@ -26,7 +26,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -67,7 +66,7 @@ var (
 		}},
 	}
 	forkID                             uint64 = 5
-	executorClient                     executorclientpb.ExecutorServiceClient
+	executorClient                     executor.ExecutorServiceClient
 	mtDBServiceClient                  mtDBclientpb.HashDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
 	batchResources                     = state.BatchResources{
@@ -510,7 +509,7 @@ func TestExecuteTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
@@ -743,7 +742,7 @@ func TestExecutor(t *testing.T) {
 	}
 
 	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      0,
 		Coinbase:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").String(),
 		BatchL2Data:      common.Hex2Bytes("ee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731bff"),
@@ -824,7 +823,7 @@ func TestExecutorRevert(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
@@ -947,7 +946,7 @@ func TestExecutorRevert(t *testing.T) {
 //	require.NoError(t, err)
 //
 //	// Create Batch
-//	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+//	processBatchRequest := &executor.ProcessBatchRequest{
 //		OldBatchNum:      0,
 //		Coinbase:         sequencerAddress.String(),
 //		BatchL2Data:      batchL2Data,
@@ -1028,7 +1027,7 @@ func TestExecutorTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      0,
 		Coinbase:         receiverAddress.String(),
 		BatchL2Data:      batchL2Data,
@@ -1175,7 +1174,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create Batch
-		processBatchRequest := &executorclientpb.ProcessBatchRequest{
+		processBatchRequest := &executor.ProcessBatchRequest{
 			OldBatchNum:      uint64(x),
 			Coinbase:         receiverAddress.String(),
 			BatchL2Data:      batchL2Data,
@@ -1284,7 +1283,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create Batch
-			processBatchRequest := &executorclientpb.ProcessBatchRequest{
+			processBatchRequest := &executor.ProcessBatchRequest{
 				OldBatchNum:      0,
 				Coinbase:         receiverAddress.String(),
 				BatchL2Data:      batchL2Data,
@@ -1811,7 +1810,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create Batch
-		processBatchRequest := &executorclientpb.ProcessBatchRequest{
+		processBatchRequest := &executor.ProcessBatchRequest{
 			BatchNum:         numBatch,
 			Coinbase:         common.Address{}.String(),
 			BatchL2Data:      batchL2Data,
@@ -1884,7 +1883,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create Batch
-			processBatchRequest := &executorclientpb.ProcessBatchRequest{
+			processBatchRequest := &executor.ProcessBatchRequest{
 				BatchNum:         numBatch,
 				Coinbase:         common.Address{}.String(),
 				BatchL2Data:      batchL2Data,
@@ -1911,7 +1910,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 				require.NoError(t, err)
 
 				// Create Batch
-				processBatchRequest := &executorclientpb.ProcessBatchRequest{
+				processBatchRequest := &executor.ProcessBatchRequest{
 					BatchNum:         numBatch,
 					Coinbase:         common.Address{}.String(),
 					BatchL2Data:      batchL2Data,
@@ -2021,7 +2020,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
@@ -2171,7 +2170,7 @@ func TestExecutorGasRefund(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		BatchNum:         1,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
@@ -2237,7 +2236,7 @@ func TestExecutorGasRefund(t *testing.T) {
 	batchL2Data, err = state.EncodeTransactions([]types.Transaction{*signedTx2})
 	require.NoError(t, err)
 
-	processBatchRequest = &executorclientpb.ProcessBatchRequest{
+	processBatchRequest = &executor.ProcessBatchRequest{
 		BatchNum:         2,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
@@ -2375,7 +2374,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
@@ -2390,12 +2389,12 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
-	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
-	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[2].Error)
-	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[3].Error)
-	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[4].Error)
-	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[5].Error)
+	assert.Equal(t, executor.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executor.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
+	assert.Equal(t, executor.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[2].Error)
+	assert.Equal(t, executor.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[3].Error)
+	assert.Equal(t, executor.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[4].Error)
+	assert.Equal(t, executor.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[5].Error)
 
 	// Check SC code
 	// Check Smart Contracts Code
@@ -2462,7 +2461,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	batchL2Data, err = state.EncodeTransactions([]types.Transaction{*signedTx6}, constants.EffectivePercentage, forkID)
 	require.NoError(t, err)
 
-	processBatchRequest = &executorclientpb.ProcessBatchRequest{
+	processBatchRequest = &executor.ProcessBatchRequest{
 		OldBatchNum:      1,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
@@ -2477,7 +2476,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 
 	processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-	assert.Equal(t, executorclientpb.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executor.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
 	log.Debugf("Used gas = %v", processBatchResponse.Responses[0].GasUsed)
 }
 
@@ -2519,7 +2518,7 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
@@ -2536,7 +2535,7 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 	require.NoError(t, err)
 
 	// assert signed tx do deploy sc
-	assert.Equal(t, executorclientpb.RomError(1), processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executor.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
 	assert.Equal(t, scAddress, common.HexToAddress(processBatchResponse.Responses[0].CreateAddress))
 
 	log.Debug(processBatchResponse)
@@ -2578,7 +2577,7 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create Batch 2
-	processBatchRequest = &executorclientpb.ProcessBatchRequest{
+	processBatchRequest = &executor.ProcessBatchRequest{
 		OldBatchNum:      1,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data2,
@@ -2597,10 +2596,10 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 	log.Debug(processBatchResponse)
 
 	// assert signed tx to increment counter
-	assert.Equal(t, executorclientpb.RomError(1), processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executor.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
 
 	// assert signed tx to increment counter
-	assert.Equal(t, executorclientpb.RomError(1), processBatchResponse.Responses[1].Error)
+	assert.Equal(t, executor.RomError_ROM_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[1].ReturnValue))
 }
 

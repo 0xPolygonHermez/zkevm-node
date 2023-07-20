@@ -2370,18 +2370,19 @@ GenesisBlockNum=0
 **Type:** : `object`
 **Description:** Configuration of the gas price suggester service
 
-| Property                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [Type](#L2GasPriceSuggester_Type )                                           | No      | string  | No         | -          | -                 |
-| - [DefaultGasPriceWei](#L2GasPriceSuggester_DefaultGasPriceWei )               | No      | integer | No         | -          | -                 |
-| - [MaxPrice](#L2GasPriceSuggester_MaxPrice )                                   | No      | object  | No         | -          | -                 |
-| - [IgnorePrice](#L2GasPriceSuggester_IgnorePrice )                             | No      | object  | No         | -          | -                 |
-| - [CheckBlocks](#L2GasPriceSuggester_CheckBlocks )                             | No      | integer | No         | -          | -                 |
-| - [Percentile](#L2GasPriceSuggester_Percentile )                               | No      | integer | No         | -          | -                 |
-| - [UpdatePeriod](#L2GasPriceSuggester_UpdatePeriod )                           | No      | string  | No         | -          | Duration          |
-| - [CleanHistoryPeriod](#L2GasPriceSuggester_CleanHistoryPeriod )               | No      | string  | No         | -          | Duration          |
-| - [CleanHistoryTimeRetention](#L2GasPriceSuggester_CleanHistoryTimeRetention ) | No      | string  | No         | -          | Duration          |
-| - [Factor](#L2GasPriceSuggester_Factor )                                       | No      | number  | No         | -          | -                 |
+| Property                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                        |
+| ------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| - [Type](#L2GasPriceSuggester_Type )                                           | No      | string  | No         | -          | -                                                                                                                                        |
+| - [DefaultGasPriceWei](#L2GasPriceSuggester_DefaultGasPriceWei )               | No      | integer | No         | -          | DefaultGasPriceWei is used to set the gas price to be used by the default gas pricer or as minimim gas price by the follower gas pricer. |
+| - [MaxGasPriceWei](#L2GasPriceSuggester_MaxGasPriceWei )                       | No      | integer | No         | -          | MaxGasPriceWei is used to limit the gas price returned by the follower gas pricer to a maximum value. It is ignored if 0.                |
+| - [MaxPrice](#L2GasPriceSuggester_MaxPrice )                                   | No      | object  | No         | -          | -                                                                                                                                        |
+| - [IgnorePrice](#L2GasPriceSuggester_IgnorePrice )                             | No      | object  | No         | -          | -                                                                                                                                        |
+| - [CheckBlocks](#L2GasPriceSuggester_CheckBlocks )                             | No      | integer | No         | -          | -                                                                                                                                        |
+| - [Percentile](#L2GasPriceSuggester_Percentile )                               | No      | integer | No         | -          | -                                                                                                                                        |
+| - [UpdatePeriod](#L2GasPriceSuggester_UpdatePeriod )                           | No      | string  | No         | -          | Duration                                                                                                                                 |
+| - [CleanHistoryPeriod](#L2GasPriceSuggester_CleanHistoryPeriod )               | No      | string  | No         | -          | Duration                                                                                                                                 |
+| - [CleanHistoryTimeRetention](#L2GasPriceSuggester_CleanHistoryTimeRetention ) | No      | string  | No         | -          | Duration                                                                                                                                 |
+| - [Factor](#L2GasPriceSuggester_Factor )                                       | No      | number  | No         | -          | -                                                                                                                                        |
 
 ### <a name="L2GasPriceSuggester_Type"></a>14.1. `L2GasPriceSuggester.Type`
 
@@ -2401,21 +2402,37 @@ Type="follower"
 
 **Default:** `2000000000`
 
+**Description:** DefaultGasPriceWei is used to set the gas price to be used by the default gas pricer or as minimim gas price by the follower gas pricer.
+
 **Example setting the default value** (2000000000):
 ```
 [L2GasPriceSuggester]
 DefaultGasPriceWei=2000000000
 ```
 
-### <a name="L2GasPriceSuggester_MaxPrice"></a>14.3. `[L2GasPriceSuggester.MaxPrice]`
+### <a name="L2GasPriceSuggester_MaxGasPriceWei"></a>14.3. `L2GasPriceSuggester.MaxGasPriceWei`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** MaxGasPriceWei is used to limit the gas price returned by the follower gas pricer to a maximum value. It is ignored if 0.
+
+**Example setting the default value** (0):
+```
+[L2GasPriceSuggester]
+MaxGasPriceWei=0
+```
+
+### <a name="L2GasPriceSuggester_MaxPrice"></a>14.4. `[L2GasPriceSuggester.MaxPrice]`
 
 **Type:** : `object`
 
-### <a name="L2GasPriceSuggester_IgnorePrice"></a>14.4. `[L2GasPriceSuggester.IgnorePrice]`
+### <a name="L2GasPriceSuggester_IgnorePrice"></a>14.5. `[L2GasPriceSuggester.IgnorePrice]`
 
 **Type:** : `object`
 
-### <a name="L2GasPriceSuggester_CheckBlocks"></a>14.5. `L2GasPriceSuggester.CheckBlocks`
+### <a name="L2GasPriceSuggester_CheckBlocks"></a>14.6. `L2GasPriceSuggester.CheckBlocks`
 
 **Type:** : `integer`
 
@@ -2427,7 +2444,7 @@ DefaultGasPriceWei=2000000000
 CheckBlocks=0
 ```
 
-### <a name="L2GasPriceSuggester_Percentile"></a>14.6. `L2GasPriceSuggester.Percentile`
+### <a name="L2GasPriceSuggester_Percentile"></a>14.7. `L2GasPriceSuggester.Percentile`
 
 **Type:** : `integer`
 
@@ -2439,7 +2456,7 @@ CheckBlocks=0
 Percentile=0
 ```
 
-### <a name="L2GasPriceSuggester_UpdatePeriod"></a>14.7. `L2GasPriceSuggester.UpdatePeriod`
+### <a name="L2GasPriceSuggester_UpdatePeriod"></a>14.8. `L2GasPriceSuggester.UpdatePeriod`
 
 **Title:** Duration
 
@@ -2463,7 +2480,7 @@ Percentile=0
 UpdatePeriod="10s"
 ```
 
-### <a name="L2GasPriceSuggester_CleanHistoryPeriod"></a>14.8. `L2GasPriceSuggester.CleanHistoryPeriod`
+### <a name="L2GasPriceSuggester_CleanHistoryPeriod"></a>14.9. `L2GasPriceSuggester.CleanHistoryPeriod`
 
 **Title:** Duration
 
@@ -2487,7 +2504,7 @@ UpdatePeriod="10s"
 CleanHistoryPeriod="1h0m0s"
 ```
 
-### <a name="L2GasPriceSuggester_CleanHistoryTimeRetention"></a>14.9. `L2GasPriceSuggester.CleanHistoryTimeRetention`
+### <a name="L2GasPriceSuggester_CleanHistoryTimeRetention"></a>14.10. `L2GasPriceSuggester.CleanHistoryTimeRetention`
 
 **Title:** Duration
 
@@ -2511,7 +2528,7 @@ CleanHistoryPeriod="1h0m0s"
 CleanHistoryTimeRetention="5m0s"
 ```
 
-### <a name="L2GasPriceSuggester_Factor"></a>14.10. `L2GasPriceSuggester.Factor`
+### <a name="L2GasPriceSuggester_Factor"></a>14.11. `L2GasPriceSuggester.Factor`
 
 **Type:** : `number`
 

@@ -141,6 +141,7 @@ Type = "follower"
 UpdatePeriod = "10s"
 Factor = 0.15
 DefaultGasPriceWei = 2000000000
+MaxGasPriceWei = 0
 CleanHistoryPeriod = "1h"
 CleanHistoryTimeRetention = "5m"
 

@@ -133,6 +133,7 @@ PrivateKeys = [
 [L2GasPriceSuggester]
 Type = "default"
 DefaultGasPriceWei = 1000000000
+MaxGasPriceWei = 0
 
 [MTClient]
 URI = "zkevm-prover:50061"

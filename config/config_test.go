@@ -269,6 +269,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(2000000000),
 		},
 		{
+			path:          "L2GasPriceSuggester.MaxGasPriceWei",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "MTClient.URI",
 			expectedValue: "zkevm-prover:50061",
 		},
