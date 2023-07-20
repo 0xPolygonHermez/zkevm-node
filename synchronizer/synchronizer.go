@@ -1500,7 +1500,7 @@ func (s *ClientSynchronizer) updateAndCheckProverID(proverID string) {
 			log.Errorf("error storing event payload: %v", err)
 		}
 
-		log.Fatal("restarting sequencer because  executor have restarted (old=%s, new=%s)", s.proverID, proverID)
+		log.Fatal("restarting synchronizer because  executor have restarted (old=%s, new=%s)", s.proverID, proverID)
 	}
 }
 
