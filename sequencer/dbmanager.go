@@ -139,21 +139,20 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
 	if err != nil {
 		return err
 	}
-	replacedTx, dropReason, isWIP := d.worker.AddTxTracker(d.ctx, txTracker)
+	replacedTx, dropReason := d.worker.AddTxTracker(d.ctx, txTracker)
 	if dropReason != nil {
 		failedReason := dropReason.Error()
 		return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
 	} else {
-		if isWIP {
-			return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
-		}
 		if replacedTx != nil {
-			failedReason := "duplicated nonce"
-			return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
+			failedReason := ErrReplacedTransaction.Error()
+			error := d.txPool.UpdateTxStatus(d.ctx, replacedTx.Hash, pool.TxStatusFailed, false, &failedReason)
+			if error != nil {
+				log.Warnf("error when setting as failed replacedTx(%s)", replacedTx.HashStr)
+			}
 		}
+		return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
 	}
-
-	return nil
 }
 
 // BeginStateTransaction starts a db transaction in the state
