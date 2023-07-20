@@ -640,6 +640,24 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		if err != nil {
 			return nil, err
 		}
+	} else if !f.effectiveGasPriceCfg.Enabled {
+		reprocessNeeded := false
+		newBreakEvenGasPrice, err := f.CalculateTxBreakEvenGasPrice(tx, result.Responses[0].GasUsed)
+		if err != nil {
+			log.Warnf("EffectiveGasPrice is disabled, but failed to calculate BreakEvenGasPrice: %s", err)
+		} else {
+			// Compute the absolute difference between tx.BreakEvenGasPrice - newBreakEvenGasPrice
+			diff := new(big.Int).Abs(new(big.Int).Sub(tx.BreakEvenGasPrice, newBreakEvenGasPrice))
+			// Compute max difference allowed of breakEvenGasPrice
+			maxDiff := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
+
+			// if diff is greater than the maxDiff allowed
+			if diff.Cmp(maxDiff) == 1 {
+				reprocessNeeded = true
+			}
+			log.Infof("calculated newBreakEvenGasPrice: %d, tx.BreakEvenGasprice: %d for tx: %s", newBreakEvenGasPrice, tx.BreakEvenGasPrice, tx.HashStr)
+			log.Infof("Would need reprocess: %t, diff: %d, maxDiff: %d", reprocessNeeded, diff, maxDiff)
+		}
 	}
 
 	processedTransaction := transactionToStore{
