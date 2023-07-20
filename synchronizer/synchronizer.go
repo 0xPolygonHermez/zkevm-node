@@ -243,7 +243,6 @@ func (s *ClientSynchronizer) Sync() error {
 				metrics.FullTrustedSyncTime(time.Since(startTrusted))
 				if err != nil {
 					log.Warn("error syncing trusted state. Error: ", err)
-					time.Sleep(1 * time.Second)
 					continue
 				}
 				waitDuration = s.cfg.SyncInterval.Duration
@@ -865,8 +864,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 					log.Errorf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 					return err
 				}
-				s.pendingFlushID(flushID)
-				s.updateAndCheckProverID(proverID)
+				s.pendingFlushID(flushID, proverID)
 
 				newRoot = newStateRoot
 				tBatch = &batch
@@ -948,8 +946,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				log.Errorf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				return err
 			}
-			s.pendingFlushID(flushID)
-			s.updateAndCheckProverID(proverID)
+			s.pendingFlushID(flushID, proverID)
 		}
 
 		// Store virtualBatch
@@ -1074,8 +1071,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			log.Errorf("error processing batch in processSequenceForceBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, block.BlockNumber, err)
 			return err
 		}
-		s.pendingFlushID(flushID)
-		s.updateAndCheckProverID(proverID)
+		s.pendingFlushID(flushID, proverID)
 
 		// Store virtualBatch
 		err = s.state.AddVirtualBatch(s.ctx, &virtualBatch, dbTx)
@@ -1390,8 +1386,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 		log.Errorf("error processing sequencer batch for batch: %v", trustedBatch.Number)
 		return nil, err
 	}
-	s.pendingFlushID(processBatchResp.FlushID)
-	s.updateAndCheckProverID(processBatchResp.ProverID)
+	s.pendingFlushID(processBatchResp.FlushID, processBatchResp.ProverID)
 
 	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.Responses), trustedBatch.Number)
 	for _, tx := range processBatchResp.Responses {
@@ -1489,10 +1484,11 @@ func (s *ClientSynchronizer) getCurrentBatches(batches []*state.Batch, trustedBa
 	return batches, nil
 }
 
-func (s *ClientSynchronizer) pendingFlushID(flushID uint64) {
+func (s *ClientSynchronizer) pendingFlushID(flushID uint64, proverID string) {
 	log.Infof("pending flushID: %d", flushID)
 	s.latestFlushID = flushID
 	s.latestFlushIDIsFulfilled = false
+	s.updateAndCheckProverID(proverID)
 }
 
 func (s *ClientSynchronizer) updateAndCheckProverID(proverID string) {
