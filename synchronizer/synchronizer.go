@@ -51,7 +51,7 @@ type ClientSynchronizer struct {
 	}
 	// Id of the 'process' of the executor. Each time that it starts this value changes
 	// This value is obtained from the call state.GetStoredFlushID
-	// It start with a empty string and filled in the first call later
+	// It starts as an empty string and it is filled in the first call
 	// later the value is checked to be the same (in function checkFlushID)
 	proverID string
 	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
