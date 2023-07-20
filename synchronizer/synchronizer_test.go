@@ -21,6 +21,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	cProverIDExecution = "PROVER_ID-EXE001"
+)
+
 type mocks struct {
 	Etherman     *ethermanMock
 	State        *stateMock
@@ -306,7 +310,7 @@ func TestForcedBatch(t *testing.T) {
 
 			m.State.
 				On("GetStoredFlushID", ctx).
-				Return(uint64(1), "", nil).
+				Return(uint64(1), cProverIDExecution, nil).
 				Once()
 
 			m.DbTx.
@@ -509,7 +513,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 			m.State.
 				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
-				Return(common.Hash{}, uint64(1), nil).
+				Return(common.Hash{}, uint64(1), cProverIDExecution, nil).
 				Once()
 
 			virtualBatch := &state.VirtualBatch{
@@ -536,7 +540,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 			m.State.
 				On("GetStoredFlushID", ctx).
-				Return(uint64(1), "", nil).
+				Return(uint64(1), cProverIDExecution, nil).
 				Once()
 
 			m.DbTx.
@@ -689,6 +693,8 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 
 	tx1 := state.ProcessTransactionResponse{}
 	processedBatch := state.ProcessBatchResponse{
+		FlushID:   1,
+		ProverID:  cProverIDExecution,
 		Responses: []*state.ProcessTransactionResponse{&tx1},
 	}
 	m.State.
@@ -703,7 +709,7 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 
 	m.State.
 		On("GetStoredFlushID", sync.ctx).
-		Return(uint64(1), "", nil).
+		Return(uint64(1), cProverIDExecution, nil).
 		Once()
 
 	m.DbTx.
