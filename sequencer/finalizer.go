@@ -646,7 +646,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		if err != nil {
 			log.Warnf("EffectiveGasPrice is disabled, but failed to calculate BreakEvenGasPrice: %s", err)
 		} else {
-			// Compute the abosulte difference between tx.BreakEvenGasPrice - newBreakEvenGasPrice
+			// Compute the absolute difference between tx.BreakEvenGasPrice - newBreakEvenGasPrice
 			diff := new(big.Int).Abs(new(big.Int).Sub(tx.BreakEvenGasPrice, newBreakEvenGasPrice))
 			// Compute max difference allowed of breakEvenGasPrice
 			maxDiff := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
