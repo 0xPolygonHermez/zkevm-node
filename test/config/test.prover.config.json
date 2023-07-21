@@ -47,7 +47,7 @@
     "proverClientHost": "127.0.0.1",
 
     "executorServerPort": 50071,
-    "executorROMLineTraces": true,
+    "executorROMLineTraces": false,
     "executorClientPort": 50071,
     "executorClientHost": "127.0.0.1",
 
