@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -34,19 +35,29 @@ type Synchronizer interface {
 type ClientSynchronizer struct {
 	isTrustedSequencer bool
 	latestFlushID      uint64
-	etherMan           ethermanInterface
-	state              stateInterface
-	pool               poolInterface
-	ethTxManager       ethTxManager
-	zkEVMClient        zkEVMClientInterface
-	ctx                context.Context
-	cancelCtx          context.CancelFunc
-	genesis            state.Genesis
-	cfg                Config
-	trustedState       struct {
+	// If true the lastFlushID is stored in DB and we don't need to check again
+	latestFlushIDIsFulfilled bool
+	etherMan                 ethermanInterface
+	state                    stateInterface
+	pool                     poolInterface
+	ethTxManager             ethTxManager
+	zkEVMClient              zkEVMClientInterface
+	eventLog                 *event.EventLog
+	ctx                      context.Context
+	cancelCtx                context.CancelFunc
+	genesis                  state.Genesis
+	cfg                      Config
+	trustedState             struct {
 		lastTrustedBatches []*state.Batch
 		lastStateRoot      *common.Hash
 	}
+	// Id of the 'process' of the executor. Each time that it starts this value changes
+	// This value is obtained from the call state.GetStoredFlushID
+	// It starts as an empty string and it is filled in the first call
+	// later the value is checked to be the same (in function checkFlushID)
+	proverID string
+	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
+	previousExecutorFlushID uint64
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -57,22 +68,26 @@ func NewSynchronizer(
 	pool poolInterface,
 	ethTxManager ethTxManager,
 	zkEVMClient zkEVMClientInterface,
+	eventLog *event.EventLog,
 	genesis state.Genesis,
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
 
 	return &ClientSynchronizer{
-		isTrustedSequencer: isTrustedSequencer,
-		state:              st,
-		etherMan:           ethMan,
-		pool:               pool,
-		ctx:                ctx,
-		cancelCtx:          cancel,
-		ethTxManager:       ethTxManager,
-		zkEVMClient:        zkEVMClient,
-		genesis:            genesis,
-		cfg:                cfg,
+		isTrustedSequencer:      isTrustedSequencer,
+		state:                   st,
+		etherMan:                ethMan,
+		pool:                    pool,
+		ctx:                     ctx,
+		cancelCtx:               cancel,
+		ethTxManager:            ethTxManager,
+		zkEVMClient:             zkEVMClient,
+		eventLog:                eventLog,
+		genesis:                 genesis,
+		cfg:                     cfg,
+		proverID:                "",
+		previousExecutorFlushID: 0,
 	}, nil
 }
 
@@ -403,7 +418,7 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 			}
 			return err
 		}
-		log.Info("Checking FlushID to commit trustedState data to db")
+		log.Debug("Checking FlushID to commit trustedState data to db")
 		err = s.checkFlushID(dbTx)
 		if err != nil {
 			log.Errorf("error checking flushID. Error: %v", err)
@@ -488,7 +503,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 				}
 			}
 		}
-		log.Info("Checking FlushID to commit L1 data to db")
+		log.Debug("Checking FlushID to commit L1 data to db")
 		err = s.checkFlushID(dbTx)
 		if err != nil {
 			log.Errorf("error checking flushID. Error: %v", err)
@@ -838,7 +853,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			if errors.Is(err, state.ErrNotFound) || errors.Is(err, state.ErrStateNotSynchronized) {
 				log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
 				// If it is not found, store batch
-				newStateRoot, flushID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
+				newStateRoot, flushID, proverID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
 				if err != nil {
 					log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 					rollbackErr := dbTx.Rollback(s.ctx)
@@ -849,7 +864,8 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 					log.Errorf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 					return err
 				}
-				s.latestFlushID = flushID
+				s.pendingFlushID(flushID, proverID)
+
 				newRoot = newStateRoot
 				tBatch = &batch
 				tBatch.StateRoot = newRoot
@@ -919,7 +935,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				return err
 			}
-			_, flushID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
+			_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
 			if err != nil {
 				log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				rollbackErr := dbTx.Rollback(s.ctx)
@@ -930,7 +946,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				log.Errorf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				return err
 			}
-			s.latestFlushID = flushID
+			s.pendingFlushID(flushID, proverID)
 		}
 
 		// Store virtualBatch
@@ -1044,7 +1060,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			ForcedBatchNum: &forcedBatches[i].ForcedBatchNumber,
 		}
 		// Process batch
-		_, flushID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, batch, forcedBatches[i].RawTxsData, dbTx, stateMetrics.SynchronizerCallerLabel)
+		_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, batch, forcedBatches[i].RawTxsData, dbTx, stateMetrics.SynchronizerCallerLabel)
 		if err != nil {
 			log.Errorf("error processing batch in processSequenceForceBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, block.BlockNumber, err)
 			rollbackErr := dbTx.Rollback(s.ctx)
@@ -1055,7 +1071,8 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			log.Errorf("error processing batch in processSequenceForceBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, block.BlockNumber, err)
 			return err
 		}
-		s.latestFlushID = flushID
+		s.pendingFlushID(flushID, proverID)
+
 		// Store virtualBatch
 		err = s.state.AddVirtualBatch(s.ctx, &virtualBatch, dbTx)
 		if err != nil {
@@ -1369,7 +1386,8 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 		log.Errorf("error processing sequencer batch for batch: %v", trustedBatch.Number)
 		return nil, err
 	}
-	s.latestFlushID = processBatchResp.FlushID
+	s.pendingFlushID(processBatchResp.FlushID, processBatchResp.ProverID)
+
 	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.Responses), trustedBatch.Number)
 	for _, tx := range processBatchResp.Responses {
 		if err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), dbTx); err != nil {
@@ -1466,20 +1484,76 @@ func (s *ClientSynchronizer) getCurrentBatches(batches []*state.Batch, trustedBa
 	return batches, nil
 }
 
+func (s *ClientSynchronizer) pendingFlushID(flushID uint64, proverID string) {
+	log.Infof("pending flushID: %d", flushID)
+	s.latestFlushID = flushID
+	s.latestFlushIDIsFulfilled = false
+	s.updateAndCheckProverID(proverID)
+}
+
+func (s *ClientSynchronizer) updateAndCheckProverID(proverID string) {
+	if s.proverID == "" {
+		log.Infof("Current proverID is %s", proverID)
+		s.proverID = proverID
+		return
+	}
+	if s.proverID != proverID {
+		event := &event.Event{
+			ReceivedAt:  time.Now(),
+			Source:      event.Source_Node,
+			Component:   event.Component_Synchronizer,
+			Level:       event.Level_Critical,
+			EventID:     event.EventID_SynchonizerRestart,
+			Description: fmt.Sprintf("proverID changed from %s to %s, restarting Synchonizer ", s.proverID, proverID),
+		}
+
+		err := s.eventLog.LogEvent(context.Background(), event)
+		if err != nil {
+			log.Errorf("error storing event payload: %v", err)
+		}
+
+		log.Fatal("restarting synchronizer because  executor have restarted (old=%s, new=%s)", s.proverID, proverID)
+	}
+}
+
 func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
-	storedFlushID, _, err := s.state.GetStoredFlushID(s.ctx)
+	if s.latestFlushIDIsFulfilled {
+		log.Debugf("no pending flushID, nothing to do. Last pending fulfilled flushID: %d, last executor flushId received: %d", s.latestFlushID, s.latestFlushID)
+		return nil
+	}
+	storedFlushID, proverID, err := s.state.GetStoredFlushID(s.ctx)
 	if err != nil {
 		log.Error("error getting stored flushID. Error: ", err)
 		return err
 	}
-	for storedFlushID < s.latestFlushID {
-		log.Infof("Waiting for the flushID to be stored. FlushID to be stored: %d. Latest flushID stored: %d", s.latestFlushID, storedFlushID)
-		time.Sleep(10 * time.Millisecond) //nolint:gomnd
-		storedFlushID, _, err = s.state.GetStoredFlushID(s.ctx)
-		if err != nil {
-			log.Error("error getting stored flushID. Error: ", err)
-			return err
-		}
+	if (s.previousExecutorFlushID != storedFlushID) || (s.proverID != proverID) {
+		log.Infof("executor vs local: flushid=%d/%d, proverID=%s/%s", storedFlushID,
+			s.latestFlushID, proverID, s.proverID)
+	} else {
+		log.Debugf("executor vs local: flushid=%d/%d, proverID=%s/%s", storedFlushID,
+			s.latestFlushID, proverID, s.proverID)
 	}
+	s.updateAndCheckProverID(proverID)
+	log.Debugf("storedFlushID (executor reported): %d, latestFlushID (pending): %d", storedFlushID, s.latestFlushID)
+	if storedFlushID < s.latestFlushID {
+		log.Infof("Synchornized BLOCKED!: Wating for the flushID to be stored. FlushID to be stored: %d. Latest flushID stored: %d", s.latestFlushID, storedFlushID)
+		iteration := 0
+		start := time.Now()
+		for storedFlushID < s.latestFlushID {
+			log.Debugf("Waiting for the flushID to be stored. FlushID to be stored: %d. Latest flushID stored: %d iteration:%d elpased:%s",
+				s.latestFlushID, storedFlushID, iteration, time.Since(start))
+			time.Sleep(100 * time.Millisecond) //nolint:gomnd
+			storedFlushID, _, err = s.state.GetStoredFlushID(s.ctx)
+			if err != nil {
+				log.Error("error getting stored flushID. Error: ", err)
+				return err
+			}
+			iteration++
+		}
+		log.Infof("Synchornizer resumed, flushID stored: %d", s.latestFlushID)
+	}
+	log.Infof("Pending Flushid fullfiled: %d, executor have write %d", s.latestFlushID, storedFlushID)
+	s.latestFlushIDIsFulfilled = true
+	s.previousExecutorFlushID = storedFlushID
 	return nil
 }

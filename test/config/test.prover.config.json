@@ -74,14 +74,18 @@
     "dbProgramTableName": "state.program",
     "dbMultiWrite": true,
     "dbFlushInParallel": false,
-    "dbMTCacheSize": 2048,
-    "dbProgramCacheSize": 1024,
+    "dbMTCacheSize": 1024,
+    "dbProgramCacheSize": 512,
     "dbNumberOfPoolConnections": 30,
     "dbGetTree": true,
     "cleanerPollingPeriod": 600,
     "requestsPersistence": 3600,
     "maxExecutorThreads": 20,
     "maxProverThreads": 8,
-    "maxHashDBThreads": 8
+    "maxHashDBThreads": 8,
+
+    "ECRecoverPrecalc": true,
+    "ECRecoverPrecalcNThreads": 16,
+    "dbMultiWriteSinglePosition": true
 }
 
