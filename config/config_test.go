@@ -398,6 +398,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: int(8546),
 		},
 		{
+			path:          "RPC.WebSockets.ReadLimit",
+			expectedValue: int64(1048576),
+		},
+		{
 			path:          "Executor.URI",
 			expectedValue: "zkevm-prover:50071",
 		},
