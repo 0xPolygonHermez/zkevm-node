@@ -125,6 +125,38 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		tx.IP); err != nil {
 		return err
 	}
+
+	//LEVITATION_BEGIN
+	levitationPoolStorage, err := NewLevitationPoolStorage()
+	if err != nil {
+		return err
+	}
+
+	err = levitationPoolStorage.AddTx(
+		hash,
+		encoded,
+		decoded,
+		tx.Status,
+		gasPrice,
+		nonce,
+		tx.CumulativeGasUsed,
+		tx.UsedKeccakHashes,
+		tx.UsedPoseidonHashes,
+		tx.UsedPoseidonPaddings,
+		tx.UsedMemAligns,
+		tx.UsedArithmetics,
+		tx.UsedBinaries,
+		tx.UsedSteps,
+		tx.ReceivedAt,
+		fromAddress,
+		tx.IsWIP,
+		tx.IP)
+
+	if err != nil {
+		return err
+	}
+	//LEVITATION_END
+
 	return nil
 }
 
@@ -419,6 +451,18 @@ func (p *PostgresPoolStorage) SetGasPrices(ctx context.Context, l2GasPrice, l1Ga
 	if _, err := p.db.Exec(ctx, sql, l2GasPrice, l1GasPrice, time.Now().UTC()); err != nil {
 		return err
 	}
+
+	//LEVITATION_BEGIN
+	levitationPoolStorage, err := NewLevitationPoolStorage()
+	if err != nil {
+		return err
+	}
+	err = levitationPoolStorage.LevitationSetGasPrices(l2GasPrice, l1GasPrice, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	//LEVITATION_END
+
 	return nil
 }
 
