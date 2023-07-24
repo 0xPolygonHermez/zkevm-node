@@ -75,10 +75,13 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 		UsedZkCounters:       convertToCounters(response),
 		Responses:            responses,
 		ExecutorError:        executor.ExecutorErr(response.Error),
+		ReadWriteAddresses:   readWriteAddresses,
+		FlushID:              response.FlushId,
+		StoredFlushID:        response.StoredFlushId,
+		ProverID:             response.ProverId,
 		IsExecutorLevelError: isExecutorLevelError,
 		IsRomLevelError:      isRomLevelError,
 		IsRomOOCError:        isRomOOCError,
-		ReadWriteAddresses:   readWriteAddresses,
 	}, nil
 }
 
@@ -147,6 +150,8 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 			return nil, err
 		}
 		result.CallTrace = *callTrace
+		result.EffectiveGasPrice = response.EffectiveGasPrice
+		result.EffectivePercentage = response.EffectivePercentage
 		result.Tx = txs[i]
 
 		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
@@ -178,6 +183,8 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
 		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
 		log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
+		log.Debugf("ProcessTransactionResponse[EffectiveGasPrice]: %v", result.EffectiveGasPrice)
+		log.Debugf("ProcessTransactionResponse[EffectivePercentage]: %v", result.EffectivePercentage)
 	}
 
 	return results, nil
@@ -226,6 +233,7 @@ func convertToStructLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumenta
 		result.GasCost = response.GasCost
 		result.Memory = response.Memory
 		result.MemorySize = int(response.MemorySize)
+		result.MemoryOffset = int(response.MemoryOffset)
 		result.Stack = convertedStack
 		result.ReturnData = response.ReturnData
 		result.Storage = convertToProperMap(response.Storage)
@@ -242,6 +250,9 @@ func convertToBigIntArray(responses []string) ([]*big.Int, error) {
 	results := make([]*big.Int, 0, len(responses))
 
 	for _, response := range responses {
+		if len(response)%2 != 0 {
+			response = "0" + response
+		}
 		result, ok := new(big.Int).SetString(response, hex.Base)
 		if ok {
 			results = append(results, result)
@@ -309,6 +320,9 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) ([]instrumen
 		step.GasCost = response.GasCost
 		step.Stack = make([]*big.Int, 0, len(response.Stack))
 		for _, s := range response.Stack {
+			if len(s)%2 != 0 {
+				s = "0" + s
+			}
 			bi, ok := new(big.Int).SetString(s, hex.Base)
 			if !ok {
 				log.Debugf("error while parsing stack valueBigInt")
@@ -316,7 +330,8 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) ([]instrumen
 			}
 			step.Stack = append(step.Stack, bi)
 		}
-
+		step.MemorySize = response.MemorySize
+		step.MemoryOffset = response.MemoryOffset
 		step.Memory = make([]byte, len(response.Memory))
 		copy(step.Memory, response.Memory)
 		step.ReturnData = make([]byte, len(response.ReturnData))

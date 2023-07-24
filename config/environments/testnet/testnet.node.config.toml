@@ -14,6 +14,7 @@ MaxConns = 200
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
+IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=100132
 MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
@@ -55,6 +56,9 @@ URI = "zkevm-prover:50061"
 
 [Executor]
 URI = "zkevm-prover:50071"
+MaxResourceExhaustedAttempts = 3
+WaitOnResourceExhaustion = "1s"
+MaxGRPCMessageSize = 100000000
 
 [Metrics]
 Host = "0.0.0.0"
@@ -63,3 +67,12 @@ Enabled = false
 ProfilingHost = "0.0.0.0"
 ProfilingPort = 6060
 ProfilingEnabled = false
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200

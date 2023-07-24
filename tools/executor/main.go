@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	forkID           = 4
 	waitForDBSeconds = 3
 	vectorDir        = "./vectors/"
 	genesisDir       = "./genesis/"
@@ -108,7 +109,7 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 	}
 
 	// Executor connection
-	xecutor, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorURL})
+	xecutor, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorURL, MaxGRPCMessageSize: 100000000}) //nolint:gomnd
 	// Execute batches
 	for i := 0; i < len(tc.Requests); i++ {
 		pbr := pb.ProcessBatchRequest(tc.Requests[i]) //nolint
@@ -117,7 +118,7 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 			return err
 		}
 		log.Infof("**********              BATCH %d              **********", tc.Requests[i].OldBatchNum)
-		txs, _, err := state.DecodeTxs(tc.Requests[i].BatchL2Data)
+		txs, _, _, err := state.DecodeTxs(tc.Requests[i].BatchL2Data, forkID)
 		if err != nil {
 			log.Warnf("Txs are not correctly encoded")
 		}

@@ -628,6 +628,37 @@ func (_m *StateMock) GetNonceByStateRoot(ctx context.Context, address common.Add
 	return r0, r1
 }
 
+// GetStoredFlushID provides a mock function with given fields: ctx
+func (_m *StateMock) GetStoredFlushID(ctx context.Context) (uint64, string, error) {
+	ret := _m.Called(ctx)
+
+	var r0 uint64
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context) (uint64, string, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) string); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context) error); ok {
+		r2 = rf(ctx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // GetTimeForLatestBatchVirtualization provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -653,12 +684,13 @@ func (_m *StateMock) GetTimeForLatestBatchVirtualization(ctx context.Context, db
 }
 
 // GetTransactionsByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *StateMock) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]types.Transaction, error) {
+func (_m *StateMock) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]types.Transaction, []uint8, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
 
 	var r0 []types.Transaction
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) ([]types.Transaction, error)); ok {
+	var r1 []uint8
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) ([]types.Transaction, []uint8, error)); ok {
 		return rf(ctx, batchNumber, dbTx)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []types.Transaction); ok {
@@ -669,13 +701,21 @@ func (_m *StateMock) GetTransactionsByBatchNumber(ctx context.Context, batchNumb
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) []uint8); ok {
 		r1 = rf(ctx, batchNumber, dbTx)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]uint8)
+		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r2 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetTxsOlderThanNL1Blocks provides a mock function with given fields: ctx, nL1Blocks, dbTx

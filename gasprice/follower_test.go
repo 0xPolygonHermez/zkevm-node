@@ -27,13 +27,15 @@ func TestUpdateGasPriceFollower(t *testing.T) {
 		UpdatePeriod:       types.NewDuration(d),
 		Factor:             0.5,
 	}
+	l1GasPrice := big.NewInt(10000000000)
+	l2GasPrice := uint64(5000000000)
 	poolM := new(poolMock)
 	ethM := new(ethermanMock)
-	ethM.On("GetL1GasPrice", ctx).Return(big.NewInt(10000000000)).Once()
-	poolM.On("SetGasPrice", ctx, uint64(5000000000)).Return(nil).Once()
+	ethM.On("GetL1GasPrice", ctx).Return(l1GasPrice).Once()
+	poolM.On("SetGasPrices", ctx, l2GasPrice, l1GasPrice.Uint64()).Return(nil).Once()
 	f := newFollowerGasPriceSuggester(ctx, cfg, poolM, ethM)
 
-	ethM.On("GetL1GasPrice", ctx).Return(big.NewInt(10000000000)).Once()
-	poolM.On("SetGasPrice", ctx, uint64(5000000000)).Return(nil).Once()
+	ethM.On("GetL1GasPrice", ctx).Return(l1GasPrice, l1GasPrice).Once()
+	poolM.On("SetGasPrices", ctx, l2GasPrice, l1GasPrice.Uint64()).Return(nil).Once()
 	f.UpdateGasPriceAvg()
 }

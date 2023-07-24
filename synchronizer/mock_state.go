@@ -229,6 +229,20 @@ func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	return r0, r1
 }
 
+// GetForkIDByBatchNumber provides a mock function with given fields: batchNumber
+func (_m *stateMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
+	ret := _m.Called(batchNumber)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(uint64) uint64); ok {
+		r0 = rf(batchNumber)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	return r0
+}
+
 // GetForkIDTrustedReorgCount provides a mock function with given fields: ctx, forkID, version, dbTx
 func (_m *stateMock) GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, forkID, version, dbTx)
@@ -497,25 +511,25 @@ func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingC
 	return r0, r1
 }
 
-// ProcessSequencerBatch provides a mock function with given fields: ctx, batchNumber, batchL2Data, caller, dbTx
-func (_m *stateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
-	ret := _m.Called(ctx, batchNumber, batchL2Data, caller, dbTx)
+// ProcessBatch provides a mock function with given fields: ctx, request, updateMerkleTree
+func (_m *stateMock) ProcessBatch(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, request, updateMerkleTree)
 
 	var r0 *state.ProcessBatchResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, metrics.CallerLabel, pgx.Tx) (*state.ProcessBatchResponse, error)); ok {
-		return rf(ctx, batchNumber, batchL2Data, caller, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, bool) (*state.ProcessBatchResponse, error)); ok {
+		return rf(ctx, request, updateMerkleTree)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, metrics.CallerLabel, pgx.Tx) *state.ProcessBatchResponse); ok {
-		r0 = rf(ctx, batchNumber, batchL2Data, caller, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, bool) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, request, updateMerkleTree)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.ProcessBatchResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, []byte, metrics.CallerLabel, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, batchL2Data, caller, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest, bool) error); ok {
+		r1 = rf(ctx, request, updateMerkleTree)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -619,13 +633,27 @@ func (_m *stateMock) SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBat
 	return r0
 }
 
-// StoreTransactions provides a mock function with given fields: ctx, batchNum, processedTxs, dbTx
-func (_m *stateMock) StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*state.ProcessTransactionResponse, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNum, processedTxs, dbTx)
+// StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, dbTx
+func (_m *stateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []*state.ProcessTransactionResponse, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNum, processedTxs, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateBatchL2Data provides a mock function with given fields: ctx, batchNumber, batchL2Data, dbTx
+func (_m *stateMock) UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, batchL2Data, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, batchL2Data, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -25,6 +25,7 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 	opsman, client, pl, auth := setup.Environment(params.Ctx, b)
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
 	require.NoError(b, err)
+	timeForSetup := time.Since(start)
 	setup.BootstrapSequencer(b, opsman)
 	err = transactions.SendAndWait(params.Ctx, auth, client, pl.CountTransactionsByStatus, params.NumberOfTxs, nil, TxSender)
 	require.NoError(b, err)
@@ -43,6 +44,7 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 		require.NoError(b, err)
 	})
 
+	startMetrics := time.Now()
 	var profilingResult string
 	if profilingEnabled {
 		profilingResult, err = metrics.FetchProfiling()
@@ -51,4 +53,7 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 
 	metrics.CalculateAndPrint(prometheusResponse, profilingResult, elapsed, 0, 0, params.NumberOfTxs)
 	fmt.Printf("%s\n", profilingResult)
+	timeForFetchAndPrintMetrics := time.Since(startMetrics)
+	log.Infof("Time for setup: %s", timeForSetup)
+	log.Infof("Time for fetching metrics: %s", timeForFetchAndPrintMetrics)
 }

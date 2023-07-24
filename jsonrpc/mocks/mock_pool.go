@@ -59,19 +59,19 @@ func (_m *PoolMock) CountPendingTransactions(ctx context.Context) (uint64, error
 	return r0, r1
 }
 
-// GetGasPrice provides a mock function with given fields: ctx
-func (_m *PoolMock) GetGasPrice(ctx context.Context) (uint64, error) {
+// GetGasPrices provides a mock function with given fields: ctx
+func (_m *PoolMock) GetGasPrices(ctx context.Context) (pool.GasPrices, error) {
 	ret := _m.Called(ctx)
 
-	var r0 uint64
+	var r0 pool.GasPrices
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (uint64, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context) (pool.GasPrices, error)); ok {
 		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
+	if rf, ok := ret.Get(0).(func(context.Context) pool.GasPrices); ok {
 		r0 = rf(ctx)
 	} else {
-		r0 = ret.Get(0).(uint64)
+		r0 = ret.Get(0).(pool.GasPrices)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context) error); ok {

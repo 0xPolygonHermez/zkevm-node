@@ -55,6 +55,9 @@ URI = "zkevm-prover:50061"
 
 [Executor]
 URI = "zkevm-prover:50071"
+MaxResourceExhaustedAttempts = 3
+WaitOnResourceExhaustion = "1s"
+MaxGRPCMessageSize = 100000000
 
 [Metrics]
 Host = "0.0.0.0"
@@ -63,3 +66,12 @@ Enabled = false
 ProfilingHost = "0.0.0.0"
 ProfilingPort = 6060
 ProfilingEnabled = false
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200

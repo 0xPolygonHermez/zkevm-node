@@ -23,6 +23,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	forkID5 = 5
+)
+
 func TestForcedBatchesVectorFiles(t *testing.T) {
 
 	if testing.Short() {
@@ -71,7 +75,7 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 				require.Equal(t, testCase.ExpectedOldStateRoot, actualOldStateRoot.Hex())
 				decodedData, err := hex.DecodeHex(testCase.BatchL2Data)
 				require.NoError(t, err)
-				_, txBytes, err := state.DecodeTxs(decodedData)
+				_, txBytes, _, err := state.DecodeTxs(decodedData, forkID5)
 				forcedBatch, err := sendForcedBatchForVector(t, txBytes, opsman)
 				require.NoError(t, err)
 				actualNewStateRoot := forcedBatch.StateRoot

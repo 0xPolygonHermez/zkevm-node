@@ -133,7 +133,7 @@ func (t *callTracer) CaptureStart(env *fakevm.FakeEVM, from common.Address, to c
 		From:  from,
 		To:    &toCopy,
 		Input: common.CopyBytes(input),
-		Gas:   gas,
+		Gas:   t.gasLimit,
 		Value: value,
 	}
 	if create {

@@ -2,9 +2,9 @@
 	{
 		"inputs": [
 			{
-				"internalType": "bytes",
+				"internalType": "bytes32[24]",
 				"name": "proof",
-				"type": "bytes"
+				"type": "bytes32[24]"
 			},
 			{
 				"internalType": "uint256[1]",

@@ -62,14 +62,14 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	if _, ok := apis[APINet]; ok {
 		services = append(services, Service{
 			Name:    APINet,
-			Service: NewNetEndpoints(chainID),
+			Service: NewNetEndpoints(cfg, chainID),
 		})
 	}
 
 	if _, ok := apis[APIZKEVM]; ok {
 		services = append(services, Service{
 			Name:    APIZKEVM,
-			Service: NewZKEVMEndpoints(st),
+			Service: NewZKEVMEndpoints(cfg, st),
 		})
 	}
 
@@ -83,7 +83,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	if _, ok := apis[APIDebug]; ok {
 		services = append(services, Service{
 			Name:    APIDebug,
-			Service: NewDebugEndpoints(st),
+			Service: NewDebugEndpoints(cfg, st),
 		})
 	}
 

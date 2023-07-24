@@ -263,7 +263,6 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 				if foundAt == -1 || foundAt > i {
 					foundAt = i
 					tx = txCandidate
-					log.Infof("GetBestFittingTx found tx(%s) at index(%d) with efficiency(%f)", tx.Hash.String(), i, tx.Efficiency)
 				}
 				foundMutex.Unlock()
 
@@ -272,6 +271,12 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 		}(i, resources)
 	}
 	wg.Wait()
+
+	if foundAt != -1 {
+		log.Infof("GetBestFittingTx found tx(%s) at index(%d) with efficiency(%f)", tx.Hash.String(), foundAt, tx.Efficiency)
+	} else {
+		log.Debugf("GetBestFittingTx no tx found")
+	}
 
 	return tx
 }
@@ -311,7 +316,7 @@ func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
 	log.Fatal("L2 Reorg detected. Restarting to sync with the new L2 state...")
 }
 
-// convertBatchConstraintsToFloat64 converts the batch constraints to float64
+// convertBatchConstraintsToFloat64 converts the batch Constraints to float64
 func convertBatchConstraintsToFloat64(constraints batchConstraints) batchConstraintsFloat64 {
 	return batchConstraintsFloat64{
 		maxTxsPerBatch:       float64(constraints.MaxTxsPerBatch),
