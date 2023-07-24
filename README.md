@@ -1,3 +1,13 @@
+
+# Build
+
+Install Go Version 1.20
+
+sudo add-apt-repository ppa:longsleep/golang-backports
+sudo apt-get update
+sudo apt-get install golang-go
+
+
 # zkEVM Node
 
 zkEVM Node is a Go implementation of a node that operates zkEVM.

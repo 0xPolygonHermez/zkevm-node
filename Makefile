@@ -22,7 +22,7 @@ LDFLAGS += -X 'github.com/0xPolygonHermez/zkevm-node.BuildDate=$(DATE)'
 
 .PHONY: build
 build: ## Builds the binary locally into ./dist
-	$(GOENVVARS) go build -ldflags "all=$(LDFLAGS)" -o $(GOBIN)/$(GOBINARY) $(GOCMD)
+	$(GOENVVARS) go build -a -x  -ldflags "all=$(LDFLAGS)" -o $(GOBIN)/$(GOBINARY) $(GOCMD)
 
 .PHONY: build-docker
 build-docker: ## Builds a docker image with the node binary
