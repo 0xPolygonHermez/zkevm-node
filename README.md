@@ -1,3 +1,12 @@
+# What is Levitation?
+
+Levitation protocol is a modular decentralized sequencer platform that enables running multiple Zero Knowledge Rollups.
+
+See Levitation paper for more details 
+
+https://hackmd.io/@kladko/B1wcUYqEh
+
+This is repo is a Polygon Hermez module for Levitation.
 
 # Build
 
