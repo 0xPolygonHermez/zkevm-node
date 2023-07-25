@@ -69,7 +69,7 @@ func prepareRPLTxData(tx types.Transaction) ([]byte, error) {
 		data,
 	}
 
-	if tx.ChainId().Uint64() > 0 {
+	if !IsPreEIP155Tx(tx) {
 		rlpFieldsToEncode = append(rlpFieldsToEncode, chainID)
 		rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
 		rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
@@ -331,4 +331,9 @@ func toPostgresInterval(duration string) (string, error) {
 	}
 
 	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
+}
+
+func IsPreEIP155Tx(tx types.Transaction) bool {
+	v, _, _ := tx.RawSignatureValues()
+	return tx.ChainId().Uint64() == 0 && (v.Uint64() == 27 || v.Uint64() == 28)
 }
