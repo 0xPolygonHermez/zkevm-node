@@ -172,16 +172,22 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 }
 
 // SKALE_BEGIN
-
-// ValidateTx creates and validates a transaction without adding it to the pull
-// It will be added to the pull later, after transactions goes through the
-// PendingQueue smartcontract
-func (p *Pool) ValidateTx(ctx context.Context, tx types.Transaction, ip string) (*Transaction, error) {
+// Add transaction to Levitation PendingQueue smartcontract
+// Transactions go to Levitation first
+func (p *Pool) AddTxToLevitationPendingQueue(ctx context.Context, tx types.Transaction, ip string) error {
 	poolTx := NewTransaction(tx, ip, false)
 	if err := p.validateTx(ctx, *poolTx); err != nil {
-		return nil, err
+		return err
 	}
-	return poolTx, nil
+
+	return p.StoreTxOnLevitationPendingQueue(ctx, tx, ip)
+}
+
+// StoreTx adds a transaction to the pool with the pending state
+func (p *Pool) StoreTxOnLevitationPendingQueue(ctx context.Context, tx types.Transaction, ip string) error {
+	// there are no re-orgs on SKALE chain so isWIP is always false
+	poolTx := NewTransaction(tx, ip, false)
+	return p.storage.AddTxToLevitationPendingQueue(ctx, *poolTx)
 }
 
 //SKALE_END

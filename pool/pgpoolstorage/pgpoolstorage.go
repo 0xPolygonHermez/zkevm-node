@@ -126,7 +126,36 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		return err
 	}
 
-	//LEVITATION_BEGIN
+	return nil
+}
+
+// SKALE_BEGIN
+// Adds a transaction to the Levitation PendingQueue
+func (p *PostgresPoolStorage) AddTxToLevitationPendingQueue(ctx context.Context, tx pool.Transaction) error {
+	hash := tx.Hash().Hex()
+
+	b, err := tx.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	encoded := hex.EncodeToHex(b)
+
+	b, err = tx.MarshalJSON()
+	if err != nil {
+		return err
+	}
+	decoded := string(b)
+
+	gasPrice := tx.GasPrice().Uint64()
+	nonce := tx.Nonce()
+
+	// Get FromAddress from the JSON data
+	data, err := state.GetSender(tx.Transaction)
+	if err != nil {
+		return err
+	}
+	fromAddress := data.String()
+
 	levitationPoolStorage, err := NewLevitationPoolStorage()
 	if err != nil {
 		return err
@@ -152,13 +181,10 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		tx.IsWIP,
 		tx.IP)
 
-	if err != nil {
-		return err
-	}
-	//LEVITATION_END
-
-	return nil
+	return err
 }
+
+//SKALE_END
 
 // GetTxsByStatus returns an array of transactions filtered by status
 // limit parameter is used to limit amount txs from the db,

@@ -12,6 +12,9 @@ import (
 )
 
 type storage interface {
+	// SKALE_BEGIN
+	AddTxToLevitationPendingQueue(ctx context.Context, tx Transaction) error
+	//SKALE_END
 	AddTx(ctx context.Context, tx Transaction) error
 	CountTransactionsByStatus(ctx context.Context, status ...TxStatus) (uint64, error)
 	CountTransactionsByFromAndStatus(ctx context.Context, from common.Address, status ...TxStatus) (uint64, error)
