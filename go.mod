@@ -13,12 +13,12 @@ require (
 	github.com/habx/pg-commands v0.6.1
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/iden3/go-iden3-crypto v0.0.15
-	github.com/jackc/pgconn v1.14.0
+	github.com/jackc/pgconn v1.14.1
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/prometheus/client_model v0.4.0
 	github.com/prometheus/common v0.44.0
-	github.com/rubenv/sql-migrate v1.5.1
+	github.com/rubenv/sql-migrate v1.5.2
 	github.com/spf13/afero v1.9.5
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
@@ -28,7 +28,7 @@ require (
 	golang.org/x/crypto v0.11.0
 	golang.org/x/net v0.12.0
 	golang.org/x/sync v0.3.0
-	google.golang.org/grpc v1.56.1
+	google.golang.org/grpc v1.56.2
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -150,7 +150,7 @@ require (
 
 require (
 	github.com/gorilla/websocket v1.5.0
-	github.com/holiman/uint256 v1.2.2
+	github.com/holiman/uint256 v1.2.3
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 )
 
