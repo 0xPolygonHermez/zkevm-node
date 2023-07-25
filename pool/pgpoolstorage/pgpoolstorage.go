@@ -97,6 +97,8 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			ip = $18
 	`
 
+	THIS WILL NOT COMPILE
+
 	// Get FromAddress from the JSON data
 	data, err := state.GetSender(tx.Transaction)
 	if err != nil {
