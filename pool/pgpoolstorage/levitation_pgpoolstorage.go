@@ -87,10 +87,10 @@ func (p *LevitationPoolStorage) AddTx(hash string, encoded string, decoded strin
 func (p *LevitationPoolStorage) writeJsonToFile(err error, receivedAt time.Time, jsonData []byte,
 	dirName string) (error, bool) {
 
-	err = os.Mkdir(dirName, 0666)
+	err = os.Mkdir(dirName, 0777)
 	if err != nil {
 		if !os.IsExist(err) {
-			log.Fatalf("Error creating directory: #{err}")
+			log.Fatalf("Error creating directory: %s", err)
 			return err, true
 		}
 	}

@@ -107,7 +107,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNL1NETWORK)
 	sleep 15
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -timeout 60s ../...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -v -p 1 -timeout 60s ../...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
