@@ -26,7 +26,7 @@ type TxData struct {
 	Encoded              string        `json:"encoded"`
 	Decoded              string        `json:"decoded"`
 	TxStatus             pool.TxStatus `json:"txStatus"`
-	gasPrice             uint64        `json:"gasPrice"`
+	GasPrice             uint64        `json:"gasPrice"`
 	Nonce                uint64        `json:"nonce"`
 	CumulativeGasUsed    uint64        `json:"cumulativeGasUsed"`
 	UsedKeccakHashes     uint32        `json:"usedKeccakHashes"`
@@ -38,7 +38,7 @@ type TxData struct {
 	UsedSteps            uint32        `json:"usedSteps"`
 	ReceivedAt           time.Time     `json:"receivedAt"`
 	FromAddress          string        `json:"fromAddress"`
-	isWIP                bool          `json:"isWIP"`
+	IsWIP                bool          `json:"isWIP"`
 	IP                   string        `json:"iP"`
 }
 
@@ -54,7 +54,7 @@ func (p *LevitationPoolStorage) AddTx(hash string, encoded string, decoded strin
 		Encoded:              encoded,
 		Decoded:              decoded,
 		TxStatus:             txStatus,
-		gasPrice:             gasPrice,
+		GasPrice:             gasPrice,
 		Nonce:                nonce,
 		CumulativeGasUsed:    cumulativeGasUsed,
 		UsedKeccakHashes:     usedKeccakHashes,
@@ -66,7 +66,7 @@ func (p *LevitationPoolStorage) AddTx(hash string, encoded string, decoded strin
 		UsedSteps:            usedSteps,
 		ReceivedAt:           receivedAt,
 		FromAddress:          fromAddress,
-		isWIP:                isWIP,
+		IsWIP:                isWIP,
 		IP:                   iP,
 	}
 
