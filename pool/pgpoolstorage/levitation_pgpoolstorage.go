@@ -90,7 +90,7 @@ func (p *LevitationPoolStorage) writeJsonToFile(err error, receivedAt time.Time,
 	err = os.Mkdir(dirName, 0666)
 	if err != nil {
 		if !os.IsExist(err) {
-			log.Fatalf("Error creating directory: #{err}", err)
+			log.Fatalf("Error creating directory: #{err}")
 			return err, true
 		}
 	}
