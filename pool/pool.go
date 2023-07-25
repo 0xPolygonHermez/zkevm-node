@@ -171,6 +171,21 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 	return p.StoreTx(ctx, tx, ip, false)
 }
 
+// SKALE_BEGIN
+
+// ValidateTx creates and validates a transaction without adding it to the pull
+// It will be added to the pull later, after transactions goes through the
+// PendingQueue smartcontract
+func (p *Pool) ValidateTx(ctx context.Context, tx types.Transaction, ip string) (*Transaction, error) {
+	poolTx := NewTransaction(tx, ip, false)
+	if err := p.validateTx(ctx, *poolTx); err != nil {
+		return nil, err
+	}
+	return poolTx, nil
+}
+
+//SKALE_END
+
 // StoreTx adds a transaction to the pool with the pending state
 func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
 	// Execute transaction to calculate its zkCounters
