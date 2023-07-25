@@ -83,7 +83,7 @@ STOPMETRICS := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEMETRICS) && $(DOCKERCOMPOSE)
 
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
-#BEGIN_SKALE
+#LEVITATION_BEGIN
 .PHONY: run-test-components
 run-test-components: stop ## Runs non-e2e tests checking race conditions
 	$(RUNSTATEDB)
@@ -93,7 +93,7 @@ run-test-components: stop ## Runs non-e2e tests checking race conditions
 	$(RUNZKPROVER)
 	sleep 7
 	$(RUNL1NETWORK)
-#END_SKALE
+#LEVITATION_END
 
 
 .PHONY: test-full-non-e2e

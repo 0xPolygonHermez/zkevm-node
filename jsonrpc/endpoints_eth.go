@@ -824,6 +824,24 @@ func (e *EthEndpoints) relayTxToSequencerNode(input string) (interface{}, types.
 	return txHash, nil
 }
 
+// LEVITATION_BEGIN
+func (e *EthEndpoints) tryToAddTxToLevitationPendingQueue(input, ip string) (interface{}, types.Error) {
+	tx, err := hexToTx(input)
+	if err != nil {
+		return RPCErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err)
+	}
+
+	log.Infof("adding TX to the pool: %v", tx.Hash().Hex())
+	if err := e.pool.AddTx(context.Background(), *tx, ip); err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil)
+	}
+	log.Infof("TX added to the pool: %v", tx.Hash().Hex())
+
+	return tx.Hash().Hex(), nil
+}
+
+//LEVITATION_END
+
 func (e *EthEndpoints) tryToAddTxToPool(input, ip string) (interface{}, types.Error) {
 	tx, err := hexToTx(input)
 	if err != nil {
