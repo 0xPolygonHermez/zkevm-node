@@ -187,7 +187,7 @@ func (p *Pool) AddTxToLevitationPendingQueue(ctx context.Context, tx types.Trans
 func (p *Pool) StoreTxOnLevitationPendingQueue(ctx context.Context, tx types.Transaction, ip string) error {
 	// there are no re-orgs on SKALE chain so isWIP is always false
 	poolTx := NewTransaction(tx, ip, false)
-	return p.storage.AddTxToLevitationPendingQueue(ctx, *poolTx)
+	return p.storage.AddTxToDecentralizedSequencerPendingQueue(ctx, *poolTx)
 }
 
 //SKALE_END

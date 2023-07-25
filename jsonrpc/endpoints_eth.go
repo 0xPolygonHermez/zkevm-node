@@ -825,7 +825,7 @@ func (e *EthEndpoints) relayTxToSequencerNode(input string) (interface{}, types.
 }
 
 // LEVITATION_BEGIN
-func (e *EthEndpoints) tryToAddTxToLevitationPendingQueue(input, ip string) (interface{}, types.Error) {
+func (e *EthEndpoints) tryToAddTxToDecentralizedSequencerPendingQueue(input, ip string) (interface{}, types.Error) {
 	tx, err := hexToTx(input)
 	if err != nil {
 		return RPCErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err)

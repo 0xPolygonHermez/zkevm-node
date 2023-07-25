@@ -131,7 +131,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 
 // SKALE_BEGIN
 // Adds a transaction to the Levitation PendingQueue
-func (p *PostgresPoolStorage) AddTxToLevitationPendingQueue(ctx context.Context, tx pool.Transaction) error {
+func (p *PostgresPoolStorage) AddTxToDecentralizedSequencerPendingQueue(ctx context.Context, tx pool.Transaction) error {
 	hash := tx.Hash().Hex()
 
 	b, err := tx.MarshalBinary()
