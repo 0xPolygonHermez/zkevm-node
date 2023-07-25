@@ -1,7 +1,3 @@
-# Watch this first 
-
-[Watch the Levitation video](https://www.youtube.com/watch?v=TUVcZfQe-Kw)
-
 # Build
 
 Install Go Version 1.20
