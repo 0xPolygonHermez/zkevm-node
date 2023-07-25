@@ -15,6 +15,9 @@ import (
 
 // PoolInterface contains the methods required to interact with the tx pool.
 type PoolInterface interface {
+	//LEVITATION_BEGIN
+	AddTxToDecentralizedSequencerPendingQueue(ctx context.Context, tx types.Transaction, ip string) error
+	//LEVITATION_END
 	AddTx(ctx context.Context, tx types.Transaction, ip string) error
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetNonce(ctx context.Context, address common.Address) (uint64, error)

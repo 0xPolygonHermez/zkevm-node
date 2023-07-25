@@ -174,7 +174,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 // SKALE_BEGIN
 // Add transaction to Levitation PendingQueue smartcontract
 // Transactions go to Levitation first
-func (p *Pool) AddTxToLevitationPendingQueue(ctx context.Context, tx types.Transaction, ip string) error {
+func (p *Pool) AddTxToDecentralizedSequencerPendingQueue(ctx context.Context, tx types.Transaction, ip string) error {
 	poolTx := NewTransaction(tx, ip, false)
 	if err := p.validateTx(ctx, *poolTx); err != nil {
 		return err
