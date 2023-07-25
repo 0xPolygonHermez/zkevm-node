@@ -8,15 +8,49 @@ https://hackmd.io/@kladko/B1wcUYqEh
 
 This is repo is a Polygon Hermez module for Levitation.
 
+For Levitation we need to inject little tweaks to the ZkEVM node. This is the frond end node that implements ETH API.
+Other components do not need to be modified much.
+
+The tweaks are kept to minimum and marked with  `//LEVITATION_BEGIN` and '//LEVITATION_END' comments in the code,
+so we can keep pulling from ZKEVM node repo.
+
+The first milestone is to move pending queue from PostGresDB to a smart contract.
+
 # Build
 
 Install Go Version 1.20
 
+```
 sudo add-apt-repository ppa:longsleep/golang-backports
 sudo apt-get update
 sudo apt-get install golang-go
+```
 
 # Simple way to run tests
+
+
+
+This will run all node Go tests using the build node binary, and span a number five containers that run 
+other components.
+
+The components include 
+
+* a test ETH l1  network based on a geth docker container zkevm-mock-l1-network
+* zkevm-prover that does number crunching
+* three postgres instances zkevm-event-db, zkevm-pool-db and zkevm-state-db, 
+
+```
+hermeznetwork/geth-zkevm-contracts:v2.0.0-RC1-fork.5-geth1.12.0   0.0.0.0:8545-8546->8545-8546/tcp, :::8545-8546->8545-8546/tcp, 30303/tcp, 30303/udp                                                           zkevm-mock-l1-network
+hermeznetwork/zkevm-prover:v0.2.0-RC3                             0.0.0.0:50052->50052/tcp, :::50052->50052/tcp, 0.0.0.0:50061->50061/tcp, :::50061->50061/tcp, 0.0.0.0:50071->50071/tcp, :::50071->50071/tcp   zkevm-prover
+postgres                                                          0.0.0.0:5435->5432/tcp, :::5435->5432/tcp                                                                                                     zkevm-event-db
+postgres                                                          0.0.0.0:5433->5432/tcp, :::5433->5432/tcp                                                                                                     zkevm-pool-db
+postgres                                                          0.0.0.0:5432->5432/tcp, :::5432->5432/tcp                                                                                                     zkevm-state-db
+````
+
+The node binary will run outside docker. Note that it will not rebuild the binary if you 
+make code changes.
+
+Note, that it will not rebuild the local node docker image. 
 
 ```
 cd test
