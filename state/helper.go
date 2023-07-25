@@ -333,6 +333,8 @@ func toPostgresInterval(duration string) (string, error) {
 	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
 }
 
+// IsPreEIP155Tx checks if the tx is a tx that has a chainID as zero and
+// V field is either 27 or 28
 func IsPreEIP155Tx(tx types.Transaction) bool {
 	v, _, _ := tx.RawSignatureValues()
 	return tx.ChainId().Uint64() == 0 && (v.Uint64() == 27 || v.Uint64() == 28)
