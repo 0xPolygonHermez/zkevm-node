@@ -8,6 +8,8 @@ https://hackmd.io/@kladko/B1wcUYqEh
 
 This is repo is a Polygon Hermez module for Levitation.
 
+Thanks to the Hermez team for all the code!
+
 For Levitation we need to inject little tweaks to the ZkEVM node. This is the frond end node that implements ETH API.
 Other components do not need to be modified much.
 
