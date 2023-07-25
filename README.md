@@ -1,6 +1,6 @@
 # Watch this first 
 
-[Watch the video](https://www.youtube.com/watch?v=TUVcZfQe-Kw)
+[Watch the Levitation video](https://www.youtube.com/watch?v=TUVcZfQe-Kw)
 
 # Build
 
