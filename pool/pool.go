@@ -180,11 +180,11 @@ func (p *Pool) AddTxToDecentralizedSequencerPendingQueue(ctx context.Context, tx
 		return err
 	}
 
-	return p.StoreTxOnLevitationPendingQueue(ctx, tx, ip)
+	return p.StoreTxOnDecentralizedSequencerPendingQueue(ctx, tx, ip)
 }
 
 // StoreTx adds a transaction to the pool with the pending state
-func (p *Pool) StoreTxOnLevitationPendingQueue(ctx context.Context, tx types.Transaction, ip string) error {
+func (p *Pool) StoreTxOnDecentralizedSequencerPendingQueue(ctx context.Context, tx types.Transaction, ip string) error {
 	// there are no re-orgs on SKALE chain so isWIP is always false
 	poolTx := NewTransaction(tx, ip, false)
 	return p.storage.AddTxToDecentralizedSequencerPendingQueue(ctx, *poolTx)
