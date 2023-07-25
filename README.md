@@ -9,7 +9,10 @@ sudo apt-get install golang-go
 
 # Simple way to run tests
 
-$ sudo ZKPROVER_URI=127.0.0.1  make test-full-non-e2e
+```
+cd test
+sudo ZKPROVER_URI=127.0.0.1  make test-full-non-e2e
+```
 
 
 # zkEVM Node
