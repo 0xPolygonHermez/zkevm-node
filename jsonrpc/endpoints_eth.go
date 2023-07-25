@@ -805,10 +805,15 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 			ip = strings.Split(ips, ",")[0]
 		}
 		// LEVITATION_START
-		_, err := e.tryToAddTxToDecentralizedSequencerPendingQueue(input, ip)
+		hash, err := e.tryToAddTxToDecentralizedSequencerPendingQueue(input, ip)
 		if err != nil {
 			return nil, err
 		}
+		input2, err2 := e.readTransactionByHashFromDecentralizedSequencerPendingQueue(hash.(string))
+		if err2 != nil {
+			return nil, err2
+		}
+		log.Info(input2)
 		// LEVITATION_END
 
 		return e.tryToAddTxToPool(input, ip)
@@ -844,6 +849,10 @@ func (e *EthEndpoints) tryToAddTxToDecentralizedSequencerPendingQueue(input, ip 
 	log.Infof("TX added to the pool: %v", tx.Hash().Hex())
 
 	return tx.Hash().Hex(), nil
+}
+
+func (e *EthEndpoints) readTransactionByHashFromDecentralizedSequencerPendingQueue(hash string) (string, types.Error) {
+	return hash, nil
 }
 
 //LEVITATION_END
