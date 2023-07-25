@@ -852,7 +852,15 @@ func (e *EthEndpoints) tryToAddTxToDecentralizedSequencerPendingQueue(input, ip 
 }
 
 func (e *EthEndpoints) readTransactionByHashFromDecentralizedSequencerPendingQueue(hash string) (string, types.Error) {
-	return hash, nil
+	txs, err := e.readOrderedTransactionsFromDecentralizedSequencerPendingQueue()
+	if err != nil {
+		return "", err
+	}
+	return txs[0], nil
+}
+
+func (e *EthEndpoints) readOrderedTransactionsFromDecentralizedSequencerPendingQueue() ([]string, types.Error) {
+	return []string{"placeholder1", "placeholder2"}, nil
 }
 
 //LEVITATION_END
