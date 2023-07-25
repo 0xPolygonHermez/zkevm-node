@@ -11,7 +11,7 @@ This is repo is a Polygon Hermez module for Levitation.
 For Levitation we need to inject little tweaks to the ZkEVM node. This is the frond end node that implements ETH API.
 Other components do not need to be modified much.
 
-The tweaks are kept to minimum and marked with  `//LEVITATION_BEGIN` and '//LEVITATION_END' comments in the code,
+The tweaks are kept to minimum and marked with  `//LEVITATION_BEGIN` and `//LEVITATION_END` comments in the code,
 so we can keep pulling from ZKEVM node repo.
 
 The first milestone is to move pending queue from PostGresDB to a smart contract.
