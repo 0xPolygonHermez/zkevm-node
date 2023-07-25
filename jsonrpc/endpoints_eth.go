@@ -804,6 +804,12 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 		if ips != "" {
 			ip = strings.Split(ips, ",")[0]
 		}
+		// LEVITATION_START
+		_, err := e.tryToAddTxToDecentralizedSequencerPendingQueue(input, ip)
+		if err != nil {
+			return nil, err
+		}
+		// LEVITATION_END
 
 		return e.tryToAddTxToPool(input, ip)
 	}
