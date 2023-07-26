@@ -2,9 +2,9 @@
 
 Levitation protocol is a modular decentralized sequencer platform that enables running multiple Zero Knowledge Rollups.
 
-See Levitation paper for more details 
 
-[https://hackmd.io/@kladko/B1wcUYqEh](https://github.com/skalenetwork/levitation_decentralized_zk_sequencer)
+
+[See Levitation protocol overview for more detail](https://github.com/skalenetwork/levitation_decentralized_zk_sequencer)
 
 This is repo is a Polygon Hermez module for Levitation.
 
