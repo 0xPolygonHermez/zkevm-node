@@ -848,25 +848,13 @@ func (e *EthEndpoints) tryVerifyTx(input, ip string) (interface{}, types.Error) 
 		return RPCErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err)
 	}
 
-	log.Infof("adding TX to the pool: %v", tx.Hash().Hex())
-	if err := e.pool.AddTx(context.Background(), *tx, ip); err != nil {
+	log.Infof("verifying TX: %v", tx.Hash().Hex())
+	if err := e.pool.VerifyTx(context.Background(), *tx, ip); err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 	}
-	log.Infof("TX added to the pool: %v", tx.Hash().Hex())
+	log.Infof("TX verified: %v", tx.Hash().Hex())
 
 	return tx.Hash().Hex(), nil
-}
-
-func (e *EthEndpoints) readTransactionByHashFromDecentralizedSequencerPendingQueue(hash string) (string, types.Error) {
-	txs, err := e.readOrderedTransactionsFromDecentralizedSequencerPendingQueue()
-	if err != nil {
-		return "", err
-	}
-	return txs[0], nil
-}
-
-func (e *EthEndpoints) readOrderedTransactionsFromDecentralizedSequencerPendingQueue() ([]string, types.Error) {
-	return []string{"placeholder1", "placeholder2"}, nil
 }
 
 //LEVITATION_END
