@@ -20,7 +20,7 @@ The first milestone is to move pending queue from PostGresDB to a smart contract
 
 # Clone repo 
 ```
-git clone --recurse-submodules https://github.com/skalenetwork/skaled.git
+git clone --recurse-submodules https://github.com/skalenetwork/skaled.git git@github.com:skalenetwork/levitation_module_polygon_hermez.git
 cd skaled
 ```
 
