@@ -173,12 +173,28 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
+			path:          "Sequencer.Finalizer.StopSequencerOnBatchNum",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "Sequencer.Finalizer.TimestampResolution",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
 			path:          "Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
 			expectedValue: uint64(10),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.L1GasPriceFactor",
+			expectedValue: float64(0.25),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.ByteGasCost",
+			expectedValue: uint64(16),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.MarginFactor",
+			expectedValue: float64(1),
 		},
 		{
 			path:          "Sequencer.EffectiveGasPrice.Enabled",
@@ -251,6 +267,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "L2GasPriceSuggester.DefaultGasPriceWei",
 			expectedValue: uint64(2000000000),
+		},
+		{
+			path:          "L2GasPriceSuggester.MaxGasPriceWei",
+			expectedValue: uint64(0),
 		},
 		{
 			path:          "MTClient.URI",
@@ -344,18 +364,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.DB.MaxConns",
 			expectedValue: 200,
-		},
-		{
-			path:          "Pool.EffectiveGasPrice.L1GasPriceFactor",
-			expectedValue: float64(0.25),
-		},
-		{
-			path:          "Pool.EffectiveGasPrice.ByteGasCost",
-			expectedValue: uint64(16),
-		},
-		{
-			path:          "Pool.EffectiveGasPrice.MarginFactor",
-			expectedValue: float64(1),
 		},
 		{
 			path:          "RPC.Host",

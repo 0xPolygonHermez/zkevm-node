@@ -565,9 +565,11 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction by hash from pool", err)
 		}
-		tx = &poolTx.Transaction
-
-		return types.NewTransaction(*tx, nil, nil, nil), nil
+		if poolTx.Status == pool.TxStatusPending {
+			tx = &poolTx.Transaction
+			return types.NewTransaction(*tx, nil, nil, nil), nil
+		}
+		return nil, nil
 	})
 }
 
@@ -800,6 +802,10 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 	} else {
 		ip := ""
 		ips := httpRequest.Header.Get("X-Forwarded-For")
+
+		// TODO: this is temporary patch remove this log
+		realIp := httpRequest.Header.Get("X-Real-IP")
+		log.Infof("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
 
 		if ips != "" {
 			ip = strings.Split(ips, ",")[0]

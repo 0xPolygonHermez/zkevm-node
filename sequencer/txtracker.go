@@ -35,7 +35,7 @@ type TxTracker struct {
 	GasPriceEffectivePercentage       uint8
 	EffectiveGasPriceProcessCount     uint8
 	IsEffectiveGasPriceFinalExecution bool
-	L1GasPRice                        uint64
+	L1GasPrice                        uint64
 }
 
 // batchResourceWeightMultipliers is a struct that contains the weight multipliers for each resource

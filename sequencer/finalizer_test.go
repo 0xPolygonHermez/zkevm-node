@@ -18,7 +18,6 @@ import (
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -53,7 +52,10 @@ var (
 	}
 	effectiveGasPriceCfg = EffectiveGasPriceCfg{
 		MaxBreakEvenGasPriceDeviationPercentage: 10,
-		Enabled:                                 true,
+		L1GasPriceFactor:                        0.25,
+		ByteGasCost:                             16,
+		MarginFactor:                            1,
+		Enabled:                                 false,
 	}
 	cfg = FinalizerCfg{
 		GERDeadlineTimeout: cfgTypes.Duration{
@@ -99,7 +101,9 @@ var (
 	testBatchL2DataAsString = "0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e980801186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb9700910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c012259687999074321bff"
 	decodedBatchL2Data      []byte
 	done                    chan bool
+	gasPrice                = big.NewInt(1000000)
 	breakEvenGasPrice       = big.NewInt(1000000)
+	l1GasPrice              = uint64(1000000)
 )
 
 func testNow() time.Time {
@@ -130,9 +134,13 @@ func TestNewFinalizer(t *testing.T) {
 func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 	f = setupFinalizer(true)
 	ctx = context.Background()
-	txTracker := &TxTracker{Hash: txHash, From: senderAddr, Nonce: 1, BreakEvenGasPrice: breakEvenGasPrice, BatchResources: state.BatchResources{
+	txTracker := &TxTracker{Hash: txHash, From: senderAddr, Nonce: 1, GasPrice: gasPrice, BreakEvenGasPrice: breakEvenGasPrice, L1GasPrice: l1GasPrice, BatchResources: state.BatchResources{
 		Bytes: 1000,
+		ZKCounters: state.ZKCounters{
+			CumulativeGasUsed: 500,
+		},
 	}}
+
 	txResponse := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
 		StateRoot: newHash2,
@@ -272,7 +280,6 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 					done <- true // signal that the goroutine is done
 				}()
 			}
-
 			if tc.expectedDeleteTxCall {
 				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
 			}
@@ -284,8 +291,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				workerMock.On("UpdateTx", txTracker.Hash, txTracker.From, tc.executorResponse.UsedZkCounters).Return().Once()
 			}
 			if tc.expectedError == nil {
-				dbManagerMock.On("CalculateTxBreakEvenGasPrice", ctx, txTracker.BatchResources.Bytes, txResponse.GasUsed, uint64(0)).Return(breakEvenGasPrice, nilErr).Once()
-				dbManagerMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L1GasPrice: 0, L2GasPrice: 0}, nilErr).Once()
+				//dbManagerMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L1GasPrice: 0, L2GasPrice: 0}, nilErr).Once()
 				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", txTracker.From, tc.executorResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
 			}
@@ -506,6 +512,7 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 			if tc.stateRootAndLERErr == nil {
 				dbManagerMock.On("CloseBatch", ctx, tc.closeBatchParams).Return(tc.closeBatchErr).Once()
 				dbManagerMock.On("GetBatchByNumber", ctx, f.batch.batchNumber, nil).Return(tc.batches[0], nilErr).Once()
+				dbManagerMock.On("GetForkIDByBatchNumber", f.batch.batchNumber).Return(uint64(5)).Once()
 				dbManagerMock.On("GetTransactionsByBatchNumber", ctx, f.batch.batchNumber).Return(currTxs, constants.EffectivePercentage, nilErr).Once()
 				if tc.forcedBatches != nil && len(tc.forcedBatches) > 0 {
 					processRequest := f.processRequest
@@ -1322,7 +1329,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 	txTracker := &TxTracker{Hash: txHash, From: senderAddr, Cost: big.NewInt(0)}
 	testCases := []struct {
 		name               string
-		err                pb.RomError
+		err                executor.RomError
 		expectedDeleteCall bool
 		updateTxStatus     pool.TxStatus
 		expectedMoveCall   bool
@@ -1330,26 +1337,26 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 	}{
 		{
 			name:               "Error OutOfCounters",
-			err:                pb.RomError(executor.ROM_ERROR_OUT_OF_COUNTERS_STEP),
+			err:                executor.RomError_ROM_ERROR_OUT_OF_COUNTERS_STEP,
 			updateTxStatus:     pool.TxStatusInvalid,
 			expectedDeleteCall: true,
 			isRoomOOC:          true,
 		},
 		{
 			name:             "Error IntrinsicInvalidNonce",
-			err:              pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_NONCE),
+			err:              executor.RomError_ROM_ERROR_INTRINSIC_INVALID_NONCE,
 			updateTxStatus:   pool.TxStatusFailed,
 			expectedMoveCall: true,
 		},
 		{
 			name:             "Error IntrinsicInvalidBalance",
-			err:              pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_BALANCE),
+			err:              executor.RomError_ROM_ERROR_INTRINSIC_INVALID_BALANCE,
 			updateTxStatus:   pool.TxStatusFailed,
 			expectedMoveCall: true,
 		},
 		{
 			name:               "Error IntrinsicErrorChainId",
-			err:                pb.RomError(executor.ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID),
+			err:                executor.RomError_ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID,
 			updateTxStatus:     pool.TxStatusFailed,
 			expectedDeleteCall: true,
 		},
@@ -1406,6 +1413,9 @@ func Test_processTransaction(t *testing.T) {
 		GasPrice:          breakEvenGasPrice,
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
+			ZKCounters: state.ZKCounters{
+				CumulativeGasUsed: 500,
+			},
 		},
 	}
 	successfulTxResponse := &state.ProcessTransactionResponse{
@@ -1496,9 +1506,11 @@ func Test_processTransaction(t *testing.T) {
 				}()
 			}
 
+			dbManagerMock.On("GetL1GasPrice").Return(uint64(1000000)).Once()
 			executorMock.On("ProcessBatch", tc.ctx, mock.Anything, true).Return(tc.expectedResponse, tc.executorErr).Once()
 			if tc.executorErr == nil {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
+				dbManagerMock.On("GetForkIDByBatchNumber", mock.Anything).Return(forkId5)
 			}
 			if tc.expectedErr == nil {
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", tc.tx.From, tc.expectedResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
@@ -1953,6 +1965,9 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			// arrange
 			f := setupFinalizer(true)
 			dbManagerMock.On("GetBatchByNumber", context.Background(), tc.batchNum, nil).Return(tc.mockGetBatchByNumber, tc.mockGetBatchByNumberErr).Once()
+			if tc.name != "Error while getting batch by number" {
+				dbManagerMock.On("GetForkIDByBatchNumber", f.batch.batchNumber).Return(uint64(5)).Once()
+			}
 			if tc.mockGetBatchByNumberErr == nil && tc.expectedDecodeErr == nil {
 				executorMock.On("ProcessBatch", context.Background(), mock.Anything, false).Return(tc.expectedExecutorResponse, tc.expectedExecutorErr)
 			}
