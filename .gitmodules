@@ -1,0 +1,3 @@
+[submodule "levitation_decentralized_zk_sequencer"]
+	path = levitation_decentralized_zk_sequencer
+	url = https://github.com/skalenetwork/levitation_decentralized_zk_sequencer.git
