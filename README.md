@@ -1,6 +1,6 @@
 # What is Levitation?
 
-Levitation protocol is a modular decentralized sequencer platform that enables running multiple Zero Knowledge Rollups.
+Levitation protocol is a modular decentralized sequencer (DS) platform that enables running multiple Zero Knowledge Rollups.
 
 
 
@@ -16,7 +16,14 @@ Other components do not need to be modified much.
 The tweaks are kept to minimum and marked with  `//LEVITATION_BEGIN` and `//LEVITATION_END` comments in the code,
 so we can keep pulling from ZKEVM node repo.
 
-The first milestone is to move pending queue from PostGresDB to a smart contract.
+Development Milestones:
+
+* Store transactions in decentralized sequencer on receipt (we are here now)
+* Pull from DS into node and prove a block
+* Push proven block back to DS
+* Push from DS to ETH mainnet
+* Schedule operation of multiple nodes in time-slots
+* Identify possible node mis misbehaviors and punish on-chain
 
 # Clone repo 
 ```
