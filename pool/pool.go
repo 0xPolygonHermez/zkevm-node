@@ -166,24 +166,19 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 }
 
 // SKALE_BEGIN
-// Add transaction to Levitation PendingQueue smartcontract
-// Transactions go to Levitation first
-func (p *Pool) AddTxToDecentralizedSequencerPendingQueue(ctx context.Context, tx types.Transaction, ip string) error {
+// VerifyTx
+func (p *Pool) VerifyTx(ctx context.Context, tx types.Transaction, ip string) error {
 	poolTx := NewTransaction(tx, ip, false)
-	if err := p.validateTx(ctx, *poolTx); err != nil {
-		return err
-	}
-
-	return p.StoreTxOnDecentralizedSequencerPendingQueue(ctx, tx, ip)
+	return p.validateTx(ctx, *poolTx)
 }
 
-// StoreTx adds a transaction to the pool with the pending state
+/*
 func (p *Pool) StoreTxOnDecentralizedSequencerPendingQueue(ctx context.Context, tx types.Transaction, ip string) error {
 	// there are no re-orgs on SKALE chain so isWIP is always false
 	poolTx := NewTransaction(tx, ip, false)
 	return p.storage.AddTxToDecentralizedSequencerPendingQueue(ctx, *poolTx)
 }
-
+*/
 //SKALE_END
 
 // StoreTx adds a transaction to the pool with the pending state

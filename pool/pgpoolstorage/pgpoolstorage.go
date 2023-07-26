@@ -133,6 +133,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 
 // SKALE_BEGIN
 // Adds a transaction to the Levitation PendingQueue
+/*
 func (p *PostgresPoolStorage) AddTxToDecentralizedSequencerPendingQueue(ctx context.Context, tx pool.Transaction) error {
 	hash := tx.Hash().Hex()
 
@@ -185,7 +186,7 @@ func (p *PostgresPoolStorage) AddTxToDecentralizedSequencerPendingQueue(ctx cont
 
 	return err
 }
-
+*/
 //SKALE_END
 
 // GetTxsByStatus returns an array of transactions filtered by status

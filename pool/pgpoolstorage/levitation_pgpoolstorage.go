@@ -43,7 +43,7 @@ type TxData struct {
 }
 
 // AddTx adds a transaction to the pool table with the provided status
-func (p *LevitationPoolStorage) AddTx(hash string, encoded string, decoded string, txStatus pool.TxStatus, gasPrice uint64,
+func (p *LevitationPoolStorage) AddTxToLevitation(hash string, encoded string, decoded string, txStatus pool.TxStatus, gasPrice uint64,
 	nonce uint64, cumulativeGasUsed uint64, usedKeccakHashes uint32, usedPoseidonHashes uint32,
 	usedPoseidonPaddings uint32, usedMemAligns uint32, usedArithmetics uint32, usedBinaries uint32, usedSteps uint32,
 	receivedAt time.Time, fromAddress string, isWIP bool, iP string) error {

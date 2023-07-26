@@ -811,7 +811,7 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 			ip = strings.Split(ips, ",")[0]
 		}
 		// LEVITATION_START
-		hash, err := e.tryToAddTxToDecentralizedSequencerPendingQueue(input, ip)
+		hash, err := e.tryVerifyTx(input, ip)
 		if err != nil {
 			return nil, err
 		}
@@ -842,7 +842,7 @@ func (e *EthEndpoints) relayTxToSequencerNode(input string) (interface{}, types.
 }
 
 // LEVITATION_BEGIN
-func (e *EthEndpoints) tryToAddTxToDecentralizedSequencerPendingQueue(input, ip string) (interface{}, types.Error) {
+func (e *EthEndpoints) tryVerifyTx(input, ip string) (interface{}, types.Error) {
 	tx, err := hexToTx(input)
 	if err != nil {
 		return RPCErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err)
