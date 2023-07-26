@@ -812,14 +812,10 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 		}
 		// LEVITATION_START
 		hash, err := e.tryVerifyTx(input, ip)
+		_ = hash
 		if err != nil {
 			return nil, err
 		}
-		input2, err2 := e.readTransactionByHashFromDecentralizedSequencerPendingQueue(hash.(string))
-		if err2 != nil {
-			return nil, err2
-		}
-		log.Info(input2)
 		// LEVITATION_END
 
 		return e.tryToAddTxToPool(input, ip)
