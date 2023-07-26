@@ -24,7 +24,7 @@ git clone --recurse-submodules https://github.com/skalenetwork/levitation_module
 cd skaled
 ```
 
-# Build
+# Build on Ubuntu 22
 
 Install Go Version 1.20
 
