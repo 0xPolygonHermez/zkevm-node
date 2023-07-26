@@ -18,6 +18,12 @@ so we can keep pulling from ZKEVM node repo.
 
 The first milestone is to move pending queue from PostGresDB to a smart contract.
 
+# Clone repo 
+```
+git clone --recurse-submodules https://github.com/skalenetwork/skaled.git
+cd skaled
+```
+
 # Build
 
 Install Go Version 1.20
