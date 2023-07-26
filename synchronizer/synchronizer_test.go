@@ -12,13 +12,17 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	cProverIDExecution = "PROVER_ID-EXE001"
 )
 
 type mocks struct {
@@ -28,14 +32,18 @@ type mocks struct {
 	EthTxManager *ethTxManagerMock
 	DbTx         *dbTxMock
 	ZKEVMClient  *zkEVMClientMock
+	//EventLog     *eventLogMock
 }
+
+//func Test_Given_StartingSynchronizer_When_CallFirstTimeExecutor_Then_StoreProverID(t *testing.T) {
+//}
 
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
 //
 //	this Check partially point 2: Use previous batch stored in memory to avoid getting from database
 func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
-	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, *genesis, *cfg)
+	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg)
 	require.NoError(t, err)
 	sync, ok := sync_interface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
@@ -58,7 +66,7 @@ func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneI
 //	this Check partially point 2: Store last batch in memory (CurrentTrustedBatch)
 func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItInALocalVar(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
-	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, *genesis, *cfg)
+	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg)
 	require.NoError(t, err)
 	sync, ok := sync_interface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
@@ -91,7 +99,7 @@ func TestForcedBatch(t *testing.T) {
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 
-	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
+	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -270,10 +278,9 @@ func TestForcedBatch(t *testing.T) {
 				GlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 				ForcedBatchNum: &forced,
 			}
-			m.State. //ExecuteBatch(s.ctx, batch.BatchNumber, batch.BatchL2Data, dbTx
-					On("ExecuteBatch", ctx, sbatch, false, m.DbTx).
-					Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
-					Once()
+			m.State.On("ExecuteBatch", ctx, sbatch, false, m.DbTx).
+				Return(&executor.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
+				Once()
 
 			virtualBatch := &state.VirtualBatch{
 				BatchNumber: sequencedBatch.BatchNumber,
@@ -299,6 +306,11 @@ func TestForcedBatch(t *testing.T) {
 			m.State.
 				On("AddAccumulatedInputHash", ctx, sequencedBatch.BatchNumber, common.Hash{}, m.DbTx).
 				Return(nil).
+				Once()
+
+			m.State.
+				On("GetStoredFlushID", ctx).
+				Return(uint64(1), cProverIDExecution, nil).
 				Once()
 
 			m.DbTx.
@@ -331,7 +343,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, genesis, cfg)
+	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg)
 	require.NoError(t, err)
 
 	// state preparation
@@ -501,7 +513,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 			m.State.
 				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
-				Return(common.Hash{}, nil).
+				Return(common.Hash{}, uint64(1), cProverIDExecution, nil).
 				Once()
 
 			virtualBatch := &state.VirtualBatch{
@@ -524,6 +536,11 @@ func TestSequenceForcedBatch(t *testing.T) {
 			m.State.
 				On("AddSequence", ctx, seq, m.DbTx).
 				Return(nil).
+				Once()
+
+			m.State.
+				On("GetStoredFlushID", ctx).
+				Return(uint64(1), cProverIDExecution, nil).
 				Once()
 
 			m.DbTx.
@@ -554,6 +571,7 @@ func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
 		Pool:        newPoolMock(t),
 		DbTx:        newDbTxMock(t),
 		ZKEVMClient: newZkEVMClientMock(t),
+		//EventLog:    newEventLogMock(t),
 	}
 	return &genesis, &cfg, &m
 }
@@ -651,7 +669,8 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		Return(batchInTrustedNode, nil).
 		Once()
 
-	m.State.On("BeginStateTransaction", sync.ctx).
+	m.State.
+		On("BeginStateTransaction", sync.ctx).
 		Return(m.DbTx, nil).
 		Once()
 
@@ -674,6 +693,8 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 
 	tx1 := state.ProcessTransactionResponse{}
 	processedBatch := state.ProcessBatchResponse{
+		FlushID:   1,
+		ProverID:  cProverIDExecution,
 		Responses: []*state.ProcessTransactionResponse{&tx1},
 	}
 	m.State.
@@ -686,5 +707,13 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		Return(nil).
 		Once()
 
-	m.DbTx.On("Commit", sync.ctx).Return(nil).Once()
+	m.State.
+		On("GetStoredFlushID", sync.ctx).
+		Return(uint64(1), cProverIDExecution, nil).
+		Once()
+
+	m.DbTx.
+		On("Commit", sync.ctx).
+		Return(nil).
+		Once()
 }

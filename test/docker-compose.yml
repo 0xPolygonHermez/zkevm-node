@@ -338,7 +338,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:v0.2.0-RC3
+    image: hermeznetwork/zkevm-prover:v2.0.1
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
@@ -425,7 +425,7 @@ services:
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
-    image: hermeznetwork/zkevm-prover:v0.2.0-RC3
+    image: hermeznetwork/zkevm-prover:v2.0.1
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover
@@ -447,3 +447,17 @@ services:
       - --web.enable-lifecycle
     volumes:
       - ../config/metrics/prometheus:/etc/prometheus
+
+  zkevm-sh:
+    container_name: zkevm-sh
+    image: zkevm-node
+    stdin_open: true 
+    tty: true
+    environment:
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
+    volumes:
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"

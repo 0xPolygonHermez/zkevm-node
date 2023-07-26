@@ -20,6 +20,15 @@ LDFLAGS += -X 'github.com/0xPolygonHermez/zkevm-node.GitRev=$(GITREV)'
 LDFLAGS += -X 'github.com/0xPolygonHermez/zkevm-node.GitBranch=$(GITBRANCH)'
 LDFLAGS += -X 'github.com/0xPolygonHermez/zkevm-node.BuildDate=$(DATE)'
 
+# Variables
+VENV           = .venv
+VENV_PYTHON    = $(VENV)/bin/python
+SYSTEM_PYTHON  = $(or $(shell which python3), $(shell which python))
+PYTHON         = $(or $(wildcard $(VENV_PYTHON)), "install_first_venv")
+GENERATE_SCHEMA_DOC = $(VENV)/bin/generate-schema-doc
+GENERATE_DOC_PATH=  "docs/config-file/"
+GENERATE_DOC_TEMPLATES_PATH=  "docs/config-file/templates/"
+
 .PHONY: build
 build: ## Builds the binary locally into ./dist
 	$(GOENVVARS) go build -ldflags "all=$(LDFLAGS)" -o $(GOBIN)/$(GOBINARY) $(GOCMD)
@@ -54,6 +63,52 @@ install-linter: ## Installs the linter
 lint: ## Runs the linter
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run
 
+
+$(VENV_PYTHON):
+	rm -rf $(VENV)
+	$(SYSTEM_PYTHON) -m venv $(VENV)
+
+venv: $(VENV_PYTHON)
+
+# https://stackoverflow.com/questions/24736146/how-to-use-virtualenv-in-makefile
+.PHONY: install-config-doc-gen
+$(GENERATE_SCHEMA_DOC): $(VENV_PYTHON)
+	$(PYTHON) -m pip install --upgrade pip
+	$(PYTHON) -m pip install json-schema-for-humans
+
+PHONY: config-doc-gen
+config-doc-gen: config-doc-node config-doc-custom_network ## Generate config file's json-schema for node and custom_network  and documentation
+	#
+
+.PHONY: config-doc-node
+config-doc-node: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema for node and documentation
+	go run ./cmd generate-json-schema --config-file=node --output=$(GENERATE_DOC_PATH)node-config-schema.json
+	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true \
+							--config footer_show_time=false \
+							--config expand_buttons=true \
+							--config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/js/base.html \
+							$(GENERATE_DOC_PATH)node-config-schema.json \
+							$(GENERATE_DOC_PATH)node-config-doc.html
+	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/md/base.md \
+							--config footer_show_time=false \
+							$(GENERATE_DOC_PATH)node-config-schema.json \
+							$(GENERATE_DOC_PATH)node-config-doc.md
+
+.PHONY: config-doc-custom_network
+config-doc-custom_network: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema for custom_network and documentation
+	go run ./cmd generate-json-schema --config-file=custom_network --output=$(GENERATE_DOC_PATH)custom_network-config-schema.json
+	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true --config footer_show_time=false \
+							--config expand_buttons=true \
+							--config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/js/base.html \
+							$(GENERATE_DOC_PATH)custom_network-config-schema.json \
+							$(GENERATE_DOC_PATH)custom_network-config-doc.html
+	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/md/base.md \
+							--config footer_show_time=false \
+							--config example_format=JSON \
+							$(GENERATE_DOC_PATH)custom_network-config-schema.json \
+							$(GENERATE_DOC_PATH)custom_network-config-doc.md
+	
+
 .PHONY: update-external-dependencies
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
 	go run ./scripts/cmd/... updatedeps
@@ -65,7 +120,7 @@ install-git-hooks: ## Moves hook files to the .git/hooks directory
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
 	cd proto/src/proto/hashdb/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../merkletree/pb --go-grpc_out=../../../../../merkletree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative hashdb.proto
-	cd proto/src/proto/executor/v1 && protoc --proto_path=. --go_out=../../../../../state/runtime/executor/pb --go-grpc_out=../../../../../state/runtime/executor/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative executor.proto
+	cd proto/src/proto/executor/v1 && protoc --proto_path=. --go_out=../../../../../state/runtime/executor --go-grpc_out=../../../../../state/runtime/executor --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative executor.proto
 	cd proto/src/proto/aggregator/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../aggregator/pb --go-grpc_out=../../../../../aggregator/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative aggregator.proto
 
 ## Help display.

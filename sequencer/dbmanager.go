@@ -139,17 +139,20 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
 	if err != nil {
 		return err
 	}
-	dropReason, isWIP := d.worker.AddTxTracker(d.ctx, txTracker)
+	replacedTx, dropReason := d.worker.AddTxTracker(d.ctx, txTracker)
 	if dropReason != nil {
 		failedReason := dropReason.Error()
 		return d.txPool.UpdateTxStatus(d.ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
 	} else {
-		if isWIP {
-			return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
+		if replacedTx != nil {
+			failedReason := ErrReplacedTransaction.Error()
+			error := d.txPool.UpdateTxStatus(d.ctx, replacedTx.Hash, pool.TxStatusFailed, false, &failedReason)
+			if error != nil {
+				log.Warnf("error when setting as failed replacedTx(%s)", replacedTx.HashStr)
+			}
 		}
+		return d.txPool.UpdateTxWIPStatus(d.ctx, tx.Hash(), true)
 	}
-
-	return nil
 }
 
 // BeginStateTransaction starts a db transaction in the state
@@ -183,7 +186,8 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	txData, err := state.EncodeTransaction(tx.response.Tx, uint8(tx.response.EffectivePercentage), d.cfg.ForkID)
+	forkID := d.state.GetForkIDByBatchNumber(tx.batchNumber)
+	txData, err := state.EncodeTransaction(tx.response.Tx, uint8(tx.response.EffectivePercentage), forkID)
 	if err != nil {
 		return err
 	}
@@ -236,7 +240,8 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 		previousLastBatch = lastBatches[1]
 	}
 
-	lastBatchTxs, _, _, err := state.DecodeTxs(lastBatch.BatchL2Data, d.cfg.ForkID)
+	forkID := d.state.GetForkIDByBatchNumber(lastBatch.BatchNumber)
+	lastBatchTxs, _, _, err := state.DecodeTxs(lastBatch.BatchL2Data, forkID)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +392,8 @@ func (d *dbManager) CloseBatch(ctx context.Context, params ClosingBatchParameter
 		ClosingReason:  params.ClosingReason,
 	}
 
-	batchL2Data, err := state.EncodeTransactions(params.Txs, params.EffectivePercentages, d.cfg.ForkID)
+	forkID := d.state.GetForkIDByBatchNumber(params.BatchNumber)
+	batchL2Data, err := state.EncodeTransactions(params.Txs, params.EffectivePercentages, forkID)
 	if err != nil {
 		return err
 	}
@@ -557,9 +563,13 @@ func (d *dbManager) GetGasPrices(ctx context.Context) (pool.GasPrices, error) {
 	return d.txPool.GetGasPrices(ctx)
 }
 
-// CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
-func (d *dbManager) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
-	return d.txPool.CalculateTxBreakEvenGasPrice(ctx, txDataLength, gasUsed, l1GasPrice)
+// GetDefaultMinGasPriceAllowed return the configured DefaultMinGasPriceAllowed value
+func (d *dbManager) GetDefaultMinGasPriceAllowed() uint64 {
+	return d.txPool.GetDefaultMinGasPriceAllowed()
+}
+
+func (d *dbManager) GetL1GasPrice() uint64 {
+	return d.txPool.GetL1GasPrice()
 }
 
 // GetStoredFlushID returns the stored flush ID and prover ID
@@ -570,4 +580,9 @@ func (d *dbManager) GetStoredFlushID(ctx context.Context) (uint64, string, error
 // GetForcedBatch gets a forced batch by number
 func (d *dbManager) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error) {
 	return d.state.GetForcedBatch(ctx, forcedBatchNumber, dbTx)
+}
+
+// GetForkIDByBatchNumber returns the fork id for a given batch number
+func (d *dbManager) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
+	return d.state.GetForkIDByBatchNumber(batchNumber)
 }

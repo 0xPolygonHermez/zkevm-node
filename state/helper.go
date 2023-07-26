@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 	"math/big"
+	"sort"
 	"strconv"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -117,7 +118,7 @@ func EncodeTransaction(tx types.Transaction, effectivePercentage uint8, forkID u
 }
 
 // EncodeUnsignedTransaction RLP encodes the given unsigned transaction
-func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce *uint64) ([]byte, error) {
+func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce *uint64, forkID uint64) ([]byte, error) {
 	v, _ := new(big.Int).SetString("0x1c", 0)
 	r, _ := new(big.Int).SetString("0xa54492cfacf71aef702421b7fbc70636537a7b2fbe5718c5ed970a001bb7756b", 0)
 	s, _ := new(big.Int).SetString("0x2e9fb27acc75955b898f0b12ec52aa34bf08f01db654374484b80bf12f0d841e", 0)
@@ -151,6 +152,10 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce
 	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
 	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
 	effectivePercentageAsHex := fmt.Sprintf("%x", MaxEffectivePercentage)
+	// Only add EffectiveGasprice if forkID is equal or higher than 5
+	if forkID < forkID5 {
+		effectivePercentageAsHex = ""
+	}
 	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded + effectivePercentageAsHex)
 	if err != nil {
 		return nil, err
@@ -331,4 +336,23 @@ func toPostgresInterval(duration string) (string, error) {
 	}
 
 	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
+}
+
+// CheckLogOrder checks the order of the logs. The order should be incremental
+func CheckLogOrder(logs []*types.Log) bool {
+	logsAux := make([]*types.Log, len(logs))
+	copy(logsAux, logs)
+	sort.Slice(logsAux, func(i, j int) bool {
+		return logsAux[i].Index < logsAux[j].Index
+	})
+	if len(logs) != len(logsAux) {
+		return false
+	}
+	for i := range logs {
+		if logsAux[i].Index != logs[i].Index {
+			log.Debug("Array index: ", i, ". Index of log on each array: ", logsAux[i].Index, logs[i].Index)
+			return false
+		}
+	}
+	return true
 }

@@ -115,9 +115,13 @@ type ethereumClient interface {
 
 // L1Config represents the configuration of the network used in L1
 type L1Config struct {
-	L1ChainID                 uint64         `json:"chainId"`
-	ZkEVMAddr                 common.Address `json:"polygonZkEVMAddress"`
-	MaticAddr                 common.Address `json:"maticTokenAddress"`
+	// Chain ID of the L1 network
+	L1ChainID uint64 `json:"chainId"`
+	// Address of the L1 contract
+	ZkEVMAddr common.Address `json:"polygonZkEVMAddress"`
+	// Address of the L1 Matic token Contract
+	MaticAddr common.Address `json:"maticTokenAddress"`
+	// Address of the L1 GlobalExitRootManager contract
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
 }
 

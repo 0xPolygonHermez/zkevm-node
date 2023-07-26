@@ -1,0 +1,61 @@
+---
+name: JSON schema
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - update-external-dependencies
+      - 'release/**'
+  pull_request:
+
+jobs:
+  json-schema:
+    strategy:
+      matrix:
+        go-version: [ 1.19.x ]
+        goarch: [ "amd64" ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      # https://github.com/actions/checkout#Checkout-pull-request-HEAD-commit-instead-of-merge-commit
+      # Checkout pull request HEAD commit instead of merge commit
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Install Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: ${{ matrix.go-version }}
+      env:
+        GOARCH: ${{ matrix.goarch }}
+
+    - uses: actions/setup-python@v1
+    - uses: BSFishy/pip-action@v1
+      with:
+        packages: |
+          json-schema-for-humans
+
+    - name: Check if JSON schema and generated doc is up to date
+      run: |
+          EXPECTED_DIFF=""
+          NOT_UPDATED_MSG="JSON Schema is not up to date, run 'make config-doc-gen' before creating the PR"
+
+          echo "Checking if JSON schema is up to date..."
+          make GENERATE_DOC_PATH=/tmp/ config-doc-gen
+          for CHECK_FILE in "node-config-schema.json" "node-config-doc.md" "node-config-doc.html" "custom_network-config-schema.json" "custom_network-config-doc.md" "custom_network-config-doc.html"; do
+            EXPECTED_FILE=tmp/$CHECK_FILE
+            REAL_FILE=docs/config-file/$CHECK_FILE
+            echo "checking $CHECK_FILE ...."
+            diff /tmp/$CHECK_FILE docs/config-file/$CHECK_FILE
+            if [ $? -ne 0  ]; then
+              echo "  FAILED file $CHECK_FILE!"
+              exit 1
+            fi
+            echo "checked $CHECK_FILE OK"
+          done
+
+          echo "Everything up to date"
+
