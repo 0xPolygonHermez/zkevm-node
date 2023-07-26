@@ -50,6 +50,18 @@ make build
 # Simple way to run tests
 
 
+```
+cd test
+```
+
+Compile smartcontracts
+
+```
+make compile-scs
+```
+
+
+
 
 This will run all node Go tests using the build node binary, and span a number five containers that run 
 other components.
