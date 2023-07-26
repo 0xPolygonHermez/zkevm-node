@@ -481,17 +481,6 @@ func (p *PostgresPoolStorage) SetGasPrices(ctx context.Context, l2GasPrice, l1Ga
 		return err
 	}
 
-	//LEVITATION_BEGIN
-	levitationPoolStorage, err := NewLevitationPoolStorage()
-	if err != nil {
-		return err
-	}
-	err = levitationPoolStorage.LevitationSetGasPrices(l2GasPrice, l1GasPrice, time.Now().UTC())
-	if err != nil {
-		return err
-	}
-	//LEVITATION_END
-
 	return nil
 }
 
