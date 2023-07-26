@@ -28,7 +28,7 @@ Development Milestones:
 # Clone repo 
 ```
 git clone --recurse-submodules https://github.com/skalenetwork/levitation_module_polygon_hermez.git
-cd skaled
+cd levitation_module_polygon_hermez
 ```
 
 # Build on Ubuntu 22
@@ -39,6 +39,12 @@ Install Go Version 1.20
 sudo add-apt-repository ppa:longsleep/golang-backports
 sudo apt-get update
 sudo apt-get install golang-go
+```
+
+Build node 
+
+```
+make build
 ```
 
 # Simple way to run tests
