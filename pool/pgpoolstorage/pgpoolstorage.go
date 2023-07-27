@@ -131,64 +131,6 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 	return nil
 }
 
-// LEVITATION_BEGIN
-// Adds a transaction to the Levitation PendingQueue
-/*
-func (p *PostgresPoolStorage) AddTxToDecentralizedSequencerPendingQueue(ctx context.Context, tx pool.Transaction) error {
-	hash := tx.Hash().Hex()
-
-	b, err := tx.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	encoded := hex.EncodeToHex(b)
-
-	b, err = tx.MarshalJSON()
-	if err != nil {
-		return err
-	}
-	decoded := string(b)
-
-	gasPrice := tx.GasPrice().Uint64()
-	nonce := tx.Nonce()
-
-	// Get FromAddress from the JSON data
-	data, err := state.GetSender(tx.Transaction)
-	if err != nil {
-		return err
-	}
-	fromAddress := data.String()
-
-	levitationPoolStorage, err := NewLevitationPoolStorage()
-	if err != nil {
-		return err
-	}
-
-	err = levitationPoolStorage.AddTx(
-		hash,
-		encoded,
-		decoded,
-		tx.Status,
-		gasPrice,
-		nonce,
-		tx.CumulativeGasUsed,
-		tx.UsedKeccakHashes,
-		tx.UsedPoseidonHashes,
-		tx.UsedPoseidonPaddings,
-		tx.UsedMemAligns,
-		tx.UsedArithmetics,
-		tx.UsedBinaries,
-		tx.UsedSteps,
-		tx.ReceivedAt,
-		fromAddress,
-		tx.IsWIP,
-		tx.IP)
-
-	return err
-}
-*/
-//SKALE_END
-
 // GetTxsByStatus returns an array of transactions filtered by status
 // limit parameter is used to limit amount txs from the db,
 // if limit = 0, then there is no limit
