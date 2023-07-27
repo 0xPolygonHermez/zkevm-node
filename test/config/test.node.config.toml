@@ -152,26 +152,3 @@ Host = "zkevm-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200
-
-[Batch]
-    [Batch.Constraints]
-        MaxTxsPerBatch = 300
-        MaxBatchBytesSize = 120000
-        MaxCumulativeGasUsed = 30000000
-        MaxKeccakHashes = 2145
-        MaxPoseidonHashes = 252357
-        MaxPoseidonPaddings = 135191
-        MaxMemAligns = 236585
-        MaxArithmetics = 236585
-        MaxBinaries = 473170
-        MaxSteps = 7570538
-    [Batch.ResourceWeights]
-        WeightBatchBytesSize = 1
-        WeightCumulativeGasUsed = 1
-        WeightKeccakHashes = 1
-        WeightPoseidonHashes = 1
-        WeightPoseidonPaddings = 1
-        WeightMemAligns = 1
-        WeightArithmetics = 1
-        WeightBinaries = 1
-        WeightSteps = 1
