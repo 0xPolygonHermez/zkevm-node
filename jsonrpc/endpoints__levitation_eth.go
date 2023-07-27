@@ -1,3 +1,4 @@
+// LEVITATION_BEGIN
 package jsonrpc
 
 import (
@@ -10,8 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
-
-// LEVITATION_BEGIN
 
 // SendRawTransaction has two different ways to handle new transactions:
 // - for Sequencer nodes it tries to add the tx to the pool
@@ -92,3 +91,5 @@ func (e *EthEndpoints) relayTxToDecentralizedSequencer(input string) (interface{
 
 	return txHash, nil
 }
+
+//LEVITATION_END
