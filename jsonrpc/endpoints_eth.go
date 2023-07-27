@@ -793,6 +793,8 @@ func (e *EthEndpoints) newPendingTransactionFilter(wsConn *websocket.Conn) (inte
 	// return id, nil
 }
 
+// LEVITATION_BEGIN
+
 // SendRawTransaction has two different ways to handle new transactions:
 // - for Sequencer nodes it tries to add the tx to the pool
 // - for Non-Sequencer nodes it relays the Tx to the Sequencer node
@@ -810,17 +812,36 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 		if ips != "" {
 			ip = strings.Split(ips, ",")[0]
 		}
-		// LEVITATION_START
+
 		hash, err := e.tryVerifyTx(input, ip)
 		_ = hash
 		if err != nil {
 			return nil, err
 		}
-		// LEVITATION_END
 
+		return e.SendRawTransactionFromSequencer(httpRequest, input)
+	}
+}
+
+func (e *EthEndpoints) SendRawTransactionFromSequencer(httpRequest *http.Request, input string) (interface{}, types.Error) {
+	if e.cfg.SequencerNodeURI != "" {
+		return e.relayTxToSequencerNode(input)
+	} else {
+		ip := ""
+		ips := httpRequest.Header.Get("X-Forwarded-For")
+
+		// TODO: this is temporary patch remove this log
+		realIp := httpRequest.Header.Get("X-Real-IP")
+		log.Infof("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
+
+		if ips != "" {
+			ip = strings.Split(ips, ",")[0]
+		}
 		return e.tryToAddTxToPool(input, ip)
 	}
 }
+
+// LEVITATION_END
 
 func (e *EthEndpoints) relayTxToSequencerNode(input string) (interface{}, types.Error) {
 	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_sendRawTransaction", input)
