@@ -175,7 +175,8 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		// Do not add tx to the pool
 		return err
 	} else if err != nil {
-		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
+		log.Errorf("Pre execution error: %v", err)
+		return err
 	}
 
 	if preExecutionResponse.isOOC {
