@@ -131,7 +131,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 	return nil
 }
 
-// SKALE_BEGIN
+// LEVITATION_BEGIN
 // Adds a transaction to the Levitation PendingQueue
 /*
 func (p *PostgresPoolStorage) AddTxToDecentralizedSequencerPendingQueue(ctx context.Context, tx pool.Transaction) error {
