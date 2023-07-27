@@ -165,15 +165,6 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error
 	return p.StoreTx(ctx, tx, ip, false)
 }
 
-// LEVITATION_BEGIN
-// VerifyTx withouyt adding it to the pool. It will go to Levitation chain PendingQueue contract after verification
-func (p *Pool) VerifyTx(ctx context.Context, tx types.Transaction, ip string) error {
-	poolTx := NewTransaction(tx, ip, false)
-	return p.validateTx(ctx, *poolTx)
-}
-
-//LEVITATION_END
-
 // StoreTx adds a transaction to the pool with the pending state
 func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isWIP bool) error {
 	// Execute transaction to calculate its zkCounters
