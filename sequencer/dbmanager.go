@@ -21,7 +21,7 @@ type dbManager struct {
 	worker           workerInterface
 	l2ReorgCh        chan L2ReorgEvent
 	ctx              context.Context
-	batchConstraints pool.BatchConstraintsCfg
+	batchConstraints state.BatchConstraintsCfg
 	numberOfReorgs   uint64
 }
 
@@ -41,7 +41,7 @@ type ClosingBatchParameters struct {
 	EffectivePercentages []uint8
 }
 
-func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, batchConstraints pool.BatchConstraintsCfg) *dbManager {
+func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, batchConstraints state.BatchConstraintsCfg) *dbManager {
 	numberOfReorgs, err := state.CountReorgs(ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)

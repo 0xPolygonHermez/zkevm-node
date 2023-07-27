@@ -22,13 +22,13 @@ type Worker struct {
 	efficiencyList          *efficiencyList
 	workerMutex             sync.Mutex
 	state                   stateInterface
-	batchConstraints        pool.BatchConstraintsCfg
+	batchConstraints        state.BatchConstraintsCfg
 	batchConstraintsFloat64 batchConstraintsFloat64
-	batchResourceWeights    pool.BatchResourceWeights
+	batchResourceWeights    state.BatchResourceWeights
 }
 
 // NewWorker creates an init a worker
-func NewWorker(cfg WorkerCfg, state stateInterface, constraints pool.BatchConstraintsCfg, weights pool.BatchResourceWeights) *Worker {
+func NewWorker(cfg WorkerCfg, state stateInterface, constraints state.BatchConstraintsCfg, weights state.BatchResourceWeights) *Worker {
 	w := Worker{
 		cfg:                     cfg,
 		pool:                    make(map[string]*addrQueue),
@@ -334,7 +334,7 @@ func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
 }
 
 // convertBatchConstraintsToFloat64 converts the batch Constraints to float64
-func convertBatchConstraintsToFloat64(constraints pool.BatchConstraintsCfg) batchConstraintsFloat64 {
+func convertBatchConstraintsToFloat64(constraints state.BatchConstraintsCfg) batchConstraintsFloat64 {
 	return batchConstraintsFloat64{
 		maxTxsPerBatch:       float64(constraints.MaxTxsPerBatch),
 		maxBatchBytesSize:    float64(constraints.MaxBatchBytesSize),

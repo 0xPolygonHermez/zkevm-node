@@ -23,11 +23,10 @@
 | - [L2GasPriceSuggester](#L2GasPriceSuggester )       | No      | object  | No         | -          | Configuration of the gas price suggester service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | - [Executor](#Executor )                             | No      | object  | No         | -          | Configuration of the executor service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | - [MTClient](#MTClient )                             | No      | object  | No         | -          | Configuration of the merkle tree client service. Not use in the node, only for testing                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| - [StateDB](#StateDB )                               | No      | object  | No         | -          | Configuration of the state database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | - [Metrics](#Metrics )                               | No      | object  | No         | -          | Configuration of the metrics service, basically is where is going to publish the metrics                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | - [EventLog](#EventLog )                             | No      | object  | No         | -          | Configuration of the event database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | - [HashDB](#HashDB )                                 | No      | object  | No         | -          | Configuration of the hash database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| - [Batch](#Batch )                                   | No      | object  | No         | -          | Configuration of the batch service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| - [State](#State )                                   | No      | object  | No         | -          | Configuration of the state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ## <a name="IsTrustedSequencer"></a>1. `IsTrustedSequencer`
 
@@ -2354,120 +2353,7 @@ MaxGRPCMessageSize=100000000
 URI="zkevm-prover:50061"
 ```
 
-## <a name="StateDB"></a>17. `[StateDB]`
-
-**Type:** : `object`
-**Description:** Configuration of the state database connection
-
-| Property                           | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
-| ---------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
-| - [Name](#StateDB_Name )           | No      | string  | No         | -          | Database name                                              |
-| - [User](#StateDB_User )           | No      | string  | No         | -          | Database User name                                         |
-| - [Password](#StateDB_Password )   | No      | string  | No         | -          | Database Password of the user                              |
-| - [Host](#StateDB_Host )           | No      | string  | No         | -          | Host address of database                                   |
-| - [Port](#StateDB_Port )           | No      | string  | No         | -          | Port Number of database                                    |
-| - [EnableLog](#StateDB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
-| - [MaxConns](#StateDB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
-
-### <a name="StateDB_Name"></a>17.1. `StateDB.Name`
-
-**Type:** : `string`
-
-**Default:** `"state_db"`
-
-**Description:** Database name
-
-**Example setting the default value** ("state_db"):
-```
-[StateDB]
-Name="state_db"
-```
-
-### <a name="StateDB_User"></a>17.2. `StateDB.User`
-
-**Type:** : `string`
-
-**Default:** `"state_user"`
-
-**Description:** Database User name
-
-**Example setting the default value** ("state_user"):
-```
-[StateDB]
-User="state_user"
-```
-
-### <a name="StateDB_Password"></a>17.3. `StateDB.Password`
-
-**Type:** : `string`
-
-**Default:** `"state_password"`
-
-**Description:** Database Password of the user
-
-**Example setting the default value** ("state_password"):
-```
-[StateDB]
-Password="state_password"
-```
-
-### <a name="StateDB_Host"></a>17.4. `StateDB.Host`
-
-**Type:** : `string`
-
-**Default:** `"zkevm-state-db"`
-
-**Description:** Host address of database
-
-**Example setting the default value** ("zkevm-state-db"):
-```
-[StateDB]
-Host="zkevm-state-db"
-```
-
-### <a name="StateDB_Port"></a>17.5. `StateDB.Port`
-
-**Type:** : `string`
-
-**Default:** `"5432"`
-
-**Description:** Port Number of database
-
-**Example setting the default value** ("5432"):
-```
-[StateDB]
-Port="5432"
-```
-
-### <a name="StateDB_EnableLog"></a>17.6. `StateDB.EnableLog`
-
-**Type:** : `boolean`
-
-**Default:** `false`
-
-**Description:** EnableLog
-
-**Example setting the default value** (false):
-```
-[StateDB]
-EnableLog=false
-```
-
-### <a name="StateDB_MaxConns"></a>17.7. `StateDB.MaxConns`
-
-**Type:** : `integer`
-
-**Default:** `200`
-
-**Description:** MaxConns is the maximum number of connections in the pool.
-
-**Example setting the default value** (200):
-```
-[StateDB]
-MaxConns=200
-```
-
-## <a name="Metrics"></a>18. `[Metrics]`
+## <a name="Metrics"></a>17. `[Metrics]`
 
 **Type:** : `object`
 **Description:** Configuration of the metrics service, basically is where is going to publish the metrics
@@ -2481,7 +2367,7 @@ MaxConns=200
 | - [ProfilingPort](#Metrics_ProfilingPort )       | No      | integer | No         | -          | ProfilingPort is the port to bind the profiling server              |
 | - [ProfilingEnabled](#Metrics_ProfilingEnabled ) | No      | boolean | No         | -          | ProfilingEnabled is the flag to enable/disable the profiling server |
 
-### <a name="Metrics_Host"></a>18.1. `Metrics.Host`
+### <a name="Metrics_Host"></a>17.1. `Metrics.Host`
 
 **Type:** : `string`
 
@@ -2495,7 +2381,7 @@ MaxConns=200
 Host="0.0.0.0"
 ```
 
-### <a name="Metrics_Port"></a>18.2. `Metrics.Port`
+### <a name="Metrics_Port"></a>17.2. `Metrics.Port`
 
 **Type:** : `integer`
 
@@ -2509,7 +2395,7 @@ Host="0.0.0.0"
 Port=9091
 ```
 
-### <a name="Metrics_Enabled"></a>18.3. `Metrics.Enabled`
+### <a name="Metrics_Enabled"></a>17.3. `Metrics.Enabled`
 
 **Type:** : `boolean`
 
@@ -2523,7 +2409,7 @@ Port=9091
 Enabled=false
 ```
 
-### <a name="Metrics_ProfilingHost"></a>18.4. `Metrics.ProfilingHost`
+### <a name="Metrics_ProfilingHost"></a>17.4. `Metrics.ProfilingHost`
 
 **Type:** : `string`
 
@@ -2537,7 +2423,7 @@ Enabled=false
 ProfilingHost=""
 ```
 
-### <a name="Metrics_ProfilingPort"></a>18.5. `Metrics.ProfilingPort`
+### <a name="Metrics_ProfilingPort"></a>17.5. `Metrics.ProfilingPort`
 
 **Type:** : `integer`
 
@@ -2551,7 +2437,7 @@ ProfilingHost=""
 ProfilingPort=0
 ```
 
-### <a name="Metrics_ProfilingEnabled"></a>18.6. `Metrics.ProfilingEnabled`
+### <a name="Metrics_ProfilingEnabled"></a>17.6. `Metrics.ProfilingEnabled`
 
 **Type:** : `boolean`
 
@@ -2565,7 +2451,7 @@ ProfilingPort=0
 ProfilingEnabled=false
 ```
 
-## <a name="EventLog"></a>19. `[EventLog]`
+## <a name="EventLog"></a>18. `[EventLog]`
 
 **Type:** : `object`
 **Description:** Configuration of the event database connection
@@ -2574,7 +2460,7 @@ ProfilingEnabled=false
 | --------------------- | ------- | ------ | ---------- | ---------- | -------------------------------- |
 | - [DB](#EventLog_DB ) | No      | object | No         | -          | DB is the database configuration |
 
-### <a name="EventLog_DB"></a>19.1. `[EventLog.DB]`
+### <a name="EventLog_DB"></a>18.1. `[EventLog.DB]`
 
 **Type:** : `object`
 **Description:** DB is the database configuration
@@ -2589,7 +2475,7 @@ ProfilingEnabled=false
 | - [EnableLog](#EventLog_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#EventLog_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-#### <a name="EventLog_DB_Name"></a>19.1.1. `EventLog.DB.Name`
+#### <a name="EventLog_DB_Name"></a>18.1.1. `EventLog.DB.Name`
 
 **Type:** : `string`
 
@@ -2603,7 +2489,7 @@ ProfilingEnabled=false
 Name=""
 ```
 
-#### <a name="EventLog_DB_User"></a>19.1.2. `EventLog.DB.User`
+#### <a name="EventLog_DB_User"></a>18.1.2. `EventLog.DB.User`
 
 **Type:** : `string`
 
@@ -2617,7 +2503,7 @@ Name=""
 User=""
 ```
 
-#### <a name="EventLog_DB_Password"></a>19.1.3. `EventLog.DB.Password`
+#### <a name="EventLog_DB_Password"></a>18.1.3. `EventLog.DB.Password`
 
 **Type:** : `string`
 
@@ -2631,7 +2517,7 @@ User=""
 Password=""
 ```
 
-#### <a name="EventLog_DB_Host"></a>19.1.4. `EventLog.DB.Host`
+#### <a name="EventLog_DB_Host"></a>18.1.4. `EventLog.DB.Host`
 
 **Type:** : `string`
 
@@ -2645,7 +2531,7 @@ Password=""
 Host=""
 ```
 
-#### <a name="EventLog_DB_Port"></a>19.1.5. `EventLog.DB.Port`
+#### <a name="EventLog_DB_Port"></a>18.1.5. `EventLog.DB.Port`
 
 **Type:** : `string`
 
@@ -2659,7 +2545,7 @@ Host=""
 Port=""
 ```
 
-#### <a name="EventLog_DB_EnableLog"></a>19.1.6. `EventLog.DB.EnableLog`
+#### <a name="EventLog_DB_EnableLog"></a>18.1.6. `EventLog.DB.EnableLog`
 
 **Type:** : `boolean`
 
@@ -2673,7 +2559,7 @@ Port=""
 EnableLog=false
 ```
 
-#### <a name="EventLog_DB_MaxConns"></a>19.1.7. `EventLog.DB.MaxConns`
+#### <a name="EventLog_DB_MaxConns"></a>18.1.7. `EventLog.DB.MaxConns`
 
 **Type:** : `integer`
 
@@ -2687,7 +2573,7 @@ EnableLog=false
 MaxConns=0
 ```
 
-## <a name="HashDB"></a>20. `[HashDB]`
+## <a name="HashDB"></a>19. `[HashDB]`
 
 **Type:** : `object`
 **Description:** Configuration of the hash database connection
@@ -2702,7 +2588,7 @@ MaxConns=0
 | - [EnableLog](#HashDB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#HashDB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-### <a name="HashDB_Name"></a>20.1. `HashDB.Name`
+### <a name="HashDB_Name"></a>19.1. `HashDB.Name`
 
 **Type:** : `string`
 
@@ -2716,7 +2602,7 @@ MaxConns=0
 Name="prover_db"
 ```
 
-### <a name="HashDB_User"></a>20.2. `HashDB.User`
+### <a name="HashDB_User"></a>19.2. `HashDB.User`
 
 **Type:** : `string`
 
@@ -2730,7 +2616,7 @@ Name="prover_db"
 User="prover_user"
 ```
 
-### <a name="HashDB_Password"></a>20.3. `HashDB.Password`
+### <a name="HashDB_Password"></a>19.3. `HashDB.Password`
 
 **Type:** : `string`
 
@@ -2744,7 +2630,7 @@ User="prover_user"
 Password="prover_pass"
 ```
 
-### <a name="HashDB_Host"></a>20.4. `HashDB.Host`
+### <a name="HashDB_Host"></a>19.4. `HashDB.Host`
 
 **Type:** : `string`
 
@@ -2758,7 +2644,7 @@ Password="prover_pass"
 Host="zkevm-state-db"
 ```
 
-### <a name="HashDB_Port"></a>20.5. `HashDB.Port`
+### <a name="HashDB_Port"></a>19.5. `HashDB.Port`
 
 **Type:** : `string`
 
@@ -2772,7 +2658,7 @@ Host="zkevm-state-db"
 Port="5432"
 ```
 
-### <a name="HashDB_EnableLog"></a>20.6. `HashDB.EnableLog`
+### <a name="HashDB_EnableLog"></a>19.6. `HashDB.EnableLog`
 
 **Type:** : `boolean`
 
@@ -2786,7 +2672,7 @@ Port="5432"
 EnableLog=false
 ```
 
-### <a name="HashDB_MaxConns"></a>20.7. `HashDB.MaxConns`
+### <a name="HashDB_MaxConns"></a>19.7. `HashDB.MaxConns`
 
 **Type:** : `integer`
 
@@ -2800,34 +2686,305 @@ EnableLog=false
 MaxConns=200
 ```
 
-## <a name="Batch"></a>21. `[Batch]`
+## <a name="State"></a>20. `[State]`
 
 **Type:** : `object`
-**Description:** Configuration of the batch service
+**Description:** Configuration of the state
 
-| Property                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
-| -------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| - [Constraints](#Batch_Constraints )         | No      | object | No         | -          | -                 |
-| - [ResourceWeights](#Batch_ResourceWeights ) | No      | object | No         | -          | -                 |
+| Property                                                               | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                       |
+| ---------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------- |
+| - [MaxCumulativeGasUsed](#State_MaxCumulativeGasUsed )                 | No      | integer         | No         | -          | MaxCumulativeGasUsed is the max gas allowed per batch                                                                   |
+| - [ChainID](#State_ChainID )                                           | No      | integer         | No         | -          | ChainID is the L2 ChainID provided by the Network Config                                                                |
+| - [ForkIDIntervals](#State_ForkIDIntervals )                           | No      | array of object | No         | -          | ForkIdIntervals is the list of fork id intervals                                                                        |
+| - [MaxResourceExhaustedAttempts](#State_MaxResourceExhaustedAttempts ) | No      | integer         | No         | -          | MaxResourceExhaustedAttempts is the max number of attempts to make a transaction succeed because of resource exhaustion |
+| - [WaitOnResourceExhaustion](#State_WaitOnResourceExhaustion )         | No      | string          | No         | -          | Duration                                                                                                                |
+| - [ForkUpgradeBatchNumber](#State_ForkUpgradeBatchNumber )             | No      | integer         | No         | -          | Batch number from which there is a forkid change (fork upgrade)                                                         |
+| - [ForkUpgradeNewForkId](#State_ForkUpgradeNewForkId )                 | No      | integer         | No         | -          | New fork id to be used for batches greaters than ForkUpgradeBatchNumber (fork upgrade)                                  |
+| - [DB](#State_DB )                                                     | No      | object          | No         | -          | Configuration of the state database connection                                                                          |
+| - [Batch](#State_Batch )                                               | No      | object          | No         | -          | Configuration for the batch constraints                                                                                 |
 
-### <a name="Batch_Constraints"></a>21.1. `[Batch.Constraints]`
+### <a name="State_MaxCumulativeGasUsed"></a>20.1. `State.MaxCumulativeGasUsed`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** MaxCumulativeGasUsed is the max gas allowed per batch
+
+**Example setting the default value** (0):
+```
+[State]
+MaxCumulativeGasUsed=0
+```
+
+### <a name="State_ChainID"></a>20.2. `State.ChainID`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** ChainID is the L2 ChainID provided by the Network Config
+
+**Example setting the default value** (0):
+```
+[State]
+ChainID=0
+```
+
+### <a name="State_ForkIDIntervals"></a>20.3. `State.ForkIDIntervals`
+
+**Type:** : `array of object`
+**Description:** ForkIdIntervals is the list of fork id intervals
+
+|                      | Array restrictions |
+| -------------------- | ------------------ |
+| **Min items**        | N/A                |
+| **Max items**        | N/A                |
+| **Items unicity**    | False              |
+| **Additional items** | False              |
+| **Tuple validation** | See below          |
+
+| Each item of this array must be                       | Description                          |
+| ----------------------------------------------------- | ------------------------------------ |
+| [ForkIDIntervals items](#State_ForkIDIntervals_items) | ForkIDInterval is a fork id interval |
+
+#### <a name="autogenerated_heading_5"></a>20.3.1. [State.ForkIDIntervals.ForkIDIntervals items]
 
 **Type:** : `object`
+**Description:** ForkIDInterval is a fork id interval
 
 | Property                                                           | Pattern | Type    | Deprecated | Definition | Title/Description |
 | ------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [MaxTxsPerBatch](#Batch_Constraints_MaxTxsPerBatch )             | No      | integer | No         | -          | -                 |
-| - [MaxBatchBytesSize](#Batch_Constraints_MaxBatchBytesSize )       | No      | integer | No         | -          | -                 |
-| - [MaxCumulativeGasUsed](#Batch_Constraints_MaxCumulativeGasUsed ) | No      | integer | No         | -          | -                 |
-| - [MaxKeccakHashes](#Batch_Constraints_MaxKeccakHashes )           | No      | integer | No         | -          | -                 |
-| - [MaxPoseidonHashes](#Batch_Constraints_MaxPoseidonHashes )       | No      | integer | No         | -          | -                 |
-| - [MaxPoseidonPaddings](#Batch_Constraints_MaxPoseidonPaddings )   | No      | integer | No         | -          | -                 |
-| - [MaxMemAligns](#Batch_Constraints_MaxMemAligns )                 | No      | integer | No         | -          | -                 |
-| - [MaxArithmetics](#Batch_Constraints_MaxArithmetics )             | No      | integer | No         | -          | -                 |
-| - [MaxBinaries](#Batch_Constraints_MaxBinaries )                   | No      | integer | No         | -          | -                 |
-| - [MaxSteps](#Batch_Constraints_MaxSteps )                         | No      | integer | No         | -          | -                 |
+| - [FromBatchNumber](#State_ForkIDIntervals_items_FromBatchNumber ) | No      | integer | No         | -          | -                 |
+| - [ToBatchNumber](#State_ForkIDIntervals_items_ToBatchNumber )     | No      | integer | No         | -          | -                 |
+| - [ForkId](#State_ForkIDIntervals_items_ForkId )                   | No      | integer | No         | -          | -                 |
+| - [Version](#State_ForkIDIntervals_items_Version )                 | No      | string  | No         | -          | -                 |
 
-#### <a name="Batch_Constraints_MaxTxsPerBatch"></a>21.1.1. `Batch.Constraints.MaxTxsPerBatch`
+##### <a name="State_ForkIDIntervals_items_FromBatchNumber"></a>20.3.1.1. `State.ForkIDIntervals.ForkIDIntervals items.FromBatchNumber`
+
+**Type:** : `integer`
+
+##### <a name="State_ForkIDIntervals_items_ToBatchNumber"></a>20.3.1.2. `State.ForkIDIntervals.ForkIDIntervals items.ToBatchNumber`
+
+**Type:** : `integer`
+
+##### <a name="State_ForkIDIntervals_items_ForkId"></a>20.3.1.3. `State.ForkIDIntervals.ForkIDIntervals items.ForkId`
+
+**Type:** : `integer`
+
+##### <a name="State_ForkIDIntervals_items_Version"></a>20.3.1.4. `State.ForkIDIntervals.ForkIDIntervals items.Version`
+
+**Type:** : `string`
+
+### <a name="State_MaxResourceExhaustedAttempts"></a>20.4. `State.MaxResourceExhaustedAttempts`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** MaxResourceExhaustedAttempts is the max number of attempts to make a transaction succeed because of resource exhaustion
+
+**Example setting the default value** (0):
+```
+[State]
+MaxResourceExhaustedAttempts=0
+```
+
+### <a name="State_WaitOnResourceExhaustion"></a>20.5. `State.WaitOnResourceExhaustion`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"0s"`
+
+**Description:** WaitOnResourceExhaustion is the time to wait before retrying a transaction because of resource exhaustion
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("0s"):
+```
+[State]
+WaitOnResourceExhaustion="0s"
+```
+
+### <a name="State_ForkUpgradeBatchNumber"></a>20.6. `State.ForkUpgradeBatchNumber`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Batch number from which there is a forkid change (fork upgrade)
+
+**Example setting the default value** (0):
+```
+[State]
+ForkUpgradeBatchNumber=0
+```
+
+### <a name="State_ForkUpgradeNewForkId"></a>20.7. `State.ForkUpgradeNewForkId`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** New fork id to be used for batches greaters than ForkUpgradeBatchNumber (fork upgrade)
+
+**Example setting the default value** (0):
+```
+[State]
+ForkUpgradeNewForkId=0
+```
+
+### <a name="State_DB"></a>20.8. `[State.DB]`
+
+**Type:** : `object`
+**Description:** Configuration of the state database connection
+
+| Property                            | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
+| ----------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |
+| - [Name](#State_DB_Name )           | No      | string  | No         | -          | Database name                                              |
+| - [User](#State_DB_User )           | No      | string  | No         | -          | Database User name                                         |
+| - [Password](#State_DB_Password )   | No      | string  | No         | -          | Database Password of the user                              |
+| - [Host](#State_DB_Host )           | No      | string  | No         | -          | Host address of database                                   |
+| - [Port](#State_DB_Port )           | No      | string  | No         | -          | Port Number of database                                    |
+| - [EnableLog](#State_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
+| - [MaxConns](#State_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
+
+#### <a name="State_DB_Name"></a>20.8.1. `State.DB.Name`
+
+**Type:** : `string`
+
+**Default:** `"state_db"`
+
+**Description:** Database name
+
+**Example setting the default value** ("state_db"):
+```
+[State.DB]
+Name="state_db"
+```
+
+#### <a name="State_DB_User"></a>20.8.2. `State.DB.User`
+
+**Type:** : `string`
+
+**Default:** `"state_user"`
+
+**Description:** Database User name
+
+**Example setting the default value** ("state_user"):
+```
+[State.DB]
+User="state_user"
+```
+
+#### <a name="State_DB_Password"></a>20.8.3. `State.DB.Password`
+
+**Type:** : `string`
+
+**Default:** `"state_password"`
+
+**Description:** Database Password of the user
+
+**Example setting the default value** ("state_password"):
+```
+[State.DB]
+Password="state_password"
+```
+
+#### <a name="State_DB_Host"></a>20.8.4. `State.DB.Host`
+
+**Type:** : `string`
+
+**Default:** `"zkevm-state-db"`
+
+**Description:** Host address of database
+
+**Example setting the default value** ("zkevm-state-db"):
+```
+[State.DB]
+Host="zkevm-state-db"
+```
+
+#### <a name="State_DB_Port"></a>20.8.5. `State.DB.Port`
+
+**Type:** : `string`
+
+**Default:** `"5432"`
+
+**Description:** Port Number of database
+
+**Example setting the default value** ("5432"):
+```
+[State.DB]
+Port="5432"
+```
+
+#### <a name="State_DB_EnableLog"></a>20.8.6. `State.DB.EnableLog`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** EnableLog
+
+**Example setting the default value** (false):
+```
+[State.DB]
+EnableLog=false
+```
+
+#### <a name="State_DB_MaxConns"></a>20.8.7. `State.DB.MaxConns`
+
+**Type:** : `integer`
+
+**Default:** `200`
+
+**Description:** MaxConns is the maximum number of connections in the pool.
+
+**Example setting the default value** (200):
+```
+[State.DB]
+MaxConns=200
+```
+
+### <a name="State_Batch"></a>20.9. `[State.Batch]`
+
+**Type:** : `object`
+**Description:** Configuration for the batch constraints
+
+| Property                                           | Pattern | Type   | Deprecated | Definition | Title/Description |
+| -------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
+| - [Constraints](#State_Batch_Constraints )         | No      | object | No         | -          | -                 |
+| - [ResourceWeights](#State_Batch_ResourceWeights ) | No      | object | No         | -          | -                 |
+
+#### <a name="State_Batch_Constraints"></a>20.9.1. `[State.Batch.Constraints]`
+
+**Type:** : `object`
+
+| Property                                                                 | Pattern | Type    | Deprecated | Definition | Title/Description |
+| ------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [MaxTxsPerBatch](#State_Batch_Constraints_MaxTxsPerBatch )             | No      | integer | No         | -          | -                 |
+| - [MaxBatchBytesSize](#State_Batch_Constraints_MaxBatchBytesSize )       | No      | integer | No         | -          | -                 |
+| - [MaxCumulativeGasUsed](#State_Batch_Constraints_MaxCumulativeGasUsed ) | No      | integer | No         | -          | -                 |
+| - [MaxKeccakHashes](#State_Batch_Constraints_MaxKeccakHashes )           | No      | integer | No         | -          | -                 |
+| - [MaxPoseidonHashes](#State_Batch_Constraints_MaxPoseidonHashes )       | No      | integer | No         | -          | -                 |
+| - [MaxPoseidonPaddings](#State_Batch_Constraints_MaxPoseidonPaddings )   | No      | integer | No         | -          | -                 |
+| - [MaxMemAligns](#State_Batch_Constraints_MaxMemAligns )                 | No      | integer | No         | -          | -                 |
+| - [MaxArithmetics](#State_Batch_Constraints_MaxArithmetics )             | No      | integer | No         | -          | -                 |
+| - [MaxBinaries](#State_Batch_Constraints_MaxBinaries )                   | No      | integer | No         | -          | -                 |
+| - [MaxSteps](#State_Batch_Constraints_MaxSteps )                         | No      | integer | No         | -          | -                 |
+
+##### <a name="State_Batch_Constraints_MaxTxsPerBatch"></a>20.9.1.1. `State.Batch.Constraints.MaxTxsPerBatch`
 
 **Type:** : `integer`
 
@@ -2835,11 +2992,11 @@ MaxConns=200
 
 **Example setting the default value** (300):
 ```
-[Batch.Constraints]
+[State.Batch.Constraints]
 MaxTxsPerBatch=300
 ```
 
-#### <a name="Batch_Constraints_MaxBatchBytesSize"></a>21.1.2. `Batch.Constraints.MaxBatchBytesSize`
+##### <a name="State_Batch_Constraints_MaxBatchBytesSize"></a>20.9.1.2. `State.Batch.Constraints.MaxBatchBytesSize`
 
 **Type:** : `integer`
 
@@ -2847,11 +3004,11 @@ MaxTxsPerBatch=300
 
 **Example setting the default value** (120000):
 ```
-[Batch.Constraints]
+[State.Batch.Constraints]
 MaxBatchBytesSize=120000
 ```
 
-#### <a name="Batch_Constraints_MaxCumulativeGasUsed"></a>21.1.3. `Batch.Constraints.MaxCumulativeGasUsed`
+##### <a name="State_Batch_Constraints_MaxCumulativeGasUsed"></a>20.9.1.3. `State.Batch.Constraints.MaxCumulativeGasUsed`
 
 **Type:** : `integer`
 
@@ -2859,11 +3016,11 @@ MaxBatchBytesSize=120000
 
 **Example setting the default value** (30000000):
 ```
-[Batch.Constraints]
+[State.Batch.Constraints]
 MaxCumulativeGasUsed=30000000
 ```
 
-#### <a name="Batch_Constraints_MaxKeccakHashes"></a>21.1.4. `Batch.Constraints.MaxKeccakHashes`
+##### <a name="State_Batch_Constraints_MaxKeccakHashes"></a>20.9.1.4. `State.Batch.Constraints.MaxKeccakHashes`
 
 **Type:** : `integer`
 
@@ -2871,11 +3028,11 @@ MaxCumulativeGasUsed=30000000
 
 **Example setting the default value** (2145):
 ```
-[Batch.Constraints]
+[State.Batch.Constraints]
 MaxKeccakHashes=2145
 ```
 
-#### <a name="Batch_Constraints_MaxPoseidonHashes"></a>21.1.5. `Batch.Constraints.MaxPoseidonHashes`
+##### <a name="State_Batch_Constraints_MaxPoseidonHashes"></a>20.9.1.5. `State.Batch.Constraints.MaxPoseidonHashes`
 
 **Type:** : `integer`
 
@@ -2883,11 +3040,11 @@ MaxKeccakHashes=2145
 
 **Example setting the default value** (252357):
 ```
-[Batch.Constraints]
+[State.Batch.Constraints]
 MaxPoseidonHashes=252357
 ```
 
-#### <a name="Batch_Constraints_MaxPoseidonPaddings"></a>21.1.6. `Batch.Constraints.MaxPoseidonPaddings`
+##### <a name="State_Batch_Constraints_MaxPoseidonPaddings"></a>20.9.1.6. `State.Batch.Constraints.MaxPoseidonPaddings`
 
 **Type:** : `integer`
 
@@ -2895,11 +3052,11 @@ MaxPoseidonHashes=252357
 
 **Example setting the default value** (135191):
 ```
-[Batch.Constraints]
+[State.Batch.Constraints]
 MaxPoseidonPaddings=135191
 ```
 
-#### <a name="Batch_Constraints_MaxMemAligns"></a>21.1.7. `Batch.Constraints.MaxMemAligns`
+##### <a name="State_Batch_Constraints_MaxMemAligns"></a>20.9.1.7. `State.Batch.Constraints.MaxMemAligns`
 
 **Type:** : `integer`
 
@@ -2907,11 +3064,11 @@ MaxPoseidonPaddings=135191
 
 **Example setting the default value** (236585):
 ```
-[Batch.Constraints]
+[State.Batch.Constraints]
 MaxMemAligns=236585
 ```
 
-#### <a name="Batch_Constraints_MaxArithmetics"></a>21.1.8. `Batch.Constraints.MaxArithmetics`
+##### <a name="State_Batch_Constraints_MaxArithmetics"></a>20.9.1.8. `State.Batch.Constraints.MaxArithmetics`
 
 **Type:** : `integer`
 
@@ -2919,11 +3076,11 @@ MaxMemAligns=236585
 
 **Example setting the default value** (236585):
 ```
-[Batch.Constraints]
+[State.Batch.Constraints]
 MaxArithmetics=236585
 ```
 
-#### <a name="Batch_Constraints_MaxBinaries"></a>21.1.9. `Batch.Constraints.MaxBinaries`
+##### <a name="State_Batch_Constraints_MaxBinaries"></a>20.9.1.9. `State.Batch.Constraints.MaxBinaries`
 
 **Type:** : `integer`
 
@@ -2931,11 +3088,11 @@ MaxArithmetics=236585
 
 **Example setting the default value** (473170):
 ```
-[Batch.Constraints]
+[State.Batch.Constraints]
 MaxBinaries=473170
 ```
 
-#### <a name="Batch_Constraints_MaxSteps"></a>21.1.10. `Batch.Constraints.MaxSteps`
+##### <a name="State_Batch_Constraints_MaxSteps"></a>20.9.1.10. `State.Batch.Constraints.MaxSteps`
 
 **Type:** : `integer`
 
@@ -2943,27 +3100,27 @@ MaxBinaries=473170
 
 **Example setting the default value** (7570538):
 ```
-[Batch.Constraints]
+[State.Batch.Constraints]
 MaxSteps=7570538
 ```
 
-### <a name="Batch_ResourceWeights"></a>21.2. `[Batch.ResourceWeights]`
+#### <a name="State_Batch_ResourceWeights"></a>20.9.2. `[State.Batch.ResourceWeights]`
 
 **Type:** : `object`
 
-| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [WeightBatchBytesSize](#Batch_ResourceWeights_WeightBatchBytesSize )       | No      | integer | No         | -          | -                 |
-| - [WeightCumulativeGasUsed](#Batch_ResourceWeights_WeightCumulativeGasUsed ) | No      | integer | No         | -          | -                 |
-| - [WeightKeccakHashes](#Batch_ResourceWeights_WeightKeccakHashes )           | No      | integer | No         | -          | -                 |
-| - [WeightPoseidonHashes](#Batch_ResourceWeights_WeightPoseidonHashes )       | No      | integer | No         | -          | -                 |
-| - [WeightPoseidonPaddings](#Batch_ResourceWeights_WeightPoseidonPaddings )   | No      | integer | No         | -          | -                 |
-| - [WeightMemAligns](#Batch_ResourceWeights_WeightMemAligns )                 | No      | integer | No         | -          | -                 |
-| - [WeightArithmetics](#Batch_ResourceWeights_WeightArithmetics )             | No      | integer | No         | -          | -                 |
-| - [WeightBinaries](#Batch_ResourceWeights_WeightBinaries )                   | No      | integer | No         | -          | -                 |
-| - [WeightSteps](#Batch_ResourceWeights_WeightSteps )                         | No      | integer | No         | -          | -                 |
+| Property                                                                           | Pattern | Type    | Deprecated | Definition | Title/Description |
+| ---------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [WeightBatchBytesSize](#State_Batch_ResourceWeights_WeightBatchBytesSize )       | No      | integer | No         | -          | -                 |
+| - [WeightCumulativeGasUsed](#State_Batch_ResourceWeights_WeightCumulativeGasUsed ) | No      | integer | No         | -          | -                 |
+| - [WeightKeccakHashes](#State_Batch_ResourceWeights_WeightKeccakHashes )           | No      | integer | No         | -          | -                 |
+| - [WeightPoseidonHashes](#State_Batch_ResourceWeights_WeightPoseidonHashes )       | No      | integer | No         | -          | -                 |
+| - [WeightPoseidonPaddings](#State_Batch_ResourceWeights_WeightPoseidonPaddings )   | No      | integer | No         | -          | -                 |
+| - [WeightMemAligns](#State_Batch_ResourceWeights_WeightMemAligns )                 | No      | integer | No         | -          | -                 |
+| - [WeightArithmetics](#State_Batch_ResourceWeights_WeightArithmetics )             | No      | integer | No         | -          | -                 |
+| - [WeightBinaries](#State_Batch_ResourceWeights_WeightBinaries )                   | No      | integer | No         | -          | -                 |
+| - [WeightSteps](#State_Batch_ResourceWeights_WeightSteps )                         | No      | integer | No         | -          | -                 |
 
-#### <a name="Batch_ResourceWeights_WeightBatchBytesSize"></a>21.2.1. `Batch.ResourceWeights.WeightBatchBytesSize`
+##### <a name="State_Batch_ResourceWeights_WeightBatchBytesSize"></a>20.9.2.1. `State.Batch.ResourceWeights.WeightBatchBytesSize`
 
 **Type:** : `integer`
 
@@ -2971,11 +3128,11 @@ MaxSteps=7570538
 
 **Example setting the default value** (1):
 ```
-[Batch.ResourceWeights]
+[State.Batch.ResourceWeights]
 WeightBatchBytesSize=1
 ```
 
-#### <a name="Batch_ResourceWeights_WeightCumulativeGasUsed"></a>21.2.2. `Batch.ResourceWeights.WeightCumulativeGasUsed`
+##### <a name="State_Batch_ResourceWeights_WeightCumulativeGasUsed"></a>20.9.2.2. `State.Batch.ResourceWeights.WeightCumulativeGasUsed`
 
 **Type:** : `integer`
 
@@ -2983,11 +3140,11 @@ WeightBatchBytesSize=1
 
 **Example setting the default value** (1):
 ```
-[Batch.ResourceWeights]
+[State.Batch.ResourceWeights]
 WeightCumulativeGasUsed=1
 ```
 
-#### <a name="Batch_ResourceWeights_WeightKeccakHashes"></a>21.2.3. `Batch.ResourceWeights.WeightKeccakHashes`
+##### <a name="State_Batch_ResourceWeights_WeightKeccakHashes"></a>20.9.2.3. `State.Batch.ResourceWeights.WeightKeccakHashes`
 
 **Type:** : `integer`
 
@@ -2995,11 +3152,11 @@ WeightCumulativeGasUsed=1
 
 **Example setting the default value** (1):
 ```
-[Batch.ResourceWeights]
+[State.Batch.ResourceWeights]
 WeightKeccakHashes=1
 ```
 
-#### <a name="Batch_ResourceWeights_WeightPoseidonHashes"></a>21.2.4. `Batch.ResourceWeights.WeightPoseidonHashes`
+##### <a name="State_Batch_ResourceWeights_WeightPoseidonHashes"></a>20.9.2.4. `State.Batch.ResourceWeights.WeightPoseidonHashes`
 
 **Type:** : `integer`
 
@@ -3007,11 +3164,11 @@ WeightKeccakHashes=1
 
 **Example setting the default value** (1):
 ```
-[Batch.ResourceWeights]
+[State.Batch.ResourceWeights]
 WeightPoseidonHashes=1
 ```
 
-#### <a name="Batch_ResourceWeights_WeightPoseidonPaddings"></a>21.2.5. `Batch.ResourceWeights.WeightPoseidonPaddings`
+##### <a name="State_Batch_ResourceWeights_WeightPoseidonPaddings"></a>20.9.2.5. `State.Batch.ResourceWeights.WeightPoseidonPaddings`
 
 **Type:** : `integer`
 
@@ -3019,11 +3176,11 @@ WeightPoseidonHashes=1
 
 **Example setting the default value** (1):
 ```
-[Batch.ResourceWeights]
+[State.Batch.ResourceWeights]
 WeightPoseidonPaddings=1
 ```
 
-#### <a name="Batch_ResourceWeights_WeightMemAligns"></a>21.2.6. `Batch.ResourceWeights.WeightMemAligns`
+##### <a name="State_Batch_ResourceWeights_WeightMemAligns"></a>20.9.2.6. `State.Batch.ResourceWeights.WeightMemAligns`
 
 **Type:** : `integer`
 
@@ -3031,11 +3188,11 @@ WeightPoseidonPaddings=1
 
 **Example setting the default value** (1):
 ```
-[Batch.ResourceWeights]
+[State.Batch.ResourceWeights]
 WeightMemAligns=1
 ```
 
-#### <a name="Batch_ResourceWeights_WeightArithmetics"></a>21.2.7. `Batch.ResourceWeights.WeightArithmetics`
+##### <a name="State_Batch_ResourceWeights_WeightArithmetics"></a>20.9.2.7. `State.Batch.ResourceWeights.WeightArithmetics`
 
 **Type:** : `integer`
 
@@ -3043,11 +3200,11 @@ WeightMemAligns=1
 
 **Example setting the default value** (1):
 ```
-[Batch.ResourceWeights]
+[State.Batch.ResourceWeights]
 WeightArithmetics=1
 ```
 
-#### <a name="Batch_ResourceWeights_WeightBinaries"></a>21.2.8. `Batch.ResourceWeights.WeightBinaries`
+##### <a name="State_Batch_ResourceWeights_WeightBinaries"></a>20.9.2.8. `State.Batch.ResourceWeights.WeightBinaries`
 
 **Type:** : `integer`
 
@@ -3055,11 +3212,11 @@ WeightArithmetics=1
 
 **Example setting the default value** (1):
 ```
-[Batch.ResourceWeights]
+[State.Batch.ResourceWeights]
 WeightBinaries=1
 ```
 
-#### <a name="Batch_ResourceWeights_WeightSteps"></a>21.2.9. `Batch.ResourceWeights.WeightSteps`
+##### <a name="State_Batch_ResourceWeights_WeightSteps"></a>20.9.2.9. `State.Batch.ResourceWeights.WeightSteps`
 
 **Type:** : `integer`
 
@@ -3067,7 +3224,7 @@ WeightBinaries=1
 
 **Example setting the default value** (1):
 ```
-[Batch.ResourceWeights]
+[State.Batch.ResourceWeights]
 WeightSteps=1
 ```
 

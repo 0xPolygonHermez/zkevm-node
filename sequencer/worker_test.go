@@ -21,7 +21,7 @@ var (
 		ResourceCostMultiplier: 1000,
 	}
 	// Init ZKEVM resourceCostWeight values
-	rcWeight = pool.BatchResourceWeights{
+	rcWeight = state.BatchResourceWeights{
 		WeightBatchBytesSize:    2,
 		WeightCumulativeGasUsed: 1,
 		WeightArithmetics:       1,
@@ -34,7 +34,7 @@ var (
 	}
 
 	// Init ZKEVM resourceCostMax values
-	rcMax = pool.BatchConstraintsCfg{
+	rcMax = state.BatchConstraintsCfg{
 		MaxCumulativeGasUsed: 10,
 		MaxArithmetics:       10,
 		MaxBinaries:          10,
@@ -330,7 +330,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 	}
 }
 
-func initWorker(stateMock *StateMock, rcMax pool.BatchConstraintsCfg, rcWeigth pool.BatchResourceWeights) *Worker {
+func initWorker(stateMock *StateMock, rcMax state.BatchConstraintsCfg, rcWeigth state.BatchResourceWeights) *Worker {
 	worker := NewWorker(workerCfg, stateMock, rcMax, rcWeigth)
 	return worker
 }

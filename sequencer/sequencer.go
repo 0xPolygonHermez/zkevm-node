@@ -18,7 +18,7 @@ import (
 // Sequencer represents a sequencer
 type Sequencer struct {
 	cfg      Config
-	batchCfg pool.BatchConfig
+	batchCfg state.BatchConfig
 
 	pool         txPool
 	state        stateInterface
@@ -42,7 +42,7 @@ type ClosingSignalCh struct {
 }
 
 // New init sequencer
-func New(cfg Config, batchCfg pool.BatchConfig, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
+func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
@@ -224,7 +224,7 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	return true
 }
 
-func getMaxRemainingResources(constraints pool.BatchConstraintsCfg) state.BatchResources {
+func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
 			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed,

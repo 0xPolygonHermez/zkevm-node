@@ -70,7 +70,7 @@ var (
 	l1GasPrice = big.NewInt(1000000000000)
 	gasLimit   = uint64(21000)
 	chainID    = big.NewInt(1337)
-	bc         = pool.BatchConstraintsCfg{
+	bc         = state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,
@@ -1868,7 +1868,7 @@ func Test_AddTx_IPValidation(t *testing.T) {
 	}
 }
 
-func setupPool(t *testing.T, cfg pool.Config, constraintsCfg pool.BatchConstraintsCfg, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {
+func setupPool(t *testing.T, cfg pool.Config, constraintsCfg state.BatchConstraintsCfg, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {
 	p := pool.NewPool(cfg, constraintsCfg, s, st, chainID, eventLog)
 
 	err := p.SetGasPrices(ctx, gasPrice.Uint64(), l1GasPrice.Uint64())

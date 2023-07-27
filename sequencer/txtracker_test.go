@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +19,7 @@ type efficiencyCalcTestCase struct {
 
 func TestTxTrackerEfficiencyCalculation(t *testing.T) {
 	// Init ZKEVM resourceCostWeight values
-	rcWeigth := pool.BatchResourceWeights{
+	rcWeigth := state.BatchResourceWeights{
 		WeightBatchBytesSize:    2,
 		WeightCumulativeGasUsed: 1,
 		WeightArithmetics:       1,

@@ -38,7 +38,7 @@ type Pool struct {
 	state                   stateInterface
 	chainID                 uint64
 	cfg                     Config
-	batchConstraintsCfg     BatchConstraintsCfg
+	batchConstraintsCfg     state.BatchConstraintsCfg
 	blockedAddresses        sync.Map
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
@@ -64,7 +64,7 @@ type GasPrices struct {
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, batchConstraintsCfg BatchConstraintsCfg, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
+func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
 	startTimestamp := time.Now()
 	p := &Pool{
 		cfg:                     cfg,

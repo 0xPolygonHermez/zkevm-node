@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -27,7 +28,7 @@ const (
 )
 
 var (
-	bc = pool.BatchConstraintsCfg{
+	bc = state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -67,7 +66,7 @@ type batchConstraintsFloat64 struct {
 }
 
 // newTxTracker creates and inti a TxTracker
-func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints batchConstraintsFloat64, weights pool.BatchResourceWeights, resourceCostMultiplier float64, ip string) (*TxTracker, error) {
+func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints batchConstraintsFloat64, weights state.BatchResourceWeights, resourceCostMultiplier float64, ip string) (*TxTracker, error) {
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err
@@ -112,14 +111,13 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints b
 }
 
 // updateZKCounters updates the counters of the tx and recalculates the tx efficiency
-
-func (tx *TxTracker) updateZKCounters(counters state.ZKCounters, constraints batchConstraintsFloat64, weights pool.BatchResourceWeights) {
+func (tx *TxTracker) updateZKCounters(counters state.ZKCounters, constraints batchConstraintsFloat64, weights state.BatchResourceWeights) {
 	tx.BatchResources.ZKCounters = counters
 	tx.calculateEfficiency(constraints, weights)
 }
 
 // calculateEfficiency calculates the tx efficiency
-func (tx *TxTracker) calculateEfficiency(constraints batchConstraintsFloat64, weights pool.BatchResourceWeights) {
+func (tx *TxTracker) calculateEfficiency(constraints batchConstraintsFloat64, weights state.BatchResourceWeights) {
 	totalWeight := float64(weights.WeightArithmetics + weights.WeightBatchBytesSize + weights.WeightBinaries + weights.WeightCumulativeGasUsed +
 		weights.WeightKeccakHashes + weights.WeightMemAligns + weights.WeightPoseidonHashes + weights.WeightPoseidonPaddings + weights.WeightSteps)
 
@@ -152,7 +150,7 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraintsFloat64, we
 }
 
 // calculateWeightMultipliers calculates the weight multipliers for each resource
-func calculateWeightMultipliers(weights pool.BatchResourceWeights, totalWeight float64) batchResourceWeightMultipliers {
+func calculateWeightMultipliers(weights state.BatchResourceWeights, totalWeight float64) batchResourceWeightMultipliers {
 	return batchResourceWeightMultipliers{
 		cumulativeGasUsed: float64(weights.WeightCumulativeGasUsed) / totalWeight,
 		arithmetics:       float64(weights.WeightArithmetics) / totalWeight,

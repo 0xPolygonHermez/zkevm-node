@@ -5,15 +5,6 @@ Environment = "development" # "production" or "development"
 Level = "debug"
 Outputs = ["stderr"]
 
-[StateDB]
-User = "state_user"
-Password = "state_password"
-Name = "state_db"
-Host = "zkevm-state-db"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
-
 [Pool]
 FreeClaimGasLimit = 1500000
 IntervalToRefreshBlockedAddresses = "5m"

@@ -18,6 +18,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencesender"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/mitchellh/mapstructure"
@@ -108,16 +109,14 @@ type Config struct {
 	Executor executor.Config
 	// Configuration of the merkle tree client service. Not use in the node, only for testing
 	MTClient merkletree.Config
-	// Configuration of the state database connection
-	StateDB db.Config
 	// Configuration of the metrics service, basically is where is going to publish the metrics
 	Metrics metrics.Config
 	// Configuration of the event database connection
 	EventLog event.Config
 	// Configuration of the hash database connection
 	HashDB db.Config
-	// Configuration of the batch service
-	Batch pool.BatchConfig
+	// Configuration of the state
+	State state.Config
 }
 
 // Default parses the default configuration values.

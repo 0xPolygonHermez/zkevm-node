@@ -7,7 +7,7 @@ import (
 )
 
 func TestIsWithinConstraints(t *testing.T) {
-	cfg := BatchConstraintsCfg{
+	cfg := state.BatchConstraintsCfg{
 		MaxCumulativeGasUsed: 500,
 		MaxKeccakHashes:      100,
 		MaxPoseidonHashes:    200,
