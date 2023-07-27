@@ -11,6 +11,9 @@ type Config struct {
 	// blocked address list from db to memory
 	IntervalToRefreshBlockedAddresses types.Duration `mapstructure:"IntervalToRefreshBlockedAddresses"`
 
+	// IntervalToRefreshGasPrices is the time to wait to refresh the gas prices
+	IntervalToRefreshGasPrices types.Duration `mapstructure:"IntervalToRefreshGasPrices"`
+
 	// MaxTxBytesSize is the max size of a transaction in bytes
 	MaxTxBytesSize uint64 `mapstructure:"MaxTxBytesSize"`
 
@@ -28,4 +31,10 @@ type Config struct {
 
 	// PollMinAllowedGasPriceInterval is the interval to poll the suggested min gas price for a tx
 	PollMinAllowedGasPriceInterval types.Duration `mapstructure:"PollMinAllowedGasPriceInterval"`
+
+	// AccountQueue represents the maximum number of non-executable transaction slots permitted per account
+	AccountQueue uint64 `mapstructure:"AccountQueue"`
+
+	// GlobalQueue represents the maximum number of non-executable transaction slots for all accounts
+	GlobalQueue uint64 `mapstructure:"GlobalQueue"`
 }

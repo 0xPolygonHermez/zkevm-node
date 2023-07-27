@@ -326,6 +326,7 @@ func NewBlock(b *types.Block, fullTx bool) *Block {
 // Batch structure
 type Batch struct {
 	Number              ArgUint64           `json:"number"`
+	ForcedBatchNumber   *ArgUint64          `json:"forcedBatchNumber,omitempty"`
 	Coinbase            common.Address      `json:"coinbase"`
 	StateRoot           common.Hash         `json:"stateRoot"`
 	GlobalExitRoot      common.Hash         `json:"globalExitRoot"`
@@ -341,14 +342,7 @@ type Batch struct {
 }
 
 // NewBatch creates a Batch instance
-func NewBatch(
-	batch *state.Batch,
-	virtualBatch *state.VirtualBatch,
-	verifiedBatch *state.VerifiedBatch,
-	receipts []types.Receipt,
-	fullTx bool,
-	ger *state.GlobalExitRoot,
-) *Batch {
+func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, receipts []types.Receipt, fullTx bool, ger *state.GlobalExitRoot) *Batch {
 	batchL2Data := batch.BatchL2Data
 	res := &Batch{
 		Number:          ArgUint64(batch.BatchNumber),
@@ -361,6 +355,10 @@ func NewBatch(
 		Coinbase:        batch.Coinbase,
 		LocalExitRoot:   batch.LocalExitRoot,
 		BatchL2Data:     ArgBytes(batchL2Data),
+	}
+	if batch.ForcedBatchNum != nil {
+		fb := ArgUint64(*batch.ForcedBatchNum)
+		res.ForcedBatchNumber = &fb
 	}
 
 	if virtualBatch != nil {
@@ -520,6 +518,7 @@ type Receipt struct {
 	ToAddr            *common.Address `json:"to"`
 	ContractAddress   *common.Address `json:"contractAddress"`
 	Type              ArgUint64       `json:"type"`
+	EffectiveGasPrice *ArgBig         `json:"effectiveGasPrice,omitempty"`
 }
 
 // NewReceipt creates a new Receipt instance
@@ -545,8 +544,7 @@ func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
 	if err != nil {
 		return Receipt{}, err
 	}
-
-	return Receipt{
+	receipt := Receipt{
 		Root:              common.BytesToHash(r.PostState),
 		CumulativeGasUsed: ArgUint64(r.CumulativeGasUsed),
 		LogsBloom:         r.Bloom,
@@ -561,7 +559,12 @@ func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
 		FromAddr:          from,
 		ToAddr:            to,
 		Type:              ArgUint64(r.Type),
-	}, nil
+	}
+	if r.EffectiveGasPrice != nil {
+		egp := ArgBig(*r.EffectiveGasPrice)
+		receipt.EffectiveGasPrice = &egp
+	}
+	return receipt, nil
 }
 
 // Log structure

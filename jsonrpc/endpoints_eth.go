@@ -31,8 +31,8 @@ const (
 
 // EthEndpoints contains implementations for the "eth" RPC endpoints
 type EthEndpoints struct {
-	cfg     Config
 	chainID uint64
+	cfg     Config
 	pool    types.PoolInterface
 	state   types.StateInterface
 	storage storageInterface
@@ -179,11 +179,11 @@ func (e *EthEndpoints) GasPrice() (interface{}, types.Error) {
 	if e.cfg.SequencerNodeURI != "" {
 		return e.getPriceFromSequencerNode()
 	}
-	gasPrice, err := e.pool.GetGasPrice(ctx)
+	gasPrices, err := e.pool.GetGasPrices(ctx)
 	if err != nil {
 		return "0x0", nil
 	}
-	return hex.EncodeUint64(gasPrice), nil
+	return hex.EncodeUint64(gasPrices.L2GasPrice), nil
 }
 
 func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {
@@ -565,9 +565,11 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction by hash from pool", err)
 		}
-		tx = &poolTx.Transaction
-
-		return types.NewTransaction(*tx, nil, nil, nil), nil
+		if poolTx.Status == pool.TxStatusPending {
+			tx = &poolTx.Transaction
+			return types.NewTransaction(*tx, nil, nil, nil), nil
+		}
+		return nil, nil
 	})
 }
 
@@ -801,6 +803,10 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 		ip := ""
 		ips := httpRequest.Header.Get("X-Forwarded-For")
 
+		// TODO: this is temporary patch remove this log
+		realIp := httpRequest.Header.Get("X-Real-IP")
+		log.Infof("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
+
 		if ips != "" {
 			ip = strings.Split(ips, ",")[0]
 		}
@@ -865,7 +871,7 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get syncing info from state", err)
 		}
 
-		if syncInfo.CurrentBlockNumber == syncInfo.LastBlockNumberSeen {
+		if syncInfo.CurrentBlockNumber >= syncInfo.LastBlockNumberSeen {
 			return false, nil
 		}
 

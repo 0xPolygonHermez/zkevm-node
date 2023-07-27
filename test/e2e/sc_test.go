@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -114,23 +115,32 @@ func TestEmitLog2(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 4, len(logs))
 
-		log0 := logs[0]
+		log0 := getLogByIndex(0, logs)
 		assert.Equal(t, 0, len(log0.Topics))
 
-		_, err = sc.ParseLog(logs[1])
+		_, err = sc.ParseLog(getLogByIndex(1, logs))
 		require.NoError(t, err)
 
-		logA, err := sc.ParseLogA(logs[2])
+		logA, err := sc.ParseLogA(getLogByIndex(2, logs))
 		require.NoError(t, err)
 		assert.Equal(t, big.NewInt(1), logA.A)
 
-		logABCD, err := sc.ParseLogABCD(logs[3])
+		logABCD, err := sc.ParseLogABCD(getLogByIndex(3, logs))
 		require.NoError(t, err)
 		assert.Equal(t, big.NewInt(1), logABCD.A)
 		assert.Equal(t, big.NewInt(2), logABCD.B)
 		assert.Equal(t, big.NewInt(3), logABCD.C)
 		assert.Equal(t, big.NewInt(4), logABCD.D)
 	}
+}
+
+func getLogByIndex(index int, logs []types.Log) types.Log {
+	for _, log := range logs {
+		if int(log.Index) == index {
+			return log
+		}
+	}
+	return types.Log{}
 }
 
 func TestFailureTest(t *testing.T) {

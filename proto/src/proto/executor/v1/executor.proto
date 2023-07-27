@@ -1,12 +1,15 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
+
 package executor.v1;
 
-option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor";
 
 service ExecutorService {
     /// Processes a batch
     rpc ProcessBatch(ProcessBatchRequest) returns (ProcessBatchResponse) {}
+    rpc GetFlushStatus (google.protobuf.Empty) returns (GetFlushStatusResponse) {}
 }
 
 message ProcessBatchRequest {
@@ -46,6 +49,31 @@ message ProcessBatchResponse {
     repeated ProcessTransactionResponse responses = 13;
     ExecutorError error = 14;
     map<string, InfoReadWrite> read_write_addresses = 15;
+    uint64 flush_id = 16;
+    uint64 stored_flush_id = 17;
+    string prover_id = 18;
+}
+
+/**
+ * @dev GetFlushStatusResponse
+ * @param {last_sent_flush_id} - id of the last flush data sent to database
+ * @param {sending_flush_id} - id of the flush data being sent now to database
+ * @param {last_flush_id} - id assigned to the last call to flush
+ * @param {pending_to_flush_nodes} - number of SMT nodes pending to flush
+ * @param {pending_to_flush_program} - number of SC programs pending to flush
+ * @param {storing_nodes} - number of SMT nodes being stored in the hash database
+ * @param {storing_program} - number of SC programs being stored in the hash database
+ * @param {prover_id} - id assigned to this instance of the prover process
+ */
+message GetFlushStatusResponse {
+    uint64 stored_flush_id = 1;
+    uint64 storing_flush_id = 2;
+    uint64 last_flush_id = 3;
+    uint64 pending_to_flush_nodes = 4;
+    uint64 pending_to_flush_program = 5;
+    uint64 storing_nodes = 6;
+    uint64 storing_program = 7;
+    string prover_id = 8;
 }
 
 // Trace configuration request params
@@ -118,14 +146,19 @@ message TransactionStep {
     uint32 op = 7;
     // Content of the stack
     repeated string stack = 8;
-    // Content of the memory
+     // Content of memory, starting at memory_offset, showing only changes vs. previous step
     bytes memory = 9;
+    // Total size of memory
+    uint32 memory_size = 10;
+    // Offset of memory changes
+    uint32 memory_offset = 11;
+    // Content of the stack
     // Return Data
-    bytes return_data = 10;
+    bytes return_data = 12;
     // Contract information
-    Contract contract = 11;
+    Contract contract = 13;
     // Error
-    RomError error = 12;
+    RomError error = 14;
 }
 
 message Contract {
@@ -164,6 +197,9 @@ message ProcessTransactionResponse {
     // Trace
     repeated ExecutionTraceStep execution_trace = 13;
     CallTrace call_trace = 14;
+     // Efective Gas Price
+    string effective_gas_price = 15;
+    uint32 effective_percentage = 16;
 }
 
 message Log {
@@ -194,22 +230,24 @@ message ExecutionTraceStep {
     uint64 remaining_gas = 3;
     // Gas cost of the operation
     uint64 gas_cost = 4;
-    // Content of memory
+    // Content of memory, starting at memory_offset, showing only changes vs. previous step
     bytes memory = 5;
-    // Size of memory
+    // Total size of memory
     uint32 memory_size = 6;
+    // Offset of memory changes
+    uint32 memory_offset = 7;
     // Content of the stack
-    repeated string stack = 7;
+    repeated string stack = 8;
     // Returned data
-    bytes return_data = 8;
+    bytes return_data = 9;
     // Content of the storage
-    map<string, string> storage = 9;
+    map<string, string> storage = 10;
     // Call depth
-    uint32 depth = 10;
+    uint32 depth = 11;
     // Gas refund
-    uint64 gas_refund = 11;
+    uint64 gas_refund = 12;
     // Error
-    RomError error = 12;
+    RomError error = 13;
 }
 
 enum RomError {
@@ -270,6 +308,8 @@ enum RomError {
     ROM_ERROR_BATCH_DATA_TOO_BIG = 27;
     // ROM_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
     ROM_ERROR_UNSUPPORTED_FORK_ID = 28;
+    // ROM_ERROR_INVALID_RLP indicates that there has been an error while parsing the RLP
+    ROM_ERROR_INVALID_RLP = 29;
 }
 
 enum ExecutorError {

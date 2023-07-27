@@ -88,6 +88,9 @@ type Config struct {
 
 	// Worker's specific config properties
 	Worker WorkerCfg `mapstructure:"Worker"`
+
+	// EffectiveGasPrice is the config for the gas price
+	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -121,6 +124,9 @@ type FinalizerCfg struct {
 
 	// TimestampResolution is the resolution of the timestamp used to close a batch
 	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
+
+	// StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
+	StopSequencerOnBatchNum uint64 `mapstructure:"StopSequencerOnBatchNum"`
 }
 
 // WorkerCfg contains the Worker's configuration properties
@@ -133,4 +139,26 @@ type WorkerCfg struct {
 type DBManagerCfg struct {
 	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
 	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
+}
+
+// EffectiveGasPriceCfg contains the configuration properties for the effective gas price
+type EffectiveGasPriceCfg struct {
+	// MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
+	MaxBreakEvenGasPriceDeviationPercentage uint64 `mapstructure:"MaxBreakEvenGasPriceDeviationPercentage"`
+
+	// L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price
+	L1GasPriceFactor float64 `mapstructure:"L1GasPriceFactor"`
+
+	// ByteGasCost is the gas cost per byte
+	ByteGasCost uint64 `mapstructure:"ByteGasCost"`
+
+	// MarginFactor is the margin factor percentage to be added to the L2 min gas price
+	MarginFactor float64 `mapstructure:"MarginFactor"`
+
+	// Enabled is a flag to enable/disable the effective gas price
+	Enabled bool `mapstructure:"Enabled"`
+
+	// DefaultMinGasPriceAllowed is the default min gas price to suggest
+	// This value is assigned from [Pool].DefaultMinGasPriceAllowed
+	DefaultMinGasPriceAllowed uint64
 }

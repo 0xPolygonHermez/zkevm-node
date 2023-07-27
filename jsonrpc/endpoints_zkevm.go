@@ -15,13 +15,15 @@ import (
 
 // ZKEVMEndpoints contains implementations for the "zkevm" RPC endpoints
 type ZKEVMEndpoints struct {
+	cfg   Config
 	state types.StateInterface
 	txMan DBTxManager
 }
 
 // NewZKEVMEndpoints returns ZKEVMEndpoints
-func NewZKEVMEndpoints(state types.StateInterface) *ZKEVMEndpoints {
+func NewZKEVMEndpoints(cfg Config, state types.StateInterface) *ZKEVMEndpoints {
 	return &ZKEVMEndpoints{
+		cfg:   cfg,
 		state: state,
 	}
 }
@@ -115,7 +117,6 @@ func (z *ZKEVMEndpoints) VerifiedBatchNumber() (interface{}, types.Error) {
 		if err != nil {
 			return "0x0", types.NewRPCError(types.DefaultErrorCode, "failed to get the last verified batch number from state")
 		}
-
 		return hex.EncodeUint64(lastBatch.BatchNumber), nil
 	})
 }
@@ -136,7 +137,7 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err)
 		}
 
-		txs, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)
+		txs, _, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 		if !errors.Is(err, state.ErrNotFound) && err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v", batchNumber), err)
 		}

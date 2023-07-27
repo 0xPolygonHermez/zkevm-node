@@ -47,9 +47,9 @@ func processWorkerAddTxTestCases(t *testing.T, worker *Worker, testCases []worke
 		t.Run(testCase.name, func(t *testing.T) {
 			tx := TxTracker{}
 
-			tx.weightMultipliers = calculateWeightMultipliers(worker.batchResourceWeights, totalWeight)
-			tx.constraints = worker.batchConstraints
-			tx.resourceCostMultiplier = worker.cfg.ResourceCostMultiplier
+			tx.WeightMultipliers = calculateWeightMultipliers(worker.batchResourceWeights, totalWeight)
+			tx.Constraints = worker.batchConstraints
+			tx.ResourceCostMultiplier = worker.cfg.ResourceCostMultiplier
 			tx.Hash = testCase.txHash
 			tx.HashStr = testCase.txHash.String()
 			tx.From = testCase.from
@@ -61,7 +61,7 @@ func processWorkerAddTxTestCases(t *testing.T, worker *Worker, testCases []worke
 			tx.updateZKCounters(testCase.counters, worker.batchConstraints, worker.batchResourceWeights)
 			t.Logf("%s=%s", testCase.name, fmt.Sprintf("%.2f", tx.Efficiency))
 
-			err, _ := worker.AddTxTracker(ctx, &tx)
+			_, err := worker.AddTxTracker(ctx, &tx)
 			if err != nil {
 				return
 			}

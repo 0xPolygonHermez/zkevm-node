@@ -26,7 +26,7 @@ services:
     environment:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.node.config.toml:/app/config.toml
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/testnet.node.config.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -39,6 +39,8 @@ services:
       zkevm-state-db:
         condition: service_healthy
     image: zkevm-node
+    ports:
+      - 9092:9091 # needed if metrics enabled
     deploy:
       resources:
         limits:
@@ -48,7 +50,7 @@ services:
     environment:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.node.config.toml:/app/config.toml
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/testnet.node.config.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -68,7 +70,7 @@ services:
     volumes:
       - ./db/scripts/init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
       - ${ZKEVM_NODE_STATEDB_DATA_DIR}:/var/lib/postgresql/data
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/postgresql.conf:/etc/postgresql.conf
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/postgresql.conf:/etc/postgresql.conf
     environment:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
@@ -105,7 +107,7 @@ services:
   zkevm-prover:
     container_name: zkevm-prover
     restart: unless-stopped
-    image: hermeznetwork/zkevm-prover:v1.1.4-fork.4
+    image: hermeznetwork/zkevm-prover:v2.0.1
     depends_on:
       zkevm-state-db:
         condition: service_healthy
@@ -113,6 +115,6 @@ services:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/public}/public.prover.config.json:/usr/src/app/config.json
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/testnet.prover.config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json

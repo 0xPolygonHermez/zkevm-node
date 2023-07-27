@@ -46,11 +46,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.MaxTxsPerBatch",
-			expectedValue: uint64(150),
+			expectedValue: uint64(300),
 		},
 		{
 			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: uint64(129848),
+			expectedValue: uint64(120000),
 		},
 		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
@@ -66,31 +66,31 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.MaxKeccakHashes",
-			expectedValue: uint32(468),
+			expectedValue: uint32(2145),
 		},
 		{
 			path:          "Sequencer.MaxPoseidonHashes",
-			expectedValue: uint32(279620),
+			expectedValue: uint32(252357),
 		},
 		{
 			path:          "Sequencer.MaxPoseidonPaddings",
-			expectedValue: uint32(149796),
+			expectedValue: uint32(135191),
 		},
 		{
 			path:          "Sequencer.MaxMemAligns",
-			expectedValue: uint32(262144),
+			expectedValue: uint32(236585),
 		},
 		{
 			path:          "Sequencer.MaxArithmetics",
-			expectedValue: uint32(262144),
+			expectedValue: uint32(236585),
 		},
 		{
 			path:          "Sequencer.MaxBinaries",
-			expectedValue: uint32(262144),
+			expectedValue: uint32(473170),
 		},
 		{
 			path:          "Sequencer.MaxSteps",
-			expectedValue: uint32(8388608),
+			expectedValue: uint32(7570538),
 		},
 		{
 			path:          "Sequencer.TxLifetimeCheckTimeout",
@@ -173,8 +173,32 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
+			path:          "Sequencer.Finalizer.StopSequencerOnBatchNum",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "Sequencer.Finalizer.TimestampResolution",
 			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
+			expectedValue: uint64(10),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.L1GasPriceFactor",
+			expectedValue: float64(0.25),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.ByteGasCost",
+			expectedValue: uint64(16),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.MarginFactor",
+			expectedValue: float64(1),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.Enabled",
+			expectedValue: false,
 		},
 		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
@@ -245,6 +269,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(2000000000),
 		},
 		{
+			path:          "L2GasPriceSuggester.MaxGasPriceWei",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "MTClient.URI",
 			expectedValue: "zkevm-prover:50061",
 		},
@@ -277,6 +305,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 200,
 		},
 		{
+			path:          "Pool.IntervalToRefreshGasPrices",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
 			path:          "Pool.MaxTxBytesSize",
 			expectedValue: uint64(100132),
 		},
@@ -296,6 +328,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.PollMinAllowedGasPriceInterval",
 			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
+			path:          "Pool.AccountQueue",
+			expectedValue: uint64(64),
+		},
+		{
+			path:          "Pool.GlobalQueue",
+			expectedValue: uint64(1024),
 		},
 		{
 			path:          "Pool.DB.User",
@@ -378,6 +418,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
+			path:          "Executor.MaxGRPCMessageSize",
+			expectedValue: int(100000000),
+		},
+		{
 			path:          "Metrics.Host",
 			expectedValue: "0.0.0.0",
 		},
@@ -436,7 +480,7 @@ func Test_Defaults(t *testing.T) {
 	flagSet := flag.NewFlagSet("", flag.PanicOnError)
 	flagSet.String(config.FlagNetwork, "testnet", "")
 	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
-	cfg, err := config.Load(ctx)
+	cfg, err := config.Load(ctx, true)
 	if err != nil {
 		t.Fatalf("Unexpected error loading default config: %v", err)
 	}
@@ -480,7 +524,7 @@ func TestEnvVarArrayDecoding(t *testing.T) {
 		os.Unsetenv("ZKEVM_NODE_LOG_OUTPUTS")
 	}()
 
-	cfg, err := config.Load(ctx)
+	cfg, err := config.Load(ctx, true)
 	require.NoError(t, err)
 
 	assert.Equal(t, 3, len(cfg.Log.Outputs))

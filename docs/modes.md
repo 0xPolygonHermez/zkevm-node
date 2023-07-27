@@ -19,7 +19,7 @@ By default the config files found in the repository will spin up the Node in JSO
 
 This will syncronize with the Trusted Sequencer (run by Polygon).
 
-Use the default [public config file](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.node.config.toml), and make sure the following values are set to:
+Use the default [testnet config file](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/testnet/testnet.node.config.toml), and make sure the following values are set to:
 
 ```toml
 [RPC]
@@ -27,7 +27,7 @@ Use the default [public config file](https://github.com/0xPolygonHermez/zkevm-no
 SequencerNodeURI = "https://public.zkevm-test.net:2083"
 ```
 
-Same goes for the Prover Config ([prover-config.json](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.prover.config.json)):
+Same goes for the Prover Config ([prover-config.json](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/testnet/testnet.prover.config.json)):
 
 ```json
 {
@@ -37,7 +37,7 @@ Same goes for the Prover Config ([prover-config.json](https://github.com/0xPolyg
     "runProverClient": false,
     "runExecutorServer": true,
     "runExecutorClient": false,
-    "runStateDBServer": true
+    "runHashDBServer": true
 }
 ```
 
@@ -78,7 +78,7 @@ Machine 1:
 
 #### Machine 1
 
-Use default [prover config](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.prover.config.json) but change the following values (`runProverServer` set to true, rest false):
+Use default [prover config](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/testnet/testnet.prover.config.json) but change the following values (`runProverServer` set to true, rest false):
 
 For *only* Prover Config (`only-prover-config.json`):
 
@@ -90,7 +90,7 @@ For *only* Prover Config (`only-prover-config.json`):
     "runProverClient": false,
     "runExecutorServer": false,
     "runExecutorClient": false,
-    "runStateDBServer": false
+    "runHashDBServer": false
 }
 ```
 

@@ -34,10 +34,14 @@ type ProcessBatchResponse struct {
 	UsedZkCounters       ZKCounters
 	Responses            []*ProcessTransactionResponse
 	ExecutorError        error
+	IsBatchProcessed     bool
+	ReadWriteAddresses   map[common.Address]*InfoReadWrite
 	IsRomLevelError      bool
 	IsExecutorLevelError bool
 	IsRomOOCError        bool
-	ReadWriteAddresses   map[common.Address]*InfoReadWrite
+	FlushID              uint64
+	StoredFlushID        uint64
+	ProverID             string
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
@@ -71,6 +75,10 @@ type ProcessTransactionResponse struct {
 	ExecutionTrace []instrumentation.StructLog
 	// CallTrace contains the call trace.
 	CallTrace instrumentation.ExecutorTrace
+	// EffectiveGasPrice effective gas price used for the tx
+	EffectiveGasPrice string
+	//EffectivePercentage effective percentage used for the tx
+	EffectivePercentage uint32
 }
 
 // ZKCounters counters for the tx

@@ -14,7 +14,6 @@ import (
 	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
@@ -31,10 +30,10 @@ var (
 	localTestDbManager                           *dbManager
 	localCtx                                     context.Context
 	localMtDBCancel, localExecutorCancel         context.CancelFunc
-	localMtDBServiceClient                       mtDBclientpb.StateDBServiceClient
+	localMtDBServiceClient                       mtDBclientpb.HashDBServiceClient
 	localMtDBClientConn, localExecutorClientConn *grpc.ClientConn
 	localState                                   *state.State
-	localExecutorClient                          executorclientpb.ExecutorServiceClient
+	localExecutorClient                          executor.ExecutorServiceClient
 	testGER                                      = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	testAddr                                     = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	testRawData                                  = common.Hex2Bytes("0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b")
@@ -56,7 +55,7 @@ func setupTest(t *testing.T) {
 
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 	localMtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
-	localExecutorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	localExecutorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
 
 	localExecutorClient, localExecutorClientConn, localExecutorCancel = executor.NewExecutorClient(localCtx, localExecutorServerConfig)
 	s := localExecutorClientConn.GetState()
@@ -76,19 +75,19 @@ func setupTest(t *testing.T) {
 	localState = state.NewState(stateCfg, state.NewPostgresStorage(localStateDb), localExecutorClient, localStateTree, eventLog)
 
 	batchConstraints := batchConstraints{
-		MaxTxsPerBatch:       150,
-		MaxBatchBytesSize:    129848,
+		MaxTxsPerBatch:       300,
+		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,
-		MaxKeccakHashes:      468,
-		MaxPoseidonHashes:    279620,
-		MaxPoseidonPaddings:  149796,
-		MaxMemAligns:         262144,
-		MaxArithmetics:       262144,
-		MaxBinaries:          262144,
-		MaxSteps:             8388608,
+		MaxKeccakHashes:      2145,
+		MaxPoseidonHashes:    252357,
+		MaxPoseidonPaddings:  135191,
+		MaxMemAligns:         236585,
+		MaxArithmetics:       236585,
+		MaxBinaries:          473170,
+		MaxSteps:             7570538,
 	}
 
-	localTestDbManager = newDBManager(localCtx, dbManagerCfg, nil, localState, nil, closingSignalCh, txsStore, batchConstraints)
+	localTestDbManager = newDBManager(localCtx, dbManagerCfg, nil, localState, nil, closingSignalCh, batchConstraints)
 
 	// Set genesis batch
 	dbTx, err := localState.BeginStateTransaction(localCtx)
