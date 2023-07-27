@@ -3,6 +3,7 @@
 package jsonrpc
 
 import (
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"time"
 )
 
@@ -24,12 +25,15 @@ func NewCandidateBlockPullAgent(
 		exitRequested: false,
 	}
 
+	log.Infof("LEVITATION:Created NewCandidateBlockPullAgent")
 	return agent
 }
 
 // Start initializes the JSON RPC server to listen for request
 func (agent *CandidateBlockPullAgent) Start() error {
+	log.Infof("LEVITATION:Starting NewCandidateBlockPullAgent ...")
 	go agent.doWork()
+	log.Infof("LEVITATION:Started NewCandidateBlockPullAgent ...")
 	return nil
 }
 
@@ -40,7 +44,11 @@ func (agent *CandidateBlockPullAgent) Stop() error {
 }
 
 func (agent *CandidateBlockPullAgent) doWork() {
+	log.Infof("LEVITATION:Starting NewCandidateBlockPullAgent work loop")
 	for !agent.exitRequested {
+		log.Infof("Trying to pull candidate block")
 		time.Sleep(1 * time.Second)
 	}
 }
+
+// LEVITATION_END

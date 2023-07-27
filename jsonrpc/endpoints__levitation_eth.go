@@ -68,11 +68,11 @@ func (e *EthEndpoints) verifyTxBeforeRelayingToDecentralizedSequencer(input, ip 
 		return RPCErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err)
 	}
 
-	log.Infof("verifying TX: %v", tx.Hash().Hex())
+	log.Infof("LEVITATION:verifying TX: %v", tx.Hash().Hex())
 	if err := e.pool.VerifyTx(context.Background(), *tx, ip); err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 	}
-	log.Infof("TX verified: %v", tx.Hash().Hex())
+	log.Infof("LEVITATION:TX verified: %v", tx.Hash().Hex())
 
 	return tx.Hash().Hex(), nil
 }
