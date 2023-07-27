@@ -15,9 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-var (
-	maxConnections = 10
-	bitSize        = 64
+const (
+	maxConnections  = 10
+	bitSize         = 64
+	defaultGasPrice = 1000000000
 )
 
 // Init sets up the environment for the benchmark
@@ -74,6 +75,10 @@ func Init() (*pgpoolstorage.PostgresPoolStorage, *ethclient.Client, *bind.Transa
 	gasPrice, err := l2Client.SuggestGasPrice(ctx)
 	if err != nil {
 		panic(err)
+	}
+
+	if gasPrice == nil || gasPrice.Int64() == 0 {
+		gasPrice = big.NewInt(defaultGasPrice)
 	}
 	auth.GasPrice = gasPrice
 

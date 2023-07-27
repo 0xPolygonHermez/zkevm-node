@@ -65,6 +65,8 @@ const (
 	TimeoutResolutionDeadlineClosingReason ClosingReason = "timeout resolution deadline"
 	// GlobalExitRootDeadlineClosingReason is the closing reason used when Global Exit Root deadline is reached
 	GlobalExitRootDeadlineClosingReason ClosingReason = "Global Exit Root deadline"
+	// SequencerManuallyStoppedClosingReason is the closing reason used when the sequencer is manually stopped
+	SequencerManuallyStoppedClosingReason ClosingReason = "Sequencer manually stopped"
 )
 
 // ProcessingReceipt indicates the outcome (StateRoot, AccInputHash) of processing a batch

@@ -515,7 +515,7 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 					f.processRequest.Transactions = decodedBatchL2Data
 				}()
 
-				executorMock.On("ProcessBatch", ctx, f.processRequest, true).Return(tc.reprocessFullBatchResponse, tc.reprocessBatchErr).Once()
+				executorMock.On("ProcessBatch", ctx, *f.processRequest, true).Return(tc.reprocessFullBatchResponse, tc.reprocessBatchErr).Once()
 			}
 
 			if tc.stateRootAndLERErr == nil {
@@ -524,7 +524,7 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 				dbManagerMock.On("GetForkIDByBatchNumber", f.batch.batchNumber).Return(uint64(5)).Once()
 				dbManagerMock.On("GetTransactionsByBatchNumber", ctx, f.batch.batchNumber).Return(currTxs, constants.EffectivePercentage, nilErr).Once()
 				if tc.forcedBatches != nil && len(tc.forcedBatches) > 0 {
-					processRequest := f.processRequest
+					processRequest := *f.processRequest
 					processRequest.BatchNumber = f.processRequest.BatchNumber + 1
 					processRequest.OldStateRoot = newHash
 					processRequest.Transactions = nil
@@ -540,7 +540,7 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 						dbTxMock.On("Rollback", ctx).Return(nilErr).Once()
 					}
 				}
-				executorMock.On("ProcessBatch", ctx, f.processRequest, false).Return(tc.reprocessFullBatchResponse, tc.reprocessBatchErr).Once()
+				executorMock.On("ProcessBatch", ctx, *f.processRequest, false).Return(tc.reprocessFullBatchResponse, tc.reprocessBatchErr).Once()
 			}
 
 			if tc.stateRootAndLERErr != nil {
@@ -2473,6 +2473,90 @@ func Test_sortForcedBatches(t *testing.T) {
 	}
 }
 
+func Test_stopAfterCurrentBatch(t *testing.T) {
+	f = setupFinalizer(false)
+	testCases := []struct {
+		name            string
+		initialBatchNum uint64
+		expectedStopNum uint64
+	}{
+		{
+			name:            "Test batch number increment",
+			initialBatchNum: 10,
+			expectedStopNum: 11,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f.batch = &WipBatch{
+				batchNumber: tc.initialBatchNum,
+			}
+
+			f.stopAfterCurrentBatch()
+
+			assert.Equal(t, tc.expectedStopNum, *f.batchStopNumber)
+		})
+	}
+}
+
+func Test_stopAtBatch(t *testing.T) {
+	f = setupFinalizer(false)
+
+	testCases := []struct {
+		name            string
+		stopBatchNum    uint64
+		expectedStopNum uint64
+	}{
+		{
+			name:            "Test batch number set",
+			stopBatchNum:    15,
+			expectedStopNum: 15,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			f.stopAtBatch(tc.stopBatchNum)
+
+			assert.Equal(t, tc.expectedStopNum, *f.batchStopNumber)
+		})
+	}
+}
+
+func Test_resumeProcessing(t *testing.T) {
+	f = setupFinalizer(false)
+
+	testCases := []struct {
+		name            string
+		initialStopNum  *uint64
+		initialHalting  bool
+		expectedStopNum *uint64
+		expectedHalting bool
+	}{
+		{
+			name:            "Test processing resumed",
+			initialStopNum:  new(uint64),
+			initialHalting:  true,
+			expectedStopNum: nil,
+			expectedHalting: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			*tc.initialStopNum = 10
+			f.batchStopNumber = tc.initialStopNum
+			f.halting = tc.initialHalting
+
+			f.resumeProcessing()
+
+			assert.Equal(t, tc.expectedStopNum, f.batchStopNumber)
+			assert.Equal(t, tc.expectedHalting, f.halting)
+		})
+	}
+}
+
 func setupFinalizer(withWipBatch bool) *finalizer {
 	wipBatch := new(WipBatch)
 	dbManagerMock = new(DbManagerMock)
@@ -2512,7 +2596,7 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		executor:             executorMock,
 		batch:                wipBatch,
 		batchConstraints:     bc,
-		processRequest:       state.ProcessRequest{},
+		processRequest:       &state.ProcessRequest{},
 		sharedResourcesMux:   new(sync.RWMutex),
 		lastGERHash:          common.Hash{},
 		// closing signals
@@ -2532,5 +2616,10 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		proverID:                                "",
 		lastPendingFlushID:                      0,
 		pendingFlushIDCond:                      sync.NewCond(new(sync.Mutex)),
+		// halting
+		halting: false,
+		haltMux: new(sync.RWMutex),
+		// batch stop
+		batchStopNumber: nil,
 	}
 }

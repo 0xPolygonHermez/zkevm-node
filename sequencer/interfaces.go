@@ -140,3 +140,13 @@ type ethTxManager interface {
 	ResultsByStatus(ctx context.Context, owner string, statuses []ethtxmanager.MonitoredTxStatus, dbTx pgx.Tx) ([]ethtxmanager.MonitoredTxResult, error)
 	ProcessPendingMonitoredTxs(ctx context.Context, owner string, failedResultHandler ethtxmanager.ResultHandler, dbTx pgx.Tx)
 }
+type finalizerInterface interface {
+	Start(ctx context.Context, batch *WipBatch, processingReq *state.ProcessRequest)
+	getLastBatchNumAndOldStateRoot(ctx context.Context) (uint64, common.Hash, error)
+	stopAfterCurrentBatch()
+	stopAtBatch(batchNumber uint64)
+	resumeProcessing()
+	syncWithState(ctx context.Context, lastBatchNum *uint64) error
+	getBatch() *WipBatch
+	getProcessRequest() *state.ProcessRequest
+}

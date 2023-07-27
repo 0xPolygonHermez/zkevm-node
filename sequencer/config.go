@@ -30,6 +30,9 @@ type Config struct {
 
 	// EffectiveGasPrice is the config for the gas price
 	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
+
+	// Http is the config for the http server
+	Http HttpConfig `mapstructure:"Http"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -64,9 +67,6 @@ type FinalizerCfg struct {
 	// TimestampResolution is the resolution of the timestamp used to close a batch
 	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
 
-	// StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
-	StopSequencerOnBatchNum uint64 `mapstructure:"StopSequencerOnBatchNum"`
-
 	// SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
 	// sequential way (instead than in parallel)
 	SequentialReprocessFullBatch bool `mapstructure:"SequentialReprocessFullBatch"`
@@ -98,4 +98,29 @@ type EffectiveGasPriceCfg struct {
 	// DefaultMinGasPriceAllowed is the default min gas price to suggest
 	// This value is assigned from [Pool].DefaultMinGasPriceAllowed
 	DefaultMinGasPriceAllowed uint64
+}
+
+// HttpConfig contains the http server's configuration properties
+type HttpConfig struct {
+	// Host defines the network adapter that will be used to serve the HTTP requests
+	Host string `mapstructure:"Host"`
+
+	// Port defines the port to serve the endpoints via HTTP. For security reasons,
+	// this port should not be directly accessible from outside the localhost. If
+	// remote access is necessary, ensure to establish a secure SSH tunnel. If the
+	// port needs to be exposed publicly for any reason, it is critical to protect
+	// it with stringent firewall rules, limiting access only to trusted sources.
+	Port int `mapstructure:"Port"`
+
+	// MaxRequestsPerIPAndSecond defines how much requests a single IP can
+	// send within a single second
+	MaxRequestsPerIPAndSecond float64 `mapstructure:"MaxRequestsPerIPAndSecond"`
+
+	// ReadTimeout is the HTTP server read timeout
+	// check net/http.server.ReadTimeout and net/http.server.ReadHeaderTimeout
+	ReadTimeout types.Duration `mapstructure:"ReadTimeout"`
+
+	// WriteTimeout is the HTTP server write timeout
+	// check net/http.server.WriteTimeout
+	WriteTimeout types.Duration `mapstructure:"WriteTimeout"`
 }

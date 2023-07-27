@@ -106,8 +106,6 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		TimestampResolution = "10s"
-		StopSequencerOnBatchNum = 0
-		SequentialReprocessFullBatch = false
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
@@ -117,6 +115,13 @@ MaxTxLifetime = "3h"
 		ByteGasCost = 16
 		MarginFactor = 1
 		Enabled = false
+	[Sequencer.Http]
+		Host = "0.0.0.0"
+		Port = 90
+	    MaxRequestsPerIPAndSecond = 500
+		ReadTimeout = "60s"
+		WriteTimeout = "60s"
+
 
 [SequenceSender]
 WaitPeriodSendSequence = "5s"

@@ -45,7 +45,7 @@ type finalizer struct {
 	executor                stateInterface
 	batch                   *WipBatch
 	batchConstraints        state.BatchConstraintsCfg
-	processRequest          state.ProcessRequest
+	processRequest          *state.ProcessRequest
 	sharedResourcesMux      *sync.RWMutex
 	lastGERHash             common.Hash
 	reprocessFullBatchError atomic.Bool
@@ -70,6 +70,11 @@ type finalizer struct {
 	proverID                     string
 	lastPendingFlushID           uint64
 	pendingFlushIDCond           *sync.Cond
+	// Stopping Mechanism
+	batchStopNumber *uint64
+	// halting
+	halting bool
+	haltMux *sync.RWMutex
 }
 
 type transactionToStore struct {
@@ -128,7 +133,7 @@ func newFinalizer(
 		executor:             executor,
 		batch:                new(WipBatch),
 		batchConstraints:     batchConstraints,
-		processRequest:       state.ProcessRequest{},
+		processRequest:       new(state.ProcessRequest),
 		sharedResourcesMux:   new(sync.RWMutex),
 		lastGERHash:          state.ZeroHash,
 		// closing signals
@@ -150,6 +155,9 @@ func newFinalizer(
 		proverID:           "",
 		lastPendingFlushID: 0,
 		pendingFlushIDCond: sync.NewCond(&sync.Mutex{}),
+		// halting
+		halting: false,
+		haltMux: new(sync.RWMutex),
 	}
 
 	f.reprocessFullBatchError.Store(false)
@@ -174,7 +182,7 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 	if processingReq == nil {
 		log.Fatal("processingReq should not be nil")
 	} else {
-		f.processRequest = *processingReq
+		f.processRequest = processingReq
 	}
 
 	// Closing signals receiver
@@ -326,8 +334,25 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	log.Debug("finalizer init loop")
 	for {
 		start := now()
-		if f.batch.batchNumber == f.cfg.StopSequencerOnBatchNum {
-			f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
+		if f.batchStopNumber != nil && f.batch.batchNumber >= *f.batchStopNumber {
+			log.Infof("finalizer reached or surpassed stop sequencer batch number: %d, curr batch number: %d", *f.batchStopNumber, f.batch.batchNumber)
+			// Close batch if not closed
+			if f.batch.batchNumber == *f.batchStopNumber {
+				isClosed, err := f.dbManager.IsBatchClosed(ctx, f.batch.batchNumber)
+				if err != nil {
+					log.Infof("failed to check if batch is closed, Err: %s", err)
+					continue
+				}
+				if !isClosed {
+					f.batch.closingReason = state.SequencerManuallyStoppedClosingReason
+					f.batch, err = f.newWIPBatch(ctx)
+					if err != nil {
+						log.Errorf("failed to get new wip batch, Err: %s", err)
+					}
+				}
+			}
+
+			f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %d", *f.batchStopNumber))
 		}
 
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
@@ -426,6 +451,10 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 
 // halt halts the finalizer
 func (f *finalizer) halt(ctx context.Context, err error) {
+	f.haltMux.Lock()
+	f.halting = true
+	f.haltMux.Unlock()
+
 	event := &event.Event{
 		ReceivedAt:  time.Now(),
 		Source:      event.Source_Node,
@@ -441,6 +470,13 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 	}
 
 	for {
+		f.haltMux.RLock()
+		halting := f.halting
+		f.haltMux.RUnlock()
+		if !halting {
+			break
+		}
+
 		log.Errorf("fatal error: %s", err)
 		log.Error("halting the finalizer")
 		time.Sleep(5 * time.Second) //nolint:gomnd
@@ -624,7 +660,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 	}
 
 	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hashStr, f.processRequest.GlobalExitRoot.String())
-	processBatchResponse, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
+	processBatchResponse, err := f.executor.ProcessBatch(ctx, *f.processRequest, true)
 	if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
 		log.Errorf("failed to process transaction: %s", err)
 		return nil, err
@@ -937,7 +973,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 	log.Infof("Initial Batch.InitialStateRoot: %s", f.batch.initialStateRoot.String())
 	log.Infof("Initial Batch.localExitRoot: %s", f.batch.localExitRoot.String())
 
-	f.processRequest = state.ProcessRequest{
+	f.processRequest = &state.ProcessRequest{
 		BatchNumber:    *lastBatchNum,
 		OldStateRoot:   f.batch.stateRoot,
 		GlobalExitRoot: f.batch.globalExitRoot,
@@ -1317,6 +1353,45 @@ func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
 // getConstraintThresholdUint32 returns the threshold for the given input
 func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / oneHundred
+}
+
+func (f *finalizer) stopAfterCurrentBatch() {
+	log.Info("stopAfterCurrentBatch called, stopping after current batch")
+	// Safely lock the shared resources mutex
+	f.sharedResourcesMux.Lock()
+	defer f.sharedResourcesMux.Unlock()
+
+	stopBatchNum := f.batch.batchNumber + 1
+	f.batchStopNumber = &stopBatchNum
+}
+
+func (f *finalizer) stopAtBatch(batchNumber uint64) {
+	log.Info("stopAtBatch called, stopping at batch: ", batchNumber)
+	// Safely lock the shared resources mutex
+	f.sharedResourcesMux.Lock()
+	defer f.sharedResourcesMux.Unlock()
+
+	f.batchStopNumber = &batchNumber
+}
+
+func (f *finalizer) resumeProcessing() {
+	log.Info("Resuming processing ...")
+	// Reset any 'stop' flags or batch numbers that were set by the other methods to their defaults.
+	f.sharedResourcesMux.Lock()
+	f.batchStopNumber = nil // nil signifies no stopping
+	f.sharedResourcesMux.Unlock()
+
+	f.haltMux.Lock()
+	f.halting = false
+	f.haltMux.Unlock()
+}
+
+func (f *finalizer) getBatch() *WipBatch {
+	return f.batch
+}
+
+func (f *finalizer) getProcessRequest() *state.ProcessRequest {
+	return f.processRequest
 }
 
 // getUsedBatchResources returns the used resources in the batch

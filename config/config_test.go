@@ -97,10 +97,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
-			path:          "Sequencer.Finalizer.StopSequencerOnBatchNum",
-			expectedValue: uint64(0),
-		},
-		{
 			path:          "Sequencer.Finalizer.TimestampResolution",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
@@ -123,6 +119,26 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.EffectiveGasPrice.Enabled",
 			expectedValue: false,
+		},
+		{
+			path:          "Sequencer.Http.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
+			path:          "Sequencer.Http.Port",
+			expectedValue: 90,
+		},
+		{
+			path:          "Sequencer.Http.MaxRequestsPerIPAndSecond",
+			expectedValue: float64(500),
+		},
+		{
+			path:          "Sequencer.Http.ReadTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
+		},
+		{
+			path:          "Sequencer.Http.WriteTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",

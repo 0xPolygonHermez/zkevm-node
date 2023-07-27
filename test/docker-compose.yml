@@ -50,6 +50,7 @@ services:
     container_name: zkevm-sequencer
     image: zkevm-node
     ports:
+      - 90:90
       - 9092:9091 # needed if metrics enabled
       - 6060:6060
     environment:
