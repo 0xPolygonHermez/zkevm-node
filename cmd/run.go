@@ -373,6 +373,13 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	if err := jsonrpc.NewServer(c.RPC, chainID, pool, st, storage, services).Start(); err != nil {
 		log.Fatal(err)
 	}
+
+	//LEVITATION_BEGIN
+	// Start CandidateBlockPullAgent
+	if err := jsonrpc.NewCandidateBlockPullAgent(c.RPC, chainID).Start(); err != nil {
+		log.Fatal(err)
+	}
+	//LEVITATION_END
 }
 
 func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencer.Sequencer {
