@@ -26,6 +26,12 @@ type Config struct {
 	// to relay transactions to the Sequencer node
 	SequencerNodeURI string `mapstructure:"SequencerNodeURI"`
 
+	//LEVITATION_BEGIN
+	// SequencerNodeURI is used allow Non-Sequencer nodes
+	// to relay transactions to the Sequencer node
+	SkaledURI string `mapstructure:"SkaledURI"`
+	//LEVITATION_END
+
 	// MaxCumulativeGasUsed is the max gas allowed per batch
 	MaxCumulativeGasUsed uint64
 

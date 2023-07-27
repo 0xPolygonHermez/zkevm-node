@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 
 	"net/http"
 	"strings"
@@ -30,10 +31,14 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 			ip = strings.Split(ips, ",")[0]
 		}
 
-		hash, err := e.tryVerifyTx(input, ip)
+		hash, err := e.verifyTxBeforeRelayingToDecentralizedSequencer(input, ip)
 		_ = hash
 		if err != nil {
 			return nil, err
+		}
+
+		if e.cfg.SkaledURI != "" {
+			e.relayTxToDecentralizedSequencer(input)
 		}
 
 		return e.SendRawTransactionFromSequencer(httpRequest, input)
@@ -58,7 +63,7 @@ func (e *EthEndpoints) SendRawTransactionFromSequencer(httpRequest *http.Request
 	}
 }
 
-func (e *EthEndpoints) tryVerifyTx(input, ip string) (interface{}, types.Error) {
+func (e *EthEndpoints) verifyTxBeforeRelayingToDecentralizedSequencer(input, ip string) (interface{}, types.Error) {
 	tx, err := hexToTx(input)
 	if err != nil {
 		return RPCErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err)
@@ -71,4 +76,19 @@ func (e *EthEndpoints) tryVerifyTx(input, ip string) (interface{}, types.Error) 
 	log.Infof("TX verified: %v", tx.Hash().Hex())
 
 	return tx.Hash().Hex(), nil
+}
+
+func (e *EthEndpoints) relayTxToDecentralizedSequencer(input string) (interface{}, types.Error) {
+	res, err := client.JSONRPCCall(e.cfg.SkaledURI, "eth_sendRawTransaction", input)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to relay tx to skaled", err)
+	}
+
+	if res.Error != nil {
+		return RPCErrorResponse(res.Error.Code, res.Error.Message, nil)
+	}
+
+	txHash := res.Result
+
+	return txHash, nil
 }
