@@ -27,6 +27,7 @@
 | - [Metrics](#Metrics )                               | No      | object  | No         | -          | Configuration of the metrics service, basically is where is going to publish the metrics                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | - [EventLog](#EventLog )                             | No      | object  | No         | -          | Configuration of the event database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | - [HashDB](#HashDB )                                 | No      | object  | No         | -          | Configuration of the hash database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| - [Batch](#Batch )                                   | No      | object  | No         | -          | Configuration of the batch service                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ## <a name="IsTrustedSequencer"></a>1. `IsTrustedSequencer`
 
@@ -938,36 +939,17 @@ TrustedSequencerURL=""
 **Type:** : `object`
 **Description:** Configuration of the sequencer service
 
-| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                  |
-| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [WaitPeriodPoolIsEmpty](#Sequencer_WaitPeriodPoolIsEmpty )                 | No      | string  | No         | -          | Duration                                                                                                                                           |
-| - [BlocksAmountForTxsToBeDeleted](#Sequencer_BlocksAmountForTxsToBeDeleted ) | No      | integer | No         | -          | BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool                                                       |
-| - [FrequencyToCheckTxsForDelete](#Sequencer_FrequencyToCheckTxsForDelete )   | No      | string  | No         | -          | Duration                                                                                                                                           |
-| - [MaxTxsPerBatch](#Sequencer_MaxTxsPerBatch )                               | No      | integer | No         | -          | MaxTxsPerBatch is the maximum amount of transactions in the batch                                                                                  |
-| - [MaxBatchBytesSize](#Sequencer_MaxBatchBytesSize )                         | No      | integer | No         | -          | MaxBatchBytesSize is the maximum batch size in bytes<br />(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1) |
-| - [MaxCumulativeGasUsed](#Sequencer_MaxCumulativeGasUsed )                   | No      | integer | No         | -          | MaxCumulativeGasUsed is max gas amount used by batch                                                                                               |
-| - [MaxKeccakHashes](#Sequencer_MaxKeccakHashes )                             | No      | integer | No         | -          | MaxKeccakHashes is max keccak hashes used by batch                                                                                                 |
-| - [MaxPoseidonHashes](#Sequencer_MaxPoseidonHashes )                         | No      | integer | No         | -          | MaxPoseidonHashes is max poseidon hashes batch can handle                                                                                          |
-| - [MaxPoseidonPaddings](#Sequencer_MaxPoseidonPaddings )                     | No      | integer | No         | -          | MaxPoseidonPaddings is max poseidon paddings batch can handle                                                                                      |
-| - [MaxMemAligns](#Sequencer_MaxMemAligns )                                   | No      | integer | No         | -          | MaxMemAligns is max mem aligns batch can handle                                                                                                    |
-| - [MaxArithmetics](#Sequencer_MaxArithmetics )                               | No      | integer | No         | -          | MaxArithmetics is max arithmetics batch can handle                                                                                                 |
-| - [MaxBinaries](#Sequencer_MaxBinaries )                                     | No      | integer | No         | -          | MaxBinaries is max binaries batch can handle                                                                                                       |
-| - [MaxSteps](#Sequencer_MaxSteps )                                           | No      | integer | No         | -          | MaxSteps is max steps batch can handle                                                                                                             |
-| - [WeightBatchBytesSize](#Sequencer_WeightBatchBytesSize )                   | No      | integer | No         | -          | WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource                                                                      |
-| - [WeightCumulativeGasUsed](#Sequencer_WeightCumulativeGasUsed )             | No      | integer | No         | -          | WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource                                                                |
-| - [WeightKeccakHashes](#Sequencer_WeightKeccakHashes )                       | No      | integer | No         | -          | WeightKeccakHashes is the cost weight for the KeccakHashes batch resource                                                                          |
-| - [WeightPoseidonHashes](#Sequencer_WeightPoseidonHashes )                   | No      | integer | No         | -          | WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource                                                                      |
-| - [WeightPoseidonPaddings](#Sequencer_WeightPoseidonPaddings )               | No      | integer | No         | -          | WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource                                                                  |
-| - [WeightMemAligns](#Sequencer_WeightMemAligns )                             | No      | integer | No         | -          | WeightMemAligns is the cost weight for the MemAligns batch resource                                                                                |
-| - [WeightArithmetics](#Sequencer_WeightArithmetics )                         | No      | integer | No         | -          | WeightArithmetics is the cost weight for the Arithmetics batch resource                                                                            |
-| - [WeightBinaries](#Sequencer_WeightBinaries )                               | No      | integer | No         | -          | WeightBinaries is the cost weight for the Binaries batch resource                                                                                  |
-| - [WeightSteps](#Sequencer_WeightSteps )                                     | No      | integer | No         | -          | WeightSteps is the cost weight for the Steps batch resource                                                                                        |
-| - [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )               | No      | string  | No         | -          | Duration                                                                                                                                           |
-| - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string  | No         | -          | Duration                                                                                                                                           |
-| - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                                                                             |
-| - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                                                                             |
-| - [Worker](#Sequencer_Worker )                                               | No      | object  | No         | -          | Worker's specific config properties                                                                                                                |
-| - [EffectiveGasPrice](#Sequencer_EffectiveGasPrice )                         | No      | object  | No         | -          | EffectiveGasPrice is the config for the gas price                                                                                                  |
+| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                            |
+| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------- |
+| - [WaitPeriodPoolIsEmpty](#Sequencer_WaitPeriodPoolIsEmpty )                 | No      | string  | No         | -          | Duration                                                                                     |
+| - [BlocksAmountForTxsToBeDeleted](#Sequencer_BlocksAmountForTxsToBeDeleted ) | No      | integer | No         | -          | BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool |
+| - [FrequencyToCheckTxsForDelete](#Sequencer_FrequencyToCheckTxsForDelete )   | No      | string  | No         | -          | Duration                                                                                     |
+| - [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )               | No      | string  | No         | -          | Duration                                                                                     |
+| - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string  | No         | -          | Duration                                                                                     |
+| - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                       |
+| - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                       |
+| - [Worker](#Sequencer_Worker )                                               | No      | object  | No         | -          | Worker's specific config properties                                                          |
+| - [EffectiveGasPrice](#Sequencer_EffectiveGasPrice )                         | No      | object  | No         | -          | EffectiveGasPrice is the config for the gas price                                            |
 
 ### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
 
@@ -1036,274 +1018,7 @@ BlocksAmountForTxsToBeDeleted=100
 FrequencyToCheckTxsForDelete="12h0m0s"
 ```
 
-### <a name="Sequencer_MaxTxsPerBatch"></a>10.4. `Sequencer.MaxTxsPerBatch`
-
-**Type:** : `integer`
-
-**Default:** `300`
-
-**Description:** MaxTxsPerBatch is the maximum amount of transactions in the batch
-
-**Example setting the default value** (300):
-```
-[Sequencer]
-MaxTxsPerBatch=300
-```
-
-### <a name="Sequencer_MaxBatchBytesSize"></a>10.5. `Sequencer.MaxBatchBytesSize`
-
-**Type:** : `integer`
-
-**Default:** `120000`
-
-**Description:** MaxBatchBytesSize is the maximum batch size in bytes
-(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)
-
-**Example setting the default value** (120000):
-```
-[Sequencer]
-MaxBatchBytesSize=120000
-```
-
-### <a name="Sequencer_MaxCumulativeGasUsed"></a>10.6. `Sequencer.MaxCumulativeGasUsed`
-
-**Type:** : `integer`
-
-**Default:** `30000000`
-
-**Description:** MaxCumulativeGasUsed is max gas amount used by batch
-
-**Example setting the default value** (30000000):
-```
-[Sequencer]
-MaxCumulativeGasUsed=30000000
-```
-
-### <a name="Sequencer_MaxKeccakHashes"></a>10.7. `Sequencer.MaxKeccakHashes`
-
-**Type:** : `integer`
-
-**Default:** `2145`
-
-**Description:** MaxKeccakHashes is max keccak hashes used by batch
-
-**Example setting the default value** (2145):
-```
-[Sequencer]
-MaxKeccakHashes=2145
-```
-
-### <a name="Sequencer_MaxPoseidonHashes"></a>10.8. `Sequencer.MaxPoseidonHashes`
-
-**Type:** : `integer`
-
-**Default:** `252357`
-
-**Description:** MaxPoseidonHashes is max poseidon hashes batch can handle
-
-**Example setting the default value** (252357):
-```
-[Sequencer]
-MaxPoseidonHashes=252357
-```
-
-### <a name="Sequencer_MaxPoseidonPaddings"></a>10.9. `Sequencer.MaxPoseidonPaddings`
-
-**Type:** : `integer`
-
-**Default:** `135191`
-
-**Description:** MaxPoseidonPaddings is max poseidon paddings batch can handle
-
-**Example setting the default value** (135191):
-```
-[Sequencer]
-MaxPoseidonPaddings=135191
-```
-
-### <a name="Sequencer_MaxMemAligns"></a>10.10. `Sequencer.MaxMemAligns`
-
-**Type:** : `integer`
-
-**Default:** `236585`
-
-**Description:** MaxMemAligns is max mem aligns batch can handle
-
-**Example setting the default value** (236585):
-```
-[Sequencer]
-MaxMemAligns=236585
-```
-
-### <a name="Sequencer_MaxArithmetics"></a>10.11. `Sequencer.MaxArithmetics`
-
-**Type:** : `integer`
-
-**Default:** `236585`
-
-**Description:** MaxArithmetics is max arithmetics batch can handle
-
-**Example setting the default value** (236585):
-```
-[Sequencer]
-MaxArithmetics=236585
-```
-
-### <a name="Sequencer_MaxBinaries"></a>10.12. `Sequencer.MaxBinaries`
-
-**Type:** : `integer`
-
-**Default:** `473170`
-
-**Description:** MaxBinaries is max binaries batch can handle
-
-**Example setting the default value** (473170):
-```
-[Sequencer]
-MaxBinaries=473170
-```
-
-### <a name="Sequencer_MaxSteps"></a>10.13. `Sequencer.MaxSteps`
-
-**Type:** : `integer`
-
-**Default:** `7570538`
-
-**Description:** MaxSteps is max steps batch can handle
-
-**Example setting the default value** (7570538):
-```
-[Sequencer]
-MaxSteps=7570538
-```
-
-### <a name="Sequencer_WeightBatchBytesSize"></a>10.14. `Sequencer.WeightBatchBytesSize`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
-
-**Example setting the default value** (1):
-```
-[Sequencer]
-WeightBatchBytesSize=1
-```
-
-### <a name="Sequencer_WeightCumulativeGasUsed"></a>10.15. `Sequencer.WeightCumulativeGasUsed`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource
-
-**Example setting the default value** (1):
-```
-[Sequencer]
-WeightCumulativeGasUsed=1
-```
-
-### <a name="Sequencer_WeightKeccakHashes"></a>10.16. `Sequencer.WeightKeccakHashes`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** WeightKeccakHashes is the cost weight for the KeccakHashes batch resource
-
-**Example setting the default value** (1):
-```
-[Sequencer]
-WeightKeccakHashes=1
-```
-
-### <a name="Sequencer_WeightPoseidonHashes"></a>10.17. `Sequencer.WeightPoseidonHashes`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource
-
-**Example setting the default value** (1):
-```
-[Sequencer]
-WeightPoseidonHashes=1
-```
-
-### <a name="Sequencer_WeightPoseidonPaddings"></a>10.18. `Sequencer.WeightPoseidonPaddings`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource
-
-**Example setting the default value** (1):
-```
-[Sequencer]
-WeightPoseidonPaddings=1
-```
-
-### <a name="Sequencer_WeightMemAligns"></a>10.19. `Sequencer.WeightMemAligns`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** WeightMemAligns is the cost weight for the MemAligns batch resource
-
-**Example setting the default value** (1):
-```
-[Sequencer]
-WeightMemAligns=1
-```
-
-### <a name="Sequencer_WeightArithmetics"></a>10.20. `Sequencer.WeightArithmetics`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** WeightArithmetics is the cost weight for the Arithmetics batch resource
-
-**Example setting the default value** (1):
-```
-[Sequencer]
-WeightArithmetics=1
-```
-
-### <a name="Sequencer_WeightBinaries"></a>10.21. `Sequencer.WeightBinaries`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** WeightBinaries is the cost weight for the Binaries batch resource
-
-**Example setting the default value** (1):
-```
-[Sequencer]
-WeightBinaries=1
-```
-
-### <a name="Sequencer_WeightSteps"></a>10.22. `Sequencer.WeightSteps`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** WeightSteps is the cost weight for the Steps batch resource
-
-**Example setting the default value** (1):
-```
-[Sequencer]
-WeightSteps=1
-```
-
-### <a name="Sequencer_TxLifetimeCheckTimeout"></a>10.23. `Sequencer.TxLifetimeCheckTimeout`
+### <a name="Sequencer_TxLifetimeCheckTimeout"></a>10.4. `Sequencer.TxLifetimeCheckTimeout`
 
 **Title:** Duration
 
@@ -1329,7 +1044,7 @@ WeightSteps=1
 TxLifetimeCheckTimeout="10m0s"
 ```
 
-### <a name="Sequencer_MaxTxLifetime"></a>10.24. `Sequencer.MaxTxLifetime`
+### <a name="Sequencer_MaxTxLifetime"></a>10.5. `Sequencer.MaxTxLifetime`
 
 **Title:** Duration
 
@@ -1355,7 +1070,7 @@ TxLifetimeCheckTimeout="10m0s"
 MaxTxLifetime="3h0m0s"
 ```
 
-### <a name="Sequencer_Finalizer"></a>10.25. `[Sequencer.Finalizer]`
+### <a name="Sequencer_Finalizer"></a>10.6. `[Sequencer.Finalizer]`
 
 **Type:** : `object`
 **Description:** Finalizer's specific config properties
@@ -1374,7 +1089,7 @@ MaxTxLifetime="3h0m0s"
 | - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
 | - [StopSequencerOnBatchNum](#Sequencer_Finalizer_StopSequencerOnBatchNum )                                                     | No      | integer | No         | -          | StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
 
-#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.25.1. `Sequencer.Finalizer.GERDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.6.1. `Sequencer.Finalizer.GERDeadlineTimeout`
 
 **Title:** Duration
 
@@ -1400,7 +1115,7 @@ MaxTxLifetime="3h0m0s"
 GERDeadlineTimeout="5s"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.25.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.6.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
 
 **Title:** Duration
 
@@ -1426,7 +1141,7 @@ GERDeadlineTimeout="5s"
 ForcedBatchDeadlineTimeout="1m0s"
 ```
 
-#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.25.3. `Sequencer.Finalizer.SleepDuration`
+#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.6.3. `Sequencer.Finalizer.SleepDuration`
 
 **Title:** Duration
 
@@ -1452,7 +1167,7 @@ ForcedBatchDeadlineTimeout="1m0s"
 SleepDuration="100ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.25.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
+#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.6.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
 
 **Type:** : `integer`
 
@@ -1466,7 +1181,7 @@ SleepDuration="100ms"
 ResourcePercentageToCloseBatch=10
 ```
 
-#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>10.25.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>10.6.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
 
 **Type:** : `integer`
 
@@ -1480,7 +1195,7 @@ ResourcePercentageToCloseBatch=10
 GERFinalityNumberOfBlocks=64
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.25.6. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.6.6. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
 
 **Title:** Duration
 
@@ -1506,7 +1221,7 @@ GERFinalityNumberOfBlocks=64
 ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.25.7. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.6.7. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
 
 **Title:** Duration
 
@@ -1532,7 +1247,7 @@ ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
 ClosingSignalsManagerWaitForCheckingGER="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.25.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.6.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
 
 **Title:** Duration
 
@@ -1558,7 +1273,7 @@ ClosingSignalsManagerWaitForCheckingGER="10s"
 ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.25.9. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.6.9. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
 
 **Type:** : `integer`
 
@@ -1572,7 +1287,7 @@ ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 ForcedBatchesFinalityNumberOfBlocks=64
 ```
 
-#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.25.10. `Sequencer.Finalizer.TimestampResolution`
+#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.6.10. `Sequencer.Finalizer.TimestampResolution`
 
 **Title:** Duration
 
@@ -1598,7 +1313,7 @@ ForcedBatchesFinalityNumberOfBlocks=64
 TimestampResolution="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.25.11. `Sequencer.Finalizer.StopSequencerOnBatchNum`
+#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.6.11. `Sequencer.Finalizer.StopSequencerOnBatchNum`
 
 **Type:** : `integer`
 
@@ -1612,7 +1327,7 @@ TimestampResolution="10s"
 StopSequencerOnBatchNum=0
 ```
 
-### <a name="Sequencer_DBManager"></a>10.26. `[Sequencer.DBManager]`
+### <a name="Sequencer_DBManager"></a>10.7. `[Sequencer.DBManager]`
 
 **Type:** : `object`
 **Description:** DBManager's specific config properties
@@ -1622,7 +1337,7 @@ StopSequencerOnBatchNum=0
 | - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
 | - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
 
-#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.26.1. `Sequencer.DBManager.PoolRetrievalInterval`
+#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.7.1. `Sequencer.DBManager.PoolRetrievalInterval`
 
 **Title:** Duration
 
@@ -1646,7 +1361,7 @@ StopSequencerOnBatchNum=0
 PoolRetrievalInterval="500ms"
 ```
 
-#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>10.26.2. `Sequencer.DBManager.L2ReorgRetrievalInterval`
+#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>10.7.2. `Sequencer.DBManager.L2ReorgRetrievalInterval`
 
 **Title:** Duration
 
@@ -1670,7 +1385,7 @@ PoolRetrievalInterval="500ms"
 L2ReorgRetrievalInterval="5s"
 ```
 
-### <a name="Sequencer_Worker"></a>10.27. `[Sequencer.Worker]`
+### <a name="Sequencer_Worker"></a>10.8. `[Sequencer.Worker]`
 
 **Type:** : `object`
 **Description:** Worker's specific config properties
@@ -1679,7 +1394,7 @@ L2ReorgRetrievalInterval="5s"
 | --------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | -------------------------------------------------------------- |
 | - [ResourceCostMultiplier](#Sequencer_Worker_ResourceCostMultiplier ) | No      | number | No         | -          | ResourceCostMultiplier is the multiplier for the resource cost |
 
-#### <a name="Sequencer_Worker_ResourceCostMultiplier"></a>10.27.1. `Sequencer.Worker.ResourceCostMultiplier`
+#### <a name="Sequencer_Worker_ResourceCostMultiplier"></a>10.8.1. `Sequencer.Worker.ResourceCostMultiplier`
 
 **Type:** : `number`
 
@@ -1693,7 +1408,7 @@ L2ReorgRetrievalInterval="5s"
 ResourceCostMultiplier=1000
 ```
 
-### <a name="Sequencer_EffectiveGasPrice"></a>10.28. `[Sequencer.EffectiveGasPrice]`
+### <a name="Sequencer_EffectiveGasPrice"></a>10.9. `[Sequencer.EffectiveGasPrice]`
 
 **Type:** : `object`
 **Description:** EffectiveGasPrice is the config for the gas price
@@ -1707,7 +1422,7 @@ ResourceCostMultiplier=1000
 | - [Enabled](#Sequencer_EffectiveGasPrice_Enabled )                                                                 | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                                         |
 | - [DefaultMinGasPriceAllowed](#Sequencer_EffectiveGasPrice_DefaultMinGasPriceAllowed )                             | No      | integer | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest<br />This value is assigned from [Pool].DefaultMinGasPriceAllowed |
 
-#### <a name="Sequencer_EffectiveGasPrice_MaxBreakEvenGasPriceDeviationPercentage"></a>10.28.1. `Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage`
+#### <a name="Sequencer_EffectiveGasPrice_MaxBreakEvenGasPriceDeviationPercentage"></a>10.9.1. `Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage`
 
 **Type:** : `integer`
 
@@ -1721,7 +1436,7 @@ ResourceCostMultiplier=1000
 MaxBreakEvenGasPriceDeviationPercentage=10
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_L1GasPriceFactor"></a>10.28.2. `Sequencer.EffectiveGasPrice.L1GasPriceFactor`
+#### <a name="Sequencer_EffectiveGasPrice_L1GasPriceFactor"></a>10.9.2. `Sequencer.EffectiveGasPrice.L1GasPriceFactor`
 
 **Type:** : `number`
 
@@ -1735,7 +1450,7 @@ MaxBreakEvenGasPriceDeviationPercentage=10
 L1GasPriceFactor=0.25
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_ByteGasCost"></a>10.28.3. `Sequencer.EffectiveGasPrice.ByteGasCost`
+#### <a name="Sequencer_EffectiveGasPrice_ByteGasCost"></a>10.9.3. `Sequencer.EffectiveGasPrice.ByteGasCost`
 
 **Type:** : `integer`
 
@@ -1749,7 +1464,7 @@ L1GasPriceFactor=0.25
 ByteGasCost=16
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_MarginFactor"></a>10.28.4. `Sequencer.EffectiveGasPrice.MarginFactor`
+#### <a name="Sequencer_EffectiveGasPrice_MarginFactor"></a>10.9.4. `Sequencer.EffectiveGasPrice.MarginFactor`
 
 **Type:** : `number`
 
@@ -1763,7 +1478,7 @@ ByteGasCost=16
 MarginFactor=1
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_Enabled"></a>10.28.5. `Sequencer.EffectiveGasPrice.Enabled`
+#### <a name="Sequencer_EffectiveGasPrice_Enabled"></a>10.9.5. `Sequencer.EffectiveGasPrice.Enabled`
 
 **Type:** : `boolean`
 
@@ -1777,7 +1492,7 @@ MarginFactor=1
 Enabled=false
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_DefaultMinGasPriceAllowed"></a>10.28.6. `Sequencer.EffectiveGasPrice.DefaultMinGasPriceAllowed`
+#### <a name="Sequencer_EffectiveGasPrice_DefaultMinGasPriceAllowed"></a>10.9.6. `Sequencer.EffectiveGasPrice.DefaultMinGasPriceAllowed`
 
 **Type:** : `integer`
 
@@ -3083,6 +2798,277 @@ EnableLog=false
 ```
 [HashDB]
 MaxConns=200
+```
+
+## <a name="Batch"></a>21. `[Batch]`
+
+**Type:** : `object`
+**Description:** Configuration of the batch service
+
+| Property                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
+| -------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
+| - [Constraints](#Batch_Constraints )         | No      | object | No         | -          | -                 |
+| - [ResourceWeights](#Batch_ResourceWeights ) | No      | object | No         | -          | -                 |
+
+### <a name="Batch_Constraints"></a>21.1. `[Batch.Constraints]`
+
+**Type:** : `object`
+
+| Property                                                           | Pattern | Type    | Deprecated | Definition | Title/Description |
+| ------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [MaxTxsPerBatch](#Batch_Constraints_MaxTxsPerBatch )             | No      | integer | No         | -          | -                 |
+| - [MaxBatchBytesSize](#Batch_Constraints_MaxBatchBytesSize )       | No      | integer | No         | -          | -                 |
+| - [MaxCumulativeGasUsed](#Batch_Constraints_MaxCumulativeGasUsed ) | No      | integer | No         | -          | -                 |
+| - [MaxKeccakHashes](#Batch_Constraints_MaxKeccakHashes )           | No      | integer | No         | -          | -                 |
+| - [MaxPoseidonHashes](#Batch_Constraints_MaxPoseidonHashes )       | No      | integer | No         | -          | -                 |
+| - [MaxPoseidonPaddings](#Batch_Constraints_MaxPoseidonPaddings )   | No      | integer | No         | -          | -                 |
+| - [MaxMemAligns](#Batch_Constraints_MaxMemAligns )                 | No      | integer | No         | -          | -                 |
+| - [MaxArithmetics](#Batch_Constraints_MaxArithmetics )             | No      | integer | No         | -          | -                 |
+| - [MaxBinaries](#Batch_Constraints_MaxBinaries )                   | No      | integer | No         | -          | -                 |
+| - [MaxSteps](#Batch_Constraints_MaxSteps )                         | No      | integer | No         | -          | -                 |
+
+#### <a name="Batch_Constraints_MaxTxsPerBatch"></a>21.1.1. `Batch.Constraints.MaxTxsPerBatch`
+
+**Type:** : `integer`
+
+**Default:** `300`
+
+**Example setting the default value** (300):
+```
+[Batch.Constraints]
+MaxTxsPerBatch=300
+```
+
+#### <a name="Batch_Constraints_MaxBatchBytesSize"></a>21.1.2. `Batch.Constraints.MaxBatchBytesSize`
+
+**Type:** : `integer`
+
+**Default:** `120000`
+
+**Example setting the default value** (120000):
+```
+[Batch.Constraints]
+MaxBatchBytesSize=120000
+```
+
+#### <a name="Batch_Constraints_MaxCumulativeGasUsed"></a>21.1.3. `Batch.Constraints.MaxCumulativeGasUsed`
+
+**Type:** : `integer`
+
+**Default:** `30000000`
+
+**Example setting the default value** (30000000):
+```
+[Batch.Constraints]
+MaxCumulativeGasUsed=30000000
+```
+
+#### <a name="Batch_Constraints_MaxKeccakHashes"></a>21.1.4. `Batch.Constraints.MaxKeccakHashes`
+
+**Type:** : `integer`
+
+**Default:** `2145`
+
+**Example setting the default value** (2145):
+```
+[Batch.Constraints]
+MaxKeccakHashes=2145
+```
+
+#### <a name="Batch_Constraints_MaxPoseidonHashes"></a>21.1.5. `Batch.Constraints.MaxPoseidonHashes`
+
+**Type:** : `integer`
+
+**Default:** `252357`
+
+**Example setting the default value** (252357):
+```
+[Batch.Constraints]
+MaxPoseidonHashes=252357
+```
+
+#### <a name="Batch_Constraints_MaxPoseidonPaddings"></a>21.1.6. `Batch.Constraints.MaxPoseidonPaddings`
+
+**Type:** : `integer`
+
+**Default:** `135191`
+
+**Example setting the default value** (135191):
+```
+[Batch.Constraints]
+MaxPoseidonPaddings=135191
+```
+
+#### <a name="Batch_Constraints_MaxMemAligns"></a>21.1.7. `Batch.Constraints.MaxMemAligns`
+
+**Type:** : `integer`
+
+**Default:** `236585`
+
+**Example setting the default value** (236585):
+```
+[Batch.Constraints]
+MaxMemAligns=236585
+```
+
+#### <a name="Batch_Constraints_MaxArithmetics"></a>21.1.8. `Batch.Constraints.MaxArithmetics`
+
+**Type:** : `integer`
+
+**Default:** `236585`
+
+**Example setting the default value** (236585):
+```
+[Batch.Constraints]
+MaxArithmetics=236585
+```
+
+#### <a name="Batch_Constraints_MaxBinaries"></a>21.1.9. `Batch.Constraints.MaxBinaries`
+
+**Type:** : `integer`
+
+**Default:** `473170`
+
+**Example setting the default value** (473170):
+```
+[Batch.Constraints]
+MaxBinaries=473170
+```
+
+#### <a name="Batch_Constraints_MaxSteps"></a>21.1.10. `Batch.Constraints.MaxSteps`
+
+**Type:** : `integer`
+
+**Default:** `7570538`
+
+**Example setting the default value** (7570538):
+```
+[Batch.Constraints]
+MaxSteps=7570538
+```
+
+### <a name="Batch_ResourceWeights"></a>21.2. `[Batch.ResourceWeights]`
+
+**Type:** : `object`
+
+| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description |
+| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [WeightBatchBytesSize](#Batch_ResourceWeights_WeightBatchBytesSize )       | No      | integer | No         | -          | -                 |
+| - [WeightCumulativeGasUsed](#Batch_ResourceWeights_WeightCumulativeGasUsed ) | No      | integer | No         | -          | -                 |
+| - [WeightKeccakHashes](#Batch_ResourceWeights_WeightKeccakHashes )           | No      | integer | No         | -          | -                 |
+| - [WeightPoseidonHashes](#Batch_ResourceWeights_WeightPoseidonHashes )       | No      | integer | No         | -          | -                 |
+| - [WeightPoseidonPaddings](#Batch_ResourceWeights_WeightPoseidonPaddings )   | No      | integer | No         | -          | -                 |
+| - [WeightMemAligns](#Batch_ResourceWeights_WeightMemAligns )                 | No      | integer | No         | -          | -                 |
+| - [WeightArithmetics](#Batch_ResourceWeights_WeightArithmetics )             | No      | integer | No         | -          | -                 |
+| - [WeightBinaries](#Batch_ResourceWeights_WeightBinaries )                   | No      | integer | No         | -          | -                 |
+| - [WeightSteps](#Batch_ResourceWeights_WeightSteps )                         | No      | integer | No         | -          | -                 |
+
+#### <a name="Batch_ResourceWeights_WeightBatchBytesSize"></a>21.2.1. `Batch.ResourceWeights.WeightBatchBytesSize`
+
+**Type:** : `integer`
+
+**Default:** `1`
+
+**Example setting the default value** (1):
+```
+[Batch.ResourceWeights]
+WeightBatchBytesSize=1
+```
+
+#### <a name="Batch_ResourceWeights_WeightCumulativeGasUsed"></a>21.2.2. `Batch.ResourceWeights.WeightCumulativeGasUsed`
+
+**Type:** : `integer`
+
+**Default:** `1`
+
+**Example setting the default value** (1):
+```
+[Batch.ResourceWeights]
+WeightCumulativeGasUsed=1
+```
+
+#### <a name="Batch_ResourceWeights_WeightKeccakHashes"></a>21.2.3. `Batch.ResourceWeights.WeightKeccakHashes`
+
+**Type:** : `integer`
+
+**Default:** `1`
+
+**Example setting the default value** (1):
+```
+[Batch.ResourceWeights]
+WeightKeccakHashes=1
+```
+
+#### <a name="Batch_ResourceWeights_WeightPoseidonHashes"></a>21.2.4. `Batch.ResourceWeights.WeightPoseidonHashes`
+
+**Type:** : `integer`
+
+**Default:** `1`
+
+**Example setting the default value** (1):
+```
+[Batch.ResourceWeights]
+WeightPoseidonHashes=1
+```
+
+#### <a name="Batch_ResourceWeights_WeightPoseidonPaddings"></a>21.2.5. `Batch.ResourceWeights.WeightPoseidonPaddings`
+
+**Type:** : `integer`
+
+**Default:** `1`
+
+**Example setting the default value** (1):
+```
+[Batch.ResourceWeights]
+WeightPoseidonPaddings=1
+```
+
+#### <a name="Batch_ResourceWeights_WeightMemAligns"></a>21.2.6. `Batch.ResourceWeights.WeightMemAligns`
+
+**Type:** : `integer`
+
+**Default:** `1`
+
+**Example setting the default value** (1):
+```
+[Batch.ResourceWeights]
+WeightMemAligns=1
+```
+
+#### <a name="Batch_ResourceWeights_WeightArithmetics"></a>21.2.7. `Batch.ResourceWeights.WeightArithmetics`
+
+**Type:** : `integer`
+
+**Default:** `1`
+
+**Example setting the default value** (1):
+```
+[Batch.ResourceWeights]
+WeightArithmetics=1
+```
+
+#### <a name="Batch_ResourceWeights_WeightBinaries"></a>21.2.8. `Batch.ResourceWeights.WeightBinaries`
+
+**Type:** : `integer`
+
+**Default:** `1`
+
+**Example setting the default value** (1):
+```
+[Batch.ResourceWeights]
+WeightBinaries=1
+```
+
+#### <a name="Batch_ResourceWeights_WeightSteps"></a>21.2.9. `Batch.ResourceWeights.WeightSteps`
+
+**Type:** : `integer`
+
+**Default:** `1`
+
+**Example setting the default value** (1):
+```
+[Batch.ResourceWeights]
+WeightSteps=1
 ```
 
 ----------------------------------------------------------------------------------------------------------------------------

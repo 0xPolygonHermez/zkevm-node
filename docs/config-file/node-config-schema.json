@@ -394,101 +394,6 @@
 						"300ms"
 					]
 				},
-				"MaxTxsPerBatch": {
-					"type": "integer",
-					"description": "MaxTxsPerBatch is the maximum amount of transactions in the batch",
-					"default": 300
-				},
-				"MaxBatchBytesSize": {
-					"type": "integer",
-					"description": "MaxBatchBytesSize is the maximum batch size in bytes\n(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)",
-					"default": 120000
-				},
-				"MaxCumulativeGasUsed": {
-					"type": "integer",
-					"description": "MaxCumulativeGasUsed is max gas amount used by batch",
-					"default": 30000000
-				},
-				"MaxKeccakHashes": {
-					"type": "integer",
-					"description": "MaxKeccakHashes is max keccak hashes used by batch",
-					"default": 2145
-				},
-				"MaxPoseidonHashes": {
-					"type": "integer",
-					"description": "MaxPoseidonHashes is max poseidon hashes batch can handle",
-					"default": 252357
-				},
-				"MaxPoseidonPaddings": {
-					"type": "integer",
-					"description": "MaxPoseidonPaddings is max poseidon paddings batch can handle",
-					"default": 135191
-				},
-				"MaxMemAligns": {
-					"type": "integer",
-					"description": "MaxMemAligns is max mem aligns batch can handle",
-					"default": 236585
-				},
-				"MaxArithmetics": {
-					"type": "integer",
-					"description": "MaxArithmetics is max arithmetics batch can handle",
-					"default": 236585
-				},
-				"MaxBinaries": {
-					"type": "integer",
-					"description": "MaxBinaries is max binaries batch can handle",
-					"default": 473170
-				},
-				"MaxSteps": {
-					"type": "integer",
-					"description": "MaxSteps is max steps batch can handle",
-					"default": 7570538
-				},
-				"WeightBatchBytesSize": {
-					"type": "integer",
-					"description": "WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource",
-					"default": 1
-				},
-				"WeightCumulativeGasUsed": {
-					"type": "integer",
-					"description": "WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource",
-					"default": 1
-				},
-				"WeightKeccakHashes": {
-					"type": "integer",
-					"description": "WeightKeccakHashes is the cost weight for the KeccakHashes batch resource",
-					"default": 1
-				},
-				"WeightPoseidonHashes": {
-					"type": "integer",
-					"description": "WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource",
-					"default": 1
-				},
-				"WeightPoseidonPaddings": {
-					"type": "integer",
-					"description": "WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource",
-					"default": 1
-				},
-				"WeightMemAligns": {
-					"type": "integer",
-					"description": "WeightMemAligns is the cost weight for the MemAligns batch resource",
-					"default": 1
-				},
-				"WeightArithmetics": {
-					"type": "integer",
-					"description": "WeightArithmetics is the cost weight for the Arithmetics batch resource",
-					"default": 1
-				},
-				"WeightBinaries": {
-					"type": "integer",
-					"description": "WeightBinaries is the cost weight for the Binaries batch resource",
-					"default": 1
-				},
-				"WeightSteps": {
-					"type": "integer",
-					"description": "WeightSteps is the cost weight for the Steps batch resource",
-					"default": 1
-				},
 				"TxLifetimeCheckTimeout": {
 					"type": "string",
 					"title": "Duration",
@@ -1248,6 +1153,101 @@
 			"additionalProperties": false,
 			"type": "object",
 			"description": "Configuration of the hash database connection"
+		},
+		"Batch": {
+			"properties": {
+				"Constraints": {
+					"properties": {
+						"MaxTxsPerBatch": {
+							"type": "integer",
+							"default": 300
+						},
+						"MaxBatchBytesSize": {
+							"type": "integer",
+							"default": 120000
+						},
+						"MaxCumulativeGasUsed": {
+							"type": "integer",
+							"default": 30000000
+						},
+						"MaxKeccakHashes": {
+							"type": "integer",
+							"default": 2145
+						},
+						"MaxPoseidonHashes": {
+							"type": "integer",
+							"default": 252357
+						},
+						"MaxPoseidonPaddings": {
+							"type": "integer",
+							"default": 135191
+						},
+						"MaxMemAligns": {
+							"type": "integer",
+							"default": 236585
+						},
+						"MaxArithmetics": {
+							"type": "integer",
+							"default": 236585
+						},
+						"MaxBinaries": {
+							"type": "integer",
+							"default": 473170
+						},
+						"MaxSteps": {
+							"type": "integer",
+							"default": 7570538
+						}
+					},
+					"additionalProperties": false,
+					"type": "object"
+				},
+				"ResourceWeights": {
+					"properties": {
+						"WeightBatchBytesSize": {
+							"type": "integer",
+							"default": 1
+						},
+						"WeightCumulativeGasUsed": {
+							"type": "integer",
+							"default": 1
+						},
+						"WeightKeccakHashes": {
+							"type": "integer",
+							"default": 1
+						},
+						"WeightPoseidonHashes": {
+							"type": "integer",
+							"default": 1
+						},
+						"WeightPoseidonPaddings": {
+							"type": "integer",
+							"default": 1
+						},
+						"WeightMemAligns": {
+							"type": "integer",
+							"default": 1
+						},
+						"WeightArithmetics": {
+							"type": "integer",
+							"default": 1
+						},
+						"WeightBinaries": {
+							"type": "integer",
+							"default": 1
+						},
+						"WeightSteps": {
+							"type": "integer",
+							"default": 1
+						}
+					},
+					"additionalProperties": false,
+					"type": "object"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object",
+			"description": "Configuration of the batch service"
 		}
 	},
 	"additionalProperties": false,

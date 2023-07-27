@@ -54,13 +54,13 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 
 	// Make sure the IP is valid.
 	if tx.IP != "" && !pool.IsValidIP(tx.IP) {
-		return pool.ErrInvalidIP, false
+		return nil, pool.ErrInvalidIP
 	}
 
 	// Make sure the transaction's batch resources are within the constraints.
 	if !w.batchConstraints.IsWithinConstraints(tx.BatchResources.ZKCounters) {
 		log.Errorf("OutOfCounters Error (Node level)  for tx: %s", tx.Hash.String())
-		return pool.ErrOutOfCounters, false
+		return nil, pool.ErrOutOfCounters
 	}
 
 	addr, found := w.pool[tx.FromStr]
