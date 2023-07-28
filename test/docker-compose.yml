@@ -80,6 +80,7 @@ services:
       - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components sequence-sender"
 
   zkevm-json-rpc:
+    build: ..
     container_name: zkevm-json-rpc
     image: zkevm-node
     ports:

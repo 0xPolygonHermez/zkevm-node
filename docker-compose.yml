@@ -14,6 +14,9 @@ services:
       zkevm-sync:
         condition: service_started
     image: zkevm-node
+# LEVITATION_BEGIN
+    build: .
+# LEVITATION_END
     deploy:
       resources:
         limits:
