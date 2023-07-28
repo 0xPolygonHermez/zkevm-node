@@ -1343,7 +1343,6 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				log.Warnf("the batch [%d] looks like were not close but in STATE was closed", trustedBatch.Number)
 			}
 		}
-
 	}
 
 	log.Infof("Batch %v synchronized", trustedBatch.Number)
