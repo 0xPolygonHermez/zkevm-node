@@ -234,7 +234,7 @@ func (s *ClientSynchronizer) Sync() error {
 				log.Warn("error setting latest batch info into db. Error: ", err)
 				continue
 			}
-
+			log.Infof("latestSequencedBatchNumber: %d, latestSyncedBatch: %d, lastVerifiedBatchNumber: %d", latestSequencedBatchNumber, latestSyncedBatch, lastVerifiedBatchNumber)
 			// Sync trusted state
 			if latestSyncedBatch >= latestSequencedBatchNumber {
 				startTrusted := time.Now()
@@ -1285,8 +1285,13 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 					}
 					log.Debugf("closing batch %v", trustedBatch.Number)
 					if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
-						log.Errorf("error closing batch %d", trustedBatch.Number)
-						return nil, nil, err
+						// This is a workaround to avoid closing a batch that was already closed
+						if err.Error() != state.ErrBatchAlreadyClosed.Error() {
+							log.Errorf("error closing batch %d", trustedBatch.Number)
+							return nil, nil, err
+						} else {
+							log.Warnf("CASE 02: the batch [%d] looks like were not close but in STATE was closed", trustedBatch.Number)
+						}
 					}
 					batches[0].AccInputHash = trustedBatch.AccInputHash
 					batches[0].StateRoot = trustedBatch.StateRoot
@@ -1340,7 +1345,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				log.Errorf("error closing batch %d", trustedBatch.Number)
 				return nil, nil, err
 			} else {
-				log.Warnf("the batch [%d] looks like were not close but in STATE was closed", trustedBatch.Number)
+				log.Warnf("CASE 01: the batch [%d] looks like were not close but in STATE was closed", trustedBatch.Number)
 			}
 		}
 	}
