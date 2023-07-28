@@ -6,9 +6,17 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/didip/tollbooth/v6"
+)
+
+const (
+	stopAfterCurrentBatchEndpoint = "/stopAfterCurrentBatch"
+	stopAtBatchEndpoint           = "/stopAtBatch"
+	resumeProcessingEndpoint      = "/resumeProcessing"
+	getCurrentBatchNumberEndpoint = "/getCurrentBatchNumber"
 )
 
 // startHTTP starts a server to respond http requests
@@ -49,77 +57,112 @@ func (s *Sequencer) handle(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-	if req.Method == "GET" {
-		_, err := w.Write([]byte("zkEVM Sequencer Server"))
-		if err != nil {
-			log.Error(err)
+	switch req.Method {
+	case "GET":
+		if req.URL.Path != getCurrentBatchNumberEndpoint {
+			response := map[string]string{
+				"message": "zkEVM Sequencer",
+			}
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				log.Error(err)
+			}
+		} else {
+			s.getCurrentBatchNumber(w)
 		}
-		return
-	}
 
-	if (*req).Method == "OPTIONS" {
+	case "OPTIONS":
+		// No body response for OPTIONS
 		return
-	}
 
-	if req.Method != "POST" {
-		err := errors.New("method " + req.Method + " not allowed")
-		s.handleInvalidRequest(w, err)
-		return
-	}
+	case "POST":
+		switch req.URL.Path {
+		case stopAfterCurrentBatchEndpoint:
+			s.stopAfterCurrentBatch(w)
+		case stopAtBatchEndpoint:
+			s.stopAtBatch(w, req)
+		case resumeProcessingEndpoint:
+			s.resumeProcessing(w)
+		default:
+			err := errors.New("invalid path " + req.URL.Path)
+			s.handleInvalidRequest(w, err)
+		}
 
-	switch req.URL.Path {
-	case "/stopAfterCurrentBatch":
-		s.stopAfterCurrentBatch(w)
-	case "/stopAtBatch":
-		s.stopAtBatch(w, req)
-	case "/resumeProcessing":
-		s.resumeProcessing(w)
 	default:
-		err := errors.New("invalid path " + req.URL.Path)
+		err := errors.New("method " + req.Method + " not allowed")
 		s.handleInvalidRequest(w, err)
 	}
 }
 
 func (s *Sequencer) handleInvalidRequest(w http.ResponseWriter, err error) {
 	log.Error(err)
-	_, err = w.Write([]byte(err.Error()))
-	if err != nil {
+
+	w.WriteHeader(http.StatusBadRequest)
+	response := map[string]string{
+		"error": err.Error(),
+	}
+	if err = json.NewEncoder(w).Encode(response); err != nil {
 		log.Error(err)
 	}
+
+	fmt.Println(w)
 }
 
 func (s *Sequencer) stopAfterCurrentBatch(w http.ResponseWriter) {
 	s.finalizer.stopAfterCurrentBatch()
-	_, err := w.Write([]byte("Stopping after current batch"))
-	if err != nil {
+
+	response := map[string]string{
+		"message": "Stopping after current batch",
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Error(err)
 	}
 }
 
-type BatchRequest struct {
+type batchRequest struct {
 	BatchNumber uint64 `json:"batchNumber"`
 }
 
 func (s *Sequencer) stopAtBatch(w http.ResponseWriter, req *http.Request) {
-	var batchReq BatchRequest
+	var batchReq batchRequest
 	err := json.NewDecoder(req.Body).Decode(&batchReq)
 	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		s.handleInvalidRequest(w, errors.New("invalid request body"))
 		log.Error(err)
 		return
 	}
 
 	s.finalizer.stopAtBatch(batchReq.BatchNumber)
-	_, err = w.Write([]byte("Stopping at specific batch"))
-	if err != nil {
+
+	response := map[string]string{
+		"message": "Stopping at specific batch",
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Error(err)
 	}
 }
 
 func (s *Sequencer) resumeProcessing(w http.ResponseWriter) {
 	s.finalizer.resumeProcessing()
-	_, err := w.Write([]byte("Resuming processing"))
-	if err != nil {
+
+	response := map[string]string{
+		"message": "Resuming processing",
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Error(err)
+	}
+}
+
+func (s *Sequencer) getCurrentBatchNumber(w http.ResponseWriter) {
+	currBatchNumber := s.finalizer.getCurrentBatchNumber()
+
+	response := map[string]string{
+		"currentBatchNumber": strconv.FormatUint(currBatchNumber, 10),
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Error(err)
 	}
 }

@@ -38,6 +38,20 @@ func (_m *FinalizerMock) getBatch() *WipBatch {
 	return r0
 }
 
+// getCurrentBatchNumber provides a mock function with given fields:
+func (_m *FinalizerMock) getCurrentBatchNumber() uint64 {
+	ret := _m.Called()
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func() uint64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	return r0
+}
+
 // getLastBatchNumAndOldStateRoot provides a mock function with given fields: ctx
 func (_m *FinalizerMock) getLastBatchNumAndOldStateRoot(ctx context.Context) (uint64, common.Hash, error) {
 	ret := _m.Called(ctx)

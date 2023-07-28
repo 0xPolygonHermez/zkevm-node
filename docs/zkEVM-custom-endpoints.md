@@ -6,4 +6,4 @@ In order to allow users to consume this information, a custom set of endpoints w
 
 The endpoint documentation follows the [OpenRPC Specification](https://spec.open-rpc.org/) and can be found next to the endpoints implementation as a json file, [here](../jsonrpc/endpoints_zkevm.openrpc.json)
 
-The spec can be easily visualized using the oficial [OpenRPC Playground](https://playground.open-rpc.org/), just copy and paste the json content into the playground area to find a friendly UI showing the methods
+The spec can be easily visualized using the official [OpenRPC Playground](https://playground.open-rpc.org/), just copy and paste the json content into the playground area to find a friendly UI showing the methods

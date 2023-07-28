@@ -2557,6 +2557,35 @@ func Test_resumeProcessing(t *testing.T) {
 	}
 }
 
+func Test_getCurrentBatchNumber(t *testing.T) {
+	f = setupFinalizer(false)
+
+	testCases := []struct {
+		name                string
+		initialBatchNumber  uint64
+		expectedBatchNumber uint64
+	}{
+		{
+			name:                "Test get current batch number",
+			initialBatchNumber:  10,
+			expectedBatchNumber: 10,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Set up initial state
+			f.batch.batchNumber = tc.initialBatchNumber
+
+			// Call the method under test
+			result := f.getCurrentBatchNumber()
+
+			// Check the result
+			assert.Equal(t, tc.expectedBatchNumber, result)
+		})
+	}
+}
+
 func setupFinalizer(withWipBatch bool) *finalizer {
 	wipBatch := new(WipBatch)
 	dbManagerMock = new(DbManagerMock)

@@ -1386,6 +1386,13 @@ func (f *finalizer) resumeProcessing() {
 	f.haltMux.Unlock()
 }
 
+func (f *finalizer) getCurrentBatchNumber() uint64 {
+	f.sharedResourcesMux.Lock()
+	defer f.sharedResourcesMux.Unlock()
+
+	return f.batch.batchNumber
+}
+
 func (f *finalizer) getBatch() *WipBatch {
 	return f.batch
 }
