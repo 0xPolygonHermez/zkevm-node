@@ -1332,11 +1332,17 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 			BatchL2Data:   trustedBatchL2Data,
 			AccInputHash:  trustedBatch.AccInputHash,
 		}
+
 		log.Debugf("closing batch %v", trustedBatch.Number)
 		if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
-			log.Errorf("error closing batch %d", trustedBatch.Number)
-			return nil, nil, err
+			if err.Error() == state.ErrBatchAlreadyClosed.Error() {
+				log.Errorf("error closing batch %d", trustedBatch.Number)
+				return nil, nil, err
+			} else {
+				log.Warnf("the batch [%d] looks like were not close but in STATE was closed", trustedBatch.Number)
+			}
 		}
+
 	}
 
 	log.Infof("Batch %v synchronized", trustedBatch.Number)
