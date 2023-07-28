@@ -1335,7 +1335,8 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 
 		log.Debugf("closing batch %v", trustedBatch.Number)
 		if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
-			if err.Error() == state.ErrBatchAlreadyClosed.Error() {
+			// This is a workarround to avoid closing a batch that was already closed
+			if err.Error() != state.ErrBatchAlreadyClosed.Error() {
 				log.Errorf("error closing batch %d", trustedBatch.Number)
 				return nil, nil, err
 			} else {
