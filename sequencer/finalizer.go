@@ -113,6 +113,7 @@ func newFinalizer(
 	closingSignalCh ClosingSignalCh,
 	batchConstraints batchConstraints,
 	eventLog *event.EventLog,
+	pendingTransactionsToStoreWG *sync.WaitGroup,
 ) *finalizer {
 	return &finalizer{
 		cfg:                  cfg,
@@ -140,7 +141,7 @@ func newFinalizer(
 		eventLog:                                eventLog,
 		maxBreakEvenGasPriceDeviationPercentage: new(big.Int).SetUint64(effectiveGasPriceCfg.MaxBreakEvenGasPriceDeviationPercentage),
 		pendingTransactionsToStore:              make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
-		pendingTransactionsToStoreWG:            new(sync.WaitGroup),
+		pendingTransactionsToStoreWG:            pendingTransactionsToStoreWG,
 		pendingTransactionsToStoreMux:           &sync.RWMutex{},
 		storedFlushID:                           0,
 		// Mutex is unlocked when the condition is broadcasted

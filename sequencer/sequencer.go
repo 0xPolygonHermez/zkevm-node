@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
@@ -128,11 +129,13 @@ func (s *Sequencer) Start(ctx context.Context) {
 		log.Fatalf("failed to mark WIP txs as pending, err: %v", err)
 	}
 
-	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights)
+	pendingTxsToStoreWg := new(sync.WaitGroup)
+
+	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights, pendingTxsToStoreWg)
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, batchConstraints)
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, batchConstraints, s.eventLog)
+	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, batchConstraints, s.eventLog, pendingTxsToStoreWg)
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 
