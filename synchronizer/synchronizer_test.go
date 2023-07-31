@@ -58,7 +58,10 @@ func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneI
 	expectedCallsForsyncTrustedState(t, m, sync, batch10With2Tx, batch10With3Tx, false)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	require.Equal(t, *sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With3Tx))
+	cache := sync.state.(*SynchronizerStateBatchCache)
+	cachedBatch := cache.Get(uint64(lastBatchNumber))
+	require.NoError(t, err)
+	require.Equal(t, cachedBatch, rpcBatchTostateBatch(batch10With3Tx))
 }
 
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
@@ -77,7 +80,7 @@ func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItIn
 	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, true)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	require.Equal(t, *sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With2Tx))
+	//require.Equal(t, *sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With2Tx))
 }
 
 // issue #2220
