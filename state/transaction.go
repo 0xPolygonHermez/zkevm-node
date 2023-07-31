@@ -341,6 +341,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		StateRoot:     response.StateRoot.Bytes(),
 		StructLogs:    response.ExecutionTrace,
 		ExecutorTrace: response.CallTrace,
+		Err:           response.RomError,
 	}
 
 	// if is the default trace, return the result
@@ -427,7 +428,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
 	evm := fakevm.NewFakeEVM(fakevm.BlockContext{BlockNumber: big.NewInt(1)}, fakevm.TxContext{GasPrice: gasPrice}, fakeDB, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: customTracer})
 
-	traceResult, err := s.buildTrace(evm, result.ExecutorTrace, customTracer)
+	traceResult, err := s.buildTrace(evm, result, customTracer)
 	if err != nil {
 		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
 		return nil, fmt.Errorf("failed parse the trace using the tracer: %v", err)
@@ -439,7 +440,8 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 }
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
-func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
+func (s *State) buildTrace(evm *fakevm.FakeEVM, result *runtime.ExecutionResult, tracer tracers.Tracer) (json.RawMessage, error) {
+	trace := result.ExecutorTrace
 	tracer.CaptureTxStart(trace.Context.Gas)
 	contextGas := trace.Context.Gas - trace.Context.GasUsed
 	if len(trace.Steps) > 0 {
@@ -574,6 +576,8 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTr
 	var err error
 	if reverted {
 		err = fakevm.ErrExecutionReverted
+	} else if result.Err != nil {
+		err = result.Err
 	}
 	tracer.CaptureEnd(trace.Context.Output, trace.Context.GasUsed, err)
 	restGas := trace.Context.Gas - trace.Context.GasUsed
