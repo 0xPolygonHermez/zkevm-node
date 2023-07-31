@@ -23,11 +23,19 @@ type Worker struct {
 	state                        stateInterface
 	batchConstraints             batchConstraintsFloat64
 	batchResourceWeights         batchResourceWeights
-	pendingTransactionsToStoreWg *sync.WaitGroup
+	pendingTxsToStoreMux         *sync.RWMutex
+	pendingTxsPerAddressTrackers map[common.Address]*pendingTxPerAddressTracker
 }
 
 // NewWorker creates an init a worker
-func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints, weights batchResourceWeights, pendingTxsToStoreWg *sync.WaitGroup) *Worker {
+func NewWorker(
+	cfg WorkerCfg,
+	state stateInterface,
+	constraints batchConstraints,
+	weights batchResourceWeights,
+	pendingTxsToStoreMux *sync.RWMutex,
+	pendingTxTrackersPerAddress map[common.Address]*pendingTxPerAddressTracker,
+) *Worker {
 	w := Worker{
 		cfg:                          cfg,
 		pool:                         make(map[string]*addrQueue),
@@ -35,7 +43,8 @@ func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints
 		state:                        state,
 		batchConstraints:             convertBatchConstraintsToFloat64(constraints),
 		batchResourceWeights:         weights,
-		pendingTransactionsToStoreWg: pendingTxsToStoreWg,
+		pendingTxsToStoreMux:         pendingTxsToStoreMux,
+		pendingTxsPerAddressTrackers: pendingTxTrackersPerAddress,
 	}
 
 	return &w
@@ -58,7 +67,12 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 		w.workerMutex.Unlock()
 
 		// Wait until all pending transactions are stored, so we can ensure getting the correct nonce and balance of the new AddrQueue
-		w.pendingTransactionsToStoreWg.Wait()
+		w.pendingTxsToStoreMux.RLock()
+		pendingTxsTracker, ok := w.pendingTxsPerAddressTrackers[tx.From]
+		w.pendingTxsToStoreMux.RUnlock()
+		if ok && pendingTxsTracker.wg != nil {
+			pendingTxsTracker.wg.Wait()
+		}
 
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {

@@ -308,7 +308,9 @@ func TestWorkerGetBestTx(t *testing.T) {
 }
 
 func initWorker(stateMock *StateMock, rcMax batchConstraints, rcWeigth batchResourceWeights) *Worker {
-	pendingTxsToStore := new(sync.WaitGroup)
-	worker := NewWorker(workerCfg, stateMock, rcMax, rcWeigth, pendingTxsToStore)
+	pendingTxsToStoreMux := new(sync.RWMutex)
+	pendingTxsPerAddressTrackers := make(map[common.Address]*pendingTxPerAddressTracker)
+	worker := NewWorker(workerCfg, stateMock, rcMax, rcWeigth, pendingTxsToStoreMux, pendingTxsPerAddressTrackers)
+
 	return worker
 }
