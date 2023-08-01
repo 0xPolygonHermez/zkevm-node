@@ -1371,10 +1371,13 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				log.Warnf("CASE 01: the batch [%d] looks like were not close but in STATE was closed", trustedBatch.Number)
 			}
 		}
-		log.Debug("Batch closed right after processing some tx")
-		batches[0].AccInputHash = trustedBatch.AccInputHash
-		batches[0].StateRoot = trustedBatch.StateRoot
-		batches[0].LocalExitRoot = trustedBatch.LocalExitRoot
+		log.Info("Batch closed right after processing some tx")
+		if batches[0] != nil {
+			log.Debug("Updating batches[0] values...")
+			batches[0].AccInputHash = trustedBatch.AccInputHash
+			batches[0].StateRoot = trustedBatch.StateRoot
+			batches[0].LocalExitRoot = trustedBatch.LocalExitRoot
+		}
 	}
 
 	log.Infof("Batch %v synchronized", trustedBatch.Number)
