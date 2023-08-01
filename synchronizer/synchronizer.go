@@ -1544,8 +1544,8 @@ func (s *ClientSynchronizer) updateAndCheckProverID(proverID string) {
 			Source:      event.Source_Node,
 			Component:   event.Component_Synchronizer,
 			Level:       event.Level_Critical,
-			EventID:     event.EventID_SynchonizerRestart,
-			Description: fmt.Sprintf("proverID changed from %s to %s, restarting Synchonizer ", s.proverID, proverID),
+			EventID:     event.EventID_SynchronizerRestart,
+			Description: fmt.Sprintf("proverID changed from %s to %s, restarting Synchronizer ", s.proverID, proverID),
 		}
 
 		err := s.eventLog.LogEvent(context.Background(), event)
@@ -1577,7 +1577,7 @@ func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
 	s.updateAndCheckProverID(proverID)
 	log.Debugf("storedFlushID (executor reported): %d, latestFlushID (pending): %d", storedFlushID, s.latestFlushID)
 	if storedFlushID < s.latestFlushID {
-		log.Infof("Synchornized BLOCKED!: Wating for the flushID to be stored. FlushID to be stored: %d. Latest flushID stored: %d", s.latestFlushID, storedFlushID)
+		log.Infof("Synchronized BLOCKED!: Wating for the flushID to be stored. FlushID to be stored: %d. Latest flushID stored: %d", s.latestFlushID, storedFlushID)
 		iteration := 0
 		start := time.Now()
 		for storedFlushID < s.latestFlushID {
@@ -1591,7 +1591,7 @@ func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
 			}
 			iteration++
 		}
-		log.Infof("Synchornizer resumed, flushID stored: %d", s.latestFlushID)
+		log.Infof("Synchronizer resumed, flushID stored: %d", s.latestFlushID)
 	}
 	log.Infof("Pending Flushid fullfiled: %d, executor have write %d", s.latestFlushID, storedFlushID)
 	s.latestFlushIDIsFulfilled = true
