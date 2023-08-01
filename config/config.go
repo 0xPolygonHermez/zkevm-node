@@ -61,8 +61,8 @@ Config represents the configuration of the entire Hermez Node
 The file is [TOML format]
 You could find some examples:
   - `config/environments/local/local.node.config.toml`: running a permisionless node
-  - `config/environments/mainnet/public.node.config.toml`
-  - `config/environments/public/public.node.config.toml`
+  - `config/environments/mainnet/node.config.toml`
+  - `config/environments/public/node.config.toml`
   - `test/config/test.node.config.toml`: configuration for a trusted node used in CI
 
 [TOML format]: https://en.wikipedia.org/wiki/TOML

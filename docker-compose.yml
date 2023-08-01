@@ -26,7 +26,7 @@ services:
     environment:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/testnet.node.config.toml:/app/config.toml
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/node.config.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -50,7 +50,7 @@ services:
     environment:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/testnet.node.config.toml:/app/config.toml
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/node.config.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -115,6 +115,6 @@ services:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/testnet.prover.config.json:/usr/src/app/config.json
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/prover.config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
