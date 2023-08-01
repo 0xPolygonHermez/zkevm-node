@@ -12,7 +12,7 @@ import (
 
 const (
 	mintAmount     = 1000000000000000000
-	transferAmount = 1
+	transferAmount = 0
 )
 
 var (

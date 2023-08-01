@@ -35,11 +35,12 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 	start := time.Now()
 	opsman, client, pl, auth := setup.Environment(params.Ctx, b)
 	setup.BootstrapSequencer(b, opsman)
+	timeForSetup := time.Since(start)
 	startDeploySCTime := time.Now()
 	err := deployERC20Contract(b, client, params.Ctx, auth)
 	require.NoError(b, err)
 	deploySCElapsed := time.Since(startDeploySCTime)
-	deploySCSequencerTime, deploySCExecutorOnlyTime, _, err := metrics.GetValues(nil)
+	deployMetricsValues, err := metrics.GetValues(nil)
 	if err != nil {
 		return
 	}
@@ -49,8 +50,8 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 	require.NoError(b, err)
 
 	var (
-		elapsed  time.Duration
-		response *http.Response
+		elapsed            time.Duration
+		prometheusResponse *http.Response
 	)
 
 	b.Run(fmt.Sprintf("sequencer_selecting_%d_txs", params.NumberOfTxs), func(b *testing.B) {
@@ -59,7 +60,7 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 		require.NoError(b, err)
 		elapsed = time.Since(start)
 		log.Infof("Total elapsed time: %s", elapsed)
-		response, err = metrics.FetchPrometheus()
+		prometheusResponse, err = metrics.FetchPrometheus()
 		require.NoError(b, err)
 	})
 
@@ -69,11 +70,22 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 		require.NoError(b, err)
 	}
 
-	metrics.CalculateAndPrint(response, profilingResult, elapsed-deploySCElapsed, deploySCSequencerTime, deploySCExecutorOnlyTime, params.NumberOfTxs)
+	startMetrics := time.Now()
+	metrics.CalculateAndPrint(
+		prometheusResponse,
+		profilingResult,
+		elapsed,
+		deployMetricsValues.SequencerTotalProcessingTime,
+		deployMetricsValues.ExecutorTotalProcessingTime,
+		params.NumberOfTxs,
+	)
+	timeForFetchAndPrintMetrics := time.Since(startMetrics)
 	log.Infof("########################################")
 	log.Infof("# Deploying ERC20 SC and Mint Tx took: #")
 	log.Infof("########################################")
-	metrics.PrintPrometheus(deploySCSequencerTime, deploySCExecutorOnlyTime, 0)
+	log.Infof("%s", deploySCElapsed)
+	log.Infof("Time for setup: %s", timeForSetup)
+	log.Infof("Time for fetching metrics: %s", timeForFetchAndPrintMetrics)
 }
 
 func deployERC20Contract(b *testing.B, client *ethclient.Client, ctx context.Context, auth *bind.TransactOpts) error {

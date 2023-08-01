@@ -2,7 +2,6 @@ package etherman
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
@@ -115,9 +115,13 @@ type ethereumClient interface {
 
 // L1Config represents the configuration of the network used in L1
 type L1Config struct {
-	L1ChainID                 uint64         `json:"chainId"`
-	ZkEVMAddr                 common.Address `json:"polygonZkEVMAddress"`
-	MaticAddr                 common.Address `json:"maticTokenAddress"`
+	// Chain ID of the L1 network
+	L1ChainID uint64 `json:"chainId"`
+	// Address of the L1 contract
+	ZkEVMAddr common.Address `json:"polygonZkEVMAddress"`
+	// Address of the L1 Matic token Contract
+	MaticAddr common.Address `json:"maticTokenAddress"`
+	// Address of the L1 GlobalExitRootManager contract
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
 }
 
@@ -174,6 +178,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		}
 		gProviders = append(gProviders, ethgasstation.NewEthGasStationService())
 	}
+	metrics.Register()
 
 	return &Client{
 		EthClient:             ethClient,
@@ -192,38 +197,42 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 
 // VerifyGenBlockNumber verifies if the genesis Block Number is valid
 func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
-	genBlock := big.NewInt(0).SetUint64(genBlockNumber)
-	response, err := etherMan.EthClient.CodeAt(ctx, etherMan.l1Cfg.ZkEVMAddr, genBlock)
+	start := time.Now()
+	log.Info("Verifying genesis blockNumber: ", genBlockNumber)
+	// Filter query
+	genBlock := new(big.Int).SetUint64(genBlockNumber)
+	query := ethereum.FilterQuery{
+		FromBlock: genBlock,
+		ToBlock:   genBlock,
+		Addresses: etherMan.SCAddresses,
+		Topics:    [][]common.Hash{{updateZkEVMVersionSignatureHash}},
+	}
+	logs, err := etherMan.EthClient.FilterLogs(ctx, query)
 	if err != nil {
-		log.Error("error getting smc code for gen block number. Error: ", err)
 		return false, err
 	}
-	responseString := hex.EncodeToString(response)
-	if responseString == "" {
-		return false, nil
+	if len(logs) == 0 {
+		return false, fmt.Errorf("the specified genBlockNumber in config file does not contain any forkID event. Please use the proper blockNumber.")
 	}
-	responsePrev, err := etherMan.EthClient.CodeAt(ctx, etherMan.l1Cfg.ZkEVMAddr, genBlock.Sub(genBlock, big.NewInt(1)))
+	zkevmVersion, err := etherMan.ZkEVM.ParseUpdateZkEVMVersion(logs[0])
 	if err != nil {
-		if parsedErr, ok := tryParseError(err); ok {
-			if errors.Is(parsedErr, ErrMissingTrieNode) {
-				return true, nil
-			}
-		}
-		log.Error("error getting smc code for gen block number. Error: ", err)
+		log.Error("error parsing the forkID event")
 		return false, err
 	}
-	responsePrevString := hex.EncodeToString(responsePrev)
-	if responsePrevString != "" {
-		return false, nil
+	if zkevmVersion.NumBatch != 0 {
+		return false, fmt.Errorf("the specified genBlockNumber in config file does not contain the initial forkID event (BatchNum: %d). Please use the proper blockNumber.", zkevmVersion.NumBatch)
 	}
+	metrics.VerifyGenBlockTime(time.Since(start))
 	return true, nil
 }
 
 // GetForks returns fork information
-func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, error) {
+func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64) ([]state.ForkIDInterval, error) {
+	log.Debug("Getting forkIDs from blockNumber: ", genBlockNumber)
+	start := time.Now()
 	// Filter query
 	query := ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(1),
+		FromBlock: new(big.Int).SetUint64(genBlockNumber),
 		Addresses: etherMan.SCAddresses,
 		Topics:    [][]common.Hash{{updateZkEVMVersionSignatureHash}},
 	}
@@ -256,6 +265,7 @@ func (etherMan *Client) GetForks(ctx context.Context) ([]state.ForkIDInterval, e
 		}
 		forks = append(forks, fork)
 	}
+	metrics.GetForksTime(time.Since(start))
 	log.Debugf("Forks decoded: %+v", forks)
 	return forks, nil
 }
@@ -285,19 +295,27 @@ type Order struct {
 }
 
 func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]Block, map[common.Hash][]Order, error) {
+	start := time.Now()
 	logs, err := etherMan.EthClient.FilterLogs(ctx, query)
+	metrics.GetEventsTime(time.Since(start))
 	if err != nil {
 		return nil, nil, err
 	}
 	var blocks []Block
 	blocksOrder := make(map[common.Hash][]Order)
+	startProcess := time.Now()
 	for _, vLog := range logs {
+		startProcessSingleEvent := time.Now()
 		err := etherMan.processEvent(ctx, vLog, &blocks, &blocksOrder)
+		metrics.ProcessSingleEventTime(time.Since(startProcessSingleEvent))
+		metrics.EventCounter()
 		if err != nil {
 			log.Warnf("error processing event. Retrying... Error: %s. vLog: %+v", err.Error(), vLog)
 			return nil, nil, err
 		}
 	}
+	metrics.ProcessAllEventTime(time.Since(startProcess))
+	metrics.ReadAndProcessAllEventsTime(time.Since(start))
 	return blocks, blocksOrder, nil
 }
 
@@ -545,9 +563,10 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 	var newStateRoot [32]byte
 	copy(newStateRoot[:], inputs.NewStateRoot)
 
-	proof, err := encoding.DecodeBytes(&inputs.FinalProof.Proof)
+	proof, err := convertProof(inputs.FinalProof.Proof)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode proof, err: %w", err)
+		log.Errorf("error converting proof. Error: %v, Proof: %s", err, inputs.FinalProof.Proof)
+		return nil, nil, err
 	}
 
 	const pendStateNum = 0 // TODO hardcoded for now until we implement the pending state feature
@@ -569,6 +588,25 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 	}
 
 	return tx.To(), tx.Data(), nil
+}
+
+func convertProof(p string) ([24][32]byte, error) {
+	if len(p) != 24*32*2+2 {
+		return [24][32]byte{}, fmt.Errorf("invalid proof length. Length: %d", len(p))
+	}
+	p = strings.TrimPrefix(p, "0x")
+	proof := [24][32]byte{}
+	for i := 0; i < 24; i++ {
+		data := p[i*64 : (i+1)*64]
+		p, err := encoding.DecodeBytes(&data)
+		if err != nil {
+			return [24][32]byte{}, fmt.Errorf("failed to decode proof, err: %w", err)
+		}
+		var aux [32]byte
+		copy(aux[:], p)
+		proof[i] = aux
+	}
+	return proof, nil
 }
 
 // GetSendSequenceFee get super/trusted sequencer fee
@@ -980,18 +1018,6 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 // GetL2ChainID returns L2 Chain ID
 func (etherMan *Client) GetL2ChainID() (uint64, error) {
 	return etherMan.ZkEVM.ChainID(&bind.CallOpts{Pending: false})
-}
-
-// GetL2ForkID returns current L2 Fork ID
-func (etherMan *Client) GetL2ForkID() (uint64, error) {
-	// TODO: implement this
-	return 1, nil
-}
-
-// GetL2ForkIDIntervals return L2 Fork ID intervals
-func (etherMan *Client) GetL2ForkIDIntervals() ([]state.ForkIDInterval, error) {
-	// TODO: implement this
-	return []state.ForkIDInterval{{FromBatchNumber: 0, ToBatchNumber: math.MaxUint64, ForkId: 1}}, nil
 }
 
 // GetL1GasPrice gets the l1 gas price

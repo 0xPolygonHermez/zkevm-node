@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
@@ -15,7 +14,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/js"
@@ -28,6 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
 	"github.com/jackc/pgx/v4"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -173,6 +173,9 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		transactions := []*types.Transaction{&processedTx.Tx}
 
 		receipt := generateReceipt(header.Number, processedTx)
+		if !CheckLogOrder(receipt.Logs) {
+			return fmt.Errorf("error: logs received from executor are not in order")
+		}
 		receipts := []*types.Receipt{receipt}
 
 		// Create block to be able to calculate its hash
@@ -182,7 +185,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		receipt.BlockHash = block.Hash()
 
 		// Store L2 block and its transaction
-		if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
+		if err := s.AddL2Block(ctx, batchNumber, block, receipts, uint8(processedTx.EffectivePercentage), dbTx); err != nil {
 			return err
 		}
 	}
@@ -219,17 +222,13 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	// generate batch l2 data for the transaction
-	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx})
-	if err != nil {
-		return nil, err
-	}
-
 	// gets batch that including the l2 block
 	batch, err := s.GetBatchByL2BlockNumber(ctx, block.NumberU64(), dbTx)
 	if err != nil {
 		return nil, err
 	}
+
+	forkId := s.GetForkIDByBatchNumber(batch.BatchNumber)
 
 	// gets batch that including the previous l2 block
 	previousBatch, err := s.GetBatchByL2BlockNumber(ctx, previousBlock.NumberU64(), dbTx)
@@ -237,10 +236,14 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	forkId := s.GetForkIDByBatchNumber(batch.BatchNumber)
+	// generate batch l2 data for the transaction
+	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx}, []uint8{MaxEffectivePercentage}, forkId)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create Batch
-	traceConfigRequest := &pb.TraceConfig{
+	traceConfigRequest := &executor.TraceConfig{
 		TxHashToGenerateCallTrace:    transactionHash.Bytes(),
 		TxHashToGenerateExecuteTrace: transactionHash.Bytes(),
 		// set the defaults to the maximum information we can have.
@@ -269,7 +272,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	oldStateRoot := previousBlock.Root()
-	processBatchRequest := &pb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:     batch.BatchNumber - 1,
 		OldStateRoot:    oldStateRoot.Bytes(),
 		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
@@ -290,24 +293,13 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	endTime := time.Now()
 	if err != nil {
 		return nil, err
-	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+	} else if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
 		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
 	}
 
-	// //save process batch response file
-	// b, err := json.Marshal(processBatchResponse)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// filePath := "./processBatchResponse.json"
-	// err = os.WriteFile(filePath, b, 0644)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	txs, _, err := DecodeTxs(batchL2Data)
+	txs, _, _, err := DecodeTxs(batchL2Data, forkId)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		return nil, err
 	}
@@ -327,6 +319,19 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	if response.TxHash != transactionHash {
 		return nil, fmt.Errorf("tx hash not found in executor response")
 	}
+
+	// const path = "/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json"
+	// filePath := fmt.Sprintf(path, "EXECUTOR_processBatchResponse")
+	// c, _ := json.MarshalIndent(processBatchResponse, "", "    ")
+	// os.WriteFile(filePath, c, 0644)
+
+	// filePath = fmt.Sprintf(path, "NODE_execution_trace")
+	// c, _ = json.MarshalIndent(response.ExecutionTrace, "", "    ")
+	// os.WriteFile(filePath, c, 0644)
+
+	// filePath = fmt.Sprintf(path, "NODE_call_trace")
+	// c, _ = json.MarshalIndent(response.CallTrace, "", "    ")
+	// os.WriteFile(filePath, c, 0644)
 
 	result := &runtime.ExecutionResult{
 		CreateAddress: response.CreateAddress,
@@ -350,14 +355,14 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	context := instrumentation.Context{
 		From:         senderAddress.String(),
-		Input:        hex.EncodeToHex(tx.Data()),
-		Gas:          strconv.FormatUint(tx.Gas(), encoding.Base10),
-		Value:        tx.Value().String(),
-		Output:       hex.EncodeToHex(result.ReturnValue),
+		Input:        tx.Data(),
+		Gas:          tx.Gas(),
+		Value:        tx.Value(),
+		Output:       result.ReturnValue,
 		GasPrice:     tx.GasPrice().String(),
-		OldStateRoot: oldStateRoot.String(),
+		OldStateRoot: oldStateRoot,
 		Time:         uint64(endTime.Sub(startTime)),
-		GasUsed:      strconv.FormatUint(result.GasUsed, encoding.Base10),
+		GasUsed:      result.GasUsed,
 	}
 
 	// Fill trace context
@@ -384,33 +389,33 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		TxHash:      transactionHash,
 	}
 
-	var evmTracer tracers.Tracer
+	var customTracer tracers.Tracer
 	if traceConfig.Is4ByteTracer() {
-		evmTracer, err = native.NewFourByteTracer(tracerContext, traceConfig.TracerConfig)
+		customTracer, err = native.NewFourByteTracer(tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create 4byteTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create 4byteTracer, err: %v", err)
 		}
 	} else if traceConfig.IsCallTracer() {
-		evmTracer, err = native.NewCallTracer(tracerContext, traceConfig.TracerConfig)
+		customTracer, err = native.NewCallTracer(tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create callTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create callTracer, err: %v", err)
 		}
 	} else if traceConfig.IsNoopTracer() {
-		evmTracer, err = native.NewNoopTracer(tracerContext, traceConfig.TracerConfig)
+		customTracer, err = native.NewNoopTracer(tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create noopTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create noopTracer, err: %v", err)
 		}
 	} else if traceConfig.IsPrestateTracer() {
-		evmTracer, err = native.NewPrestateTracer(tracerContext, traceConfig.TracerConfig)
+		customTracer, err = native.NewPrestateTracer(tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create prestateTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create prestateTracer, err: %v", err)
 		}
 	} else if traceConfig.IsJSCustomTracer() {
-		evmTracer, err = js.NewJsTracer(*traceConfig.Tracer, tracerContext, traceConfig.TracerConfig)
+		customTracer, err = js.NewJsTracer(*traceConfig.Tracer, tracerContext, traceConfig.TracerConfig)
 		if err != nil {
 			log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
@@ -420,9 +425,9 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
-	evm := fakevm.NewFakeEVM(fakevm.BlockContext{BlockNumber: big.NewInt(1)}, fakevm.TxContext{GasPrice: gasPrice}, fakeDB, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: evmTracer})
+	evm := fakevm.NewFakeEVM(fakevm.BlockContext{BlockNumber: big.NewInt(1)}, fakevm.TxContext{GasPrice: gasPrice}, fakeDB, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: customTracer})
 
-	traceResult, err := s.ParseTheTraceUsingTheTracer(evm, result.ExecutorTrace, evmTracer)
+	traceResult, err := s.buildTrace(evm, result.ExecutorTrace, customTracer)
 	if err != nil {
 		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
 		return nil, fmt.Errorf("failed parse the trace using the tracer: %v", err)
@@ -434,149 +439,269 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 }
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
-func (s *State) ParseTheTraceUsingTheTracer(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
-	var previousDepth int
-	var previousOp, previousGas *big.Int
-	var previousOpcode string
-	var stateRoot []byte
-
-	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, encoding.Base10)
-	if !ok {
-		log.Debugf("error while parsing contextGas")
-		return nil, ErrParsingExecutorTrace
+func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, tracer tracers.Tracer) (json.RawMessage, error) {
+	tracer.CaptureTxStart(trace.Context.Gas)
+	contextGas := trace.Context.Gas - trace.Context.GasUsed
+	if len(trace.Steps) > 0 {
+		contextGas = trace.Steps[0].Gas
 	}
-	value, ok := new(big.Int).SetString(trace.Context.Value, encoding.Base10)
-	if !ok {
-		log.Debugf("error while parsing value")
-		return nil, ErrParsingExecutorTrace
-	}
+	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", trace.Context.Input, contextGas, trace.Context.Value)
+	evm.StateDB.SetStateRoot(trace.Context.OldStateRoot.Bytes())
 
-	tracer.CaptureTxStart(contextGas.Uint64())
-	tracer.CaptureStart(evm, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
+	var previousStep instrumentation.Step
+	reverted := false
+	internalTxSteps := NewStack[instrumentation.InternalTxContext]()
+	memory := fakevm.NewMemory()
 
-	bigStateRoot, ok := new(big.Int).SetString(trace.Context.OldStateRoot, 0)
-	if !ok {
-		log.Debugf("error while parsing context oldStateRoot")
-		return nil, ErrParsingExecutorTrace
-	}
-	stateRoot = bigStateRoot.Bytes()
-	evm.StateDB.SetStateRoot(stateRoot)
-
-	output := common.FromHex(trace.Context.Output)
-
-	var stepError error
 	for i, step := range trace.Steps {
-		stepErrorMsg := strings.TrimSpace(step.Error)
-		if stepErrorMsg != "" {
-			stepError = fmt.Errorf(stepErrorMsg)
-		}
-
-		gas, ok := new(big.Int).SetString(step.Gas, encoding.Base10)
-		if !ok {
-			log.Debugf("error while parsing step gas")
-			return nil, ErrParsingExecutorTrace
-		}
-
-		gasCost, ok := new(big.Int).SetString(step.GasCost, encoding.Base10)
-		if !ok {
-			log.Debugf("error while parsing step gasCost")
-			return nil, ErrParsingExecutorTrace
-		}
-
-		op, ok := new(big.Int).SetString(step.Op, 0)
-		if !ok {
-			log.Debugf("error while parsing step op")
-			return nil, ErrParsingExecutorTrace
-		}
-
 		// set Stack
 		stack := fakevm.NewStack()
-		for _, stackContent := range step.Stack {
-			valueBigInt, ok := new(big.Int).SetString(stackContent, hex.Base)
-			if !ok {
-				log.Debugf("error while parsing stack valueBigInt")
-				return nil, ErrParsingExecutorTrace
-			}
-			value, _ := uint256.FromBig(valueBigInt)
+		for _, stackItem := range step.Stack {
+			value, _ := uint256.FromBig(stackItem)
 			stack.Push(value)
 		}
 
 		// set Memory
-		memory := fakevm.NewMemory()
+		memory.Resize(uint64(step.MemorySize))
 		if len(step.Memory) > 0 {
-			memory.Resize(uint64(len(step.Memory)))
-			memory.Set(0, uint64(len(step.Memory)), step.Memory)
-		} else {
-			memory = fakevm.NewMemory()
+			memory.Set(uint64(step.MemoryOffset), uint64(len(step.Memory)), step.Memory)
 		}
 
-		value := hex.DecodeBig(step.Contract.Value)
+		// Populate the step memory for future steps
+		step.Memory = memory.Data()
+
+		// set Contract
+		contract := fakevm.NewContract(
+			fakevm.NewAccount(step.Contract.Caller),
+			fakevm.NewAccount(step.Contract.Address),
+			step.Contract.Value, step.Gas)
+		contract.CodeAddr = &step.Contract.Address
+
+		// set Scope
 		scope := &fakevm.ScopeContext{
-			Contract: fakevm.NewContract(fakevm.NewAccount(common.HexToAddress(step.Contract.Caller)), fakevm.NewAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
+			Contract: contract,
 			Memory:   memory,
 			Stack:    stack,
 		}
 
-		codeAddr := common.HexToAddress(step.Contract.Address)
-		scope.Contract.CodeAddr = &codeAddr
+		// if the revert happens on an internal tx, we exit
+		if previousStep.OpCode == "REVERT" && previousStep.Depth > 1 {
+			gasUsed, err := s.getGasUsed(internalTxSteps, previousStep, step)
+			if err != nil {
+				return nil, err
+			}
+			tracer.CaptureExit(step.ReturnData, gasUsed, fakevm.ErrExecutionReverted)
+		}
 
-		// when a revert is detected, we stop the execution
-		if step.OpCode == "REVERT" {
-			stepError = fakevm.ErrExecutionReverted
+		// if the revert happens on top level, we break
+		if step.OpCode == "REVERT" && step.Depth == 1 {
+			reverted = true
 			break
 		}
 
-		if previousOpcode == "CALL" && step.Pc != 0 {
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
-		}
-
-		if step.OpCode != "CALL" || trace.Steps[i+1].Pc == 0 {
-			if stepError != nil {
-				tracer.CaptureFault(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, stepError)
+		hasNextStep := i < len(trace.Steps)-1
+		if step.OpCode != "CALL" || (hasNextStep && trace.Steps[i+1].Pc == 0) {
+			if step.Error != nil {
+				tracer.CaptureFault(step.Pc, fakevm.OpCode(step.Op), step.Gas, step.GasCost, scope, step.Depth, step.Error)
 			} else {
-				tracer.CaptureState(step.Pc, fakevm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.ReturnData, step.Depth, nil)
+				tracer.CaptureState(step.Pc, fakevm.OpCode(step.Op), step.Gas, step.GasCost, scope, step.ReturnData, step.Depth, nil)
 			}
 		}
 
-		if step.OpCode == "CALL" || step.OpCode == "CALLCODE" || step.OpCode == "DELEGATECALL" || step.OpCode == "STATICCALL" || step.OpCode == "SELFDESTRUCT" {
-			tracer.CaptureEnter(fakevm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), gas.Uint64(), value)
-			if step.OpCode == "SELFDESTRUCT" {
-				tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+		previousStepStartedInternalTransaction := previousStep.OpCode == "CREATE" ||
+			previousStep.OpCode == "CREATE2" ||
+			previousStep.OpCode == "DELEGATECALL" ||
+			previousStep.OpCode == "CALL" ||
+			previousStep.OpCode == "STATICCALL" ||
+			// deprecated ones
+			previousStep.OpCode == "CALLCODE"
+
+		// when an internal transaction is detected, the next step contains the context values
+		if previousStepStartedInternalTransaction && previousStep.Error == nil {
+			// if the previous depth is the same as the current one, this means
+			// the internal transaction did not executed any other step and the
+			// context is back to the same level. This can happen with pre compiled executions.
+			if previousStep.Depth == step.Depth {
+				addr, value, input, gas, gasUsed, err := s.getValuesFromInternalTxMemory(previousStep, step)
+				if err != nil {
+					return nil, err
+				}
+				from := previousStep.Contract.Address
+				if previousStep.OpCode == "CALL" || previousStep.OpCode == "CALLCODE" {
+					from = previousStep.Contract.Caller
+				}
+				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), from, addr, input, gas, value)
+				tracer.CaptureExit(step.ReturnData, gasUsed, previousStep.Error)
+			} else {
+				value := step.Contract.Value
+				if previousStep.OpCode == "STATICCALL" {
+					value = nil
+				}
+				internalTxSteps.Push(instrumentation.InternalTxContext{
+					OpCode:       previousStep.OpCode,
+					RemainingGas: step.Gas,
+				})
+				tracer.CaptureEnter(fakevm.OpCode(previousStep.Op), step.Contract.Caller, step.Contract.Address, step.Contract.Input, step.Gas, value)
 			}
 		}
 
-		// when a create2 is detected, the next step contains the contract updated
-		if previousOpcode == "CREATE" || previousOpcode == "CREATE2" {
-			tracer.CaptureEnter(fakevm.OpCode(previousOp.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), []byte(step.Contract.Input), previousGas.Uint64(), value)
-		}
-
-		// returning from a call or create
-		if previousDepth > step.Depth {
-			tracer.CaptureExit(step.ReturnData, gasCost.Uint64(), stepError)
+		// returning from internal transaction
+		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
+			var gasUsed uint64
+			var err error
+			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) {
+				itCtx, err := internalTxSteps.Pop()
+				if err != nil {
+					return nil, err
+				}
+				gasUsed = itCtx.RemainingGas
+			} else {
+				gasUsed, err = s.getGasUsed(internalTxSteps, previousStep, step)
+				if err != nil {
+					return nil, err
+				}
+			}
+			tracer.CaptureExit(step.ReturnData, gasUsed, previousStep.Error)
 		}
 
 		// set StateRoot
-		stateRoot = []byte(step.StateRoot)
-		evm.StateDB.SetStateRoot(stateRoot)
+		evm.StateDB.SetStateRoot(step.StateRoot.Bytes())
 
-		// set previous step values
-		previousDepth = step.Depth
-		previousOp = op
-		previousGas = gas
-		previousOpcode = step.OpCode
+		// set previous step
+		previousStep = step
 	}
 
-	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, encoding.Base10)
-	if !ok {
-		log.Debugf("error while parsing gasUsed")
-		return nil, ErrParsingExecutorTrace
+	var err error
+	if reverted {
+		err = fakevm.ErrExecutionReverted
 	}
-
-	restGas := contextGas.Uint64() - gasUsed.Uint64()
+	tracer.CaptureEnd(trace.Context.Output, trace.Context.GasUsed, err)
+	restGas := trace.Context.Gas - trace.Context.GasUsed
 	tracer.CaptureTxEnd(restGas)
-	tracer.CaptureEnd(output, gasUsed.Uint64(), stepError)
 
 	return tracer.GetResult()
+}
+
+func (s *State) getGasUsed(internalTxContextStack *Stack[instrumentation.InternalTxContext], previousStep, step instrumentation.Step) (uint64, error) {
+	itCtx, err := internalTxContextStack.Pop()
+	if err != nil {
+		return 0, err
+	}
+	var gasUsed uint64
+	if itCtx.OpCode == "CREATE" || itCtx.OpCode == "CREATE2" {
+		// if the context was initialized by a CREATE, we should use the contract gas
+		gasUsed = previousStep.Contract.Gas - step.Gas
+	} else {
+		// otherwise we use the step gas
+		gasUsed = itCtx.RemainingGas - previousStep.Gas - previousStep.GasCost
+	}
+	return gasUsed, nil
+}
+
+func (s *State) getValuesFromInternalTxMemory(previousStep, step instrumentation.Step) (common.Address, *big.Int, []byte, uint64, uint64, error) {
+	if previousStep.OpCode == "DELEGATECALL" || previousStep.OpCode == "CALL" || previousStep.OpCode == "STATICCALL" || previousStep.OpCode == "CALLCODE" {
+		gasPos := len(previousStep.Stack) - 1
+		addrPos := gasPos - 1
+
+		argsOffsetPos := addrPos - 1
+		argsSizePos := argsOffsetPos - 1
+
+		// read tx value if it exists
+		var value *big.Int
+		stackHasValue := previousStep.OpCode == "CALL" || previousStep.OpCode == "CALLCODE"
+		if stackHasValue {
+			valuePos := addrPos - 1
+			// valueEncoded := step.Stack[valuePos]
+			// value = hex.DecodeBig(valueEncoded)
+			value = previousStep.Contract.Value
+
+			argsOffsetPos = valuePos - 1
+			argsSizePos = argsOffsetPos - 1
+		}
+
+		retOffsetPos := argsSizePos - 1
+		retSizePos := retOffsetPos - 1
+
+		addr := common.BytesToAddress(previousStep.Stack[addrPos].Bytes())
+		argsOffset := previousStep.Stack[argsOffsetPos].Uint64()
+		argsSize := previousStep.Stack[argsSizePos].Uint64()
+		retOffset := previousStep.Stack[retOffsetPos].Uint64()
+		retSize := previousStep.Stack[retSizePos].Uint64()
+
+		input := make([]byte, argsSize)
+
+		if argsOffset > uint64(previousStep.MemorySize) {
+			// when none of the bytes can be found in the memory
+			// do nothing to keep input as zeroes
+		} else if argsOffset+argsSize > uint64(previousStep.MemorySize) {
+			// when partial bytes are found in the memory
+			// copy just the bytes we have in memory and complement the rest with zeroes
+			copy(input[0:argsSize], previousStep.Memory[argsOffset:uint64(previousStep.MemorySize)])
+		} else {
+			// when all the bytes are found in the memory
+			// read the bytes from memory
+			copy(input[0:argsSize], previousStep.Memory[argsOffset:argsOffset+argsSize])
+		}
+
+		// Compute call memory expansion cost
+		memSize := previousStep.MemorySize
+		lastMemSizeWord := math.Ceil((float64(memSize) + 31) / 32)                          //nolint:gomnd
+		lastMemCost := math.Floor(math.Pow(lastMemSizeWord, 2)/512) + (3 * lastMemSizeWord) //nolint:gomnd
+
+		memSizeWord := math.Ceil((float64(argsOffset+argsSize+31) / 32))                    //nolint:gomnd
+		newMemCost := math.Floor(math.Pow(memSizeWord, float64(2))/512) + (3 * memSizeWord) //nolint:gomnd
+		callMemCost := newMemCost - lastMemCost
+
+		// Compute return memory expansion cost
+		retMemSizeWord := math.Ceil((float64(retOffset) + float64(retSize) + 31) / 32)      //nolint:gomnd
+		retNewMemCost := math.Floor(math.Pow(retMemSizeWord, 2)/512) + (3 * retMemSizeWord) //nolint:gomnd
+		retMemCost := retNewMemCost - newMemCost
+		if retMemCost < 0 {
+			retMemCost = 0
+		}
+
+		callGasCost := retMemCost + callMemCost + 100 //nolint:gomnd
+		gasUsed := float64(previousStep.GasCost) - callGasCost
+
+		// Compute gas sent to call
+		gas := float64(previousStep.Gas) - callGasCost
+		gas -= math.Floor(gas / 64) //nolint:gomnd
+
+		return addr, value, input, uint64(gas), uint64(gasUsed), nil
+	} else {
+		createdAddressPos := len(step.Stack) - 1
+		addr := common.BytesToAddress(step.Stack[createdAddressPos].Bytes())
+
+		valuePos := len(previousStep.Stack) - 1
+		value := previousStep.Stack[valuePos]
+
+		offsetPos := valuePos - 1
+		offset := previousStep.Stack[offsetPos].Uint64()
+
+		sizePos := offsetPos - 1
+		size := previousStep.Stack[sizePos].Uint64()
+
+		input := make([]byte, size)
+
+		if offset > uint64(previousStep.MemorySize) {
+			// when none of the bytes can be found in the memory
+			// do nothing to keep input as zeroes
+		} else if offset+size > uint64(previousStep.MemorySize) {
+			// when partial bytes are found in the memory
+			// copy just the bytes we have in memory and complement the rest with zeroes
+			copy(input[0:size], previousStep.Memory[offset:uint64(previousStep.MemorySize)])
+		} else {
+			// when all the bytes are found in the memory
+			// read the bytes from memory
+			copy(input[0:size], previousStep.Memory[offset:offset+size])
+		}
+
+		// Compute gas sent to call
+		gas := float64(previousStep.Gas - previousStep.GasCost) //nolint:gomnd
+		gas -= math.Floor(gas / 64)                             //nolint:gomnd
+
+		return addr, value, input, uint64(gas), 0, nil
+	}
 }
 
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
@@ -620,6 +745,8 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	var attempts = 1
+
 	if s.executorClient == nil {
 		return nil, ErrExecutorNil
 	}
@@ -631,21 +758,6 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
-	stateRoot := l2BlockStateRoot
-	if l2BlockNumber != nil {
-		l2Block, err := s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
-		if err != nil {
-			return nil, err
-		}
-		stateRoot = l2Block.Root()
-	}
-
-	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	nonce := loadedNonce.Uint64()
-
 	// Get latest batch from the database to get globalExitRoot and Timestamp
 	lastBatch := lastBatches[0]
 
@@ -655,9 +767,15 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		previousBatch = lastBatches[1]
 	}
 
+	stateRoot := l2BlockStateRoot
 	timestamp := uint64(lastBatch.Timestamp.Unix())
-
 	if l2BlockNumber != nil {
+		l2Block, err := s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
+		if err != nil {
+			return nil, err
+		}
+		stateRoot = l2Block.Root()
+
 		latestL2BlockNumber, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
 			return nil, err
@@ -668,15 +786,21 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		}
 	}
 
-	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce)
+	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
+	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	nonce := loadedNonce.Uint64()
+
+	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce, forkID)
 	if err != nil {
 		log.Errorf("error encoding unsigned transaction ", err)
 		return nil, err
 	}
 
-	forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
 	// Create Batch
-	processBatchRequest := &pb.ProcessBatchRequest{
+	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber,
 		BatchL2Data:      batchL2Data,
 		From:             senderAddress.String(),
@@ -708,11 +832,34 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
-		// Log this error as an executor unspecified error
-		s.eventLog.LogExecutorError(ctx, pb.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
-		log.Errorf("error processing unsigned transaction ", err)
-		return nil, err
-	} else if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		if status.Code(err) == codes.ResourceExhausted {
+			log.Errorf("error processing unsigned transaction ", err)
+			for attempts < s.cfg.MaxResourceExhaustedAttempts {
+				time.Sleep(s.cfg.WaitOnResourceExhaustion.Duration)
+				log.Errorf("retrying to process unsigned transaction")
+				processBatchResponse, err = s.executorClient.ProcessBatch(ctx, processBatchRequest)
+				if status.Code(err) == codes.ResourceExhausted {
+					log.Errorf("error processing unsigned transaction ", err)
+					attempts++
+					continue
+				}
+				break
+			}
+		}
+
+		if err != nil {
+			if status.Code(err) == codes.ResourceExhausted {
+				log.Error("reporting error as time out")
+				return nil, runtime.ErrGRPCResourceExhaustedAsTimeout
+			}
+			// Log this error as an executor unspecified error
+			s.eventLog.LogExecutorError(ctx, executor.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
+			log.Errorf("error processing unsigned transaction ", err)
+			return nil, err
+		}
+	}
+
+	if err == nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
 		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 		return nil, err
@@ -723,7 +870,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
-	if processBatchResponse.Responses[0].Error != pb.RomError(executor.ROM_ERROR_NO_ERROR) {
+	if processBatchResponse.Responses[0].Error != executor.RomError_ROM_ERROR_NO_ERROR {
 		err := executor.RomErr(processBatchResponse.Responses[0].Error)
 		if !isEVMRevertError(err) {
 			return response, err
@@ -738,49 +885,12 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 	return tx.To() == nil && len(tx.Data()) > 0
 }
 
-// DetermineProcessedTransactions splits the given tx process responses
-// returning a slice with only processed and a map unprocessed txs
-// respectively.
-func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
-	[]*ProcessTransactionResponse, []string, map[string]*ProcessTransactionResponse, []string) {
-	processedTxResponses := []*ProcessTransactionResponse{}
-	processedTxsHashes := []string{}
-	unprocessedTxResponses := map[string]*ProcessTransactionResponse{}
-	unprocessedTxsHashes := []string{}
-	for _, response := range responses {
-		if response.IsProcessed {
-			processedTxResponses = append(processedTxResponses, response)
-			processedTxsHashes = append(processedTxsHashes, response.TxHash.String())
-		} else {
-			log.Infof("Tx %s has not been processed", response.TxHash)
-			unprocessedTxResponses[response.TxHash.String()] = response
-			unprocessedTxsHashes = append(unprocessedTxsHashes, response.TxHash.String())
-		}
-	}
-	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
-}
-
-// StoreTransaction is used by the sequencer to add process a transaction
+// StoreTransaction is used by the sequencer and trusted state synchronizer to add process a transaction.
 func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
 
-	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
-	/*
-			isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
-			if err != nil {
-				return err
-			}
-			if isBatchClosed {
-				return ErrBatchAlreadyClosed
-			}
-
-		processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
-		if err != nil {
-			return err
-		}
-	*/
 	// if the transaction has an intrinsic invalid tx error it means
 	// the transaction has not changed the state, so we don't store it
 	if executor.IsIntrinsicError(executor.RomErrorCode(processedTx.RomError)) {
@@ -813,7 +923,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	receipt.BlockHash = block.Hash()
 
 	// Store L2 block and its transaction
-	if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, block, receipts, uint8(processedTx.EffectivePercentage), dbTx); err != nil {
 		return err
 	}
 
@@ -849,6 +959,21 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		return 0, nil, err
 	}
 
+	stateRoot := l2BlockStateRoot
+	if l2BlockNumber != nil {
+		l2Block, err := s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
+		if err != nil {
+			return 0, nil, err
+		}
+		stateRoot = l2Block.Root()
+	}
+
+	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
+	if err != nil {
+		return 0, nil, err
+	}
+	nonce := loadedNonce.Uint64()
+
 	// Get latest batch from the database to get globalExitRoot and Timestamp
 	lastBatch := lastBatches[0]
 
@@ -864,7 +989,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	}
 
 	if lowEnd == ethTransferGas && transaction.To() != nil {
-		code, err := s.tree.GetCode(ctx, *transaction.To(), l2BlockStateRoot.Bytes())
+		code, err := s.tree.GetCode(ctx, *transaction.To(), stateRoot.Bytes())
 		if err != nil {
 			log.Warnf("error while getting transaction.to() code %v", err)
 		} else if len(code) == 0 {
@@ -881,7 +1006,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	var availableBalance *big.Int
 
 	if senderAddress != ZeroAddress {
-		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, l2BlockStateRoot.Bytes())
+		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, stateRoot.Bytes())
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				senderBalance = big.NewInt(0)
@@ -915,9 +1040,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	// Run the transaction with the specified gas value.
 	// Returns a status indicating if the transaction failed, if it was reverted and the accompanying error
-	testTransaction := func(gas uint64, shouldOmitErr bool) (failed, reverted bool, gasUsed uint64, returnValue []byte, err error) {
+	testTransaction := func(gas uint64, nonce uint64, shouldOmitErr bool) (failed, reverted bool, gasUsed uint64, returnValue []byte, err error) {
 		tx := types.NewTx(&types.LegacyTx{
-			Nonce:    transaction.Nonce(),
+			Nonce:    nonce,
 			To:       transaction.To(),
 			Value:    transaction.Value(),
 			Gas:      gas,
@@ -925,19 +1050,20 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			Data:     transaction.Data(),
 		})
 
-		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, nil)
+		forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
+
+		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, nil, forkID)
 		if err != nil {
 			log.Errorf("error encoding unsigned transaction ", err)
 			return false, false, gasUsed, nil, err
 		}
 
-		forkID := GetForkIDByBatchNumber(s.cfg.ForkIDIntervals, lastBatch.BatchNumber)
 		// Create a batch to be sent to the executor
-		processBatchRequest := &pb.ProcessBatchRequest{
+		processBatchRequest := &executor.ProcessBatchRequest{
 			OldBatchNum:      lastBatch.BatchNumber,
 			BatchL2Data:      batchL2Data,
 			From:             senderAddress.String(),
-			OldStateRoot:     l2BlockStateRoot.Bytes(),
+			OldStateRoot:     stateRoot.Bytes(),
 			GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 			OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 			EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
@@ -967,14 +1093,14 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, false, gasUsed, nil, err
 		}
 		gasUsed = processBatchResponse.Responses[0].GasUsed
-		if processBatchResponse.Error != executor.EXECUTOR_ERROR_NO_ERROR {
+		if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
 			s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, nil, err
 		}
 
 		// Check if an out of gas error happened during EVM execution
-		if processBatchResponse.Responses[0].Error != pb.RomError(executor.ROM_ERROR_NO_ERROR) {
+		if processBatchResponse.Responses[0].Error != executor.RomError_ROM_ERROR_NO_ERROR {
 			err := executor.RomErr(processBatchResponse.Responses[0].Error)
 
 			if (isGasEVMError(err) || isGasApplyError(err)) && shouldOmitErr {
@@ -1001,7 +1127,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	var totalExecutionTime time.Duration
 
 	// Check if the highEnd is a good value to make the transaction pass
-	failed, reverted, gasUsed, returnValue, err := testTransaction(highEnd, false)
+	failed, reverted, gasUsed, returnValue, err := testTransaction(highEnd, nonce, false)
 	log.Debugf("Estimate gas. Trying to execute TX with %v gas", highEnd)
 	if failed {
 		if reverted {
@@ -1027,7 +1153,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
 
-		failed, reverted, _, _, testErr := testTransaction(mid, true)
+		failed, reverted, _, _, testErr := testTransaction(mid, nonce, true)
 		executionTime := time.Since(txExecutionStart)
 		totalExecutionTime += executionTime
 		txExecutions = append(txExecutions, executionTime)
@@ -1048,9 +1174,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	executions := int64(len(txExecutions))
 	if executions > 0 {
-		log.Debugf("EstimateGas executed the TX %v times", executions)
-		averageExecutionTime := totalExecutionTime.Milliseconds() / executions
-		log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
+		log.Infof("EstimateGas executed TX %v %d times in %d milliseconds", transaction.Hash(), executions, totalExecutionTime.Milliseconds())
 	} else {
 		log.Error("Estimate gas. Tx not executed")
 	}

@@ -31,16 +31,19 @@ func TestUniswap(t *testing.T) {
 	app := cli.NewApp()
 	var n string
 	flag.StringVar(&n, "network", "local", "")
-	cfg, err := config.Load(cli.NewContext(app, flag.CommandLine, nil))
+	cfg, err := config.Load(cli.NewContext(app, flag.CommandLine, nil), true)
 	require.NoError(t, err)
 
 	opsCfg := &operations.Config{
 		State: &state.Config{
 			MaxCumulativeGasUsed: cfg.Sequencer.MaxCumulativeGasUsed,
 		},
-		Sequencer: &operations.SequencerConfig{
-			Address:    "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
-			PrivateKey: "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+		SequenceSender: &operations.SequenceSenderConfig{
+			SenderAddress:                            "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+			LastBatchVirtualizationTimeMaxWaitPeriod: "5s",
+			WaitPeriodSendSequence:                   "5s",
+			MaxTxSizeForL1:                           131072,
+			PrivateKey:                               "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
 		},
 	}
 	opsman, err := operations.NewManager(ctx, opsCfg)

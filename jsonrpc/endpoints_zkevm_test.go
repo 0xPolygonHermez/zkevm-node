@@ -20,6 +20,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	forkID5 = 5
+)
+
 func TestConsolidatedBlockNumber(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
@@ -661,6 +665,56 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
+				txs := []*ethTypes.Transaction{
+					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.ChainID()),
+					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.ChainID()),
+				}
+
+				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
+				effectivePercentages := make([]uint8, 0, len(txs))
+				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
+				receipts := []*ethTypes.Receipt{}
+				for i, tx := range txs {
+					blockNumber := big.NewInt(int64(i))
+					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
+					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
+					receipt.TxHash = tx.Hash()
+					receipt.TransactionIndex = uint(i)
+					receipt.BlockNumber = blockNumber
+					receipt.BlockHash = blockHash
+					receipts = append(receipts, receipt)
+					from, _ := state.GetSender(*tx)
+					V, R, S := tx.RawSignatureValues()
+
+					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
+						types.TransactionOrHash{
+							Tx: &types.Transaction{
+								Nonce:       types.ArgUint64(tx.Nonce()),
+								GasPrice:    types.ArgBig(*tx.GasPrice()),
+								Gas:         types.ArgUint64(tx.Gas()),
+								To:          tx.To(),
+								Value:       types.ArgBig(*tx.Value()),
+								Input:       tx.Data(),
+								Hash:        tx.Hash(),
+								From:        from,
+								BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
+								BlockHash:   ptrHash(receipt.BlockHash),
+								TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
+								ChainID:     types.ArgBig(*tx.ChainId()),
+								Type:        types.ArgUint64(tx.Type()),
+								V:           types.ArgBig(*V),
+								R:           types.ArgBig(*R),
+								S:           types.ArgBig(*S),
+							},
+						},
+					)
+
+					batchTxs = append(batchTxs, *tx)
+					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
+				}
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
+				require.NoError(t, err)
+				tc.ExpectedResult.BatchL2Data = batchL2Data
 				batch := &state.Batch{
 					BatchNumber:    1,
 					Coinbase:       common.HexToAddress("0x1"),
@@ -668,6 +722,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					AccInputHash:   common.HexToHash("0x3"),
 					GlobalExitRoot: common.HexToHash("0x4"),
 					Timestamp:      time.Unix(1, 0),
+					BatchL2Data:    batchL2Data,
 				}
 
 				m.State.
@@ -703,59 +758,15 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(&ger, nil).
 					Once()
 
-				txs := []*ethTypes.Transaction{
-					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-				}
-
-				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
-
-				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
-
 				for i, tx := range txs {
-					blockNumber := big.NewInt(int64(i))
-					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
-					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
-					receipt.TxHash = tx.Hash()
-					receipt.TransactionIndex = uint(i)
-					receipt.BlockNumber = blockNumber
-					receipt.BlockHash = blockHash
 					m.State.
 						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
-						Return(receipt, nil).
+						Return(receipts[i], nil).
 						Once()
-
-					from, _ := state.GetSender(*tx)
-					V, R, S := tx.RawSignatureValues()
-
-					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
-						types.TransactionOrHash{
-							Tx: &types.Transaction{
-								Nonce:       types.ArgUint64(tx.Nonce()),
-								GasPrice:    types.ArgBig(*tx.GasPrice()),
-								Gas:         types.ArgUint64(tx.Gas()),
-								To:          tx.To(),
-								Value:       types.ArgBig(*tx.Value()),
-								Input:       tx.Data(),
-								Hash:        tx.Hash(),
-								From:        from,
-								BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
-								BlockHash:   ptrHash(receipt.BlockHash),
-								TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
-								ChainID:     types.ArgBig(*tx.ChainId()),
-								Type:        types.ArgUint64(tx.Type()),
-								V:           types.ArgBig(*V),
-								R:           types.ArgBig(*R),
-								S:           types.ArgBig(*S),
-							},
-						},
-					)
-
-					batchTxs = append(batchTxs, *tx)
 				}
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
-					Return(batchTxs, nil).
+					Return(batchTxs, effectivePercentages, nil).
 					Once()
 			},
 		},
@@ -785,6 +796,38 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
+				txs := []*ethTypes.Transaction{
+					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.ChainID()),
+					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.ChainID()),
+				}
+
+				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
+				effectivePercentages := make([]uint8, 0, len(txs))
+				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
+
+				receipts := []*ethTypes.Receipt{}
+				for i, tx := range txs {
+					blockNumber := big.NewInt(int64(i))
+					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
+					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
+					receipt.TxHash = tx.Hash()
+					receipt.TransactionIndex = uint(i)
+					receipt.BlockNumber = blockNumber
+					receipt.BlockHash = blockHash
+					receipts = append(receipts, receipt)
+
+					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
+						types.TransactionOrHash{
+							Hash: state.HashPtr(tx.Hash()),
+						},
+					)
+
+					batchTxs = append(batchTxs, *tx)
+					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
+				}
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
+				require.NoError(t, err)
+
 				batch := &state.Batch{
 					BatchNumber:    1,
 					Coinbase:       common.HexToAddress("0x1"),
@@ -792,6 +835,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					AccInputHash:   common.HexToHash("0x3"),
 					GlobalExitRoot: common.HexToHash("0x4"),
 					Timestamp:      time.Unix(1, 0),
+					BatchL2Data:    batchL2Data,
 				}
 
 				m.State.
@@ -826,41 +870,18 @@ func TestGetBatchByNumber(t *testing.T) {
 					On("GetExitRootByGlobalExitRoot", context.Background(), batch.GlobalExitRoot, m.DbTx).
 					Return(&ger, nil).
 					Once()
-
-				txs := []*ethTypes.Transaction{
-					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-				}
-
-				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
-
-				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
-
 				for i, tx := range txs {
-					blockNumber := big.NewInt(int64(i))
-					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
-					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
-					receipt.TxHash = tx.Hash()
-					receipt.TransactionIndex = uint(i)
-					receipt.BlockNumber = blockNumber
-					receipt.BlockHash = blockHash
 					m.State.
 						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
-						Return(receipt, nil).
+						Return(receipts[i], nil).
 						Once()
-
-					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
-						types.TransactionOrHash{
-							Hash: state.HashPtr(tx.Hash()),
-						},
-					)
-
-					batchTxs = append(batchTxs, *tx)
 				}
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
-					Return(batchTxs, nil).
+					Return(batchTxs, effectivePercentages, nil).
 					Once()
+
+				tc.ExpectedResult.BatchL2Data = batchL2Data
 			},
 		},
 		{
@@ -869,6 +890,7 @@ func TestGetBatchByNumber(t *testing.T) {
 			WithTxDetail: true,
 			ExpectedResult: &types.Batch{
 				Number:              1,
+				ForcedBatchNumber:   ptrArgUint64FromUint64(1),
 				Coinbase:            common.HexToAddress("0x1"),
 				StateRoot:           common.HexToHash("0x2"),
 				AccInputHash:        common.HexToHash("0x3"),
@@ -894,13 +916,66 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(uint64(tc.ExpectedResult.Number), nil).
 					Once()
 
+				txs := []*ethTypes.Transaction{
+					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.ChainID()),
+					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.ChainID()),
+				}
+
+				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
+				effectivePercentages := make([]uint8, 0, len(txs))
+				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
+
+				receipts := []*ethTypes.Receipt{}
+				for i, tx := range txs {
+					blockNumber := big.NewInt(int64(i))
+					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
+					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
+					receipt.TxHash = tx.Hash()
+					receipt.TransactionIndex = uint(i)
+					receipt.BlockNumber = blockNumber
+					receipt.BlockHash = blockHash
+					receipts = append(receipts, receipt)
+					from, _ := state.GetSender(*tx)
+					V, R, S := tx.RawSignatureValues()
+
+					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
+						types.TransactionOrHash{
+							Tx: &types.Transaction{
+								Nonce:       types.ArgUint64(tx.Nonce()),
+								GasPrice:    types.ArgBig(*tx.GasPrice()),
+								Gas:         types.ArgUint64(tx.Gas()),
+								To:          tx.To(),
+								Value:       types.ArgBig(*tx.Value()),
+								Input:       tx.Data(),
+								Hash:        tx.Hash(),
+								From:        from,
+								BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
+								BlockHash:   ptrHash(receipt.BlockHash),
+								TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
+								ChainID:     types.ArgBig(*tx.ChainId()),
+								Type:        types.ArgUint64(tx.Type()),
+								V:           types.ArgBig(*V),
+								R:           types.ArgBig(*R),
+								S:           types.ArgBig(*S),
+							},
+						},
+					)
+
+					batchTxs = append(batchTxs, *tx)
+					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
+				}
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
+				require.NoError(t, err)
+				var fb uint64 = 1
 				batch := &state.Batch{
 					BatchNumber:    1,
+					ForcedBatchNum: &fb,
 					Coinbase:       common.HexToAddress("0x1"),
 					StateRoot:      common.HexToHash("0x2"),
 					AccInputHash:   common.HexToHash("0x3"),
 					GlobalExitRoot: common.HexToHash("0x4"),
 					Timestamp:      time.Unix(1, 0),
+					BatchL2Data:    batchL2Data,
 				}
 
 				m.State.
@@ -936,60 +1011,17 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(&ger, nil).
 					Once()
 
-				txs := []*ethTypes.Transaction{
-					signTx(ethTypes.NewTransaction(1001, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-					signTx(ethTypes.NewTransaction(1002, common.HexToAddress("0x1000"), big.NewInt(1000), 1001, big.NewInt(1002), []byte("1003")), s.Config.ChainID),
-				}
-
-				batchTxs := make([]ethTypes.Transaction, 0, len(txs))
-
-				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
-
 				for i, tx := range txs {
-					blockNumber := big.NewInt(int64(i))
-					blockHash := common.HexToHash(hex.EncodeUint64(uint64(i)))
-					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
-					receipt.TxHash = tx.Hash()
-					receipt.TransactionIndex = uint(i)
-					receipt.BlockNumber = blockNumber
-					receipt.BlockHash = blockHash
 					m.State.
 						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
-						Return(receipt, nil).
+						Return(receipts[i], nil).
 						Once()
-
-					from, _ := state.GetSender(*tx)
-					V, R, S := tx.RawSignatureValues()
-
-					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
-						types.TransactionOrHash{
-							Tx: &types.Transaction{
-								Nonce:       types.ArgUint64(tx.Nonce()),
-								GasPrice:    types.ArgBig(*tx.GasPrice()),
-								Gas:         types.ArgUint64(tx.Gas()),
-								To:          tx.To(),
-								Value:       types.ArgBig(*tx.Value()),
-								Input:       tx.Data(),
-								Hash:        tx.Hash(),
-								From:        from,
-								BlockNumber: ptrArgUint64FromUint64(blockNumber.Uint64()),
-								BlockHash:   ptrHash(receipt.BlockHash),
-								TxIndex:     ptrArgUint64FromUint(receipt.TransactionIndex),
-								ChainID:     types.ArgBig(*tx.ChainId()),
-								Type:        types.ArgUint64(tx.Type()),
-								V:           types.ArgBig(*V),
-								R:           types.ArgBig(*R),
-								S:           types.ArgBig(*S),
-							},
-						},
-					)
-
-					batchTxs = append(batchTxs, *tx)
 				}
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
-					Return(batchTxs, nil).
+					Return(batchTxs, effectivePercentages, nil).
 					Once()
+				tc.ExpectedResult.BatchL2Data = batchL2Data
 			},
 		},
 		{
@@ -1066,6 +1098,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					err = json.Unmarshal(res.Result, &batch)
 					require.NoError(t, err)
 					assert.Equal(t, tc.ExpectedResult.Number.Hex(), batch["number"].(string))
+					if tc.ExpectedResult.ForcedBatchNumber != nil {
+						assert.Equal(t, tc.ExpectedResult.ForcedBatchNumber.Hex(), batch["forcedBatchNumber"].(string))
+					}
 					assert.Equal(t, tc.ExpectedResult.Coinbase.String(), batch["coinbase"].(string))
 					assert.Equal(t, tc.ExpectedResult.StateRoot.String(), batch["stateRoot"].(string))
 					assert.Equal(t, tc.ExpectedResult.GlobalExitRoot.String(), batch["globalExitRoot"].(string))
@@ -1099,6 +1134,8 @@ func TestGetBatchByNumber(t *testing.T) {
 							assert.Equal(t, tx.Type.Hex(), batchTxOrHash["type"].(string))
 						}
 					}
+					expectedBatchL2DataHex := "0x" + common.Bytes2Hex(testCase.ExpectedResult.BatchL2Data)
+					assert.Equal(t, expectedBatchL2DataHex, batch["batchL2Data"].(string))
 				}
 			}
 

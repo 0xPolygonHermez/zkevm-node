@@ -55,6 +55,20 @@ services:
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
+    volumes:
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components sequencer"
+
+  zkevm-sequence-sender:
+    container_name: zkevm-sequence-sender
+    image: zkevm-node
+    environment:
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
       - ZKEVM_NODE_SEQUENCER_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
     volumes:
       - ./sequencer.keystore:/pk/sequencer.keystore
@@ -63,7 +77,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components sequencer"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components sequence-sender"
 
   zkevm-json-rpc:
     container_name: zkevm-json-rpc
@@ -103,6 +117,8 @@ services:
   zkevm-sync:
     container_name: zkevm-sync
     image: zkevm-node
+    ports:
+      - 9095:9091 # needed if metrics enabled
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     volumes:
@@ -210,7 +226,7 @@ services:
 
   zkevm-explorer-l1:
     container_name: zkevm-explorer-l1
-    image: hermeznetwork/hermez-node-blockscout:latest
+    image: hermeznetwork/zkevm-explorer:latest
     ports:
       - 4000:4000
     environment:
@@ -231,7 +247,7 @@ services:
     container_name: zkevm-explorer-l1-db
     image: postgres
     ports:
-      - 5435:5432
+      - 5436:5432
     environment:
       - POSTGRES_USER=l1_explorer_user
       - POSTGRES_PASSWORD=l1_explorer_password
@@ -243,7 +259,7 @@ services:
 
   zkevm-explorer-l2:
     container_name: zkevm-explorer-l2
-    image: hermeznetwork/hermez-node-blockscout:latest
+    image: hermeznetwork/zkevm-explorer:latest
     ports:
       - 4001:4000
     environment:
@@ -285,7 +301,7 @@ services:
     container_name: zkevm-explorer-l2-db
     image: postgres
     ports:
-      - 5436:5432
+      - 5437:5432
     environment:
       - POSTGRES_USER=l2_explorer_user
       - POSTGRES_PASSWORD=l2_explorer_password
@@ -294,7 +310,7 @@ services:
 
   zkevm-mock-l1-network:
     container_name: zkevm-mock-l1-network
-    image: hermeznetwork/geth-zkevm-contracts:v1.1.0-fork.4
+    image: hermeznetwork/geth-zkevm-contracts:v2.0.0-RC1-fork.5-geth1.12.0
     ports:
       - 8545:8545
       - 8546:8546
@@ -322,7 +338,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:b6fe2db
+    image: hermeznetwork/zkevm-prover:v2.0.1
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
@@ -332,17 +348,6 @@ services:
       - ./config/test.prover.config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
-
-  zkprover-mock:
-    container_name: zkprover-mock
-    image: hermeznetwork/zkprover-mock:latest
-    ports:
-      - 43061:43061 # MT
-      - 43071:43071 # Executor
-    volumes:
-      - ./vectors/src:/app/testvectors
-    command: >
-      /app/zkprover-mock server --statedb-port 43061 --executor-port 43071 --test-vector-path /app/testvectors
 
   zkevm-approve:
     container_name: zkevm-approve
@@ -409,7 +414,7 @@ services:
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
-    image: hermeznetwork/zkevm-prover:b6fe2db
+    image: hermeznetwork/zkevm-prover:v2.0.1
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover
@@ -431,3 +436,17 @@ services:
       - --web.enable-lifecycle
     volumes:
       - ../config/metrics/prometheus:/etc/prometheus
+
+  zkevm-sh:
+    container_name: zkevm-sh
+    image: zkevm-node
+    stdin_open: true 
+    tty: true
+    environment:
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
+    volumes:
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"

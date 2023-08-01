@@ -334,7 +334,7 @@ func (p *PostgresStorage) GetForcedBatch(ctx context.Context, forcedBatchNumber 
 
 // GetForcedBatchesSince gets L1 forced batches since forcedBatchNumber
 func (p *PostgresStorage) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*ForcedBatch, error) {
-	const getForcedBatchesSQL = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, block_num FROM state.forced_batch WHERE forced_batch_num > $1 AND block_num <= $2"
+	const getForcedBatchesSQL = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, block_num FROM state.forced_batch WHERE forced_batch_num > $1 AND block_num <= $2 ORDER BY forced_batch_num ASC"
 	q := p.getExecQuerier(dbTx)
 	rows, err := q.Query(ctx, getForcedBatchesSQL, forcedBatchNumber, maxBlockNumber)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -542,32 +542,27 @@ func (p *PostgresStorage) GetLatestVirtualBatchTimestamp(ctx context.Context, db
 	return timestamp, nil
 }
 
-// SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
-// the roll-up in order to allow the components to know if the state
-// is synchronized or not
-func (p *PostgresStorage) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	const updateLastBatchSeenSQL = "UPDATE state.sync_info SET last_batch_num_seen = $1"
+// SetLastBatchInfoSeenOnEthereum sets the last batch number that affected
+// the roll-up and the last batch number that was consolidated on ethereum
+// in order to allow the components to know if the state is synchronized or not
+func (p *PostgresStorage) SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBatchNumberSeen, lastBatchNumberVerified uint64, dbTx pgx.Tx) error {
+	const query = `
+    UPDATE state.sync_info
+       SET last_batch_num_seen = $1
+         , last_batch_num_consolidated = $2`
 
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, updateLastBatchSeenSQL, batchNumber)
+	_, err := e.Exec(ctx, query, lastBatchNumberSeen, lastBatchNumberVerified)
 	return err
 }
 
-// GetLastBatchNumberSeenOnEthereum returns the last batch number stored
-// in the state that represents the last batch number that affected the
-// roll-up in the Ethereum network.
-func (p *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	var batchNumber uint64
-	const getLastBatchSeenSQL = "SELECT last_batch_num_seen FROM state.sync_info LIMIT 1"
+// SetInitSyncBatch sets the initial batch number where the synchronization started
+func (p *PostgresStorage) SetInitSyncBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	updateInitBatchSQL := "UPDATE state.sync_info SET init_sync_batch = $1"
 
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getLastBatchSeenSQL).Scan(&batchNumber)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return batchNumber, nil
+	_, err := e.Exec(ctx, updateInitBatchSQL, batchNumber)
+	return err
 }
 
 // GetBatchByNumber returns the batch with the given number.
@@ -735,7 +730,7 @@ func scanBatch(row pgx.Row) (Batch, error) {
 		stateStr    *string
 		coinbaseStr string
 	)
-	if err := row.Scan(
+	err := row.Scan(
 		&batch.BatchNumber,
 		&gerStr,
 		&lerStr,
@@ -745,7 +740,8 @@ func scanBatch(row pgx.Row) (Batch, error) {
 		&coinbaseStr,
 		&batch.BatchL2Data,
 		&batch.ForcedBatchNum,
-	); err != nil {
+	)
+	if err != nil {
 		return batch, err
 	}
 	batch.GlobalExitRoot = common.HexToHash(gerStr)
@@ -829,44 +825,53 @@ func scanForcedBatch(row pgx.Row) (ForcedBatch, error) {
 
 // GetEncodedTransactionsByBatchNumber returns the encoded field of all
 // transactions in the given batch.
-func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []string, err error) {
-	const getEncodedTransactionsByBatchNumberSQL = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
+func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encodedTxs []string, effectivePercentages []uint8, err error) {
+	const getEncodedTransactionsByBatchNumberSQL = "SELECT encoded, COALESCE(effective_percentage, 255) FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
 
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
-	txs := make([]string, 0, len(rows.RawValues()))
+	encodedTxs = make([]string, 0, len(rows.RawValues()))
+	effectivePercentages = make([]uint8, 0, len(rows.RawValues()))
 
 	for rows.Next() {
-		var encoded string
-		err := rows.Scan(&encoded)
+		var (
+			encoded             string
+			effectivePercentage uint8
+		)
+		err := rows.Scan(&encoded, &effectivePercentage)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		txs = append(txs, encoded)
+		encodedTxs = append(encodedTxs, encoded)
+		effectivePercentages = append(effectivePercentages, effectivePercentage)
 	}
-	return txs, nil
+
+	return encodedTxs, effectivePercentages, nil
 }
 
 // GetTransactionsByBatchNumber returns the transactions in the given batch.
-func (p *PostgresStorage) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error) {
-	encodedTxs, err := p.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
+func (p *PostgresStorage) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, effectivePercentages []uint8, err error) {
+	var encodedTxs []string
+	encodedTxs, effectivePercentages, err = p.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
 	for i := 0; i < len(encodedTxs); i++ {
 		tx, err := DecodeTx(encodedTxs[i])
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		txs = append(txs, *tx)
 	}
-	return
+
+	return txs, effectivePercentages, nil
 }
 
 // GetTxsHashesByBatchNumber returns the hashes of the transactions in the
@@ -1177,6 +1182,7 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
 	var txHash, encodedTx, contractAddress, l2BlockHash string
 	var l2BlockNum uint64
+	var effective_gas_price *uint64
 
 	const getReceiptSQL = `
 		SELECT 
@@ -1188,6 +1194,7 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 			r.cumulative_gas_used,
 			r.gas_used,
 			r.contract_address,
+			r.effective_gas_price,
 			t.encoded,
 			t.l2_block_num,
 			b.block_hash
@@ -1209,6 +1216,7 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 			&receipt.CumulativeGasUsed,
 			&receipt.GasUsed,
 			&contractAddress,
+			&effective_gas_price,
 			&encodedTx,
 			&l2BlockNum,
 			&l2BlockHash,
@@ -1230,7 +1238,9 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 
 	receipt.BlockNumber = big.NewInt(0).SetUint64(l2BlockNum)
 	receipt.BlockHash = common.HexToHash(l2BlockHash)
-
+	if effective_gas_price != nil {
+		receipt.EffectiveGasPrice = big.NewInt(0).SetUint64(*effective_gas_price)
+	}
 	receipt.Logs = logs
 	receipt.Bloom = types.CreateBloom(types.Receipts{&receipt})
 
@@ -1389,10 +1399,10 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 }
 
 // AddL2Block adds a new L2 block to the State Store
-func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, effectivePercentage uint8, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
-	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
+	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage) VALUES($1, $2, $3, $4, $5)"
 	const addL2BlockSQL = `
         INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
                            VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9)`
@@ -1434,7 +1444,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			return err
 		}
 		decoded := string(binary)
-		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64())
+		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), effectivePercentage)
 		if err != nil {
 			return err
 		}
@@ -1573,18 +1583,6 @@ func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*typ
 	block := types.NewBlockWithHeader(header).WithBody(transactions, uncles)
 	block.ReceivedAt = receivedAt
 	return block, nil
-}
-
-// GetLastVerifiedBatchNumberSeenOnEthereum gets last verified batch number seen on ethereum
-func (p *PostgresStorage) GetLastVerifiedBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	const getLastVerifiedBatchSeenSQL = "SELECT last_batch_num_verified FROM state.sync_info LIMIT 1"
-	var batchNumber uint64
-	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getLastVerifiedBatchSeenSQL).Scan(&batchNumber)
-	if err != nil {
-		return 0, err
-	}
-	return batchNumber, nil
 }
 
 // GetLastVerifiedBatch gets last verified batch
@@ -1964,10 +1962,18 @@ func (p *PostgresStorage) hashesToHex(hashes []common.Hash) []string {
 // AddReceipt adds a new receipt to the State Store
 func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
+
+	var effectiveGasPrice *uint64
+
+	if receipt.EffectiveGasPrice != nil {
+		egf := receipt.EffectiveGasPrice.Uint64()
+		effectiveGasPrice = &egf
+	}
+
 	const addReceiptSQL = `
-        INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address)
-                           VALUES (     $1,   $2,         $3,     $4,                  $5,       $6,        $7,       $8,               $9)`
-	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
+        INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, effective_gas_price, block_num, tx_index, contract_address)
+                           VALUES (     $1,   $2,         $3,     $4,                  $5,       $6,        		  $7,        $8,       $9,			    $10)`
+	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, effectiveGasPrice, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
 	return err
 }
 

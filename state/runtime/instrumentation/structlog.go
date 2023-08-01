@@ -15,6 +15,7 @@ type StructLog struct {
 	GasCost       uint64                      `json:"gasCost"`
 	Memory        []byte                      `json:"memory"`
 	MemorySize    int                         `json:"memSize"`
+	MemoryOffset  int                         `json:"memOffset"`
 	Stack         []*big.Int                  `json:"stack"`
 	ReturnData    []byte                      `json:"returnData"`
 	Storage       map[common.Hash]common.Hash `json:"-"`

@@ -6,7 +6,7 @@
 		"polygonZkEVMGlobalExitRootAddress": "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 	},
   "root": "0xd88680f1b151dd67518f9aca85161424c0cac61df2f5424a3ddc04ea25adecc7",
-  "genesisBlockNumber": 74,
+  "genesisBlockNumber": 102,
   "genesis": [
    {
     "contractName": "PolygonZkEVMDeployer",

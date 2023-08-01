@@ -14,18 +14,27 @@ import (
 const appName = "zkevm-node"
 
 const (
-	// AGGREGATOR is the aggregator component identifier.
+	// AGGREGATOR is the aggregator component identifier
 	AGGREGATOR = "aggregator"
-	// SEQUENCER is the sequencer component identifier.
+	// SEQUENCER is the sequencer component identifier
 	SEQUENCER = "sequencer"
-	// RPC is the RPC component identifier.
+	// RPC is the RPC component identifier
 	RPC = "rpc"
-	// SYNCHRONIZER is the synchronizer component identifier.
+	// SYNCHRONIZER is the synchronizer component identifier
 	SYNCHRONIZER = "synchronizer"
 	// ETHTXMANAGER is the service that manages the tx sent to L1
 	ETHTXMANAGER = "eth-tx-manager"
-	// L2GASPRICER is the l2 gas pricer component identifier.
+	// L2GASPRICER is the l2 gas pricer component identifier
 	L2GASPRICER = "l2gaspricer"
+	// SEQUENCE_SENDER is the sequence sender component identifier
+	SEQUENCE_SENDER = "sequence-sender"
+)
+
+const (
+	// NODE_CONFIGFILE name to identify the node config-file
+	NODE_CONFIGFILE = "node"
+	// NETWORK_CONFIGFILE name to identify the netowk_custom (genesis) config-file
+	NETWORK_CONFIGFILE = "custom_network"
 )
 
 var (
@@ -33,7 +42,7 @@ var (
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
 		Usage:    "Configuration `FILE`",
-		Required: false,
+		Required: true,
 	}
 	networkFlag = cli.StringFlag{
 		Name:     config.FlagNetwork,
@@ -58,7 +67,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, ETHTXMANAGER, L2GASPRICER),
+		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER, ETHTXMANAGER, L2GASPRICER, SEQUENCE_SENDER),
 	}
 	httpAPIFlag = cli.StringSliceFlag{
 		Name:     config.FlagHTTPAPI,
@@ -72,6 +81,16 @@ var (
 		Aliases:  []string{"mig"},
 		Usage:    "Blocks the migrations in stateDB to not run them",
 		Required: false,
+	}
+	outputFileFlag = cli.StringFlag{
+		Name:     config.FlagOutputFile,
+		Usage:    "Indicate the output file",
+		Required: true,
+	}
+	documentationFileTypeFlag = cli.StringFlag{
+		Name:     config.FlagDocumentationFileType,
+		Usage:    fmt.Sprintf("Indicate the type of file to generate json-schema: %v,%v ", NODE_CONFIGFILE, NETWORK_CONFIGFILE),
+		Required: true,
 	}
 )
 
@@ -146,6 +165,26 @@ func main() {
 			Usage:   "Dumps the state in a JSON file, for debug purposes",
 			Action:  dumpState,
 			Flags:   dumpStateFlags,
+		},
+		{
+			Name:   "generate-json-schema",
+			Usage:  "Generate the json-schema for the configuration file, and store it on docs/schema.json",
+			Action: genJSONSchema,
+			Flags:  []cli.Flag{&outputFileFlag, &documentationFileTypeFlag},
+		},
+		{
+			Name:    "snapshot",
+			Aliases: []string{"snap"},
+			Usage:   "Snapshot the state db",
+			Action:  snapshot,
+			Flags:   snapshotFlags,
+		},
+		{
+			Name:    "restore",
+			Aliases: []string{},
+			Usage:   "Restore snapshot of the state db",
+			Action:  restore,
+			Flags:   restoreFlags,
 		},
 	}
 

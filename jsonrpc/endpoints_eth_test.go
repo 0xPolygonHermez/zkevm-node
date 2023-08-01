@@ -377,7 +377,7 @@ func TestCall(t *testing.T) {
 				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -416,7 +416,7 @@ func TestCall(t *testing.T) {
 				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -566,7 +566,7 @@ func TestChainID(t *testing.T) {
 	chainID, err := c.ChainID(context.Background())
 	require.NoError(t, err)
 
-	assert.Equal(t, s.Config.ChainID, chainID.Uint64())
+	assert.Equal(t, s.ChainID(), chainID.Uint64())
 }
 
 func TestEstimateGas(t *testing.T) {
@@ -666,7 +666,7 @@ func TestEstimateGas(t *testing.T) {
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
-					On("EstimateGas", txMatchBy, common.HexToAddress(c.DefaultSenderAddress), nilUint64, m.DbTx).
+					On("EstimateGas", txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, m.DbTx).
 					Return(*testCase.expectedResult, nil, nil).
 					Once()
 			},
@@ -708,26 +708,30 @@ func TestGasPrice(t *testing.T) {
 	defer s.Stop()
 
 	testCases := []struct {
-		name             string
-		gasPrice         uint64
-		error            error
-		expectedGasPrice uint64
+		name               string
+		gasPrice           uint64
+		error              error
+		expectedL2GasPrice uint64
+		expectedL1GasPrice uint64
 	}{
-		{"GasPrice nil", 0, nil, 0},
-		{"GasPrice with value", 50, nil, 50},
-		{"failed to get gas price", 50, errors.New("failed to get gas price"), 0},
+		{"GasPrice nil", 0, nil, 0, 0},
+		{"GasPrice with value", 50, nil, 50, 100},
+		{"failed to get gas price", 50, errors.New("failed to get gas price"), 0, 0},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			m.Pool.
-				On("GetGasPrice", context.Background()).
-				Return(testCase.gasPrice, testCase.error).
+				On("GetGasPrices", context.Background()).
+				Return(pool.GasPrices{
+					L2GasPrice: testCase.gasPrice,
+					L1GasPrice: testCase.gasPrice,
+				}, testCase.error).
 				Once()
 
-			gasPrice, err := c.SuggestGasPrice(context.Background())
+			gasPrices, err := c.SuggestGasPrice(context.Background())
 			require.NoError(t, err)
-			assert.Equal(t, testCase.expectedGasPrice, gasPrice.Uint64())
+			assert.Equal(t, testCase.expectedL2GasPrice, gasPrices.Uint64())
 		})
 	}
 }
@@ -1862,6 +1866,32 @@ func TestSyncing(t *testing.T) {
 					Once()
 			},
 		},
+		{
+			Name:           "get syncing information successfully when synced and trusted state is ahead",
+			ExpectedResult: nil,
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
+					Return(uint64(10), nil).
+					Once()
+
+				m.State.
+					On("GetSyncingInfo", context.Background(), m.DbTx).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, LastBlockNumberSeen: 1, LastBlockNumberConsolidated: 1}, nil).
+					Once()
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -2352,7 +2382,7 @@ func TestGetTransactionByHash(t *testing.T) {
 
 				m.Pool.
 					On("GetTxByHash", context.Background(), tc.Hash).
-					Return(&pool.Transaction{Transaction: *tc.ExpectedResult}, nil).
+					Return(&pool.Transaction{Transaction: *tc.ExpectedResult, Status: pool.TxStatusPending}, nil).
 					Once()
 			},
 		},

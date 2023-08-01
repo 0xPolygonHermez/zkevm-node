@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	host                      = "localhost"
-	maxRequestsPerIPAndSecond = 1000
+	maxRequestsPerIPAndSecond        = 1000
+	chainID                   uint64 = 1000
 )
 
 type mockedServer struct {
@@ -49,9 +49,51 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 
 	var newL2BlockEventHandler state.NewL2BlockEventHandler = func(e state.NewL2BlockEvent) {}
 	st.On("RegisterNewL2BlockEventHandler", mock.IsType(newL2BlockEventHandler)).Once()
-
 	st.On("PrepareWebSocket").Once()
-	server := NewServer(cfg, pool, st, storage, apis)
+
+	services := []Service{}
+	if _, ok := apis[APIEth]; ok {
+		services = append(services, Service{
+			Name:    APIEth,
+			Service: NewEthEndpoints(cfg, chainID, pool, st, storage),
+		})
+	}
+
+	if _, ok := apis[APINet]; ok {
+		services = append(services, Service{
+			Name:    APINet,
+			Service: NewNetEndpoints(cfg, chainID),
+		})
+	}
+
+	if _, ok := apis[APIZKEVM]; ok {
+		services = append(services, Service{
+			Name:    APIZKEVM,
+			Service: NewZKEVMEndpoints(cfg, st),
+		})
+	}
+
+	if _, ok := apis[APITxPool]; ok {
+		services = append(services, Service{
+			Name:    APITxPool,
+			Service: &TxPoolEndpoints{},
+		})
+	}
+
+	if _, ok := apis[APIDebug]; ok {
+		services = append(services, Service{
+			Name:    APIDebug,
+			Service: NewDebugEndpoints(cfg, st),
+		})
+	}
+
+	if _, ok := apis[APIWeb3]; ok {
+		services = append(services, Service{
+			Name:    APIWeb3,
+			Service: &Web3Endpoints{},
+		})
+	}
+	server := NewServer(cfg, chainID, pool, st, storage, services)
 
 	go func() {
 		err := server.Start()
@@ -92,12 +134,10 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 
 func getDefaultConfig() Config {
 	cfg := Config{
-		Host:                      host,
+		Host:                      "0.0.0.0",
 		Port:                      9123,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
-		DefaultSenderAddress:      "0x1111111111111111111111111111111111111111",
 		MaxCumulativeGasUsed:      300000,
-		ChainID:                   1000,
 	}
 	return cfg
 }
@@ -123,4 +163,8 @@ func (s *mockedServer) Stop() {
 
 func (s *mockedServer) JSONRPCCall(method string, parameters ...interface{}) (types.Response, error) {
 	return client.JSONRPCCall(s.ServerURL, method, parameters...)
+}
+
+func (s *mockedServer) ChainID() uint64 {
+	return chainID
 }

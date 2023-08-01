@@ -1,0 +1,61 @@
+{
+  "expectedOldStateRoot": "0x5299e19a90604bf8be5774747b6ef12a13498be1fe5375ea4423da709c2ff5cf",
+  "expectedNewStateRoot": "0x493022ec5de1b00e02816e8ca1275f9527213c21a43ee60aecf6684e19213395",
+  "batchL2Data": "0xe5800a8337ba9094095e7baea6a6c7c4c2dfeb977efac326af552d87830186a0808203e980806debf9b2a0bf48159a6369cc3aa6f12dbab894abf92645740360048d1a3c3d7d34b0753b0d9c36fdfd7880add1f74e76e4ddce8aad951bca68b6f6680cce18f61cff",
+  "genesis": [
+    {
+      "address": "0x095e7baea6a6c7c4c2dfeb977efac326af552d87",
+      "nonce": "0",
+      "balance": "20000000",
+      "storage": {},
+      "isSmartContract": true,
+      "bytecode": "0x7f1122334455667788991011121314151617181920212223242526272829303132608052602060806080600060006001620493e0f15060805160005500",
+      "hashBytecode": "0x0a5eeb8d8d1251c076368ce61bee4ec42cfd6d4e1cb9ce1899a9ed6fa4d9ccfc"
+    },
+    {
+      "address": "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",
+      "nonce": "0",
+      "balance": "1000000000000000000",
+      "storage": {},
+      "isSmartContract": false,
+      "bytecode": "0x"
+    },
+    {
+      "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+      "nonce": "0",
+      "balance": "2000000000000000000",
+      "storage": {},
+      "isSmartContract": false,
+      "bytecode": "0x"
+    }
+  ],
+  "expectedNewLeafs": [
+    {
+      "address": "0x095e7baea6a6c7c4c2dfeb977efac326af552d87",
+      "nonce": "0",
+      "balance": "20100000",
+      "storage": {
+        "0x00": "0x1122334455667788991011121314151617181920212223242526272829303132"
+      },
+      "isSmartContract": true,
+      "bytecode": "0x7f1122334455667788991011121314151617181920212223242526272829303132608052602060806080600060006001620493e0f15060805160005500",
+      "hashBytecode": "0x0a5eeb8d8d1251c076368ce61bee4ec42cfd6d4e1cb9ce1899a9ed6fa4d9ccfc"
+    },
+    {
+      "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+      "nonce": "0",
+      "balance": "2000000000000462560",
+      "storage": {},
+      "isSmartContract": false,
+      "bytecode": "0x"
+    },
+    {
+      "address": "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",
+      "nonce": "1",
+      "balance": "999999999999437440",
+      "storage": {},
+      "isSmartContract": false,
+      "bytecode": "0x"
+    }
+  ]
+}

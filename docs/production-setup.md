@@ -44,7 +44,7 @@ Explained step by step:
 5. Download and extract the artifacts: `curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip`. Note you may need to install `unzip` for this command to work
 6. Copy the file with the env parameters: `cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env`
 7. Edit the env file, with your favourite editor. The example will use nano: `nano $ZKEVM_CONFIG_DIR/.env`. This file contains the configuration that anyone should modify. For advanced configuration:
-   1. Copy the config files into the config directory `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/public/* $ZKEVM_CONFIG_DIR/`
+   1. Copy the config files into the config directory `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/testnet/* $ZKEVM_CONFIG_DIR/`
    2. Make sure the modify the `ZKEVM_ADVANCED_CONFIG_DIR` from `$ZKEVM_CONFIG_DIR/.env` with the correct path
    3. Edit the different configuration files
 8. Run the node: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml up -d`. You may need to run this command using `sudo` depending on your Docker setup.
@@ -67,7 +67,7 @@ If everything has gone as expected you should be able to run queries to the JSON
 ## Stop
 
 ```bash
-sudo docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml down
+docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml down
 ```
 
 ## Updating
@@ -87,8 +87,8 @@ In the basic setup, there are Postgres being instanciated as Docker containers. 
 - Run dedicated instances for Postgres. To achieve this you will need to:
   - Remove the Postgres services (`zkevm-pool-db` and `zkevm-state-db`) from the `docker-compose.yml`
   - Instantiate Postgres elsewhere (note that you will have to create credentials and run some queries to make this work, following the config files and docker-compose should give a clear idea of what to do)
-  - Update the `public.node.config.toml` to use the correct URI for both DBs
-  - Update `prover.public.config.json` to use the correct URI for the state DB
+  - Update the `testnet.node.config.toml` to use the correct URI for both DBs
+  - Update `testnet.prover.config.json` to use the correct URI for the state DB
 - Use a setup of Postgres that allows to have separated endpoints for read / write replicas
 
 ### JSON RPC

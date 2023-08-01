@@ -3,6 +3,8 @@ package config
 // DefaultValues is the default configuration
 const DefaultValues = `
 IsTrustedSequencer = false
+ForkUpgradeBatchNumber = 0
+ForkUpgradeNewForkId = 0
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -20,11 +22,14 @@ MaxConns = 200
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
-MaxTxBytesSize=30132
-MaxTxDataBytesSize=30000
+IntervalToRefreshGasPrices = "5s"
+MaxTxBytesSize=100132
+MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
+AccountQueue = 64
+GlobalQueue = 1024
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
@@ -36,7 +41,7 @@ PollMinAllowedGasPriceInterval = "15s"
 
 [Etherman]
 URL = "http://localhost:8545"
-MultiGasProvider = true
+MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""
 
@@ -47,38 +52,37 @@ ForcedGas = 0
 
 [RPC]
 Host = "0.0.0.0"
-Port = 8123
-ReadTimeoutInSec = 60
-WriteTimeoutInSec = 60
-MaxRequestsPerIPAndSecond = 50
+Port = 8545
+ReadTimeout = "60s"
+WriteTimeout = "60s"
+MaxRequestsPerIPAndSecond = 500
 SequencerNodeURI = ""
-DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 EnableL2SuggestedGasPricePolling = true
+TraceBatchUseHTTPS = true
 	[RPC.WebSockets]
 		Enabled = true
-		Port = 8124
+		Host = "0.0.0.0"
+		Port = 8546
 
 [Synchronizer]
-SyncInterval = "0s"
+SyncInterval = "1s"
 SyncChunkSize = 100
-TrustedSequencerURL = ""
+TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "5s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
-MaxTxsPerBatch = 150
-MaxBatchBytesSize = 129848
+MaxTxsPerBatch = 300
+MaxBatchBytesSize = 120000
 MaxCumulativeGasUsed = 30000000
-MaxKeccakHashes = 468
-MaxPoseidonHashes = 279620
-MaxPoseidonPaddings = 149796
-MaxMemAligns = 262144
-MaxArithmetics = 262144
-MaxBinaries = 262144
-MaxSteps = 8388608
+MaxKeccakHashes = 2145
+MaxPoseidonHashes = 252357
+MaxPoseidonPaddings = 135191
+MaxMemAligns = 236585
+MaxArithmetics = 236585
+MaxBinaries = 473170
+MaxSteps = 7570538
 WeightBatchBytesSize = 1
 WeightCumulativeGasUsed = 1
 WeightKeccakHashes = 1
@@ -90,34 +94,40 @@ WeightBinaries = 1
 WeightSteps = 1
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
-MaxTxSizeForL1 = 131072
 	[Sequencer.Finalizer]
-		GERDeadlineTimeoutInSec = "5s"
-		ForcedBatchDeadlineTimeoutInSec = "60s"
-		SleepDurationInMs = "100ms"
+		GERDeadlineTimeout = "5s"
+		ForcedBatchDeadlineTimeout = "60s"
+		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 64
 		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
-		TimestampResolution = "15s"
-		SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-		PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+		TimestampResolution = "10s"
+		StopSequencerOnBatchNum = 0
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
+	[Sequencer.EffectiveGasPrice]
+		MaxBreakEvenGasPriceDeviationPercentage = 10
+		L1GasPriceFactor = 0.25
+		ByteGasCost = 16
+		MarginFactor = 1
+		Enabled = false
 
-[PriceGetter]
-Type = "default"
-DefaultPrice = "2000"
+[SequenceSender]
+WaitPeriodSendSequence = "5s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+MaxTxSizeForL1 = 131072
+SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-ForkId = 2
 RetryTime = "5s"
 VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
@@ -131,18 +141,30 @@ Type = "follower"
 UpdatePeriod = "10s"
 Factor = 0.15
 DefaultGasPriceWei = 2000000000
-
-[Prover]
-ProverURI = "0.0.0.0:50051"
+MaxGasPriceWei = 0
+CleanHistoryPeriod = "1h"
+CleanHistoryTimeRetention = "5m"
 
 [MTClient]
 URI = "zkevm-prover:50061"
 
 [Executor]
 URI = "zkevm-prover:50071"
+MaxResourceExhaustedAttempts = 3
+WaitOnResourceExhaustion = "1s"
+MaxGRPCMessageSize = 100000000
 
 [Metrics]
 Host = "0.0.0.0"
 Port = 9091
 Enabled = false
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
 `

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
@@ -20,10 +19,9 @@ import (
 type Sequencer struct {
 	cfg Config
 
-	pool     txPool
-	state    stateInterface
-	eventLog *event.EventLog
-	// dbManager dbManagerInterface
+	pool         txPool
+	state        stateInterface
+	eventLog     *event.EventLog
 	ethTxManager ethTxManager
 	etherman     etherman
 
@@ -69,21 +67,6 @@ type ClosingSignalCh struct {
 	L2ReorgCh     chan L2ReorgEvent
 }
 
-// TxsStore is a struct that contains the channel and the wait group for the txs to be stored in order
-type TxsStore struct {
-	Ch chan *txToStore
-	Wg *sync.WaitGroup
-}
-
-// txToStore represents a transaction to store.
-type txToStore struct {
-	txResponse               *state.ProcessTransactionResponse
-	batchNumber              uint64
-	coinbase                 common.Address
-	timestamp                uint64
-	previousL2BlockStateRoot common.Hash
-}
-
 // New init sequencer
 func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
@@ -116,11 +99,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 
-	txsStore := TxsStore{
-		Ch: make(chan *txToStore),
-		Wg: new(sync.WaitGroup),
-	}
-
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       s.cfg.MaxTxsPerBatch,
 		MaxBatchBytesSize:    s.cfg.MaxBatchBytesSize,
@@ -151,10 +129,10 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights)
-	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
+	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, batchConstraints)
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints, s.eventLog)
+	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, batchConstraints, s.eventLog)
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 
@@ -163,15 +141,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	go s.trackOldTxs(ctx)
 	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
-	tickerSendSequence := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
 	defer tickerProcessTxs.Stop()
-	defer tickerSendSequence.Stop()
-
-	go func() {
-		for {
-			s.tryToSendSequence(ctx, tickerSendSequence)
-		}
-	}()
 
 	// Expire too old txs in the worker
 	go func() {
@@ -181,6 +151,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 			failedReason := ErrExpiredTransaction.Error()
 			for _, txTracker := range txTrackers {
 				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
+				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 				if err != nil {
 					log.Errorf("failed to update tx status, err: %v", err)
 				}

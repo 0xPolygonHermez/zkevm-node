@@ -16,7 +16,7 @@ import (
 
 var (
 	gasLimit  = 21000
-	ethAmount = big.NewInt(1)
+	ethAmount = big.NewInt(0)
 	sleepTime = 5 * time.Second
 	countTxs  = 0
 )
