@@ -19,7 +19,7 @@ By default the config files found in the repository will spin up the Node in JSO
 
 This will syncronize with the Trusted Sequencer (run by Polygon).
 
-Use the default [testnet config file](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/testnet/testnet.node.config.toml), and make sure the following values are set to:
+Use the default [testnet config file](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/testnet/node.config.toml), and make sure the following values are set to:
 
 ```toml
 [RPC]
@@ -78,7 +78,7 @@ Machine 1:
 
 #### Machine 1
 
-Use default [prover config](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/testnet/testnet.prover.config.json) but change the following values (`runProverServer` set to true, rest false):
+Use default [prover config](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/testnet/prover.config.json) but change the following values (`runProverServer` set to true, rest false):
 
 For *only* Prover Config (`only-prover-config.json`):
 
