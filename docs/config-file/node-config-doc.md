@@ -26,7 +26,7 @@
 | - [Metrics](#Metrics )                               | No      | object  | No         | -          | Configuration of the metrics service, basically is where is going to publish the metrics                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | - [EventLog](#EventLog )                             | No      | object  | No         | -          | Configuration of the event database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | - [HashDB](#HashDB )                                 | No      | object  | No         | -          | Configuration of the hash database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| - [State](#State )                                   | No      | object  | No         | -          | Configuration of the state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| - [State](#State )                                   | No      | object  | No         | -          | State service configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ## <a name="IsTrustedSequencer"></a>1. `IsTrustedSequencer`
 
@@ -2689,7 +2689,7 @@ MaxConns=200
 ## <a name="State"></a>20. `[State]`
 
 **Type:** : `object`
-**Description:** Configuration of the state
+**Description:** State service configuration
 
 | Property                                                               | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                       |
 | ---------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -2700,7 +2700,7 @@ MaxConns=200
 | - [WaitOnResourceExhaustion](#State_WaitOnResourceExhaustion )         | No      | string          | No         | -          | Duration                                                                                                                |
 | - [ForkUpgradeBatchNumber](#State_ForkUpgradeBatchNumber )             | No      | integer         | No         | -          | Batch number from which there is a forkid change (fork upgrade)                                                         |
 | - [ForkUpgradeNewForkId](#State_ForkUpgradeNewForkId )                 | No      | integer         | No         | -          | New fork id to be used for batches greaters than ForkUpgradeBatchNumber (fork upgrade)                                  |
-| - [DB](#State_DB )                                                     | No      | object          | No         | -          | Configuration of the state database connection                                                                          |
+| - [DB](#State_DB )                                                     | No      | object          | No         | -          | DB is the database configuration                                                                                        |
 | - [Batch](#State_Batch )                                               | No      | object          | No         | -          | Configuration for the batch constraints                                                                                 |
 
 ### <a name="State_MaxCumulativeGasUsed"></a>20.1. `State.MaxCumulativeGasUsed`
@@ -2847,7 +2847,7 @@ ForkUpgradeNewForkId=0
 ### <a name="State_DB"></a>20.8. `[State.DB]`
 
 **Type:** : `object`
-**Description:** Configuration of the state database connection
+**Description:** DB is the database configuration
 
 | Property                            | Pattern | Type    | Deprecated | Definition | Title/Description                                          |
 | ----------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------- |

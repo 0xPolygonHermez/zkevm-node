@@ -28,7 +28,7 @@ type Config struct {
 	// New fork id to be used for batches greaters than ForkUpgradeBatchNumber (fork upgrade)
 	ForkUpgradeNewForkId uint64
 
-	// Configuration of the state database connection
+	// DB is the database configuration
 	DB db.Config `mapstructure:"DB"`
 
 	// Configuration for the batch constraints

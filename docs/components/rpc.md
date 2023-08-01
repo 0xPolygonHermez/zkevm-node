@@ -37,7 +37,7 @@ The container alone needs some parameters configured, access to certain configur
     - `8545:8545`: RPC Port
     - `9091:9091`: Needed if Prometheus metrics are enabled
 - environment: Env variables that supersede the config file
-    - `ZKEVM_NODE_STATEDB_HOST`: Name of StateDB Database Host
+    - `ZKEVM_NODE_STATE_DB_HOST`: Name of StateDB Database Host
     - `ZKEVM_NODE_POOL_HOST`: Name of PoolDB Database Host 
     - `ZKEVM_NODE_RPC_DB_HOST`: Name of RPCDB Database Host
 - volumes:

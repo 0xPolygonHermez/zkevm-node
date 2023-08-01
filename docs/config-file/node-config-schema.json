@@ -1212,7 +1212,7 @@
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"description": "Configuration of the state database connection"
+					"description": "DB is the database configuration"
 				},
 				"Batch": {
 					"properties": {
@@ -1312,7 +1312,7 @@
 			},
 			"additionalProperties": false,
 			"type": "object",
-			"description": "Configuration of the state"
+			"description": "State service configuration"
 		}
 	},
 	"additionalProperties": false,

@@ -115,7 +115,7 @@ type Config struct {
 	EventLog event.Config
 	// Configuration of the hash database connection
 	HashDB db.Config
-	// Configuration of the state
+	// State service configuration
 	State state.Config
 }
 

@@ -12,6 +12,7 @@ Level = "info"
 Outputs = ["stderr"]
 
 [State]
+AccountQueue = 64
 	[State.DB]
 	User = "state_user"
 	Password = "state_password"
