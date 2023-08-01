@@ -1290,7 +1290,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 							log.Errorf("error closing batch %d", trustedBatch.Number)
 							return nil, nil, err
 						} else {
-							log.Warnf("CASE 02: the batch [%d] looks like were not close but in STATE was closed", trustedBatch.Number)
+							log.Warnf("CASE 02: the batch [%d] was already closed", trustedBatch.Number)
 							log.Info("batches[0].BatchNumber: ", batches[0].BatchNumber)
 							log.Info("batches[0].AccInputHash: ", batches[0].AccInputHash)
 							log.Info("batches[0].StateRoot: ", batches[0].StateRoot)
@@ -1368,7 +1368,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				log.Errorf("error closing batch %d", trustedBatch.Number)
 				return nil, nil, err
 			} else {
-				log.Warnf("CASE 01: the batch [%d] looks like were not close but in STATE was closed", trustedBatch.Number)
+				log.Warnf("CASE 01: batch [%d] was already closed", trustedBatch.Number)
 			}
 		}
 		log.Info("Batch closed right after processing some tx")
