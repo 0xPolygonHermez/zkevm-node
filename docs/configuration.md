@@ -9,8 +9,13 @@ To configure a node you need 3 files:
 This file is a [TOML](https://en.wikipedia.org/wiki/TOML#) formatted file. 
 You could find some examples here: 
  - `config/environments/local/local.node.config.toml`: running a permisionless node
+<<<<<<< HEAD
   - `config/environments/mainnet/node.config.toml`
   - `config/environments/public/node.config.toml`
+=======
+  - `config/environments/mainnet/public.node.config.toml`
+  - `config/environments/public/public.node.config.toml`
+>>>>>>> develop
   - `test/config/test.node.config.toml`: configuration for a trusted node used in CI
 
   For details about the contents you can read specifications [here](config-file/node-config-doc.md)
@@ -38,5 +43,10 @@ For details about the contents you can read specifications [here](config-file/cu
 Please check [prover repository](https://github.com/0xPolygonHermez/zkevm-prover)  for further information
 
 Examples: 
+<<<<<<< HEAD
  - `config/environments/mainnet/prover.config.json`
  - `config/environments/testnet/prover.config.json`
+=======
+ - `config/environments/mainnet/public.prover.config.json`
+ - `config/environments/testnet/testnet.prover.config.json`
+>>>>>>> develop
