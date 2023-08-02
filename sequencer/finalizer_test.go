@@ -775,15 +775,19 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 	batchNumber := f.batch.batchNumber
 	decodedBatchL2Data, err = hex.DecodeHex(testBatchL2DataAsString)
 	require.NoError(t, err)
+	encodedTxs, _, _, err := state.DecodeTxs(decodedBatchL2Data, forkId5)
+	require.NoError(t, err)
 
 	txResp1 := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
 		StateRoot: stateRootHashes[0],
+		Tx:        encodedTxs[0],
 	}
 
 	txResp2 := &state.ProcessTransactionResponse{
 		TxHash:    txHash2,
 		StateRoot: stateRootHashes[1],
+		Tx:        encodedTxs[0],
 	}
 	batchResponse1 := &state.ProcessBatchResponse{
 		NewBatchNumber: f.batch.batchNumber + 1,
@@ -1551,17 +1555,21 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-
+	decodedBatchL2Data, err = hex.DecodeHex(testBatchL2DataAsString)
+	require.NoError(t, err)
+	encodedTxs, _, _, err := state.DecodeTxs(decodedBatchL2Data, forkId5)
 	ctx = context.Background()
 	txResponseOne := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
 		StateRoot: newHash,
 		RomError:  nil,
+		Tx:        encodedTxs[0],
 	}
 	txResponseTwo := &state.ProcessTransactionResponse{
 		TxHash:    common.HexToHash("0x02"),
 		StateRoot: newHash2,
 		RomError:  nil,
+		Tx:        encodedTxs[0],
 	}
 	successfulBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: newHash,
@@ -1574,6 +1582,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		TxHash:    txHash,
 		RomError:  runtime.ErrExecutionReverted,
 		StateRoot: newHash,
+		Tx:        encodedTxs[0],
 	}
 	revertedBatchResp := &state.ProcessBatchResponse{
 		Responses: []*state.ProcessTransactionResponse{
@@ -1584,6 +1593,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		TxHash:    txHash,
 		RomError:  runtime.ErrIntrinsicInvalidChainID,
 		StateRoot: newHash,
+		Tx:        encodedTxs[0],
 	}
 	intrinsicErrBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: newHash,

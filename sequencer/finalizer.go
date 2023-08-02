@@ -686,7 +686,16 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	}
 
 	f.pendingTxsToStoreMux.Lock()
+	// global tracker
 	f.pendingTxsToStoreWG.Add(1)
+	// per address tracker
+	if _, ok := f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From]; !ok {
+		f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From] = new(pendingTxPerAddressTracker)
+		f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From].wg = &sync.WaitGroup{}
+	}
+	f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From].wg.Add(1)
+	f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From].count++
+	// broadcast the new flushID if it's greater than the last one
 	if result.FlushID > f.lastPendingFlushID {
 		f.lastPendingFlushID = result.FlushID
 		f.pendingFlushIDCond.Broadcast()
@@ -734,8 +743,23 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			flushId:       result.FlushID,
 		}
 
+		from, err := state.GetSender(txResp.Tx)
+		if err != nil {
+			log.Errorf("handleForcedTxsProcessResp: failed to get sender: %s", err)
+			continue
+		}
+
 		f.pendingTxsToStoreMux.Lock()
+		// global tracker
 		f.pendingTxsToStoreWG.Add(1)
+		// per address tracker
+		if _, ok := f.pendingTxsPerAddressTrackers[from]; !ok {
+			f.pendingTxsPerAddressTrackers[from] = new(pendingTxPerAddressTracker)
+			f.pendingTxsPerAddressTrackers[from].wg = &sync.WaitGroup{}
+		}
+		f.pendingTxsPerAddressTrackers[from].wg.Add(1)
+		f.pendingTxsPerAddressTrackers[from].count++
+		// broadcast the new flushID if it's greater than the last one
 		if result.FlushID > f.lastPendingFlushID {
 			f.lastPendingFlushID = result.FlushID
 			f.pendingFlushIDCond.Broadcast()
@@ -754,15 +778,6 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 
 // storeProcessedTx stores the processed transaction in the database.
 func (f *finalizer) storeProcessedTx(ctx context.Context, txToStore transactionToStore) {
-	f.pendingTxsToStoreMux.Lock()
-	if _, ok := f.pendingTxsPerAddressTrackers[txToStore.txTracker.From]; !ok {
-		f.pendingTxsPerAddressTrackers[txToStore.txTracker.From] = new(pendingTxPerAddressTracker)
-		f.pendingTxsPerAddressTrackers[txToStore.txTracker.From].wg = &sync.WaitGroup{}
-	}
-	f.pendingTxsPerAddressTrackers[txToStore.txTracker.From].wg.Add(1)
-	f.pendingTxsPerAddressTrackers[txToStore.txTracker.From].count++
-	f.pendingTxsToStoreMux.Unlock()
-
 	if txToStore.response != nil {
 		log.Infof("storeProcessedTx: storing processed txToStore: %s", txToStore.response.TxHash.String())
 	} else {
