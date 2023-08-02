@@ -27,7 +27,7 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 	require.NoError(b, err)
 	timeForSetup := time.Since(start)
 	setup.BootstrapSequencer(b, opsman)
-	err = transactions.SendAndWait(params.Ctx, auth, client, pl.CountTransactionsByStatus, params.NumberOfTxs, nil, TxSender)
+	err = transactions.SendAndWait(auth, client, pl.GetTxsByStatus, params.NumberOfOperations, nil, nil, TxSender)
 	require.NoError(b, err)
 
 	var (
@@ -35,8 +35,8 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 		prometheusResponse *http.Response
 	)
 
-	b.Run(fmt.Sprintf("sequencer_selecting_%d_txs", params.NumberOfTxs), func(b *testing.B) {
-		err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfTxs)
+	b.Run(fmt.Sprintf("sequencer_selecting_%d_txs", params.NumberOfOperations), func(b *testing.B) {
+		err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfOperations)
 		require.NoError(b, err)
 		elapsed = time.Since(start)
 		log.Infof("Total elapsed time: %s", elapsed)
@@ -51,7 +51,7 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 		require.NoError(b, err)
 	}
 
-	metrics.CalculateAndPrint(prometheusResponse, profilingResult, elapsed, 0, 0, params.NumberOfTxs)
+	metrics.CalculateAndPrint(prometheusResponse, profilingResult, elapsed, 0, 0, params.NumberOfOperations)
 	fmt.Printf("%s\n", profilingResult)
 	timeForFetchAndPrintMetrics := time.Since(startMetrics)
 	log.Infof("Time for setup: %s", timeForSetup)

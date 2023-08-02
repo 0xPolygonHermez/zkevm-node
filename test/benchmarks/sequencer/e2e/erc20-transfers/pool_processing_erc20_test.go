@@ -46,7 +46,7 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 	}
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
 	require.NoError(b, err)
-	err = transactions.SendAndWait(params.Ctx, auth, client, pl.CountTransactionsByStatus, params.NumberOfTxs, erc20SC, TxSender)
+	err = transactions.SendAndWait(auth, client, pl.GetTxsByStatus, params.NumberOfOperations, erc20SC, nil, TxSender)
 	require.NoError(b, err)
 
 	var (
@@ -54,9 +54,9 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 		prometheusResponse *http.Response
 	)
 
-	b.Run(fmt.Sprintf("sequencer_selecting_%d_txs", params.NumberOfTxs), func(b *testing.B) {
+	b.Run(fmt.Sprintf("sequencer_selecting_%d_txs", params.NumberOfOperations), func(b *testing.B) {
 		// Wait all txs to be selected by the sequencer
-		err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfTxs)
+		err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfOperations)
 		require.NoError(b, err)
 		elapsed = time.Since(start)
 		log.Infof("Total elapsed time: %s", elapsed)
@@ -77,7 +77,7 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 		elapsed,
 		deployMetricsValues.SequencerTotalProcessingTime,
 		deployMetricsValues.ExecutorTotalProcessingTime,
-		params.NumberOfTxs,
+		params.NumberOfOperations,
 	)
 	timeForFetchAndPrintMetrics := time.Since(startMetrics)
 	log.Infof("########################################")

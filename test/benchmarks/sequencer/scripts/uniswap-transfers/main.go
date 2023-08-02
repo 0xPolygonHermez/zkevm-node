@@ -3,12 +3,14 @@ package main
 import (
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/transactions"
-	ethtransfers "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/e2e/eth-transfers"
+	uniswaptransfers "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/e2e/uniswap-transfers"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/common/environment"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/common/results"
+	uniswap "github.com/0xPolygonHermez/zkevm-node/test/scripts/uniswap/pkg"
 )
 
 func main() {
@@ -22,6 +24,10 @@ func main() {
 	}
 
 	start := time.Now()
+	deployments := uniswap.DeployContractsAndAddLiquidity(l2Client, auth)
+	deploymentTxsCount := uniswap.GetExecutedTransactionsCount()
+	elapsedTimeForDeployments := time.Since(start)
+
 	// Send Txs
 	err = transactions.SendAndWait(
 		auth,
@@ -29,15 +35,16 @@ func main() {
 		pl.GetTxsByStatus,
 		params.NumberOfOperations,
 		nil,
-		nil,
-		ethtransfers.TxSender,
+		&deployments,
+		uniswaptransfers.TxSender,
 	)
+
 	if err != nil {
 		panic(err)
 	}
 
 	// Wait for Txs to be selected
-	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfOperations)
+	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfOperations+deploymentTxsCount)
 	if err != nil {
 		panic(err)
 	}
@@ -47,5 +54,12 @@ func main() {
 		panic(err)
 	}
 	elapsed := lastL2BlockTimestamp.Sub(start)
+	results.PrintUniswapDeployments(elapsedTimeForDeployments, deploymentTxsCount)
 	results.Print(elapsed)
+
+	totalTxsCount := uniswap.GetExecutedTransactionsCount()
+	log.Info("##############################")
+	log.Info("# Uniswap Total Transactions #")
+	log.Info("##############################")
+	log.Infof("Number of total txs processed: %d", totalTxsCount)
 }

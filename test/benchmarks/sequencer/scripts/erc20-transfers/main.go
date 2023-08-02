@@ -6,7 +6,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/transactions"
-	erc20transfers "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/erc20-transfers"
+	erc20transfers "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/e2e/erc20-transfers"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/common/environment"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/common/results"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
@@ -17,7 +17,7 @@ func main() {
 	var (
 		err error
 	)
-	ctx, pl, state, l2Client, auth := environment.Init()
+	pl, state, l2Client, auth := environment.Init()
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
 	if err != nil {
 		panic(err)
@@ -30,12 +30,12 @@ func main() {
 	}
 	// Send Txs
 	err = transactions.SendAndWait(
-		ctx,
 		auth,
 		l2Client,
-		pl.CountTransactionsByStatus,
-		params.NumberOfTxs,
+		pl.GetTxsByStatus,
+		params.NumberOfOperations,
 		erc20SC,
+		nil,
 		erc20transfers.TxSender,
 	)
 	if err != nil {
@@ -43,7 +43,7 @@ func main() {
 	}
 
 	// Wait for Txs to be selected
-	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfTxs)
+	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfOperations)
 	if err != nil {
 		panic(err)
 	}

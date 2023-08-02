@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
+	uniswap "github.com/0xPolygonHermez/zkevm-node/test/scripts/uniswap/pkg"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -22,7 +23,7 @@ var (
 )
 
 // TxSender sends eth transfer to the sequencer
-func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts, erc20SC *ERC20.ERC20) error {
+func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts, erc20SC *ERC20.ERC20, uniswapDeployments *uniswap.Deployments) error {
 	log.Debugf("sending tx num: %d nonce: %d", countTxs, nonce)
 	auth.Nonce = big.NewInt(int64(nonce))
 	tx := types.NewTransaction(nonce, params.To, ethAmount, uint64(gasLimit), gasPrice, nil)
