@@ -48,14 +48,18 @@ func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneI
 	sync, ok := sync_interface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
 	lastBatchNumber := uint64(10)
-	batch10With1Tx := createBatch(t, lastBatchNumber, 1)
+	//batch10With1Tx := createBatch(t, lastBatchNumber, 1)
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2)
 	batch10With3Tx := createBatch(t, lastBatchNumber, 3)
+	previousBatch09 := createBatch(t, lastBatchNumber-1, 1)
 
-	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, true)
+	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, true, true)
+	// Is the first time that appears this batch, so it need to OpenBatch
+	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	expectedCallsForsyncTrustedState(t, m, sync, batch10With2Tx, batch10With3Tx, false)
+	expectedCallsForsyncTrustedState(t, m, sync, batch10With2Tx, batch10With3Tx, previousBatch09, false, true)
+	expectedCallsForIncrementalProcess(t, m, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
 	cache := sync.state.(*SynchronizerStateBatchCache)
@@ -74,13 +78,18 @@ func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItIn
 	sync, ok := sync_interface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
 	lastBatchNumber := uint64(10)
-	batch10With1Tx := createBatch(t, lastBatchNumber, 1)
+	//batch10With1Tx := createBatch(t, lastBatchNumber, 1)
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2)
+	previousBatch09 := createBatch(t, lastBatchNumber-1, 1)
 
-	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, true)
+	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, true, true)
+	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	//require.Equal(t, *sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With2Tx))
+	cache := sync.state.(*SynchronizerStateBatchCache)
+	cachedBatch := cache.Get(uint64(lastBatchNumber))
+	require.NoError(t, err)
+	require.Equal(t, cachedBatch, rpcBatchTostateBatch(batch10With2Tx))
 }
 
 // issue #2220
@@ -642,8 +651,11 @@ func createBatch(t *testing.T, batchNumber uint64, howManyTx int) *types.Batch {
 	return batch
 }
 
-func rpcBatchTostateBatch(rpcBatch *types.Batch) state.Batch {
-	return state.Batch{
+func rpcBatchTostateBatch(rpcBatch *types.Batch) *state.Batch {
+	if rpcBatch == nil {
+		return nil
+	}
+	return &state.Batch{
 		BatchNumber:    uint64(rpcBatch.Number),
 		Coinbase:       rpcBatch.Coinbase,
 		StateRoot:      rpcBatch.StateRoot,
@@ -654,8 +666,23 @@ func rpcBatchTostateBatch(rpcBatch *types.Batch) state.Batch {
 	}
 }
 
+func expectedCallsForOpenBatch(t *testing.T, m *mocks, sync *ClientSynchronizer, batchNumber uint64) {
+	m.State.
+		On("OpenBatch", sync.ctx, mock.Anything, m.DbTx).
+		Return(nil).
+		Once()
+}
+
+func expectedCallsForIncrementalProcess(t *testing.T, m *mocks, batchNumber uint64) {
+	m.State.
+		On("GetForkIDByBatchNumber", batchNumber).
+		Return(uint64(4)).
+		Once()
+}
+
 func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchronizer,
-	batchInPermissionLess *types.Batch, batchInTrustedNode *types.Batch, needToRetrieveBatchFromDatabase bool) {
+	batchInPermissionLess *types.Batch, batchInTrustedNode *types.Batch, previousBatchInPermissionless *types.Batch,
+	needToRetrieveBatchFromDatabase bool, needUpdateL2Data bool) {
 	batchNumber := uint64(batchInTrustedNode.Number)
 	m.ZKEVMClient.
 		On("BatchNumber", mock.Anything).
@@ -679,39 +706,38 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 
 	stateBatchInTrustedNode := rpcBatchTostateBatch(batchInTrustedNode)
 	stateBatchInPermissionLess := rpcBatchTostateBatch(batchInPermissionLess)
+	statePreviousBatchInPermissionless := rpcBatchTostateBatch(previousBatchInPermissionless)
+
 	if needToRetrieveBatchFromDatabase {
+		if statePreviousBatchInPermissionless != nil {
+			m.State.
+				On("GetBatchByNumber", mock.Anything, uint64(batchInTrustedNode.Number-1), mock.Anything).
+				Return(statePreviousBatchInPermissionless, nil).
+				Once()
+		} else {
+			m.State.
+				On("GetBatchByNumber", mock.Anything, uint64(batchInTrustedNode.Number-1), mock.Anything).
+				Return(nil, state.ErrStateNotSynchronized).
+				Once()
+		}
+		if stateBatchInPermissionLess != nil {
+			m.State.
+				On("GetBatchByNumber", mock.Anything, uint64(batchInTrustedNode.Number), mock.Anything).
+				Return(stateBatchInPermissionLess, nil).
+				Once()
+		} else {
+			m.State.
+				On("GetBatchByNumber", mock.Anything, uint64(batchInTrustedNode.Number), mock.Anything).
+				Return(nil, state.ErrStateNotSynchronized).
+				Once()
+		}
+	}
+	if needUpdateL2Data {
 		m.State.
-			On("GetBatchByNumber", mock.Anything, uint64(batchInPermissionLess.Number-1), mock.Anything).
-			Return(&stateBatchInPermissionLess, nil).
-			Once()
-		m.State.
-			On("GetBatchByNumber", mock.Anything, uint64(batchInPermissionLess.Number), mock.Anything).
-			Return(&stateBatchInPermissionLess, nil).
+			On("UpdateBatchL2Data", sync.ctx, batchNumber, stateBatchInTrustedNode.BatchL2Data, mock.Anything).
+			Return(nil).
 			Once()
 	}
-
-	m.State.
-		On("ResetTrustedState", sync.ctx, batchNumber-1, m.DbTx).
-		Return(nil).
-		Once()
-
-	processCtx := state.ProcessingContext{
-		BatchNumber:    uint64(batchInTrustedNode.Number),
-		Coinbase:       common.HexToAddress(batchInTrustedNode.Coinbase.String()),
-		Timestamp:      time.Unix(int64(batchInTrustedNode.Timestamp), 0),
-		GlobalExitRoot: batchInTrustedNode.GlobalExitRoot,
-		BatchL2Data:    (*[]byte)(&batchInTrustedNode.BatchL2Data),
-	}
-	m.State.
-		On("OpenBatch", sync.ctx, processCtx, m.DbTx).
-		Return(nil).
-		Once()
-
-	m.State.
-		On("UpdateBatchL2Data", sync.ctx, batchNumber, stateBatchInTrustedNode.BatchL2Data, mock.Anything).
-		Return(nil).
-		Once()
-
 	tx1 := state.ProcessTransactionResponse{}
 	processedBatch := state.ProcessBatchResponse{
 		FlushID:   1,

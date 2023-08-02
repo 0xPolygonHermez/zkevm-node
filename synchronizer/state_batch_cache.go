@@ -65,8 +65,18 @@ func (s *SynchronizerStateBatchCache) UpdateBatchL2Data(ctx context.Context, bat
 
 // OpenBatch is a decorator for state.OpenBatch
 func (s *SynchronizerStateBatchCache) OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error {
-	s.CleanCache()
-	return s.stateInterface.OpenBatch(ctx, processingContext, dbTx)
+	res := s.stateInterface.OpenBatch(ctx, processingContext, dbTx)
+	if res == nil {
+		newBatch := state.Batch{
+			BatchNumber:    processingContext.BatchNumber,
+			GlobalExitRoot: processingContext.GlobalExitRoot,
+			Timestamp:      processingContext.Timestamp,
+			Coinbase:       processingContext.Coinbase,
+			ForcedBatchNum: processingContext.ForcedBatchNum,
+		}
+		s.Set(&newBatch)
+	}
+	return res
 }
 
 // CloseBatch is a decorator for state.CloseBatch
@@ -95,14 +105,15 @@ func updateBatchWithReceipt(batch *state.Batch, receipt state.ProcessingReceipt)
 }
 
 func updateBatchL2Data(batch *state.Batch, batchL2Data []byte) {
-	if batch == nil {
+	if batch != nil {
 		batch.BatchL2Data = batchL2Data
 	}
 }
 
 // ProcessBatch is a decorator for state.ProcessBatch
 func (s *SynchronizerStateBatchCache) ProcessBatch(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error) {
-	s.CleanCache()
+	//s.CleanCache()
+	// Does not modify state Database, it calls to executor
 	return s.stateInterface.ProcessBatch(ctx, request, updateMerkleTree)
 }
 
