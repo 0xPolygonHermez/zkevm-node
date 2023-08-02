@@ -113,6 +113,9 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 		return err
 	}
 
+	mTxLog := log.WithFields("monitoredTx", mTx.id, "createdAt", mTx.createdAt)
+	mTxLog.Infof("created")
+
 	return nil
 }
 
@@ -261,7 +264,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 	for _, mTx := range mTxs {
 		mTx := mTx // force variable shadowing to avoid pointer conflicts
-		mTxLog := log.WithFields("monitoredTx", mTx.id)
+		mTxLog := log.WithFields("monitoredTx", mTx.id, "createdAt", mTx.createdAt)
 		mTxLog.Info("processing")
 
 		// check if any of the txs in the history was mined
@@ -355,7 +358,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 			// rebuild transaction
 			tx := mTx.Tx()
-			mTxLog.Debugf("unsigned tx %v created", tx.Hash().String(), mTx.id)
+			mTxLog.Debugf("unsigned tx %v created", tx.Hash().String())
 
 			// sign tx
 			signedTx, err = c.etherman.SignTx(ctx, mTx.from, tx)

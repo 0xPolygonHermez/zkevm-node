@@ -47,5 +47,5 @@ type Config struct {
 	// gas price margin factor: 20%
 	// max gas price limit: 110
 	// tx gas price = 110
-	MaxGasPriceLimit uint64 `mapstructure:"MaxGasPrice"`
+	MaxGasPriceLimit uint64 `mapstructure:"MaxGasPriceLimit"`
 }
