@@ -69,10 +69,10 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 		// Wait until all pending transactions are stored, so we can ensure getting the correct nonce and balance of the new AddrQueue
 		w.pendingTxsToStoreMux.RLock()
 		pendingTxsTracker, ok := w.pendingTxsPerAddressTrackers[tx.From]
-		w.pendingTxsToStoreMux.RUnlock()
 		if ok && pendingTxsTracker.wg != nil {
 			pendingTxsTracker.wg.Wait()
 		}
+		w.pendingTxsToStoreMux.RUnlock()
 
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
