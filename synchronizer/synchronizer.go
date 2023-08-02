@@ -1455,11 +1455,13 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 
 func (s *ClientSynchronizer) openBatch(trustedBatch *types.Batch, dbTx pgx.Tx) error {
 	log.Debugf("Opening batch %d", trustedBatch.Number)
+	var batchL2Data []byte = trustedBatch.BatchL2Data
 	processCtx := state.ProcessingContext{
 		BatchNumber:    uint64(trustedBatch.Number),
 		Coinbase:       common.HexToAddress(trustedBatch.Coinbase.String()),
 		Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
 		GlobalExitRoot: trustedBatch.GlobalExitRoot,
+		BatchL2Data:    &batchL2Data,
 	}
 	if trustedBatch.ForcedBatchNumber != nil {
 		fb := uint64(*trustedBatch.ForcedBatchNumber)

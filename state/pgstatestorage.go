@@ -964,7 +964,7 @@ func (p *PostgresStorage) storeGenesisBatch(ctx context.Context, batch Batch, db
 // in this batch yet. In other words it's the creation of a WIP batch.
 // Note that this will add a batch with batch number N + 1, where N it's the greatest batch number on the state.
 func (p *PostgresStorage) openBatch(ctx context.Context, batchContext ProcessingContext, dbTx pgx.Tx) error {
-	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, forced_batch_num) VALUES ($1, $2, $3, $4, $5)"
+	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, forced_batch_num, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6)"
 
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(
@@ -974,6 +974,7 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 		batchContext.Timestamp.UTC(),
 		batchContext.Coinbase.String(),
 		batchContext.ForcedBatchNum,
+		batchContext.BatchL2Data,
 	)
 	return err
 }

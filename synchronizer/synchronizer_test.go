@@ -697,6 +697,7 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		Coinbase:       common.HexToAddress(batchInTrustedNode.Coinbase.String()),
 		Timestamp:      time.Unix(int64(batchInTrustedNode.Timestamp), 0),
 		GlobalExitRoot: batchInTrustedNode.GlobalExitRoot,
+		BatchL2Data:    (*[]byte)(&batchInTrustedNode.BatchL2Data),
 	}
 	m.State.
 		On("OpenBatch", sync.ctx, processCtx, m.DbTx).
