@@ -86,6 +86,6 @@
 
     "ECRecoverPrecalc": true,
     "ECRecoverPrecalcNThreads": 16,
-    "dbMultiWriteSinglePosition": true
+    "dbMultiWriteSinglePosition": false
 }
 

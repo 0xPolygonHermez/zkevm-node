@@ -87,8 +87,8 @@ In the basic setup, there are Postgres being instanciated as Docker containers. 
 - Run dedicated instances for Postgres. To achieve this you will need to:
   - Remove the Postgres services (`zkevm-pool-db` and `zkevm-state-db`) from the `docker-compose.yml`
   - Instantiate Postgres elsewhere (note that you will have to create credentials and run some queries to make this work, following the config files and docker-compose should give a clear idea of what to do)
-  - Update the `testnet.node.config.toml` to use the correct URI for both DBs
-  - Update `testnet.prover.config.json` to use the correct URI for the state DB
+  - Update the `node.config.toml` to use the correct URI for both DBs
+  - Update `prover.config.json` to use the correct URI for the state DB
 - Use a setup of Postgres that allows to have separated endpoints for read / write replicas
 
 ### JSON RPC

@@ -686,6 +686,23 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 			Return(&stateBatchInPermissionLess, nil).
 			Once()
 	}
+
+	m.State.
+		On("ResetTrustedState", sync.ctx, batchNumber-1, m.DbTx).
+		Return(nil).
+		Once()
+
+	processCtx := state.ProcessingContext{
+		BatchNumber:    uint64(batchInTrustedNode.Number),
+		Coinbase:       common.HexToAddress(batchInTrustedNode.Coinbase.String()),
+		Timestamp:      time.Unix(int64(batchInTrustedNode.Timestamp), 0),
+		GlobalExitRoot: batchInTrustedNode.GlobalExitRoot,
+	}
+	m.State.
+		On("OpenBatch", sync.ctx, processCtx, m.DbTx).
+		Return(nil).
+		Once()
+
 	m.State.
 		On("UpdateBatchL2Data", sync.ctx, batchNumber, stateBatchInTrustedNode.BatchL2Data, mock.Anything).
 		Return(nil).
