@@ -64,8 +64,8 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
 		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
 			retry = true
-			resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
-			resultLog.Error("failed to send sequence, TODO: review this fatal and define what to do in this case")
+			mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(ethTxManagerOwner, result)
+			mTxResultLogger.Error("failed to send sequence, TODO: review this fatal and define what to do in this case")
 		}
 	}, nil)
 
@@ -119,7 +119,8 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	monitoredTxID := fmt.Sprintf(monitoredIDFormat, firstSequence.BatchNumber, lastSequence.BatchNumber)
 	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
 	if err != nil {
-		log.Error("error to add sequences tx to eth tx manager: ", err)
+		mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, sender, to)
+		mTxLogger.Errorf("error to add sequences tx to eth tx manager: ", err)
 		return
 	}
 }

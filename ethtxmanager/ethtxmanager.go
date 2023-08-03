@@ -239,15 +239,16 @@ func (c *Client) Reorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx)
 	}
 	log.Infof("updating %v monitored txs to reorged", len(mTxs))
 	for _, mTx := range mTxs {
+		mTxLogger := createMonitoredTxLogger(mTx)
 		mTx.blockNumber = nil
 		mTx.status = MonitoredTxStatusReorged
 
 		err = c.storage.Update(ctx, mTx, dbTx)
 		if err != nil {
-			log.Errorf("failed to update monitored tx to reorg status: %v", err)
+			mTxLogger.Errorf("failed to update monitored tx to reorg status: %v", err)
 			return err
 		}
-		log.Infof("monitored tx %v status updated to reorged", mTx.id)
+		mTxLogger.Infof("monitored tx status updated to reorged")
 	}
 	log.Infof("reorg from block %v processed successfully", fromBlockNumber)
 	return nil
@@ -388,7 +389,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		// sign tx
 		signedTx, err = c.etherman.SignTx(ctx, mTx.from, tx)
 		if err != nil {
-			mTxLogger.Errorf("failed to sign tx %v created from monitored tx %v: %v", tx.Hash().String(), mTx.id, err)
+			mTxLogger.Errorf("failed to sign tx %v: %v", tx.Hash().String(), err)
 			return
 		}
 		mTxLogger.Debugf("signed tx %v created", signedTx.Hash().String())
@@ -398,7 +399,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		if errors.Is(err, ErrAlreadyExists) {
 			mTxLogger.Infof("signed tx already existed in the history")
 		} else if err != nil {
-			mTxLogger.Errorf("failed to add signed tx to monitored tx %v history: %v", mTx.id, err)
+			mTxLogger.Errorf("failed to add signed tx %v to monitored tx history: %v", signedTx.Hash().String(), err)
 			return
 		} else {
 			// update monitored tx changes into storage
@@ -646,18 +647,18 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 		}
 
 		for _, result := range results {
-			resultLog := log.WithFields("owner", owner, "id", result.ID)
+			mTxResultLogger := CreateMonitoredTxResultLogger(owner, result)
 
 			// if the result is confirmed, we set it as done do stop looking into this monitored tx
 			if result.Status == MonitoredTxStatusConfirmed {
 				err := c.setStatusDone(ctx, owner, result.ID, dbTx)
 				if err != nil {
-					resultLog.Errorf("failed to set monitored tx as done, err: %v", err)
+					mTxResultLogger.Errorf("failed to set monitored tx as done, err: %v", err)
 					// if something goes wrong at this point, we skip this result and move to the next.
 					// this result is going to be handled again in the next cycle by the outer loop.
 					continue
 				} else {
-					resultLog.Info("monitored tx confirmed")
+					mTxResultLogger.Info("monitored tx confirmed")
 				}
 				resultHandler(result, dbTx)
 				continue
@@ -677,7 +678,7 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 				// refresh the result info
 				result, err := c.Result(ctx, owner, result.ID, dbTx)
 				if err != nil {
-					resultLog.Errorf("failed to get monitored tx result, err: %v", err)
+					mTxResultLogger.Errorf("failed to get monitored tx result, err: %v", err)
 					continue
 				}
 
@@ -686,7 +687,7 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 					break
 				}
 
-				resultLog.Infof("waiting for monitored tx to get confirmed, status: %v", result.Status.String())
+				mTxResultLogger.Infof("waiting for monitored tx to get confirmed, status: %v", result.Status.String())
 			}
 		}
 	}
@@ -697,9 +698,31 @@ func (c *Client) ProcessPendingMonitoredTxs(ctx context.Context, owner string, r
 func createMonitoredTxLogger(mTx monitoredTx) *log.Logger {
 	return log.WithFields(
 		"owner", mTx.owner,
-		"monitoredTx", mTx.id,
+		"monitoredTxId", mTx.id,
 		"createdAt", mTx.createdAt,
 		"from", mTx.from,
 		"to", mTx.to,
+	)
+}
+
+// CreateLogger creates an instance of logger with all the important
+// fields already set for a monitoredTx without requiring an instance of
+// monitoredTx, this should be use in for callers before calling the ADD
+// method
+func CreateLogger(owner, monitoredTxId string, from common.Address, to *common.Address) *log.Logger {
+	return log.WithFields(
+		"owner", owner,
+		"monitoredTxId", monitoredTxId,
+		"from", from,
+		"to", to,
+	)
+}
+
+// CreateMonitoredTxResultLogger creates an instance of logger with all the important
+// fields already set for a MonitoredTxResult
+func CreateMonitoredTxResultLogger(owner string, mTxResult MonitoredTxResult) *log.Logger {
+	return log.WithFields(
+		"owner", owner,
+		"monitoredTxId", mTxResult.ID,
 	)
 }

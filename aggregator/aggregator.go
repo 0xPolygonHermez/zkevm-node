@@ -278,8 +278,8 @@ func (a *Aggregator) sendFinalProof() {
 			monitoredTxID := buildMonitoredTxID(proof.BatchNumber, proof.BatchNumberFinal)
 			err = a.EthTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
 			if err != nil {
-				log := log.WithFields("tx", monitoredTxID)
-				log.Errorf("Error to add batch verification tx to eth tx manager: %v", err)
+				mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, sender, to)
+				mTxLogger.Errorf("Error to add batch verification tx to eth tx manager: %v", err)
 				a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
 				continue
 			}
@@ -1028,9 +1028,9 @@ func (hc *healthChecker) Watch(req *grpchealth.HealthCheckRequest, server grpche
 }
 
 func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResult) {
-	resLog := log.WithFields("owner", ethTxManagerOwner, "txId", result.ID)
+	mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(ethTxManagerOwner, result)
 	if result.Status == ethtxmanager.MonitoredTxStatusFailed {
-		resLog.Fatal("failed to send batch verification, TODO: review this fatal and define what to do in this case")
+		mTxResultLogger.Fatal("failed to send batch verification, TODO: review this fatal and define what to do in this case")
 	}
 
 	// monitoredIDFormat: "proof-from-%v-to-%v"
@@ -1038,13 +1038,13 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResu
 	proofBatchNumberStr := idSlice[2]
 	proofBatchNumber, err := strconv.ParseUint(proofBatchNumberStr, encoding.Base10, 0)
 	if err != nil {
-		resLog.Errorf("failed to read final proof batch number from monitored tx: %v", err)
+		mTxResultLogger.Errorf("failed to read final proof batch number from monitored tx: %v", err)
 	}
 
 	proofBatchNumberFinalStr := idSlice[4]
 	proofBatchNumberFinal, err := strconv.ParseUint(proofBatchNumberFinalStr, encoding.Base10, 0)
 	if err != nil {
-		resLog.Errorf("failed to read final proof batch number final from monitored tx: %v", err)
+		mTxResultLogger.Errorf("failed to read final proof batch number final from monitored tx: %v", err)
 	}
 
 	log := log.WithFields("txId", result.ID, "batches", fmt.Sprintf("%d-%d", proofBatchNumber, proofBatchNumberFinal))
