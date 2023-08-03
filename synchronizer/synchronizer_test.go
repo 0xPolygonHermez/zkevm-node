@@ -509,10 +509,11 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Timestamp:      ethBlock.ReceivedAt,
 				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
 				ForcedBatchNum: &f,
+				BatchL2Data:    &sequencedForceBatch.Transactions,
 			}
 
 			m.State.
-				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
+				On("ProcessAndStoreClosedBatch", ctx, processingContext, m.DbTx, metrics.SynchronizerCallerLabel).
 				Return(common.Hash{}, uint64(1), cProverIDExecution, nil).
 				Once()
 
