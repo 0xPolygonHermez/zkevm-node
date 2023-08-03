@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	pb "github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
+	prover "github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -55,15 +55,15 @@ func (_m *ProverMock) AggregatedProof(inputProof1 string, inputProof2 string) (*
 }
 
 // BatchProof provides a mock function with given fields: input
-func (_m *ProverMock) BatchProof(input *pb.InputProver) (*string, error) {
+func (_m *ProverMock) BatchProof(input *prover.InputProver) (*string, error) {
 	ret := _m.Called(input)
 
 	var r0 *string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*pb.InputProver) (*string, error)); ok {
+	if rf, ok := ret.Get(0).(func(*prover.InputProver) (*string, error)); ok {
 		return rf(input)
 	}
-	if rf, ok := ret.Get(0).(func(*pb.InputProver) *string); ok {
+	if rf, ok := ret.Get(0).(func(*prover.InputProver) *string); ok {
 		r0 = rf(input)
 	} else {
 		if ret.Get(0) != nil {
@@ -71,7 +71,7 @@ func (_m *ProverMock) BatchProof(input *pb.InputProver) (*string, error) {
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*pb.InputProver) error); ok {
+	if rf, ok := ret.Get(1).(func(*prover.InputProver) error); ok {
 		r1 = rf(input)
 	} else {
 		r1 = ret.Error(1)
@@ -159,19 +159,19 @@ func (_m *ProverMock) Name() string {
 }
 
 // WaitFinalProof provides a mock function with given fields: ctx, proofID
-func (_m *ProverMock) WaitFinalProof(ctx context.Context, proofID string) (*pb.FinalProof, error) {
+func (_m *ProverMock) WaitFinalProof(ctx context.Context, proofID string) (*prover.FinalProof, error) {
 	ret := _m.Called(ctx, proofID)
 
-	var r0 *pb.FinalProof
+	var r0 *prover.FinalProof
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*pb.FinalProof, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*prover.FinalProof, error)); ok {
 		return rf(ctx, proofID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *pb.FinalProof); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) *prover.FinalProof); ok {
 		r0 = rf(ctx, proofID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*pb.FinalProof)
+			r0 = ret.Get(0).(*prover.FinalProof)
 		}
 	}
 

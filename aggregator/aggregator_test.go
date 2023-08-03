@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/mocks"
-	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
+	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	configTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -53,7 +53,7 @@ func TestSendFinalProof(t *testing.T) {
 		BatchNumber:      batchNum,
 		BatchNumberFinal: batchNumFinal,
 	}
-	finalProof := &pb.FinalProof{}
+	finalProof := &prover.FinalProof{}
 	cfg := Config{SenderAddress: from.Hex()}
 
 	testCases := []struct {
@@ -1000,9 +1000,9 @@ func TestTryBuildFinalProof(t *testing.T) {
 	proverName := "proverName"
 	proverID := "proverID"
 	finalProofID := "finalProofID"
-	finalProof := pb.FinalProof{
+	finalProof := prover.FinalProof{
 		Proof: "",
-		Public: &pb.PublicInputsExtended{
+		Public: &prover.PublicInputsExtended{
 			NewStateRoot:     []byte("newStateRoot"),
 			NewLocalExitRoot: []byte("newLocalExitRoot"),
 		},
