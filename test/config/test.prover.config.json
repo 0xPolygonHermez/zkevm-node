@@ -85,7 +85,6 @@
     "maxHashDBThreads": 8,
     "ECRecoverPrecalc": true,
     "ECRecoverPrecalcNThreads": 16,
-    "dbMultiWriteSinglePosition": false,
     "stateManager": true
 }
 
