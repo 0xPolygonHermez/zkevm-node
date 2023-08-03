@@ -224,12 +224,14 @@ Url=""
 **Type:** : `object`
 **Description:** Configuration for ethereum transaction manager
 
-| Property                                                        | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                  |
-| --------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| - [FrequencyToMonitorTxs](#EthTxManager_FrequencyToMonitorTxs ) | No      | string          | No         | -          | Duration                                                                                                                           |
-| - [WaitTxToBeMined](#EthTxManager_WaitTxToBeMined )             | No      | string          | No         | -          | Duration                                                                                                                           |
-| - [PrivateKeys](#EthTxManager_PrivateKeys )                     | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs |
-| - [ForcedGas](#EthTxManager_ForcedGas )                         | No      | integer         | No         | -          | ForcedGas is the amount of gas to be forced in case of gas estimation error                                                        |
+| Property                                                        | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [FrequencyToMonitorTxs](#EthTxManager_FrequencyToMonitorTxs ) | No      | string          | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| - [WaitTxToBeMined](#EthTxManager_WaitTxToBeMined )             | No      | string          | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| - [PrivateKeys](#EthTxManager_PrivateKeys )                     | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| - [ForcedGas](#EthTxManager_ForcedGas )                         | No      | integer         | No         | -          | ForcedGas is the amount of gas to be forced in case of gas estimation error                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| - [GasPriceMarginFactor](#EthTxManager_GasPriceMarginFactor )   | No      | number          | No         | -          | GasPriceMarginFactor is used to multiply the suggested gas price provided by the network<br />in order to allow a different gas price to be set for all the transactions and making it<br />easier to have the txs prioritized in the pool, default value is 1.<br /><br />ex:<br />suggested gas price: 100<br />GasPriceMarginFactor: 1<br />gas price = 100<br /><br />suggested gas price: 100<br />GasPriceMarginFactor: 1.1<br />gas price = 110                                                                                                                                                                                              |
+| - [MaxGasPriceLimit](#EthTxManager_MaxGasPriceLimit )           | No      | integer         | No         | -          | MaxGasPriceLimit helps avoiding transactions to be sent over an specified<br />gas price amount, default value is 0, which means no limit.<br />If the gas price provided by the network and adjusted by the GasPriceMarginFactor<br />is greater than this configuration, transaction will have its gas price set to<br />the value configured in this config as the limit.<br /><br />ex:<br /><br />suggested gas price: 100<br />gas price margin factor: 20%<br />max gas price limit: 150<br />tx gas price = 120<br /><br />suggested gas price: 100<br />gas price margin factor: 20%<br />max gas price limit: 110<br />tx gas price = 110 |
 
 ### <a name="EthTxManager_FrequencyToMonitorTxs"></a>6.1. `EthTxManager.FrequencyToMonitorTxs`
 
@@ -333,6 +335,61 @@ to be read in order to provide the private keys to sign the L1 txs
 ```
 [EthTxManager]
 ForcedGas=0
+```
+
+### <a name="EthTxManager_GasPriceMarginFactor"></a>6.5. `EthTxManager.GasPriceMarginFactor`
+
+**Type:** : `number`
+
+**Default:** `1`
+
+**Description:** GasPriceMarginFactor is used to multiply the suggested gas price provided by the network
+in order to allow a different gas price to be set for all the transactions and making it
+easier to have the txs prioritized in the pool, default value is 1.
+
+ex:
+suggested gas price: 100
+GasPriceMarginFactor: 1
+gas price = 100
+
+suggested gas price: 100
+GasPriceMarginFactor: 1.1
+gas price = 110
+
+**Example setting the default value** (1):
+```
+[EthTxManager]
+GasPriceMarginFactor=1
+```
+
+### <a name="EthTxManager_MaxGasPriceLimit"></a>6.6. `EthTxManager.MaxGasPriceLimit`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** MaxGasPriceLimit helps avoiding transactions to be sent over an specified
+gas price amount, default value is 0, which means no limit.
+If the gas price provided by the network and adjusted by the GasPriceMarginFactor
+is greater than this configuration, transaction will have its gas price set to
+the value configured in this config as the limit.
+
+ex:
+
+suggested gas price: 100
+gas price margin factor: 20%
+max gas price limit: 150
+tx gas price = 120
+
+suggested gas price: 100
+gas price margin factor: 20%
+max gas price limit: 110
+tx gas price = 110
+
+**Example setting the default value** (0):
+```
+[EthTxManager]
+MaxGasPriceLimit=0
 ```
 
 ## <a name="Pool"></a>7. `[Pool]`
