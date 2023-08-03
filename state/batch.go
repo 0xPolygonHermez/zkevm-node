@@ -429,6 +429,8 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if dbTx == nil {
 		return common.Hash{}, noFlushID, noProverID, ErrDBTxNil
 	}
+	// Avoid writing twice to the DB the BatchL2Data that is going to be written also in the call closeBatch
+	processingCtx.BatchL2Data = nil
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
 		return common.Hash{}, noFlushID, noProverID, err
 	}
