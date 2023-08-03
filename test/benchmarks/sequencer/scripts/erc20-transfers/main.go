@@ -29,7 +29,7 @@ func main() {
 		panic(err)
 	}
 	// Send Txs
-	err = transactions.SendAndWait(
+	allTxs, err := transactions.SendAndWait(
 		auth,
 		l2Client,
 		pl.GetTxsByStatus,
@@ -53,5 +53,5 @@ func main() {
 		panic(err)
 	}
 	elapsed := lastL2BlockTimestamp.Sub(start)
-	results.Print(elapsed)
+	results.Print(l2Client, elapsed, allTxs)
 }

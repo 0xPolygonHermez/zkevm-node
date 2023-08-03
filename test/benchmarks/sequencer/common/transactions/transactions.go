@@ -15,11 +15,20 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/scripts/uniswap/pkg"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 // SendAndWait sends a number of transactions and waits for them to be marked as pending in the pool
-func SendAndWait(auth *bind.TransactOpts, client *ethclient.Client, getTxsByStatus func(ctx context.Context, status pool.TxStatus, limit uint64) ([]pool.Transaction, error), nTxs int, erc20SC *ERC20.ERC20, uniswapDeployments *pkg.Deployments, txSenderFunc func(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts, erc20SC *ERC20.ERC20, uniswapDeployments *pkg.Deployments) error) error {
+func SendAndWait(
+	auth *bind.TransactOpts,
+	client *ethclient.Client,
+	getTxsByStatus func(ctx context.Context, status pool.TxStatus, limit uint64) ([]pool.Transaction, error),
+	nTxs int,
+	erc20SC *ERC20.ERC20,
+	uniswapDeployments *pkg.Deployments,
+	txSenderFunc func(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts, erc20SC *ERC20.ERC20, uniswapDeployments *pkg.Deployments) ([]*types.Transaction, error),
+) ([]*types.Transaction, error) {
 	auth.GasLimit = 2100000
 	log.Debugf("Sending %d txs ...", nTxs)
 	startingNonce := uint64(0)
@@ -29,18 +38,20 @@ func SendAndWait(auth *bind.TransactOpts, client *ethclient.Client, getTxsByStat
 	maxNonce := uint64(nTxs) + startingNonce
 	IP := getPublicIP()
 
+	allTxs := make([]*types.Transaction, 0, nTxs)
 	for nonce := startingNonce; nonce < maxNonce; nonce++ {
-		err := txSenderFunc(client, auth.GasPrice, nonce, auth, erc20SC, uniswapDeployments)
+		txs, err := txSenderFunc(client, auth.GasPrice, nonce, auth, erc20SC, uniswapDeployments)
 		if err != nil {
 			for err != nil && err.Error() == "nonce intrinsic error" {
 				log.Warnf("nonce intrinsic error, retrying with nonce %d", nonce)
-				err = txSenderFunc(client, auth.GasPrice, nonce, auth, erc20SC, uniswapDeployments)
+				txs, err = txSenderFunc(client, auth.GasPrice, nonce, auth, erc20SC, uniswapDeployments)
 			}
 			if err == nil {
 				continue
 			}
-			return err
+			return nil, err
 		}
+		allTxs = append(allTxs, txs...)
 	}
 	log.Debug("All txs were sent!")
 	log.Debug("Waiting pending transactions To be added in the pool ...")
@@ -62,12 +73,12 @@ func SendAndWait(auth *bind.TransactOpts, client *ethclient.Client, getTxsByStat
 		return done, nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Debug("All pending txs are added in the pool!")
 
-	return nil
+	return allTxs, nil
 }
 
 func getPublicIP() string {

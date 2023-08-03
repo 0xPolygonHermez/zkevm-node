@@ -86,7 +86,7 @@ func DeployContractsAndAddLiquidity(client *ethclient.Client, auth *bind.Transac
 	log.Debugf("Mint C Coin tx: %v", tx.Hash().Hex())
 	fmt.Println()
 	// wrapping eth
-	wethDepositoAmount := "10000000000000000"
+	wethDepositoAmount := "0000000000000000"
 	log.Debugf("Depositing %v ETH for account %v on token wEth", wethDepositoAmount, auth.From)
 	auth.Value, _ = big.NewInt(0).SetString(wethDepositoAmount, encoding.Base10)
 	tx, err = wethSC.Deposit(auth)

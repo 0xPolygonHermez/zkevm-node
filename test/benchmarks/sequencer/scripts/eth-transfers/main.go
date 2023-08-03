@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -23,7 +24,7 @@ func main() {
 
 	start := time.Now()
 	// Send Txs
-	err = transactions.SendAndWait(
+	allTxs, err := transactions.SendAndWait(
 		auth,
 		l2Client,
 		pl.GetTxsByStatus,
@@ -33,6 +34,7 @@ func main() {
 		ethtransfers.TxSender,
 	)
 	if err != nil {
+		fmt.Println(auth.Nonce)
 		panic(err)
 	}
 
@@ -47,5 +49,5 @@ func main() {
 		panic(err)
 	}
 	elapsed := lastL2BlockTimestamp.Sub(start)
-	results.Print(elapsed)
+	results.Print(l2Client, elapsed, allTxs)
 }

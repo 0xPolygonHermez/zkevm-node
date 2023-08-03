@@ -27,7 +27,7 @@ func BenchmarkSequencerEthTransfersPoolProcess(b *testing.B) {
 	require.NoError(b, err)
 	timeForSetup := time.Since(start)
 	setup.BootstrapSequencer(b, opsman)
-	err = transactions.SendAndWait(auth, client, pl.GetTxsByStatus, params.NumberOfOperations, nil, nil, TxSender)
+	_, err = transactions.SendAndWait(auth, client, pl.GetTxsByStatus, params.NumberOfOperations, nil, nil, TxSender)
 	require.NoError(b, err)
 
 	var (

@@ -46,7 +46,7 @@ func BenchmarkSequencerERC20TransfersPoolProcess(b *testing.B) {
 	}
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
 	require.NoError(b, err)
-	err = transactions.SendAndWait(auth, client, pl.GetTxsByStatus, params.NumberOfOperations, erc20SC, nil, TxSender)
+	_, err = transactions.SendAndWait(auth, client, pl.GetTxsByStatus, params.NumberOfOperations, erc20SC, nil, TxSender)
 	require.NoError(b, err)
 
 	var (

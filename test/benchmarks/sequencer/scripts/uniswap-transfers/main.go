@@ -29,7 +29,7 @@ func main() {
 	elapsedTimeForDeployments := time.Since(start)
 
 	// Send Txs
-	err = transactions.SendAndWait(
+	allTxs, err := transactions.SendAndWait(
 		auth,
 		l2Client,
 		pl.GetTxsByStatus,
@@ -55,7 +55,7 @@ func main() {
 	}
 	elapsed := lastL2BlockTimestamp.Sub(start)
 	results.PrintUniswapDeployments(elapsedTimeForDeployments, deploymentTxsCount)
-	results.Print(elapsed)
+	results.Print(l2Client, elapsed, allTxs)
 
 	totalTxsCount := uniswap.GetExecutedTransactionsCount()
 	log.Info("##############################")

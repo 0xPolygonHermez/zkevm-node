@@ -258,6 +258,26 @@ benchmark-sequencer-erc20-transfers: stop
  	touch ./results/out.dat ; \
 	go test -bench=. -timeout=600m | tee ./results/out.dat ;
 
+
+.PHONY: benchmark-sequencer-uniswap-transfers
+benchmark-sequencer-uniswap-transfers: stop
+	$(RUNL1NETWORK)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNEVENTDB)
+	sleep 5
+	$(RUNZKPROVER)
+	$(RUNSYNC)
+	sleep 2
+	$(RUNL2GASPRICER)
+	$(RUNJSONRPC)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	@ cd benchmarks/sequencer/e2e/uniswap-transfers ; \
+ 	mkdir -p results ; \
+ 	touch ./results/out.dat ; \
+	go test -bench=. -timeout=600m | tee ./results/out.dat ;
+
 .PHONY: run-db
 run-db: ## Runs the node database
 	$(RUNSTATEDB)
