@@ -14,7 +14,6 @@ import (
 	"unicode"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
@@ -41,12 +40,12 @@ type finalProofMsg struct {
 	proverName     string
 	proverID       string
 	recursiveProof *state.Proof
-	finalProof     *pb.FinalProof
+	finalProof     *prover.FinalProof
 }
 
 // Aggregator represents an aggregator
 type Aggregator struct {
-	pb.UnimplementedAggregatorServiceServer
+	prover.UnimplementedAggregatorServiceServer
 
 	cfg Config
 
@@ -129,7 +128,7 @@ func (a *Aggregator) Start(ctx context.Context) error {
 	}
 
 	a.srv = grpc.NewServer()
-	pb.RegisterAggregatorServiceServer(a.srv, a)
+	prover.RegisterAggregatorServiceServer(a.srv, a)
 
 	healthService := newHealthChecker()
 	grpchealth.RegisterHealthServer(a.srv, healthService)
@@ -159,7 +158,7 @@ func (a *Aggregator) Stop() {
 
 // Channel implements the bi-directional communication channel between the
 // Prover client and the Aggregator server.
-func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
+func (a *Aggregator) Channel(stream prover.AggregatorService_ChannelServer) error {
 	metrics.ConnectedProver()
 	defer metrics.DisconnectedProver()
 
@@ -306,7 +305,7 @@ func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Cont
 }
 
 // buildFinalProof builds and return the final proof for an aggregated/batch proof.
-func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (*pb.FinalProof, error) {
+func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (*prover.FinalProof, error) {
 	log := log.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
@@ -972,14 +971,14 @@ func (a *Aggregator) isSynced(ctx context.Context, batchNum *uint64) bool {
 	return true
 }
 
-func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.Batch) (*pb.InputProver, error) {
+func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.Batch) (*prover.InputProver, error) {
 	previousBatch, err := a.State.GetBatchByNumber(ctx, batchToVerify.BatchNumber-1, nil)
 	if err != nil && err != state.ErrStateNotSynchronized {
 		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
 	}
 
-	inputProver := &pb.InputProver{
-		PublicInputs: &pb.PublicInputs{
+	inputProver := &prover.InputProver{
+		PublicInputs: &prover.PublicInputs{
 			OldStateRoot:    previousBatch.StateRoot.Bytes(),
 			OldAccInputHash: previousBatch.AccInputHash.Bytes(),
 			OldBatchNum:     previousBatch.BatchNumber,
