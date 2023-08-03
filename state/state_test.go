@@ -726,7 +726,7 @@ func TestGenesis(t *testing.T) {
 		}
 	}
 
-	err = testState.GetTree().Flush(ctx)
+	err = testState.GetTree().Flush(ctx, "")
 	require.NoError(t, err)
 }
 
