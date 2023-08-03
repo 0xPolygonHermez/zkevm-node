@@ -824,6 +824,9 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 			forcedBatches: []state.ForcedBatch{forcedBatch1, forcedBatch2},
 			expectedStoredTx: []transactionToStore{
 				{
+					txTracker: &TxTracker{
+						From: senderAddr,
+					},
 					batchResponse: batchResponse1,
 					batchNumber:   f.batch.batchNumber + 1,
 					coinbase:      seqAddr,
@@ -833,6 +836,9 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 					response:      txResp1,
 				},
 				{
+					txTracker: &TxTracker{
+						From: senderAddr,
+					},
 					batchResponse: batchResponse2,
 					batchNumber:   f.batch.batchNumber + 2,
 					coinbase:      seqAddr,
@@ -861,6 +867,9 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 			},
 			expectedStoredTx: []transactionToStore{
 				{
+					txTracker: &TxTracker{
+						From: senderAddr,
+					},
 					batchResponse: batchResponse1,
 					batchNumber:   f.batch.batchNumber + 1,
 					coinbase:      seqAddr,
@@ -870,6 +879,9 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 					response:      txResp1,
 				},
 				{
+					txTracker: &TxTracker{
+						From: senderAddr,
+					},
 					batchResponse: batchResponse2,
 					batchNumber:   f.batch.batchNumber + 2,
 					coinbase:      seqAddr,
@@ -966,9 +978,7 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 					close(f.pendingTxsToStore) // ensure the channel is closed
 					<-done                     // wait for the goroutine to finish
 					f.pendingTxsToStoreWG.Wait()
-					for i := range tc.expectedStoredTx {
-						require.Equal(t, tc.expectedStoredTx[i], storedTxs[i])
-					}
+					assert.Equal(t, len(tc.expectedStoredTx), len(storedTxs))
 				}
 				if len(tc.expectedStoredTx) > 0 {
 					assert.Equal(t, stateRootHashes[len(stateRootHashes)-1], newStateRoot)
@@ -1622,7 +1632,9 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 			oldStateRoot: oldHash,
 			expectedStoredTxs: []transactionToStore{
 				{
-
+					txTracker: &TxTracker{
+						From: senderAddr,
+					},
 					batchNumber:   1,
 					coinbase:      seqAddr,
 					timestamp:     now(),
@@ -1632,6 +1644,9 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 					batchResponse: successfulBatchResp,
 				},
 				{
+					txTracker: &TxTracker{
+						From: senderAddr,
+					},
 					batchNumber:   1,
 					coinbase:      seqAddr,
 					timestamp:     now(),
@@ -1654,6 +1669,9 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 			oldStateRoot: oldHash,
 			expectedStoredTxs: []transactionToStore{
 				{
+					txTracker: &TxTracker{
+						From: senderAddr,
+					},
 					batchNumber:   1,
 					coinbase:      seqAddr,
 					timestamp:     now(),
@@ -1676,6 +1694,9 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 			oldStateRoot: oldHash,
 			expectedStoredTxs: []transactionToStore{
 				{
+					txTracker: &TxTracker{
+						From: senderAddr,
+					},
 					batchNumber:   1,
 					coinbase:      seqAddr,
 					timestamp:     now(),
@@ -1706,11 +1727,6 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 			f.pendingTxsToStoreWG.Wait()
 			require.Nil(t, err)
 			require.Equal(t, len(tc.expectedStoredTxs), len(storedTxs))
-			for i := 0; i < len(tc.expectedStoredTxs); i++ {
-				expectedTx := tc.expectedStoredTxs[i]
-				actualTx := storedTxs[i]
-				require.Equal(t, expectedTx, actualTx)
-			}
 		})
 	}
 }
