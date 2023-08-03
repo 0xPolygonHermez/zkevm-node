@@ -482,7 +482,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
 		AccInputHash:  processedBatch.NewAccInputHash,
-		BatchL2Data:   *processingCtx.BatchL2Data,
+		BatchL2Data:   *BatchL2Data,
 	}, dbTx)
 }
 
