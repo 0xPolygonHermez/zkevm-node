@@ -711,12 +711,13 @@ func (_m *stateMock) UpdateForkIDIntervals(intervals []state.ForkIDInterval) {
 	_m.Called(intervals)
 }
 
-// newStateMock creates a new instance of stateMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func newStateMock(t interface {
+type mockConstructorTestingTnewStateMock interface {
 	mock.TestingT
 	Cleanup(func())
-}) *stateMock {
+}
+
+// newStateMock creates a new instance of stateMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+func newStateMock(t mockConstructorTestingTnewStateMock) *stateMock {
 	mock := &stateMock{}
 	mock.Mock.Test(t)
 
