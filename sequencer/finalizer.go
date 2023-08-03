@@ -731,8 +731,16 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			}
 		}
 
+		from, err := state.GetSender(txResp.Tx)
+		if err != nil {
+			log.Errorf("handleForcedTxsProcessResp: failed to get sender: %s", err)
+			continue
+		}
+
 		processedTransaction := transactionToStore{
-			txTracker:     nil,
+			txTracker: &TxTracker{
+				From: from,
+			},
 			response:      txResp,
 			batchResponse: result,
 			batchNumber:   request.BatchNumber,
@@ -741,12 +749,6 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			oldStateRoot:  oldStateRoot,
 			isForcedBatch: true,
 			flushId:       result.FlushID,
-		}
-
-		from, err := state.GetSender(txResp.Tx)
-		if err != nil {
-			log.Errorf("handleForcedTxsProcessResp: failed to get sender: %s", err)
-			continue
 		}
 
 		f.pendingTxsToStoreMux.Lock()
