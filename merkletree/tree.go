@@ -7,18 +7,18 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // StateTree provides methods to access and modify state in merkletree
 type StateTree struct {
-	grpcClient pb.HashDBServiceClient
+	grpcClient hashdb.HashDBServiceClient
 }
 
 // NewStateTree creates new StateTree.
-func NewStateTree(client pb.HashDBServiceClient) *StateTree {
+func NewStateTree(client hashdb.HashDBServiceClient) *StateTree {
 	return &StateTree{
 		grpcClient: client,
 	}
@@ -242,9 +242,9 @@ func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address,
 }
 
 func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, error) {
-	result, err := tree.grpcClient.Get(ctx, &pb.GetRequest{
-		Root: &pb.Fea{Fe0: root[0], Fe1: root[1], Fe2: root[2], Fe3: root[3]},
-		Key:  &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
+	result, err := tree.grpcClient.Get(ctx, &hashdb.GetRequest{
+		Root: &hashdb.Fea{Fe0: root[0], Fe1: root[1], Fe2: root[2], Fe3: root[3]},
+		Key:  &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 	})
 	if err != nil {
 		return nil, err
@@ -262,8 +262,8 @@ func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, err
 }
 
 func (tree *StateTree) getProgram(ctx context.Context, key []uint64) (*ProgramProof, error) {
-	result, err := tree.grpcClient.GetProgram(ctx, &pb.GetProgramRequest{
-		Key: &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
+	result, err := tree.grpcClient.GetProgram(ctx, &hashdb.GetProgramRequest{
+		Key: &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 	})
 	if err != nil {
 		return nil, err
@@ -279,9 +279,9 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64) (*
 	if strings.HasPrefix(feaValue, "0x") { // nolint
 		feaValue = feaValue[2:]
 	}
-	result, err := tree.grpcClient.Set(ctx, &pb.SetRequest{
-		OldRoot:    &pb.Fea{Fe0: oldRoot[0], Fe1: oldRoot[1], Fe2: oldRoot[2], Fe3: oldRoot[3]},
-		Key:        &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
+	result, err := tree.grpcClient.Set(ctx, &hashdb.SetRequest{
+		OldRoot:    &hashdb.Fea{Fe0: oldRoot[0], Fe1: oldRoot[1], Fe2: oldRoot[2], Fe3: oldRoot[3]},
+		Key:        &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 		Value:      feaValue,
 		Persistent: true,
 	})
@@ -306,8 +306,8 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64) (*
 }
 
 func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte, persistent bool) error {
-	_, err := tree.grpcClient.SetProgram(ctx, &pb.SetProgramRequest{
-		Key:        &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
+	_, err := tree.grpcClient.SetProgram(ctx, &hashdb.SetProgramRequest{
+		Key:        &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 		Data:       data,
 		Persistent: persistent,
 	})
