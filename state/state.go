@@ -139,7 +139,7 @@ func (s *State) FlushMerkleTree(ctx context.Context) error {
 	if s.tree == nil {
 		return ErrStateTreeNil
 	}
-	return s.tree.Flush(ctx)
+	return s.tree.Flush(ctx, "")
 }
 
 // GetStoredFlushID returns the stored flush ID and Prover ID
