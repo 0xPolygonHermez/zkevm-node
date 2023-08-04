@@ -200,11 +200,11 @@ func (s *ClientTrustedBatchSynchronizer) fullProcessTrustedBatch(data *processDa
 		return nil, err
 	}
 	// Update batchL2Data
-	err = s.state.UpdateBatchL2Data(s.ctx, data.batchNumber, data.trustedBatch.BatchL2Data, dbTx)
-	if err != nil {
-		log.Errorf("Batch %v: error UpdateBatchL2Data batch", data.batchNumber)
-		return nil, err
-	}
+	// err = s.state.UpdateBatchL2Data(s.ctx, data.batchNumber, data.trustedBatch.BatchL2Data, dbTx)
+	// if err != nil {
+	// 	log.Errorf("Batch %v: error UpdateBatchL2Data batch", data.batchNumber)
+	// 	return nil, err
+	// }
 
 	log.Infof("Processing sequencer for batch %v old_state_root %s", data.trustedBatch.Number, request.OldStateRoot)
 	processBatchResp, err := s.processAndStoreTxs(data.trustedBatch, request, dbTx)
@@ -448,11 +448,13 @@ func decodeTxs(forkID uint64, trustedBatchL2Data types.ArgBytes, batch *state.Ba
 
 func (s *ClientTrustedBatchSynchronizer) openBatch(trustedBatch *types.Batch, dbTx pgx.Tx) error {
 	log.Debugf("Opening batch %d", trustedBatch.Number)
+	var batchL2Data []byte = trustedBatch.BatchL2Data
 	processCtx := state.ProcessingContext{
 		BatchNumber:    uint64(trustedBatch.Number),
 		Coinbase:       common.HexToAddress(trustedBatch.Coinbase.String()),
 		Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
 		GlobalExitRoot: trustedBatch.GlobalExitRoot,
+		BatchL2Data:    &batchL2Data,
 	}
 	if trustedBatch.ForcedBatchNumber != nil {
 		fb := uint64(*trustedBatch.ForcedBatchNumber)

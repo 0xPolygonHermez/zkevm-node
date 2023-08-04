@@ -53,7 +53,7 @@ func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneI
 	batch10With3Tx := createBatch(t, lastBatchNumber, 3)
 	previousBatch09 := createBatch(t, lastBatchNumber-1, 1)
 
-	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, true, true)
+	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, true, false)
 	// Is the first time that appears this batch, so it need to OpenBatch
 	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
@@ -82,7 +82,7 @@ func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItIn
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2)
 	previousBatch09 := createBatch(t, lastBatchNumber-1, 1)
 
-	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, true, true)
+	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, true, false)
 	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)

@@ -67,12 +67,18 @@ func (s *SynchronizerStateBatchCache) UpdateBatchL2Data(ctx context.Context, bat
 func (s *SynchronizerStateBatchCache) OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error {
 	res := s.stateInterface.OpenBatch(ctx, processingContext, dbTx)
 	if res == nil {
+		batchL2Data := processingContext.BatchL2Data
+		if batchL2Data == nil {
+			emptybatchL2Data := []byte{}
+			batchL2Data = &emptybatchL2Data
+		}
 		newBatch := state.Batch{
 			BatchNumber:    processingContext.BatchNumber,
 			GlobalExitRoot: processingContext.GlobalExitRoot,
 			Timestamp:      processingContext.Timestamp,
 			Coinbase:       processingContext.Coinbase,
 			ForcedBatchNum: processingContext.ForcedBatchNum,
+			BatchL2Data:    *batchL2Data,
 		}
 		s.Set(&newBatch)
 	}

@@ -62,7 +62,7 @@ func (s *ClientFlushIDControl) UpdateAndCheckProverID(proverID string) {
 			Source:      event.Source_Node,
 			Component:   event.Component_Synchronizer,
 			Level:       event.Level_Critical,
-			EventID:     event.EventID_SynchonizerRestart,
+			EventID:     event.EventID_SynchronizerRestart,
 			Description: fmt.Sprintf("proverID changed from %s to %s, restarting Synchonizer ", s.proverID, proverID),
 		}
 
