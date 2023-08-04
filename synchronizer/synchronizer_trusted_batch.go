@@ -41,6 +41,7 @@ type processData struct {
 	description string
 }
 
+// TrustedBatchSynchronizer is an interface for managing the synchronization of trusted batches
 type TrustedBatchSynchronizer interface {
 	ProcessTrustedBatch(trustedBatch *types.Batch, dbTx pgx.Tx) error
 }
@@ -57,6 +58,7 @@ type storeIntermediateStateRoot struct {
 	entry *intermediateStateRootEntry
 }
 
+// ClientTrustedBatchSynchronizer implements TrustedBatchSynchronizer
 type ClientTrustedBatchSynchronizer struct {
 	state                      stateInterface
 	ctx                        context.Context
@@ -131,6 +133,7 @@ func (s *ClientTrustedBatchSynchronizer) getModeForProcessBatch(trustedNodeBatch
 	return result, nil
 }
 
+// NewClientTrustedBatchSynchronizer creates a new ClientTrustedBatchSynchronizer
 func NewClientTrustedBatchSynchronizer(state stateInterface, ctx context.Context, flushIDController FlushIDController) *ClientTrustedBatchSynchronizer {
 	return &ClientTrustedBatchSynchronizer{
 		state:                      state,
@@ -162,13 +165,6 @@ func (s *ClientTrustedBatchSynchronizer) getCurrentBatches(trustedBatch *types.B
 	}
 	batches := []*state.Batch{batch, prevBatch}
 	return batches, nil
-}
-
-func isStateBatchClosed(batch *state.Batch) bool {
-	if batch == nil {
-		return true
-	}
-	return batch.StateRoot.String() != state.ZeroHash.String()
 }
 
 func isTrustedBatchClosed(batch *types.Batch) bool {
@@ -319,8 +315,8 @@ func checkProcessBatchResultMatchExpected(data *processData, processBatchResp *s
 	return err
 }
 
+// ProcessTrustedBatch process the txs and store the batch in the DB
 func (s *ClientTrustedBatchSynchronizer) ProcessTrustedBatch(trustedBatch *types.Batch, dbTx pgx.Tx) error {
-
 	log.Debugf("Processing trusted batch: %v", trustedBatch.Number)
 	tempBatches, err := s.getCurrentBatches(trustedBatch, dbTx)
 	if err != nil {
@@ -375,31 +371,6 @@ func (s *ClientTrustedBatchSynchronizer) ProcessTrustedBatch(trustedBatch *types
 	}
 
 	log.Infof("Batch %v synchronized", trustedBatch.Number)
-	return nil
-}
-
-func (s *ClientTrustedBatchSynchronizer) processTrustedBatchCloseIfNeed(trustedBatch *types.Batch, dbTx pgx.Tx) error {
-	log.Info("Nothing to sync. Node updated. Checking if it is closed")
-	isBatchClosed := trustedBatch.StateRoot.String() != state.ZeroHash.String()
-	if isBatchClosed {
-		receipt := state.ProcessingReceipt{
-			BatchNumber:   uint64(trustedBatch.Number),
-			StateRoot:     trustedBatch.StateRoot,
-			LocalExitRoot: trustedBatch.LocalExitRoot,
-			BatchL2Data:   trustedBatch.BatchL2Data,
-			AccInputHash:  trustedBatch.AccInputHash,
-		}
-		log.Infof("closing batch %v", trustedBatch.Number)
-		if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
-			// This is a workaround to avoid closing a batch that was already closed
-			if err.Error() != state.ErrBatchAlreadyClosed.Error() {
-				log.Errorf("error closing batch %d", trustedBatch.Number)
-				return err
-			} else {
-				log.Warnf("CASE 02: the batch [%d] looks like were not close but in STATE was closed", trustedBatch.Number)
-			}
-		}
-	}
 	return nil
 }
 
@@ -474,7 +445,7 @@ func (s *ClientTrustedBatchSynchronizer) processAndStoreTxs(trustedBatch *types.
 		log.Errorf("error processing sequencer batch for batch: %v", trustedBatch.Number)
 		return nil, err
 	}
-	s.flushIDController.PendingFlushID(processBatchResp.FlushID, processBatchResp.ProverID)
+	s.flushIDController.SetPendingFlushIDAndCheckProverID(processBatchResp.FlushID, processBatchResp.ProverID)
 
 	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.Responses), trustedBatch.Number)
 	for _, tx := range processBatchResp.Responses {

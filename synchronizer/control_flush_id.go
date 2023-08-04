@@ -10,12 +10,19 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+// FlushIDController is an interface to control the flushID and ProverID
 type FlushIDController interface {
+	// UpdateAndCheckProverID check the incomming proverID from executor with the last one, if no match finalize synchronizer
+	// if there are no previous one it keep this value as the current one
 	UpdateAndCheckProverID(proverID string)
-	CheckFlushID(dbTx pgx.Tx) error
-	PendingFlushID(flushID uint64, proverID string)
+	// BlockUntilLastFlushIDIsWritten blocks until the last flushID is written in DB. It keep in a loop asking to executor
+	// the flushid written, also check ProverID
+	BlockUntilLastFlushIDIsWritten(dbTx pgx.Tx) error
+	// SetPendingFlushIDAndCheckProverID set the pending flushID to be written in DB and check proverID
+	SetPendingFlushIDAndCheckProverID(flushID uint64, proverID string)
 }
 
+// ClientFlushIDControl is a struct to control the flushID and ProverID, implements FlushIDController interface
 type ClientFlushIDControl struct {
 	state    stateInterface
 	ctx      context.Context
@@ -33,6 +40,7 @@ type ClientFlushIDControl struct {
 	latestFlushIDIsFulfilled bool
 }
 
+// NewFlushIDController create a new struct ClientFlushIDControl
 func NewFlushIDController(state stateInterface, ctx context.Context, eventLog *event.EventLog) *ClientFlushIDControl {
 	return &ClientFlushIDControl{
 		state:                   state,
@@ -43,13 +51,16 @@ func NewFlushIDController(state stateInterface, ctx context.Context, eventLog *e
 	}
 }
 
-func (s *ClientFlushIDControl) PendingFlushID(flushID uint64, proverID string) {
+// SetPendingFlushIDAndCheckProverID set the pending flushID to be written in DB and check proverID
+func (s *ClientFlushIDControl) SetPendingFlushIDAndCheckProverID(flushID uint64, proverID string) {
 	log.Infof("pending flushID: %d", flushID)
 	s.latestFlushID = flushID
 	s.latestFlushIDIsFulfilled = false
 	s.UpdateAndCheckProverID(proverID)
 }
 
+// UpdateAndCheckProverID check the incomming proverID from executor with the last one, if no match finalize synchronizer
+// if there are no previous one it keep this value as the current one
 func (s *ClientFlushIDControl) UpdateAndCheckProverID(proverID string) {
 	if s.proverID == "" {
 		log.Infof("Current proverID is %s", proverID)
@@ -75,7 +86,9 @@ func (s *ClientFlushIDControl) UpdateAndCheckProverID(proverID string) {
 	}
 }
 
-func (s *ClientFlushIDControl) CheckFlushID(dbTx pgx.Tx) error {
+// BlockUntilLastFlushIDIsWritten blocks until the last flushID is written in DB. It keep in a loop asking to executor
+// the flushid written, also check ProverID
+func (s *ClientFlushIDControl) BlockUntilLastFlushIDIsWritten(dbTx pgx.Tx) error {
 	if s.latestFlushIDIsFulfilled {
 		log.Debugf("no pending flushID, nothing to do. Last pending fulfilled flushID: %d, last executor flushId received: %d", s.latestFlushID, s.latestFlushID)
 		return nil
@@ -95,7 +108,9 @@ func (s *ClientFlushIDControl) CheckFlushID(dbTx pgx.Tx) error {
 	s.UpdateAndCheckProverID(proverID)
 	log.Debugf("storedFlushID (executor reported): %d, latestFlushID (pending): %d", storedFlushID, s.latestFlushID)
 	if storedFlushID < s.latestFlushID {
-		log.Infof("Synchornized BLOCKED!: Wating for the flushID to be stored. FlushID to be stored: %d. Latest flushID stored: %d", s.latestFlushID, storedFlushID)
+		log.Infof("Synchornizer BLOCKED!: Wating for the flushID to be stored. FlushID to be stored: %d. Latest flushID stored: %d",
+			s.latestFlushID,
+			storedFlushID)
 		iteration := 0
 		start := time.Now()
 		for storedFlushID < s.latestFlushID {

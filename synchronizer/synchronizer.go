@@ -38,7 +38,6 @@ type ClientSynchronizer struct {
 	pool                     poolInterface
 	ethTxManager             ethTxManager
 	zkEVMClient              zkEVMClientInterface
-	eventLog                 *event.EventLog
 	ctx                      context.Context
 	cancelCtx                context.CancelFunc
 	genesis                  state.Genesis
@@ -412,7 +411,7 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 			return err
 		}
 		log.Debug("Checking FlushID to commit trustedState data to db")
-		err = s.flushIDController.CheckFlushID(dbTx)
+		err = s.flushIDController.BlockUntilLastFlushIDIsWritten(dbTx)
 		if err != nil {
 			log.Errorf("error checking flushID. Error: %v", err)
 			rollbackErr := dbTx.Rollback(s.ctx)
@@ -496,7 +495,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			}
 		}
 		log.Debug("Checking FlushID to commit L1 data to db")
-		err = s.flushIDController.CheckFlushID(dbTx)
+		err = s.flushIDController.BlockUntilLastFlushIDIsWritten(dbTx)
 		if err != nil {
 			log.Errorf("error checking flushID. Error: %v", err)
 			rollbackErr := dbTx.Rollback(s.ctx)
@@ -856,7 +855,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 					log.Errorf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 					return err
 				}
-				s.flushIDController.PendingFlushID(flushID, proverID)
+				s.flushIDController.SetPendingFlushIDAndCheckProverID(flushID, proverID)
 
 				newRoot = newStateRoot
 				tBatch = &batch
@@ -938,7 +937,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				log.Errorf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				return err
 			}
-			s.flushIDController.PendingFlushID(flushID, proverID)
+			s.flushIDController.SetPendingFlushIDAndCheckProverID(flushID, proverID)
 		}
 
 		// Store virtualBatch
@@ -1063,7 +1062,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			log.Errorf("error processing batch in processSequenceForceBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, block.BlockNumber, err)
 			return err
 		}
-		s.flushIDController.PendingFlushID(flushID, proverID)
+		s.flushIDController.SetPendingFlushIDAndCheckProverID(flushID, proverID)
 
 		// Store virtualBatch
 		err = s.state.AddVirtualBatch(s.ctx, &virtualBatch, dbTx)
@@ -1205,13 +1204,6 @@ func (s *ClientSynchronizer) processTrustedVerifyBatches(lastVerifiedBatch ether
 		}
 	}
 	return nil
-}
-
-func isHashZero(hash *common.Hash) bool {
-	if hash == nil {
-		return true
-	}
-	return *hash == common.Hash{}
 }
 
 func (s *ClientSynchronizer) reorgPool(dbTx pgx.Tx) error {
