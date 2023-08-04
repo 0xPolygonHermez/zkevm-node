@@ -73,6 +73,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 		if ok && pendingTxsTracker.wg != nil {
 			log.Infof("Waiting for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
 			pendingTxsTracker.wg.Wait()
+			log.Infof("Finished waiting for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
 		}
 		w.pendingTxsToStoreMux.RUnlock()
 
