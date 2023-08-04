@@ -48,6 +48,7 @@ type ClientSynchronizer struct {
 
 const (
 	sizeOfStateDbCache = 10
+	ttlOfStateDbCache  = 60 * time.Second
 )
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -64,7 +65,7 @@ func NewSynchronizer(
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
 
-	cstate := NewSynchronizerStateBatchCache(st, sizeOfStateDbCache)
+	cstate := NewSynchronizerStateBatchCache(st, sizeOfStateDbCache, ttlOfStateDbCache)
 	flushIDController := NewFlushIDController(cstate, ctx, eventLog)
 	return &ClientSynchronizer{
 		isTrustedSequencer:       isTrustedSequencer,

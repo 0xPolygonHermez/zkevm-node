@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"strconv"
-	"sync"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	cache "github.com/go-pkgz/expirable-cache/v2"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -30,23 +31,20 @@ type StateBatchCacher interface {
 type SynchronizerStateBatchCache struct {
 	stateInterface
 	Capacity int
+	TTL      time.Duration
 
-	Mutex         sync.Mutex
-	Cache         []*state.Batch
 	LastStateRoot *common.Hash
-	Head          int
-	Tail          int
+	BatchesCache  cache.Cache[uint64, *state.Batch]
 }
 
 // NewSynchronizerStateBatchCache create a new struct
-func NewSynchronizerStateBatchCache(statei stateInterface, capacity int) *SynchronizerStateBatchCache {
+func NewSynchronizerStateBatchCache(statei stateInterface, capacity int, ttl time.Duration) *SynchronizerStateBatchCache {
 	return &SynchronizerStateBatchCache{
 		stateInterface: statei,
 		Capacity:       capacity,
-		Cache:          make([]*state.Batch, capacity),
+		TTL:            ttl,
 		LastStateRoot:  nil,
-		Head:           -1,
-		Tail:           -1,
+		BatchesCache:   cache.NewCache[uint64, *state.Batch]().WithMaxKeys(capacity).WithTTL(ttl),
 	}
 }
 
@@ -131,46 +129,21 @@ func (s *SynchronizerStateBatchCache) ResetTrustedState(ctx context.Context, bat
 
 // CleanCache remove all items from the cache
 func (s *SynchronizerStateBatchCache) CleanCache() {
-	s.Head = -1
-	s.Tail = -1
+	s.BatchesCache = cache.NewCache[uint64, *state.Batch]().WithMaxKeys(s.Capacity).WithTTL(s.TTL)
 }
 
 // Set store a batch in the cache, if exist a previous one overwrite it
 func (s *SynchronizerStateBatchCache) Set(batch *state.Batch) {
-	if batch == nil {
-		return
-	}
-	idx, err := s.getIndexByBatchNumber(batch.BatchNumber)
-	if err == nil {
-		s.Cache[idx] = batch
-		return
-	}
-	s.emplace(batch)
-}
-
-func (s *SynchronizerStateBatchCache) emplace(batch *state.Batch) {
-	newTail := (s.Tail + 1) % s.Capacity
-	s.Cache[newTail] = batch
-	s.Tail = newTail
-	if s.Head == -1 {
-		s.Head = 0
-	} else if s.Tail == s.Head {
-		s.Head = (s.Head + 1) % s.Capacity
-	}
+	s.BatchesCache.Set(batch.BatchNumber, batch, 0)
 }
 
 // Get a cached element by batchNumber
 func (s *SynchronizerStateBatchCache) Get(batchNumber uint64) *state.Batch {
-	idx, err := s.getIndexByBatchNumber(batchNumber)
-	if err == nil {
-		return s.Cache[idx]
-	}
-	return nil
+	return s.getBatchByNumberInCache(batchNumber)
 }
 
 // GetBatchByNumber get cached version or call to State.GetBatchByNumber
 func (s *SynchronizerStateBatchCache) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
-	//batch, err := s.state.GetBatchByNumber(ctx, batchNumber, dbTx)
 	batch := s.getBatchByNumberInCache(batchNumber)
 	if batch != nil {
 		return batch, nil
@@ -187,41 +160,15 @@ func (s *SynchronizerStateBatchCache) GetBatchByNumber(ctx context.Context, batc
 	return batch, err
 }
 
-func (s *SynchronizerStateBatchCache) getIndexByBatchNumber(batchNumber uint64) (int, error) {
-	if !s.isEmpty() {
-		for i := s.Head; i < s.Head+s.numElements(); i++ {
-			idx := i % s.Capacity
-			if s.Cache[idx].BatchNumber == batchNumber {
-				return idx, nil
-			}
-		}
-	}
-	return -1, errors.New("not found batch in cache")
-}
-
 // Returns a pointer to the batch if it is in the cache, otherwise nil
 func (s *SynchronizerStateBatchCache) getBatchByNumberInCache(batchNumber uint64) *state.Batch {
-	idx, err := s.getIndexByBatchNumber(batchNumber)
-	if err == nil {
-		return s.Cache[idx]
+	r, ok := s.BatchesCache.Get(batchNumber)
+	if ok {
+		return r
 	}
 	return nil
 }
 
 func (s *SynchronizerStateBatchCache) numElements() int {
-	if s.isEmpty() {
-		return 0
-	}
-
-	if s.Head < s.Tail {
-		return s.Tail - s.Head + 1
-	}
-	if s.Head > s.Tail {
-		return s.Head - s.Tail + 1
-	}
-	return 1
-}
-
-func (s *SynchronizerStateBatchCache) isEmpty() bool {
-	return s.Head < 0 || s.Tail < 0
+	return s.BatchesCache.Len()
 }
