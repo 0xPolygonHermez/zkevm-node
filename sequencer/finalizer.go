@@ -196,6 +196,7 @@ func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 		for f.storedFlushID >= f.lastPendingFlushID {
 			log.Infof("waiting for stored flush id to be less than last pending flush id, stored flush id: %v, last pending flush id: %v", f.storedFlushID, f.lastPendingFlushID)
 			f.pendingFlushIDCond.Wait()
+			log.Infof("stored flush id: %v, last pending flush id: %v", f.storedFlushID, f.lastPendingFlushID)
 		}
 		f.pendingFlushIDCond.L.Unlock()
 
@@ -416,6 +417,7 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 			for f.storedFlushID < tx.flushId {
 				log.Infof("waiting for storedFlushID: %d, tx.flushId: %d", f.storedFlushID, tx.flushId)
 				f.storedFlushIDCond.Wait()
+				log.Infof("waking up for storedFlushID: %d, tx.flushId: %d", f.storedFlushID, tx.flushId)
 				// check if context is done after waking up
 				if ctx.Err() != nil {
 					log.Errorf("context is done, err: %s", ctx.Err())
