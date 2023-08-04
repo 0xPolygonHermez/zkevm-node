@@ -67,9 +67,11 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 		w.workerMutex.Unlock()
 
 		// Wait until all pending transactions are stored, so we can ensure getting the correct nonce and balance of the new AddrQueue
+		log.Infof("Checking for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
 		w.pendingTxsToStoreMux.RLock()
 		pendingTxsTracker, ok := w.pendingTxsPerAddressTrackers[tx.From]
 		if ok && pendingTxsTracker.wg != nil {
+			log.Infof("Waiting for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
 			pendingTxsTracker.wg.Wait()
 		}
 		w.pendingTxsToStoreMux.RUnlock()

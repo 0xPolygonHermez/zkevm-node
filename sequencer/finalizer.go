@@ -191,13 +191,16 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 // updateProverIdAndFlushId updates the prover id and flush id
 func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 	for {
+		log.Infof("checking for stored flush id to be less than last pending flush id ...")
 		f.pendingFlushIDCond.L.Lock()
 		for f.storedFlushID >= f.lastPendingFlushID {
+			log.Infof("waiting for stored flush id to be less than last pending flush id, stored flush id: %v, last pending flush id: %v", f.storedFlushID, f.lastPendingFlushID)
 			f.pendingFlushIDCond.Wait()
 		}
 		f.pendingFlushIDCond.L.Unlock()
 
 		for f.storedFlushID < f.lastPendingFlushID {
+			log.Infof("stored flush id: %v, last pending flush id: %v", f.storedFlushID, f.lastPendingFlushID)
 			storedFlushID, proverID, err := f.dbManager.GetStoredFlushID(ctx)
 			if err != nil {
 				log.Errorf("failed to get stored flush id, Err: %v", err)
@@ -247,6 +250,7 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 
 // updateStoredFlushID updates the stored flush id
 func (f *finalizer) updateStoredFlushID(newFlushID uint64) {
+	log.Infof("updating stored flush id to: %v", newFlushID)
 	f.storedFlushIDCond.L.Lock()
 	f.storedFlushID = newFlushID
 	f.storedFlushIDCond.Broadcast()
@@ -375,6 +379,7 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 
 // checkProverIDAndUpdateStoredFlushID checks if the proverID changed and updates the stored flush id
 func (f *finalizer) checkProverIDAndUpdateStoredFlushID(storedFlushID uint64, proverID string) {
+	log.Infof("checking proverID: %s", proverID)
 	if f.proverID != "" && f.proverID != proverID {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
@@ -401,16 +406,19 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 		select {
 		case tx, ok := <-f.pendingTxsToStore:
 			if !ok {
-				// Channel is closed
+				log.Infof("pendingTxsToStore channel is closed")
 				return
 			}
 
+			log.Infof("storing pending transaction hash: %s", tx.txTracker.Hash.String())
 			// Print the formatted timestamp
 			f.storedFlushIDCond.L.Lock()
 			for f.storedFlushID < tx.flushId {
+				log.Infof("waiting for storedFlushID: %d, tx.flushId: %d", f.storedFlushID, tx.flushId)
 				f.storedFlushIDCond.Wait()
 				// check if context is done after waking up
 				if ctx.Err() != nil {
+					log.Errorf("context is done, err: %s", ctx.Err())
 					f.storedFlushIDCond.L.Unlock()
 					return
 				}
@@ -419,12 +427,16 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 
 			// Now f.storedFlushID >= tx.flushId, you can store tx
 			f.storeProcessedTx(ctx, tx)
+
+			log.Infof("updating pending transaction trackers for transaction hash: %s ...", tx.txTracker.Hash.String())
 			f.pendingTxsToStoreMux.Lock()
 			f.pendingTxsToStoreWG.Done()
 			f.pendingTxsPerAddressTrackers[tx.txTracker.From].wg.Done()
 			f.pendingTxsPerAddressTrackers[tx.txTracker.From].count--
+			log.Infof("updated pending transaction tracker for address: %s, count: %d, transaction hash: %s", tx.txTracker.From.String(), f.pendingTxsPerAddressTrackers[tx.txTracker.From].count, tx.txTracker.Hash.String())
 			// Needed to avoid memory leaks
 			if f.pendingTxsPerAddressTrackers[tx.txTracker.From].count == 0 {
+				log.Infof("deleting pending transaction tracker for address: %s, transaction hash: %s", tx.txTracker.From.String(), tx.txTracker.Hash.String())
 				delete(f.pendingTxsPerAddressTrackers, tx.txTracker.From)
 			}
 			f.pendingTxsToStoreMux.Unlock()
@@ -446,10 +458,14 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	// Wait until all processed transactions are saved
 	startWait := time.Now()
+	batchNumber := uint64(0)
+	if f.batch != nil {
+		batchNumber = f.batch.batchNumber
+	}
+	log.Infof("waiting for pending transactions to be stored batch number: %d ...", batchNumber)
 	f.pendingTxsToStoreWG.Wait()
 	endWait := time.Now()
-
-	log.Info("waiting for pending transactions to be stored took: ", endWait.Sub(startWait).String())
+	log.Infof("waiting for pending transactions for batch number: %d to be stored took: %s", batchNumber, endWait.Sub(startWait).String())
 
 	var err error
 	if f.batch.stateRoot == state.ZeroHash {
@@ -685,6 +701,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		flushId:       result.FlushID,
 	}
 
+	log.Infof("adding tx to pendingTxsToStore. tx: %s, batchNumber: %d, flushId: %d", result.Responses[0].TxHash, f.batch.batchNumber, result.FlushID)
 	f.pendingTxsToStoreMux.Lock()
 	// global tracker
 	f.pendingTxsToStoreWG.Add(1)
@@ -697,10 +714,12 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From].count++
 	// broadcast the new flushID if it's greater than the last one
 	if result.FlushID > f.lastPendingFlushID {
+		log.Infof("broadcasting new flushId: %d", result.FlushID)
 		f.lastPendingFlushID = result.FlushID
 		f.pendingFlushIDCond.Broadcast()
 	}
 	f.pendingTxsToStoreMux.Unlock()
+	log.Infof("sending tx to pendingTxsToStore channel. tx: %s, batchNumber: %d", result.Responses[0].TxHash, f.batch.batchNumber)
 	select {
 	case f.pendingTxsToStore <- processedTransaction:
 	case <-ctx.Done():
@@ -751,6 +770,7 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			flushId:       result.FlushID,
 		}
 
+		log.Infof("adding forced tx to pendingTxsToStore. tx: %s, batchNumber: %d, flushId: %d", txResp.TxHash, request.BatchNumber, result.FlushID)
 		f.pendingTxsToStoreMux.Lock()
 		// global tracker
 		f.pendingTxsToStoreWG.Add(1)
@@ -763,12 +783,14 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 		f.pendingTxsPerAddressTrackers[from].count++
 		// broadcast the new flushID if it's greater than the last one
 		if result.FlushID > f.lastPendingFlushID {
+			log.Infof("broadcasting new flushId: %d", result.FlushID)
 			f.lastPendingFlushID = result.FlushID
 			f.pendingFlushIDCond.Broadcast()
 		}
 		f.pendingTxsToStoreMux.Unlock()
 		oldStateRoot = txResp.StateRoot
 
+		log.Infof("sending forced tx to pendingTxsToStore channel. tx: %s, batchNumber: %d", txResp.TxHash, request.BatchNumber)
 		select {
 		case f.pendingTxsToStore <- processedTransaction:
 		case <-ctx.Done():
