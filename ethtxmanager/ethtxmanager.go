@@ -526,8 +526,17 @@ func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error 
 		return err
 	}
 
-	// check gas price
-	if gasPrice.Cmp(mTx.gasPrice) == 1 {
+	// The gas price of a replacement transaction needs to be at least 10%
+	// higher. The computation adds 1 Wei to offset rounding errors from
+	// truncation.
+	minReplace := new(big.Int).Set(mTx.gasPrice)
+	minReplace.Mul(minReplace, big.NewInt(11))
+	minReplace.Div(minReplace, big.NewInt(10))
+	minReplace.Add(minReplace, big.NewInt(1))
+
+	// If the current suggested gas price is higher than the minimum replacement
+	// gas price update the gas price for re-submission.
+	if gasPrice.Cmp(minReplace) == 1 {
 		mTxLog.Infof("monitored tx gas price updated from %v to %v", mTx.gasPrice.String(), gasPrice.String())
 		mTx.gasPrice = gasPrice
 	}
