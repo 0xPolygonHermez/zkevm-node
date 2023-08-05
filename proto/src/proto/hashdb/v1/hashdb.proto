@@ -28,7 +28,7 @@ service HashDBService {
     rpc LoadDB(LoadDBRequest) returns (google.protobuf.Empty) {}
     rpc LoadProgramDB(LoadProgramDBRequest) returns (google.protobuf.Empty) {}
     rpc Flush (FlushRequest) returns (FlushResponse) {}
-    rpc SemiFlush (google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    rpc SemiFlush (SemiFlushRequest) returns (google.protobuf.Empty) {}
     rpc GetFlushStatus (google.protobuf.Empty) returns (GetFlushStatusResponse) {}
     rpc GetFlushData (GetFlushDataRequest) returns (GetFlushDataResponse) {}
 }
@@ -36,6 +36,12 @@ service HashDBService {
 ///////////////////
 // Request messages
 ///////////////////
+
+enum Persistence {
+    PERSISTENCE_CACHE_UNSPECIFIED = 0;
+    PERSISTENCE_DATABASE = 1;
+    PERSISTENCE_TEMPORARY = 2;
+}
 
 /**
  * @dev SetRequest
@@ -49,11 +55,6 @@ service HashDBService {
  * @param {tx} - current transaction ordinal number: 0, 1, 2...
  */
 message SetRequest {
-    enum Persistence {
-        PERSISTENCE_CACHE_UNSPECIFIED = 0;
-        PERSISTENCE_DATABASE = 1;
-        PERSISTENCE_TEMPORARY = 2;
-    }
     Fea old_root = 1;
     Fea key = 2;
     string value = 3;
@@ -127,6 +128,18 @@ message LoadProgramDBRequest {
  */
 message FlushRequest {
     string batch_uuid = 1;
+}
+
+/**
+ * @dev SemiFlushRequest
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session which data will be semi-flushed
+ * @param {new_state_root} - state root at this point of the execution
+ * @param {persistence} - indicates if it should be stored only in CACHE, in the SQL DATABASE, or it is just TEMPORARY and should be deleted at the flush of this batch UUID
+ */
+message SemiFlushRequest {
+    string batch_uuid = 1;
+    string new_state_root = 2;
+    Persistence persistence = 3;
 }
 
 /**

@@ -282,7 +282,7 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64, uu
 		OldRoot:     &hashdb.Fea{Fe0: oldRoot[0], Fe1: oldRoot[1], Fe2: oldRoot[2], Fe3: oldRoot[3]},
 		Key:         &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 		Value:       feaValue,
-		Persistence: hashdb.SetRequest_PERSISTENCE_DATABASE,
+		Persistence: hashdb.Persistence_PERSISTENCE_DATABASE,
 		BatchUuid:   uuid,
 	})
 	if err != nil {

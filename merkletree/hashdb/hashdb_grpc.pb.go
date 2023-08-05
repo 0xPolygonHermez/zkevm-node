@@ -43,7 +43,7 @@ type HashDBServiceClient interface {
 	LoadDB(ctx context.Context, in *LoadDBRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	LoadProgramDB(ctx context.Context, in *LoadProgramDBRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Flush(ctx context.Context, in *FlushRequest, opts ...grpc.CallOption) (*FlushResponse, error)
-	SemiFlush(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	SemiFlush(ctx context.Context, in *SemiFlushRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetFlushStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetFlushStatusResponse, error)
 	GetFlushData(ctx context.Context, in *GetFlushDataRequest, opts ...grpc.CallOption) (*GetFlushDataResponse, error)
 }
@@ -119,7 +119,7 @@ func (c *hashDBServiceClient) Flush(ctx context.Context, in *FlushRequest, opts 
 	return out, nil
 }
 
-func (c *hashDBServiceClient) SemiFlush(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *hashDBServiceClient) SemiFlush(ctx context.Context, in *SemiFlushRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, HashDBService_SemiFlush_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -157,7 +157,7 @@ type HashDBServiceServer interface {
 	LoadDB(context.Context, *LoadDBRequest) (*emptypb.Empty, error)
 	LoadProgramDB(context.Context, *LoadProgramDBRequest) (*emptypb.Empty, error)
 	Flush(context.Context, *FlushRequest) (*FlushResponse, error)
-	SemiFlush(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
+	SemiFlush(context.Context, *SemiFlushRequest) (*emptypb.Empty, error)
 	GetFlushStatus(context.Context, *emptypb.Empty) (*GetFlushStatusResponse, error)
 	GetFlushData(context.Context, *GetFlushDataRequest) (*GetFlushDataResponse, error)
 	mustEmbedUnimplementedHashDBServiceServer()
@@ -188,7 +188,7 @@ func (UnimplementedHashDBServiceServer) LoadProgramDB(context.Context, *LoadProg
 func (UnimplementedHashDBServiceServer) Flush(context.Context, *FlushRequest) (*FlushResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Flush not implemented")
 }
-func (UnimplementedHashDBServiceServer) SemiFlush(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+func (UnimplementedHashDBServiceServer) SemiFlush(context.Context, *SemiFlushRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SemiFlush not implemented")
 }
 func (UnimplementedHashDBServiceServer) GetFlushStatus(context.Context, *emptypb.Empty) (*GetFlushStatusResponse, error) {
@@ -337,7 +337,7 @@ func _HashDBService_Flush_Handler(srv interface{}, ctx context.Context, dec func
 }
 
 func _HashDBService_SemiFlush_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(SemiFlushRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -349,7 +349,7 @@ func _HashDBService_SemiFlush_Handler(srv interface{}, ctx context.Context, dec 
 		FullMethod: HashDBService_SemiFlush_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HashDBServiceServer).SemiFlush(ctx, req.(*emptypb.Empty))
+		return srv.(HashDBServiceServer).SemiFlush(ctx, req.(*SemiFlushRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
