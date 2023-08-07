@@ -16,35 +16,24 @@ import (
 
 // Worker represents the worker component of the sequencer
 type Worker struct {
-	cfg                          WorkerCfg
-	pool                         map[string]*addrQueue
-	efficiencyList               *efficiencyList
-	workerMutex                  sync.Mutex
-	state                        stateInterface
-	batchConstraints             batchConstraintsFloat64
-	batchResourceWeights         batchResourceWeights
-	pendingTxsToStoreMux         *sync.RWMutex
-	pendingTxsPerAddressTrackers map[common.Address]*pendingTxPerAddressTracker
+	cfg                  WorkerCfg
+	pool                 map[string]*addrQueue
+	efficiencyList       *efficiencyList
+	workerMutex          sync.Mutex
+	state                stateInterface
+	batchConstraints     batchConstraintsFloat64
+	batchResourceWeights batchResourceWeights
 }
 
 // NewWorker creates an init a worker
-func NewWorker(
-	cfg WorkerCfg,
-	state stateInterface,
-	constraints batchConstraints,
-	weights batchResourceWeights,
-	pendingTxsToStoreMux *sync.RWMutex,
-	pendingTxTrackersPerAddress map[common.Address]*pendingTxPerAddressTracker,
-) *Worker {
+func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
 	w := Worker{
-		cfg:                          cfg,
-		pool:                         make(map[string]*addrQueue),
-		efficiencyList:               newEfficiencyList(),
-		state:                        state,
-		batchConstraints:             convertBatchConstraintsToFloat64(constraints),
-		batchResourceWeights:         weights,
-		pendingTxsToStoreMux:         pendingTxsToStoreMux,
-		pendingTxsPerAddressTrackers: pendingTxTrackersPerAddress,
+		cfg:                  cfg,
+		pool:                 make(map[string]*addrQueue),
+		efficiencyList:       newEfficiencyList(),
+		state:                state,
+		batchConstraints:     convertBatchConstraintsToFloat64(constraints),
+		batchResourceWeights: weights,
 	}
 
 	return &w
@@ -65,17 +54,6 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	if !found {
 		// Unlock the worker to let execute other worker functions while creating the new AddrQueue
 		w.workerMutex.Unlock()
-
-		// Wait until all pending transactions are stored, so we can ensure getting the correct nonce and balance of the new AddrQueue
-		log.Infof("Checking for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
-		w.pendingTxsToStoreMux.RLock()
-		pendingTxsTracker, ok := w.pendingTxsPerAddressTrackers[tx.From]
-		if ok && pendingTxsTracker.wg != nil {
-			log.Infof("Waiting for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
-			pendingTxsTracker.wg.Wait()
-			log.Infof("Finished waiting for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
-		}
-		w.pendingTxsToStoreMux.RUnlock()
 
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
