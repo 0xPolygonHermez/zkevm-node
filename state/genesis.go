@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -50,6 +51,8 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		return newRoot, ErrStateTreeNil
 	}
 
+	uuid := uuid.New().String()
+
 	for _, action := range genesis.GenesisActions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
@@ -58,7 +61,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 			if err != nil {
 				return newRoot, err
 			}
-			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
+			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot, uuid)
 			if err != nil {
 				return newRoot, err
 			}
@@ -67,7 +70,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 			if err != nil {
 				return newRoot, err
 			}
-			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
+			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot, uuid)
 			if err != nil {
 				return newRoot, err
 			}
@@ -76,7 +79,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 			if err != nil {
 				return newRoot, fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
 			}
-			newRoot, _, err = s.tree.SetCode(ctx, address, code, newRoot)
+			newRoot, _, err = s.tree.SetCode(ctx, address, code, newRoot, uuid)
 			if err != nil {
 				return newRoot, err
 			}
@@ -91,7 +94,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 				return newRoot, err
 			}
 			// Store
-			newRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot)
+			newRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot, uuid)
 			if err != nil {
 				return newRoot, err
 			}
@@ -105,7 +108,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	root.SetBytes(newRoot)
 
 	// flush state db
-	err = s.tree.Flush(ctx)
+	err = s.tree.Flush(ctx, uuid)
 	if err != nil {
 		log.Errorf("error flushing state tree after genesis: %v", err)
 		return newRoot, err

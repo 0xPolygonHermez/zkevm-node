@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package aggregator.v1;
 
-option go_package = "github.com/0xPolygonHermez/zkevm-node/aggregator/pb";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/aggregator/prover";
 
 message Version {
     string v0_0_1 = 1;
