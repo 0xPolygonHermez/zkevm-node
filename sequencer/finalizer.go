@@ -67,7 +67,7 @@ type finalizer struct {
 	storedFlushIDCond    *sync.Cond
 	proverID             string
 	lastPendingFlushID   uint64
-	pendingFlushIDChan   chan uint64
+	pendingFlushIDCond   *sync.Cond
 }
 
 type transactionToStore struct {
@@ -147,7 +147,7 @@ func newFinalizer(
 		storedFlushIDCond:  sync.NewCond(&sync.Mutex{}),
 		proverID:           "",
 		lastPendingFlushID: 0,
-		pendingFlushIDChan: make(chan uint64, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
+		pendingFlushIDCond: sync.NewCond(&sync.Mutex{}),
 	}
 }
 
@@ -188,12 +188,13 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 	for {
 		log.Infof("checking for stored flush id to be less than last pending flush id ...")
-
+		f.pendingFlushIDCond.L.Lock()
 		for f.storedFlushID >= f.lastPendingFlushID {
 			log.Infof("waiting for new pending flush id, last pending flush id: %v", f.lastPendingFlushID)
-			<-f.pendingFlushIDChan
+			f.pendingFlushIDCond.Wait()
 			log.Infof("received new last pending flush id: %v", f.lastPendingFlushID)
 		}
+		f.pendingFlushIDCond.L.Unlock()
 
 		for f.storedFlushID < f.lastPendingFlushID {
 			storedFlushID, proverID, err := f.dbManager.GetStoredFlushID(ctx)
@@ -691,6 +692,11 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	f.pendingTxsToStoreMux.Lock()
 	f.pendingTxsToStoreWG.Add(1)
 	f.pendingTxsToStoreMux.Unlock()
+	if result.FlushID > f.lastPendingFlushID {
+		f.lastPendingFlushID = result.FlushID
+		f.pendingFlushIDCond.Broadcast()
+	}
+
 	log.Infof("sending tx to pendingTxsToStore channel. tx: %s, batchNumber: %d", result.Responses[0].TxHash, f.batch.batchNumber)
 	select {
 	case f.pendingTxsToStore <- processedTransaction:
@@ -746,6 +752,10 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 		f.pendingTxsToStoreMux.Lock()
 		f.pendingTxsToStoreWG.Add(1)
 		f.pendingTxsToStoreMux.Unlock()
+		if result.FlushID > f.lastPendingFlushID {
+			f.lastPendingFlushID = result.FlushID
+			f.pendingFlushIDCond.Broadcast()
+		}
 		oldStateRoot = txResp.StateRoot
 
 		log.Infof("sending forced tx to pendingTxsToStore channel. tx: %s, batchNumber: %d", txResp.TxHash, request.BatchNumber)
