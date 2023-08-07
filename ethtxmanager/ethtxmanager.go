@@ -22,6 +22,13 @@ import (
 const (
 	failureIntervalInSeconds = 5
 	// maxHistorySize           = 10
+
+	// The minimum factor by which we must increase gas price in a replacement transaction.
+	minGasPriceIncreaseNumerator = 11
+	minGasPriceIncreaseDenominator = 10
+	// A small buffer, in WEI, added to the gas price after increasing by minGasPriceIncrease, to
+	// offset rounding errors.
+	minGasPriceIncreaseBuffer = 1
 )
 
 var (
@@ -527,12 +534,12 @@ func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error 
 	}
 
 	// The gas price of a replacement transaction needs to be at least 10%
-	// higher. The computation adds 1 Wei to offset rounding errors from
+	// higher. The computation adds a small buffer to offset rounding errors from
 	// truncation.
 	minReplace := new(big.Int).Set(mTx.gasPrice)
-	minReplace.Mul(minReplace, big.NewInt(11))
-	minReplace.Div(minReplace, big.NewInt(10))
-	minReplace.Add(minReplace, big.NewInt(1))
+	minReplace.Mul(minReplace, big.NewInt(minGasPriceIncreaseNumerator))
+	minReplace.Div(minReplace, big.NewInt(minGasPriceIncreaseDenominator))
+	minReplace.Add(minReplace, big.NewInt(minGasPriceIncreaseBuffer))
 
 	// If the current suggested gas price is higher than the minimum replacement
 	// gas price update the gas price for re-submission.
