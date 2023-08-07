@@ -24,7 +24,7 @@ const (
 	// maxHistorySize           = 10
 
 	// The minimum factor by which we must increase gas price in a replacement transaction.
-	minGasPriceIncreaseNumerator = 11
+	minGasPriceIncreaseNumerator   = 11
 	minGasPriceIncreaseDenominator = 10
 	// A small buffer, in WEI, added to the gas price after increasing by minGasPriceIncrease, to
 	// offset rounding errors.
