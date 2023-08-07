@@ -44,6 +44,7 @@ type ProcessingContext struct {
 	Timestamp      time.Time
 	GlobalExitRoot common.Hash
 	ForcedBatchNum *uint64
+	BatchL2Data    *[]byte
 }
 
 // ClosingReason represents the reason why a batch is closed.
