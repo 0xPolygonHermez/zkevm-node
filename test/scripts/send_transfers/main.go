@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -23,9 +22,8 @@ func main() {
 		ChainID    uint64
 		PrivateKey string
 	}{
-		// {Name: "Local L1", URL: operations.DefaultL1NetworkURL, ChainID: operations.DefaultL1ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
-		// {Name: "Local L2", URL: "http://34.90.16.102:8545/", ChainID: 1234, PrivateKey: operations.DefaultSequencerPrivateKey},
-		{Name: "Local L2", URL: "https://rpc.public.zkevm-test.net/", ChainID: 1442, PrivateKey: "5d120f76469fb621f9b74587096f9bb292a27ebe346a2c84071010030356c20c"},
+		//{Name: "Local L1", URL: operations.DefaultL1NetworkURL, ChainID: operations.DefaultL1ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
+		{Name: "Local L2", URL: operations.DefaultL2NetworkURL, ChainID: operations.DefaultL2ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
 	}
 
 	for _, network := range networks {
@@ -39,7 +37,7 @@ func main() {
 		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 		chkErr(err)
 
-		const receiverAddr = "0xdc6Bf73BC0A688bC11D5234Cb0F2719672Babd30"
+		const receiverAddr = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
 
 		balance, err := client.BalanceAt(ctx, auth.From, nil)
 		chkErr(err)
@@ -55,14 +53,13 @@ func main() {
 		nonce, err := client.NonceAt(ctx, auth.From, nil)
 		chkErr(err)
 		// var lastTxHash common.Hash
-		for i := 0; i < 100000; i++ {
+		for i := 0; i < 1000; i++ {
 			nonce := nonce + uint64(i)
 			log.Debugf("Sending TX to transfer ETH")
 			to := common.HexToAddress(receiverAddr)
 			tx := ethTransfer(ctx, client, auth, to, transferAmount, &nonce)
 			fmt.Println("tx sent: ", tx.Hash().String())
 			// lastTxHash = tx.Hash()
-			time.Sleep(500 * time.Millisecond)
 		}
 
 		// err = operations.WaitTxToBeMined(client, lastTxHash, txTimeout)
