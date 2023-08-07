@@ -308,6 +308,5 @@ func TestWorkerGetBestTx(t *testing.T) {
 
 func initWorker(stateMock *StateMock, rcMax batchConstraints, rcWeigth batchResourceWeights) *Worker {
 	worker := NewWorker(workerCfg, stateMock, rcMax, rcWeigth)
-
 	return worker
 }

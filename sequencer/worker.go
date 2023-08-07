@@ -26,12 +26,7 @@ type Worker struct {
 }
 
 // NewWorker creates an init a worker
-func NewWorker(
-	cfg WorkerCfg,
-	state stateInterface,
-	constraints batchConstraints,
-	weights batchResourceWeights,
-) *Worker {
+func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
 	w := Worker{
 		cfg:                  cfg,
 		pool:                 make(map[string]*addrQueue),
