@@ -118,9 +118,7 @@ func TestNewFinalizer(t *testing.T) {
 	dbManagerMock.On("GetLastSentFlushID", context.Background()).Return(uint64(0), nil)
 
 	// arrange and act
-	pendingTxsToStoreMux := new(sync.RWMutex)
-	pendingTxsPerAddressTrackers := make(map[common.Address]*pendingTxPerAddressTracker)
-	f = newFinalizer(cfg, effectiveGasPriceCfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, bc, eventLog, pendingTxsToStoreMux, pendingTxsPerAddressTrackers)
+	f = newFinalizer(cfg, effectiveGasPriceCfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, bc, eventLog)
 
 	// assert
 	assert.NotNil(t, f)
@@ -1727,6 +1725,13 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 			f.pendingTxsToStoreWG.Wait()
 			require.Nil(t, err)
 			require.Equal(t, len(tc.expectedStoredTxs), len(storedTxs))
+			// Tx tracker is not comparable, so we can't compare the whole struct
+			/*
+				for i := 0; i < len(tc.expectedStoredTxs); i++ {
+					expectedTx := tc.expectedStoredTxs[i]
+					actualTx := storedTxs[i]
+					require.Equal(t, expectedTx, actualTx)
+				}*/
 		})
 	}
 }
@@ -2482,7 +2487,6 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		pendingTxsToStore:                       make(chan transactionToStore, bc.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
 		pendingTxsToStoreWG:                     new(sync.WaitGroup),
 		pendingTxsToStoreMux:                    new(sync.RWMutex),
-		pendingTxsPerAddressTrackers:            make(map[common.Address]*pendingTxPerAddressTracker),
 		storedFlushID:                           0,
 		storedFlushIDCond:                       sync.NewCond(new(sync.Mutex)),
 		proverID:                                "",

@@ -60,15 +60,14 @@ type finalizer struct {
 	maxBreakEvenGasPriceDeviationPercentage *big.Int
 	defaultMinGasPriceAllowed               uint64
 	// Processed txs
-	pendingTxsToStore            chan transactionToStore
-	pendingTxsToStoreWG          *sync.WaitGroup
-	pendingTxsToStoreMux         *sync.RWMutex
-	pendingTxsPerAddressTrackers map[common.Address]*pendingTxPerAddressTracker
-	storedFlushID                uint64
-	storedFlushIDCond            *sync.Cond
-	proverID                     string
-	lastPendingFlushID           uint64
-	pendingFlushIDChan           chan uint64
+	pendingTxsToStore    chan transactionToStore
+	pendingTxsToStoreWG  *sync.WaitGroup
+	pendingTxsToStoreMux *sync.RWMutex
+	storedFlushID        uint64
+	storedFlushIDCond    *sync.Cond
+	proverID             string
+	lastPendingFlushID   uint64
+	pendingFlushIDChan   chan uint64
 }
 
 type transactionToStore struct {
@@ -114,8 +113,6 @@ func newFinalizer(
 	closingSignalCh ClosingSignalCh,
 	batchConstraints batchConstraints,
 	eventLog *event.EventLog,
-	pendingTxsToStoreMux *sync.RWMutex,
-	pendingTxsPerAddressTrackers map[common.Address]*pendingTxPerAddressTracker,
 ) *finalizer {
 	return &finalizer{
 		cfg:                  cfg,
@@ -144,8 +141,7 @@ func newFinalizer(
 		maxBreakEvenGasPriceDeviationPercentage: new(big.Int).SetUint64(effectiveGasPriceCfg.MaxBreakEvenGasPriceDeviationPercentage),
 		pendingTxsToStore:                       make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
 		pendingTxsToStoreWG:                     new(sync.WaitGroup),
-		pendingTxsToStoreMux:                    pendingTxsToStoreMux,
-		pendingTxsPerAddressTrackers:            pendingTxsPerAddressTrackers,
+		pendingTxsToStoreMux:                    &sync.RWMutex{},
 		storedFlushID:                           0,
 		// Mutex is unlocked when the condition is broadcasted
 		storedFlushIDCond:  sync.NewCond(&sync.Mutex{}),
@@ -431,15 +427,6 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 			log.Infof("updating pending transaction trackers for transaction hash: %s, flush Id: %d ...", tx.txTracker.Hash.String(), tx.flushId)
 			f.pendingTxsToStoreMux.Lock()
 			f.pendingTxsToStoreWG.Done()
-			f.pendingTxsPerAddressTrackers[tx.txTracker.From].wg.Done()
-			f.pendingTxsPerAddressTrackers[tx.txTracker.From].count--
-			log.Infof("updated pending transaction tracker for address: %s, count: %d, transaction hash: %s, flush Id: %d", tx.txTracker.From.String(), f.pendingTxsPerAddressTrackers[tx.txTracker.From].count, tx.txTracker.Hash.String(), tx.flushId)
-			// Needed to avoid memory leaks
-			if f.pendingTxsPerAddressTrackers[tx.txTracker.From].count == 0 {
-				log.Infof("deleting pending transaction tracker for address: %s, transaction hash: %s, flush Id: %d", tx.txTracker.From.String(), tx.txTracker.Hash.String(), tx.flushId)
-				delete(f.pendingTxsPerAddressTrackers, tx.txTracker.From)
-			}
-			f.pendingTxsToStoreMux.Unlock()
 		case <-ctx.Done():
 			// The context was cancelled from outside, Wait for all goroutines to finish, cleanup and exit
 			f.pendingTxsToStoreWG.Wait()
@@ -702,21 +689,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 
 	log.Infof("adding tx to pendingTxsToStore. tx: %s, batchNumber: %d, flushId: %d", result.Responses[0].TxHash, f.batch.batchNumber, result.FlushID)
 	f.pendingTxsToStoreMux.Lock()
-	// global tracker
 	f.pendingTxsToStoreWG.Add(1)
-	// per address tracker
-	if _, ok := f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From]; !ok {
-		f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From] = new(pendingTxPerAddressTracker)
-		f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From].wg = &sync.WaitGroup{}
-	}
-	f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From].wg.Add(1)
-	f.pendingTxsPerAddressTrackers[processedTransaction.txTracker.From].count++
-	// broadcast the new flushID if it's greater than the last one
-	if result.FlushID > f.lastPendingFlushID {
-		log.Infof("broadcasting new pending flushId: %d", result.FlushID)
-		f.lastPendingFlushID = result.FlushID
-		f.pendingFlushIDChan <- result.FlushID
-	}
 	f.pendingTxsToStoreMux.Unlock()
 	log.Infof("sending tx to pendingTxsToStore channel. tx: %s, batchNumber: %d", result.Responses[0].TxHash, f.batch.batchNumber)
 	select {
@@ -771,21 +744,7 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 
 		log.Infof("adding forced tx to pendingTxsToStore. tx: %s, batchNumber: %d, flushId: %d", txResp.TxHash, request.BatchNumber, result.FlushID)
 		f.pendingTxsToStoreMux.Lock()
-		// global tracker
 		f.pendingTxsToStoreWG.Add(1)
-		// per address tracker
-		if _, ok := f.pendingTxsPerAddressTrackers[from]; !ok {
-			f.pendingTxsPerAddressTrackers[from] = new(pendingTxPerAddressTracker)
-			f.pendingTxsPerAddressTrackers[from].wg = &sync.WaitGroup{}
-		}
-		f.pendingTxsPerAddressTrackers[from].wg.Add(1)
-		f.pendingTxsPerAddressTrackers[from].count++
-		// broadcast the new flushID if it's greater than the last one
-		if result.FlushID > f.lastPendingFlushID {
-			log.Infof("broadcasting new pending flushId: %d", result.FlushID)
-			f.lastPendingFlushID = result.FlushID
-			f.pendingFlushIDChan <- result.FlushID
-		}
 		f.pendingTxsToStoreMux.Unlock()
 		oldStateRoot = txResp.StateRoot
 
