@@ -122,7 +122,7 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraintsFloat64, we
 	totalWeight := float64(weights.WeightArithmetics + weights.WeightBatchBytesSize + weights.WeightBinaries + weights.WeightCumulativeGasUsed +
 		weights.WeightKeccakHashes + weights.WeightMemAligns + weights.WeightPoseidonHashes + weights.WeightPoseidonPaddings + weights.WeightSteps)
 
-	// TODO: Optmize tx.Efficiency calculation (precalculate constansts values)
+	// TODO: Optimize tx.Efficiency calculation (precalculate constansts values)
 	// TODO: Evaluate avoid type conversion (performance impact?)
 	resourceCost := (float64(tx.BatchResources.ZKCounters.CumulativeGasUsed)/constraints.maxCumulativeGasUsed)*float64(weights.WeightCumulativeGasUsed)/totalWeight +
 		(float64(tx.BatchResources.ZKCounters.UsedArithmetics)/constraints.maxArithmetics)*float64(weights.WeightArithmetics)/totalWeight +
