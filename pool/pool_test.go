@@ -38,12 +38,9 @@ import (
 )
 
 const (
+	forkID5          = 5
 	senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	senderAddress    = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
-)
-
-var (
-	l2BridgeAddr = common.HexToAddress("0x00000000000000000000000000000001")
 )
 
 var (
@@ -65,12 +62,14 @@ var (
 		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Minute),
+		IntervalToRefreshGasPrices:        cfgTypes.NewDuration(5 * time.Second),
 		AccountQueue:                      15,
 		GlobalQueue:                       20,
 	}
-	gasPrice = big.NewInt(1000000000)
-	gasLimit = uint64(21000)
-	chainID  = big.NewInt(1337)
+	gasPrice   = big.NewInt(1000000000)
+	l1GasPrice = big.NewInt(1000000000000)
+	gasLimit   = uint64(21000)
+	chainID    = big.NewInt(1337)
 )
 
 func TestMain(m *testing.M) {
@@ -200,14 +199,15 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	require.NoError(t, err)
 
-	p := pool.NewPool(cfg, s, st, common.Address{}, chainID.Uint64(), eventLog)
+	const chainID = 2576980377
+	p := pool.NewPool(cfg, s, st, chainID, eventLog)
 
 	b := make([]byte, cfg.MaxTxBytesSize+1)
 	to := common.HexToAddress(operations.DefaultSequencerAddress)
 	tx := ethTypes.NewTransaction(0, to, big.NewInt(0), gasLimit, big.NewInt(0), b)
 
 	// GetAuth configures and returns an auth object.
-	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, chainID.Uint64())
+	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, chainID)
 	require.NoError(t, err)
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
@@ -268,10 +268,10 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	const chainID = 2576980377
 	p := setupPool(t, cfg, s, st, chainID, ctx, eventLog)
 
-	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81b"
+	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81bff"
 	b, err := hex.DecodeHex(batchL2Data)
 	require.NoError(t, err)
-	txs, _, err := state.DecodeTxs(b)
+	txs, _, _, err := state.DecodeTxs(b, forkID5)
 	require.NoError(t, err)
 
 	tx := txs[0]
@@ -649,18 +649,16 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	require.NoError(t, err)
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	p := pool.NewPool(cfg, s, nil, common.Address{}, chainID.Uint64(), eventLog)
+	p := pool.NewPool(cfg, s, nil, chainID.Uint64(), eventLog)
 
 	nBig, err := rand.Int(rand.Reader, big.NewInt(0).SetUint64(math.MaxUint64))
 	require.NoError(t, err)
-	expectedGasPrice := nBig.Uint64()
-
+	expectedGasPrice := pool.GasPrices{nBig.Uint64(), nBig.Uint64()}
 	ctx := context.Background()
-
-	err = p.SetGasPrice(ctx, expectedGasPrice)
+	err = p.SetGasPrices(ctx, expectedGasPrice.L2GasPrice, expectedGasPrice.L1GasPrice)
 	require.NoError(t, err)
 
-	gasPrice, err := p.GetGasPrice(ctx)
+	gasPrice, err := p.GetGasPrices(ctx)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedGasPrice, gasPrice)
@@ -676,39 +674,43 @@ func TestDeleteGasPricesHistoryOlderThan(t *testing.T) {
 	require.NoError(t, err)
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	p := pool.NewPool(cfg, s, nil, common.Address{}, chainID.Uint64(), eventLog)
+	p := pool.NewPool(cfg, s, nil, chainID.Uint64(), eventLog)
 
 	ctx := context.Background()
 
 	// set first gas price
-	expectedGasPrice1 := uint64(1)
-	err = p.SetGasPrice(ctx, expectedGasPrice1)
+	expectedL2GasPrice1 := uint64(1)
+	expectedL1GasPrice1 := expectedL2GasPrice1 * 2
+	err = p.SetGasPrices(ctx, expectedL2GasPrice1, expectedL1GasPrice1)
 	require.NoError(t, err)
-	gasPrice, err := p.GetGasPrice(ctx)
+	gasPrices, err := p.GetGasPrices(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, expectedGasPrice1, gasPrice)
+	assert.Equal(t, expectedL2GasPrice1, gasPrices.L2GasPrice)
+	assert.Equal(t, expectedL1GasPrice1, gasPrices.L1GasPrice)
 
 	// set second gas price
-	expectedGasPrice2 := uint64(2)
-	err = p.SetGasPrice(ctx, expectedGasPrice2)
+	expectedL2GasPrice2 := uint64(2)
+	expectedL1GasPrice2 := uint64(2) * 2
+	err = p.SetGasPrices(ctx, expectedL2GasPrice2, expectedL1GasPrice2)
 	require.NoError(t, err)
-	gasPrice, err = p.GetGasPrice(ctx)
+	gasPrices, err = p.GetGasPrices(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, expectedGasPrice2, gasPrice)
+	assert.Equal(t, expectedL2GasPrice2, gasPrices.L2GasPrice)
+	assert.Equal(t, expectedL1GasPrice2, gasPrices.L1GasPrice)
 
 	// min gas price should be the first one
 	date := time.Now().UTC().Add(-time.Second * 2)
-	min, err := p.MinGasPriceSince(ctx, date)
+	min, err := p.MinL2GasPriceSince(ctx, date)
 	require.NoError(t, err)
-	require.Equal(t, expectedGasPrice1, min)
+	require.Equal(t, expectedL2GasPrice1, min)
 
 	// deleting the gas price history should keep at least the last one gas price (the second one)
 	err = p.DeleteGasPricesHistoryOlderThan(ctx, time.Now().UTC().Add(time.Second))
 	require.NoError(t, err)
 
-	min, err = p.MinGasPriceSince(ctx, date)
+	min, err = p.MinL2GasPriceSince(ctx, date)
 	require.NoError(t, err)
-	require.Equal(t, expectedGasPrice2, min)
+	require.Equal(t, expectedL2GasPrice2, min)
 }
 
 func TestGetPendingTxSince(t *testing.T) {
@@ -1004,7 +1006,7 @@ func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), ForkIDIntervals: []state.ForkIDInterval{{
 		FromBatchNumber: 0,
 		ToBatchNumber:   math.MaxUint64,
-		ForkId:          0,
+		ForkId:          5,
 		Version:         "",
 	}}}, stateDb, executorClient, stateTree, eventLog)
 	return st
@@ -1375,18 +1377,20 @@ func Test_BlockedAddress(t *testing.T) {
 		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
+		IntervalToRefreshGasPrices:        cfgTypes.NewDuration(5 * time.Second),
 		AccountQueue:                      64,
 		GlobalQueue:                       1024,
 	}
+
 	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)
 
-	gasPrice, err := p.GetGasPrice(ctx)
+	gasPrices, err := p.GetGasPrices(ctx)
 	require.NoError(t, err)
 
 	// Add tx while address is not blocked
 	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
 		Nonce:    0,
-		GasPrice: big.NewInt(0).SetInt64(int64(gasPrice)),
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrices.L2GasPrice)),
 		Gas:      24000,
 		To:       &auth.From,
 		Value:    big.NewInt(1000),
@@ -1407,7 +1411,7 @@ func Test_BlockedAddress(t *testing.T) {
 	// get blocked when try to add new tx
 	tx = ethTypes.NewTx(&ethTypes.LegacyTx{
 		Nonce:    1,
-		GasPrice: big.NewInt(0).SetInt64(int64(gasPrice)),
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrices.L2GasPrice)),
 		Gas:      24000,
 		To:       &auth.From,
 		Value:    big.NewInt(1000),
@@ -1784,9 +1788,9 @@ func Test_AddTx_NonceTooHigh(t *testing.T) {
 }
 
 func setupPool(t *testing.T, cfg pool.Config, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {
-	p := pool.NewPool(cfg, s, st, l2BridgeAddr, chainID, eventLog)
+	p := pool.NewPool(cfg, s, st, chainID, eventLog)
 
-	err := p.SetGasPrice(ctx, gasPrice.Uint64())
+	err := p.SetGasPrices(ctx, gasPrice.Uint64(), l1GasPrice.Uint64())
 	require.NoError(t, err)
 	p.StartPollingMinSuggestedGasPrice(ctx)
 	return p

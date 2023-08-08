@@ -173,8 +173,32 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
+			path:          "Sequencer.Finalizer.StopSequencerOnBatchNum",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "Sequencer.Finalizer.TimestampResolution",
 			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
+			expectedValue: uint64(10),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.L1GasPriceFactor",
+			expectedValue: float64(0.25),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.ByteGasCost",
+			expectedValue: uint64(16),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.MarginFactor",
+			expectedValue: float64(1),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.Enabled",
+			expectedValue: false,
 		},
 		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
@@ -241,8 +265,20 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(0),
 		},
 		{
+			path:          "EthTxManager.GasPriceMarginFactor",
+			expectedValue: float64(1),
+		},
+		{
+			path:          "EthTxManager.MaxGasPriceLimit",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "L2GasPriceSuggester.DefaultGasPriceWei",
 			expectedValue: uint64(2000000000),
+		},
+		{
+			path:          "L2GasPriceSuggester.MaxGasPriceWei",
+			expectedValue: uint64(0),
 		},
 		{
 			path:          "MTClient.URI",
@@ -275,6 +311,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "StateDB.MaxConns",
 			expectedValue: 200,
+		},
+		{
+			path:          "Pool.IntervalToRefreshGasPrices",
+			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "Pool.MaxTxBytesSize",
@@ -448,7 +488,7 @@ func Test_Defaults(t *testing.T) {
 	flagSet := flag.NewFlagSet("", flag.PanicOnError)
 	flagSet.String(config.FlagNetwork, "testnet", "")
 	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
-	cfg, err := config.Load(ctx)
+	cfg, err := config.Load(ctx, true)
 	if err != nil {
 		t.Fatalf("Unexpected error loading default config: %v", err)
 	}
@@ -492,7 +532,7 @@ func TestEnvVarArrayDecoding(t *testing.T) {
 		os.Unsetenv("ZKEVM_NODE_LOG_OUTPUTS")
 	}()
 
-	cfg, err := config.Load(ctx)
+	cfg, err := config.Load(ctx, true)
 	require.NoError(t, err)
 
 	assert.Equal(t, 3, len(cfg.Log.Outputs))

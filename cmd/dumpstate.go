@@ -34,6 +34,7 @@ var dumpStateFlags = []cli.Flag{
 		Required: true,
 	},
 	&configFileFlag,
+	&networkFlag,
 }
 
 type dumpedState struct {
@@ -96,7 +97,7 @@ func (b *batch) MarshalJSON() ([]byte, error) {
 
 func dumpState(ctx *cli.Context) error {
 	// Load config
-	c, err := config.Load(ctx)
+	c, err := config.Load(ctx, true)
 	if err != nil {
 		return err
 	}

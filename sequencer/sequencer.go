@@ -68,20 +68,10 @@ type ClosingSignalCh struct {
 	L2ReorgCh     chan L2ReorgEvent
 }
 
-// TxsStore is a struct that contains the channel and the wait group for the txs to be stored in order
-type TxsStore struct {
-	Ch chan *txToStore
-	Wg *sync.WaitGroup
-}
-
-// txToStore represents a transaction to store.
-type txToStore struct {
-	txResponse               *state.ProcessTransactionResponse
-	batchNumber              uint64
-	coinbase                 common.Address
-	timestamp                uint64
-	previousL2BlockStateRoot common.Hash
-	isForcedBatch            bool
+// pendingTxPerAddressTracker is a struct that tracks the number of pending transactions per address
+type pendingTxPerAddressTracker struct {
+	wg    *sync.WaitGroup
+	count uint
 }
 
 // New init sequencer
@@ -116,11 +106,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 
-	txsStore := TxsStore{
-		Ch: make(chan *txToStore),
-		Wg: new(sync.WaitGroup),
-	}
-
 	batchConstraints := batchConstraints{
 		MaxTxsPerBatch:       s.cfg.MaxTxsPerBatch,
 		MaxBatchBytesSize:    s.cfg.MaxBatchBytesSize,
@@ -149,12 +134,14 @@ func (s *Sequencer) Start(ctx context.Context) {
 	if err != nil {
 		log.Fatalf("failed to mark WIP txs as pending, err: %v", err)
 	}
+	pendingTxsToStoreMux := new(sync.RWMutex)
+	pendingTxTrackerPerAddress := make(map[common.Address]*pendingTxPerAddressTracker)
 
-	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights)
-	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, txsStore, batchConstraints)
+	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights, pendingTxsToStoreMux, pendingTxTrackerPerAddress)
+	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, batchConstraints)
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, txsStore, batchConstraints, s.eventLog)
+	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, batchConstraints, s.eventLog, pendingTxsToStoreMux, pendingTxTrackerPerAddress)
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 

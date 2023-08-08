@@ -88,6 +88,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	sleep 2
 	$(RUNZKPROVER)
 	sleep 7
 	$(RUNL1NETWORK)
@@ -413,7 +414,7 @@ stop-grafana: ## Stops the grafana service
 .PHONY: run-permissionless
 run-permissionless: run-node ## Runs the trusted and permissionless node
 	$(RUNPERMISSIONLESSDB)
-	sleep 1
+	sleep 3
 	$(RUNPERMISSIONLESSZKPROVER)
 	$(RUNPERMISSIONLESSNODE)
 
@@ -524,7 +525,7 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ethermanInterface --dir=../ethtxmanager --output=../ethtxmanager --outpkg=ethtxmanager --structname=ethermanMock --filename=mock_etherman_test.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=stateInterface --dir=../ethtxmanager --output=../ethtxmanager --outpkg=ethtxmanager --structname=stateMock --filename=mock_state_test.go
 
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=pool --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=poolMock --filename=mock_pool.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=poolInterface --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=poolMock --filename=mock_pool.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ethermanInterface --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=ethermanMock --filename=mock_etherman.go
 
 	## mocks for the aggregator tests

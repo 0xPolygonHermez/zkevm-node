@@ -11,6 +11,9 @@ type Config struct {
 	// blocked address list from db to memory
 	IntervalToRefreshBlockedAddresses types.Duration `mapstructure:"IntervalToRefreshBlockedAddresses"`
 
+	// IntervalToRefreshGasPrices is the time to wait to refresh the gas prices
+	IntervalToRefreshGasPrices types.Duration `mapstructure:"IntervalToRefreshGasPrices"`
+
 	// MaxTxBytesSize is the max size of a transaction in bytes
 	MaxTxBytesSize uint64 `mapstructure:"MaxTxBytesSize"`
 

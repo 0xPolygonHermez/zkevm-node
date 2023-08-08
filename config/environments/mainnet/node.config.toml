@@ -1,0 +1,77 @@
+[Log]
+Environment = "development" # "production" or "development"
+Level = "info"
+Outputs = ["stderr"]
+
+[StateDB]
+User = "state_user"
+Password = "state_password"
+Name = "state_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
+
+[Pool]
+MaxTxBytesSize=100132
+MaxTxDataBytesSize=100000
+DefaultMinGasPriceAllowed = 1000000000
+MinAllowedGasPriceInterval = "5m"
+PollMinAllowedGasPriceInterval = "15s"
+	[Pool.DB]
+	User = "pool_user"
+	Password = "pool_password"
+	Name = "pool_db"
+	Host = "zkevm-pool-db"
+	Port = "5432"
+	EnableLog = false
+	MaxConns = 200
+
+[Etherman]
+URL = "http://your.L1node.url"
+MultiGasProvider = false
+	[Etherman.Etherscan]
+		ApiKey = ""
+
+[RPC]
+Host = "0.0.0.0"
+Port = 8545
+ReadTimeout = "60s"
+WriteTimeout = "60s"
+MaxRequestsPerIPAndSecond = 5000
+SequencerNodeURI = "https://zkevm-rpc.com"
+EnableL2SuggestedGasPricePolling = false
+	[RPC.WebSockets]
+		Enabled = true
+		Port = 8546
+
+[Synchronizer]
+SyncInterval = "2s"
+SyncChunkSize = 100
+TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
+
+[MTClient]
+URI = "zkevm-prover:50061"
+
+[Executor]
+URI = "zkevm-prover:50071"
+MaxResourceExhaustedAttempts = 3
+WaitOnResourceExhaustion = "1s"
+MaxGRPCMessageSize = 100000000
+
+[Metrics]
+Host = "0.0.0.0"
+Port = 9091
+Enabled = false
+ProfilingHost = "0.0.0.0"
+ProfilingPort = 6060
+ProfilingEnabled = false
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200

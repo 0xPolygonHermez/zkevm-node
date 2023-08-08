@@ -1,0 +1,327 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package hashdb.v1;
+
+option go_package = "github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb";
+
+message Version {
+    string v0_0_1 = 1;
+}
+
+// timestamps are represented in unix time in seconds
+
+/**
+ * Define all methods implementes by the gRPC
+ * Get: get the value for a specific key
+ * Set: set the value for a specific key
+ * SetProgram: set the byte data for a specific key
+ * GetProgram: get the byte data for a specific key
+ * Flush: wait for all the pendings writes to the DB are done
+ */
+service HashDBService {
+    rpc Set(SetRequest) returns (SetResponse) {}
+    rpc Get(GetRequest) returns (GetResponse) {}
+    rpc SetProgram(SetProgramRequest) returns (SetProgramResponse) {}
+    rpc GetProgram(GetProgramRequest) returns (GetProgramResponse) {}
+    rpc LoadDB(LoadDBRequest) returns (google.protobuf.Empty) {}
+    rpc LoadProgramDB(LoadProgramDBRequest) returns (google.protobuf.Empty) {}
+    rpc Flush (FlushRequest) returns (FlushResponse) {}
+    rpc SemiFlush (SemiFlushRequest) returns (google.protobuf.Empty) {}
+    rpc GetFlushStatus (google.protobuf.Empty) returns (GetFlushStatusResponse) {}
+    rpc GetFlushData (GetFlushDataRequest) returns (GetFlushDataResponse) {}
+}
+
+///////////////////
+// Request messages
+///////////////////
+
+enum Persistence {
+    PERSISTENCE_CACHE_UNSPECIFIED = 0;
+    PERSISTENCE_DATABASE = 1;
+    PERSISTENCE_TEMPORARY = 2;
+}
+
+/**
+ * @dev SetRequest
+ * @param {old_root} - merkle-tree root
+ * @param {key} - key to set
+ * @param {value} - scalar value to set (HEX string format)
+ * @param {persistence} - indicates if it should be stored only in CACHE, in the SQL DATABASE, or it is just TEMPORARY and should be deleted at the flush of this batch UUID
+ * @param {details} - indicates if it should return all response parameters (true) or just the new root (false)
+ * @param {get_db_read_log} - indicates if it should return the DB reads generated during the execution of the request
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session; data for this batch can be stored in memory until flushed to database
+ * @param {tx} - current transaction ordinal number: 0, 1, 2...
+ */
+message SetRequest {
+    Fea old_root = 1;
+    Fea key = 2;
+    string value = 3;
+    Persistence persistence = 4;
+    bool details = 5;
+    bool get_db_read_log = 6;
+    string batch_uuid = 7;
+    uint64 tx = 8;
+
+}
+
+/**
+ * @dev GetRequest
+ * @param {root} - merkle-tree root
+ * @param {key} - key to look for
+ * @param {details} - indicates if it should return all response parameters (true) or just the new root (false)
+ * @param {get_db_read_log} - indicates if it should return the DB reads generated during the execution of the request
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session; data for this batch can be stored in memory until flushed to database
+ */
+message GetRequest {
+    Fea root = 1;
+    Fea key = 2;
+    bool details = 3;
+    bool get_db_read_log = 4;
+    string batch_uuid = 5;
+}
+
+/**
+ * @dev SetProgramRequest
+ * @param {key} - key to set
+ * @param {data} - Program data to store
+ * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
+ */
+message SetProgramRequest {
+    Fea key = 1;
+    bytes data = 2;
+    bool persistent = 3;
+}
+
+/**
+ * @dev GetProgramRequest
+ * @param {key} - key to get program data
+ */
+message GetProgramRequest {
+    Fea key = 1;
+}
+
+/**
+ * @dev LoadDBRequest
+ * @param {input_db} - list of db records (MT) to load in the database
+ * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
+ */
+message LoadDBRequest {
+    map<string, FeList> input_db = 1;
+    bool persistent = 2;
+}
+
+/**
+ * @dev LoadProgramDBRequest
+ * @param {input_program_db} - list of db records (program) to load in the database
+ * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
+ */
+message LoadProgramDBRequest {
+    map<string, bytes> input_program_db = 1;
+    bool persistent = 2;
+}
+
+/**
+ * @dev FlushRequest
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session which data will be flushed to cache (and database if required)
+ */
+message FlushRequest {
+    string batch_uuid = 1;
+}
+
+/**
+ * @dev SemiFlushRequest
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session which data will be semi-flushed
+ * @param {new_state_root} - state root at this point of the execution
+ * @param {persistence} - indicates if it should be stored only in CACHE, in the SQL DATABASE, or it is just TEMPORARY and should be deleted at the flush of this batch UUID
+ */
+message SemiFlushRequest {
+    string batch_uuid = 1;
+    string new_state_root = 2;
+    Persistence persistence = 3;
+}
+
+/**
+ * @dev GetFlushDataRequest
+ * @param {flush_id} - last stored flush ID got using this method, or 0 if it never was called before
+ */
+message GetFlushDataRequest {
+    uint64 flush_id = 1;
+}
+
+/////////////////////
+// Responses messages
+/////////////////////
+
+/**
+ * @dev SetResponse
+ * @param {old_root} - merkle-tree root
+ * @param {new_root} - merkle-tree new root
+ * @param {key} - key to look for
+ * @param {siblings} - array of siblings
+ * @param {ins_key} - key found
+ * @param {ins_value} - value found (HEX string format)
+ * @param {is_old0} - is new insert or delete
+ * @param {old_value} - old value (HEX string format)
+ * @param {new_value} - new value (HEX string format)
+ * @param {mode}
+ * @param {proof_hash_counter}
+ * @param {db_read_log} - list of db records read during the execution of the request
+ * @param {result} - result code
+ */
+message SetResponse {
+    Fea old_root = 1;
+    Fea new_root = 2;
+    Fea key = 3;
+    map<uint64, SiblingList> siblings = 4;
+    Fea ins_key = 5;
+    string ins_value = 6;
+    bool is_old0 = 7;
+    string old_value = 8;
+    string new_value = 9;
+    string mode = 10;
+    uint64 proof_hash_counter = 11;
+    map<string, FeList> db_read_log = 12;
+    ResultCode result = 13;
+}
+
+/**
+ * @dev GetResponse
+ * @param {root} - merkle-tree root
+ * @param {key} - key to look for
+ * @param {siblings} - array of siblings
+ * @param {ins_key} - key found
+ * @param {ins_value} - value found (HEX string format)
+ * @param {is_old0} - is new insert or delete
+ * @param {value} - value retrieved (HEX string format)
+ * @param {proof_hash_counter}
+ * @param {db_read_log} - list of db records read during the execution of the request
+ * @param {result} - result code
+ */
+message GetResponse {
+    Fea root = 1;
+    Fea key = 2;
+    map<uint64, SiblingList> siblings = 3;
+    Fea ins_key = 4;
+    string ins_value = 5;
+    bool is_old0 = 6;
+    string value = 7;
+    uint64 proof_hash_counter = 8;
+    map<string, FeList> db_read_log = 9;
+    ResultCode result = 10;
+}
+
+/**
+ * @dev SetProgramResponse
+ * @param {result} - result code
+ */
+message SetProgramResponse {
+    ResultCode result = 1;
+}
+
+/**
+ * @dev GetProgramResponse
+ * @param {data} - program data retrieved
+ * @param {result} - result code
+ */
+message GetProgramResponse {
+    bytes data = 1;
+    ResultCode result = 2;
+}
+
+/**
+ * @dev FlushResponse
+ * @param {flush_id} - id assigned to this flush data
+ * @param {stored_flush_id} - id of the last flush data sent to database
+ * @param {result} - result code
+ */
+message FlushResponse {
+    uint64 flush_id = 1;
+    uint64 stored_flush_id = 2;
+    ResultCode result = 3;
+}
+
+/**
+ * @dev GetFlushStatusResponse
+ * @param {stored_flush_id} - id of the last flush data sent to database
+ * @param {sending_flush_id} - id of the flush data being sent now to database
+ * @param {last_flush_id} - id assigned to the last call to flush
+ * @param {pending_to_flush_nodes} - number of SMT nodes pending to flush
+ * @param {pending_to_flush_program} - number of SC programs pending to flush
+ * @param {storing_nodes} - number of SMT nodes being stored in the hash database
+ * @param {storing_program} - number of SC programs being stored in the hash database
+ * @param {prover_id} - id assigned to this instance of the prover process
+ */
+message GetFlushStatusResponse {
+    uint64 stored_flush_id = 1;
+    uint64 storing_flush_id = 2;
+    uint64 last_flush_id = 3;
+    uint64 pending_to_flush_nodes = 4;
+    uint64 pending_to_flush_program = 5;
+    uint64 storing_nodes = 6;
+    uint64 storing_program = 7;
+    string prover_id = 8;
+}
+
+/**
+ * @dev GetFlushDataResponse
+ * @param {stored_flush_id} - id of the last flush data sent to database
+ * @param {nodes} - data to insert in the nodes table
+ * @param {program} - data to insert in the program table
+ * @param {nodes_state_root} - nodes state root to update in the nodes table
+ * @param {result} - result code
+ */
+message GetFlushDataResponse {
+    uint64 stored_flush_id = 1;
+    map<string, string> nodes = 2;
+    map<string, string> program = 3;
+    string nodes_state_root = 4;
+    ResultCode result = 5;
+}
+
+/**
+ * @dev Array of 4 FE
+ * @param {fe0} - Field Element value for pos 0
+ * @param {fe1} - Field Element value for pos 1
+ * @param {fe2} - Field Element value for pos 2
+ * @param {fe3} - Field Element value for pos 3
+*/
+message Fea {
+    uint64 fe0 = 1;
+    uint64 fe1 = 2;
+    uint64 fe2 = 3;
+    uint64 fe3 = 4;
+}
+
+/**
+ * @dev FE (Field Element) List
+ * @param {fe} - list of Fe
+*/
+message FeList {
+    repeated uint64 fe = 1;
+}
+
+/**
+ * @dev Siblings List
+ * @param {sibling} - list of siblings
+*/
+message SiblingList {
+    repeated uint64 sibling = 1;
+}
+
+/**
+ * @dev Result code
+ * @param {code} - result code
+*/
+message ResultCode {
+    enum Code {
+        CODE_UNSPECIFIED = 0;
+        CODE_SUCCESS = 1;
+        CODE_DB_KEY_NOT_FOUND = 2; // Requested key was not found in database
+        CODE_DB_ERROR = 3; // Error connecting to database, or processing request
+        CODE_INTERNAL_ERROR = 4;
+        CODE_SMT_INVALID_DATA_SIZE = 14; // Invalid size for the data of MT node
+    }
+    Code code = 1;
+}

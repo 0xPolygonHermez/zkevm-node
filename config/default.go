@@ -3,6 +3,8 @@ package config
 // DefaultValues is the default configuration
 const DefaultValues = `
 IsTrustedSequencer = false
+ForkUpgradeBatchNumber = 0
+ForkUpgradeNewForkId = 0
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -20,6 +22,7 @@ MaxConns = 200
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
+IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=100132
 MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
@@ -46,6 +49,8 @@ MultiGasProvider = false
 FrequencyToMonitorTxs = "1s"
 WaitTxToBeMined = "2m"
 ForcedGas = 0
+GasPriceMarginFactor = 1
+MaxGasPriceLimit = 0
 
 [RPC]
 Host = "0.0.0.0"
@@ -55,6 +60,7 @@ WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 500
 SequencerNodeURI = ""
 EnableL2SuggestedGasPricePolling = true
+TraceBatchUseHTTPS = true
 	[RPC.WebSockets]
 		Enabled = true
 		Host = "0.0.0.0"
@@ -100,12 +106,19 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
-		TimestampResolution = "10s"	
+		TimestampResolution = "10s"
+		StopSequencerOnBatchNum = 0
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
+	[Sequencer.EffectiveGasPrice]
+		MaxBreakEvenGasPriceDeviationPercentage = 10
+		L1GasPriceFactor = 0.25
+		ByteGasCost = 16
+		MarginFactor = 1
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "5s"
@@ -117,7 +130,6 @@ PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-ForkId = 2
 RetryTime = "5s"
 VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
@@ -131,6 +143,7 @@ Type = "follower"
 UpdatePeriod = "10s"
 Factor = 0.15
 DefaultGasPriceWei = 2000000000
+MaxGasPriceWei = 0
 CleanHistoryPeriod = "1h"
 CleanHistoryTimeRetention = "5m"
 
@@ -147,4 +160,13 @@ MaxGRPCMessageSize = 100000000
 Host = "0.0.0.0"
 Port = 9091
 Enabled = false
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
 `

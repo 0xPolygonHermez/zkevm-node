@@ -17,6 +17,7 @@ MaxConns = 10
 [Pool]
 FreeClaimGasLimit = 1500000
 IntervalToRefreshBlockedAddresses = "5m"
+IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=30132
 MaxTxDataBytesSize=30000
 DefaultMinGasPriceAllowed = 1000000000
@@ -90,11 +91,18 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 0
 		TimestampResolution = "10s"
+		StopSequencerOnBatchNum = 0
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Worker]
 		ResourceCostMultiplier = 1000
+	[Sequencer.EffectiveGasPrice]
+		MaxBreakEvenGasPriceDeviationPercentage = 10
+		L1GasPriceFactor = 0.25
+		ByteGasCost = 16
+		MarginFactor = 1
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "15s"
@@ -106,7 +114,6 @@ PrivateKeys = [{Path = "./test/sequencer.keystore", Password = "testonly"}]
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-ForkId = 2
 RetryTime = "5s"
 VerifyProofInterval = "30s"
 TxProfitabilityCheckerType = "acceptall"
@@ -126,6 +133,7 @@ PrivateKeys = [
 [L2GasPriceSuggester]
 Type = "default"
 DefaultGasPriceWei = 1000000000
+MaxGasPriceWei = 0
 
 [MTClient]
 URI = "127.0.0.1:50061"
