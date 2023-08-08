@@ -32,31 +32,48 @@ func newAddrQueue(addr common.Address, nonce uint64, balance *big.Int) *addrQueu
 	}
 }
 
-// addTx adds a tx to the addrQueue and updates the ready a notReady Txs
-func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx *TxTracker, dropReason error) {
+// addTx adds a tx to the addrQueue and updates the ready a notReady Txs. Also if the new tx matches
+// an existing tx with the same nonce but the new tx has better or equal gasPrice, we will return in the replacedTx
+// the existing tx with lower gasPrice (the replacedTx will be later set as failed in the pool).
+// If the existing tx has better gasPrice then we will drop the new tx (dropReason = ErrDuplicatedNonce)
+func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx, replacedTx *TxTracker, dropReason error) {
+	var repTx *TxTracker
+
 	if a.currentNonce == tx.Nonce { // Is a possible readyTx
 		// We set the tx as readyTx if we do not have one assigned or if the gasPrice is better or equal than the current readyTx
 		if a.readyTx == nil || ((a.readyTx != nil) && (tx.GasPrice.Cmp(a.readyTx.GasPrice) >= 0)) {
 			oldReadyTx := a.readyTx
-			if a.currentBalance.Cmp(tx.Cost) >= 0 { //
+			if (oldReadyTx != nil) && (oldReadyTx.HashStr != tx.HashStr) {
+				// if it is a different tx then we need to return the replaced tx to set as failed in the pool
+				repTx = oldReadyTx
+			}
+			if a.currentBalance.Cmp(tx.Cost) >= 0 {
 				a.readyTx = tx
-				return tx, oldReadyTx, nil
+				return tx, oldReadyTx, repTx, nil
 			} else { // If there is not enough balance we set the new tx as notReadyTxs
 				a.readyTx = nil
 				a.notReadyTxs[tx.Nonce] = tx
-				return nil, oldReadyTx, nil
+				return nil, oldReadyTx, repTx, nil
 			}
+		} else { // We have an already readytx with the same nonce and better gas price, we discard the new tx
+			return nil, nil, nil, ErrDuplicatedNonce
 		}
 	} else if a.currentNonce > tx.Nonce {
-		return nil, nil, runtime.ErrIntrinsicInvalidNonce
+		return nil, nil, nil, runtime.ErrIntrinsicInvalidNonce
 	}
 
 	nrTx, found := a.notReadyTxs[tx.Nonce]
 	if !found || ((found) && (tx.GasPrice.Cmp(nrTx.GasPrice) >= 0)) {
 		a.notReadyTxs[tx.Nonce] = tx
+		if (found) && (nrTx.HashStr != tx.HashStr) {
+			// if it is a different tx then we need to return the replaced tx to set as failed in the pool
+			repTx = nrTx
+		}
+		return nil, nil, repTx, nil
+	} else {
+		// We have an already notReadytx with the same nonce and better gas price, we discard the new tx
+		return nil, nil, nil, ErrDuplicatedNonce
 	}
-
-	return nil, nil, nil
 }
 
 // ExpireTransactions removes the txs that have been in the queue for more than maxTime

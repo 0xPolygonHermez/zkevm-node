@@ -32,7 +32,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencesender"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	executorpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -126,11 +125,9 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
-	log.Infof("Fork ID read from POE SC = %v", currentForkID)
+	log.Infof("Fork ID read from POE SC = %v", forkIDIntervals[len(forkIDIntervals)-1].ForkId)
 	c.Aggregator.ChainID = l2ChainID
 	c.Aggregator.ForkId = currentForkID
-	c.Sequencer.DBManager.ForkID = currentForkID
-	c.Sequencer.Finalizer.ForkID = currentForkID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
@@ -218,7 +215,7 @@ func start(cliCtx *cli.Context) error {
 			if poolInstance == nil {
 				poolInstance = createPool(c.Pool, l2ChainID, st, eventLog)
 			}
-			go runSynchronizer(*c, etherman, etm, st, poolInstance)
+			go runSynchronizer(*c, etherman, etm, st, poolInstance, eventLog)
 		case ETHTXMANAGER:
 			ev.Component = event.Component_EthTxManager
 			ev.Description = "Running eth tx manager service"
@@ -286,7 +283,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman, nil
 }
 
-func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool) {
+func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
 	var trustedSequencerURL string
 	var err error
 	if !cfg.IsTrustedSequencer {
@@ -305,7 +302,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 
 	sy, err := synchronizer.NewSynchronizer(
 		cfg.IsTrustedSequencer, etherman, st, pool, ethTxManager,
-		zkEVMClient, cfg.NetworkConfig.Genesis, cfg.Synchronizer,
+		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -457,7 +454,7 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 	stateDb := state.NewPostgresStorage(sqlDB)
 
 	// Executor
-	var executorClient executorpb.ExecutorServiceClient
+	var executorClient executor.ExecutorServiceClient
 	if needsExecutor {
 		executorClient, _, _ = executor.NewExecutorClient(ctx, c.Executor)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -61,7 +62,7 @@ func processWorkerAddTxTestCases(t *testing.T, worker *Worker, testCases []worke
 			tx.updateZKCounters(testCase.counters, worker.batchConstraints, worker.batchResourceWeights)
 			t.Logf("%s=%s", testCase.name, fmt.Sprintf("%.2f", tx.Efficiency))
 
-			err, _ := worker.AddTxTracker(ctx, &tx)
+			_, err := worker.AddTxTracker(ctx, &tx)
 			if err != nil {
 				return
 			}
@@ -307,6 +308,9 @@ func TestWorkerGetBestTx(t *testing.T) {
 }
 
 func initWorker(stateMock *StateMock, rcMax batchConstraints, rcWeigth batchResourceWeights) *Worker {
-	worker := NewWorker(workerCfg, stateMock, rcMax, rcWeigth)
+	pendingTxsToStoreMux := new(sync.RWMutex)
+	pendingTxsPerAddressTrackers := make(map[common.Address]*pendingTxPerAddressTracker)
+	worker := NewWorker(workerCfg, stateMock, rcMax, rcWeigth, pendingTxsToStoreMux, pendingTxsPerAddressTrackers)
+
 	return worker
 }

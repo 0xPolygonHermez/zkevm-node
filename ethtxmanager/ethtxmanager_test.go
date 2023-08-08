@@ -3,6 +3,7 @@ package ethtxmanager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -20,6 +21,8 @@ import (
 var defaultEthTxmanagerConfigForTests = Config{
 	FrequencyToMonitorTxs: types.NewDuration(time.Millisecond),
 	WaitTxToBeMined:       types.NewDuration(time.Second),
+	GasPriceMarginFactor:  1,
+	MaxGasPriceLimit:      0,
 }
 
 func TestTxGetMined(t *testing.T) {
@@ -675,4 +678,95 @@ func TestExecutionReverted(t *testing.T) {
 	result, err := ethTxManagerClient.Result(ctx, owner, id, nil)
 	require.NoError(t, err)
 	require.Equal(t, MonitoredTxStatusConfirmed, result.Status)
+}
+
+func TestGasPriceMarginAndLimit(t *testing.T) {
+	type testCase struct {
+		name                 string
+		gasPriceMarginFactor float64
+		maxGasPriceLimit     uint64
+		suggestedGasPrice    int64
+		expectedGasPrice     int64
+	}
+
+	testCases := []testCase{
+		{
+			name:                 "no margin and no limit",
+			gasPriceMarginFactor: 1,
+			maxGasPriceLimit:     0,
+			suggestedGasPrice:    100,
+			expectedGasPrice:     100,
+		},
+		{
+			name:                 "20% margin",
+			gasPriceMarginFactor: 1.2,
+			maxGasPriceLimit:     0,
+			suggestedGasPrice:    100,
+			expectedGasPrice:     120,
+		},
+		{
+			name:                 "20% margin but limited",
+			gasPriceMarginFactor: 1.2,
+			maxGasPriceLimit:     110,
+			suggestedGasPrice:    100,
+			expectedGasPrice:     110,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dbCfg := dbutils.NewStateConfigFromEnv()
+			require.NoError(t, dbutils.InitOrResetState(dbCfg))
+
+			etherman := newEthermanMock(t)
+			st := newStateMock(t)
+			storage, err := NewPostgresStorage(dbCfg)
+			require.NoError(t, err)
+
+			var cfg = Config{
+				FrequencyToMonitorTxs: defaultEthTxmanagerConfigForTests.FrequencyToMonitorTxs,
+				WaitTxToBeMined:       defaultEthTxmanagerConfigForTests.WaitTxToBeMined,
+				GasPriceMarginFactor:  tc.gasPriceMarginFactor,
+				MaxGasPriceLimit:      tc.maxGasPriceLimit,
+			}
+
+			ethTxManagerClient := New(cfg, etherman, storage, st)
+
+			owner := "owner"
+			id := "unique_id"
+			from := common.HexToAddress("")
+			var to *common.Address
+			var value *big.Int
+			var data []byte = nil
+
+			ctx := context.Background()
+
+			currentNonce := uint64(1)
+			etherman.
+				On("CurrentNonce", ctx, from).
+				Return(currentNonce, nil).
+				Once()
+
+			estimatedGas := uint64(1)
+			etherman.
+				On("EstimateGas", ctx, from, to, value, data).
+				Return(estimatedGas, nil).
+				Once()
+
+			suggestedGasPrice := big.NewInt(int64(tc.suggestedGasPrice))
+			etherman.
+				On("SuggestedGasPrice", ctx).
+				Return(suggestedGasPrice, nil).
+				Once()
+
+			expectedSuggestedGasPrice := big.NewInt(tc.expectedGasPrice)
+
+			err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, nil)
+			require.NoError(t, err)
+
+			monitoredTx, err := storage.Get(ctx, owner, id, nil)
+			require.NoError(t, err)
+			require.Equal(t, monitoredTx.gasPrice.Cmp(expectedSuggestedGasPrice), 0, fmt.Sprintf("expected gas price %v, found %v", expectedSuggestedGasPrice.String(), monitoredTx.gasPrice.String()))
+		})
+	}
 }

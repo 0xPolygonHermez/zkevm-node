@@ -1,0 +1,15 @@
+<div class="breadcrumbs">
+    {%- for node in schema.nodes_from_root -%}
+        {%- if loop.first -%}
+            [
+        {%- else -%}
+            <a href="#{{ node.html_id }}" onclick="anchorLink('{{ node.html_id }}')">{{ node.name_for_breadcrumbs }}</a>
+        {%- endif -%}
+        {%- if not loop.last and not loop.first %}
+            .
+        {% endif -%}
+        {%- if  loop.last-%}
+            ]
+        {% endif -%}
+    {%- endfor -%}
+    </div>

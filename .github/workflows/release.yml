@@ -46,12 +46,12 @@ jobs:
           sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" testnet/docker-compose.yml
           zip -r testnet.zip testnet
           # MAINNET
-          mkdir -p mainnet/config/environments/testnet
+          mkdir -p mainnet/config/environments/mainnet
           mkdir -p mainnet/db/scripts
-          cp config/environments/mainnet/* mainnet/config/environments/testnet
+          cp config/environments/mainnet/* mainnet/config/environments/mainnet
           cp docker-compose.yml mainnet
           cp db/scripts/init_prover_db.sql mainnet/db/scripts
-          mv mainnet/config/environments/testnet/example.env mainnet
+          mv mainnet/config/environments/mainnet/example.env mainnet
           sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" mainnet/docker-compose.yml
           zip -r mainnet.zip mainnet
 

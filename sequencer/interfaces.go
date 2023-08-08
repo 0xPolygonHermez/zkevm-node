@@ -10,7 +10,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	pb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -28,7 +28,8 @@ type txPool interface {
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
-	CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error)
+	GetDefaultMinGasPriceAllowed() uint64
+	GetL1GasPrice() uint64
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -58,7 +59,7 @@ type stateInterface interface {
 	GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error)
 	ProcessBatch(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
-	ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
+	ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponse, error)
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
@@ -79,13 +80,14 @@ type stateInterface interface {
 	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
 	FlushMerkleTree(ctx context.Context) error
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
+	GetForkIDByBatchNumber(batchNumber uint64) uint64
 }
 
 type workerInterface interface {
 	GetBestFittingTx(resources state.BatchResources) *TxTracker
 	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite) []*TxTracker
 	UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters)
-	AddTxTracker(ctx context.Context, txTracker *TxTracker) (dropReason error, isWIP bool)
+	AddTxTracker(ctx context.Context, txTracker *TxTracker) (replacedTx *TxTracker, dropReason error)
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker
 	DeleteTx(txHash common.Hash, from common.Address)
 	HandleL2Reorg(txHashes []common.Hash)
@@ -120,10 +122,12 @@ type dbManagerInterface interface {
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	FlushMerkleTree(ctx context.Context) error
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
-	CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error)
+	GetDefaultMinGasPriceAllowed() uint64
+	GetL1GasPrice() uint64
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
+	GetForkIDByBatchNumber(batchNumber uint64) uint64
 }
 
 type ethTxManager interface {

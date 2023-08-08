@@ -16,24 +16,35 @@ import (
 
 // Worker represents the worker component of the sequencer
 type Worker struct {
-	cfg                  WorkerCfg
-	pool                 map[string]*addrQueue
-	efficiencyList       *efficiencyList
-	workerMutex          sync.Mutex
-	state                stateInterface
-	batchConstraints     batchConstraintsFloat64
-	batchResourceWeights batchResourceWeights
+	cfg                          WorkerCfg
+	pool                         map[string]*addrQueue
+	efficiencyList               *efficiencyList
+	workerMutex                  sync.Mutex
+	state                        stateInterface
+	batchConstraints             batchConstraintsFloat64
+	batchResourceWeights         batchResourceWeights
+	pendingTxsToStoreMux         *sync.RWMutex
+	pendingTxsPerAddressTrackers map[common.Address]*pendingTxPerAddressTracker
 }
 
 // NewWorker creates an init a worker
-func NewWorker(cfg WorkerCfg, state stateInterface, constraints batchConstraints, weights batchResourceWeights) *Worker {
+func NewWorker(
+	cfg WorkerCfg,
+	state stateInterface,
+	constraints batchConstraints,
+	weights batchResourceWeights,
+	pendingTxsToStoreMux *sync.RWMutex,
+	pendingTxTrackersPerAddress map[common.Address]*pendingTxPerAddressTracker,
+) *Worker {
 	w := Worker{
-		cfg:                  cfg,
-		pool:                 make(map[string]*addrQueue),
-		efficiencyList:       newEfficiencyList(),
-		state:                state,
-		batchConstraints:     convertBatchConstraintsToFloat64(constraints),
-		batchResourceWeights: weights,
+		cfg:                          cfg,
+		pool:                         make(map[string]*addrQueue),
+		efficiencyList:               newEfficiencyList(),
+		state:                        state,
+		batchConstraints:             convertBatchConstraintsToFloat64(constraints),
+		batchResourceWeights:         weights,
+		pendingTxsToStoreMux:         pendingTxsToStoreMux,
+		pendingTxsPerAddressTrackers: pendingTxTrackersPerAddress,
 	}
 
 	return &w
@@ -45,9 +56,8 @@ func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, i
 }
 
 // AddTxTracker adds a new Tx to the Worker
-func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropReason error, isWIP bool) {
+func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *TxTracker, dropReason error) {
 	w.workerMutex.Lock()
-	defer w.workerMutex.Unlock()
 
 	addr, found := w.pool[tx.FromStr]
 
@@ -55,23 +65,34 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropReason er
 		// Unlock the worker to let execute other worker functions while creating the new AddrQueue
 		w.workerMutex.Unlock()
 
+		// Wait until all pending transactions are stored, so we can ensure getting the correct nonce and balance of the new AddrQueue
+		log.Infof("Checking for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
+		w.pendingTxsToStoreMux.RLock()
+		pendingTxsTracker, ok := w.pendingTxsPerAddressTrackers[tx.From]
+		if ok && pendingTxsTracker.wg != nil {
+			log.Infof("Waiting for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
+			pendingTxsTracker.wg.Wait()
+			log.Infof("Finished waiting for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
+		}
+		w.pendingTxsToStoreMux.RUnlock()
+
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
 			dropReason = fmt.Errorf("AddTx GetLastStateRoot error: %v", err)
 			log.Error(dropReason)
-			return dropReason, false
+			return nil, dropReason
 		}
 		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if err != nil {
 			dropReason = fmt.Errorf("AddTx GetNonceByStateRoot error: %v", err)
 			log.Error(dropReason)
-			return dropReason, false
+			return nil, dropReason
 		}
 		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if err != nil {
 			dropReason = fmt.Errorf("AddTx GetBalanceByStateRoot error: %v", err)
 			log.Error(dropReason)
-			return dropReason, false
+			return nil, dropReason
 		}
 
 		addr = newAddrQueue(tx.From, nonce.Uint64(), balance)
@@ -84,25 +105,30 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (dropReason er
 	}
 
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
-	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s)", tx.Hash.String(), tx.Nonce, tx.Cost.String(), tx.FromStr)
-	var newReadyTx, prevReadyTx *TxTracker
-	newReadyTx, prevReadyTx, dropReason = addr.addTx(tx)
+	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s) nonce(%d) balance(%d)", tx.HashStr, tx.Nonce, tx.Cost.String(), addr.fromStr, addr.currentNonce, addr.currentBalance)
+	var newReadyTx, prevReadyTx, repTx *TxTracker
+	newReadyTx, prevReadyTx, repTx, dropReason = addr.addTx(tx)
 	if dropReason != nil {
-		log.Infof("AddTx tx(%s) dropped from addrQueue(%s)", tx.Hash.String(), tx.FromStr)
-		return dropReason, false
+		log.Infof("AddTx tx(%s) dropped from addrQueue(%s), reason: %s", tx.HashStr, tx.FromStr, dropReason.Error())
+		w.workerMutex.Unlock()
+		return repTx, dropReason
 	}
 
 	// Update the EfficiencyList (if needed)
 	if prevReadyTx != nil {
-		log.Infof("AddTx prevReadyTx(%s) nonce(%d) cost(%s) deleted from EfficiencyList", prevReadyTx.Hash.String(), prevReadyTx.Nonce, prevReadyTx.Cost.String())
+		log.Infof("AddTx prevReadyTx(%s) nonce(%d) cost(%s) deleted from EfficiencyList", prevReadyTx.HashStr, prevReadyTx.Nonce, prevReadyTx.Cost.String())
 		w.efficiencyList.delete(prevReadyTx)
 	}
 	if newReadyTx != nil {
-		log.Infof("AddTx newReadyTx(%s) nonce(%d) cost(%s) added to EfficiencyList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.Cost.String())
+		log.Infof("AddTx newReadyTx(%s) nonce(%d) cost(%s) added to EfficiencyList", newReadyTx.HashStr, newReadyTx.Nonce, newReadyTx.Cost.String())
 		w.efficiencyList.add(newReadyTx)
 	}
 
-	return nil, true
+	if repTx != nil {
+		log.Infof("AddTx replacedTx(%s) nonce(%d) cost(%s) has been replaced", repTx.HashStr, repTx.Nonce, repTx.Cost.String())
+	}
+	w.workerMutex.Unlock()
+	return repTx, nil
 }
 
 func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker, []*TxTracker) {

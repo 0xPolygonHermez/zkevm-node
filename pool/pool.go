@@ -31,13 +31,6 @@ var (
 	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
 )
 
-const (
-	// constants used in calculation of BreakEvenGasPrice
-	signatureBytesLength           = 65
-	effectivePercentageBytesLength = 1
-	totalRlpFieldsLength           = signatureBytesLength + effectivePercentageBytesLength
-)
-
 // Pool is an implementation of the Pool interface
 // that uses a postgres database to store the data
 type Pool struct {
@@ -55,11 +48,12 @@ type Pool struct {
 }
 
 type preExecutionResponse struct {
-	usedZkCounters state.ZKCounters
-	isOOC          bool
-	isOOG          bool
-	isReverted     bool
-	txResponse     *state.ProcessTransactionResponse
+	usedZkCounters       state.ZKCounters
+	isExecutorLevelError bool
+	isOOC                bool
+	isOOG                bool
+	isReverted           bool
+	txResponse           *state.ProcessTransactionResponse
 }
 
 // GasPrices contains the gas prices for L2 and L1
@@ -177,8 +171,12 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	preExecutionResponse, err := p.preExecuteTx(ctx, tx)
 	if errors.Is(err, runtime.ErrIntrinsicInvalidBatchGasLimit) {
 		return ErrGasLimit
+	} else if preExecutionResponse.isExecutorLevelError {
+		// Do not add tx to the pool
+		return err
 	} else if err != nil {
-		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
+		log.Errorf("Pre execution error: %v", err)
+		return err
 	}
 
 	if preExecutionResponse.isOOC {
@@ -234,6 +232,7 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
 		errorToCheck := processBatchResponse.Responses[0].RomError
 		response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
+		response.isExecutorLevelError = processBatchResponse.IsExecutorLevelError
 		response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
 		response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
 		response.usedZkCounters = processBatchResponse.UsedZkCounters
@@ -528,31 +527,18 @@ func (p *Pool) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bo
 	return p.storage.UpdateTxWIPStatus(ctx, hash, isWIP)
 }
 
-// CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
-func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
+// GetDefaultMinGasPriceAllowed return the configured DefaultMinGasPriceAllowed value
+func (p *Pool) GetDefaultMinGasPriceAllowed() uint64 {
+	return p.cfg.DefaultMinGasPriceAllowed
+}
+
+// GetL1GasPrice returns the L1 gas price
+func (p *Pool) GetL1GasPrice() uint64 {
 	p.gasPricesMux.RLock()
 	gasPrices := p.gasPrices
 	p.gasPricesMux.RUnlock()
 
-	// We enforce l1GasPrice to make it consistent during the lifespan of the transaction
-	gasPrices.L1GasPrice = l1GasPrice
-
-	if gasPrices.L1GasPrice == 0 {
-		log.Warn("Received L1 gas price 0. Skipping estimation...")
-		return big.NewInt(0), ErrReceivedZeroL1GasPrice
-	}
-
-	// Get L2 Min Gas Price
-	l2MinGasPrice := uint64(float64(gasPrices.L1GasPrice) * p.cfg.EffectiveGasPrice.L1GasPriceFactor)
-	if l2MinGasPrice < p.cfg.DefaultMinGasPriceAllowed {
-		l2MinGasPrice = p.cfg.DefaultMinGasPriceAllowed
-	}
-
-	// Calculate break even gas price
-	totalTxPrice := (gasUsed * l2MinGasPrice) + (totalRlpFieldsLength * txDataLength * gasPrices.L1GasPrice)
-	breakEvenGasPrice := uint64(float64(totalTxPrice/gasUsed) * p.cfg.EffectiveGasPrice.MarginFactor)
-
-	return big.NewInt(0).SetUint64(breakEvenGasPrice), nil
+	return gasPrices.L1GasPrice
 }
 
 const (

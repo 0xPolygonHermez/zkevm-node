@@ -4,11 +4,10 @@
 // - protoc             v3.21.12
 // source: hashdb.proto
 
-package pb
+package hashdb
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -28,6 +27,7 @@ const (
 	HashDBService_LoadDB_FullMethodName         = "/hashdb.v1.HashDBService/LoadDB"
 	HashDBService_LoadProgramDB_FullMethodName  = "/hashdb.v1.HashDBService/LoadProgramDB"
 	HashDBService_Flush_FullMethodName          = "/hashdb.v1.HashDBService/Flush"
+	HashDBService_SemiFlush_FullMethodName      = "/hashdb.v1.HashDBService/SemiFlush"
 	HashDBService_GetFlushStatus_FullMethodName = "/hashdb.v1.HashDBService/GetFlushStatus"
 	HashDBService_GetFlushData_FullMethodName   = "/hashdb.v1.HashDBService/GetFlushData"
 )
@@ -42,7 +42,8 @@ type HashDBServiceClient interface {
 	GetProgram(ctx context.Context, in *GetProgramRequest, opts ...grpc.CallOption) (*GetProgramResponse, error)
 	LoadDB(ctx context.Context, in *LoadDBRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	LoadProgramDB(ctx context.Context, in *LoadProgramDBRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	Flush(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*FlushResponse, error)
+	Flush(ctx context.Context, in *FlushRequest, opts ...grpc.CallOption) (*FlushResponse, error)
+	SemiFlush(ctx context.Context, in *SemiFlushRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetFlushStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetFlushStatusResponse, error)
 	GetFlushData(ctx context.Context, in *GetFlushDataRequest, opts ...grpc.CallOption) (*GetFlushDataResponse, error)
 }
@@ -109,9 +110,18 @@ func (c *hashDBServiceClient) LoadProgramDB(ctx context.Context, in *LoadProgram
 	return out, nil
 }
 
-func (c *hashDBServiceClient) Flush(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*FlushResponse, error) {
+func (c *hashDBServiceClient) Flush(ctx context.Context, in *FlushRequest, opts ...grpc.CallOption) (*FlushResponse, error) {
 	out := new(FlushResponse)
 	err := c.cc.Invoke(ctx, HashDBService_Flush_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hashDBServiceClient) SemiFlush(ctx context.Context, in *SemiFlushRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, HashDBService_SemiFlush_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +156,8 @@ type HashDBServiceServer interface {
 	GetProgram(context.Context, *GetProgramRequest) (*GetProgramResponse, error)
 	LoadDB(context.Context, *LoadDBRequest) (*emptypb.Empty, error)
 	LoadProgramDB(context.Context, *LoadProgramDBRequest) (*emptypb.Empty, error)
-	Flush(context.Context, *emptypb.Empty) (*FlushResponse, error)
+	Flush(context.Context, *FlushRequest) (*FlushResponse, error)
+	SemiFlush(context.Context, *SemiFlushRequest) (*emptypb.Empty, error)
 	GetFlushStatus(context.Context, *emptypb.Empty) (*GetFlushStatusResponse, error)
 	GetFlushData(context.Context, *GetFlushDataRequest) (*GetFlushDataResponse, error)
 	mustEmbedUnimplementedHashDBServiceServer()
@@ -174,8 +185,11 @@ func (UnimplementedHashDBServiceServer) LoadDB(context.Context, *LoadDBRequest) 
 func (UnimplementedHashDBServiceServer) LoadProgramDB(context.Context, *LoadProgramDBRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LoadProgramDB not implemented")
 }
-func (UnimplementedHashDBServiceServer) Flush(context.Context, *emptypb.Empty) (*FlushResponse, error) {
+func (UnimplementedHashDBServiceServer) Flush(context.Context, *FlushRequest) (*FlushResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Flush not implemented")
+}
+func (UnimplementedHashDBServiceServer) SemiFlush(context.Context, *SemiFlushRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SemiFlush not implemented")
 }
 func (UnimplementedHashDBServiceServer) GetFlushStatus(context.Context, *emptypb.Empty) (*GetFlushStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFlushStatus not implemented")
@@ -305,7 +319,7 @@ func _HashDBService_LoadProgramDB_Handler(srv interface{}, ctx context.Context, 
 }
 
 func _HashDBService_Flush_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+	in := new(FlushRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -317,7 +331,25 @@ func _HashDBService_Flush_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: HashDBService_Flush_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HashDBServiceServer).Flush(ctx, req.(*emptypb.Empty))
+		return srv.(HashDBServiceServer).Flush(ctx, req.(*FlushRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HashDBService_SemiFlush_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SemiFlushRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HashDBServiceServer).SemiFlush(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HashDBService_SemiFlush_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HashDBServiceServer).SemiFlush(ctx, req.(*SemiFlushRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -392,6 +424,10 @@ var HashDBService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Flush",
 			Handler:    _HashDBService_Flush_Handler,
+		},
+		{
+			MethodName: "SemiFlush",
+			Handler:    _HashDBService_SemiFlush_Handler,
 		},
 		{
 			MethodName: "GetFlushStatus",

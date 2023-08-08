@@ -4,7 +4,7 @@
 // - protoc             v3.21.12
 // source: executor.proto
 
-package pb
+package executor
 
 import (
 	context "context"

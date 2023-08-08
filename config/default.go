@@ -38,10 +38,6 @@ GlobalQueue = 1024
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
-	[Pool.EffectiveGasPrice]
-	L1GasPriceFactor = 0.25
-	ByteGasCost = 16
-	MarginFactor = 1
 
 [Etherman]
 URL = "http://localhost:8545"
@@ -53,6 +49,8 @@ MultiGasProvider = false
 FrequencyToMonitorTxs = "1s"
 WaitTxToBeMined = "2m"
 ForcedGas = 0
+GasPriceMarginFactor = 1
+MaxGasPriceLimit = 0
 
 [RPC]
 Host = "0.0.0.0"
@@ -109,6 +107,7 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		TimestampResolution = "10s"
+		StopSequencerOnBatchNum = 0
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
@@ -116,6 +115,9 @@ MaxTxLifetime = "3h"
 		ResourceCostMultiplier = 1000
 	[Sequencer.EffectiveGasPrice]
 		MaxBreakEvenGasPriceDeviationPercentage = 10
+		L1GasPriceFactor = 0.25
+		ByteGasCost = 16
+		MarginFactor = 1
 		Enabled = false
 
 [SequenceSender]
@@ -141,6 +143,7 @@ Type = "follower"
 UpdatePeriod = "10s"
 Factor = 0.15
 DefaultGasPriceWei = 2000000000
+MaxGasPriceWei = 0
 CleanHistoryPeriod = "1h"
 CleanHistoryTimeRetention = "5m"
 

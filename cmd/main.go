@@ -30,6 +30,13 @@ const (
 	SEQUENCE_SENDER = "sequence-sender"
 )
 
+const (
+	// NODE_CONFIGFILE name to identify the node config-file
+	NODE_CONFIGFILE = "node"
+	// NETWORK_CONFIGFILE name to identify the netowk_custom (genesis) config-file
+	NETWORK_CONFIGFILE = "custom_network"
+)
+
 var (
 	configFileFlag = cli.StringFlag{
 		Name:     config.FlagCfg,
@@ -74,6 +81,16 @@ var (
 		Aliases:  []string{"mig"},
 		Usage:    "Blocks the migrations in stateDB to not run them",
 		Required: false,
+	}
+	outputFileFlag = cli.StringFlag{
+		Name:     config.FlagOutputFile,
+		Usage:    "Indicate the output file",
+		Required: true,
+	}
+	documentationFileTypeFlag = cli.StringFlag{
+		Name:     config.FlagDocumentationFileType,
+		Usage:    fmt.Sprintf("Indicate the type of file to generate json-schema: %v,%v ", NODE_CONFIGFILE, NETWORK_CONFIGFILE),
+		Required: true,
 	}
 )
 
@@ -148,6 +165,12 @@ func main() {
 			Usage:   "Dumps the state in a JSON file, for debug purposes",
 			Action:  dumpState,
 			Flags:   dumpStateFlags,
+		},
+		{
+			Name:   "generate-json-schema",
+			Usage:  "Generate the json-schema for the configuration file, and store it on docs/schema.json",
+			Action: genJSONSchema,
+			Flags:  []cli.Flag{&outputFileFlag, &documentationFileTypeFlag},
 		},
 		{
 			Name:    "snapshot",
