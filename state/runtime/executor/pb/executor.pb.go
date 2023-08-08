@@ -1345,12 +1345,12 @@ type ProcessTransactionResponse struct {
 	CreateAddress string `protobuf:"bytes,9,opt,name=create_address,json=createAddress,proto3" json:"create_address,omitempty"`
 	// State Root
 	StateRoot []byte `protobuf:"bytes,10,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
-	// Logs emitted by LOG opcode
+	// Logs emited by LOG opcode
 	Logs []*Log `protobuf:"bytes,11,rep,name=logs,proto3" json:"logs,omitempty"`
 	// Trace
 	ExecutionTrace []*ExecutionTraceStep `protobuf:"bytes,13,rep,name=execution_trace,json=executionTrace,proto3" json:"execution_trace,omitempty"`
 	CallTrace      *CallTrace            `protobuf:"bytes,14,opt,name=call_trace,json=callTrace,proto3" json:"call_trace,omitempty"`
-	// Effective Gas Price
+	// Efective Gas Price
 	EffectiveGasPrice   string `protobuf:"bytes,15,opt,name=effective_gas_price,json=effectiveGasPrice,proto3" json:"effective_gas_price,omitempty"`
 	EffectivePercentage uint32 `protobuf:"varint,16,opt,name=effective_percentage,json=effectivePercentage,proto3" json:"effective_percentage,omitempty"`
 }
