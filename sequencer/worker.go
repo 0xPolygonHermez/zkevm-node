@@ -47,7 +47,6 @@ func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, i
 // AddTxTracker adds a new Tx to the Worker
 func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *TxTracker, dropReason error) {
 	w.workerMutex.Lock()
-	defer w.workerMutex.Unlock()
 
 	addr, found := w.pool[tx.FromStr]
 
@@ -89,6 +88,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	newReadyTx, prevReadyTx, repTx, dropReason = addr.addTx(tx)
 	if dropReason != nil {
 		log.Infof("AddTx tx(%s) dropped from addrQueue(%s), reason: %s", tx.HashStr, tx.FromStr, dropReason.Error())
+		w.workerMutex.Unlock()
 		return repTx, dropReason
 	}
 
@@ -106,6 +106,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 		log.Infof("AddTx replacedTx(%s) nonce(%d) cost(%s) has been replaced", repTx.HashStr, repTx.Nonce, repTx.Cost.String())
 	}
 
+	w.workerMutex.Unlock()
 	return repTx, nil
 }
 
@@ -136,7 +137,7 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 	if len(touchedAddresses) == 0 {
-		log.Errorf("UpdateAfterSingleSuccessfulTxExecution touchedAddresses is nil or empty")
+		log.Warnf("UpdateAfterSingleSuccessfulTxExecution touchedAddresses is nil or empty")
 	}
 	txsToDelete := make([]*TxTracker, 0)
 	touchedFrom, found := touchedAddresses[from]
@@ -144,7 +145,7 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 		fromNonce, fromBalance := touchedFrom.Nonce, touchedFrom.Balance
 		_, _, txsToDelete = w.applyAddressUpdate(from, fromNonce, fromBalance)
 	} else {
-		log.Errorf("UpdateAfterSingleSuccessfulTxExecution from(%s) not found in touchedAddresses", from.String())
+		log.Warnf("UpdateAfterSingleSuccessfulTxExecution from(%s) not found in touchedAddresses", from.String())
 	}
 
 	for addr, addressInfo := range touchedAddresses {
@@ -170,7 +171,7 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 			if addrQueue.readyTx != nil {
 				readyHashStr = addrQueue.readyTx.HashStr
 			}
-			log.Errorf("MoveTxToNotReady txHash(%s) is not the readyTx(%s)", txHash.String(), readyHashStr)
+			log.Warnf("MoveTxToNotReady txHash(%s) is not the readyTx(%s)", txHash.String(), readyHashStr)
 		}
 	}
 	_, _, txsToDelete := w.applyAddressUpdate(from, actualNonce, actualBalance)
@@ -191,7 +192,7 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address) {
 			w.efficiencyList.delete(deletedReadyTx)
 		}
 	} else {
-		log.Errorf("DeleteTx addrQueue(%s) not found", addr.String())
+		log.Warnf("DeleteTx addrQueue(%s) not found", addr.String())
 	}
 }
 
@@ -224,7 +225,35 @@ func (w *Worker) UpdateTx(txHash common.Hash, addr common.Address, counters stat
 			w.efficiencyList.add(newReadyTx)
 		}
 	} else {
-		log.Errorf("UpdateTx addrQueue(%s) not found", addr.String())
+		log.Warnf("UpdateTx addrQueue(%s) not found", addr.String())
+	}
+}
+
+// AddPendingTxToStore adds a tx to the addrQueue list of pending txs to store in the DB (trusted state)
+func (w *Worker) AddPendingTxToStore(txHash common.Hash, addr common.Address) {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
+
+	addrQueue, found := w.pool[addr.String()]
+
+	if found {
+		addrQueue.addPendingTxToStore(txHash)
+	} else {
+		log.Warnf("AddPendingTxToStore addrQueue(%s) not found", addr.String())
+	}
+}
+
+// DeletePendingTxToStore delete a tx from the addrQueue list of pending txs to store in the DB (trusted state)
+func (w *Worker) DeletePendingTxToStore(txHash common.Hash, addr common.Address) {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
+
+	addrQueue, found := w.pool[addr.String()]
+
+	if found {
+		addrQueue.deletePendingTxToStore(txHash)
+	} else {
+		log.Warnf("DeletePendingTxToStore addrQueue(%s) not found", addr.String())
 	}
 }
 

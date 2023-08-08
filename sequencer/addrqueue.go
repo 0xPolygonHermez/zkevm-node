@@ -12,23 +12,25 @@ import (
 
 // addrQueue is a struct that stores the ready and notReady txs for a specific from address
 type addrQueue struct {
-	from           common.Address
-	fromStr        string
-	currentNonce   uint64
-	currentBalance *big.Int
-	readyTx        *TxTracker
-	notReadyTxs    map[uint64]*TxTracker
+	from              common.Address
+	fromStr           string
+	currentNonce      uint64
+	currentBalance    *big.Int
+	readyTx           *TxTracker
+	notReadyTxs       map[uint64]*TxTracker
+	pendingTxsToStore map[common.Hash]struct{}
 }
 
 // newAddrQueue creates and init a addrQueue
 func newAddrQueue(addr common.Address, nonce uint64, balance *big.Int) *addrQueue {
 	return &addrQueue{
-		from:           addr,
-		fromStr:        addr.String(),
-		currentNonce:   nonce,
-		currentBalance: balance,
-		readyTx:        nil,
-		notReadyTxs:    make(map[uint64]*TxTracker),
+		from:              addr,
+		fromStr:           addr.String(),
+		currentNonce:      nonce,
+		currentBalance:    balance,
+		readyTx:           nil,
+		notReadyTxs:       make(map[uint64]*TxTracker),
+		pendingTxsToStore: make(map[common.Hash]struct{}),
 	}
 }
 
@@ -76,6 +78,11 @@ func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx, replacedTx *T
 	}
 }
 
+// addPendingTxToStore adds a tx to the list of pending txs to store in the DB (trusted state)
+func (a *addrQueue) addPendingTxToStore(txHash common.Hash) {
+	a.pendingTxsToStore[txHash] = struct{}{}
+}
+
 // ExpireTransactions removes the txs that have been in the queue for more than maxTime
 func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *TxTracker) {
 	var (
@@ -95,7 +102,7 @@ func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *Tx
 		prevReadyTx = a.readyTx
 		txs = append(txs, a.readyTx)
 		a.readyTx = nil
-		log.Debugf("Deleting notReadyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
+		log.Debugf("Deleting eadyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
 	}
 
 	return txs, prevReadyTx
@@ -103,7 +110,7 @@ func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *Tx
 
 // IsEmpty returns true if the addrQueue is empty
 func (a *addrQueue) IsEmpty() bool {
-	return a.readyTx == nil && len(a.notReadyTxs) == 0
+	return a.readyTx == nil && len(a.notReadyTxs) == 0 && len(a.pendingTxsToStore) == 0
 }
 
 // deleteTx deletes the tx from the addrQueue
@@ -123,6 +130,15 @@ func (a *addrQueue) deleteTx(txHash common.Hash) (deletedReadyTx *TxTracker) {
 			}
 		}
 		return nil
+	}
+}
+
+// deletePendingTxToStore delete a tx from the list of pending txs to store in the DB (trusted state)
+func (a *addrQueue) deletePendingTxToStore(txHash common.Hash) {
+	if _, found := a.pendingTxsToStore[txHash]; found {
+		delete(a.pendingTxsToStore, txHash)
+	} else {
+		log.Warnf("tx (%s) not found in pendingTxsToStore list", txHash.String())
 	}
 }
 

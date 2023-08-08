@@ -2447,7 +2447,6 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		maxBreakEvenGasPriceDeviationPercentage: big.NewInt(10),
 		pendingTransactionsToStore:              make(chan transactionToStore, bc.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
 		pendingTransactionsToStoreWG:            new(sync.WaitGroup),
-		pendingTransactionsToStoreMux:           new(sync.RWMutex),
 		storedFlushID:                           0,
 		storedFlushIDCond:                       sync.NewCond(new(sync.Mutex)),
 		proverID:                                "",
