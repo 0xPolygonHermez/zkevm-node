@@ -1226,7 +1226,8 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		return nil, nil, err
 	}
 
-	if batches[0] != nil && ((trustedBatch.StateRoot == common.Hash{}) && (batches[0].StateRoot != common.Hash{})) {
+	if batches[0] != nil && (((trustedBatch.StateRoot == common.Hash{}) && (batches[0].StateRoot != common.Hash{})) ||
+		len(batches[0].BatchL2Data) > len(trustedBatchL2Data)) {
 		log.Error("error: inconsistency in data received from trustedNode")
 		log.Infof("matchNumber. stored: %d. synced: %d", batches[0].BatchNumber, uint64(trustedBatch.Number))
 		log.Infof("matchGER. stored:  %s. synced: %s", batches[0].GlobalExitRoot.String(), trustedBatch.GlobalExitRoot.String())
@@ -1234,7 +1235,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		log.Infof("matchSR. stored:  %s. synced: %s", batches[0].StateRoot.String(), trustedBatch.StateRoot.String())
 		log.Infof("matchCoinbase. stored:  %s. synced: %s", batches[0].Coinbase.String(), trustedBatch.Coinbase.String())
 		log.Infof("matchTimestamp. stored:  %d. synced: %d", uint64(batches[0].Timestamp.Unix()), uint64(trustedBatch.Timestamp))
-		log.Infof("matchL2Data. stored: %s. synced: %s", common.Bytes2Hex(batches[0].BatchL2Data), common.Bytes2Hex(trustedBatch.BatchL2Data))
+		log.Infof("matchL2Data. stored: %s. synced: %s", common.Bytes2Hex(batches[0].BatchL2Data), common.Bytes2Hex(trustedBatchL2Data))
 		return nil, nil, fmt.Errorf("error: inconsistency in data received from trustedNode")
 	}
 
