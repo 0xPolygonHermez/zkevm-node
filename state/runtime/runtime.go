@@ -63,6 +63,8 @@ var (
 	ErrIntrinsicInvalidTxGasOverflow = errors.New("gas overflow")
 	// ErrUnsupportedForkId indicates that the fork id is not supported
 	ErrUnsupportedForkId = errors.New("unsupported fork id")
+	// ErrInvalidRLP indicates that there has been an error while parsing the RLP
+	ErrInvalidRLP = errors.New("invalid RLP")
 	// ErrBalanceMismatch indicates that the balance mismatch in the ROM
 	ErrBalanceMismatch = errors.New("balance mismatch")
 	// ErrFea2Scalar indicates a fea2scalar error in the ROM

@@ -2382,7 +2382,7 @@ func TestGetTransactionByHash(t *testing.T) {
 
 				m.Pool.
 					On("GetTxByHash", context.Background(), tc.Hash).
-					Return(&pool.Transaction{Transaction: *tc.ExpectedResult}, nil).
+					Return(&pool.Transaction{Transaction: *tc.ExpectedResult, Status: pool.TxStatusPending}, nil).
 					Once()
 			},
 		},

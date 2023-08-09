@@ -7,18 +7,17 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/ethereum/go-ethereum/common"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // StateTree provides methods to access and modify state in merkletree
 type StateTree struct {
-	grpcClient pb.HashDBServiceClient
+	grpcClient hashdb.HashDBServiceClient
 }
 
 // NewStateTree creates new StateTree.
-func NewStateTree(client pb.HashDBServiceClient) *StateTree {
+func NewStateTree(client hashdb.HashDBServiceClient) *StateTree {
 	return &StateTree{
 		grpcClient: client,
 	}
@@ -125,7 +124,7 @@ func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address,
 }
 
 // SetBalance sets balance.
-func (tree *StateTree) SetBalance(ctx context.Context, address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetBalance(ctx context.Context, address common.Address, balance *big.Int, root []byte, uuid string) (newRoot []byte, proof *UpdateProof, err error) {
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return nil, nil, fmt.Errorf("invalid balance")
 	}
@@ -139,7 +138,7 @@ func (tree *StateTree) SetBalance(ctx context.Context, address common.Address, b
 	k := new(big.Int).SetBytes(key)
 	balanceH8 := scalar2fea(balance)
 
-	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), balanceH8)
+	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), balanceH8, uuid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -148,7 +147,7 @@ func (tree *StateTree) SetBalance(ctx context.Context, address common.Address, b
 }
 
 // SetNonce sets nonce.
-func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, nonce *big.Int, root []byte, uuid string) (newRoot []byte, proof *UpdateProof, err error) {
 	if nonce.Cmp(big.NewInt(0)) == -1 {
 		return nil, nil, fmt.Errorf("invalid nonce")
 	}
@@ -163,7 +162,7 @@ func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, non
 
 	nonceH8 := scalar2fea(nonce)
 
-	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), nonceH8)
+	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), nonceH8, uuid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -172,7 +171,7 @@ func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, non
 }
 
 // SetCode sets smart contract code.
-func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code []byte, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code []byte, root []byte, uuid string) (newRoot []byte, proof *UpdateProof, err error) {
 	// calculating smart contract code hash
 	scCodeHash4, err := hashContractBytecode(code)
 	if err != nil {
@@ -201,7 +200,7 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 	scCodeHashBI := new(big.Int).SetBytes(scCodeHash[:])
 	scCodeHashH8 := scalar2fea(scCodeHashBI)
 
-	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), scCodeHashH8)
+	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), scCodeHashH8, uuid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -215,7 +214,7 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 	scCodeLengthBI := new(big.Int).SetInt64(int64(len(code)))
 	scCodeLengthH8 := scalar2fea(scCodeLengthBI)
 
-	updateProof, err = tree.set(ctx, updateProof.NewRoot, scalarToh4(k), scCodeLengthH8)
+	updateProof, err = tree.set(ctx, updateProof.NewRoot, scalarToh4(k), scCodeLengthH8, uuid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -224,7 +223,7 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 }
 
 // SetStorageAt sets storage value at specified position.
-func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address, position *big.Int, value *big.Int, root []byte, uuid string) (newRoot []byte, proof *UpdateProof, err error) {
 	r := new(big.Int).SetBytes(root)
 	key, err := KeyContractStorage(address, position.Bytes())
 	if err != nil {
@@ -233,7 +232,7 @@ func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address,
 
 	k := new(big.Int).SetBytes(key[:])
 	valueH8 := scalar2fea(value)
-	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), valueH8)
+	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), valueH8, uuid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -242,9 +241,9 @@ func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address,
 }
 
 func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, error) {
-	result, err := tree.grpcClient.Get(ctx, &pb.GetRequest{
-		Root: &pb.Fea{Fe0: root[0], Fe1: root[1], Fe2: root[2], Fe3: root[3]},
-		Key:  &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
+	result, err := tree.grpcClient.Get(ctx, &hashdb.GetRequest{
+		Root: &hashdb.Fea{Fe0: root[0], Fe1: root[1], Fe2: root[2], Fe3: root[3]},
+		Key:  &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 	})
 	if err != nil {
 		return nil, err
@@ -262,8 +261,8 @@ func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, err
 }
 
 func (tree *StateTree) getProgram(ctx context.Context, key []uint64) (*ProgramProof, error) {
-	result, err := tree.grpcClient.GetProgram(ctx, &pb.GetProgramRequest{
-		Key: &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
+	result, err := tree.grpcClient.GetProgram(ctx, &hashdb.GetProgramRequest{
+		Key: &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 	})
 	if err != nil {
 		return nil, err
@@ -274,16 +273,17 @@ func (tree *StateTree) getProgram(ctx context.Context, key []uint64) (*ProgramPr
 	}, nil
 }
 
-func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64) (*UpdateProof, error) {
+func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64, uuid string) (*UpdateProof, error) {
 	feaValue := fea2string(value)
 	if strings.HasPrefix(feaValue, "0x") { // nolint
 		feaValue = feaValue[2:]
 	}
-	result, err := tree.grpcClient.Set(ctx, &pb.SetRequest{
-		OldRoot:    &pb.Fea{Fe0: oldRoot[0], Fe1: oldRoot[1], Fe2: oldRoot[2], Fe3: oldRoot[3]},
-		Key:        &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
-		Value:      feaValue,
-		Persistent: true,
+	result, err := tree.grpcClient.Set(ctx, &hashdb.SetRequest{
+		OldRoot:     &hashdb.Fea{Fe0: oldRoot[0], Fe1: oldRoot[1], Fe2: oldRoot[2], Fe3: oldRoot[3]},
+		Key:         &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
+		Value:       feaValue,
+		Persistence: hashdb.Persistence_PERSISTENCE_DATABASE,
+		BatchUuid:   uuid,
 	})
 	if err != nil {
 		return nil, err
@@ -306,8 +306,8 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64) (*
 }
 
 func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte, persistent bool) error {
-	_, err := tree.grpcClient.SetProgram(ctx, &pb.SetProgramRequest{
-		Key:        &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
+	_, err := tree.grpcClient.SetProgram(ctx, &hashdb.SetProgramRequest{
+		Key:        &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 		Data:       data,
 		Persistent: persistent,
 	})
@@ -315,7 +315,8 @@ func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte
 }
 
 // Flush flushes all changes to the persistent storage.
-func (tree *StateTree) Flush(ctx context.Context) error {
-	_, err := tree.grpcClient.Flush(ctx, &emptypb.Empty{})
+func (tree *StateTree) Flush(ctx context.Context, uuid string) error {
+	flushRequest := &hashdb.FlushRequest{BatchUuid: uuid}
+	_, err := tree.grpcClient.Flush(ctx, flushRequest)
 	return err
 }

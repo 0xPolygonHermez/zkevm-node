@@ -11,7 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,7 +18,7 @@ import (
 )
 
 // ConvertToCounters extracts ZKCounters from a ProcessBatchResponse
-func ConvertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
+func ConvertToCounters(resp *executor.ProcessBatchResponse) ZKCounters {
 	return ZKCounters{
 		CumulativeGasUsed:    resp.CumulativeGasUsed,
 		UsedKeccakHashes:     resp.CntKeccakHashes,
@@ -33,11 +32,11 @@ func ConvertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
 }
 
 // TestConvertToProcessBatchResponse for test purposes
-func (s *State) TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+func (s *State) TestConvertToProcessBatchResponse(txs []types.Transaction, response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
 	return s.convertToProcessBatchResponse(txs, response)
 }
 
-func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
 	responses, err := s.convertToProcessTransactionResponse(txs, response.Responses)
 	if err != nil {
 		return nil, err
@@ -48,13 +47,13 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 		return nil, err
 	}
 
-	isExecutorLevelError := (response.Error != executor.EXECUTOR_ERROR_NO_ERROR)
+	isExecutorLevelError := (response.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR)
 	isRomLevelError := false
 	isRomOOCError := false
 
 	if response.Responses != nil {
 		for _, resp := range response.Responses {
-			if resp.Error != pb.RomError_ROM_ERROR_NO_ERROR {
+			if resp.Error != executor.RomError_ROM_ERROR_NO_ERROR {
 				isRomLevelError = true
 				break
 			}
@@ -86,11 +85,11 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 }
 
 // IsStateRootChanged returns true if the transaction changes the state root
-func IsStateRootChanged(err pb.RomError) bool {
+func IsStateRootChanged(err executor.RomError) bool {
 	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
 }
 
-func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) (map[common.Address]*InfoReadWrite, error) {
+func convertToReadWriteAddresses(addresses map[string]*executor.InfoReadWrite) (map[common.Address]*InfoReadWrite, error) {
 	results := make(map[common.Address]*InfoReadWrite, len(addresses))
 
 	for addr, addrInfo := range addresses {
@@ -124,7 +123,7 @@ func convertToReadWriteAddresses(addresses map[string]*pb.InfoReadWrite) (map[co
 	return results, nil
 }
 
-func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
+func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, responses []*executor.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for i, response := range responses {
 		trace, err := convertToStructLogArray(response.ExecutionTrace)
@@ -190,7 +189,7 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 	return results, nil
 }
 
-func convertToLog(protoLogs []*pb.Log) []*types.Log {
+func convertToLog(protoLogs []*executor.Log) []*types.Log {
 	logs := make([]*types.Log, 0, len(protoLogs))
 
 	for _, protoLog := range protoLogs {
@@ -198,10 +197,8 @@ func convertToLog(protoLogs []*pb.Log) []*types.Log {
 		log.Address = common.HexToAddress(protoLog.Address)
 		log.Topics = convertToTopics(protoLog.Topics)
 		log.Data = protoLog.Data
-		log.BlockNumber = protoLog.BatchNumber
 		log.TxHash = common.BytesToHash(protoLog.TxHash)
 		log.TxIndex = uint(protoLog.TxIndex)
-		log.BlockHash = common.BytesToHash(protoLog.BatchHash)
 		log.Index = uint(protoLog.Index)
 		logs = append(logs, log)
 	}
@@ -218,7 +215,7 @@ func convertToTopics(responses [][]byte) []common.Hash {
 	return results
 }
 
-func convertToStructLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumentation.StructLog, error) {
+func convertToStructLogArray(responses []*executor.ExecutionTraceStep) (*[]instrumentation.StructLog, error) {
 	results := make([]instrumentation.StructLog, 0, len(responses))
 
 	for _, response := range responses {
@@ -271,7 +268,7 @@ func convertToProperMap(responses map[string]string) map[common.Hash]common.Hash
 	return results
 }
 
-func convertToExecutorTrace(callTrace *pb.CallTrace) (*instrumentation.ExecutorTrace, error) {
+func convertToExecutorTrace(callTrace *executor.CallTrace) (*instrumentation.ExecutorTrace, error) {
 	trace := new(instrumentation.ExecutorTrace)
 	if callTrace != nil {
 		trace.Context = convertToContext(callTrace.Context)
@@ -285,7 +282,7 @@ func convertToExecutorTrace(callTrace *pb.CallTrace) (*instrumentation.ExecutorT
 	return trace, nil
 }
 
-func convertToContext(context *pb.TransactionContext) instrumentation.Context {
+func convertToContext(context *executor.TransactionContext) instrumentation.Context {
 	return instrumentation.Context{
 		Type:         context.Type,
 		From:         context.From,
@@ -301,7 +298,7 @@ func convertToContext(context *pb.TransactionContext) instrumentation.Context {
 	}
 }
 
-func convertToInstrumentationSteps(responses []*pb.TransactionStep) ([]instrumentation.Step, error) {
+func convertToInstrumentationSteps(responses []*executor.TransactionStep) ([]instrumentation.Step, error) {
 	results := make([]instrumentation.Step, 0, len(responses))
 	for _, response := range responses {
 		step := new(instrumentation.Step)
@@ -341,7 +338,7 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) ([]instrumen
 	return results, nil
 }
 
-func convertToInstrumentationContract(response *pb.Contract) instrumentation.Contract {
+func convertToInstrumentationContract(response *executor.Contract) instrumentation.Contract {
 	return instrumentation.Contract{
 		Address: common.HexToAddress(response.Address),
 		Caller:  common.HexToAddress(response.Caller),
@@ -351,7 +348,7 @@ func convertToInstrumentationContract(response *pb.Contract) instrumentation.Con
 	}
 }
 
-func convertToCounters(resp *pb.ProcessBatchResponse) ZKCounters {
+func convertToCounters(resp *executor.ProcessBatchResponse) ZKCounters {
 	return ZKCounters{
 		CumulativeGasUsed:    resp.CumulativeGasUsed,
 		UsedKeccakHashes:     resp.CntKeccakHashes,

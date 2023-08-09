@@ -1,6 +1,6 @@
 -- +migrate Up
 ALTER TABLE state.transaction
-    ADD COLUMN effective_percentage SMALLINT;
+    ADD COLUMN effective_percentage SMALLINT DEFAULT 255;
 
 ALTER TABLE state.receipt
     ADD COLUMN effective_gas_price BIGINT;

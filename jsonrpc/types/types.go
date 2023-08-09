@@ -518,6 +518,7 @@ type Receipt struct {
 	ToAddr            *common.Address `json:"to"`
 	ContractAddress   *common.Address `json:"contractAddress"`
 	Type              ArgUint64       `json:"type"`
+	EffectiveGasPrice *ArgBig         `json:"effectiveGasPrice,omitempty"`
 }
 
 // NewReceipt creates a new Receipt instance
@@ -543,8 +544,7 @@ func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
 	if err != nil {
 		return Receipt{}, err
 	}
-
-	return Receipt{
+	receipt := Receipt{
 		Root:              common.BytesToHash(r.PostState),
 		CumulativeGasUsed: ArgUint64(r.CumulativeGasUsed),
 		LogsBloom:         r.Bloom,
@@ -559,7 +559,12 @@ func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
 		FromAddr:          from,
 		ToAddr:            to,
 		Type:              ArgUint64(r.Type),
-	}, nil
+	}
+	if r.EffectiveGasPrice != nil {
+		egp := ArgBig(*r.EffectiveGasPrice)
+		receipt.EffectiveGasPrice = &egp
+	}
+	return receipt, nil
 }
 
 // Log structure

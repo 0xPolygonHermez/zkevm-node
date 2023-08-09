@@ -63,13 +63,8 @@ var (
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Minute),
 		IntervalToRefreshGasPrices:        cfgTypes.NewDuration(5 * time.Second),
-		EffectiveGasPrice: pool.EffectiveGasPrice{
-			L1GasPriceFactor: 10,
-			ByteGasCost:      16,
-			MarginFactor:     10,
-		},
-		AccountQueue: 15,
-		GlobalQueue:  20,
+		AccountQueue:                      15,
+		GlobalQueue:                       20,
 	}
 	gasPrice   = big.NewInt(1000000000)
 	l1GasPrice = big.NewInt(1000000000000)
@@ -1383,13 +1378,8 @@ func Test_BlockedAddress(t *testing.T) {
 		DefaultMinGasPriceAllowed:         1000000000,
 		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
 		IntervalToRefreshGasPrices:        cfgTypes.NewDuration(5 * time.Second),
-		EffectiveGasPrice: pool.EffectiveGasPrice{
-			L1GasPriceFactor: 10,
-			ByteGasCost:      16,
-			MarginFactor:     10,
-		},
-		AccountQueue: 64,
-		GlobalQueue:  1024,
+		AccountQueue:                      64,
+		GlobalQueue:                       1024,
 	}
 
 	p := setupPool(t, cfg, s, st, chainID.Uint64(), ctx, eventLog)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -61,7 +62,7 @@ func processWorkerAddTxTestCases(t *testing.T, worker *Worker, testCases []worke
 			tx.updateZKCounters(testCase.counters, worker.batchConstraints, worker.batchResourceWeights)
 			t.Logf("%s=%s", testCase.name, fmt.Sprintf("%.2f", tx.Efficiency))
 
-			err, _ := worker.AddTxTracker(ctx, &tx)
+			_, err := worker.AddTxTracker(ctx, &tx)
 			if err != nil {
 				return
 			}
@@ -145,7 +146,7 @@ func TestWorkerAddTx(t *testing.T) {
 			},
 		},
 		{
-			name: "Readding from:0x02, tx:0x02/ef:4", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1,
+			name: "Reading from:0x02, tx:0x02/ef:4", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1,
 			benefit: 2000, cost: new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 5, UsedKeccakHashes: 5, UsedPoseidonHashes: 5, UsedPoseidonPaddings: 5, UsedMemAligns: 5, UsedArithmetics: 5, UsedBinaries: 5, UsedSteps: 5},
 			usedBytes: 5,
@@ -154,7 +155,7 @@ func TestWorkerAddTx(t *testing.T) {
 			},
 		},
 		{
-			name: "Readding from:0x03, tx:0x03/ef:25", from: common.Address{3}, txHash: common.Hash{3}, nonce: 1,
+			name: "Reading from:0x03, tx:0x03/ef:25", from: common.Address{3}, txHash: common.Hash{3}, nonce: 1,
 			benefit: 5000, cost: new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 2, UsedKeccakHashes: 2, UsedPoseidonHashes: 2, UsedPoseidonPaddings: 2, UsedMemAligns: 2, UsedArithmetics: 2, UsedBinaries: 2, UsedSteps: 2},
 			usedBytes: 2,
@@ -166,7 +167,7 @@ func TestWorkerAddTx(t *testing.T) {
 
 	processWorkerAddTxTestCases(t, worker, addTxsTC)
 
-	// Change counters fpr tx:0x03/ef:9.61
+	// Change counters for tx:0x03/ef:9.61
 	counters := state.ZKCounters{CumulativeGasUsed: 6, UsedKeccakHashes: 6, UsedPoseidonHashes: 6, UsedPoseidonPaddings: 6, UsedMemAligns: 6, UsedArithmetics: 6, UsedBinaries: 6, UsedSteps: 6}
 	worker.UpdateTx(common.Hash{3}, common.Address{3}, counters)
 
@@ -256,7 +257,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 			},
 		},
 		{
-			name: "Readding from:0x03, tx:0x03/ef:25", from: common.Address{3}, txHash: common.Hash{3}, nonce: 1,
+			name: "Reading from:0x03, tx:0x03/ef:25", from: common.Address{3}, txHash: common.Hash{3}, nonce: 1,
 			benefit: 5000, cost: new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 2, UsedKeccakHashes: 2, UsedPoseidonHashes: 2, UsedPoseidonPaddings: 2, UsedMemAligns: 2, UsedArithmetics: 2, UsedBinaries: 2, UsedSteps: 2},
 			usedBytes: 2,
@@ -307,6 +308,9 @@ func TestWorkerGetBestTx(t *testing.T) {
 }
 
 func initWorker(stateMock *StateMock, rcMax batchConstraints, rcWeigth batchResourceWeights) *Worker {
-	worker := NewWorker(workerCfg, stateMock, rcMax, rcWeigth)
+	pendingTxsToStoreMux := new(sync.RWMutex)
+	pendingTxsPerAddressTrackers := make(map[common.Address]*pendingTxPerAddressTracker)
+	worker := NewWorker(workerCfg, stateMock, rcMax, rcWeigth, pendingTxsToStoreMux, pendingTxsPerAddressTrackers)
+
 	return worker
 }
