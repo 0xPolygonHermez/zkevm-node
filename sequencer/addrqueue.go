@@ -102,7 +102,7 @@ func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *Tx
 		prevReadyTx = a.readyTx
 		txs = append(txs, a.readyTx)
 		a.readyTx = nil
-		log.Debugf("Deleting eadyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
+		log.Debugf("Deleting readyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
 	}
 
 	return txs, prevReadyTx
