@@ -201,29 +201,19 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 }
 
 // UpdateTxZKCounters updates the ZKCounters for the given tx (txHash)
-// If the updated tx is the readyTx it returns a copy of the previous readyTx, nil otherwise
-func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, counters state.ZKCounters, constraints batchConstraintsFloat64, weights batchResourceWeights) (newReadyTx, prevReadyTx *TxTracker) {
+func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, counters state.ZKCounters) {
 	txHashStr := txHash.String()
 
 	if (a.readyTx != nil) && (a.readyTx.HashStr == txHashStr) {
-		// We need to assign the new readyTx as a new TxTracker copy of the previous one with the updated efficiency
-		// We need to do in this way because the efficiency value is changed and we use this value as key field to
-		// add/delete TxTrackers in the efficiencyList
-		prevReadyTx := a.readyTx
-		newReadyTx := *a.readyTx
-		newReadyTx.updateZKCounters(counters, constraints, weights)
-		a.readyTx = &newReadyTx
 		log.Debugf("Updating readyTx %s with new ZKCounters from addrQueue %s", txHashStr, a.fromStr)
-		return a.readyTx, prevReadyTx
+		a.readyTx.updateZKCounters(counters)
 	} else {
-		txHashStr := txHash.String()
 		for _, txTracker := range a.notReadyTxs {
 			if txTracker.HashStr == txHashStr {
 				log.Debugf("Updating notReadyTx %s with new ZKCounters from addrQueue %s", txHashStr, a.fromStr)
-				txTracker.updateZKCounters(counters, constraints, weights)
+				txTracker.updateZKCounters(counters)
 				break
 			}
 		}
-		return nil, nil
 	}
 }
