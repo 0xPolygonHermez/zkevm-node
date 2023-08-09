@@ -90,6 +90,8 @@ type workerInterface interface {
 	AddTxTracker(ctx context.Context, txTracker *TxTracker) (replacedTx *TxTracker, dropReason error)
 	MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker
 	DeleteTx(txHash common.Hash, from common.Address)
+	AddPendingTxToStore(txHash common.Hash, addr common.Address)
+	DeletePendingTxToStore(txHash common.Hash, addr common.Address)
 	HandleL2Reorg(txHashes []common.Hash)
 	NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error)
 }
