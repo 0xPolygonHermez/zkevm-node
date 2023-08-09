@@ -1515,6 +1515,7 @@ func Test_processTransaction(t *testing.T) {
 			}
 			if tc.expectedErr == nil {
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", tc.tx.From, tc.expectedResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
+				workerMock.On("AddPendingTxToStore", tc.tx.Hash, tc.tx.From).Return().Once()
 			}
 
 			if tc.expectedUpdateTxStatus != "" {

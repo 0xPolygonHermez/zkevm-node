@@ -728,8 +728,6 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			}
 		}
 
-		oldStateRoot = txResp.StateRoot
-
 		txToStore := transactionToStore{
 			txTracker:     nil,
 			response:      txResp,
@@ -741,6 +739,8 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			isForcedBatch: true,
 			flushId:       result.FlushID,
 		}
+
+		oldStateRoot = txResp.StateRoot
 
 		f.updateLastPendingFlushID(result.FlushID)
 
