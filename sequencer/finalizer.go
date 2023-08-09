@@ -207,8 +207,10 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 			// Now f.storedFlushID >= tx.flushId, we can store tx
 			f.storeProcessedTx(ctx, tx)
 
-			// Delete the txTracker from the pending list in the worker (addrQueue)
-			f.worker.DeletePendingTxToStore(tx.txTracker.Hash, tx.txTracker.From)
+			if tx.txTracker != nil {
+				// Delete the txTracker from the pending list in the worker (addrQueue)
+				f.worker.DeletePendingTxToStore(tx.txTracker.Hash, tx.txTracker.From)
+			}
 
 			f.pendingTransactionsToStoreWG.Done()
 		case <-ctx.Done():
