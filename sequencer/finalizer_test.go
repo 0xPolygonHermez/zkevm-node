@@ -294,6 +294,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				//dbManagerMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L1GasPrice: 0, L2GasPrice: 0}, nilErr).Once()
 				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", txTracker.From, tc.executorResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
+				workerMock.On("AddPendingTxToStore", txTracker.Hash, txTracker.From).Return().Once()
 			}
 			if tc.expectedUpdateTxStatus != "" {
 				dbManagerMock.On("UpdateTxStatus", ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil).Once()
@@ -1514,6 +1515,7 @@ func Test_processTransaction(t *testing.T) {
 			}
 			if tc.expectedErr == nil {
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", tc.tx.From, tc.expectedResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
+				workerMock.On("AddPendingTxToStore", tc.tx.Hash, tc.tx.From).Return().Once()
 			}
 
 			if tc.expectedUpdateTxStatus != "" {
@@ -2447,7 +2449,6 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		maxBreakEvenGasPriceDeviationPercentage: big.NewInt(10),
 		pendingTransactionsToStore:              make(chan transactionToStore, bc.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
 		pendingTransactionsToStoreWG:            new(sync.WaitGroup),
-		pendingTransactionsToStoreMux:           new(sync.RWMutex),
 		storedFlushID:                           0,
 		storedFlushIDCond:                       sync.NewCond(new(sync.Mutex)),
 		proverID:                                "",
