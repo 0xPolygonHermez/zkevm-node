@@ -101,42 +101,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(3 * time.Hour),
 		},
 		{
-			path:          "Sequencer.WeightBatchBytesSize",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightCumulativeGasUsed",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightKeccakHashes",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightPoseidonHashes",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightPoseidonPaddings",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightMemAligns",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightArithmetics",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightBinaries",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightSteps",
-			expectedValue: 1,
-		},
-		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
@@ -207,10 +171,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.DBManager.L2ReorgRetrievalInterval",
 			expectedValue: types.NewDuration(5 * time.Second),
-		},
-		{
-			path:          "Sequencer.Worker.ResourceCostMultiplier",
-			expectedValue: float64(1000),
 		},
 		{
 			path:          "SequenceSender.WaitPeriodSendSequence",

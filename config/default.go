@@ -85,15 +85,6 @@ MaxMemAligns = 236585
 MaxArithmetics = 236585
 MaxBinaries = 473170
 MaxSteps = 7570538
-WeightBatchBytesSize = 1
-WeightCumulativeGasUsed = 1
-WeightKeccakHashes = 1
-WeightPoseidonHashes = 1
-WeightPoseidonPaddings = 1
-WeightMemAligns = 1
-WeightArithmetics = 1
-WeightBinaries = 1
-WeightSteps = 1
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 	[Sequencer.Finalizer]
@@ -111,8 +102,6 @@ MaxTxLifetime = "3h"
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
-	[Sequencer.Worker]
-		ResourceCostMultiplier = 1000
 	[Sequencer.EffectiveGasPrice]
 		MaxBreakEvenGasPriceDeviationPercentage = 10
 		L1GasPriceFactor = 0.25

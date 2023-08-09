@@ -130,8 +130,8 @@ func (_m *WorkerMock) UpdateAfterSingleSuccessfulTxExecution(from common.Address
 	return r0
 }
 
-// UpdateTx provides a mock function with given fields: txHash, from, ZKCounters
-func (_m *WorkerMock) UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters) {
+// UpdateTxZKCounters provides a mock function with given fields: txHash, from, ZKCounters
+func (_m *WorkerMock) UpdateTxZKCounters(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters) {
 	_m.Called(txHash, from, ZKCounters)
 }
 

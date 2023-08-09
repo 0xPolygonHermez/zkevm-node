@@ -454,51 +454,6 @@
 					"description": "MaxSteps is max steps batch can handle",
 					"default": 7570538
 				},
-				"WeightBatchBytesSize": {
-					"type": "integer",
-					"description": "WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource",
-					"default": 1
-				},
-				"WeightCumulativeGasUsed": {
-					"type": "integer",
-					"description": "WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource",
-					"default": 1
-				},
-				"WeightKeccakHashes": {
-					"type": "integer",
-					"description": "WeightKeccakHashes is the cost weight for the KeccakHashes batch resource",
-					"default": 1
-				},
-				"WeightPoseidonHashes": {
-					"type": "integer",
-					"description": "WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource",
-					"default": 1
-				},
-				"WeightPoseidonPaddings": {
-					"type": "integer",
-					"description": "WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource",
-					"default": 1
-				},
-				"WeightMemAligns": {
-					"type": "integer",
-					"description": "WeightMemAligns is the cost weight for the MemAligns batch resource",
-					"default": 1
-				},
-				"WeightArithmetics": {
-					"type": "integer",
-					"description": "WeightArithmetics is the cost weight for the Arithmetics batch resource",
-					"default": 1
-				},
-				"WeightBinaries": {
-					"type": "integer",
-					"description": "WeightBinaries is the cost weight for the Binaries batch resource",
-					"default": 1
-				},
-				"WeightSteps": {
-					"type": "integer",
-					"description": "WeightSteps is the cost weight for the Steps batch resource",
-					"default": 1
-				},
 				"TxLifetimeCheckTimeout": {
 					"type": "string",
 					"title": "Duration",
@@ -640,18 +595,6 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "DBManager's specific config properties"
-				},
-				"Worker": {
-					"properties": {
-						"ResourceCostMultiplier": {
-							"type": "number",
-							"description": "ResourceCostMultiplier is the multiplier for the resource cost",
-							"default": 1000
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "Worker's specific config properties"
 				},
 				"EffectiveGasPrice": {
 					"properties": {

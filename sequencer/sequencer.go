@@ -42,19 +42,6 @@ type batchConstraints struct {
 	MaxSteps             uint32
 }
 
-// TODO: Add tests to config_test.go
-type batchResourceWeights struct {
-	WeightBatchBytesSize    int
-	WeightCumulativeGasUsed int
-	WeightKeccakHashes      int
-	WeightPoseidonHashes    int
-	WeightPoseidonPaddings  int
-	WeightMemAligns         int
-	WeightArithmetics       int
-	WeightBinaries          int
-	WeightSteps             int
-}
-
 // L2ReorgEvent is the event that is triggered when a reorg happens in the L2
 type L2ReorgEvent struct {
 	TxHashes []common.Hash
@@ -111,24 +98,13 @@ func (s *Sequencer) Start(ctx context.Context) {
 		MaxBinaries:          s.cfg.MaxBinaries,
 		MaxSteps:             s.cfg.MaxSteps,
 	}
-	batchResourceWeights := batchResourceWeights{
-		WeightBatchBytesSize:    s.cfg.WeightBatchBytesSize,
-		WeightCumulativeGasUsed: s.cfg.WeightCumulativeGasUsed,
-		WeightKeccakHashes:      s.cfg.WeightKeccakHashes,
-		WeightPoseidonHashes:    s.cfg.WeightPoseidonHashes,
-		WeightPoseidonPaddings:  s.cfg.WeightPoseidonPaddings,
-		WeightMemAligns:         s.cfg.WeightMemAligns,
-		WeightArithmetics:       s.cfg.WeightArithmetics,
-		WeightBinaries:          s.cfg.WeightBinaries,
-		WeightSteps:             s.cfg.WeightSteps,
-	}
 
 	err := s.pool.MarkWIPTxsAsPending(ctx)
 	if err != nil {
 		log.Fatalf("failed to mark WIP txs as pending, err: %v", err)
 	}
 
-	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights)
+	worker := NewWorker(s.state)
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, batchConstraints)
 	go dbManager.Start()
 
