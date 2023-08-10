@@ -762,7 +762,6 @@ func TestFinalizer_syncWithState(t *testing.T) {
 }
 
 func TestFinalizer_processForcedBatches(t *testing.T) {
-	// arrange
 	var chainID = new(big.Int).SetInt64(400)
 	var pvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var err error
