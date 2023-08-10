@@ -6,6 +6,8 @@ import (
 	"reflect"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/invopop/jsonschema"
 	"github.com/urfave/cli/v2"
 )
@@ -200,6 +202,7 @@ func fillDefaultValuesPartial(schema *jsonschema.Schema, default_config interfac
 		return
 	}
 	for _, key := range schema.Properties.Keys() {
+		log.Debugf("fillDefaultValuesPartial: key: %s", key)
 		value, ok := schema.Properties.Get(key)
 		if ok {
 			value_schema, _ := value.(*jsonschema.Schema)
@@ -207,9 +210,16 @@ func fillDefaultValuesPartial(schema *jsonschema.Schema, default_config interfac
 			if default_value.IsValid() && variantFieldIsSet(&value_schema.Default) {
 				switch value_schema.Type {
 				case "array":
-					if !default_value.IsZero() && !default_value.IsNil() {
-						def_value := default_value.Interface()
-						value_schema.Default = def_value
+					if default_value.Kind() == reflect.ValueOf(common.Address{}).Kind() {
+						if !default_value.IsZero() {
+							def_value := default_value.Interface()
+							value_schema.Default = def_value
+						}
+					} else {
+						if !default_value.IsZero() && !default_value.IsNil() {
+							def_value := default_value.Interface()
+							value_schema.Default = def_value
+						}
 					}
 				case "object":
 					fillDefaultValuesPartial(value_schema, default_value.Interface())
