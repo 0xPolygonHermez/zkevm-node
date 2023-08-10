@@ -174,16 +174,31 @@ func createScDeployOutOfGasSignedTx(t *testing.T, ctx context.Context, auth *bin
 	require.NoError(t, err)
 	data := common.Hex2Bytes(scByteCode)
 
-	// gas, err := client.EstimateGas(ctx, ethereum.CallMsg{
-	// 	From: auth.From,
-	// 	Data: data,
-	// })
-	// require.NoError(t, err)
-
 	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: gasPrice,
 		Gas:      uint64(2000000),
+		Data:     data,
+	})
+
+	return auth.Signer(auth.From, tx)
+}
+
+func createScCreationCodeStorageOutOfGasSignedTx(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, customData map[string]interface{}) (*ethTypes.Transaction, error) {
+	nonce, err := client.PendingNonceAt(ctx, auth.From)
+	require.NoError(t, err)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	scByteCode, err := testutils.ReadBytecode("FFFFFFFF/FFFFFFFF.bin")
+	require.NoError(t, err)
+	data := common.Hex2Bytes(scByteCode)
+
+	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: gasPrice,
+		Gas:      uint64(150000),
 		Data:     data,
 	})
 

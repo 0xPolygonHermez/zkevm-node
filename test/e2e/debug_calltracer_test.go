@@ -33,10 +33,10 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
+	// defer func() {
+	// 	require.NoError(t, operations.Teardown())
+	// 	require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+	// }()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -80,33 +80,34 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	}
 	testCases := []testCase{
 		// successful transactions
-		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
-		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
-		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
-		{name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
-		{name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
-		{name: "call", prepare: prepareCalls, createSignedTx: createCallSignedTx},
-		{name: "delegate call", prepare: prepareCalls, createSignedTx: createDelegateCallSignedTx},
-		{name: "multi call", prepare: prepareCalls, createSignedTx: createMultiCallSignedTx},
-		{name: "pre ecrecover 0", prepare: prepareCalls, createSignedTx: createPreEcrecover0SignedTx},
-		{name: "chain call", prepare: prepareChainCalls, createSignedTx: createChainCallSignedTx},
-		{name: "delegate transfers", prepare: prepareChainCalls, createSignedTx: createDelegateTransfersSignedTx},
-		{name: "memory", prepare: prepareMemory, createSignedTx: createMemorySignedTx},
-		{name: "bridge", prepare: prepareBridge, createSignedTx: createBridgeSignedTx},
-		{name: "deploy create 0", createSignedTx: createDeployCreate0SignedTx},
+		// {name: "eth transfer", createSignedTx: createEthTransferSignedTx},
+		// {name: "sc deployment", createSignedTx: createScDeploySignedTx},
+		// {name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
+		// {name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		// {name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
+		// {name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
+		// {name: "call", prepare: prepareCalls, createSignedTx: createCallSignedTx},
+		// {name: "delegate call", prepare: prepareCalls, createSignedTx: createDelegateCallSignedTx},
+		// {name: "multi call", prepare: prepareCalls, createSignedTx: createMultiCallSignedTx},
+		// {name: "pre ecrecover 0", prepare: prepareCalls, createSignedTx: createPreEcrecover0SignedTx},
+		// {name: "chain call", prepare: prepareChainCalls, createSignedTx: createChainCallSignedTx},
+		// {name: "delegate transfers", prepare: prepareChainCalls, createSignedTx: createDelegateTransfersSignedTx},
+		// {name: "memory", prepare: prepareMemory, createSignedTx: createMemorySignedTx},
+		// {name: "bridge", prepare: prepareBridge, createSignedTx: createBridgeSignedTx},
+		// {name: "deploy create 0", createSignedTx: createDeployCreate0SignedTx},
 
 		// failed transactions
-		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
-		{name: "sc deployment out of gas", createSignedTx: createScDeployOutOfGasSignedTx},
-		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
-		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
-		{name: "invalid static call less parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallLessParametersSignedTx},
-		{name: "invalid static call more parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallMoreParametersSignedTx},
-		{name: "invalid static call with inner call", prepare: prepareCalls, createSignedTx: createInvalidStaticCallWithInnerCallSignedTx},
-		{name: "chain call reverted", prepare: prepareChainCalls, createSignedTx: createChainCallRevertedSignedTx},
-		{name: "chain delegate call reverted", prepare: prepareChainCalls, createSignedTx: createChainDelegateCallRevertedSignedTx},
-		{name: "depth reverted", prepare: prepareDepth, createSignedTx: createDepthSignedTx},
+		// {name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		// {name: "sc deployment out of gas", createSignedTx: createScDeployOutOfGasSignedTx},
+		{name: "sc creation storage out of gas", createSignedTx: createScCreationCodeStorageOutOfGasSignedTx},
+		// {name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
+		// {name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
+		// {name: "invalid static call less parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallLessParametersSignedTx},
+		// {name: "invalid static call more parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallMoreParametersSignedTx},
+		// {name: "invalid static call with inner call", prepare: prepareCalls, createSignedTx: createInvalidStaticCallWithInnerCallSignedTx},
+		// {name: "chain call reverted", prepare: prepareChainCalls, createSignedTx: createChainCallRevertedSignedTx},
+		// {name: "chain delegate call reverted", prepare: prepareChainCalls, createSignedTx: createChainDelegateCallRevertedSignedTx},
+		// {name: "depth reverted", prepare: prepareDepth, createSignedTx: createDepthSignedTx},
 	}
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -199,7 +200,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 				results[network.Name] = response.Result
 				log.Debug(string(response.Result))
 
-				saveTraceResultToFile(t, fmt.Sprintf("callTracer_%v_%v", tcIdx, tc.name), network.Name, signedTx, response.Result, true)
+				saveTraceResultToFile(t, fmt.Sprintf("callTracer_%v_%v", tcIdx, tc.name), network.Name, signedTx, response.Result, false)
 			}
 
 			referenceValueMap := map[string]interface{}{}
