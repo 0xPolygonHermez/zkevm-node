@@ -778,11 +778,13 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 	txResp1 := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
 		StateRoot: stateRootHashes[0],
+		Tx:        types.Transaction{},
 	}
 
 	txResp2 := &state.ProcessTransactionResponse{
 		TxHash:    txHash2,
 		StateRoot: stateRootHashes[1],
+		Tx:        types.Transaction{},
 	}
 	batchResponse1 := &state.ProcessBatchResponse{
 		NewBatchNumber: f.batch.batchNumber + 1,
