@@ -1568,22 +1568,43 @@ func Test_processTransaction(t *testing.T) {
 }
 
 func Test_handleForcedTxsProcessResp(t *testing.T) {
+	var chainID = new(big.Int).SetInt64(400)
+	var pvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	RawTxsData1 := make([]byte, 0, 2)
+	RawTxsData2 := make([]byte, 0, 2)
+
 	f = setupFinalizer(false)
 	now = testNow
 	defer func() {
 		now = time.Now
 	}()
 
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(pvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	tx1 := types.NewTransaction(0, common.HexToAddress("0x1"), big.NewInt(1), 100000, big.NewInt(1), RawTxsData1)
+	tx2 := types.NewTransaction(1, common.HexToAddress("0x2"), big.NewInt(1), 100000, big.NewInt(1), RawTxsData2)
+
+	signedTx1, err := auth.Signer(auth.From, tx1)
+	require.NoError(t, err)
+
+	signedTx2, err := auth.Signer(auth.From, tx2)
+	require.NoError(t, err)
+
 	ctx = context.Background()
 	txResponseOne := &state.ProcessTransactionResponse{
-		TxHash:    txHash,
+		TxHash:    signedTx1.Hash(),
 		StateRoot: newHash,
 		RomError:  nil,
+		Tx:        *signedTx1,
 	}
 	txResponseTwo := &state.ProcessTransactionResponse{
-		TxHash:    common.HexToHash("0x02"),
+		TxHash:    signedTx2.Hash(),
 		StateRoot: newHash2,
 		RomError:  nil,
+		Tx:        *signedTx2,
 	}
 	successfulBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: newHash,
