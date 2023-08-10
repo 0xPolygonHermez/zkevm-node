@@ -972,7 +972,7 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 			}
 
 			workerMock.On("DeleteForcedTx", mock.Anything, mock.Anything).Return()
-			workerMock.On("AddPendingTxToStore", mock.Anything, mock.Anything).Return(nil)
+			workerMock.On("AddPendingTxToStore", mock.Anything, mock.Anything).Return()
 
 			// act
 			batchNumber, newStateRoot, err = f.processForcedBatches(ctx, batchNumber, stateRoot)
