@@ -298,7 +298,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				//dbManagerMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L1GasPrice: 0, L2GasPrice: 0}, nilErr).Once()
 				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", txTracker.From, tc.executorResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
-				workerMock.On("AddPendingTxToStore", txTracker.Hash, txTracker.From).Return().Once()
+				workerMock.On("AddPendingTxToStore", txTracker.Hash, mock.Anything).Return().Once()
 			}
 			if tc.expectedUpdateTxStatus != "" {
 				dbManagerMock.On("UpdateTxStatus", ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil).Once()
