@@ -788,7 +788,9 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 	require.NoError(t, err)
 
 	signedTx1, err := auth.Signer(auth.From, tx1)
+	require.NoError(t, err)
 	signedTx2, err := auth.Signer(auth.From, tx2)
+	require.NoError(t, err)
 
 	txResp1 := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
