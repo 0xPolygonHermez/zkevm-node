@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -19,8 +20,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -760,6 +763,8 @@ func TestFinalizer_syncWithState(t *testing.T) {
 
 func TestFinalizer_processForcedBatches(t *testing.T) {
 	// arrange
+	var chainID = new(big.Int).SetInt64(400)
+	var pvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var err error
 	f = setupFinalizer(false)
 	now = testNow
@@ -778,16 +783,24 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 	tx1 := types.NewTransaction(0, common.HexToAddress("0x1"), big.NewInt(1), 100000, big.NewInt(1), RawTxsData1)
 	tx2 := types.NewTransaction(1, common.HexToAddress("0x2"), big.NewInt(1), 100000, big.NewInt(1), RawTxsData2)
 
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(pvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	signedTx1, err := auth.Signer(auth.From, tx1)
+	signedTx2, err := auth.Signer(auth.From, tx2)
+
 	txResp1 := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
 		StateRoot: stateRootHashes[0],
-		Tx:        *tx1,
+		Tx:        *signedTx1,
 	}
 
 	txResp2 := &state.ProcessTransactionResponse{
 		TxHash:    txHash2,
 		StateRoot: stateRootHashes[1],
-		Tx:        *tx2,
+		Tx:        *signedTx2,
 	}
 	batchResponse1 := &state.ProcessBatchResponse{
 		NewBatchNumber: f.batch.batchNumber + 1,
