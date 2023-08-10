@@ -264,6 +264,30 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 		// ForcedBatch ch
 		case fb := <-f.closingSignalCh.ForcedBatchCh:
 			log.Debugf("finalizer received forced batch at block number: %v", fb.BlockNumber)
+
+			// Add the forced batch's transactions to the worker
+			batchNumber, err := f.dbManager.GetLastBatchNumber(ctx)
+			if err != nil {
+				// An error accessing the database is fatal
+				f.halt(ctx, err)
+			}
+			// Decode the transactions inside the forced batch
+			forkID := f.dbManager.GetForkIDByBatchNumber(batchNumber)
+			txs, _, _, err := state.DecodeTxs(fb.RawTxsData, forkID)
+			if err != nil {
+				// A forced batch can contain anything so this may happen
+				log.Warnf("failed to decode transactions from forced batch, Err: %v", err)
+			} else {
+				// If txs could be extracted from the forced batch, add them to the worker
+				for _, tx := range txs {
+					log.Infof("forced batch: TxHash: %s", tx.Hash())
+					poolTx := pool.NewTransaction(tx, "", true)
+					// Add the tx to the worker trough the dbManager to reuse the replace tx logic
+					err := f.dbManager.AddTxToWorker(*poolTx, true)
+					f.halt(ctx, err)
+				}
+			}
+
 			f.nextForcedBatchesMux.Lock()
 			f.nextForcedBatches = f.sortForcedBatches(append(f.nextForcedBatches, fb))
 			if f.nextForcedBatchDeadline == 0 {
@@ -709,9 +733,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 
 	f.batch.countOfTxs++
 
-	if tx != nil {
-		f.updateWorkerAfterSuccessfulProcessing(ctx, tx, result)
-	}
+	f.updateWorkerAfterSuccessfulProcessing(ctx, tx, result)
 
 	return nil, nil
 }
@@ -747,6 +769,14 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 		f.updateLastPendingFlushID(result.FlushID)
 
 		f.addPendingTxToStore(ctx, txToStore)
+
+		from, err := state.GetSender(txResp.Tx)
+		if err != nil {
+			log.Errorf("handleForcedTxsProcessResp: failed to get sender: %s", err)
+		} else {
+			tx := &TxTracker{Hash: txResp.TxHash, From: from, IsForced: true}
+			f.updateWorkerAfterSuccessfulProcessing(ctx, tx, result)
+		}
 	}
 }
 
@@ -773,12 +803,14 @@ func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, t
 	start := time.Now()
 	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
 	for _, txToDelete := range txsToDelete {
-		err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
-		if err != nil {
-			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
-		} else {
-			metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
+		if !tx.IsForced {
+			err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
+			if err != nil {
+				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
+				continue
+			}
 		}
+		metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 	}
 	metrics.WorkerProcessingTime(time.Since(start))
 }

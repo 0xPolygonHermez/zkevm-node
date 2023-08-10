@@ -34,8 +34,8 @@ func NewWorker(state stateInterface) *Worker {
 }
 
 // NewTxTracker creates and inits a TxTracker
-func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
-	return newTxTracker(tx, counters, ip)
+func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, isForced bool) (*TxTracker, error) {
+	return newTxTracker(tx, counters, ip, isForced)
 }
 
 // AddTxTracker adds a new Tx to the Worker
