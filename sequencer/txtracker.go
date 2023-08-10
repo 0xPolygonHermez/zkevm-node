@@ -30,11 +30,10 @@ type TxTracker struct {
 	EffectiveGasPriceProcessCount     uint8
 	IsEffectiveGasPriceFinalExecution bool
 	L1GasPrice                        uint64
-	IsForced                          bool
 }
 
 // newTxTracker creates and inti a TxTracker
-func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, isForced bool) (*TxTracker, error) {
+func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err
@@ -64,7 +63,6 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, is
 		BreakEvenGasPrice:                 new(big.Int).SetUint64(0),
 		EffectiveGasPriceProcessCount:     0,
 		IsEffectiveGasPriceFinalExecution: false,
-		IsForced:                          isForced,
 	}
 
 	return txTracker, nil

@@ -197,7 +197,8 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 			},
 			oldStateRoot: oldHash,
 			expectedStoredTx: transactionToStore{
-				txTracker:     txTracker,
+				hash:          txHash,
+				from:          senderAddr,
 				batchNumber:   f.batch.batchNumber,
 				coinbase:      f.batch.coinbase,
 				timestamp:     f.batch.timestamp,
@@ -332,7 +333,8 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 }
 
 func assertEqualTransactionToStore(t *testing.T, expectedTx, actualTx transactionToStore) {
-	require.Equal(t, expectedTx.txTracker, actualTx.txTracker)
+	require.Equal(t, expectedTx.from, actualTx.from)
+	require.Equal(t, expectedTx.hash, actualTx.hash)
 	require.Equal(t, expectedTx.response, actualTx.response)
 	require.Equal(t, expectedTx.batchNumber, actualTx.batchNumber)
 	require.Equal(t, expectedTx.timestamp, actualTx.timestamp)
@@ -1486,7 +1488,8 @@ func Test_processTransaction(t *testing.T) {
 			tx:               txTracker,
 			expectedResponse: successfulBatchResp,
 			expectedStoredTx: transactionToStore{
-				txTracker:     txTracker,
+				hash:          txHash,
+				from:          senderAddr,
 				batchNumber:   f.batch.batchNumber,
 				coinbase:      f.batch.coinbase,
 				timestamp:     f.batch.timestamp,
@@ -1901,7 +1904,7 @@ func TestFinalizer_updateWorkerAfterSuccessfulProcessing(t *testing.T) {
 			}
 
 			// act
-			finalizerInstance.updateWorkerAfterSuccessfulProcessing(ctx, tc.txTracker, tc.processBatchResponse)
+			finalizerInstance.updateWorkerAfterSuccessfulProcessing(ctx, tc.txTracker.Hash, tc.txTracker.From, false, tc.processBatchResponse)
 
 			// assert
 			workerMock.AssertExpectations(t)

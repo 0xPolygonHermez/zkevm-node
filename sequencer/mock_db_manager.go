@@ -26,20 +26,6 @@ type DbManagerMock struct {
 	mock.Mock
 }
 
-// AddTxToWorker provides a mock function with given fields: tx, isForced
-func (_m *DbManagerMock) AddTxToWorker(tx pool.Transaction, isForced bool) error {
-	ret := _m.Called(tx, isForced)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(pool.Transaction, bool) error); ok {
-		r0 = rf(tx, isForced)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // BeginStateTransaction provides a mock function with given fields: ctx
 func (_m *DbManagerMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	ret := _m.Called(ctx)

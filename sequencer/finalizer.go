@@ -70,7 +70,9 @@ type finalizer struct {
 }
 
 type transactionToStore struct {
-	txTracker     *TxTracker
+	//txTracker     *TxTracker
+	hash          common.Hash
+	from          common.Address
 	response      *state.ProcessTransactionResponse
 	batchResponse *state.ProcessBatchResponse
 	batchNumber   uint64
@@ -207,10 +209,8 @@ func (f *finalizer) storePendingTransactions(ctx context.Context) {
 			// Now f.storedFlushID >= tx.flushId, we can store tx
 			f.storeProcessedTx(ctx, tx)
 
-			if tx.txTracker != nil {
-				// Delete the txTracker from the pending list in the worker (addrQueue)
-				f.worker.DeletePendingTxToStore(tx.txTracker.Hash, tx.txTracker.From)
-			}
+			// Delete the tx from the pending list in the worker (addrQueue)
+			f.worker.DeletePendingTxToStore(tx.hash, tx.from)
 
 			f.pendingTransactionsToStoreWG.Done()
 		case <-ctx.Done():
@@ -271,6 +271,7 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 				// An error accessing the database is fatal
 				f.halt(ctx, err)
 			}
+
 			// Decode the transactions inside the forced batch
 			forkID := f.dbManager.GetForkIDByBatchNumber(batchNumber)
 			txs, _, _, err := state.DecodeTxs(fb.RawTxsData, forkID)
@@ -280,11 +281,12 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 			} else {
 				// If txs could be extracted from the forced batch, add them to the worker
 				for _, tx := range txs {
-					log.Infof("forced batch: TxHash: %s", tx.Hash())
-					poolTx := pool.NewTransaction(tx, "", true)
-					// Add the tx to the worker trough the dbManager to reuse the replace tx logic
-					err := f.dbManager.AddTxToWorker(*poolTx, true)
-					f.halt(ctx, err)
+					sender, err := state.GetSender(tx)
+					if err != nil {
+						log.Warnf("failed to get sender from tx, Err: %v", err)
+						continue
+					}
+					f.worker.AddForcedTx(tx.Hash(), sender)
 				}
 			}
 
@@ -325,18 +327,16 @@ func (f *finalizer) updateLastPendingFlushID(newFlushID uint64) {
 // addPendingTxToStore adds a pending tx that is ready to be stored in the state DB once its flushid has been stored by the executor
 func (f *finalizer) addPendingTxToStore(ctx context.Context, txToStore transactionToStore) {
 	f.pendingTransactionsToStoreWG.Add(1)
-	if txToStore.txTracker != nil {
-		f.worker.AddPendingTxToStore(txToStore.txTracker.Hash, txToStore.txTracker.From)
-	}
+
+	f.worker.AddPendingTxToStore(txToStore.hash, txToStore.from)
+
 	select {
 	case f.pendingTransactionsToStore <- txToStore:
 	case <-ctx.Done():
 		// If context is cancelled before we can send to the channel, we must decrement the WaitGroup count and
 		// delete the pending TxToStore added in the worker
 		f.pendingTransactionsToStoreWG.Done()
-		if txToStore.txTracker != nil {
-			f.worker.DeletePendingTxToStore(txToStore.txTracker.Hash, txToStore.txTracker.From)
-		}
+		f.worker.DeletePendingTxToStore(txToStore.hash, txToStore.from)
 	}
 }
 
@@ -716,7 +716,6 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	}
 
 	txToStore := transactionToStore{
-		txTracker:     tx,
 		response:      result.Responses[0],
 		batchResponse: result,
 		batchNumber:   f.batch.batchNumber,
@@ -733,7 +732,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 
 	f.batch.countOfTxs++
 
-	f.updateWorkerAfterSuccessfulProcessing(ctx, tx, result)
+	f.updateWorkerAfterSuccessfulProcessing(ctx, tx.Hash, tx.From, false, result)
 
 	return nil, nil
 }
@@ -753,7 +752,6 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 		}
 
 		txToStore := transactionToStore{
-			txTracker:     nil,
 			response:      txResp,
 			batchResponse: result,
 			batchNumber:   request.BatchNumber,
@@ -774,8 +772,7 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 		if err != nil {
 			log.Errorf("handleForcedTxsProcessResp: failed to get sender: %s", err)
 		} else {
-			tx := &TxTracker{Hash: txResp.TxHash, From: from, IsForced: true}
-			f.updateWorkerAfterSuccessfulProcessing(ctx, tx, result)
+			f.updateWorkerAfterSuccessfulProcessing(ctx, txResp.TxHash, from, true, result)
 		}
 	}
 }
@@ -795,20 +792,24 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, txToStore transactionT
 	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, 1)
 }
 
-func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) {
+func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, txHash common.Hash, txFrom common.Address, isForced bool, result *state.ProcessBatchResponse) {
 	// Delete the transaction from the txSorted list
-	f.worker.DeleteTx(tx.Hash, tx.From)
-	log.Debug("tx deleted from txSorted list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
+	if isForced {
+		f.worker.DeleteForcedTx(txHash, txFrom)
+		log.Debug("forced tx deleted from addrQueue", "txHash", txHash.String(), "from", txFrom.Hex())
+		return
+	} else {
+		f.worker.DeleteTx(txHash, txFrom)
+		log.Debug("tx deleted from txSorted list", "txHash", txHash.String(), "from", txFrom.Hex())
+	}
 
 	start := time.Now()
-	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
+	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(txFrom, result.ReadWriteAddresses)
 	for _, txToDelete := range txsToDelete {
-		if !tx.IsForced {
-			err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
-			if err != nil {
-				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
-				continue
-			}
+		err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
+		if err != nil {
+			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
+			continue
 		}
 		metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 	}
