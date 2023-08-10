@@ -1695,14 +1695,15 @@ DefaultMinGasPriceAllowed=0
 **Type:** : `object`
 **Description:** Configuration of the sequence sender service
 
-| Property                                                                                                | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                  |
-| ------------------------------------------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| - [WaitPeriodSendSequence](#SequenceSender_WaitPeriodSendSequence )                                     | No      | string          | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
-| - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string          | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
-| - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer         | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not. |
-| - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | string          | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                    |
-| - [PrivateKeys](#SequenceSender_PrivateKeys )                                                           | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                 |
-| - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer         | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                         |
+| Property                                                                                                | Pattern | Type             | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| - [WaitPeriodSendSequence](#SequenceSender_WaitPeriodSendSequence )                                     | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
+| - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
+| - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer          | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not. |
+| - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | array of integer | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                    |
+| - [L2Coinbase](#SequenceSender_L2Coinbase )                                                             | No      | array of integer | No         | -          | L2Coinbase defines which addess is going to receive the fees                                                                                                                                                                                                                                                       |
+| - [PrivateKey](#SequenceSender_PrivateKey )                                                             | No      | object           | No         | -          | PrivateKey defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                  |
+| - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer          | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                         |
 
 ### <a name="SequenceSender_WaitPeriodSendSequence"></a>11.1. `SequenceSender.WaitPeriodSendSequence`
 
@@ -1776,67 +1777,64 @@ MaxTxSizeForL1=131072
 
 ### <a name="SequenceSender_SenderAddress"></a>11.4. `SequenceSender.SenderAddress`
 
-**Type:** : `string`
+**Type:** : `array of integer`
+**Description:** SenderAddress defines which private key the eth tx manager needs to use
+to sign the L1 txs
+
+### <a name="SequenceSender_L2Coinbase"></a>11.5. `SequenceSender.L2Coinbase`
+
+**Type:** : `array of integer`
 
 **Default:** `"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"`
 
-**Description:** SenderAddress defines which private key the eth tx manager needs to use
-to sign the L1 txs
+**Description:** L2Coinbase defines which addess is going to receive the fees
 
 **Example setting the default value** ("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"):
 ```
 [SequenceSender]
-SenderAddress="0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+L2Coinbase="0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 ```
 
-### <a name="SequenceSender_PrivateKeys"></a>11.5. `SequenceSender.PrivateKeys`
-
-**Type:** : `array of object`
-
-**Default:** `[{"Path": "/pk/sequencer.keystore", "Password": "testonly"}]`
-
-**Description:** PrivateKeys defines all the key store files that are going
-to be read in order to provide the private keys to sign the L1 txs
-
-**Example setting the default value** ([{"Path": "/pk/sequencer.keystore", "Password": "testonly"}]):
-```
-[SequenceSender]
-PrivateKeys=[{"Path": "/pk/sequencer.keystore", "Password": "testonly"}]
-```
-
-|                      | Array restrictions |
-| -------------------- | ------------------ |
-| **Min items**        | N/A                |
-| **Max items**        | N/A                |
-| **Items unicity**    | False              |
-| **Additional items** | False              |
-| **Tuple validation** | See below          |
-
-| Each item of this array must be                        | Description                                                                          |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| [PrivateKeys items](#SequenceSender_PrivateKeys_items) | KeystoreFileConfig has all the information needed to load a private key from a k ... |
-
-#### <a name="autogenerated_heading_3"></a>11.5.1. [SequenceSender.PrivateKeys.PrivateKeys items]
+### <a name="SequenceSender_PrivateKey"></a>11.6. `[SequenceSender.PrivateKey]`
 
 **Type:** : `object`
-**Description:** KeystoreFileConfig has all the information needed to load a private key from a key store file
+**Description:** PrivateKey defines all the key store files that are going
+to be read in order to provide the private keys to sign the L1 txs
 
-| Property                                                  | Pattern | Type   | Deprecated | Definition | Title/Description                                      |
-| --------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------ |
-| - [Path](#SequenceSender_PrivateKeys_items_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
-| - [Password](#SequenceSender_PrivateKeys_items_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
+| Property                                           | Pattern | Type   | Deprecated | Definition | Title/Description                                      |
+| -------------------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------ |
+| - [Path](#SequenceSender_PrivateKey_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
+| - [Password](#SequenceSender_PrivateKey_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
-##### <a name="SequenceSender_PrivateKeys_items_Path"></a>11.5.1.1. `SequenceSender.PrivateKeys.PrivateKeys items.Path`
+#### <a name="SequenceSender_PrivateKey_Path"></a>11.6.1. `SequenceSender.PrivateKey.Path`
 
 **Type:** : `string`
+
+**Default:** `"/pk/sequencer.keystore"`
+
 **Description:** Path is the file path for the key store file
 
-##### <a name="SequenceSender_PrivateKeys_items_Password"></a>11.5.1.2. `SequenceSender.PrivateKeys.PrivateKeys items.Password`
+**Example setting the default value** ("/pk/sequencer.keystore"):
+```
+[SequenceSender.PrivateKey]
+Path="/pk/sequencer.keystore"
+```
+
+#### <a name="SequenceSender_PrivateKey_Password"></a>11.6.2. `SequenceSender.PrivateKey.Password`
 
 **Type:** : `string`
+
+**Default:** `"testonly"`
+
 **Description:** Password is the password to decrypt the key store file
 
-### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.6. `SequenceSender.ForkUpgradeBatchNumber`
+**Example setting the default value** ("testonly"):
+```
+[SequenceSender.PrivateKey]
+Password="testonly"
+```
+
+### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.7. `SequenceSender.ForkUpgradeBatchNumber`
 
 **Type:** : `integer`
 
@@ -2220,7 +2218,7 @@ GenesisBlockNum=0
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | [GenesisActions items](#NetworkConfig_Genesis_GenesisActions_items) | GenesisAction represents one of the values set on the SMT during genesis. |
 
-##### <a name="autogenerated_heading_4"></a>13.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
+##### <a name="autogenerated_heading_3"></a>13.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
 
 **Type:** : `object`
 **Description:** GenesisAction represents one of the values set on the SMT during genesis.

@@ -666,34 +666,40 @@
 					"default": 131072
 				},
 				"SenderAddress": {
-					"type": "string",
-					"description": "SenderAddress defines which private key the eth tx manager needs to use\nto sign the L1 txs",
-					"default": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-				},
-				"PrivateKeys": {
 					"items": {
-						"properties": {
-							"Path": {
-								"type": "string",
-								"description": "Path is the file path for the key store file"
-							},
-							"Password": {
-								"type": "string",
-								"description": "Password is the password to decrypt the key store file"
-							}
-						},
-						"additionalProperties": false,
-						"type": "object",
-						"description": "KeystoreFileConfig has all the information needed to load a private key from a key store file"
+						"type": "integer"
 					},
 					"type": "array",
-					"description": "PrivateKeys defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs",
-					"default": [
-						{
-							"Path": "/pk/sequencer.keystore",
-							"Password": "testonly"
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "SenderAddress defines which private key the eth tx manager needs to use\nto sign the L1 txs"
+				},
+				"L2Coinbase": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "L2Coinbase defines which addess is going to receive the fees",
+					"default": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+				},
+				"PrivateKey": {
+					"properties": {
+						"Path": {
+							"type": "string",
+							"description": "Path is the file path for the key store file",
+							"default": "/pk/sequencer.keystore"
+						},
+						"Password": {
+							"type": "string",
+							"description": "Password is the password to decrypt the key store file",
+							"default": "testonly"
 						}
-					]
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "PrivateKey defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs"
 				},
 				"ForkUpgradeBatchNumber": {
 					"type": "integer",
