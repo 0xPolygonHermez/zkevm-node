@@ -70,6 +70,8 @@ TraceBatchUseHTTPS = true
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
+NumberOfEthereumClientsToSync = 2
+CapacityOfBufferingRollupInfoFromL1 = 10
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"

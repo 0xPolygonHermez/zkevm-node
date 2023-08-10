@@ -268,47 +268,57 @@ func (s *ClientSynchronizer) Sync() error {
 
 // lastEthBlockSynced -> last block synced in the db
 func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
+	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
+	block, err := s.checkReorg(lastEthBlockSynced)
+	if err != nil {
+		log.Errorf("error checking reorgs. Retrying... Err: %v", err)
+		return lastEthBlockSynced, fmt.Errorf("error checking reorgs")
+	}
+	if block != nil {
+		log.Infof("reorg detected. Resetting the state from block %v to block %v", lastEthBlockSynced.BlockNumber, block.BlockNumber)
+		err = s.resetState(block.BlockNumber)
+		if err != nil {
+			log.Errorf("error resetting the state to a previous block. Retrying... Err: %v", err)
+			return lastEthBlockSynced, fmt.Errorf("error resetting the state to a previous block")
+		}
+		return block, nil
+	}
 
-	chIncommingRollupInfo := make(chan getRollupInfoByBlockRangeResult, 20)
-	L1DataProcessor := NewL1DataProcessor(s)
-	l1DataRetriever := NewL1DataRetriever(s.ctx, s.etherManForL1, lastEthBlockSynced.BlockNumber, s.cfg.SyncChunkSize, chIncommingRollupInfo)
-	l1DataRetriever.Initialize()
+	chIncommingRollupInfo := make(chan getRollupInfoByBlockRangeResult, s.cfg.CapacityOfBufferingRollupInfoFromL1)
+	L1DataProcessor := newL1DataProcessor(s, s.ctx, chIncommingRollupInfo)
+	l1DataRetriever := newL1DataRetriever(s.ctx, s.etherManForL1, lastEthBlockSynced.BlockNumber, s.cfg.SyncChunkSize, chIncommingRollupInfo, false)
+	err = l1DataRetriever.initialize()
+	if err != nil {
+		log.Warnf("error initializing L1DataRetriever. Error: %s", err)
+		return nil, err
+	}
+	err = L1DataProcessor.initialize()
+	if err != nil {
+		log.Warnf("error initializing L1DataProcessor. Error: %s", err)
+		return nil, err
+	}
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		l1DataRetriever.Start()
-		panic("finished retrieving data from L1")
-	}()
-	var timeProcessingDuration time.Duration
-	numProcessedRollupInfo := 0
-	numProcessedBlocks := 0
-	startTime := time.Now()
-	for {
-
-		timeWaitingStart := time.Now()
-
-		select {
-		case <-s.ctx.Done():
-			return nil, nil
-		case rollupInfo := <-chIncommingRollupInfo:
-			timeWaitingEnd := time.Now()
-			log.Debugf("Time wasted waiting for new rollupInfo from L1: %s last_process: %s new range: %s block_per_second: %f",
-				timeWaitingEnd.Sub(timeWaitingStart), timeProcessingDuration, rollupInfo.blockRange.toString(),
-				float64(numProcessedBlocks)/time.Now().Sub(startTime).Seconds())
-			// Process
-			numProcessedRollupInfo++
-			log.Infof("Processing rollupInfo [%000d]: range:%s num_blocks [%d]", numProcessedRollupInfo, rollupInfo.blockRange.toString(), len(rollupInfo.blocks))
-			timeProcessingStart := time.Now()
-			_, err := L1DataProcessor.Process(rollupInfo)
-			timeProcessingDuration = time.Now().Sub(timeProcessingStart)
-			if err != nil {
-				log.Error("error processing rollupInfo. Error: ", err)
-				return nil, err
-			}
-			numProcessedBlocks += len(rollupInfo.blocks)
+		err := l1DataRetriever.start()
+		if err != nil {
+			log.Warnf("error starting L1DataRetriever. Error: %s", err)
 		}
-	}
+		//panic("finished retrieving data from L1")
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := L1DataProcessor.Start()
+		if err != nil {
+			log.Warnf("error starting L1DataProcessor. Error: %s", err)
+		}
+		//panic("finished processing data from L1")
+	}()
+
+	wg.Wait()
+
 	return nil, nil
 }
 

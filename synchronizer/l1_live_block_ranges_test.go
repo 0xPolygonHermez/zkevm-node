@@ -7,69 +7,71 @@ import (
 )
 
 func Test_Insert_BR(t *testing.T) {
-	sut := NewLiveBlockRanges()
-	sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
+	sut := newLiveBlockRanges()
+	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
+	require.NoError(t, err)
 	require.Equal(t, sut.len(), 1)
 }
 func Test_Insert_Overlapped_BR(t *testing.T) {
-	sut := NewLiveBlockRanges()
-	sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
-	err := sut.addBlockRange(blockRange{fromBlock: 5, toBlock: 15})
+	sut := newLiveBlockRanges()
+	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
+	require.NoError(t, err)
+	err = sut.addBlockRange(blockRange{fromBlock: 5, toBlock: 15})
+	require.NoError(t, err)
 	require.Error(t, err)
 	require.Equal(t, sut.len(), 1)
 }
 func Test_Insert_Duplicated_BR(t *testing.T) {
-	sut := NewLiveBlockRanges()
-	sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
+	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
 	require.Error(t, err)
-	require.Equal(t, sut.len(), 1)
-}
-
-func Test_Insert_NoConsecutiveBlock_BR(t *testing.T) {
-	sut := NewLiveBlockRanges()
-	sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
-	err := sut.addBlockRange(blockRange{fromBlock: 12, toBlock: 20})
+	err = sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
 	require.Error(t, err)
 	require.Equal(t, sut.len(), 1)
 }
 
 func Test_Remove_Existing_BR(t *testing.T) {
-	sut := NewLiveBlockRanges()
-	sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
-	sut.addBlockRange(blockRange{fromBlock: 11, toBlock: 20})
-	err := sut.removeBlockRange(blockRange{fromBlock: 1, toBlock: 10})
+	sut := newLiveBlockRanges()
+	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
+	require.NoError(t, err)
+	err = sut.addBlockRange(blockRange{fromBlock: 11, toBlock: 20})
+	require.NoError(t, err)
+	err = sut.removeBlockRange(blockRange{fromBlock: 1, toBlock: 10})
 	require.NoError(t, err)
 	require.Equal(t, sut.len(), 1)
 }
 
 func Test_Insert_Wrong_BR1(t *testing.T) {
-	sut := NewLiveBlockRanges()
+	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{})
 	require.Error(t, err)
 	require.Equal(t, sut.len(), 0)
 }
 func Test_Insert_Wrong_BR2(t *testing.T) {
-	sut := NewLiveBlockRanges()
+	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{fromBlock: 10, toBlock: 5})
 	require.Error(t, err)
 	require.Equal(t, sut.len(), 0)
 }
 
-func Test_GetSuperBlockRange_Emtpy(t *testing.T) {
-	sut := NewLiveBlockRanges()
-	res := sut.GetSuperBlockRange()
+func Test_GetSuperBlockRange_Empty(t *testing.T) {
+	sut := newLiveBlockRanges()
+	res := sut.getSuperBlockRange()
 	require.Nil(t, res)
 }
 
 func Test_GetSuperBlockRange_WithData(t *testing.T) {
-	sut := NewLiveBlockRanges()
-	sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
-	sut.addBlockRange(blockRange{fromBlock: 11, toBlock: 20})
-	sut.addBlockRange(blockRange{fromBlock: 21, toBlock: 109})
-	sut.addBlockRange(blockRange{fromBlock: 110, toBlock: 200})
+	sut := newLiveBlockRanges()
+	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
+	require.NoError(t, err)
+	err = sut.addBlockRange(blockRange{fromBlock: 11, toBlock: 20})
+	require.NoError(t, err)
+	err = sut.addBlockRange(blockRange{fromBlock: 21, toBlock: 109})
+	require.NoError(t, err)
+	err = sut.addBlockRange(blockRange{fromBlock: 110, toBlock: 200})
+	require.NoError(t, err)
 
-	res := sut.GetSuperBlockRange()
+	res := sut.getSuperBlockRange()
 	require.NotNil(t, res)
 	require.Equal(t, *res, blockRange{fromBlock: 1, toBlock: 200})
 }

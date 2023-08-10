@@ -55,8 +55,8 @@ func newWorkers(ethermans []EthermanInterface) *workersImpl {
 	for i, etherman := range ethermans {
 		result.workers[i] = newWorker(etherman)
 	}
-	result.chAggregatedRollupInfo = make(chan genericResponse[getRollupInfoByBlockRangeResult], 10)
-	result.chAggregatedLastBlock = make(chan genericResponse[retrieveL1LastBlockResult], 10)
+	result.chAggregatedRollupInfo = make(chan genericResponse[getRollupInfoByBlockRangeResult], len(ethermans)+1)
+	result.chAggregatedLastBlock = make(chan genericResponse[retrieveL1LastBlockResult], len(ethermans)+1)
 	aggregateChannelsGeneric[genericResponse[getRollupInfoByBlockRangeResult]](&result.chAggregatedRollupInfo, result._getAllChannelsRollupInfo(), &result)
 	aggregateChannelsGeneric[genericResponse[retrieveL1LastBlockResult]](&result.chAggregatedLastBlock, result._getAllChannelsLastBlock(), &result)
 	return &result
@@ -105,7 +105,6 @@ func (w *workersImpl) asyncRequestLastBlock(ctx context.Context) (chan genericRe
 	}
 	res := w.asyncGenericRequest(ctx, typeRequestRollupInfo, requestStrForDebug, f)
 	return w.chAggregatedLastBlock, res
-
 }
 
 // asyncGenericRequest launches a generic request to the workers
@@ -135,7 +134,8 @@ func (w *workersImpl) asyncGenericRequest(ctx context.Context, requestType typeO
 }
 
 func (w *workersImpl) waitFinishAllWorkers() {
-	for _, wg := range w.waitGroups {
+	for i := range w.waitGroups {
+		wg := &w.waitGroups[i]
 		wg.Wait()
 	}
 }
@@ -175,11 +175,10 @@ func (w *workersImpl) _countLiveRequestOfType(typeOfRequest typeOfRequest) uint6
 func (w *workersImpl) _onIncommmingResponse(msg interface{}) {
 	switch v := msg.(type) {
 	case genericResponse[getRollupInfoByBlockRangeResult]:
-		log.Infof("workers: worker finished type:[%s]: %s", v.toStringBrief())
+		log.Infof("workers: worker finished type:[%s]: range:%s", v.toStringBrief(), v.result.blockRange.toString())
 	case genericResponse[retrieveL1LastBlockResult]:
 		log.Infof("workers: worker finished type:[%s]: %s", v.toStringBrief())
 	}
-
 }
 
 func (w *workersImpl) _getAllChannelsLastBlock() []chan genericResponse[retrieveL1LastBlockResult] {

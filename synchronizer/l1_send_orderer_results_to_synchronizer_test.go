@@ -9,7 +9,7 @@ import (
 func Test_SOR_TrivialCaseThatArrivesNextBlock(t *testing.T) {
 	ch := make(chan getRollupInfoByBlockRangeResult, 100)
 	lastBlock := uint64(100)
-	sut := NewSendResultsToSynchronizer(ch, lastBlock)
+	sut := newSendResultsToSynchronizer(ch, lastBlock)
 	result := getRollupInfoByBlockRangeResult{
 		blockRange: blockRange{
 			fromBlock: 101,
@@ -24,7 +24,7 @@ func Test_SOR_TrivialCaseThatArrivesNextBlock(t *testing.T) {
 func Test_SOR_ReceivedABlockThatIsNotNextOne(t *testing.T) {
 	ch := make(chan getRollupInfoByBlockRangeResult, 100)
 	lastBlock := uint64(100)
-	sut := NewSendResultsToSynchronizer(ch, lastBlock)
+	sut := newSendResultsToSynchronizer(ch, lastBlock)
 	result := getRollupInfoByBlockRangeResult{
 		blockRange: blockRange{
 			fromBlock: 111,
@@ -39,7 +39,7 @@ func Test_SOR_ReceivedABlockThatIsNotNextOne(t *testing.T) {
 func Test_SOR_ThereAreSomePendingBlocksAndArriveTheMissingOne(t *testing.T) {
 	ch := make(chan getRollupInfoByBlockRangeResult, 100)
 	lastBlock := uint64(100)
-	sut := NewSendResultsToSynchronizer(ch, lastBlock)
+	sut := newSendResultsToSynchronizer(ch, lastBlock)
 	sut.addResultAndSendToConsumer(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 111, toBlock: 120}})
 	sut.addResultAndSendToConsumer(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 121, toBlock: 130}})
 	sut.addResultAndSendToConsumer(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 131, toBlock: 140}})

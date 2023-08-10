@@ -26,5 +26,4 @@ func Test_Given_Kk(t *testing.T) {
 	result := <-ch
 	require.NoError(t, result.err)
 	require.Equal(t, result.result.block, uint64(1))
-
 }

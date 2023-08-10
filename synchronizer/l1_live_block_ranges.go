@@ -5,15 +5,15 @@ import (
 	"fmt"
 )
 
-type LiveBlockRangeItem struct {
+type liveBlockRangeItem struct {
 	blockRange blockRange
 }
 
-type LiveBlockRanges struct {
-	ranges []LiveBlockRangeItem
+type liveBlockRanges struct {
+	ranges []liveBlockRangeItem
 }
 
-func (l *LiveBlockRanges) toStringBrief() string {
+func (l *liveBlockRanges) toStringBrief() string {
 	return fmt.Sprintf("len(ranges): %v", len(l.ranges))
 }
 
@@ -30,8 +30,8 @@ const (
 	errBlockRangeIsEmpty        = "block Range is empty"
 )
 
-func NewLiveBlockRanges() LiveBlockRanges {
-	return LiveBlockRanges{}
+func newLiveBlockRanges() liveBlockRanges {
+	return liveBlockRanges{}
 }
 
 func (b *blockRange) isValid() error {
@@ -51,18 +51,18 @@ func (b *blockRange) overlaps(br blockRange) bool {
 	return b.fromBlock <= br.toBlock && br.fromBlock <= b.toBlock
 }
 
-func (l *LiveBlockRanges) addBlockRange(br blockRange) error {
+func (l *liveBlockRanges) addBlockRange(br blockRange) error {
 	if err := br.isValid(); err != nil {
 		return err
 	}
 	if l.overlaps(br) {
 		return errors.New(errBlockRangeInvalidOverlap)
 	}
-	l.ranges = append(l.ranges, LiveBlockRangeItem{br})
+	l.ranges = append(l.ranges, liveBlockRangeItem{br})
 	return nil
 }
 
-func (l *LiveBlockRanges) removeBlockRange(br blockRange) error {
+func (l *liveBlockRanges) removeBlockRange(br blockRange) error {
 	for i, r := range l.ranges {
 		if r.blockRange == br {
 			l.ranges = append(l.ranges[:i], l.ranges[i+1:]...)
@@ -72,14 +72,14 @@ func (l *LiveBlockRanges) removeBlockRange(br blockRange) error {
 	return errors.New(errBlockRangeNotFound)
 }
 
-func (l *LiveBlockRanges) getFirstBlockRange() (blockRange, error) {
+func (l *liveBlockRanges) getFirstBlockRange() (blockRange, error) {
 	if l.len() == 0 {
 		return blockRange{}, errors.New(errBlockRangeIsEmpty)
 	}
 	return l.ranges[0].blockRange, nil
 }
 
-func (l *LiveBlockRanges) GetSuperBlockRange() *blockRange {
+func (l *liveBlockRanges) getSuperBlockRange() *blockRange {
 	fromBlock := invalidBlockNumber
 	toBlock := invalidBlockNumber
 	for i, r := range l.ranges {
@@ -101,11 +101,11 @@ func (l *LiveBlockRanges) GetSuperBlockRange() *blockRange {
 	return nil
 }
 
-func (l *LiveBlockRanges) len() int {
+func (l *liveBlockRanges) len() int {
 	return len(l.ranges)
 }
 
-func (l *LiveBlockRanges) overlaps(br blockRange) bool {
+func (l *liveBlockRanges) overlaps(br blockRange) bool {
 	for _, r := range l.ranges {
 		if r.blockRange.overlaps(br) {
 			return true

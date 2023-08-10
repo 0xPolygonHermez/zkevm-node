@@ -304,7 +304,7 @@ func runSynchronizer(cfg config.Config, ethermanClient *etherman.Client, ethTxMa
 
 	etherManForL1 := []synchronizer.EthermanInterface{}
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < int(cfg.Synchronizer.NumberOfEthereumClientsToSync); i++ {
 		eth, err := newEtherman(cfg)
 		if err != nil {
 			log.Fatal(err)

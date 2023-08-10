@@ -9,25 +9,24 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
+const (
+	ttlOfLastBlockDefault = time.Second * 60
+)
+
 // - multiples etherman to do it in parallel
 // - generate blocks to be retrieved
 // - retrieve blocks (parallel)
 // - check last block on L1?
 
-type L1DataRetriever struct {
+type l1DataRetriever struct {
 	mutex      sync.Mutex
 	ctx        context.Context
 	cancelCtx  context.CancelFunc
 	workers    workers
-	syncStatus syncStatus
+	syncStatus syncStatusInterface
 	// Send the block info to this channel ordered by block number
 	//channel chan getRollupInfoByBlockRangeResult
-	sender *SendOrdererResultsToSynchronizer
-}
-
-func (l *L1DataRetriever) toStringBrief() string {
-	return fmt.Sprintf("syncStatus:%s sender:%s ", l.syncStatus.toStringBrief(), l.sender.toStringBrief())
-
+	sender *sendOrdererResultsToSynchronizer
 }
 
 func min(a, b uint64) uint64 {
@@ -38,7 +37,7 @@ func min(a, b uint64) uint64 {
 }
 
 // verify: test params and status without if not allowModify avoid doing connection or modification of objects
-func (l *L1DataRetriever) verify(allowModify bool) error {
+func (l *l1DataRetriever) verify(allowModify bool) error {
 	err := l.workers.verify(allowModify)
 	if err != nil {
 		return err
@@ -50,26 +49,32 @@ func (l *L1DataRetriever) verify(allowModify bool) error {
 	return nil
 }
 
-func NewL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
+func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 	startingBlockNumber uint64, SyncChunkSize uint64,
-	resultChannel chan getRollupInfoByBlockRangeResult) *L1DataRetriever {
+	resultChannel chan getRollupInfoByBlockRangeResult, renewLastBlockOnL1 bool) *l1DataRetriever {
+	if cap(resultChannel) < len(ethermans) {
+		log.Fatalf("resultChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(resultChannel), len(ethermans))
+	}
 	ctx, cancel := context.WithCancel(ctx)
-	result := L1DataRetriever{
+	ttlOfLastBlock := ttlOfLastBlockDefault
+	if !renewLastBlockOnL1 {
+		ttlOfLastBlock = ttlOfLastBlockInfinity
+	}
+	result := l1DataRetriever{
 		ctx:        ctx,
 		cancelCtx:  cancel,
-		syncStatus: newSyncStatus(startingBlockNumber, SyncChunkSize),
+		syncStatus: newSyncStatus(startingBlockNumber, SyncChunkSize, ttlOfLastBlock),
 		workers:    newWorkers(ethermans),
-		sender:     NewSendResultsToSynchronizer(resultChannel, startingBlockNumber),
+		sender:     newSendResultsToSynchronizer(resultChannel, startingBlockNumber),
 	}
 	err := result.verify(false)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return &result
-
 }
 
-func (l *L1DataRetriever) Initialize() error {
+func (l *l1DataRetriever) initialize() error {
 	// TODO: check that all ethermans have the same chainID and get last block in L1
 	err := l.verify(true)
 	if err != nil {
@@ -85,7 +90,9 @@ func (l *L1DataRetriever) Initialize() error {
 	return nil
 }
 
-func (l *L1DataRetriever) retrieveInitialValueOfLastBlock() genericResponse[retrieveL1LastBlockResult] {
+// retrieveInitialValueOfLastBlock do a synchronous request to get the last block on L1
+// that is needed to start the synchronizer
+func (l *l1DataRetriever) retrieveInitialValueOfLastBlock() genericResponse[retrieveL1LastBlockResult] {
 	maxPermittedRetries := 10
 	for {
 		ch, err := l.workers.asyncRequestLastBlock(l.ctx)
@@ -102,12 +109,11 @@ func (l *L1DataRetriever) retrieveInitialValueOfLastBlock() genericResponse[retr
 			log.Fatal("Cannot get last block on L1")
 		}
 		time.Sleep(time.Second)
-
 	}
 }
 
 // OnNewLastBlock is called when a new last block is responsed by L1
-func (l *L1DataRetriever) onNewLastBlock(lastBlock uint64, launchWork bool) {
+func (l *l1DataRetriever) onNewLastBlock(lastBlock uint64, launchWork bool) {
 	resp := l.syncStatus.onNewLastBlockOnL1(lastBlock)
 	log.Infof("New last block on L1: %v -> %s", lastBlock, resp.toString())
 	if launchWork {
@@ -117,7 +123,7 @@ func (l *L1DataRetriever) onNewLastBlock(lastBlock uint64, launchWork bool) {
 
 // launchWork: launch new workers if possible and returns new channels created
 // returns true if new workers were launched
-func (l *L1DataRetriever) launchWork() int {
+func (l *l1DataRetriever) launchWork() int {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	launchedWorker := 0
@@ -143,7 +149,7 @@ func (l *L1DataRetriever) launchWork() int {
 	return launchedWorker
 }
 
-func (l *L1DataRetriever) Start() error {
+func (l *l1DataRetriever) start() error {
 	var waitDuration = time.Duration(0)
 	l.launchWork()
 	for l.step(&waitDuration) {
@@ -152,7 +158,32 @@ func (l *L1DataRetriever) Start() error {
 	return nil
 }
 
-func (l *L1DataRetriever) renewLastBlockOnL1IfNeeded() {
+func (l *l1DataRetriever) step(waitDuration *time.Duration) bool {
+	select {
+	case <-l.ctx.Done():
+		return false
+	case <-time.After(*waitDuration):
+		*waitDuration = time.Duration(time.Second)
+		//log.Debugf(" ** Periodic status: %s", l.toStringBrief())
+	case resultRollupInfo := <-l.workers.getResponseChannelForRollupInfo():
+		l.onResponseRollupInfo(resultRollupInfo)
+
+	case resultLastBlock := <-l.workers.getResponseChannelForLastBlock():
+		l.onResponseRetrieveLastBlockOnL1(resultLastBlock)
+	}
+	// We check if we have finish the work
+	if l.syncStatus.isNodeFullySynchronizedWithL1() {
+		log.Infof("we have retieve all rollupInfo from  L1")
+		return false
+	}
+	// Try to nenew last block on L1 if needed
+	l.renewLastBlockOnL1IfNeeded()
+	// Try to launch retrieve more rollupInfo from L1
+	l.launchWork()
+	return true
+}
+
+func (l *l1DataRetriever) renewLastBlockOnL1IfNeeded() {
 	if !l.syncStatus.needToRenewLastBlockOnL1() {
 		return
 	}
@@ -166,11 +197,10 @@ func (l *L1DataRetriever) renewLastBlockOnL1IfNeeded() {
 		} else {
 			log.Warnf("Error while trying to get last block on L1: %v", err)
 		}
-
 	}
 }
 
-func (l *L1DataRetriever) onResponseRetrieveLastBlockOnL1(result genericResponse[retrieveL1LastBlockResult]) {
+func (l *l1DataRetriever) onResponseRetrieveLastBlockOnL1(result genericResponse[retrieveL1LastBlockResult]) {
 	if result.err != nil {
 		log.Warnf("Error while trying to get last block on L1: %v", result.err)
 		return
@@ -178,29 +208,7 @@ func (l *L1DataRetriever) onResponseRetrieveLastBlockOnL1(result genericResponse
 	l.onNewLastBlock(result.result.block, true)
 }
 
-func (l *L1DataRetriever) step(waitDuration *time.Duration) bool {
-	select {
-	case <-l.ctx.Done():
-		return false
-	case <-time.After(*waitDuration):
-		*waitDuration = time.Duration(time.Second)
-		//log.Debugf(" ** Periodic status: %s", l.toStringBrief())
-	case resultRollupInfo := <-l.workers.getResponseChannelForRollupInfo():
-		l.onResponseRollupInfo(resultRollupInfo)
-		l.renewLastBlockOnL1IfNeeded()
-		l.launchWork()
-	case resultLastBlock := <-l.workers.getResponseChannelForLastBlock():
-		l.onResponseRetrieveLastBlockOnL1(resultLastBlock)
-		if l.syncStatus.isNodeFullySynchronizedWithL1() {
-			log.Infof("Node is fully synchronized with L1")
-			return false
-		}
-		l.launchWork()
-	}
-	return true
-}
-
-func (l *L1DataRetriever) onResponseRollupInfo(result genericResponse[getRollupInfoByBlockRangeResult]) {
+func (l *l1DataRetriever) onResponseRollupInfo(result genericResponse[getRollupInfoByBlockRangeResult]) {
 	isOk := (result.err == nil)
 	l.syncStatus.onFinishWorker(result.result.blockRange, isOk)
 	if isOk {
@@ -210,7 +218,7 @@ func (l *L1DataRetriever) onResponseRollupInfo(result genericResponse[getRollupI
 	}
 }
 
-func (l *L1DataRetriever) Stop() {
+func (l *l1DataRetriever) stop() {
 	l.cancelCtx()
 }
 

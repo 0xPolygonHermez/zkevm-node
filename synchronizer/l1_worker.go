@@ -79,7 +79,6 @@ func (r *getRollupInfoByBlockRangeResult) toStringBrief() string {
 	return fmt.Sprintf(" blockRange: %s len_blocks: [%d] len_order:[%d] lastBlockOfRangeSet [%t]",
 		r.blockRange.toString(),
 		len(r.blocks), len(r.order), isLastBlockOfRangeSet)
-
 }
 
 func (b *blockRange) toString() string {
@@ -129,7 +128,6 @@ func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, wg *syn
 		result := newGenericAnswer(err, duration, typeRequestRollupInfo, &getRollupInfoByBlockRangeResult{blockRange, blocks, order, lastBlock})
 		w.setStatus(ethermanIdle)
 		ch <- result
-
 	}
 	go launch()
 	return ch, nil
@@ -154,7 +152,6 @@ func (w *worker) asyncRequestLastBlock(ctx context.Context, wg *sync.WaitGroup) 
 		result := newGenericAnswer(err, duration, typeRequestLastBlock, &retrieveL1LastBlockResult{header.Number.Uint64()})
 		w.setStatus(ethermanIdle)
 		ch <- result
-
 	}
 	go launch()
 	return ch, nil

@@ -21,7 +21,7 @@ func Test_FirstRunWithPendingBlocksToRetrieve(t *testing.T) {
 		{"1wide_range", 149, 150, 100, false, blockRange{fromBlock: 150, toBlock: 150}},
 	}
 	for _, tc := range tcs {
-		s := newSyncStatus(tc.lastStoredBlock, tc.chuncks)
+		s := newSyncStatus(tc.lastStoredBlock, tc.chuncks, ttlOfLastBlockInfinity)
 		s.setLastBlockOnL1(tc.lastL1Block)
 		br := s.getNextRange()
 		if tc.expectedBlockRangeNil {
@@ -31,11 +31,10 @@ func Test_FirstRunWithPendingBlocksToRetrieve(t *testing.T) {
 			require.Equal(t, *br, tc.expectedBlockRange, tc.description)
 		}
 	}
-
 }
 
 func Test_SecondRunWithPendingBlocksToRetrieve(t *testing.T) {
-	s := newSyncStatus(100, 10)
+	s := newSyncStatus(100, 10, ttlOfLastBlockInfinity)
 	s.setLastBlockOnL1(150)
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
 	br := s.getNextRange()
@@ -44,7 +43,7 @@ func Test_SecondRunWithPendingBlocksToRetrieve(t *testing.T) {
 }
 
 func Test_generateNextRangeWithPreviousResult(t *testing.T) {
-	s := newSyncStatus(100, 10)
+	s := newSyncStatus(100, 10, ttlOfLastBlockInfinity)
 	s.setLastBlockOnL1(150)
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
 	br := s.getNextRange()
@@ -54,7 +53,7 @@ func Test_generateNextRangeWithPreviousResult(t *testing.T) {
 }
 
 func Test_generateNextRangeWithProcessedResult(t *testing.T) {
-	s := newSyncStatus(100, 10)
+	s := newSyncStatus(100, 10, ttlOfLastBlockInfinity)
 	s.setLastBlockOnL1(150)
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
 	s.onFinishWorker(blockRange{fromBlock: 101, toBlock: 111}, true)
@@ -65,7 +64,7 @@ func Test_generateNextRangeWithProcessedResult(t *testing.T) {
 }
 
 func Test_Given_MultiplesWorkers_When_BrInMiddleFinish_Then_DontChangeLastBlock(t *testing.T) {
-	s := newSyncStatus(100, 10)
+	s := newSyncStatus(100, 10, ttlOfLastBlockInfinity)
 	s.setLastBlockOnL1(150)
 	previousValue := s.lastBlockStoreOnStateDB
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
@@ -80,7 +79,7 @@ func Test_Given_MultiplesWorkers_When_BrInMiddleFinish_Then_DontChangeLastBlock(
 }
 
 func Test_Given_MultiplesWorkers_When_FirstFinish_Then_ChangeLastBlock(t *testing.T) {
-	s := newSyncStatus(100, 10)
+	s := newSyncStatus(100, 10, ttlOfLastBlockInfinity)
 	s.setLastBlockOnL1(150)
 
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
@@ -95,7 +94,7 @@ func Test_Given_MultiplesWorkers_When_FirstFinish_Then_ChangeLastBlock(t *testin
 }
 
 func Test_Given_MultiplesWorkers_When_LastFinish_Then_DontChangeLastBlock(t *testing.T) {
-	s := newSyncStatus(100, 10)
+	s := newSyncStatus(100, 10, ttlOfLastBlockInfinity)
 	s.setLastBlockOnL1(150)
 	previousValue := s.lastBlockStoreOnStateDB
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
@@ -110,7 +109,7 @@ func Test_Given_MultiplesWorkers_When_LastFinish_Then_DontChangeLastBlock(t *tes
 }
 
 func Test_Given_MultiplesWorkers_When_LastFinishAndFinishAlsoNextOne_Then_DontChangeLastBlock(t *testing.T) {
-	s := newSyncStatus(100, 10)
+	s := newSyncStatus(100, 10, ttlOfLastBlockInfinity)
 	s.setLastBlockOnL1(200)
 	previousValue := s.lastBlockStoreOnStateDB
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
@@ -126,7 +125,7 @@ func Test_Given_MultiplesWorkers_When_LastFinishAndFinishAlsoNextOne_Then_DontCh
 }
 
 func Test_Given_MultiplesWorkers_When_NextRange_Then_TheRangeIsCappedToLastBlockOnL1(t *testing.T) {
-	s := newSyncStatus(100, 10)
+	s := newSyncStatus(100, 10, ttlOfLastBlockInfinity)
 	s.setLastBlockOnL1(105)
 
 	br := s.getNextRange()

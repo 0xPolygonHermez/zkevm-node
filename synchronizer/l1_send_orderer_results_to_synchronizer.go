@@ -7,23 +7,23 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
-type SendOrdererResultsToSynchronizer struct {
+type sendOrdererResultsToSynchronizer struct {
 	mutex                   sync.Mutex
 	channel                 chan getRollupInfoByBlockRangeResult
 	lastBlockOnSynchronizer uint64
 	pendingResults          []getRollupInfoByBlockRangeResult
 }
 
-func (s *SendOrdererResultsToSynchronizer) toStringBrief() string {
+func (s *sendOrdererResultsToSynchronizer) toStringBrief() string {
 	return fmt.Sprintf("lastBlockSenedToSync[%v] len(pending_results)[%d]",
 		s.lastBlockOnSynchronizer, len(s.pendingResults))
 }
 
-func NewSendResultsToSynchronizer(ch chan getRollupInfoByBlockRangeResult, lastBlockOnSynchronizer uint64) *SendOrdererResultsToSynchronizer {
-	return &SendOrdererResultsToSynchronizer{channel: ch, lastBlockOnSynchronizer: lastBlockOnSynchronizer}
+func newSendResultsToSynchronizer(ch chan getRollupInfoByBlockRangeResult, lastBlockOnSynchronizer uint64) *sendOrdererResultsToSynchronizer {
+	return &sendOrdererResultsToSynchronizer{channel: ch, lastBlockOnSynchronizer: lastBlockOnSynchronizer}
 }
 
-func (s *SendOrdererResultsToSynchronizer) addResultAndSendToConsumer(result *getRollupInfoByBlockRangeResult) {
+func (s *sendOrdererResultsToSynchronizer) addResultAndSendToConsumer(result *getRollupInfoByBlockRangeResult) {
 	if result == nil {
 		log.Fatal("Nil results, make no sense!")
 		return
@@ -47,10 +47,11 @@ func (s *SendOrdererResultsToSynchronizer) addResultAndSendToConsumer(result *ge
 }
 
 // _sendResultIfPossible returns true is have send any result
-func (s *SendOrdererResultsToSynchronizer) _sendResultIfPossible() bool {
+func (s *sendOrdererResultsToSynchronizer) _sendResultIfPossible() bool {
 	brToRemove := []blockRange{}
 	send := false
-	for _, result := range s.pendingResults {
+	for i := range s.pendingResults {
+		result := s.pendingResults[i]
 		if s._matchNextBlock(&result) {
 			send = true
 			log.Info("Sending results to synchronizer:", result.toStringBrief())
@@ -70,7 +71,7 @@ func (s *SendOrdererResultsToSynchronizer) _sendResultIfPossible() bool {
 	return send
 }
 
-func (s *SendOrdererResultsToSynchronizer) _removeBlockRange(toRemove blockRange) {
+func (s *sendOrdererResultsToSynchronizer) _removeBlockRange(toRemove blockRange) {
 	for i, result := range s.pendingResults {
 		if result.blockRange == toRemove {
 			s.pendingResults = append(s.pendingResults[:i], s.pendingResults[i+1:]...)
@@ -79,16 +80,16 @@ func (s *SendOrdererResultsToSynchronizer) _removeBlockRange(toRemove blockRange
 	}
 }
 
-func (s *SendOrdererResultsToSynchronizer) _setLastBlockOnSynchronizerCorrespondingLatBlockRangeSend(lastBlock blockRange) {
+func (s *sendOrdererResultsToSynchronizer) _setLastBlockOnSynchronizerCorrespondingLatBlockRangeSend(lastBlock blockRange) {
 	newVaule := lastBlock.toBlock
 	log.Info("Moving lastBlockSend from ", s.lastBlockOnSynchronizer, " to ", newVaule)
 	s.lastBlockOnSynchronizer = newVaule
 }
 
-func (s *SendOrdererResultsToSynchronizer) _matchNextBlock(results *getRollupInfoByBlockRangeResult) bool {
+func (s *sendOrdererResultsToSynchronizer) _matchNextBlock(results *getRollupInfoByBlockRangeResult) bool {
 	return results.blockRange.fromBlock == s.lastBlockOnSynchronizer+1
 }
 
-func (s *SendOrdererResultsToSynchronizer) _addPendingResult(results *getRollupInfoByBlockRangeResult) {
+func (s *sendOrdererResultsToSynchronizer) _addPendingResult(results *getRollupInfoByBlockRangeResult) {
 	s.pendingResults = append(s.pendingResults, *results)
 }
