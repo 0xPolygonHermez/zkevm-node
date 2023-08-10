@@ -775,16 +775,19 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 	decodedBatchL2Data, err = hex.DecodeHex(testBatchL2DataAsString)
 	require.NoError(t, err)
 
+	tx1 := types.NewTransaction(0, common.HexToAddress("0x1"), big.NewInt(1), 100000, big.NewInt(1), RawTxsData1)
+	tx2 := types.NewTransaction(1, common.HexToAddress("0x2"), big.NewInt(1), 100000, big.NewInt(1), RawTxsData2)
+
 	txResp1 := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
 		StateRoot: stateRootHashes[0],
-		Tx:        types.Transaction{},
+		Tx:        *tx1,
 	}
 
 	txResp2 := &state.ProcessTransactionResponse{
 		TxHash:    txHash2,
 		StateRoot: stateRootHashes[1],
-		Tx:        types.Transaction{},
+		Tx:        *tx2,
 	}
 	batchResponse1 := &state.ProcessBatchResponse{
 		NewBatchNumber: f.batch.batchNumber + 1,
