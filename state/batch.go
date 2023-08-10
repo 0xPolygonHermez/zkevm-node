@@ -410,10 +410,16 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base. Values returned are the new stateRoot,
 // the flushID (incremental value returned by executor),
 // the ProverID (executor running ID) the result of closing the batch.
-func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
+func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
+	BatchL2Data := processingCtx.BatchL2Data
+	if BatchL2Data == nil {
+		log.Warnf("Batch %v: ProcessAndStoreClosedBatch: processingCtx.BatchL2Data is nil, assuming is empty", processingCtx.BatchNumber)
+		var BatchL2DataEmpty []byte
+		BatchL2Data = &BatchL2DataEmpty
+	}
 	// Decode transactions
 	forkID := s.GetForkIDByBatchNumber(processingCtx.BatchNumber)
-	decodedTransactions, _, _, err := DecodeTxs(encodedTxs, forkID)
+	decodedTransactions, _, _, err := DecodeTxs(*BatchL2Data, forkID)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		log.Debugf("error decoding transactions: %v", err)
 		return common.Hash{}, noFlushID, noProverID, err
@@ -423,10 +429,12 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if dbTx == nil {
 		return common.Hash{}, noFlushID, noProverID, ErrDBTxNil
 	}
+	// Avoid writing twice to the DB the BatchL2Data that is going to be written also in the call closeBatch
+	processingCtx.BatchL2Data = nil
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
 		return common.Hash{}, noFlushID, noProverID, err
 	}
-	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, caller, dbTx)
+	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, *BatchL2Data, caller, dbTx)
 	if err != nil {
 		return common.Hash{}, noFlushID, noProverID, err
 	}
@@ -476,7 +484,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
 		AccInputHash:  processedBatch.NewAccInputHash,
-		BatchL2Data:   encodedTxs,
+		BatchL2Data:   *BatchL2Data,
 	}, dbTx)
 }
 
