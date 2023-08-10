@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
@@ -33,7 +34,9 @@ type Synchronizer interface {
 type ClientSynchronizer struct {
 	isTrustedSequencer bool
 
-	etherMan                 ethermanInterface
+	etherMan EthermanInterface
+	// List of client to be use for L1 synchronization
+	etherManForL1            []EthermanInterface
 	state                    stateInterface
 	pool                     poolInterface
 	ethTxManager             ethTxManager
@@ -54,7 +57,8 @@ const (
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(
 	isTrustedSequencer bool,
-	ethMan ethermanInterface,
+	ethMan EthermanInterface,
+	etherManForL1 []EthermanInterface,
 	st stateInterface,
 	pool poolInterface,
 	ethTxManager ethTxManager,
@@ -67,10 +71,12 @@ func NewSynchronizer(
 
 	cstate := NewSynchronizerStateBatchCache(st, sizeOfStateDbCache, ttlOfStateDbCache)
 	flushIDController := NewFlushIDController(cstate, ctx, eventLog)
+
 	return &ClientSynchronizer{
 		isTrustedSequencer:       isTrustedSequencer,
 		state:                    cstate,
 		etherMan:                 ethMan,
+		etherManForL1:            etherManForL1,
 		pool:                     pool,
 		ctx:                      ctx,
 		cancelCtx:                cancel,
@@ -260,8 +266,54 @@ func (s *ClientSynchronizer) Sync() error {
 	}
 }
 
-// This function syncs the node from a specific block to the latest
+// lastEthBlockSynced -> last block synced in the db
 func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
+
+	chIncommingRollupInfo := make(chan getRollupInfoByBlockRangeResult, 20)
+	L1DataProcessor := NewL1DataProcessor(s)
+	l1DataRetriever := NewL1DataRetriever(s.ctx, s.etherManForL1, lastEthBlockSynced.BlockNumber, s.cfg.SyncChunkSize, chIncommingRollupInfo)
+	l1DataRetriever.Initialize()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		l1DataRetriever.Start()
+		panic("finished retrieving data from L1")
+	}()
+	var timeProcessingDuration time.Duration
+	numProcessedRollupInfo := 0
+	numProcessedBlocks := 0
+	startTime := time.Now()
+	for {
+
+		timeWaitingStart := time.Now()
+
+		select {
+		case <-s.ctx.Done():
+			return nil, nil
+		case rollupInfo := <-chIncommingRollupInfo:
+			timeWaitingEnd := time.Now()
+			log.Debugf("Time wasted waiting for new rollupInfo from L1: %s last_process: %s new range: %s block_per_second: %f",
+				timeWaitingEnd.Sub(timeWaitingStart), timeProcessingDuration, rollupInfo.blockRange.toString(),
+				float64(numProcessedBlocks)/time.Now().Sub(startTime).Seconds())
+			// Process
+			numProcessedRollupInfo++
+			log.Infof("Processing rollupInfo [%000d]: range:%s num_blocks [%d]", numProcessedRollupInfo, rollupInfo.blockRange.toString(), len(rollupInfo.blocks))
+			timeProcessingStart := time.Now()
+			_, err := L1DataProcessor.Process(rollupInfo)
+			timeProcessingDuration = time.Now().Sub(timeProcessingStart)
+			if err != nil {
+				log.Error("error processing rollupInfo. Error: ", err)
+				return nil, err
+			}
+			numProcessedBlocks += len(rollupInfo.blocks)
+		}
+	}
+	return nil, nil
+}
+
+// This function syncs the node from a specific block to the latest
+func (s *ClientSynchronizer) syncBlocksOld(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {
@@ -856,7 +908,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 					log.Errorf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 					return err
 				}
-				s.flushIDController.SetPendingFlushIDAndCheckProverID(flushID, proverID)
+				s.flushIDController.SetPendingFlushIDAndCheckProverID(flushID, proverID, fmt.Sprintf("processSequenceBatch(%v)", batch.BatchNumber))
 
 				newRoot = newStateRoot
 				tBatch = &batch
@@ -938,7 +990,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				log.Errorf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				return err
 			}
-			s.flushIDController.SetPendingFlushIDAndCheckProverID(flushID, proverID)
+			s.flushIDController.SetPendingFlushIDAndCheckProverID(flushID, proverID, fmt.Sprintf("ProcessAndStoreClosedBatch(%v)", batch.BatchNumber))
 		}
 
 		// Store virtualBatch
@@ -1063,7 +1115,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			log.Errorf("error processing batch in processSequenceForceBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, block.BlockNumber, err)
 			return err
 		}
-		s.flushIDController.SetPendingFlushIDAndCheckProverID(flushID, proverID)
+		s.flushIDController.SetPendingFlushIDAndCheckProverID(flushID, proverID, fmt.Sprintf("forced/ProcessAndStoreClosedBatch(%v)", batch.BatchNumber))
 
 		// Store virtualBatch
 		err = s.state.AddVirtualBatch(s.ctx, &virtualBatch, dbTx)

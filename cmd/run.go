@@ -283,7 +283,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman, nil
 }
 
-func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
+func runSynchronizer(cfg config.Config, ethermanClient *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
 	var trustedSequencerURL string
 	var err error
 	if !cfg.IsTrustedSequencer {
@@ -291,7 +291,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 			trustedSequencerURL = cfg.Synchronizer.TrustedSequencerURL
 		} else {
 			log.Debug("getting trusted sequencer URL from smc")
-			trustedSequencerURL, err = etherman.GetTrustedSequencerURL()
+			trustedSequencerURL, err = ethermanClient.GetTrustedSequencerURL()
 			if err != nil {
 				log.Fatal("error getting trusted sequencer URI. Error: %v", err)
 			}
@@ -300,8 +300,19 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 	}
 	zkEVMClient := client.NewClient(trustedSequencerURL)
 
+	//var etherman2 *etherman.Client = nil
+
+	etherManForL1 := []synchronizer.EthermanInterface{}
+
+	for i := 0; i < 2; i++ {
+		eth, err := newEtherman(cfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		etherManForL1 = append(etherManForL1, eth)
+	}
 	sy, err := synchronizer.NewSynchronizer(
-		cfg.IsTrustedSequencer, etherman, st, pool, ethTxManager,
+		cfg.IsTrustedSequencer, ethermanClient, etherManForL1, st, pool, ethTxManager,
 		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer,
 	)
 	if err != nil {

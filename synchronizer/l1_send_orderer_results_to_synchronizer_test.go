@@ -16,7 +16,7 @@ func Test_SOR_TrivialCaseThatArrivesNextBlock(t *testing.T) {
 			toBlock:   110,
 		},
 	}
-	sut.addResult(&result)
+	sut.addResultAndSendToConsumer(&result)
 	require.Equal(t, 0, len(sut.pendingResults))
 	require.Equal(t, uint64(110), sut.lastBlockOnSynchronizer)
 }
@@ -31,7 +31,7 @@ func Test_SOR_ReceivedABlockThatIsNotNextOne(t *testing.T) {
 			toBlock:   120,
 		},
 	}
-	sut.addResult(&result)
+	sut.addResultAndSendToConsumer(&result)
 	require.Equal(t, 1, len(sut.pendingResults))
 	require.Equal(t, lastBlock, sut.lastBlockOnSynchronizer)
 }
@@ -40,13 +40,13 @@ func Test_SOR_ThereAreSomePendingBlocksAndArriveTheMissingOne(t *testing.T) {
 	ch := make(chan getRollupInfoByBlockRangeResult, 100)
 	lastBlock := uint64(100)
 	sut := NewSendResultsToSynchronizer(ch, lastBlock)
-	sut.addResult(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 111, toBlock: 120}})
-	sut.addResult(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 121, toBlock: 130}})
-	sut.addResult(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 131, toBlock: 140}})
+	sut.addResultAndSendToConsumer(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 111, toBlock: 120}})
+	sut.addResultAndSendToConsumer(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 121, toBlock: 130}})
+	sut.addResultAndSendToConsumer(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 131, toBlock: 140}})
 	require.Equal(t, 3, len(sut.pendingResults))
 	require.Equal(t, lastBlock, sut.lastBlockOnSynchronizer)
 
-	sut.addResult(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 101, toBlock: 110}})
+	sut.addResultAndSendToConsumer(&getRollupInfoByBlockRangeResult{blockRange: blockRange{fromBlock: 101, toBlock: 110}})
 	require.Equal(t, 0, len(sut.pendingResults))
 	require.Equal(t, uint64(140), sut.lastBlockOnSynchronizer)
 }

@@ -1,6 +1,7 @@
 package synchronizer
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -13,24 +14,35 @@ type SendOrdererResultsToSynchronizer struct {
 	pendingResults          []getRollupInfoByBlockRangeResult
 }
 
+func (s *SendOrdererResultsToSynchronizer) toStringBrief() string {
+	return fmt.Sprintf("lastBlockSenedToSync[%v] len(pending_results)[%d]",
+		s.lastBlockOnSynchronizer, len(s.pendingResults))
+}
+
 func NewSendResultsToSynchronizer(ch chan getRollupInfoByBlockRangeResult, lastBlockOnSynchronizer uint64) *SendOrdererResultsToSynchronizer {
 	return &SendOrdererResultsToSynchronizer{channel: ch, lastBlockOnSynchronizer: lastBlockOnSynchronizer}
 }
 
-func (s *SendOrdererResultsToSynchronizer) addResult(results *getRollupInfoByBlockRangeResult) {
-	if results == nil {
+func (s *SendOrdererResultsToSynchronizer) addResultAndSendToConsumer(result *getRollupInfoByBlockRangeResult) {
+	if result == nil {
 		log.Fatal("Nil results, make no sense!")
 		return
 	}
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s._addPendingResult(results)
-	s._sendResultIfPossible()
-}
 
-func (s *SendOrdererResultsToSynchronizer) sendResultIfPossible() {
+	log.Info("Received: ", result.toStringBrief())
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	if result.blockRange.fromBlock < s.lastBlockOnSynchronizer {
+		log.Fatalf("It's not possible to receive a old block [%s] range that been send to synchronizer status:[%s]",
+			result.blockRange.toString(), s.toStringBrief())
+		return
+	}
+
+	if !s._matchNextBlock(result) {
+		log.Debugf("The range %s is not the next block to be send, 	adding to pending results status:%s",
+			result.blockRange.toString(), s.toStringBrief())
+	}
+	s._addPendingResult(result)
 	s._sendResultIfPossible()
 }
 
@@ -41,9 +53,9 @@ func (s *SendOrdererResultsToSynchronizer) _sendResultIfPossible() bool {
 	for _, result := range s.pendingResults {
 		if s._matchNextBlock(&result) {
 			send = true
-			log.Infof("Sending results to synchronizer:", result)
+			log.Info("Sending results to synchronizer:", result.toStringBrief())
 			s.channel <- result
-			s.lastBlockOnSynchronizer = result.blockRange.toBlock
+			s._setLastBlockOnSynchronizerCorrespondingLatBlockRangeSend(result.blockRange)
 			brToRemove = append(brToRemove, result.blockRange)
 			break
 		}
@@ -65,6 +77,12 @@ func (s *SendOrdererResultsToSynchronizer) _removeBlockRange(toRemove blockRange
 			break
 		}
 	}
+}
+
+func (s *SendOrdererResultsToSynchronizer) _setLastBlockOnSynchronizerCorrespondingLatBlockRangeSend(lastBlock blockRange) {
+	newVaule := lastBlock.toBlock
+	log.Info("Moving lastBlockSend from ", s.lastBlockOnSynchronizer, " to ", newVaule)
+	s.lastBlockOnSynchronizer = newVaule
 }
 
 func (s *SendOrdererResultsToSynchronizer) _matchNextBlock(results *getRollupInfoByBlockRangeResult) bool {

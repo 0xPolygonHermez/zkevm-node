@@ -44,9 +44,9 @@ func Test_L1Get2(t *testing.T) {
 func setup(t *testing.T) (*L1DataRetriever, []*ethermanMock, chan getRollupInfoByBlockRangeResult) {
 	etherman := newEthermanMock(t)
 	ethermansMock := []*ethermanMock{etherman}
-	ethermans := []ethermanInterface{etherman}
+	ethermans := []EthermanInterface{etherman}
 	resultChannel := make(chan getRollupInfoByBlockRangeResult)
-	sut := NewL1Sync(context.Background(), ethermans, 100, 10, resultChannel)
+	sut := NewL1DataRetriever(context.Background(), ethermans, 100, 10, resultChannel)
 	return sut, ethermansMock, resultChannel
 }
 

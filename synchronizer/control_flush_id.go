@@ -19,7 +19,7 @@ type FlushIDController interface {
 	// the flushid written, also check ProverID
 	BlockUntilLastFlushIDIsWritten(dbTx pgx.Tx) error
 	// SetPendingFlushIDAndCheckProverID set the pending flushID to be written in DB and check proverID
-	SetPendingFlushIDAndCheckProverID(flushID uint64, proverID string)
+	SetPendingFlushIDAndCheckProverID(flushID uint64, proverID string, callDescription string)
 }
 
 // ClientFlushIDControl is a struct to control the flushID and ProverID, implements FlushIDController interface
@@ -52,8 +52,8 @@ func NewFlushIDController(state stateInterface, ctx context.Context, eventLog *e
 }
 
 // SetPendingFlushIDAndCheckProverID set the pending flushID to be written in DB and check proverID
-func (s *ClientFlushIDControl) SetPendingFlushIDAndCheckProverID(flushID uint64, proverID string) {
-	log.Infof("pending flushID: %d", flushID)
+func (s *ClientFlushIDControl) SetPendingFlushIDAndCheckProverID(flushID uint64, proverID string, callDescription string) {
+	log.Infof("new executor [%s] pending flushID: %d", callDescription, flushID)
 	s.latestFlushID = flushID
 	s.latestFlushIDIsFulfilled = false
 	s.UpdateAndCheckProverID(proverID)

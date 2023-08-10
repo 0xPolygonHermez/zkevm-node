@@ -2,6 +2,7 @@ package synchronizer
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -13,31 +14,20 @@ import (
 // - retrieve blocks (parallel)
 // - check last block on L1?
 
-type blockStatusEnum int8
-
-const (
-	blockIsPending  blockStatusEnum = 0
-	blockIsRunning  blockStatusEnum = 1
-	blockIsInError  blockStatusEnum = 2
-	blockIsFinished blockStatusEnum = 3
-)
-
-type blockRangeAlive struct {
-	blockRange blockRange
-	status     blockStatusEnum
-}
-
 type L1DataRetriever struct {
 	mutex      sync.Mutex
 	ctx        context.Context
 	cancelCtx  context.CancelFunc
 	workers    workers
 	syncStatus syncStatus
-	// If there are a running request to get the last block on L1, channelGettingLastBlockOnL1!=nil
-	channelGettingLastBlockOnL1    *chan genericResponse[retrieveL1LastBlockResult]
-	channelAggregatorForRollupInfo *chan genericResponse[getRollupInfoByBlockRangeResult]
 	// Send the block info to this channel ordered by block number
-	channel chan getRollupInfoByBlockRangeResult
+	//channel chan getRollupInfoByBlockRangeResult
+	sender *SendOrdererResultsToSynchronizer
+}
+
+func (l *L1DataRetriever) toStringBrief() string {
+	return fmt.Sprintf("syncStatus:%s sender:%s ", l.syncStatus.toStringBrief(), l.sender.toStringBrief())
+
 }
 
 func min(a, b uint64) uint64 {
@@ -47,29 +37,20 @@ func min(a, b uint64) uint64 {
 	return b
 }
 
-// verifyDry: test params and status without any connection of modification of objects
-func (this *L1DataRetriever) verifyDry() error {
-	err := this.workers.verifyDry()
+// verify: test params and status without if not allowModify avoid doing connection or modification of objects
+func (l *L1DataRetriever) verify(allowModify bool) error {
+	err := l.workers.verify(allowModify)
 	if err != nil {
 		return err
 	}
-	err = this.syncStatus.verifyDry()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// verify: verify params and status with connection to the blockchain
-func (this *L1DataRetriever) verify() error {
-	err := this.workers.verify()
+	err = l.syncStatus.verify(allowModify)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func NewL1Sync(ctx context.Context, ethermans []ethermanInterface,
+func NewL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 	startingBlockNumber uint64, SyncChunkSize uint64,
 	resultChannel chan getRollupInfoByBlockRangeResult) *L1DataRetriever {
 	ctx, cancel := context.WithCancel(ctx)
@@ -78,9 +59,9 @@ func NewL1Sync(ctx context.Context, ethermans []ethermanInterface,
 		cancelCtx:  cancel,
 		syncStatus: newSyncStatus(startingBlockNumber, SyncChunkSize),
 		workers:    newWorkers(ethermans),
-		channel:    resultChannel,
+		sender:     NewSendResultsToSynchronizer(resultChannel, startingBlockNumber),
 	}
-	err := result.verifyDry()
+	err := result.verify(false)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,7 +71,7 @@ func NewL1Sync(ctx context.Context, ethermans []ethermanInterface,
 
 func (l *L1DataRetriever) Initialize() error {
 	// TODO: check that all ethermans have the same chainID and get last block in L1
-	err := l.verify()
+	err := l.verify(true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -98,44 +79,68 @@ func (l *L1DataRetriever) Initialize() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ch, err := l.workers.asyncRetrieveLastBlock(l.ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	result := <-ch
-	if result.err != nil {
-		log.Fatal(result.err)
-	}
-	l.onNewLastBlock(result.result.block)
+	result := l.retrieveInitialValueOfLastBlock()
+	// We don't want to start request to L1 until calling Start()
+	l.onNewLastBlock(result.result.block, false)
 	return nil
 }
 
+func (l *L1DataRetriever) retrieveInitialValueOfLastBlock() genericResponse[retrieveL1LastBlockResult] {
+	maxPermittedRetries := 10
+	for {
+		ch, err := l.workers.asyncRequestLastBlock(l.ctx)
+		if err != nil {
+			log.Error(err)
+		}
+		result := <-ch
+		if result.err == nil {
+			return result
+		}
+		log.Error(result.err)
+		maxPermittedRetries--
+		if maxPermittedRetries == 0 {
+			log.Fatal("Cannot get last block on L1")
+		}
+		time.Sleep(time.Second)
+
+	}
+}
+
 // OnNewLastBlock is called when a new last block is responsed by L1
-func (l *L1DataRetriever) onNewLastBlock(lastBlock uint64) {
+func (l *L1DataRetriever) onNewLastBlock(lastBlock uint64, launchWork bool) {
 	resp := l.syncStatus.onNewLastBlockOnL1(lastBlock)
-	if resp.extendedRange != nil {
-		// TODO: Try to launch new workers
+	log.Infof("New last block on L1: %v -> %s", lastBlock, resp.toString())
+	if launchWork {
+		l.launchWork()
 	}
 }
 
 // launchWork: launch new workers if possible and returns new channels created
-func (l *L1DataRetriever) launchWork() {
+// returns true if new workers were launched
+func (l *L1DataRetriever) launchWork() int {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-
+	launchedWorker := 0
+	accDebugStr := ""
 	for {
 		br := l.syncStatus.getNextRange()
 		if br == nil {
 			// No more work to do
-			return
+			accDebugStr += "[NoNextRange] "
+			break
 		}
-		_, err := l.workers.asyncGetRollupInfoByBlockRange(l.ctx, *br)
+		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctx, *br)
 		if err != nil {
-			log.Info(err)
-			return
+			accDebugStr += fmt.Sprintf(" [Error:%s] ", err.Error())
+			break
 		}
+		launchedWorker++
 		l.syncStatus.onStartedNewWorker(*br)
 	}
+	if launchedWorker == 0 {
+		log.Infof("No workers launched because: %s", accDebugStr)
+	}
+	return launchedWorker
 }
 
 func (l *L1DataRetriever) Start() error {
@@ -143,6 +148,7 @@ func (l *L1DataRetriever) Start() error {
 	l.launchWork()
 	for l.step(&waitDuration) {
 	}
+	l.workers.waitFinishAllWorkers()
 	return nil
 }
 
@@ -152,25 +158,24 @@ func (l *L1DataRetriever) renewLastBlockOnL1IfNeeded() {
 	}
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	if l.channelGettingLastBlockOnL1 != nil {
-		// There is already a request to get the last block on L1
-		return
-	}
-	ch, err := l.workers.asyncRetrieveLastBlock(l.ctx)
+
+	_, err := l.workers.asyncRequestLastBlock(l.ctx)
 	if err != nil {
-		log.Warnf("Error while trying to get last block on L1: %v", err)
-		l.channelGettingLastBlockOnL1 = nil
+		if err.Error() == errReachMaximumLiveRequestsOfThisType {
+			log.Debugf("There are a request to get last block on L1 already running")
+		} else {
+			log.Warnf("Error while trying to get last block on L1: %v", err)
+		}
+
 	}
-	l.channelGettingLastBlockOnL1 = &ch
 }
 
 func (l *L1DataRetriever) onResponseRetrieveLastBlockOnL1(result genericResponse[retrieveL1LastBlockResult]) {
-	l.channelGettingLastBlockOnL1 = nil
 	if result.err != nil {
 		log.Warnf("Error while trying to get last block on L1: %v", result.err)
 		return
 	}
-	l.onNewLastBlock(result.result.block)
+	l.onNewLastBlock(result.result.block, true)
 }
 
 func (l *L1DataRetriever) step(waitDuration *time.Duration) bool {
@@ -179,13 +184,18 @@ func (l *L1DataRetriever) step(waitDuration *time.Duration) bool {
 		return false
 	case <-time.After(*waitDuration):
 		*waitDuration = time.Duration(time.Second)
-		l.renewLastBlockOnL1IfNeeded()
-	case resultRollupInfo := <-l.workers.chAggregatedRollupInfo:
+		//log.Debugf(" ** Periodic status: %s", l.toStringBrief())
+	case resultRollupInfo := <-l.workers.getResponseChannelForRollupInfo():
 		l.onResponseRollupInfo(resultRollupInfo)
+		l.renewLastBlockOnL1IfNeeded()
 		l.launchWork()
-	case resultLastBlock := <-l.workers.chAggregatedLastBlock:
-		l.channelGettingLastBlockOnL1 = nil
+	case resultLastBlock := <-l.workers.getResponseChannelForLastBlock():
 		l.onResponseRetrieveLastBlockOnL1(resultLastBlock)
+		if l.syncStatus.isNodeFullySynchronizedWithL1() {
+			log.Infof("Node is fully synchronized with L1")
+			return false
+		}
+		l.launchWork()
 	}
 	return true
 }
@@ -193,6 +203,11 @@ func (l *L1DataRetriever) step(waitDuration *time.Duration) bool {
 func (l *L1DataRetriever) onResponseRollupInfo(result genericResponse[getRollupInfoByBlockRangeResult]) {
 	isOk := (result.err == nil)
 	l.syncStatus.onFinishWorker(result.result.blockRange, isOk)
+	if isOk {
+		l.sender.addResultAndSendToConsumer(result.result)
+	} else {
+		log.Warnf("Error while trying to get rollup info by block range: %v", result.err)
+	}
 }
 
 func (l *L1DataRetriever) Stop() {

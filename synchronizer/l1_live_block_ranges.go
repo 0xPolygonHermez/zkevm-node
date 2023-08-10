@@ -2,6 +2,7 @@ package synchronizer
 
 import (
 	"errors"
+	"fmt"
 )
 
 type LiveBlockRangeItem struct {
@@ -12,18 +13,21 @@ type LiveBlockRanges struct {
 	ranges []LiveBlockRangeItem
 }
 
+func (l *LiveBlockRanges) toStringBrief() string {
+	return fmt.Sprintf("len(ranges): %v", len(l.ranges))
+}
+
 const (
 	invalidBlockNumber = uint64(0)
 )
 
 const (
-	errBlockRangeInvalidIsNil         = "block Range Invalid: block range is nil"
-	errBlockRangeInvalidIsZero        = "block Range Invalid: Invalid: from or to are 0"
-	errBlockRangeInvalidIsWrong       = "block Range Invalid: from is greater than to"
-	errBlockRangeInvalidOverlap       = "block Range Invalid: block range overlaps"
-	errBlockRangeInvalidGapsForbidden = "block Range Invalid: block range has gaps"
-	errBlockRangeNotFound             = "block Range not found"
-	errBlockRangeIsEmpty              = "block Range is empty"
+	errBlockRangeInvalidIsNil   = "block Range Invalid: block range is nil"
+	errBlockRangeInvalidIsZero  = "block Range Invalid: Invalid: from or to are 0"
+	errBlockRangeInvalidIsWrong = "block Range Invalid: from is greater than to"
+	errBlockRangeInvalidOverlap = "block Range Invalid: block range overlaps"
+	errBlockRangeNotFound       = "block Range not found"
+	errBlockRangeIsEmpty        = "block Range is empty"
 )
 
 func NewLiveBlockRanges() LiveBlockRanges {
@@ -53,12 +57,6 @@ func (l *LiveBlockRanges) addBlockRange(br blockRange) error {
 	}
 	if l.overlaps(br) {
 		return errors.New(errBlockRangeInvalidOverlap)
-	}
-	if l.len() > 0 {
-		// Next block must be consecutive to the last block
-		if l.ranges[l.len()-1].blockRange.toBlock+1 != br.fromBlock {
-			return errors.New(errBlockRangeInvalidGapsForbidden)
-		}
 	}
 	l.ranges = append(l.ranges, LiveBlockRangeItem{br})
 	return nil

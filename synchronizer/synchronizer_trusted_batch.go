@@ -445,7 +445,7 @@ func (s *ClientTrustedBatchSynchronizer) processAndStoreTxs(trustedBatch *types.
 		log.Errorf("error processing sequencer batch for batch: %v", trustedBatch.Number)
 		return nil, err
 	}
-	s.flushIDController.SetPendingFlushIDAndCheckProverID(processBatchResp.FlushID, processBatchResp.ProverID)
+	s.flushIDController.SetPendingFlushIDAndCheckProverID(processBatchResp.FlushID, processBatchResp.ProverID, fmt.Sprintf("processAndStoreTxs(%v)", trustedBatch.Number))
 
 	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.Responses), trustedBatch.Number)
 	for _, tx := range processBatchResp.Responses {

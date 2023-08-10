@@ -20,7 +20,7 @@ func Test_Given_Kk(t *testing.T) {
 		Return(header, nil).
 		Once()
 	worker := newWorker(Etherman)
-	ch, err := worker.asyncRetrieveLastBlock(ctx)
+	ch, err := worker.asyncRequestLastBlock(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, ch)
 	result := <-ch
