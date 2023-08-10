@@ -969,6 +969,7 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 				}
 			}
 
+			dbManagerMock.On("DeleteTx", mock.Anything, mock.Anything).Return()
 			// act
 			batchNumber, newStateRoot, err = f.processForcedBatches(ctx, batchNumber, stateRoot)
 
