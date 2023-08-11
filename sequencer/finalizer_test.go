@@ -882,7 +882,7 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 			expectedStoredTx: []transactionToStore{
 				{
 					hash:          signedTx1.Hash(),
-					from:          common.HexToAddress("0x1"),
+					from:          auth.From,
 					batchResponse: batchResponse1,
 					batchNumber:   f.batch.batchNumber + 1,
 					coinbase:      seqAddr,
@@ -893,7 +893,7 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 				},
 				{
 					hash:          signedTx2.Hash(),
-					from:          common.HexToAddress("0x2"),
+					from:          auth.From,
 					batchResponse: batchResponse2,
 					batchNumber:   f.batch.batchNumber + 2,
 					coinbase:      seqAddr,
