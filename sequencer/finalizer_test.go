@@ -1618,7 +1618,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 	}
 	txResponseReverted := &state.ProcessTransactionResponse{
 		Tx:        *signedTx1,
-		TxHash:    txHash,
+		TxHash:    signedTx1.Hash(),
 		RomError:  runtime.ErrExecutionReverted,
 		StateRoot: newHash,
 	}
@@ -1691,7 +1691,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 			oldStateRoot: oldHash,
 			expectedStoredTxs: []transactionToStore{
 				{
-					hash:          signedTx2.Hash(),
+					hash:          signedTx1.Hash(),
 					from:          auth.From,
 					batchNumber:   1,
 					coinbase:      seqAddr,
