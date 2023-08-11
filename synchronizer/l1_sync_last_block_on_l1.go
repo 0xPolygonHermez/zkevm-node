@@ -33,6 +33,9 @@ func newSyncLastBlock(lastBlock uint64, ttlDuration time.Duration) syncLastBlock
 }
 func (s *syncLastBlock) toString() string {
 	remaining := time.Until(s.TTL)
+	if s.itLastForver {
+		return fmt.Sprintf("[lastBlock: %v, TTL remaining:  INFINITE]", s.lastBlock)
+	}
 	return fmt.Sprintf("[lastBlock: %v, TTL remaining: %s]", s.lastBlock, remaining.String())
 }
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
@@ -248,7 +247,13 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 			//Sync L1Blocks
 			startL1 := time.Now()
-			lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced)
+			if s.cfg.UseParallelModeForL1Synchronization {
+				log.Info("Syncing L1 blocks in parallel")
+				lastEthBlockSynced, err = s.syncBlocksParallel(lastEthBlockSynced)
+			} else {
+				log.Infof("Syncing L1 blocks sequentially")
+				lastEthBlockSynced, err = s.syncBlocksSequential(lastEthBlockSynced)
+			}
 			metrics.FullL1SyncTime(time.Since(startL1))
 			if err != nil {
 				log.Warn("error syncing blocks: ", err)
@@ -266,8 +271,9 @@ func (s *ClientSynchronizer) Sync() error {
 	}
 }
 
+// This function syncs the node from a specific block to the latest
 // lastEthBlockSynced -> last block synced in the db
-func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
+func (s *ClientSynchronizer) syncBlocksParallel(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {
@@ -284,9 +290,10 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		return block, nil
 	}
 
-	chIncommingRollupInfo := make(chan getRollupInfoByBlockRangeResult, s.cfg.CapacityOfBufferingRollupInfoFromL1)
+	chIncommingRollupInfo := make(chan getRollupInfoByBlockRangeResult, s.cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
 	L1DataProcessor := newL1DataProcessor(s, s.ctx, chIncommingRollupInfo)
 	l1DataRetriever := newL1DataRetriever(s.ctx, s.etherManForL1, lastEthBlockSynced.BlockNumber, s.cfg.SyncChunkSize, chIncommingRollupInfo, false)
+	l1SyncOrchestration := newL1SyncOrchestration(l1DataRetriever, L1DataProcessor)
 	err = l1DataRetriever.initialize()
 	if err != nil {
 		log.Warnf("error initializing L1DataRetriever. Error: %s", err)
@@ -297,33 +304,12 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		log.Warnf("error initializing L1DataProcessor. Error: %s", err)
 		return nil, err
 	}
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := l1DataRetriever.start()
-		if err != nil {
-			log.Warnf("error starting L1DataRetriever. Error: %s", err)
-		}
-		//panic("finished retrieving data from L1")
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := L1DataProcessor.Start()
-		if err != nil {
-			log.Warnf("error starting L1DataProcessor. Error: %s", err)
-		}
-		//panic("finished processing data from L1")
-	}()
 
-	wg.Wait()
-
-	return nil, nil
+	return l1SyncOrchestration.start()
 }
 
 // This function syncs the node from a specific block to the latest
-func (s *ClientSynchronizer) syncBlocksOld(lastEthBlockSynced *state.Block) (*state.Block, error) {
+func (s *ClientSynchronizer) syncBlocksSequential(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {

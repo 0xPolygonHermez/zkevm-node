@@ -13,6 +13,14 @@ type liveBlockRanges struct {
 	ranges []liveBlockRangeItem
 }
 
+func (l *liveBlockRanges) toString() string {
+	res := l.toStringBrief() + "["
+	for _, r := range l.ranges {
+		res += fmt.Sprintf("%s ,", r.blockRange.toString())
+	}
+	return res + "]"
+}
+
 func (l *liveBlockRanges) toStringBrief() string {
 	return fmt.Sprintf("len(ranges): %v", len(l.ranges))
 }
@@ -24,7 +32,7 @@ const (
 const (
 	errBlockRangeInvalidIsNil   = "block Range Invalid: block range is nil"
 	errBlockRangeInvalidIsZero  = "block Range Invalid: Invalid: from or to are 0"
-	errBlockRangeInvalidIsWrong = "block Range Invalid: from is greater than to"
+	errBlockRangeInvalidIsWrong = "block Range Invalid: fromBlock is greater than toBlock"
 	errBlockRangeInvalidOverlap = "block Range Invalid: block range overlaps"
 	errBlockRangeNotFound       = "block Range not found"
 	errBlockRangeIsEmpty        = "block Range is empty"
@@ -42,7 +50,7 @@ func (b *blockRange) isValid() error {
 		return errors.New(errBlockRangeInvalidIsZero)
 	}
 	if b.fromBlock > b.toBlock {
-		return errors.New(errBlockRangeInvalidIsWrong)
+		return errors.New(errBlockRangeInvalidIsWrong + b.toString())
 	}
 	return nil
 }

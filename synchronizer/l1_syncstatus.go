@@ -34,8 +34,15 @@ type syncStatus struct {
 }
 
 func (s *syncStatus) toStringBrief() string {
-	return fmt.Sprintf("lastBlockStoreOnStateDB: %v, lastBlockOnL1: %s, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
-		s.lastBlockStoreOnStateDB, s.lastBlockOnL1.toString(), s.amountOfBlocksInEachRange, s.processingRanges.toStringBrief(), s.errorRanges.toStringBrief())
+	return fmt.Sprintf("lastBlockStoreOnStateDB: %v, highestBlockRequested:%v, lastBlockOnL1: %s, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
+		s.lastBlockStoreOnStateDB, s.highestBlockRequested, s.lastBlockOnL1.toString(), s.amountOfBlocksInEachRange, s.processingRanges.toStringBrief(), s.errorRanges.toStringBrief())
+}
+
+func (s *syncStatus) toString() string {
+	brief := s.toStringBrief()
+	brief += fmt.Sprintf(" processingRanges:{ %s }", s.processingRanges.toString())
+	brief += fmt.Sprintf(" errorRanges:{ %s }", s.errorRanges.toString())
+	return brief
 }
 
 // newSyncStatus create a new syncStatus object
@@ -65,7 +72,7 @@ func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
 }
 
 func (s *syncStatus) _isNodeFullySynchronizedWithL1(lastBlock uint64) bool {
-	if lastBlock <= s.lastBlockStoreOnStateDB {
+	if lastBlock <= s.highestBlockRequested && s.errorRanges.len() == 0 {
 		log.Debug("No blocks to ask, we have requested all blocks from L1!")
 		return true
 	}
@@ -90,11 +97,17 @@ func (s *syncStatus) getNextRange() *blockRange {
 		log.Debug("Last block is no valid: ", err)
 		return nil
 	}
-	if s._isNodeFullySynchronizedWithL1(lastBlock) {
-		log.Infof("No blocks to ask, we are synchronized with L1! status:%s", s.toStringBrief())
+	if lastBlock <= s.highestBlockRequested {
+		log.Debug("No blocks to ask, we have requested all blocks from L1!")
 		return nil
 	}
+
 	br := _getNextBlockRangeFrom(brs.toBlock, lastBlock, s.amountOfBlocksInEachRange)
+	err = br.isValid()
+	if err != nil {
+		log.Error(s.toString())
+		log.Fatal(err)
+	}
 	return br
 }
 
@@ -134,7 +147,7 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 		// 		 if process the [100,200] -> lbs = 200
 		if s.lastBlockStoreOnStateDB+1 == br.fromBlock {
 			newValue := br.toBlock
-			log.Infof("Moving s.lastBlockStoreOnStateDB from %d to %d (diff %d)", s.lastBlockStoreOnStateDB, newValue, newValue-s.lastBlockStoreOnStateDB)
+			log.Debugf("Moving s.lastBlockStoreOnStateDB from %d to %d (diff %d)", s.lastBlockStoreOnStateDB, newValue, newValue-s.lastBlockStoreOnStateDB)
 			s.lastBlockStoreOnStateDB = newValue
 		}
 	} else {
@@ -171,9 +184,9 @@ type onNewLastBlockResponse struct {
 }
 
 func (n *onNewLastBlockResponse) toString() string {
-	res := fmt.Sprintf("fullRange: [%s]", n.fullRange.toString())
+	res := fmt.Sprintf("fullRange: %s", n.fullRange.toString())
 	if n.extendedRange != nil {
-		res += fmt.Sprintf(" extendedRange: [%s]", n.extendedRange.toString())
+		res += fmt.Sprintf(" extendedRange: %s", n.extendedRange.toString())
 	} else {
 		res += " extendedRange: nil"
 	}

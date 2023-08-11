@@ -930,11 +930,13 @@ TraceBatchUseHTTPS=true
 **Description:** Configuration of service `Syncrhonizer`. For this service is also really important the value of `IsTrustedSequencer`
 because depending of this values is going to ask to a trusted node for trusted transactions or not
 
-| Property                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                        |
-| ----------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------ |
-| - [SyncInterval](#Synchronizer_SyncInterval )               | No      | string  | No         | -          | Duration                                                                 |
-| - [SyncChunkSize](#Synchronizer_SyncChunkSize )             | No      | integer | No         | -          | SyncChunkSize is the number of blocks to sync on each chunk              |
-| - [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL ) | No      | string  | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state |
+| Property                                                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                        |
+| ------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [SyncInterval](#Synchronizer_SyncInterval )                                               | No      | string  | No         | -          | Duration                                                                                                                                                 |
+| - [SyncChunkSize](#Synchronizer_SyncChunkSize )                                             | No      | integer | No         | -          | SyncChunkSize is the number of blocks to sync on each chunk                                                                                              |
+| - [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL )                                 | No      | string  | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state                                                                                 |
+| - [UseParallelModeForL1Synchronization](#Synchronizer_UseParallelModeForL1Synchronization ) | No      | boolean | No         | -          | L1ParallelSynchronization Use new L1 synchronization that do in parallel request to L1 and process the data<br />If false use the legacy sequential mode |
+| - [L1ParallelSynchronization](#Synchronizer_L1ParallelSynchronization )                     | No      | object  | No         | -          | L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)                                               |
 
 ### <a name="Synchronizer_SyncInterval"></a>9.1. `Synchronizer.SyncInterval`
 
@@ -988,6 +990,62 @@ SyncChunkSize=100
 ```
 [Synchronizer]
 TrustedSequencerURL=""
+```
+
+### <a name="Synchronizer_UseParallelModeForL1Synchronization"></a>9.4. `Synchronizer.UseParallelModeForL1Synchronization`
+
+**Type:** : `boolean`
+
+**Default:** `true`
+
+**Description:** L1ParallelSynchronization Use new L1 synchronization that do in parallel request to L1 and process the data
+If false use the legacy sequential mode
+
+**Example setting the default value** (true):
+```
+[Synchronizer]
+UseParallelModeForL1Synchronization=true
+```
+
+### <a name="Synchronizer_L1ParallelSynchronization"></a>9.5. `[Synchronizer.L1ParallelSynchronization]`
+
+**Type:** : `object`
+**Description:** L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)
+
+| Property                                                                                                              | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [NumberOfParallelOfEthereumClients](#Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients )     | No      | integer | No         | -          | NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1<br />(if UseParallelModeForL1Synchronization is true)                                                                                                                       |
+| - [CapacityOfBufferingRollupInfoFromL1](#Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1 ) | No      | integer | No         | -          | CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync<br />sugested twice of NumberOfParallelOfEthereumClients<br />(if UseParallelModeForL1Synchronization is true) |
+
+#### <a name="Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients"></a>9.5.1. `Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients`
+
+**Type:** : `integer`
+
+**Default:** `2`
+
+**Description:** NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1
+(if UseParallelModeForL1Synchronization is true)
+
+**Example setting the default value** (2):
+```
+[Synchronizer.L1ParallelSynchronization]
+NumberOfParallelOfEthereumClients=2
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1"></a>9.5.2. `Synchronizer.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1`
+
+**Type:** : `integer`
+
+**Default:** `10`
+
+**Description:** CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync
+sugested twice of NumberOfParallelOfEthereumClients
+(if UseParallelModeForL1Synchronization is true)
+
+**Example setting the default value** (10):
+```
+[Synchronizer.L1ParallelSynchronization]
+CapacityOfBufferingRollupInfoFromL1=10
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`

@@ -29,11 +29,11 @@ func (s *sendOrdererResultsToSynchronizer) addResultAndSendToConsumer(result *ge
 		return
 	}
 
-	log.Info("Received: ", result.toStringBrief())
+	log.Debugf("Received: %s", result.toStringBrief())
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if result.blockRange.fromBlock < s.lastBlockOnSynchronizer {
-		log.Fatalf("It's not possible to receive a old block [%s] range that been send to synchronizer status:[%s]",
+		log.Fatalf("It's not possible to receive a old block [%s] range that have been already send to synchronizer. Ignoring it.  status:[%s]",
 			result.blockRange.toString(), s.toStringBrief())
 		return
 	}
@@ -54,7 +54,7 @@ func (s *sendOrdererResultsToSynchronizer) _sendResultIfPossible() bool {
 		result := s.pendingResults[i]
 		if s._matchNextBlock(&result) {
 			send = true
-			log.Info("Sending results to synchronizer:", result.toStringBrief())
+			log.Infof("Sending results to synchronizer:%s: It could block channel [%d/%d]", result.toStringBrief(), len(s.channel), cap(s.channel))
 			s.channel <- result
 			s._setLastBlockOnSynchronizerCorrespondingLatBlockRangeSend(result.blockRange)
 			brToRemove = append(brToRemove, result.blockRange)
@@ -82,7 +82,7 @@ func (s *sendOrdererResultsToSynchronizer) _removeBlockRange(toRemove blockRange
 
 func (s *sendOrdererResultsToSynchronizer) _setLastBlockOnSynchronizerCorrespondingLatBlockRangeSend(lastBlock blockRange) {
 	newVaule := lastBlock.toBlock
-	log.Info("Moving lastBlockSend from ", s.lastBlockOnSynchronizer, " to ", newVaule)
+	log.Debug("Moving lastBlockSend from ", s.lastBlockOnSynchronizer, " to ", newVaule)
 	s.lastBlockOnSynchronizer = newVaule
 }
 

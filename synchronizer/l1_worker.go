@@ -56,8 +56,8 @@ type genericResponse[T any] struct {
 }
 
 func (r *genericResponse[T]) toStringBrief() string {
-	return fmt.Sprintf("err: [%v] duration: [%v] typeOfRequest: [%v]",
-		r.err, r.duration, r.typeOfRequest.toString())
+	return fmt.Sprintf("typeOfRequest: [%v] duration: [%v] err: [%v]  ",
+		r.typeOfRequest.toString(), r.duration, r.err)
 }
 
 type blockRange struct {
@@ -72,6 +72,8 @@ type getRollupInfoByBlockRangeResult struct {
 	// If there are no blocks in this range get get the last one
 	// so it could be nil if there are blocks.
 	lastBlockOfRange *types.Block
+	// If true the consumer will ignore this package
+	ignoreThisResult bool
 }
 
 func (r *getRollupInfoByBlockRangeResult) toStringBrief() string {
@@ -83,6 +85,10 @@ func (r *getRollupInfoByBlockRangeResult) toStringBrief() string {
 
 func (b *blockRange) toString() string {
 	return fmt.Sprintf("[%v, %v]", b.fromBlock, b.toBlock)
+}
+
+func (b *blockRange) len() uint64 {
+	return b.toBlock - b.fromBlock + 1
 }
 
 type retrieveL1LastBlockResult struct {
@@ -125,7 +131,7 @@ func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, wg *syn
 			lastBlock, err = w.etherman.EthBlockByNumber(ctx, blockRange.toBlock)
 		}
 		duration := time.Since(now)
-		result := newGenericAnswer(err, duration, typeRequestRollupInfo, &getRollupInfoByBlockRangeResult{blockRange, blocks, order, lastBlock})
+		result := newGenericAnswer(err, duration, typeRequestRollupInfo, &getRollupInfoByBlockRangeResult{blockRange, blocks, order, lastBlock, false})
 		w.setStatus(ethermanIdle)
 		ch <- result
 	}
@@ -149,7 +155,12 @@ func (w *worker) asyncRequestLastBlock(ctx context.Context, wg *sync.WaitGroup) 
 		now := time.Now()
 		header, err := w.etherman.HeaderByNumber(ctx, nil)
 		duration := time.Since(now)
-		result := newGenericAnswer(err, duration, typeRequestLastBlock, &retrieveL1LastBlockResult{header.Number.Uint64()})
+		var result genericResponse[retrieveL1LastBlockResult]
+		if err == nil {
+			result = newGenericAnswer(err, duration, typeRequestLastBlock, &retrieveL1LastBlockResult{header.Number.Uint64()})
+		} else {
+			result = newGenericAnswer[retrieveL1LastBlockResult](err, duration, typeRequestLastBlock, nil)
+		}
 		w.setStatus(ethermanIdle)
 		ch <- result
 	}

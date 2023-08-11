@@ -101,8 +101,10 @@ func TestForcedBatch(t *testing.T) {
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize: 10,
+		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:                       10,
+		NumberOfEthereumClientsToSync:       1,
+		CapacityOfBufferingRollupInfoFromL1: 1,
 	}
 
 	m := mocks{

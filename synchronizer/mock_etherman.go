@@ -177,7 +177,7 @@ func (_m *ethermanMock) GetTrustedSequencerURL() (string, error) {
 	} else {
 		r1 = ret.Error(1)
 	}
-
+ 
 	return r0, r1
 }
 

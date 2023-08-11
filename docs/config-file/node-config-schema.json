@@ -371,6 +371,28 @@
 					"type": "string",
 					"description": "TrustedSequencerURL is the rpc url to connect and sync the trusted state",
 					"default": ""
+				},
+				"UseParallelModeForL1Synchronization": {
+					"type": "boolean",
+					"description": "L1ParallelSynchronization Use new L1 synchronization that do in parallel request to L1 and process the data\nIf false use the legacy sequential mode",
+					"default": true
+				},
+				"L1ParallelSynchronization": {
+					"properties": {
+						"NumberOfParallelOfEthereumClients": {
+							"type": "integer",
+							"description": "NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1\n(if UseParallelModeForL1Synchronization is true)",
+							"default": 2
+						},
+						"CapacityOfBufferingRollupInfoFromL1": {
+							"type": "integer",
+							"description": "CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsugested twice of NumberOfParallelOfEthereumClients\n(if UseParallelModeForL1Synchronization is true)",
+							"default": 10
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)"
 				}
 			},
 			"additionalProperties": false,

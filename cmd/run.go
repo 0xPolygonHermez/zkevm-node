@@ -303,13 +303,15 @@ func runSynchronizer(cfg config.Config, ethermanClient *etherman.Client, ethTxMa
 	//var etherman2 *etherman.Client = nil
 
 	etherManForL1 := []synchronizer.EthermanInterface{}
-
-	for i := 0; i < int(cfg.Synchronizer.NumberOfEthereumClientsToSync); i++ {
-		eth, err := newEtherman(cfg)
-		if err != nil {
-			log.Fatal(err)
+	// If synchronizer are using sequential mode, we only need one etherman client
+	if cfg.Synchronizer.UseParallelModeForL1Synchronization {
+		for i := 0; i < int(cfg.Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients); i++ {
+			eth, err := newEtherman(cfg)
+			if err != nil {
+				log.Fatal(err)
+			}
+			etherManForL1 = append(etherManForL1, eth)
 		}
-		etherManForL1 = append(etherManForL1, eth)
 	}
 	sy, err := synchronizer.NewSynchronizer(
 		cfg.IsTrustedSequencer, ethermanClient, etherManForL1, st, pool, ethTxManager,

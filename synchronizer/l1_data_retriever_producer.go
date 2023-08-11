@@ -10,13 +10,39 @@ import (
 )
 
 const (
-	ttlOfLastBlockDefault = time.Second * 60
+	ttlOfLastBlockDefault      = time.Second * 60
+	timeOutMainLoop            = time.Minute * 5
+	timeForShowUpStatisticsLog = time.Second * 60
+	conversionFactorPercentage = 100
 )
 
 // - multiples etherman to do it in parallel
 // - generate blocks to be retrieved
 // - retrieve blocks (parallel)
 // - check last block on L1?
+
+type l1DataRetrieverStatistics struct {
+	initialBlockNumber  uint64
+	lastBlockNumber     uint64
+	numRollupInfoOk     uint64
+	numRollupInfoErrors uint64
+	numRetrievedBlocks  uint64
+	startTime           time.Time
+	lastShowUpTime      time.Time
+}
+
+func (l *l1DataRetrieverStatistics) getETA() string {
+	numTotalOfBlocks := l.lastBlockNumber - l.initialBlockNumber
+	if l.numRetrievedBlocks == 0 {
+		return "N/A"
+	}
+	elapsedTime := time.Since(l.startTime)
+	eta := time.Duration(float64(elapsedTime) / float64(l.numRetrievedBlocks) * float64(numTotalOfBlocks-l.numRetrievedBlocks))
+	percent := float64(l.numRetrievedBlocks) / float64(numTotalOfBlocks) * conversionFactorPercentage
+	blocks_per_seconds := float64(l.numRetrievedBlocks) / float64(elapsedTime.Seconds())
+	return fmt.Sprintf("ETA: %s percent:%2.2f  blocks_per_seconds:%2.2f pending_block:%v/%v num_errors:%v",
+		eta, percent, blocks_per_seconds, l.numRetrievedBlocks, numTotalOfBlocks, l.numRollupInfoErrors)
+}
 
 type l1DataRetriever struct {
 	mutex      sync.Mutex
@@ -26,7 +52,8 @@ type l1DataRetriever struct {
 	syncStatus syncStatusInterface
 	// Send the block info to this channel ordered by block number
 	//channel chan getRollupInfoByBlockRangeResult
-	sender *sendOrdererResultsToSynchronizer
+	sender     *sendOrdererResultsToSynchronizer
+	statistics l1DataRetrieverStatistics
 }
 
 func min(a, b uint64) uint64 {
@@ -53,7 +80,7 @@ func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 	startingBlockNumber uint64, SyncChunkSize uint64,
 	resultChannel chan getRollupInfoByBlockRangeResult, renewLastBlockOnL1 bool) *l1DataRetriever {
 	if cap(resultChannel) < len(ethermans) {
-		log.Fatalf("resultChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(resultChannel), len(ethermans))
+		log.Warnf("resultChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(resultChannel), len(ethermans))
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	ttlOfLastBlock := ttlOfLastBlockDefault
@@ -66,6 +93,10 @@ func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 		syncStatus: newSyncStatus(startingBlockNumber, SyncChunkSize, ttlOfLastBlock),
 		workers:    newWorkers(ethermans),
 		sender:     newSendResultsToSynchronizer(resultChannel, startingBlockNumber),
+		statistics: l1DataRetrieverStatistics{
+			initialBlockNumber: startingBlockNumber,
+			startTime:          time.Now(),
+		},
 	}
 	err := result.verify(false)
 	if err != nil {
@@ -95,7 +126,10 @@ func (l *l1DataRetriever) initialize() error {
 func (l *l1DataRetriever) retrieveInitialValueOfLastBlock() genericResponse[retrieveL1LastBlockResult] {
 	maxPermittedRetries := 10
 	for {
-		ch, err := l.workers.asyncRequestLastBlock(l.ctx)
+		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		ch, err := l.workers.asyncRequestLastBlock(ctx)
 		if err != nil {
 			log.Error(err)
 		}
@@ -115,6 +149,7 @@ func (l *l1DataRetriever) retrieveInitialValueOfLastBlock() genericResponse[retr
 // OnNewLastBlock is called when a new last block is responsed by L1
 func (l *l1DataRetriever) onNewLastBlock(lastBlock uint64, launchWork bool) {
 	resp := l.syncStatus.onNewLastBlockOnL1(lastBlock)
+	l.statistics.lastBlockNumber = lastBlock
 	log.Infof("New last block on L1: %v -> %s", lastBlock, resp.toString())
 	if launchWork {
 		l.launchWork()
@@ -151,7 +186,6 @@ func (l *l1DataRetriever) launchWork() int {
 
 func (l *l1DataRetriever) start() error {
 	var waitDuration = time.Duration(0)
-	l.launchWork()
 	for l.step(&waitDuration) {
 	}
 	l.workers.waitFinishAllWorkers()
@@ -162,8 +196,10 @@ func (l *l1DataRetriever) step(waitDuration *time.Duration) bool {
 	select {
 	case <-l.ctx.Done():
 		return false
+	// That timeout is not need, but just in case that stop launching request
 	case <-time.After(*waitDuration):
-		*waitDuration = time.Duration(time.Second)
+		log.Infof("Periodic timeout each [%s]: just in case, launching work if need", timeOutMainLoop)
+		*waitDuration = timeOutMainLoop
 		//log.Debugf(" ** Periodic status: %s", l.toStringBrief())
 	case resultRollupInfo := <-l.workers.getResponseChannelForRollupInfo():
 		l.onResponseRollupInfo(resultRollupInfo)
@@ -180,6 +216,10 @@ func (l *l1DataRetriever) step(waitDuration *time.Duration) bool {
 	l.renewLastBlockOnL1IfNeeded()
 	// Try to launch retrieve more rollupInfo from L1
 	l.launchWork()
+	if time.Since(l.statistics.lastShowUpTime) > timeForShowUpStatisticsLog {
+		log.Infof("Statistics:%s", l.statistics.getETA())
+		l.statistics.lastShowUpTime = time.Now()
+	}
 	return true
 }
 
@@ -212,8 +252,11 @@ func (l *l1DataRetriever) onResponseRollupInfo(result genericResponse[getRollupI
 	isOk := (result.err == nil)
 	l.syncStatus.onFinishWorker(result.result.blockRange, isOk)
 	if isOk {
+		l.statistics.numRollupInfoOk++
+		l.statistics.numRetrievedBlocks += result.result.blockRange.len()
 		l.sender.addResultAndSendToConsumer(result.result)
 	} else {
+		l.statistics.numRollupInfoErrors++
 		log.Warnf("Error while trying to get rollup info by block range: %v", result.err)
 	}
 }

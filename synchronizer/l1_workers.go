@@ -126,9 +126,9 @@ func (w *workersImpl) asyncGenericRequest(ctx context.Context, requestType typeO
 
 	err := funcRequest(worker, ctx, wg)
 	if err == nil {
-		log.Infof("workers: call:[%s] launched", requestStrForDebug)
+		log.Infof("workers: worker started call:[%s]", requestStrForDebug)
 	} else {
-		log.Warnf("workers: call:[%s] failed err:%s", requestStrForDebug, err.Error())
+		log.Warnf("workers: worker started failed! call:[%s] failed err:[%s]", requestStrForDebug, err.Error())
 	}
 	return err
 }
@@ -175,9 +175,17 @@ func (w *workersImpl) _countLiveRequestOfType(typeOfRequest typeOfRequest) uint6
 func (w *workersImpl) _onIncommmingResponse(msg interface{}) {
 	switch v := msg.(type) {
 	case genericResponse[getRollupInfoByBlockRangeResult]:
-		log.Infof("workers: worker finished type:[%s]: range:%s", v.toStringBrief(), v.result.blockRange.toString())
+		msg := fmt.Sprintf("workers: worker finished:[ %s ]", v.toStringBrief())
+		if v.err == nil {
+			msg += fmt.Sprintf(" block_range:%s", v.result.blockRange.toString())
+		}
+		log.Infof(msg)
 	case genericResponse[retrieveL1LastBlockResult]:
-		log.Infof("workers: worker finished type:[%s]: %s", v.toStringBrief())
+		msg := fmt.Sprintf("workers: worker finished:[ %s ]", v.toStringBrief())
+		if v.err == nil {
+			msg += fmt.Sprintf(" block_number:%v", v.result.block)
+		}
+		log.Infof(msg)
 	}
 }
 

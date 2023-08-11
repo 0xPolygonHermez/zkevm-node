@@ -33,6 +33,16 @@ func Test_FirstRunWithPendingBlocksToRetrieve(t *testing.T) {
 	}
 }
 
+func Test_When_AllRequestAreSend_Then_getNextRange_ReturnsNil(t *testing.T) {
+	s := newSyncStatus(1617, 10, ttlOfLastBlockInfinity)
+	s.setLastBlockOnL1(1982)
+	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
+	s.onStartedNewWorker(blockRange{fromBlock: 1921, toBlock: 1982})
+	br := s.getNextRange()
+	require.Nil(t, br)
+
+}
+
 func Test_SecondRunWithPendingBlocksToRetrieve(t *testing.T) {
 	s := newSyncStatus(100, 10, ttlOfLastBlockInfinity)
 	s.setLastBlockOnL1(150)
