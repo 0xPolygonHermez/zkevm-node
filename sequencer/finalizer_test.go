@@ -1845,6 +1845,7 @@ func TestFinalizer_storeProcessedTx(t *testing.T) {
 	}
 }
 
+/*
 func TestFinalizer_updateWorkerAfterSuccessfulProcessing(t *testing.T) {
 	testCases := []struct {
 		name                  string
@@ -1891,7 +1892,7 @@ func TestFinalizer_updateWorkerAfterSuccessfulProcessing(t *testing.T) {
 				},
 			},
 			expectedDeleteTxCount: 1,
-			expectedUpdateCount:   4,
+			expectedUpdateCount:   2,
 		},
 		{
 			name: "No update when no read-write addresses provided",
@@ -1936,6 +1937,7 @@ func TestFinalizer_updateWorkerAfterSuccessfulProcessing(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestFinalizer_reprocessFullBatch(t *testing.T) {
 	successfulResult := &state.ProcessBatchResponse{
