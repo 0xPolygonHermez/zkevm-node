@@ -70,7 +70,6 @@ type finalizer struct {
 }
 
 type transactionToStore struct {
-	//txTracker     *TxTracker
 	hash          common.Hash
 	from          common.Address
 	response      *state.ProcessTransactionResponse
