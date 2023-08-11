@@ -1691,7 +1691,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 			oldStateRoot: oldHash,
 			expectedStoredTxs: []transactionToStore{
 				{
-					hash:          signedTx1.Hash(),
+					hash:          signedTx2.Hash(),
 					from:          auth.From,
 					batchNumber:   1,
 					coinbase:      seqAddr,
@@ -1715,7 +1715,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 			oldStateRoot: oldHash,
 			expectedStoredTxs: []transactionToStore{
 				{
-					hash:          signedTx1.Hash(),
+					hash:          signedTx2.Hash(),
 					from:          auth.From,
 					batchNumber:   1,
 					coinbase:      seqAddr,
