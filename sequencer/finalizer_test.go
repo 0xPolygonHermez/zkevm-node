@@ -1737,6 +1737,8 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 				}
 			}()
 
+			workerMock.On("AddPendingTxToStore", mock.Anything, mock.Anything).Return()
+
 			f.handleForcedTxsProcessResp(ctx, tc.request, tc.result, tc.oldStateRoot)
 
 			f.pendingTransactionsToStoreWG.Wait()
