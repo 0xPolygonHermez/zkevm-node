@@ -89,8 +89,8 @@ var (
 	newHash         = common.HexToHash("0x02")
 	newHash2        = common.HexToHash("0x03")
 	stateRootHashes = []common.Hash{oldHash, newHash, newHash2}
-	txHash          = common.BytesToHash([]byte("txHash"))
-	txHash2         = common.BytesToHash([]byte("txHash2"))
+	txHash          = common.BytesToHash([]byte("0x00000"))
+	txHash2         = common.BytesToHash([]byte("0x00000"))
 	tx              = types.NewTransaction(nonce1, receiverAddr, big.NewInt(1), 100000, big.NewInt(1), nil)
 	senderAddr      = common.HexToAddress("0x0000000")
 	receiverAddr    = common.HexToAddress("0x0000000")
