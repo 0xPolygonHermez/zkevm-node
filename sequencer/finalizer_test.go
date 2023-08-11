@@ -795,13 +795,13 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 	require.NoError(t, err)
 
 	txResp1 := &state.ProcessTransactionResponse{
-		TxHash:    txHash,
+		TxHash:    signedTx1.Hash(),
 		StateRoot: stateRootHashes[0],
 		Tx:        *signedTx1,
 	}
 
 	txResp2 := &state.ProcessTransactionResponse{
-		TxHash:    txHash2,
+		TxHash:    signedTx2.Hash(),
 		StateRoot: stateRootHashes[1],
 		Tx:        *signedTx2,
 	}
@@ -877,6 +877,8 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 			},
 			expectedStoredTx: []transactionToStore{
 				{
+					hash:          signedTx1.Hash(),
+					from:          common.HexToAddress("0x1"),
 					batchResponse: batchResponse1,
 					batchNumber:   f.batch.batchNumber + 1,
 					coinbase:      seqAddr,
@@ -886,6 +888,8 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 					response:      txResp1,
 				},
 				{
+					hash:          signedTx2.Hash(),
+					from:          common.HexToAddress("0x2"),
 					batchResponse: batchResponse2,
 					batchNumber:   f.batch.batchNumber + 2,
 					coinbase:      seqAddr,
