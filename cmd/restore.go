@@ -1,7 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -45,9 +50,6 @@ func restore(ctx *cli.Context) error {
 		return errors.New("stateDB input file must end in .sql.tar.gz")
 	}
 
-	// Run migrations to create schemas and tables
-	runStateMigrations(c.StateDB)
-
 	port, err := strconv.Atoi(c.StateDB.Port)
 	if err != nil {
 		log.Error("error converting port to int. Error: ", err)
@@ -64,12 +66,11 @@ func restore(ctx *cli.Context) error {
 		log.Error("error: ", err)
 		return err
 	}
-	restore.Role = c.StateDB.User
-	restore.Schemas = append(restore.Schemas, "state")
+	params := []string{"--no-owner", "--no-acl", "--clean", "--if-exists", "--format=c --exit-on-error"}
 	log.Info("Restore stateDB snapshot started, please wait...")
-	restoreExec := restore.Exec(inputFileStateDB, pg.ExecOptions{StreamPrint: false})
+	restoreExec := execCommand(restore, inputFileStateDB, pg.ExecOptions{StreamPrint: false}, params)
 	if restoreExec.Error != nil {
-		log.Error("error restoring snapshot. Error: ", restoreExec.Error.Err)
+		log.Error("error restoring stateDB snapshot. Error: ", restoreExec.Error.Err)
 		log.Debug("restoreExec.Output: ", restoreExec.Output)
 		return err
 	}
@@ -105,17 +106,62 @@ func restore(ctx *cli.Context) error {
 		log.Error("error: ", err)
 		return err
 	}
-	restore.Role = c.HashDB.User
-	restore.Schemas = append(restore.Schemas, "state")
-	restore.Options = []string{"--no-owner", "--no-acl"}
+
 	log.Info("Restore HashDB snapshot started, please wait...")
-	restoreExec = restore.Exec(inputFileHashDB, pg.ExecOptions{StreamPrint: false})
+	restoreExec = execCommand(restore, inputFileHashDB, pg.ExecOptions{StreamPrint: false}, params)
 	if restoreExec.Error != nil {
-		log.Error("error restoring snapshot. Error: ", restoreExec.Error.Err)
+		log.Error("error restoring hashDB snapshot. Error: ", restoreExec.Error.Err)
 		log.Debug("restoreExec.Output: ", restoreExec.Output)
 		return err
 	}
 
 	log.Info("Restore HashDB snapshot success")
 	return nil
+}
+
+func execCommand(x *pg.Restore, filename string, opts pg.ExecOptions, params []string) pg.Result {
+	result := pg.Result{}
+	options := append(params, x.Postgres.Parse()...)
+	options = append(options, fmt.Sprintf("%s%s", x.Path, filename))
+	log.Debug("Options: ", options)
+
+	result.FullCommand = strings.Join(options, " ")
+	cmd := exec.Command(pg.PGRestoreCmd, options...) //nolint:gosec
+	cmd.Env = append(os.Environ(), x.EnvPassword)
+	stderrIn, _ := cmd.StderrPipe()
+	go func(stderrIn io.ReadCloser, opts pg.ExecOptions, result *pg.Result) {
+		output := ""
+		reader := bufio.NewReader(stderrIn)
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					result.Output = output
+					break
+				}
+				result.Error = &pg.ResultError{Err: fmt.Errorf("error reading output: %w", err), CmdOutput: output}
+				break
+			}
+
+			if opts.StreamPrint {
+				_, err = fmt.Fprint(opts.StreamDestination, line)
+				if err != nil {
+					result.Error = &pg.ResultError{Err: fmt.Errorf("error writing output: %w", err), CmdOutput: output}
+					break
+				}
+			}
+
+			output += line
+		}
+	}(stderrIn, opts, &result)
+	err := cmd.Start()
+	if err != nil {
+		result.Error = &pg.ResultError{Err: err, CmdOutput: result.Output}
+	}
+	err = cmd.Wait()
+	if exitError, ok := err.(*exec.ExitError); ok {
+		result.Error = &pg.ResultError{Err: err, ExitCode: exitError.ExitCode(), CmdOutput: result.Output}
+	}
+
+	return result
 }
