@@ -1600,6 +1600,9 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
 
+	tx1Plustx2, err := state.EncodeTransactions([]types.Transaction{*signedTx1, *signedTx2}, nil, 4)
+	require.NoError(t, err)
+
 	ctx = context.Background()
 	txResponseOne := &state.ProcessTransactionResponse{
 		TxHash:    signedTx1.Hash(),
@@ -1655,6 +1658,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		{
 			name: "Handle forced batch process response with successful transactions",
 			request: state.ProcessRequest{
+				Transactions: tx1Plustx2,
 				BatchNumber:  1,
 				Coinbase:     seqAddr,
 				Timestamp:    now(),
