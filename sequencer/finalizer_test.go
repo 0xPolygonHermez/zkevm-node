@@ -1617,6 +1617,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		},
 	}
 	txResponseReverted := &state.ProcessTransactionResponse{
+		Tx:        *signedTx1,
 		TxHash:    txHash,
 		RomError:  runtime.ErrExecutionReverted,
 		StateRoot: newHash,
