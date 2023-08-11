@@ -2,7 +2,7 @@
 
 ### Create snapshots
 ```
-go run ./cmd snapshot --cfg config/environments/local/local.node.config.toml
+go run ./cmd snapshot --cfg config/environments/local/local.node.config.toml --output ./
 ```
 
 ### Restore snapshots
