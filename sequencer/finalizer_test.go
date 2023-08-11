@@ -1738,6 +1738,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 			}()
 
 			workerMock.On("AddPendingTxToStore", mock.Anything, mock.Anything).Return()
+			workerMock.On("DeleteForcedTx", mock.Anything, mock.Anything).Return()
 
 			f.handleForcedTxsProcessResp(ctx, tc.request, tc.result, tc.oldStateRoot)
 
