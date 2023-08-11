@@ -1891,7 +1891,7 @@ func TestFinalizer_updateWorkerAfterSuccessfulProcessing(t *testing.T) {
 				},
 			},
 			expectedDeleteTxCount: 1,
-			expectedUpdateCount:   3,
+			expectedUpdateCount:   4,
 		},
 		{
 			name: "No update when no read-write addresses provided",
