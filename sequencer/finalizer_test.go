@@ -92,8 +92,8 @@ var (
 	txHash          = common.BytesToHash([]byte("txHash"))
 	txHash2         = common.BytesToHash([]byte("txHash2"))
 	tx              = types.NewTransaction(nonce1, receiverAddr, big.NewInt(1), 100000, big.NewInt(1), nil)
-	senderAddr      = common.HexToAddress("0x3445324")
-	receiverAddr    = common.HexToAddress("0x1555324")
+	senderAddr      = common.HexToAddress("0x0000000")
+	receiverAddr    = common.HexToAddress("0x0000000")
 	isSynced        = func(ctx context.Context) bool {
 		return true
 	}

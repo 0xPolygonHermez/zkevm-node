@@ -249,7 +249,7 @@ func (w *Worker) AddForcedTx(txHash common.Hash, addr common.Address) {
 	addrQueue, found := w.pool[addr.String()]
 
 	if found {
-		addrQueue.addForcedTX(txHash)
+		addrQueue.addForcedTx(txHash)
 	} else {
 		log.Warnf("AddForcedTx addrQueue(%s) not found", addr.String())
 	}

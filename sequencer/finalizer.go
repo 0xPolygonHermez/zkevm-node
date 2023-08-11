@@ -793,14 +793,14 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, txToStore transactionT
 }
 
 func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, txHash common.Hash, txFrom common.Address, isForced bool, result *state.ProcessBatchResponse) {
-	// Delete the transaction from the txSorted list
+	// Delete the transaction from the worker
 	if isForced {
 		f.worker.DeleteForcedTx(txHash, txFrom)
-		log.Debug("forced tx deleted from addrQueue", "txHash", txHash.String(), "from", txFrom.Hex())
+		log.Debug("forced tx deleted from worker", "txHash", txHash.String(), "from", txFrom.Hex())
 		return
 	} else {
 		f.worker.DeleteTx(txHash, txFrom)
-		log.Debug("tx deleted from txSorted list", "txHash", txHash.String(), "from", txFrom.Hex())
+		log.Debug("tx deleted from worker", "txHash", txHash.String(), "from", txFrom.Hex())
 	}
 
 	start := time.Now()

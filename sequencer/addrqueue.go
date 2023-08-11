@@ -80,8 +80,8 @@ func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx, replacedTx *T
 	}
 }
 
-// addForcedTX adds a forced tx to the list of forced txs
-func (a *addrQueue) addForcedTX(txHash common.Hash) {
+// addForcedTx adds a forced tx to the list of forced txs
+func (a *addrQueue) addForcedTx(txHash common.Hash) {
 	a.forcedTxs[txHash] = struct{}{}
 }
 
@@ -144,7 +144,6 @@ func (a *addrQueue) deleteTx(txHash common.Hash) (deletedReadyTx *TxTracker) {
 func (a *addrQueue) deleteForcedTx(txHash common.Hash) {
 	if _, found := a.forcedTxs[txHash]; found {
 		delete(a.forcedTxs, txHash)
-		log.Infof("DeleteForcedTx tx(%s) deleted from addrQueue", txHash.String())
 	} else {
 		log.Warnf("tx (%s) not found in forcedTxs list", txHash.String())
 	}
