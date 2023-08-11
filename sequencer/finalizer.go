@@ -716,6 +716,8 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	}
 
 	txToStore := transactionToStore{
+		hash:          tx.Hash,
+		from:          tx.From,
 		response:      result.Responses[0],
 		batchResponse: result,
 		batchNumber:   f.batch.batchNumber,
@@ -751,7 +753,14 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			}
 		}
 
+		from, err := state.GetSender(txResp.Tx)
+		if err != nil {
+			log.Errorf("handleForcedTxsProcessResp: failed to get sender: %s", err)
+		}
+
 		txToStore := transactionToStore{
+			hash:          txResp.TxHash,
+			from:          from,
 			response:      txResp,
 			batchResponse: result,
 			batchNumber:   request.BatchNumber,
@@ -768,10 +777,7 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 
 		f.addPendingTxToStore(ctx, txToStore)
 
-		from, err := state.GetSender(txResp.Tx)
-		if err != nil {
-			log.Errorf("handleForcedTxsProcessResp: failed to get sender: %s", err)
-		} else {
+		if err == nil {
 			f.updateWorkerAfterSuccessfulProcessing(ctx, txResp.TxHash, from, true, result)
 		}
 	}

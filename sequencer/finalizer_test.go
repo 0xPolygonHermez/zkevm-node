@@ -1628,7 +1628,8 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		},
 	}
 	txResponseIntrinsicErr := &state.ProcessTransactionResponse{
-		TxHash:    txHash,
+		Tx:        *signedTx1,
+		TxHash:    signedTx1.Hash(),
 		RomError:  runtime.ErrIntrinsicInvalidChainID,
 		StateRoot: newHash,
 	}
