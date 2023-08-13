@@ -52,7 +52,7 @@ type l1DataRetriever struct {
 	syncStatus syncStatusInterface
 	// Send the block info to this channel ordered by block number
 	//channel chan getRollupInfoByBlockRangeResult
-	sender     *sendOrdererResultsToSynchronizer
+	sender     *filterToSendOrdererResultsToConsumer
 	statistics l1DataRetrieverStatistics
 }
 
@@ -78,7 +78,7 @@ func (l *l1DataRetriever) verify(allowModify bool) error {
 
 func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 	startingBlockNumber uint64, SyncChunkSize uint64,
-	resultChannel chan getRollupInfoByBlockRangeResult, renewLastBlockOnL1 bool) *l1DataRetriever {
+	resultChannel chan l1PackageData, renewLastBlockOnL1 bool) *l1DataRetriever {
 	if cap(resultChannel) < len(ethermans) {
 		log.Warnf("resultChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(resultChannel), len(ethermans))
 	}
@@ -92,7 +92,7 @@ func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 		cancelCtx:  cancel,
 		syncStatus: newSyncStatus(startingBlockNumber, SyncChunkSize, ttlOfLastBlock),
 		workers:    newWorkers(ethermans),
-		sender:     newSendResultsToSynchronizer(resultChannel, startingBlockNumber),
+		sender:     newFilterToSendOrdererResultsToConsumer(resultChannel, startingBlockNumber),
 		statistics: l1DataRetrieverStatistics{
 			initialBlockNumber: startingBlockNumber,
 			startTime:          time.Now(),
@@ -254,7 +254,7 @@ func (l *l1DataRetriever) onResponseRollupInfo(result genericResponse[getRollupI
 	if isOk {
 		l.statistics.numRollupInfoOk++
 		l.statistics.numRetrievedBlocks += result.result.blockRange.len()
-		l.sender.addResultAndSendToConsumer(result.result)
+		l.sender.addResultAndSendToConsumer(newL1PackageDataFromResult(result.result))
 	} else {
 		l.statistics.numRollupInfoErrors++
 		log.Warnf("Error while trying to get rollup info by block range: %v", result.err)

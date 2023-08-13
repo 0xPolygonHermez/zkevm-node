@@ -72,7 +72,7 @@ type getRollupInfoByBlockRangeResult struct {
 	// If there are no blocks in this range get get the last one
 	// so it could be nil if there are blocks.
 	lastBlockOfRange *types.Block
-	// If true the consumer will ignore this package
+	// If true the consumer will ignore the result part
 	ignoreThisResult bool
 }
 

@@ -103,8 +103,11 @@ func TestForcedBatch(t *testing.T) {
 	cfg := Config{
 		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
 		SyncChunkSize:                       10,
-		NumberOfEthereumClientsToSync:       1,
-		CapacityOfBufferingRollupInfoFromL1: 1,
+		UseParallelModeForL1Synchronization: true,
+		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
+			NumberOfParallelOfEthereumClients:   1,
+			CapacityOfBufferingRollupInfoFromL1: 1,
+		},
 	}
 
 	m := mocks{
@@ -177,7 +180,7 @@ func TestForcedBatch(t *testing.T) {
 
 			var n *big.Int
 			m.Etherman.
-				On("HeaderByNumber", ctx, n).
+				On("HeaderByNumber", mock.Anything, n).
 				Return(ethHeader, nil).
 				Once()
 
@@ -227,7 +230,7 @@ func TestForcedBatch(t *testing.T) {
 			toBlock := fromBlock + cfg.SyncChunkSize
 
 			m.Etherman.
-				On("GetRollupInfoByBlockRange", ctx, fromBlock, &toBlock).
+				On("GetRollupInfoByBlockRange", mock.Anything, fromBlock, &toBlock).
 				Return(blocks, order, nil).
 				Once()
 

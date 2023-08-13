@@ -56,11 +56,11 @@ func Test_Given_NeedSync_When_ReachLastBlock_Then_Finish(t *testing.T) {
 	require.False(t, res)
 }
 
-func setup(t *testing.T) (*l1DataRetriever, []*ethermanMock, chan getRollupInfoByBlockRangeResult) {
+func setup(t *testing.T) (*l1DataRetriever, []*ethermanMock, chan l1PackageData) {
 	etherman := newEthermanMock(t)
 	ethermansMock := []*ethermanMock{etherman}
 	ethermans := []EthermanInterface{etherman}
-	resultChannel := make(chan getRollupInfoByBlockRangeResult, 100)
+	resultChannel := make(chan l1PackageData, 100)
 	sut := newL1DataRetriever(context.Background(), ethermans, 100, 10, resultChannel, false)
 	return sut, ethermansMock, resultChannel
 }

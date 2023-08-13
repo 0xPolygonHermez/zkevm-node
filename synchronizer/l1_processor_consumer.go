@@ -41,7 +41,7 @@ type synchronizerProcessBlockRangeInterface interface {
 type l1DataProcessor struct {
 	mutex                 sync.Mutex
 	synchronizer          synchronizerProcessBlockRangeInterface
-	chIncommingRollupInfo chan getRollupInfoByBlockRangeResult
+	chIncommingRollupInfo chan l1PackageData
 	ctx                   context.Context
 	statistics            l1DataProcessorstatistics
 	lastEthBlockSynced    *state.Block
@@ -49,7 +49,7 @@ type l1DataProcessor struct {
 }
 
 func newL1DataProcessor(synchronizer synchronizerProcessBlockRangeInterface,
-	ctx context.Context, ch chan getRollupInfoByBlockRangeResult) *l1DataProcessor {
+	ctx context.Context, ch chan l1PackageData) *l1DataProcessor {
 	return &l1DataProcessor{
 		synchronizer:          synchronizer,
 		ctx:                   ctx,
@@ -77,22 +77,23 @@ func (l *l1DataProcessor) step() error {
 	case <-l.ctx.Done():
 		return errors.New(errCanceled)
 	case rollupInfo := <-l.chIncommingRollupInfo:
-		if rollupInfo.ignoreThisResult {
-			err = l.processIncommingIgnoreResult(rollupInfo, timeWaitingStart)
-		} else {
-			err = l.processIncommingRollupInfo(rollupInfo, timeWaitingStart)
+		if rollupInfo.dataIsValid {
+			err = l.processIncommingRollupInfoData(rollupInfo.data, timeWaitingStart)
+		}
+		if rollupInfo.ctrlIsValid {
+			err = l.processIncommingRollupControlData(rollupInfo.ctrl, timeWaitingStart)
 		}
 	}
 	return err
 }
-func (l *l1DataProcessor) processIncommingIgnoreResult(rollupInfo getRollupInfoByBlockRangeResult, timeWaitingStart time.Time) error {
-	log.Infof("")
+func (l *l1DataProcessor) processIncommingRollupControlData(control l1ConsumerControl, timeWaitingStart time.Time) error {
+	log.Infof("consumer: processing controlPackage: %s", control.toString())
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	return l._mustStopExecution()
 }
 
-func (l *l1DataProcessor) processIncommingRollupInfo(rollupInfo getRollupInfoByBlockRangeResult, timeWaitingStart time.Time) error {
+func (l *l1DataProcessor) processIncommingRollupInfoData(rollupInfo getRollupInfoByBlockRangeResult, timeWaitingStart time.Time) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	var err error
@@ -136,9 +137,8 @@ func (l *l1DataProcessor) finishExecutionWhenChannelIsEmpty() {
 
 func (l *l1DataProcessor) sendIgnoreResultToWakeUpSelect() {
 	// Send a dummy result to wake up select
-	l.chIncommingRollupInfo <- getRollupInfoByBlockRangeResult{
-		ignoreThisResult: true,
-	}
+	l.chIncommingRollupInfo <- *newL1PackageDataControl(actionStop)
+
 }
 
 func (l *l1DataProcessor) _mustStopExecution() error {

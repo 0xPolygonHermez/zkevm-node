@@ -290,7 +290,7 @@ func (s *ClientSynchronizer) syncBlocksParallel(lastEthBlockSynced *state.Block)
 		return block, nil
 	}
 
-	chIncommingRollupInfo := make(chan getRollupInfoByBlockRangeResult, s.cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
+	chIncommingRollupInfo := make(chan l1PackageData, s.cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
 	L1DataProcessor := newL1DataProcessor(s, s.ctx, chIncommingRollupInfo)
 	l1DataRetriever := newL1DataRetriever(s.ctx, s.etherManForL1, lastEthBlockSynced.BlockNumber, s.cfg.SyncChunkSize, chIncommingRollupInfo, false)
 	l1SyncOrchestration := newL1SyncOrchestration(l1DataRetriever, L1DataProcessor)
