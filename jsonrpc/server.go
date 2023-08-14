@@ -394,7 +394,7 @@ func RPCErrorResponse(code int, message string, err error) (interface{}, types.E
 // RPCErrorResponseWithData formats error to be returned through RPC
 func RPCErrorResponseWithData(code int, message string, data *[]byte, err error) (interface{}, types.Error) {
 	if err != nil {
-		log.Errorf("%v:%v", message, err.Error())
+		log.Errorf("%v: %v", message, err.Error())
 	} else {
 		log.Error(message)
 	}
