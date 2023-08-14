@@ -65,18 +65,16 @@ type blockRange struct {
 	toBlock   uint64
 }
 
-type getRollupInfoByBlockRangeResult struct {
+type responseRollupInfoByBlockRange struct {
 	blockRange blockRange
 	blocks     []etherman.Block
 	order      map[common.Hash][]etherman.Order
 	// If there are no blocks in this range get get the last one
 	// so it could be nil if there are blocks.
 	lastBlockOfRange *types.Block
-	// If true the consumer will ignore the result part
-	ignoreThisResult bool
 }
 
-func (r *getRollupInfoByBlockRangeResult) toStringBrief() string {
+func (r *responseRollupInfoByBlockRange) toStringBrief() string {
 	isLastBlockOfRangeSet := r.lastBlockOfRange != nil
 	return fmt.Sprintf(" blockRange: %s len_blocks: [%d] len_order:[%d] lastBlockOfRangeSet [%t]",
 		r.blockRange.toString(),
@@ -109,7 +107,7 @@ func newWorker(etherman EthermanInterface) *worker {
 	return &worker{etherman: etherman, status: ethermanIdle}
 }
 
-func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, ch chan genericResponse[getRollupInfoByBlockRangeResult], wg *sync.WaitGroup, blockRange blockRange) error {
+func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, ch chan genericResponse[responseRollupInfoByBlockRange], wg *sync.WaitGroup, blockRange blockRange) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	if w._isBusy() {
@@ -130,7 +128,7 @@ func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, ch chan
 			lastBlock, err = w.etherman.EthBlockByNumber(ctx, toBlock)
 		}
 		duration := time.Since(now)
-		result := newGenericAnswer(err, duration, typeRequestRollupInfo, &getRollupInfoByBlockRangeResult{blockRange, blocks, order, lastBlock, false})
+		result := newGenericAnswer(err, duration, typeRequestRollupInfo, &responseRollupInfoByBlockRange{blockRange, blocks, order, lastBlock})
 		w.setStatus(ethermanIdle)
 		ch <- result
 	}

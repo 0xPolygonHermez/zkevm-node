@@ -17,38 +17,16 @@ const (
 	errReachMaximumLiveRequestsOfThisType = "reach maximum live requests of this type"
 )
 
-type workers interface {
-	// verify test params, if allowModify = true allow to change things or make connections
-	verify(allowModify bool) error
-	// initialize object
-	initialize() error
-	// finalize object
-	finalize() error
-	// waits until all workers have finish the current task
-	waitFinishAllWorkers()
-
-	// asyncRetrieveLastBlock start a async request to retrieve the last block
-	asyncRequestLastBlock(ctx context.Context) (chan genericResponse[retrieveL1LastBlockResult], error)
-	// asyncGetRollupInfoByBlockRange start a async request to retrieve the rollup info
-	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan genericResponse[getRollupInfoByBlockRangeResult], error)
-
-	// requestRollupInfoByBlockRange start a sync request to retrieve the last block
-	requestLastBlock(ctx context.Context, timeout time.Duration) genericResponse[retrieveL1LastBlockResult]
-
-	getResponseChannelForLastBlock() chan genericResponse[retrieveL1LastBlockResult]
-	getResponseChannelForRollupInfo() chan genericResponse[getRollupInfoByBlockRangeResult]
-}
-
-type workersImpl struct {
+type workers struct {
 	ctx     context.Context
 	mutex   sync.Mutex
 	workers []*worker
 	// Channels to send to outside the responses from worker
-	chOutgoingRollupInfo chan genericResponse[getRollupInfoByBlockRangeResult]
+	chOutgoingRollupInfo chan genericResponse[responseRollupInfoByBlockRange]
 	chOutgoingLastBlock  chan genericResponse[retrieveL1LastBlockResult]
 
 	// Channels that receive the responses from worker
-	chIncommingRollupInfo chan genericResponse[getRollupInfoByBlockRangeResult]
+	chIncommingRollupInfo chan genericResponse[responseRollupInfoByBlockRange]
 	chIncomingLastBlock   chan genericResponse[retrieveL1LastBlockResult]
 	// It need a goroutine that listen in chIncomming and send to chOutgoing
 	launchedGoRoutineToRouteResponses bool
@@ -57,9 +35,9 @@ type workersImpl struct {
 	limitLiveRequests [typeRequestEOF]uint64
 }
 
-func newWorkers(ctx context.Context, ethermans []EthermanInterface) *workersImpl {
-	result := workersImpl{ctx: ctx,
-		chIncommingRollupInfo:             make(chan genericResponse[getRollupInfoByBlockRangeResult], len(ethermans)+1),
+func newWorkers(ctx context.Context, ethermans []EthermanInterface) *workers {
+	result := workers{ctx: ctx,
+		chIncommingRollupInfo:             make(chan genericResponse[responseRollupInfoByBlockRange], len(ethermans)+1),
 		chIncomingLastBlock:               make(chan genericResponse[retrieveL1LastBlockResult], len(ethermans)+1),
 		launchedGoRoutineToRouteResponses: false,
 	}
@@ -71,11 +49,11 @@ func newWorkers(ctx context.Context, ethermans []EthermanInterface) *workersImpl
 	for i, etherman := range ethermans {
 		result.workers[i] = newWorker(etherman)
 	}
-	result.chOutgoingRollupInfo = make(chan genericResponse[getRollupInfoByBlockRangeResult], len(ethermans)+1)
+	result.chOutgoingRollupInfo = make(chan genericResponse[responseRollupInfoByBlockRange], len(ethermans)+1)
 	result.chOutgoingLastBlock = make(chan genericResponse[retrieveL1LastBlockResult], len(ethermans)+1)
 	return &result
 }
-func (w *workersImpl) verify(allowModify bool) error {
+func (w *workers) verify(allowModify bool) error {
 	if len(w.workers) == 0 {
 		return errors.New(errRequiredEtherman)
 	}
@@ -84,23 +62,23 @@ func (w *workersImpl) verify(allowModify bool) error {
 	return nil
 }
 
-func (w *workersImpl) initialize() error {
+func (w *workers) initialize() error {
 	return nil
 }
 
-func (w *workersImpl) finalize() error {
+func (w *workers) finalize() error {
 	return nil
 }
 
-func (w *workersImpl) getResponseChannelForRollupInfo() chan genericResponse[getRollupInfoByBlockRangeResult] {
+func (w *workers) getResponseChannelForRollupInfo() chan genericResponse[responseRollupInfoByBlockRange] {
 	return w.chOutgoingRollupInfo
 }
 
-func (w *workersImpl) getResponseChannelForLastBlock() chan genericResponse[retrieveL1LastBlockResult] {
+func (w *workers) getResponseChannelForLastBlock() chan genericResponse[retrieveL1LastBlockResult] {
 	return w.chOutgoingLastBlock
 }
 
-func (w *workersImpl) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan genericResponse[getRollupInfoByBlockRangeResult], error) {
+func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan genericResponse[responseRollupInfoByBlockRange], error) {
 	requestStrForDebug := fmt.Sprintf("GetRollupInfoByBlockRange(%s)", blockRange.toString())
 	f := func(worker *worker, ctx context.Context, wg *sync.WaitGroup) error {
 		res := worker.asyncRequestRollupInfoByBlockRange(ctx, w.getResponseChannelForRollupInfo(), wg, blockRange)
@@ -111,7 +89,7 @@ func (w *workersImpl) asyncRequestRollupInfoByBlockRange(ctx context.Context, bl
 }
 
 // asyncRequestLastBlock launches a request to retrieve the last block of the L1 chain.
-func (w *workersImpl) asyncRequestLastBlock(ctx context.Context) (chan genericResponse[retrieveL1LastBlockResult], error) {
+func (w *workers) asyncRequestLastBlock(ctx context.Context) (chan genericResponse[retrieveL1LastBlockResult], error) {
 	requestStrForDebug := "RetrieveLastBlock()"
 	f := func(worker *worker, ctx context.Context, wg *sync.WaitGroup) error {
 		res := worker.asyncRequestLastBlock(ctx, w.getResponseChannelForLastBlock(), wg)
@@ -121,7 +99,7 @@ func (w *workersImpl) asyncRequestLastBlock(ctx context.Context) (chan genericRe
 	return w.chOutgoingLastBlock, res
 }
 
-func (w *workersImpl) requestLastBlock(ctx context.Context, timeout time.Duration) genericResponse[retrieveL1LastBlockResult] {
+func (w *workers) requestLastBlock(ctx context.Context, timeout time.Duration) genericResponse[retrieveL1LastBlockResult] {
 	ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	w.mutex.Lock()
@@ -147,7 +125,7 @@ func (w *workersImpl) requestLastBlock(ctx context.Context, timeout time.Duratio
 }
 
 // asyncGenericRequest launches a generic request to the workers
-func (w *workersImpl) asyncGenericRequest(ctx context.Context, requestType typeOfRequest, requestStrForDebug string,
+func (w *workers) asyncGenericRequest(ctx context.Context, requestType typeOfRequest, requestStrForDebug string,
 	funcRequest func(worker *worker, ctx context.Context, wg *sync.WaitGroup) error) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
@@ -173,7 +151,7 @@ func (w *workersImpl) asyncGenericRequest(ctx context.Context, requestType typeO
 	return err
 }
 
-func (w *workersImpl) _launchGoroutineForRoutingResponsesIfNeed() {
+func (w *workers) _launchGoroutineForRoutingResponsesIfNeed() {
 	if w.launchedGoRoutineToRouteResponses {
 		return
 	}
@@ -194,7 +172,7 @@ func (w *workersImpl) _launchGoroutineForRoutingResponsesIfNeed() {
 	w.launchedGoRoutineToRouteResponses = true
 }
 
-func (w *workersImpl) onResponseRollupInfo(v genericResponse[getRollupInfoByBlockRangeResult]) {
+func (w *workers) onResponseRollupInfo(v genericResponse[responseRollupInfoByBlockRange]) {
 	msg := fmt.Sprintf("workers: worker finished:[ %s ]", v.toStringBrief())
 	if v.err == nil {
 		msg += fmt.Sprintf(" block_range:%s", v.result.blockRange.toString())
@@ -202,7 +180,7 @@ func (w *workersImpl) onResponseRollupInfo(v genericResponse[getRollupInfoByBloc
 	log.Infof(msg)
 	w.chOutgoingRollupInfo <- v
 }
-func (w *workersImpl) onResponseLastBlock(v genericResponse[retrieveL1LastBlockResult]) {
+func (w *workers) onResponseLastBlock(v genericResponse[retrieveL1LastBlockResult]) {
 	msg := fmt.Sprintf("workers: worker finished:[ %s ]", v.toStringBrief())
 	if v.err == nil {
 		msg += fmt.Sprintf(" block_number:%v", v.result.block)
@@ -211,14 +189,14 @@ func (w *workersImpl) onResponseLastBlock(v genericResponse[retrieveL1LastBlockR
 	w.chOutgoingLastBlock <- v
 }
 
-func (w *workersImpl) waitFinishAllWorkers() {
+func (w *workers) waitFinishAllWorkers() {
 	for i := range w.waitGroups {
 		wg := &w.waitGroups[i]
 		wg.Wait()
 	}
 }
 
-func (w *workersImpl) _getIdleWorker() *worker {
+func (w *workers) _getIdleWorker() *worker {
 	for _, worker := range w.workers {
 		if worker.isIdle() {
 			return worker
@@ -227,7 +205,7 @@ func (w *workersImpl) _getIdleWorker() *worker {
 	return nil
 }
 
-func (w *workersImpl) _checkReachedLimitLiveRequest(typeOfRequest typeOfRequest) bool {
+func (w *workers) _checkReachedLimitLiveRequest(typeOfRequest typeOfRequest) bool {
 	if w.limitLiveRequests[typeOfRequest] == noLimitLiveRequests {
 		return false
 	}
@@ -240,7 +218,7 @@ func (w *workersImpl) _checkReachedLimitLiveRequest(typeOfRequest typeOfRequest)
 	return reachedLimit
 }
 
-func (w *workersImpl) _countLiveRequestOfType(typeOfRequest typeOfRequest) uint64 {
+func (w *workers) _countLiveRequestOfType(typeOfRequest typeOfRequest) uint64 {
 	var n uint64 = 0
 	for _, worker := range w.workers {
 		if worker.typeOfCurrentRequest == typeOfRequest {

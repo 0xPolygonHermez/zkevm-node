@@ -11,27 +11,27 @@ import (
 /*
 This object is to coordinate the producer process and the consumer process.
 */
-type l1DataRetrieverInterface interface {
+type l1RollupProducerInterface interface {
 	start() error
 	stop()
 }
 
-type l1DataProcessorInterface interface {
+type l1RollupConsumerInterface interface {
 	start() error
 	stopAfterProcessChannelQueue()
 	getLastEthBlockSynced() (state.Block, bool)
 }
 
 type l1SyncOrchestration struct {
-	producer l1DataRetrieverInterface
-	consumer l1DataProcessorInterface
+	producer l1RollupProducerInterface
+	consumer l1RollupConsumerInterface
 }
 
 const (
 	errMissingLastEthBlockSynced = "orchestration: missing last eth block synced"
 )
 
-func newL1SyncOrchestration(producer l1DataRetrieverInterface, consumer l1DataProcessorInterface) *l1SyncOrchestration {
+func newL1SyncOrchestration(producer l1RollupProducerInterface, consumer l1RollupConsumerInterface) *l1SyncOrchestration {
 	return &l1SyncOrchestration{
 		producer: producer,
 		consumer: consumer,

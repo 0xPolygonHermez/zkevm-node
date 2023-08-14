@@ -8,16 +8,11 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
-type syncStatusInterface interface {
-	verify(allowModify bool) error
-	toStringBrief() string
-	getNextRange() *blockRange
-	isNodeFullySynchronizedWithL1() bool
-	needToRenewLastBlockOnL1() bool
-
-	onStartedNewWorker(br blockRange)
-	onFinishWorker(br blockRange, successful bool)
-	onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
+type lastBlockOnL1Interface interface {
+	toString() string
+	getLastBlock() (uint64, error)
+	isValid() bool
+	isOutdated() bool
 }
 
 type syncStatus struct {
@@ -25,7 +20,7 @@ type syncStatus struct {
 	lastBlockStoreOnStateDB   uint64
 	highestBlockRequested     uint64
 	lastBlockTTLDuration      time.Duration
-	lastBlockOnL1             syncLastBlock
+	lastBlockOnL1             lastBlockOnL1Interface
 	amountOfBlocksInEachRange uint64
 	// This ranges are being processed
 	processingRanges liveBlockRanges
@@ -54,12 +49,15 @@ func newSyncStatus(lastBlockStoreOnStateDB uint64, amountOfBlocksInEachRange uin
 		lastBlockStoreOnStateDB:   lastBlockStoreOnStateDB,
 		highestBlockRequested:     lastBlockStoreOnStateDB,
 		amountOfBlocksInEachRange: amountOfBlocksInEachRange,
-		lastBlockTTLDuration:      lastBlockTTLDuration,
-		lastBlockOnL1:             newSyncLastBlockEmpty(),
-		processingRanges:          newLiveBlockRanges(),
+		// lastBlockTTLDuration is the TTL assign to the incomming lastBlock values from L1
+		lastBlockTTLDuration: lastBlockTTLDuration,
+		lastBlockOnL1:        newSyncLastBlockEmpty(),
+		processingRanges:     newLiveBlockRanges(),
 	}
 }
 
+// isNodeFullySynchronizedWithL1 returns true if the node is fully synchronized with L1
+// it means that all blocks until the last block on L1 are requested (maybe not finish yet) and there are no pending errors
 func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -79,6 +77,9 @@ func (s *syncStatus) _isNodeFullySynchronizedWithL1(lastBlock uint64) bool {
 	return false
 }
 
+// getNextRange: if there are pending work it returns the next block to ask for
+//
+//	it could be a retry from a previous error or a new range
 func (s *syncStatus) getNextRange() *blockRange {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

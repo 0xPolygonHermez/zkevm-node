@@ -14,7 +14,7 @@ type filterToSendOrdererResultsToConsumer struct {
 	mutex                   sync.Mutex
 	lastBlockOnSynchronizer uint64
 	// pendingResults is a queue of results that are waiting to be sent to the consumer
-	pendingResults []l1PackageData
+	pendingResults []l1SyncMessage
 }
 
 func newFilterToSendOrdererResultsToConsumer(lastBlockOnSynchronizer uint64) *filterToSendOrdererResultsToConsumer {
@@ -26,25 +26,17 @@ func (s *filterToSendOrdererResultsToConsumer) toStringBrief() string {
 		s.lastBlockOnSynchronizer, len(s.pendingResults))
 }
 
-func (s *filterToSendOrdererResultsToConsumer) filter(data l1PackageData) []l1PackageData {
+func (s *filterToSendOrdererResultsToConsumer) filter(data l1SyncMessage) []l1SyncMessage {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s._checkValidData(&data)
 	s._addPendingResult(&data)
-	res := []l1PackageData{}
+	res := []l1SyncMessage{}
 	res = s._sendResultIfPossible(res)
 	return res
 }
 
-// func (s *filterToSendOrdererResultsToConsumer) addResultAndSendToConsumer(result *l1PackageData) {
-// 	res := s.filter(result)
-// 	for i := range res {
-// 		s.outgoingChannel <- res[i]
-// 	}
-
-// }
-
-func (s *filterToSendOrdererResultsToConsumer) _checkValidData(result *l1PackageData) {
+func (s *filterToSendOrdererResultsToConsumer) _checkValidData(result *l1SyncMessage) {
 	if result.dataIsValid {
 		if result.data.blockRange.fromBlock < s.lastBlockOnSynchronizer {
 			log.Fatalf("It's not possible to receive a old block [%s] range that have been already send to synchronizer. Ignoring it.  status:[%s]",
@@ -60,7 +52,7 @@ func (s *filterToSendOrdererResultsToConsumer) _checkValidData(result *l1Package
 }
 
 // _sendResultIfPossible returns true is have send any result
-func (s *filterToSendOrdererResultsToConsumer) _sendResultIfPossible(previous []l1PackageData) []l1PackageData {
+func (s *filterToSendOrdererResultsToConsumer) _sendResultIfPossible(previous []l1SyncMessage) []l1SyncMessage {
 	result_list_packages := previous
 	indexToRemove := []int{}
 	send := false
@@ -93,7 +85,7 @@ func (s *filterToSendOrdererResultsToConsumer) _sendResultIfPossible(previous []
 }
 
 func (s *filterToSendOrdererResultsToConsumer) _removeIndexFromPendingResults(indexToRemove []int) {
-	newPendingResults := []l1PackageData{}
+	newPendingResults := []l1SyncMessage{}
 	for j := range s.pendingResults {
 		if slices.Contains(indexToRemove, j) {
 			continue
@@ -109,10 +101,10 @@ func (s *filterToSendOrdererResultsToConsumer) _setLastBlockOnSynchronizerCorres
 	s.lastBlockOnSynchronizer = newVaule
 }
 
-func (s *filterToSendOrdererResultsToConsumer) _matchNextBlock(results *getRollupInfoByBlockRangeResult) bool {
+func (s *filterToSendOrdererResultsToConsumer) _matchNextBlock(results *responseRollupInfoByBlockRange) bool {
 	return results.blockRange.fromBlock == s.lastBlockOnSynchronizer+1
 }
 
-func (s *filterToSendOrdererResultsToConsumer) _addPendingResult(results *l1PackageData) {
+func (s *filterToSendOrdererResultsToConsumer) _addPendingResult(results *l1SyncMessage) {
 	s.pendingResults = append(s.pendingResults, *results)
 }
