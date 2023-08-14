@@ -1557,6 +1557,9 @@ func (s *ClientSynchronizer) getCurrentBatches(batches []*state.Batch, trustedBa
 
 func (s *ClientSynchronizer) pendingFlushID(flushID uint64, proverID string) {
 	log.Infof("pending flushID: %d", flushID)
+	if flushID == 0 {
+		log.Fatal("flushID is 0. Please check that prover/executor config parameter dbReadOnly is false")
+	}
 	s.latestFlushID = flushID
 	s.latestFlushIDIsFulfilled = false
 	s.updateAndCheckProverID(proverID)
@@ -1583,7 +1586,7 @@ func (s *ClientSynchronizer) updateAndCheckProverID(proverID string) {
 			log.Errorf("error storing event payload: %v", err)
 		}
 
-		log.Fatal("restarting synchronizer because  executor have restarted (old=%s, new=%s)", s.proverID, proverID)
+		log.Fatal("restarting synchronizer because executor has been restarted (old=%s, new=%s)", s.proverID, proverID)
 	}
 }
 
@@ -1597,7 +1600,7 @@ func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
 		log.Error("error getting stored flushID. Error: ", err)
 		return err
 	}
-	if (s.previousExecutorFlushID != storedFlushID) || (s.proverID != proverID) {
+	if s.previousExecutorFlushID != storedFlushID || s.proverID != proverID {
 		log.Infof("executor vs local: flushid=%d/%d, proverID=%s/%s", storedFlushID,
 			s.latestFlushID, proverID, s.proverID)
 	} else {

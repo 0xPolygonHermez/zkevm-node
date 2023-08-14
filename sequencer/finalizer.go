@@ -436,7 +436,7 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 	}
 }
 
-// checkProverIDAndUpdateStoredFlushID checks if the proverID changed and updates the stored flush id
+// checkIfProverRestarted checks if the proverID changed
 func (f *finalizer) checkIfProverRestarted(proverID string) {
 	if f.proverID != "" && f.proverID != proverID {
 		event := &event.Event{
