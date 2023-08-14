@@ -66,7 +66,7 @@ type batchConstraintsFloat64 struct {
 }
 
 // newTxTracker creates and inti a TxTracker
-func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints batchConstraintsFloat64, weights state.BatchResourceWeights, resourceCostMultiplier float64, ip string) (*TxTracker, error) {
+func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints batchConstraintsFloat64, weights state.BatchResourceWeightsCfg, resourceCostMultiplier float64, ip string) (*TxTracker, error) {
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err
@@ -111,17 +111,17 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, constraints b
 }
 
 // updateZKCounters updates the counters of the tx and recalculates the tx efficiency
-func (tx *TxTracker) updateZKCounters(counters state.ZKCounters, constraints batchConstraintsFloat64, weights state.BatchResourceWeights) {
+func (tx *TxTracker) updateZKCounters(counters state.ZKCounters, constraints batchConstraintsFloat64, weights state.BatchResourceWeightsCfg) {
 	tx.BatchResources.ZKCounters = counters
 	tx.calculateEfficiency(constraints, weights)
 }
 
 // calculateEfficiency calculates the tx efficiency
-func (tx *TxTracker) calculateEfficiency(constraints batchConstraintsFloat64, weights state.BatchResourceWeights) {
+func (tx *TxTracker) calculateEfficiency(constraints batchConstraintsFloat64, weights state.BatchResourceWeightsCfg) {
 	totalWeight := float64(weights.WeightArithmetics + weights.WeightBatchBytesSize + weights.WeightBinaries + weights.WeightCumulativeGasUsed +
 		weights.WeightKeccakHashes + weights.WeightMemAligns + weights.WeightPoseidonHashes + weights.WeightPoseidonPaddings + weights.WeightSteps)
 
-	// TODO: Optmize tx.Efficiency calculation (precalculate constansts values)
+	// TODO: Optimize tx.Efficiency calculation (precalculate constansts values)
 	// TODO: Evaluate avoid type conversion (performance impact?)
 	resourceCost := (float64(tx.BatchResources.ZKCounters.CumulativeGasUsed)/constraints.maxCumulativeGasUsed)*float64(weights.WeightCumulativeGasUsed)/totalWeight +
 		(float64(tx.BatchResources.ZKCounters.UsedArithmetics)/constraints.maxArithmetics)*float64(weights.WeightArithmetics)/totalWeight +
@@ -150,7 +150,7 @@ func (tx *TxTracker) calculateEfficiency(constraints batchConstraintsFloat64, we
 }
 
 // calculateWeightMultipliers calculates the weight multipliers for each resource
-func calculateWeightMultipliers(weights state.BatchResourceWeights, totalWeight float64) batchResourceWeightMultipliers {
+func calculateWeightMultipliers(weights state.BatchResourceWeightsCfg, totalWeight float64) batchResourceWeightMultipliers {
 	return batchResourceWeightMultipliers{
 		cumulativeGasUsed: float64(weights.WeightCumulativeGasUsed) / totalWeight,
 		arithmetics:       float64(weights.WeightArithmetics) / totalWeight,

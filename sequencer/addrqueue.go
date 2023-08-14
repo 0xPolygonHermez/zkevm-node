@@ -162,7 +162,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 		}
 	}
 
-	// We check if we have a new readyTx from the notReadyTxs (at this point, to optmize the code,
+	// We check if we have a new readyTx from the notReadyTxs (at this point, to optimize the code,
 	// we are not including the oldReadyTx in notReadyTxs, as it can match again if the nonce has not changed)
 	if a.readyTx == nil {
 		nrTx, found := a.notReadyTxs[a.currentNonce]
@@ -186,7 +186,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 
 // UpdateTxZKCounters updates the ZKCounters for the given tx (txHash)
 // If the updated tx is the readyTx it returns a copy of the previous readyTx, nil otherwise
-func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, counters state.ZKCounters, constraints batchConstraintsFloat64, weights state.BatchResourceWeights) (newReadyTx, prevReadyTx *TxTracker) {
+func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, counters state.ZKCounters, constraints batchConstraintsFloat64, weights state.BatchResourceWeightsCfg) (newReadyTx, prevReadyTx *TxTracker) {
 	txHashStr := txHash.String()
 
 	if (a.readyTx != nil) && (a.readyTx.HashStr == txHashStr) {

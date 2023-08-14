@@ -19,7 +19,7 @@ type efficiencyCalcTestCase struct {
 
 func TestTxTrackerEfficiencyCalculation(t *testing.T) {
 	// Init ZKEVM resourceCostWeight values
-	rcWeigth := state.BatchResourceWeights{
+	rcWeigth := state.BatchResourceWeightsCfg{
 		WeightBatchBytesSize:    2,
 		WeightCumulativeGasUsed: 1,
 		WeightArithmetics:       1,

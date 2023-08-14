@@ -21,7 +21,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
-	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	state "github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
@@ -67,7 +67,7 @@ var (
 	}
 	forkID                             uint64 = 5
 	executorClient                     executor.ExecutorServiceClient
-	mtDBServiceClient                  mtDBclientpb.HashDBServiceClient
+	mtDBServiceClient                  hashdb.HashDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
 	batchResources                     = state.BatchResources{
 		ZKCounters: state.ZKCounters{
@@ -726,7 +726,7 @@ func TestGenesis(t *testing.T) {
 		}
 	}
 
-	err = testState.GetTree().Flush(ctx)
+	err = testState.GetTree().Flush(ctx, "")
 	require.NoError(t, err)
 }
 

@@ -189,6 +189,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(0),
 		},
 		{
+			path:          "EthTxManager.GasPriceMarginFactor",
+			expectedValue: float64(1),
+		},
+		{
+			path:          "EthTxManager.MaxGasPriceLimit",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "L2GasPriceSuggester.DefaultGasPriceWei",
 			expectedValue: uint64(2000000000),
 		},

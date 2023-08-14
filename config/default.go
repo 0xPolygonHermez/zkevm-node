@@ -73,6 +73,8 @@ MultiGasProvider = false
 FrequencyToMonitorTxs = "1s"
 WaitTxToBeMined = "2m"
 ForcedGas = 0
+GasPriceMarginFactor = 1
+MaxGasPriceLimit = 0
 
 [RPC]
 Host = "0.0.0.0"

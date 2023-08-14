@@ -17,26 +17,37 @@ import (
 
 // Worker represents the worker component of the sequencer
 type Worker struct {
-	cfg                     WorkerCfg
-	pool                    map[string]*addrQueue
-	efficiencyList          *efficiencyList
-	workerMutex             sync.Mutex
-	state                   stateInterface
-	batchConstraints        state.BatchConstraintsCfg
-	batchConstraintsFloat64 batchConstraintsFloat64
-	batchResourceWeights    state.BatchResourceWeights
+	cfg                          WorkerCfg
+	pool                         map[string]*addrQueue
+	efficiencyList               *efficiencyList
+	workerMutex                  sync.Mutex
+	state                        stateInterface
+	batchConstraints             state.BatchConstraintsCfg
+	batchConstraintsFloat64      batchConstraintsFloat64
+	batchResourceWeights         state.BatchResourceWeightsCfg
+	pendingTxsToStoreMux         *sync.RWMutex
+	pendingTxsPerAddressTrackers map[common.Address]*pendingTxPerAddressTracker
 }
 
 // NewWorker creates an init a worker
-func NewWorker(cfg WorkerCfg, state stateInterface, constraints state.BatchConstraintsCfg, weights state.BatchResourceWeights) *Worker {
+func NewWorker(
+	cfg WorkerCfg,
+	state stateInterface,
+	constraints state.BatchConstraintsCfg,
+	weights state.BatchResourceWeightsCfg,
+	pendingTxsToStoreMux *sync.RWMutex,
+	pendingTxTrackersPerAddress map[common.Address]*pendingTxPerAddressTracker,
+) *Worker {
 	w := Worker{
-		cfg:                     cfg,
-		pool:                    make(map[string]*addrQueue),
-		efficiencyList:          newEfficiencyList(),
-		state:                   state,
-		batchConstraints:        constraints,
-		batchConstraintsFloat64: convertBatchConstraintsToFloat64(constraints),
-		batchResourceWeights:    weights,
+		cfg:                          cfg,
+		pool:                         make(map[string]*addrQueue),
+		efficiencyList:               newEfficiencyList(),
+		state:                        state,
+		batchConstraints:             constraints,
+		batchConstraintsFloat64:      convertBatchConstraintsToFloat64(constraints),
+		batchResourceWeights:         weights,
+		pendingTxsToStoreMux:         pendingTxsToStoreMux,
+		pendingTxsPerAddressTrackers: pendingTxTrackersPerAddress,
 	}
 
 	return &w
@@ -50,16 +61,17 @@ func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, i
 // AddTxTracker adds a new Tx to the Worker
 func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *TxTracker, dropReason error) {
 	w.workerMutex.Lock()
-	defer w.workerMutex.Unlock()
 
 	// Make sure the IP is valid.
 	if tx.IP != "" && !pool.IsValidIP(tx.IP) {
+		w.workerMutex.Unlock()
 		return nil, pool.ErrInvalidIP
 	}
 
 	// Make sure the transaction's batch resources are within the constraints.
 	if !w.batchConstraints.IsWithinConstraints(tx.BatchResources.ZKCounters) {
 		log.Errorf("OutOfCounters Error (Node level)  for tx: %s", tx.Hash.String())
+		w.workerMutex.Unlock()
 		return nil, pool.ErrOutOfCounters
 	}
 
@@ -67,6 +79,17 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	if !found {
 		// Unlock the worker to let execute other worker functions while creating the new AddrQueue
 		w.workerMutex.Unlock()
+
+		// Wait until all pending transactions are stored, so we can ensure getting the correct nonce and balance of the new AddrQueue
+		log.Infof("Checking for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
+		w.pendingTxsToStoreMux.RLock()
+		pendingTxsTracker, ok := w.pendingTxsPerAddressTrackers[tx.From]
+		if ok && pendingTxsTracker.wg != nil {
+			log.Infof("Waiting for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
+			pendingTxsTracker.wg.Wait()
+			log.Infof("Finished waiting for pending transactions to be stored before creating new AddrQueue for address %s", tx.FromStr)
+		}
+		w.pendingTxsToStoreMux.RUnlock()
 
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
@@ -102,6 +125,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	newReadyTx, prevReadyTx, repTx, dropReason = addr.addTx(tx)
 	if dropReason != nil {
 		log.Infof("AddTx tx(%s) dropped from addrQueue(%s), reason: %s", tx.HashStr, tx.FromStr, dropReason.Error())
+		w.workerMutex.Unlock()
 		return repTx, dropReason
 	}
 
@@ -118,7 +142,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	if repTx != nil {
 		log.Infof("AddTx replacedTx(%s) nonce(%d) cost(%s) has been replaced", repTx.HashStr, repTx.Nonce, repTx.Cost.String())
 	}
-
+	w.workerMutex.Unlock()
 	return repTx, nil
 }
 

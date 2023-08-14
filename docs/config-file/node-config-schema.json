@@ -136,6 +136,16 @@
 					"type": "integer",
 					"description": "ForcedGas is the amount of gas to be forced in case of gas estimation error",
 					"default": 0
+				},
+				"GasPriceMarginFactor": {
+					"type": "number",
+					"description": "GasPriceMarginFactor is used to multiply the suggested gas price provided by the network\nin order to allow a different gas price to be set for all the transactions and making it\neasier to have the txs prioritized in the pool, default value is 1.\n\nex:\nsuggested gas price: 100\nGasPriceMarginFactor: 1\ngas price = 100\n\nsuggested gas price: 100\nGasPriceMarginFactor: 1.1\ngas price = 110",
+					"default": 1
+				},
+				"MaxGasPriceLimit": {
+					"type": "integer",
+					"description": "MaxGasPriceLimit helps avoiding transactions to be sent over an specified\ngas price amount, default value is 0, which means no limit.\nIf the gas price provided by the network and adjusted by the GasPriceMarginFactor\nis greater than this configuration, transaction will have its gas price set to\nthe value configured in this config as the limit.\n\nex:\n\nsuggested gas price: 100\ngas price margin factor: 20%\nmax gas price limit: 150\ntx gas price = 120\n\nsuggested gas price: 100\ngas price margin factor: 20%\nmax gas price limit: 110\ntx gas price = 110",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,

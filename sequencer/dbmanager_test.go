@@ -12,7 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
-	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -37,7 +37,7 @@ var (
 	}
 	dbManagerCfg      = DBManagerCfg{PoolRetrievalInterval: types.NewDuration(500 * time.Millisecond)}
 	executorClient    executor.ExecutorServiceClient
-	mtDBServiceClient mtDBclientpb.HashDBServiceClient
+	mtDBServiceClient hashdb.HashDBServiceClient
 	mtDBClientConn    *grpc.ClientConn
 	testDbManager     *dbManager
 )

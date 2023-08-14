@@ -90,7 +90,7 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 	}
 
 	// get gas price
-	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
+	gasPrice, err := c.suggestedGasPrice(ctx)
 	if err != nil {
 		err := fmt.Errorf("failed to get suggested gas price: %w", err)
 		log.Errorf(err.Error())
@@ -112,6 +112,9 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 		log.Errorf(err.Error())
 		return err
 	}
+
+	mTxLog := log.WithFields("monitoredTx", mTx.id, "createdAt", mTx.createdAt)
+	mTxLog.Infof("created")
 
 	return nil
 }
@@ -261,7 +264,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 	for _, mTx := range mTxs {
 		mTx := mTx // force variable shadowing to avoid pointer conflicts
-		mTxLog := log.WithFields("monitoredTx", mTx.id)
+		mTxLog := log.WithFields("monitoredTx", mTx.id, "createdAt", mTx.createdAt)
 		mTxLog.Info("processing")
 
 		// check if any of the txs in the history was mined
@@ -355,7 +358,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 			// rebuild transaction
 			tx := mTx.Tx()
-			mTxLog.Debugf("unsigned tx %v created", tx.Hash().String(), mTx.id)
+			mTxLog.Debugf("unsigned tx %v created", tx.Hash().String())
 
 			// sign tx
 			signedTx, err = c.etherman.SignTx(ctx, mTx.from, tx)
@@ -519,7 +522,7 @@ func (c *Client) ReviewMonitoredTx(ctx context.Context, mTx *monitoredTx) error 
 	}
 
 	// get gas price
-	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
+	gasPrice, err := c.suggestedGasPrice(ctx)
 	if err != nil {
 		err := fmt.Errorf("failed to get suggested gas price: %w", err)
 		mTxLog.Errorf(err.Error())
@@ -556,6 +559,30 @@ func (c *Client) ReviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx) e
 	}
 
 	return nil
+}
+
+func (c *Client) suggestedGasPrice(ctx context.Context) (*big.Int, error) {
+	// get gas price
+	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// adjust the gas price by the margin factor
+	marginFactor := big.NewFloat(0).SetFloat64(c.cfg.GasPriceMarginFactor)
+	fGasPrice := big.NewFloat(0).SetInt(gasPrice)
+	adjustedGasPrice, _ := big.NewFloat(0).Mul(fGasPrice, marginFactor).Int(big.NewInt(0))
+
+	// if there is a max gas price limit configured and the current
+	// adjusted gas price is over this limit, set the gas price as the limit
+	if c.cfg.MaxGasPriceLimit > 0 {
+		maxGasPrice := big.NewInt(0).SetUint64(c.cfg.MaxGasPriceLimit)
+		if adjustedGasPrice.Cmp(maxGasPrice) == 1 {
+			adjustedGasPrice.Set(maxGasPrice)
+		}
+	}
+
+	return adjustedGasPrice, nil
 }
 
 // logErrorAndWait used when an error is detected before trying again

@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 // NewMTDBServiceClient creates a new MTDB client.
-func NewMTDBServiceClient(ctx context.Context, c Config) (pb.HashDBServiceClient, *grpc.ClientConn, context.CancelFunc) {
+func NewMTDBServiceClient(ctx context.Context, c Config) (hashdb.HashDBServiceClient, *grpc.ClientConn, context.CancelFunc) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
@@ -26,6 +26,6 @@ func NewMTDBServiceClient(ctx context.Context, c Config) (pb.HashDBServiceClient
 	}
 	log.Infof("connected to merkletree")
 
-	mtDBClient := pb.NewHashDBServiceClient(mtDBConn)
+	mtDBClient := hashdb.NewHashDBServiceClient(mtDBConn)
 	return mtDBClient, mtDBConn, cancel
 }
