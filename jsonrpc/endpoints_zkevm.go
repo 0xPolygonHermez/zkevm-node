@@ -168,8 +168,16 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 			ger = &state.GlobalExitRoot{}
 		}
 
+		blocks, err := z.state.GetL2BlocksByBatchNumber(ctx, batchNumber, dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load blocks associated to the batch %v", batchNumber), err)
+		}
+
 		batch.Transactions = txs
-		rpcBatch := types.NewBatch(batch, virtualBatch, verifiedBatch, receipts, fullTx, ger)
+		rpcBatch, err := types.NewBatch(batch, virtualBatch, verifiedBatch, blocks, receipts, fullTx, ger)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build the batch %v response", batchNumber), err)
+		}
 		return rpcBatch, nil
 	})
 }
