@@ -1124,9 +1124,7 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 	q := p.getExecQuerier(dbTx)
 	row := q.QueryRow(ctx, query, blockNumber)
 	header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -1621,7 +1619,9 @@ func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*typ
 	q := p.getExecQuerier(dbTx)
 	row := q.QueryRow(ctx, query)
 	header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
-	if err != nil {
+	if errors.Is(err, ErrNotFound) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -1706,9 +1706,7 @@ func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash
 	q := p.getExecQuerier(dbTx)
 	row := q.QueryRow(ctx, query, hash.String())
 	header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
