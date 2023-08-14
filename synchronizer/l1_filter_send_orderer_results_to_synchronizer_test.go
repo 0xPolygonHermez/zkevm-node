@@ -72,97 +72,38 @@ func Test_SOR_Multicase(t *testing.T) {
 			},
 			lastBlockOnSynchronizer: 141,
 		},
+		{
+			description: "crtl_linked_to_last_br",
+			lastBlock:   100,
+			packages: []l1PackageData{
+				*newDataPackage(111, 120),
+				*newDataPackage(121, 130),
+				*newDataPackage(131, 140),
+				*newActionPackage(actionNone),
+				*newDataPackage(101, 110)},
+			expected: []l1PackageData{
+				*newDataPackage(101, 110),
+				*newDataPackage(111, 120),
+				*newDataPackage(121, 130),
+				*newDataPackage(131, 140),
+				*newActionPackage(actionNone),
+			},
+			lastBlockOnSynchronizer: 140,
+		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.description, func(t *testing.T) {
-			ch := createChannel(100)
-			sut := newFilterToSendOrdererResultsToConsumer(ch, tc.lastBlock)
+			sut := newFilterToSendOrdererResultsToConsumer(tc.lastBlock)
+			sendData := []l1PackageData{}
 			for _, p := range tc.packages {
-				sut.addResultAndSendToConsumer(&p)
+				dataToSend := sut.filter(p)
+				sendData = append(sendData, dataToSend...)
 			}
-			sendData := getAllDataFromChannel(ch)
+
 			require.Equal(t, tc.expected, sendData)
 			require.Equal(t, tc.lastBlockOnSynchronizer, sut.lastBlockOnSynchronizer)
 		})
 	}
-
-}
-
-func Test_SOR_ControlDataPackage(t *testing.T) {
-	ch := createChannel(100)
-	lastBlock := uint64(100)
-	sut := newFilterToSendOrdererResultsToConsumer(ch, lastBlock)
-	result := newL1PackageDataControl(actionNone)
-	sut.addResultAndSendToConsumer(result)
-	require.Equal(t, 0, len(sut.pendingResults), "an control package must be send is order, so it must be send immediately")
-	require.Equal(t, uint64(100), sut.lastBlockOnSynchronizer, "a control package doesn't change lastBlockOnSynchronizer")
-}
-
-func Test_SOR_TrivialCaseThatArrivesNextBlock(t *testing.T) {
-	ch := createChannel(100)
-	lastBlock := uint64(100)
-	sut := newFilterToSendOrdererResultsToConsumer(ch, lastBlock)
-	result := newDataPackage(101, 110)
-	sut.addResultAndSendToConsumer(result)
-	require.Equal(t, 0, len(sut.pendingResults))
-	require.Equal(t, uint64(110), sut.lastBlockOnSynchronizer)
-}
-
-func Test_SOR_ReceivedABlockThatIsNotNextOne(t *testing.T) {
-	ch := createChannel(100)
-	lastBlock := uint64(100)
-	sut := newFilterToSendOrdererResultsToConsumer(ch, lastBlock)
-	result := newDataPackage(111, 120)
-	sut.addResultAndSendToConsumer(result)
-	require.Equal(t, 1, len(sut.pendingResults))
-	require.Equal(t, lastBlock, sut.lastBlockOnSynchronizer)
-}
-
-func Test_SOR_ControlDataPackageBlockedAtTheEndBecauseThereAreAMissingBR(t *testing.T) {
-	ch := createChannel(100)
-	lastBlock := uint64(100)
-	sut := newFilterToSendOrdererResultsToConsumer(ch, lastBlock)
-	sut.addResultAndSendToConsumer(newDataPackage(111, 120))
-	sut.addResultAndSendToConsumer(newDataPackage(121, 130))
-	sut.addResultAndSendToConsumer(newDataPackage(131, 140))
-	sut.addResultAndSendToConsumer(newActionPackage(actionNone))
-	require.Equal(t, 4, len(sut.pendingResults))
-	require.Equal(t, lastBlock, sut.lastBlockOnSynchronizer)
-
-	sut.addResultAndSendToConsumer(newDataPackage(101, 110))
-	require.Equal(t, 0, len(sut.pendingResults))
-	require.Equal(t, uint64(140), sut.lastBlockOnSynchronizer)
-
-	sendData := getAllDataFromChannel(ch)
-	last := sendData[len(sendData)-1]
-	require.Equal(t, newL1PackageDataControl(actionNone).toStringBrief(), last.toStringBrief())
-}
-
-func getAllDataFromChannel[T any](ch chan T) []T {
-	res := []T{}
-	for len(ch) > 0 {
-		res = append(res, <-ch)
-	}
-	return res
-}
-
-func Test_SOR_ThereAreSomePendingBlocksAndArriveTheMissingOne(t *testing.T) {
-	ch := createChannel(100)
-	lastBlock := uint64(100)
-	sut := newFilterToSendOrdererResultsToConsumer(ch, lastBlock)
-	sut.addResultAndSendToConsumer(newDataPackage(111, 120))
-	sut.addResultAndSendToConsumer(newDataPackage(121, 130))
-	sut.addResultAndSendToConsumer(newDataPackage(131, 140))
-	require.Equal(t, 3, len(sut.pendingResults))
-	require.Equal(t, lastBlock, sut.lastBlockOnSynchronizer)
-
-	sut.addResultAndSendToConsumer(newDataPackage(101, 110))
-	require.Equal(t, 0, len(sut.pendingResults))
-	require.Equal(t, uint64(140), sut.lastBlockOnSynchronizer)
-}
-
-func createChannel(size int) chan l1PackageData {
-	return make(chan l1PackageData, size)
 }
 
 func newDataPackage(fromBlock, toBlock uint64) *l1PackageData {
@@ -193,5 +134,4 @@ func newActionPackage(action actionsEnum) *l1PackageData {
 			action: action,
 		},
 	}
-
 }

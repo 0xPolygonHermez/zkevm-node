@@ -2,6 +2,7 @@ package synchronizer
 
 import (
 	context "context"
+	"errors"
 	"math/big"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Given_Kk(t *testing.T) {
+func Test_HeaderByNumber_OkAnswer(t *testing.T) {
 	Etherman := newEthermanMock(t)
 	ctx := context.Background()
 	header := new(ethTypes.Header)
@@ -20,10 +21,29 @@ func Test_Given_Kk(t *testing.T) {
 		Return(header, nil).
 		Once()
 	worker := newWorker(Etherman)
-	ch, err := worker.asyncRequestLastBlock(ctx, nil)
+	ch := make(chan genericResponse[retrieveL1LastBlockResult])
+	err := worker.asyncRequestLastBlock(ctx, ch, nil)
 	require.NoError(t, err)
 	require.NotNil(t, ch)
 	result := <-ch
 	require.NoError(t, result.err)
 	require.Equal(t, result.result.block, uint64(1))
+}
+
+func Test_HeaderByNumber_ErrorAnswer(t *testing.T) {
+	Etherman := newEthermanMock(t)
+	ctx := context.Background()
+	header := new(ethTypes.Header)
+	header.Number = big.NewInt(1)
+	Etherman.
+		On("HeaderByNumber", ctx, mock.Anything).
+		Return(nil, errors.New("error")).
+		Once()
+	worker := newWorker(Etherman)
+	ch := make(chan genericResponse[retrieveL1LastBlockResult])
+	err := worker.asyncRequestLastBlock(ctx, ch, nil)
+	require.NoError(t, err)
+	require.NotNil(t, ch)
+	result := <-ch
+	require.Error(t, result.err)
 }

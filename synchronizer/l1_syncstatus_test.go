@@ -40,7 +40,6 @@ func Test_When_AllRequestAreSend_Then_getNextRange_ReturnsNil(t *testing.T) {
 	s.onStartedNewWorker(blockRange{fromBlock: 1921, toBlock: 1982})
 	br := s.getNextRange()
 	require.Nil(t, br)
-
 }
 
 func Test_SecondRunWithPendingBlocksToRetrieve(t *testing.T) {

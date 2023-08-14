@@ -1,3 +1,31 @@
+// package synchronizer
+// Implements the logic to retrieve data from L1 and send it to the synchronizer
+//   - multiples etherman to do it in parallel
+//   - generate blocks to be retrieved
+//   - retrieve blocks (parallel)
+//   - check last block on L1:
+//     The idea is to run all the time and renew the las block from L1
+//     but for best fitting current implementation of synchronizer and match the
+//     previous behaviour of syncBlocks we update the last block at beginning of the process
+//     and finish the process when we reach the last block.
+//     To control that:
+//   - cte: ttlOfLastBlockDefault
+//   - when creating object param renewLastBlockOnL1
+//
+// TODO:
+//   - All the stuff related to update last block on L1 could be moved to another class
+//   - Check context usage:
+//     It need a context to cancel it self and create another context to cancel workers?
+//   - Emit metrics
+//   - if nothing to update reduce de code to be executed
+//   - Improve the unittest of this object
+//   - Check all log.fatals to remove it or add status before the panic
+//   - Old syncBlocks method try to ask for blocks over last L1 block, I suppose that is for keep
+//     synchronizing even a long the synchronization have new blocks. This is not implemented here
+//     This is the behaviour of ethman in that situation:
+//   - GetRollupInfoByBlockRange returns no error, zero blocks...
+//   - EthBlockByNumber returns error:  "not found"
+
 package synchronizer
 
 import (
@@ -10,17 +38,63 @@ import (
 )
 
 const (
-	ttlOfLastBlockDefault      = time.Second * 60
-	timeOutMainLoop            = time.Minute * 5
-	timeForShowUpStatisticsLog = time.Second * 60
-	conversionFactorPercentage = 100
+	ttlOfLastBlockDefault                      = time.Second * 60
+	timeOutMainLoop                            = time.Minute * 5
+	timeForShowUpStatisticsLog                 = time.Second * 60
+	conversionFactorPercentage                 = 100
+	maxRetriesForRequestnitialValueOfLastBlock = 10
+	timeRequestInitialValueOfLastBlock         = time.Second * 5
 )
 
-// - multiples etherman to do it in parallel
-// - generate blocks to be retrieved
-// - retrieve blocks (parallel)
-// - check last block on L1?
+type filter interface {
+	toStringBrief() string
+	filter(data l1PackageData) []l1PackageData
+}
 
+type l1DataRetriever struct {
+	mutex           sync.Mutex
+	ctx             context.Context
+	cancelCtx       context.CancelFunc
+	workers         workers
+	syncStatus      syncStatusInterface
+	outgoingChannel chan l1PackageData
+	// Send the block info to this channel ordered by block number
+	//channel chan getRollupInfoByBlockRangeResult
+	filterToSendOrdererResultsToConsumer filter
+	statistics                           l1DataRetrieverStatistics
+}
+
+func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
+	startingBlockNumber uint64, SyncChunkSize uint64,
+	outgoingChannel chan l1PackageData, renewLastBlockOnL1 bool) *l1DataRetriever {
+	if cap(outgoingChannel) < len(ethermans) {
+		log.Warnf("resultChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(outgoingChannel), len(ethermans))
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	ttlOfLastBlock := ttlOfLastBlockDefault
+	if !renewLastBlockOnL1 {
+		ttlOfLastBlock = ttlOfLastBlockInfinity
+	}
+	result := l1DataRetriever{
+		ctx:                                  ctx,
+		cancelCtx:                            cancel,
+		syncStatus:                           newSyncStatus(startingBlockNumber, SyncChunkSize, ttlOfLastBlock),
+		workers:                              newWorkers(ctx, ethermans),
+		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(startingBlockNumber),
+		outgoingChannel:                      outgoingChannel,
+		statistics: l1DataRetrieverStatistics{
+			initialBlockNumber: startingBlockNumber,
+			startTime:          time.Now(),
+		},
+	}
+	err := result.verify(false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &result
+}
+
+// This object keep track of the statistics of the process, to be able to estimate the ETA
 type l1DataRetrieverStatistics struct {
 	initialBlockNumber  uint64
 	lastBlockNumber     uint64
@@ -44,18 +118,7 @@ func (l *l1DataRetrieverStatistics) getETA() string {
 		eta, percent, blocks_per_seconds, l.numRetrievedBlocks, numTotalOfBlocks, l.numRollupInfoErrors)
 }
 
-type l1DataRetriever struct {
-	mutex      sync.Mutex
-	ctx        context.Context
-	cancelCtx  context.CancelFunc
-	workers    workers
-	syncStatus syncStatusInterface
-	// Send the block info to this channel ordered by block number
-	//channel chan getRollupInfoByBlockRangeResult
-	sender     *filterToSendOrdererResultsToConsumer
-	statistics l1DataRetrieverStatistics
-}
-
+// TDOO: There is no min function in golang??
 func min(a, b uint64) uint64 {
 	if a < b {
 		return a
@@ -76,35 +139,6 @@ func (l *l1DataRetriever) verify(allowModify bool) error {
 	return nil
 }
 
-func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
-	startingBlockNumber uint64, SyncChunkSize uint64,
-	resultChannel chan l1PackageData, renewLastBlockOnL1 bool) *l1DataRetriever {
-	if cap(resultChannel) < len(ethermans) {
-		log.Warnf("resultChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(resultChannel), len(ethermans))
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	ttlOfLastBlock := ttlOfLastBlockDefault
-	if !renewLastBlockOnL1 {
-		ttlOfLastBlock = ttlOfLastBlockInfinity
-	}
-	result := l1DataRetriever{
-		ctx:        ctx,
-		cancelCtx:  cancel,
-		syncStatus: newSyncStatus(startingBlockNumber, SyncChunkSize, ttlOfLastBlock),
-		workers:    newWorkers(ethermans),
-		sender:     newFilterToSendOrdererResultsToConsumer(resultChannel, startingBlockNumber),
-		statistics: l1DataRetrieverStatistics{
-			initialBlockNumber: startingBlockNumber,
-			startTime:          time.Now(),
-		},
-	}
-	err := result.verify(false)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return &result
-}
-
 func (l *l1DataRetriever) initialize() error {
 	// TODO: check that all ethermans have the same chainID and get last block in L1
 	err := l.verify(true)
@@ -115,32 +149,33 @@ func (l *l1DataRetriever) initialize() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	result := l.retrieveInitialValueOfLastBlock()
+	if l.syncStatus.needToRenewLastBlockOnL1() {
+		log.Infof("producer: Need a initial value for Last Block On L1, doing the request (maxRetries:%v, timeRequest:%v)",
+			maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
+		result := l.retrieveInitialValueOfLastBlock(maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
+		if result.err != nil {
+			log.Error(result.err)
+			return result.err
+		}
+		l.onNewLastBlock(result.result.block, false)
+	}
 	// We don't want to start request to L1 until calling Start()
-	l.onNewLastBlock(result.result.block, false)
+
 	return nil
 }
 
-// retrieveInitialValueOfLastBlock do a synchronous request to get the last block on L1
-// that is needed to start the synchronizer
-func (l *l1DataRetriever) retrieveInitialValueOfLastBlock() genericResponse[retrieveL1LastBlockResult] {
-	maxPermittedRetries := 10
+func (l *l1DataRetriever) retrieveInitialValueOfLastBlock(maxPermittedRetries int, timeout time.Duration) genericResponse[retrieveL1LastBlockResult] {
 	for {
-		ctx := context.Background()
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		ch, err := l.workers.asyncRequestLastBlock(ctx)
-		if err != nil {
-			log.Error(err)
-		}
-		result := <-ch
+		log.Infof("producer: Retrieving last block on L1 (remaining tries=%v, timeout=%v)", maxPermittedRetries, timeout)
+		result := l.workers.requestLastBlock(l.ctx, timeout)
 		if result.err == nil {
 			return result
 		}
-		log.Error(result.err)
+		log.Info("producer: can't start request because: ", result.err)
 		maxPermittedRetries--
 		if maxPermittedRetries == 0 {
-			log.Fatal("Cannot get last block on L1")
+			log.Error("producer: exhausted retries, returning error: ", result.err)
+			return result
 		}
 		time.Sleep(time.Second)
 	}
@@ -150,7 +185,7 @@ func (l *l1DataRetriever) retrieveInitialValueOfLastBlock() genericResponse[retr
 func (l *l1DataRetriever) onNewLastBlock(lastBlock uint64, launchWork bool) {
 	resp := l.syncStatus.onNewLastBlockOnL1(lastBlock)
 	l.statistics.lastBlockNumber = lastBlock
-	log.Infof("New last block on L1: %v -> %s", lastBlock, resp.toString())
+	log.Infof("producer: New last block on L1: %v -> %s", lastBlock, resp.toString())
 	if launchWork {
 		l.launchWork()
 	}
@@ -179,7 +214,7 @@ func (l *l1DataRetriever) launchWork() int {
 		l.syncStatus.onStartedNewWorker(*br)
 	}
 	if launchedWorker == 0 {
-		log.Infof("No workers launched because: %s", accDebugStr)
+		log.Infof("producer: No workers launched because: %s", accDebugStr)
 	}
 	return launchedWorker
 }
@@ -198,7 +233,7 @@ func (l *l1DataRetriever) step(waitDuration *time.Duration) bool {
 		return false
 	// That timeout is not need, but just in case that stop launching request
 	case <-time.After(*waitDuration):
-		log.Infof("Periodic timeout each [%s]: just in case, launching work if need", timeOutMainLoop)
+		log.Infof("producer: Periodic timeout each [%s]: just in case, launching work if need", timeOutMainLoop)
 		*waitDuration = timeOutMainLoop
 		//log.Debugf(" ** Periodic status: %s", l.toStringBrief())
 	case resultRollupInfo := <-l.workers.getResponseChannelForRollupInfo():
@@ -209,7 +244,7 @@ func (l *l1DataRetriever) step(waitDuration *time.Duration) bool {
 	}
 	// We check if we have finish the work
 	if l.syncStatus.isNodeFullySynchronizedWithL1() {
-		log.Infof("we have retieve all rollupInfo from  L1")
+		log.Infof("producer: we have retieve all rollupInfo from  L1")
 		return false
 	}
 	// Try to nenew last block on L1 if needed
@@ -217,7 +252,7 @@ func (l *l1DataRetriever) step(waitDuration *time.Duration) bool {
 	// Try to launch retrieve more rollupInfo from L1
 	l.launchWork()
 	if time.Since(l.statistics.lastShowUpTime) > timeForShowUpStatisticsLog {
-		log.Infof("Statistics:%s", l.statistics.getETA())
+		log.Infof("producer: Statistics:%s", l.statistics.getETA())
 		l.statistics.lastShowUpTime = time.Now()
 	}
 	return true
@@ -233,16 +268,16 @@ func (l *l1DataRetriever) renewLastBlockOnL1IfNeeded() {
 	_, err := l.workers.asyncRequestLastBlock(l.ctx)
 	if err != nil {
 		if err.Error() == errReachMaximumLiveRequestsOfThisType {
-			log.Debugf("There are a request to get last block on L1 already running")
+			log.Debugf("producer: There are a request to get last block on L1 already running")
 		} else {
-			log.Warnf("Error while trying to get last block on L1: %v", err)
+			log.Warnf("producer: Error while trying to get last block on L1: %v", err)
 		}
 	}
 }
 
 func (l *l1DataRetriever) onResponseRetrieveLastBlockOnL1(result genericResponse[retrieveL1LastBlockResult]) {
 	if result.err != nil {
-		log.Warnf("Error while trying to get last block on L1: %v", result.err)
+		log.Warnf("producer: Error while trying to get last block on L1: %v", result.err)
 		return
 	}
 	l.onNewLastBlock(result.result.block, true)
@@ -254,15 +289,23 @@ func (l *l1DataRetriever) onResponseRollupInfo(result genericResponse[getRollupI
 	if isOk {
 		l.statistics.numRollupInfoOk++
 		l.statistics.numRetrievedBlocks += result.result.blockRange.len()
-		l.sender.addResultAndSendToConsumer(newL1PackageDataFromResult(result.result))
+		outgoingPackages := l.filterToSendOrdererResultsToConsumer.filter(*newL1PackageDataFromResult(result.result))
+		l.sendPackages(outgoingPackages)
 	} else {
 		l.statistics.numRollupInfoErrors++
-		log.Warnf("Error while trying to get rollup info by block range: %v", result.err)
+		log.Warnf("producer: Error while trying to get rollup info by block range: %v", result.err)
 	}
 }
 
 func (l *l1DataRetriever) stop() {
 	l.cancelCtx()
+}
+
+func (l *l1DataRetriever) sendPackages(outgoingPackages []l1PackageData) {
+	for _, pkg := range outgoingPackages {
+		log.Infof("producer: Sending results [data] to consumer:%s: It could block channel [%d/%d]", pkg.toStringBrief(), len(l.outgoingChannel), cap(l.outgoingChannel))
+		l.outgoingChannel <- pkg
+	}
 }
 
 // https://stackoverflow.com/questions/4220745/how-to-select-for-input-on-a-dynamic-list-of-channels-in-go

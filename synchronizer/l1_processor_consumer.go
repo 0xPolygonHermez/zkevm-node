@@ -19,13 +19,8 @@ const (
 	errCanceled                                                     = "consumer:context canceled"
 	numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData = 20
 	acceptableTimeWaitingForNewRollupInfoData                       = 1 * time.Second
-)
 
-type executionModeEnum int8
-
-const (
-	executionModeNormal               executionModeEnum = 0
-	executionModeFinishOnEmptyChannel executionModeEnum = 1
+	errConsumerStopped = "consumer:stopped by request"
 )
 
 type l1DataProcessorstatistics struct {
@@ -45,7 +40,6 @@ type l1DataProcessor struct {
 	ctx                   context.Context
 	statistics            l1DataProcessorstatistics
 	lastEthBlockSynced    *state.Block
-	executionMode         executionModeEnum
 }
 
 func newL1DataProcessor(synchronizer synchronizerProcessBlockRangeInterface,
@@ -54,7 +48,6 @@ func newL1DataProcessor(synchronizer synchronizerProcessBlockRangeInterface,
 		synchronizer:          synchronizer,
 		ctx:                   ctx,
 		chIncommingRollupInfo: ch,
-		executionMode:         executionModeNormal,
 		statistics: l1DataProcessorstatistics{
 			startTime: time.Now(),
 		},
@@ -68,7 +61,11 @@ func (l *l1DataProcessor) start() error {
 	err := l.step()
 	for ; err == nil; err = l.step() {
 	}
-	return err
+	if err.Error() != errConsumerStopped {
+		return err
+	}
+	// The errConsumerStopped is not an error, so we return nil meaning that the process finished in a normal way
+	return nil
 }
 func (l *l1DataProcessor) step() error {
 	timeWaitingStart := time.Now()
@@ -90,7 +87,10 @@ func (l *l1DataProcessor) processIncommingRollupControlData(control l1ConsumerCo
 	log.Infof("consumer: processing controlPackage: %s", control.toString())
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	return l._mustStopExecution()
+	if control.action == actionStop {
+		return errors.New(errConsumerStopped)
+	}
+	return nil
 }
 
 func (l *l1DataProcessor) processIncommingRollupInfoData(rollupInfo getRollupInfoByBlockRangeResult, timeWaitingStart time.Time) error {
@@ -117,36 +117,27 @@ func (l *l1DataProcessor) processIncommingRollupInfoData(rollupInfo getRollupInf
 		return err
 	}
 	l.statistics.numProcessedBlocks += uint64(len(rollupInfo.blocks))
-	return l._mustStopExecution()
+	return nil
 }
 
-func (l *l1DataProcessor) getLastEthBlockSynced() *state.Block {
+// getLastEthBlockSynced returns the last block synced, if true is returned, otherwise it returns false
+func (l *l1DataProcessor) getLastEthBlockSynced() (state.Block, bool) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	return l.lastEthBlockSynced
+	if l.lastEthBlockSynced == nil {
+		return state.Block{}, false
+	}
+	return *l.lastEthBlockSynced, true
 }
 
-func (l *l1DataProcessor) finishExecutionWhenChannelIsEmpty() {
-	log.Infof("consumer: Setting executionMode to executionModeFinishOnEmptyChannel (current channel len=%d)", len(l.chIncommingRollupInfo))
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-	l.executionMode = executionModeFinishOnEmptyChannel
-	log.Infof("consumer: sending a dummy result to wake up select and evaluate if must consumer finish execution")
-	l.sendIgnoreResultToWakeUpSelect()
+func (l *l1DataProcessor) stopAfterProcessChannelQueue() {
+	log.Infof("consumer: Sending stop package: it will stop consumer (current channel len=%d)", len(l.chIncommingRollupInfo))
+	l.sendStopPackage()
 }
 
-func (l *l1DataProcessor) sendIgnoreResultToWakeUpSelect() {
+func (l *l1DataProcessor) sendStopPackage() {
 	// Send a dummy result to wake up select
 	l.chIncommingRollupInfo <- *newL1PackageDataControl(actionStop)
-
-}
-
-func (l *l1DataProcessor) _mustStopExecution() error {
-	if l.executionMode == executionModeFinishOnEmptyChannel && len(l.chIncommingRollupInfo) == 0 {
-		log.Infof("consumer:  executionModeFinishOnEmptyChannel so Finishing execution because the channel is empty")
-		return errors.New("executionModeFinishOnEmptyChannel")
-	}
-	return nil
 }
 
 func (l *l1DataProcessor) _Process(rollupInfo getRollupInfoByBlockRangeResult) (*state.Block, error) {

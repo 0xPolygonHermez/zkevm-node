@@ -20,6 +20,7 @@ type Config struct {
 	L1ParallelSynchronization L1ParallelSynchronizationConfig `mapstructure:"L1ParallelSynchronization"`
 }
 
+// L1ParallelSynchronizationConfig Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)
 type L1ParallelSynchronizationConfig struct {
 	// NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1
 	// (if UseParallelModeForL1Synchronization is true)

@@ -95,7 +95,8 @@ func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItIn
 }
 
 // issue #2220
-
+// TODO: this is running against old sequential L1 sync, need to update to parallel L1 sync.
+// but it used a feature that is not implemented in new one that is asking beyond the last block on L1
 func TestForcedBatch(t *testing.T) {
 	genesis := state.Genesis{
 		GenesisBlockNum: uint64(123456),
@@ -103,7 +104,7 @@ func TestForcedBatch(t *testing.T) {
 	cfg := Config{
 		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
 		SyncChunkSize:                       10,
-		UseParallelModeForL1Synchronization: true,
+		UseParallelModeForL1Synchronization: false,
 		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
 			NumberOfParallelOfEthereumClients:   1,
 			CapacityOfBufferingRollupInfoFromL1: 1,
@@ -345,13 +346,20 @@ func TestForcedBatch(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TODO: this is running against old sequential L1 sync, need to update to parallel L1 sync.
+// but it used a feature that is not implemented in new one that is asking beyond the last block on L1
 func TestSequenceForcedBatch(t *testing.T) {
 	genesis := state.Genesis{
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize: 10,
+		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:                       10,
+		UseParallelModeForL1Synchronization: false,
+		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
+			NumberOfParallelOfEthereumClients:   1,
+			CapacityOfBufferingRollupInfoFromL1: 1,
+		},
 	}
 
 	m := mocks{

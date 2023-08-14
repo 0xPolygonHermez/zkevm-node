@@ -96,39 +96,38 @@ type retrieveL1LastBlockResult struct {
 }
 
 type worker struct {
-	mutex         sync.Mutex
-	etherman      EthermanInterface
-	status        ethermanStatusEnum
-	typeOfRequest typeOfRequest
+	mutex                sync.Mutex
+	etherman             EthermanInterface
+	status               ethermanStatusEnum
+	typeOfCurrentRequest typeOfRequest
 	// channels
-	chRollupInfo chan genericResponse[getRollupInfoByBlockRangeResult]
-	chLastBlock  chan genericResponse[retrieveL1LastBlockResult]
+	//chRollupInfo chan genericResponse[getRollupInfoByBlockRangeResult]
+	//chLastBlock  chan genericResponse[retrieveL1LastBlockResult]
 }
 
 func newWorker(etherman EthermanInterface) *worker {
-	return &worker{etherman: etherman, status: ethermanIdle,
-		chRollupInfo: make(chan genericResponse[getRollupInfoByBlockRangeResult], 1),
-		chLastBlock:  make(chan genericResponse[retrieveL1LastBlockResult], 1)}
+	return &worker{etherman: etherman, status: ethermanIdle}
 }
 
-func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, wg *sync.WaitGroup, blockRange blockRange) (chan genericResponse[getRollupInfoByBlockRangeResult], error) {
+func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, ch chan genericResponse[getRollupInfoByBlockRangeResult], wg *sync.WaitGroup, blockRange blockRange) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	if w._isBusy() {
-		return nil, errors.New(errWorkerBusy)
+		return errors.New(errWorkerBusy)
 	}
-	ch := w.chRollupInfo
 	w.status = ethermanWorking
-	w.typeOfRequest = typeRequestRollupInfo
+	w.typeOfCurrentRequest = typeRequestRollupInfo
 	launch := func() {
 		if wg != nil {
 			defer wg.Done()
 		}
 		now := time.Now()
-		blocks, order, err := w.etherman.GetRollupInfoByBlockRange(ctx, blockRange.fromBlock, &blockRange.toBlock)
+		fromBlock := blockRange.fromBlock
+		toBlock := blockRange.toBlock
+		blocks, order, err := w.etherman.GetRollupInfoByBlockRange(ctx, fromBlock, &toBlock)
 		var lastBlock *types.Block = nil
 		if err == nil && len(blocks) == 0 {
-			lastBlock, err = w.etherman.EthBlockByNumber(ctx, blockRange.toBlock)
+			lastBlock, err = w.etherman.EthBlockByNumber(ctx, toBlock)
 		}
 		duration := time.Since(now)
 		result := newGenericAnswer(err, duration, typeRequestRollupInfo, &getRollupInfoByBlockRangeResult{blockRange, blocks, order, lastBlock, false})
@@ -136,18 +135,17 @@ func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, wg *syn
 		ch <- result
 	}
 	go launch()
-	return ch, nil
+	return nil
 }
 
-func (w *worker) asyncRequestLastBlock(ctx context.Context, wg *sync.WaitGroup) (chan genericResponse[retrieveL1LastBlockResult], error) {
+func (w *worker) asyncRequestLastBlock(ctx context.Context, ch chan genericResponse[retrieveL1LastBlockResult], wg *sync.WaitGroup) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	if w._isBusy() {
-		return nil, errors.New(errWorkerBusy)
+		return errors.New(errWorkerBusy)
 	}
-	ch := w.chLastBlock
 	w.status = ethermanWorking
-	w.typeOfRequest = typeRequestLastBlock
+	w.typeOfCurrentRequest = typeRequestLastBlock
 	launch := func() {
 		if wg != nil {
 			defer wg.Done()
@@ -165,14 +163,14 @@ func (w *worker) asyncRequestLastBlock(ctx context.Context, wg *sync.WaitGroup) 
 		ch <- result
 	}
 	go launch()
-	return ch, nil
+	return nil
 }
 
 func (w *worker) setStatus(status ethermanStatusEnum) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	w.status = status
-	w.typeOfRequest = typeRequestNone
+	w.typeOfCurrentRequest = typeRequestNone
 }
 
 func (w *worker) isIdle() bool {

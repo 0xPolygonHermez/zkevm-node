@@ -1,6 +1,7 @@
 package synchronizer
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -17,14 +18,18 @@ type l1DataRetrieverInterface interface {
 
 type l1DataProcessorInterface interface {
 	start() error
-	finishExecutionWhenChannelIsEmpty()
-	getLastEthBlockSynced() *state.Block
+	stopAfterProcessChannelQueue()
+	getLastEthBlockSynced() (state.Block, bool)
 }
 
 type l1SyncOrchestration struct {
 	producer l1DataRetrieverInterface
 	consumer l1DataProcessorInterface
 }
+
+const (
+	errMissingLastEthBlockSynced = "orchestration: missing last eth block synced"
+)
 
 func newL1SyncOrchestration(producer l1DataRetrieverInterface, consumer l1DataProcessorInterface) *l1SyncOrchestration {
 	return &l1SyncOrchestration{
@@ -50,8 +55,9 @@ func (l *l1SyncOrchestration) start() (*state.Block, error) {
 		defer wg.Done()
 		err := l.producer.start()
 		if err != nil {
-			log.Warnf("orchestration: error starting L1DataRetriever. Error: %s", err)
+			log.Warnf("orchestration: producer error . Error: %s", err)
 		}
+		log.Infof("orchestration: producer finished")
 		chProducer <- err
 	}()
 	// Start consumer: L1DataProcessor execute the RollupInfo
@@ -60,8 +66,9 @@ func (l *l1SyncOrchestration) start() (*state.Block, error) {
 		defer wg.Done()
 		err := l.consumer.start()
 		if err != nil {
-			log.Warnf("orchestration: error starting L1DataProcessor. Error: %s", err)
+			log.Warnf("orchestration: consumer error. Error: %s", err)
 		}
+		log.Infof("orchestration: consumer finished")
 		chConsumer <- err
 	}()
 
@@ -82,8 +89,8 @@ func (l *l1SyncOrchestration) orchestrate(wg *sync.WaitGroup, hProducer chan err
 				log.Info("orchestration: DataRetriever (producer) have finish")
 			}
 			// process all pending RollupInfo and finish
-			log.Info("orchestration: forcing to consumer to consume all pending RollupInfo and finish")
-			l.consumer.finishExecutionWhenChannelIsEmpty()
+			log.Info("orchestration: consumer consume all pending RollupInfo and finish")
+			l.consumer.stopAfterProcessChannelQueue()
 
 		case err = <-chConsumer:
 			if err != nil {
@@ -99,11 +106,13 @@ func (l *l1SyncOrchestration) orchestrate(wg *sync.WaitGroup, hProducer chan err
 	}
 	log.Info("orchestration: waiting to finish producer and consumer")
 	wg.Wait()
-	retBlock := l.consumer.getLastEthBlockSynced()
-	if retBlock != nil {
+	retBlock, ok := l.consumer.getLastEthBlockSynced()
+	if ok {
 		log.Infof("orchestration: finished L1 sync orchestration. Last block synced: %d err:%s", retBlock.BlockNumber, err)
+		return &retBlock, nil
 	} else {
-		log.Infof("orchestration: finished L1 sync orchestration. Last block synced: %s err:%s", "nil", err)
+		err := errors.New(errMissingLastEthBlockSynced)
+		log.Infof("orchestration: finished L1 sync orchestration. Last block synced: %s err:%s", "???", err)
+		return nil, err
 	}
-	return retBlock, err
 }
