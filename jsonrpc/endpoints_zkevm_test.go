@@ -831,7 +831,6 @@ func TestGetBatchByNumber(t *testing.T) {
 
 					batchTxs = append(batchTxs, *tx)
 					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
-
 				}
 				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
 				require.NoError(t, err)
