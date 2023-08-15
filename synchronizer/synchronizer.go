@@ -1231,11 +1231,8 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		s.trustedState.lastStateRoot = &batches[1].StateRoot
 	} else if batches[0] != nil && (batches[0].StateRoot != common.Hash{}) {
 		// Previous synchronization completed
-		if s.trustedState.lastStateRoot == nil {
-			log.Info("s.trustedState.lastStateRoot is nil, set s.trustedState.lastStateRoot = batches[0].StateRoot")
-			s.trustedState.lastStateRoot = &batches[0].StateRoot
-		}
-		log.Infof("s.trustedState.lastStateRoot=%s, batches[0].StateRoot=%s", s.trustedState.lastStateRoot, batches[0].StateRoot.String())
+		// Previous synchronization completed
+		s.trustedState.lastStateRoot = &batches[0].StateRoot
 	}
 
 	request := state.ProcessRequest{
