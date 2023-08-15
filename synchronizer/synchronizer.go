@@ -1231,7 +1231,6 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		s.trustedState.lastStateRoot = &batches[1].StateRoot
 	} else if batches[0] != nil && (batches[0].StateRoot != common.Hash{}) {
 		// Previous synchronization completed
-		// Previous synchronization completed
 		s.trustedState.lastStateRoot = &batches[0].StateRoot
 	}
 
@@ -1335,7 +1334,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 					//batches[0].StateRoot = trustedBatch.StateRoot
 					//batches[0].LocalExitRoot = trustedBatch.LocalExitRoot
 				}
-				return batches, &trustedBatch.StateRoot, nil
+				return batches, &batches[0].StateRoot, nil
 			}
 		}
 		// Update batchL2Data
@@ -1373,7 +1372,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 			StateRoot:     processBatchResp.NewStateRoot,
 			LocalExitRoot: processBatchResp.NewLocalExitRoot,
 			BatchL2Data:   trustedBatchL2Data,
-			AccInputHash:  trustedBatch.AccInputHash,
+			AccInputHash:  processBatchResp.NewAccInputHash,
 		}
 
 		log.Debugf("closing batch %v", trustedBatch.Number)
