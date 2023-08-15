@@ -2487,6 +2487,6 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		storedFlushIDCond:                       sync.NewCond(new(sync.Mutex)),
 		proverID:                                "",
 		lastPendingFlushID:                      0,
-		pendingFlushIDCond:                      sync.NewCond(new(sync.Mutex)),
+		pendingFlushIDChan:                      make(chan uint64, bc.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
 	}
 }

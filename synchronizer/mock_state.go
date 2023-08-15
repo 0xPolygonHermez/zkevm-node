@@ -516,39 +516,39 @@ func (_m *stateMock) OpenBatch(ctx context.Context, processingContext state.Proc
 	return r0
 }
 
-// ProcessAndStoreClosedBatch provides a mock function with given fields: ctx, processingCtx, encodedTxs, dbTx, caller
-func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
-	ret := _m.Called(ctx, processingCtx, encodedTxs, dbTx, caller)
+// ProcessAndStoreClosedBatch provides a mock function with given fields: ctx, processingCtx, dbTx, caller
+func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
+	ret := _m.Called(ctx, processingCtx, dbTx, caller)
 
 	var r0 common.Hash
 	var r1 uint64
 	var r2 string
 	var r3 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, metrics.CallerLabel) (common.Hash, uint64, string, error)); ok {
-		return rf(ctx, processingCtx, encodedTxs, dbTx, caller)
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, pgx.Tx, metrics.CallerLabel) (common.Hash, uint64, string, error)); ok {
+		return rf(ctx, processingCtx, dbTx, caller)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, metrics.CallerLabel) common.Hash); ok {
-		r0 = rf(ctx, processingCtx, encodedTxs, dbTx, caller)
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, pgx.Tx, metrics.CallerLabel) common.Hash); ok {
+		r0 = rf(ctx, processingCtx, dbTx, caller)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(common.Hash)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, metrics.CallerLabel) uint64); ok {
-		r1 = rf(ctx, processingCtx, encodedTxs, dbTx, caller)
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessingContext, pgx.Tx, metrics.CallerLabel) uint64); ok {
+		r1 = rf(ctx, processingCtx, dbTx, caller)
 	} else {
 		r1 = ret.Get(1).(uint64)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, metrics.CallerLabel) string); ok {
-		r2 = rf(ctx, processingCtx, encodedTxs, dbTx, caller)
+	if rf, ok := ret.Get(2).(func(context.Context, state.ProcessingContext, pgx.Tx, metrics.CallerLabel) string); ok {
+		r2 = rf(ctx, processingCtx, dbTx, caller)
 	} else {
 		r2 = ret.Get(2).(string)
 	}
 
-	if rf, ok := ret.Get(3).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, metrics.CallerLabel) error); ok {
-		r3 = rf(ctx, processingCtx, encodedTxs, dbTx, caller)
+	if rf, ok := ret.Get(3).(func(context.Context, state.ProcessingContext, pgx.Tx, metrics.CallerLabel) error); ok {
+		r3 = rf(ctx, processingCtx, dbTx, caller)
 	} else {
 		r3 = ret.Error(3)
 	}
@@ -711,13 +711,12 @@ func (_m *stateMock) UpdateForkIDIntervals(intervals []state.ForkIDInterval) {
 	_m.Called(intervals)
 }
 
-type mockConstructorTestingTnewStateMock interface {
+// newStateMock creates a new instance of stateMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func newStateMock(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// newStateMock creates a new instance of stateMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func newStateMock(t mockConstructorTestingTnewStateMock) *stateMock {
+}) *stateMock {
 	mock := &stateMock{}
 	mock.Mock.Test(t)
 
