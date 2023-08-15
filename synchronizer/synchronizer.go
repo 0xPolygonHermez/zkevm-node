@@ -1334,9 +1334,9 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 							log.Info("trustedBatch.ForcedBatchNum: ", trustedBatch.ForcedBatchNumber)
 						}
 					}
-					batches[0].AccInputHash = trustedBatch.AccInputHash
-					batches[0].StateRoot = trustedBatch.StateRoot
-					batches[0].LocalExitRoot = trustedBatch.LocalExitRoot
+					//batches[0].AccInputHash = trustedBatch.AccInputHash
+					//batches[0].StateRoot = trustedBatch.StateRoot
+					//batches[0].LocalExitRoot = trustedBatch.LocalExitRoot
 				}
 				return batches, &trustedBatch.StateRoot, nil
 			}
@@ -1392,9 +1392,9 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		log.Info("Batch closed right after processing some tx")
 		if batches[0] != nil {
 			log.Debug("Updating batches[0] values...")
-			batches[0].AccInputHash = trustedBatch.AccInputHash
-			batches[0].StateRoot = trustedBatch.StateRoot
-			batches[0].LocalExitRoot = trustedBatch.LocalExitRoot
+			batches[0].AccInputHash = processBatchResp.NewAccInputHash
+			batches[0].StateRoot = processBatchResp.NewStateRoot
+			batches[0].LocalExitRoot = processBatchResp.NewLocalExitRoot
 		}
 	}
 
