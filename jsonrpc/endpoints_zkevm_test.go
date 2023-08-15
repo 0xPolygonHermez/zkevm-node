@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1163,6 +1164,384 @@ func TestGetBatchByNumber(t *testing.T) {
 			if res.Error != nil || testCase.ExpectedError != nil {
 				assert.Equal(t, testCase.ExpectedError.ErrorCode(), res.Error.Code)
 				assert.Equal(t, testCase.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
+func TestGetL2FullBlockByHash(t *testing.T) {
+	type testCase struct {
+		Name           string
+		Hash           common.Hash
+		ExpectedResult *ethTypes.Block
+		ExpectedError  interface{}
+		SetupMocks     func(*mocksWrapper, *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Block not found",
+			Hash:           common.HexToHash("0x123"),
+			ExpectedResult: nil,
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetL2BlockByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(nil, state.ErrNotFound)
+			},
+		},
+		{
+			Name:           "Failed get block from state",
+			Hash:           common.HexToHash("0x234"),
+			ExpectedResult: nil,
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get block by hash from state"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetL2BlockByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(nil, errors.New("failed to get block from state")).
+					Once()
+			},
+		},
+		{
+			Name: "get block successfully",
+			Hash: common.HexToHash("0x345"),
+			ExpectedResult: ethTypes.NewBlock(
+				&ethTypes.Header{Number: big.NewInt(1), UncleHash: ethTypes.EmptyUncleHash, Root: ethTypes.EmptyRootHash},
+				[]*ethTypes.Transaction{ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
+				nil,
+				[]*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))},
+				&trie.StackTrie{},
+			),
+			ExpectedError: nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				block := ethTypes.NewBlock(ethTypes.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), tc.ExpectedResult.Uncles(), []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetL2BlockByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(block, nil).
+					Once()
+
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					m.State.
+						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
+						Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil).
+						Once()
+				}
+			},
+		},
+	}
+
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			testCase.SetupMocks(m, &tc)
+
+			res, err := s.JSONRPCCall("zkevm_getFullBlockByHash", tc.Hash.String())
+			require.NoError(t, err)
+
+			if tc.ExpectedResult != nil {
+				require.NotNil(t, res.Result)
+				require.Nil(t, res.Error)
+
+				var result types.Block
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.ExpectedResult.Number().Uint64(), uint64(result.Number))
+				assert.Equal(t, len(tc.ExpectedResult.Transactions()), len(result.Transactions))
+				assert.Equal(t, tc.ExpectedResult.Hash(), result.Hash)
+			}
+
+			if tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
+					assert.Equal(t, expectedErr.ErrorCode(), res.Error.Code)
+					assert.Equal(t, expectedErr.Error(), res.Error.Message)
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestGetL2FullBlockByNumber(t *testing.T) {
+	type testCase struct {
+		Name           string
+		Number         string
+		ExpectedResult *ethTypes.Block
+		ExpectedError  interface{}
+		SetupMocks     func(*mocksWrapper, *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Block not found",
+			Number:         "0x7B",
+			ExpectedResult: nil,
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetL2BlockByNumber", context.Background(), hex.DecodeUint64(tc.Number), m.DbTx).
+					Return(nil, state.ErrNotFound)
+			},
+		},
+		{
+			Name:   "get specific block successfully",
+			Number: "0x159",
+			ExpectedResult: ethTypes.NewBlock(
+				&ethTypes.Header{Number: big.NewInt(1), UncleHash: ethTypes.EmptyUncleHash, Root: ethTypes.EmptyRootHash},
+				[]*ethTypes.Transaction{ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
+				nil,
+				[]*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))},
+				&trie.StackTrie{},
+			),
+			ExpectedError: nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				block := ethTypes.NewBlock(ethTypes.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(),
+					tc.ExpectedResult.Uncles(), []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetL2BlockByNumber", context.Background(), hex.DecodeUint64(tc.Number), m.DbTx).
+					Return(block, nil).
+					Once()
+
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					m.State.
+						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
+						Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil).
+						Once()
+				}
+			},
+		},
+		{
+			Name:   "get latest block successfully",
+			Number: "latest",
+			ExpectedResult: ethTypes.NewBlock(
+				&ethTypes.Header{Number: big.NewInt(2), UncleHash: ethTypes.EmptyUncleHash, Root: ethTypes.EmptyRootHash},
+				[]*ethTypes.Transaction{ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
+				nil,
+				[]*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))},
+				&trie.StackTrie{},
+			),
+			ExpectedError: nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				blockNumber := uint64(1)
+
+				m.State.
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
+					Return(blockNumber, nil).
+					Once()
+
+				m.State.
+					On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).
+					Return(tc.ExpectedResult, nil).
+					Once()
+
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					m.State.
+						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
+						Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil).
+						Once()
+				}
+			},
+		},
+		{
+			Name:           "get latest block fails to compute block number",
+			Number:         "latest",
+			ExpectedResult: nil,
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
+					Return(uint64(0), errors.New("failed to get last block number")).
+					Once()
+			},
+		},
+		{
+			Name:           "get latest block fails to load block by number",
+			Number:         "latest",
+			ExpectedResult: nil,
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "couldn't load block from state by number 1"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
+					Return(uint64(1), nil).
+					Once()
+
+				m.State.
+					On("GetL2BlockByNumber", context.Background(), uint64(1), m.DbTx).
+					Return(nil, errors.New("failed to load block by number")).
+					Once()
+			},
+		},
+		{
+			Name:           "get pending block successfully",
+			Number:         "pending",
+			ExpectedResult: ethTypes.NewBlock(&ethTypes.Header{Number: big.NewInt(2)}, nil, nil, nil, &trie.StackTrie{}),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				lastBlockHeader := ethTypes.CopyHeader(tc.ExpectedResult.Header())
+				lastBlockHeader.Number.Sub(lastBlockHeader.Number, big.NewInt(1))
+				lastBlock := ethTypes.NewBlock(lastBlockHeader, nil, nil, nil, &trie.StackTrie{})
+
+				expectedResultHeader := ethTypes.CopyHeader(tc.ExpectedResult.Header())
+				expectedResultHeader.ParentHash = lastBlock.Hash()
+				tc.ExpectedResult = ethTypes.NewBlock(expectedResultHeader, nil, nil, nil, &trie.StackTrie{})
+
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastL2Block", context.Background(), m.DbTx).
+					Return(lastBlock, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "get pending block fails",
+			Number:         "pending",
+			ExpectedResult: nil,
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastL2Block", context.Background(), m.DbTx).
+					Return(nil, errors.New("failed to load last block")).
+					Once()
+			},
+		},
+	}
+
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			testCase.SetupMocks(m, &tc)
+
+			res, err := s.JSONRPCCall("zkevm_getFullBlockByNumber", tc.Number)
+			require.NoError(t, err)
+
+			if tc.ExpectedResult != nil {
+				require.NotNil(t, res.Result)
+				require.Nil(t, res.Error)
+
+				var result types.Block
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.ExpectedResult.Number().Uint64(), uint64(result.Number))
+				assert.Equal(t, len(tc.ExpectedResult.Transactions()), len(result.Transactions))
+				assert.Equal(t, tc.ExpectedResult.Hash(), result.Hash)
+			}
+
+			if tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
+					assert.Equal(t, expectedErr.ErrorCode(), res.Error.Code)
+					assert.Equal(t, expectedErr.Error(), res.Error.Message)
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
+				}
 			}
 		})
 	}
