@@ -1006,6 +1006,13 @@ func TestGetL2BlockByHash(t *testing.T) {
 					On("GetL2BlockByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(block, nil).
 					Once()
+
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					m.State.
+						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
+						Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil).
+						Once()
+				}
 			},
 		},
 	}
@@ -1132,6 +1139,13 @@ func TestGetL2BlockByNumber(t *testing.T) {
 					On("GetL2BlockByNumber", context.Background(), tc.ExpectedResult.Number().Uint64(), m.DbTx).
 					Return(tc.ExpectedResult, nil).
 					Once()
+
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					m.State.
+						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
+						Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil).
+						Once()
+				}
 			},
 		},
 		{
