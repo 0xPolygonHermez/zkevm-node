@@ -14,7 +14,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
@@ -800,9 +799,6 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 		StateRoot: stateRootHashes[0],
 		Tx:        *signedTx1,
 	}
-
-	log.Debug(signedTx1.Hash())
-	log.Debug(signedTx2.Hash())
 
 	txResp2 := &state.ProcessTransactionResponse{
 		TxHash:    signedTx2.Hash(),
