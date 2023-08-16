@@ -1845,7 +1845,6 @@ func TestFinalizer_storeProcessedTx(t *testing.T) {
 	}
 }
 
-/*
 func TestFinalizer_updateWorkerAfterSuccessfulProcessing(t *testing.T) {
 	testCases := []struct {
 		name                  string
@@ -1937,7 +1936,6 @@ func TestFinalizer_updateWorkerAfterSuccessfulProcessing(t *testing.T) {
 		})
 	}
 }
-*/
 
 func TestFinalizer_reprocessFullBatch(t *testing.T) {
 	successfulResult := &state.ProcessBatchResponse{
