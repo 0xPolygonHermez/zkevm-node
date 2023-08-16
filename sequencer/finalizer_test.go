@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
@@ -82,6 +83,8 @@ var (
 		ResourcePercentageToCloseBatch: 10,
 		GERFinalityNumberOfBlocks:      64,
 	}
+	chainID         = new(big.Int).SetInt64(400)
+	pvtKey          = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	nonce1          = uint64(1)
 	nonce2          = uint64(2)
 	seqAddr         = common.Address{}
@@ -89,11 +92,11 @@ var (
 	newHash         = common.HexToHash("0x02")
 	newHash2        = common.HexToHash("0x03")
 	stateRootHashes = []common.Hash{oldHash, newHash, newHash2}
-	txHash          = common.BytesToHash([]byte("0x00000"))
-	txHash2         = common.BytesToHash([]byte("0x00000"))
+	txHash          = common.HexToHash("0xf9e4fe4bd2256f782c66cffd76acdb455a76111842bb7e999af2f1b7f4d8d092")
+	txHash2         = common.HexToHash("0xb281831a3401a04f3afa4ec586ef874f58c61b093643d408ea6aa179903df1a4")
 	tx              = types.NewTransaction(nonce1, receiverAddr, big.NewInt(1), 100000, big.NewInt(1), nil)
-	senderAddr      = common.HexToAddress("0x0000000")
-	receiverAddr    = common.HexToAddress("0x0000000")
+	senderAddr      = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	receiverAddr    = common.HexToAddress("0x1555324")
 	isSynced        = func(ctx context.Context) bool {
 		return true
 	}
@@ -764,8 +767,6 @@ func TestFinalizer_syncWithState(t *testing.T) {
 }
 
 func TestFinalizer_processForcedBatches(t *testing.T) {
-	var chainID = new(big.Int).SetInt64(400)
-	var pvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var err error
 	f = setupFinalizer(false)
 	now = testNow
@@ -799,6 +800,9 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 		StateRoot: stateRootHashes[0],
 		Tx:        *signedTx1,
 	}
+
+	log.Debug(signedTx1.Hash())
+	log.Debug(signedTx2.Hash())
 
 	txResp2 := &state.ProcessTransactionResponse{
 		TxHash:    signedTx2.Hash(),
