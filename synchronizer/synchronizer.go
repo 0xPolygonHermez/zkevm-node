@@ -843,6 +843,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			Timestamp:      batch.Timestamp,
 			GlobalExitRoot: batch.GlobalExitRoot,
 			ForcedBatchNum: batch.ForcedBatchNum,
+			BatchL2Data:    &batch.BatchL2Data,
 		}
 
 		var newRoot common.Hash
@@ -1058,6 +1059,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			Timestamp:      block.ReceivedAt,
 			Coinbase:       fbatch.Coinbase,
 			ForcedBatchNum: &forcedBatches[i].ForcedBatchNumber,
+			BatchL2Data:    &forcedBatches[i].RawTxsData,
 		}
 		// Process batch
 		_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, batch, forcedBatches[i].RawTxsData, dbTx, stateMetrics.SynchronizerCallerLabel)

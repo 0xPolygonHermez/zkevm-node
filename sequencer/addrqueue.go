@@ -178,7 +178,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 		}
 	}
 
-	// We check if we have a new readyTx from the notReadyTxs (at this point, to optmize the code,
+	// We check if we have a new readyTx from the notReadyTxs (at this point, to optimize the code,
 	// we are not including the oldReadyTx in notReadyTxs, as it can match again if the nonce has not changed)
 	if a.readyTx == nil {
 		nrTx, found := a.notReadyTxs[a.currentNonce]

@@ -338,7 +338,11 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
+<<<<<<< HEAD
     image: hermeznetwork/zkevm-prover:v2.1.0
+=======
+    image: hermeznetwork/zkevm-prover:v2.1.0-RC2
+>>>>>>> develop
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
@@ -348,17 +352,6 @@ services:
       - ./config/test.prover.config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
-
-  zkprover-mock:
-    container_name: zkprover-mock
-    image: hermeznetwork/zkprover-mock:latest
-    ports:
-      - 43061:43061 # MT
-      - 43071:43071 # Executor
-    volumes:
-      - ./vectors/src:/app/testvectors
-    command: >
-      /app/zkprover-mock server --statedb-port 43061 --executor-port 43071 --test-vector-path /app/testvectors
 
   zkevm-approve:
     container_name: zkevm-approve
@@ -425,7 +418,11 @@ services:
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
+<<<<<<< HEAD
     image: hermeznetwork/zkevm-prover:v2.1.0
+=======
+    image: hermeznetwork/zkevm-prover:v2.1.0-RC2
+>>>>>>> develop
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover

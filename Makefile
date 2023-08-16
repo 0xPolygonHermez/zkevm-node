@@ -77,7 +77,7 @@ $(GENERATE_SCHEMA_DOC): $(VENV_PYTHON)
 	$(PYTHON) -m pip install json-schema-for-humans
 
 PHONY: config-doc-gen
-config-doc-gen: config-doc-node config-doc-custom_network ## Generate config file's json-schema for node and custom_network  and documentation
+config-doc-gen: config-doc-node config-doc-custom_network ## Generate config file's json-schema for node and custom_network and documentation
 	#
 
 .PHONY: config-doc-node
