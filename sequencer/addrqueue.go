@@ -12,23 +12,25 @@ import (
 
 // addrQueue is a struct that stores the ready and notReady txs for a specific from address
 type addrQueue struct {
-	from           common.Address
-	fromStr        string
-	currentNonce   uint64
-	currentBalance *big.Int
-	readyTx        *TxTracker
-	notReadyTxs    map[uint64]*TxTracker
+	from              common.Address
+	fromStr           string
+	currentNonce      uint64
+	currentBalance    *big.Int
+	readyTx           *TxTracker
+	notReadyTxs       map[uint64]*TxTracker
+	pendingTxsToStore map[common.Hash]struct{}
 }
 
 // newAddrQueue creates and init a addrQueue
 func newAddrQueue(addr common.Address, nonce uint64, balance *big.Int) *addrQueue {
 	return &addrQueue{
-		from:           addr,
-		fromStr:        addr.String(),
-		currentNonce:   nonce,
-		currentBalance: balance,
-		readyTx:        nil,
-		notReadyTxs:    make(map[uint64]*TxTracker),
+		from:              addr,
+		fromStr:           addr.String(),
+		currentNonce:      nonce,
+		currentBalance:    balance,
+		readyTx:           nil,
+		notReadyTxs:       make(map[uint64]*TxTracker),
+		pendingTxsToStore: make(map[common.Hash]struct{}),
 	}
 }
 
@@ -76,6 +78,11 @@ func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx, replacedTx *T
 	}
 }
 
+// addPendingTxToStore adds a tx to the list of pending txs to store in the DB (trusted state)
+func (a *addrQueue) addPendingTxToStore(txHash common.Hash) {
+	a.pendingTxsToStore[txHash] = struct{}{}
+}
+
 // ExpireTransactions removes the txs that have been in the queue for more than maxTime
 func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *TxTracker) {
 	var (
@@ -95,7 +102,7 @@ func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *Tx
 		prevReadyTx = a.readyTx
 		txs = append(txs, a.readyTx)
 		a.readyTx = nil
-		log.Debugf("Deleting notReadyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
+		log.Debugf("Deleting readyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
 	}
 
 	return txs, prevReadyTx
@@ -103,7 +110,7 @@ func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *Tx
 
 // IsEmpty returns true if the addrQueue is empty
 func (a *addrQueue) IsEmpty() bool {
-	return a.readyTx == nil && len(a.notReadyTxs) == 0
+	return a.readyTx == nil && len(a.notReadyTxs) == 0 && len(a.pendingTxsToStore) == 0
 }
 
 // deleteTx deletes the tx from the addrQueue
@@ -123,6 +130,15 @@ func (a *addrQueue) deleteTx(txHash common.Hash) (deletedReadyTx *TxTracker) {
 			}
 		}
 		return nil
+	}
+}
+
+// deletePendingTxToStore delete a tx from the list of pending txs to store in the DB (trusted state)
+func (a *addrQueue) deletePendingTxToStore(txHash common.Hash) {
+	if _, found := a.pendingTxsToStore[txHash]; found {
+		delete(a.pendingTxsToStore, txHash)
+	} else {
+		log.Warnf("tx (%s) not found in pendingTxsToStore list", txHash.String())
 	}
 }
 
@@ -185,29 +201,19 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 }
 
 // UpdateTxZKCounters updates the ZKCounters for the given tx (txHash)
-// If the updated tx is the readyTx it returns a copy of the previous readyTx, nil otherwise
-func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, counters state.ZKCounters, constraints batchConstraintsFloat64, weights batchResourceWeights) (newReadyTx, prevReadyTx *TxTracker) {
+func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, counters state.ZKCounters) {
 	txHashStr := txHash.String()
 
 	if (a.readyTx != nil) && (a.readyTx.HashStr == txHashStr) {
-		// We need to assign the new readyTx as a new TxTracker copy of the previous one with the updated efficiency
-		// We need to do in this way because the efficiency value is changed and we use this value as key field to
-		// add/delete TxTrackers in the efficiencyList
-		prevReadyTx := a.readyTx
-		newReadyTx := *a.readyTx
-		newReadyTx.updateZKCounters(counters, constraints, weights)
-		a.readyTx = &newReadyTx
 		log.Debugf("Updating readyTx %s with new ZKCounters from addrQueue %s", txHashStr, a.fromStr)
-		return a.readyTx, prevReadyTx
+		a.readyTx.updateZKCounters(counters)
 	} else {
-		txHashStr := txHash.String()
 		for _, txTracker := range a.notReadyTxs {
 			if txTracker.HashStr == txHashStr {
 				log.Debugf("Updating notReadyTx %s with new ZKCounters from addrQueue %s", txHashStr, a.fromStr)
-				txTracker.updateZKCounters(counters, constraints, weights)
+				txTracker.updateZKCounters(counters)
 				break
 			}
 		}
-		return nil, nil
 	}
 }

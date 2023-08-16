@@ -513,7 +513,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 			}
 
 			m.State.
-				On("ProcessAndStoreClosedBatch", ctx, processingContext, m.DbTx, metrics.SynchronizerCallerLabel).
+				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
 				Return(common.Hash{}, uint64(1), cProverIDExecution, nil).
 				Once()
 

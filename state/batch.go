@@ -410,7 +410,7 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base. Values returned are the new stateRoot,
 // the flushID (incremental value returned by executor),
 // the ProverID (executor running ID) the result of closing the batch.
-func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
+func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
 	BatchL2Data := processingCtx.BatchL2Data
 	if BatchL2Data == nil {
 		log.Warnf("Batch %v: ProcessAndStoreClosedBatch: processingCtx.BatchL2Data is nil, assuming is empty", processingCtx.BatchNumber)
