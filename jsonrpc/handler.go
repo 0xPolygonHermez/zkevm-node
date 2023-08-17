@@ -156,15 +156,17 @@ func (h *Handler) Handle(req handleRequest) types.Response {
 }
 
 // HandleWs handle websocket requests
-func (h *Handler) HandleWs(reqBody []byte, wsConn *websocket.Conn) ([]byte, error) {
+func (h *Handler) HandleWs(reqBody []byte, wsConn *websocket.Conn, httpReq *http.Request) ([]byte, error) {
+	log.Debugf("WS message received: %v", string(reqBody))
 	var req types.Request
 	if err := json.Unmarshal(reqBody, &req); err != nil {
 		return types.NewResponse(req, nil, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")).Bytes()
 	}
 
 	handleReq := handleRequest{
-		Request: req,
-		wsConn:  wsConn,
+		Request:     req,
+		wsConn:      wsConn,
+		HttpRequest: httpReq,
 	}
 
 	return h.Handle(handleReq).Bytes()
