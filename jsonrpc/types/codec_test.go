@@ -46,6 +46,7 @@ func TestBlockNumberMarshalJSON(t *testing.T) {
 
 func TestGetNumericBlockNumber(t *testing.T) {
 	s := mocks.NewStateMock(t)
+	e := mocks.NewEthermanMock(t)
 
 	type testCase struct {
 		name                string
@@ -105,8 +106,14 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			expectedBlockNumber: 40,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
+				liSafeBlock := uint64(30)
+				e.
+					On("GetSafeBlockNumber", context.Background()).
+					Return(liSafeBlock, nil).
+					Once()
+
 				s.
-					On("GetLastVirtualizedL2BlockNumber", context.Background(), d).
+					On("GetSafeL2BlockNumber", context.Background(), liSafeBlock, d).
 					Return(uint64(40), nil).
 					Once()
 			},
@@ -114,12 +121,18 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		{
 			name:                "BlockNumber FinalizedBlockNumber",
 			bn:                  bnPtr(FinalizedBlockNumber),
-			expectedBlockNumber: 50,
+			expectedBlockNumber: 60,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
+				liFinalizedBlock := uint64(50)
+				e.
+					On("GetFinalizedBlockNumber", context.Background()).
+					Return(liFinalizedBlock, nil).
+					Once()
+
 				s.
-					On("GetLastConsolidatedL2BlockNumber", context.Background(), d).
-					Return(uint64(50), nil).
+					On("GetFinalizedL2BlockNumber", context.Background(), liFinalizedBlock, d).
+					Return(uint64(60), nil).
 					Once()
 			},
 		},
@@ -144,7 +157,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			tc := testCase
 			dbTx := mocks.NewDBTxMock(t)
 			testCase.setupMocks(s, dbTx, &tc)
-			result, rpcErr := testCase.bn.GetNumericBlockNumber(context.Background(), s, dbTx)
+			result, rpcErr := testCase.bn.GetNumericBlockNumber(context.Background(), s, e, dbTx)
 			assert.Equal(t, testCase.expectedBlockNumber, result)
 			if rpcErr != nil || testCase.expectedError != nil {
 				assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode())
