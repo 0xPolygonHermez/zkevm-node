@@ -264,31 +264,6 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 		case fb := <-f.closingSignalCh.ForcedBatchCh:
 			log.Debugf("finalizer received forced batch at block number: %v", fb.BlockNumber)
 
-			// Add the forced batch's transactions to the worker
-			batchNumber, err := f.dbManager.GetLastBatchNumber(ctx)
-			if err != nil {
-				// An error accessing the database is fatal
-				f.halt(ctx, err)
-			}
-
-			// Decode the transactions inside the forced batch
-			forkID := f.dbManager.GetForkIDByBatchNumber(batchNumber)
-			txs, _, _, err := state.DecodeTxs(fb.RawTxsData, forkID)
-			if err != nil {
-				// A forced batch can contain anything so this may happen
-				log.Warnf("failed to decode transactions from forced batch, Err: %v", err)
-			} else {
-				// If txs could be extracted from the forced batch, add them to the worker
-				for _, tx := range txs {
-					sender, err := state.GetSender(tx)
-					if err != nil {
-						log.Warnf("failed to get sender from tx, Err: %v", err)
-						continue
-					}
-					f.worker.AddForcedTx(tx.Hash(), sender)
-				}
-			}
-
 			f.nextForcedBatchesMux.Lock()
 			f.nextForcedBatches = f.sortForcedBatches(append(f.nextForcedBatches, fb))
 			if f.nextForcedBatchDeadline == 0 {
@@ -1006,6 +981,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		Timestamp:      now(),
 		Caller:         stateMetrics.SequencerCallerLabel,
 	}
+
 	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, request)
 	if err != nil {
 		// If there is EXECUTOR (Batch level) error, halt the finalizer.
@@ -1014,6 +990,15 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 	}
 
 	if len(response.Responses) > 0 && !response.IsRomOOCError {
+		for _, txResponse := range response.Responses {
+			sender, err := state.GetSender(txResponse.Tx)
+			if err != nil {
+				log.Warnf("failed to get sender from tx, Err: %v", err)
+				continue
+			}
+			f.worker.AddForcedTx(txResponse.TxHash, sender)
+		}
+
 		f.handleForcedTxsProcessResp(ctx, request, response, stateRoot)
 	}
 	f.nextGERMux.Lock()
