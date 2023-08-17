@@ -65,4 +65,12 @@ type StateInterface interface {
 	GetVerifiedBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*state.GlobalExitRoot, error)
 	GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]types.Block, error)
+	GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetFinalizedL2BlockNumber(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error)
+}
+
+// EthermanInterface provides integration with L1
+type EthermanInterface interface {
+	GetSafeBlockNumber(ctx context.Context) (uint64, error)
+	GetFinalizedBlockNumber(ctx context.Context) (uint64, error)
 }
