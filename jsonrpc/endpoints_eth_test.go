@@ -1006,6 +1006,13 @@ func TestGetL2BlockByHash(t *testing.T) {
 					On("GetL2BlockByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(block, nil).
 					Once()
+
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					m.State.
+						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
+						Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil).
+						Once()
+				}
 			},
 		},
 	}
@@ -1099,6 +1106,13 @@ func TestGetL2BlockByNumber(t *testing.T) {
 					On("GetL2BlockByNumber", context.Background(), tc.Number.Uint64(), m.DbTx).
 					Return(block, nil).
 					Once()
+
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					m.State.
+						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
+						Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil).
+						Once()
+				}
 			},
 		},
 		{
@@ -1132,6 +1146,13 @@ func TestGetL2BlockByNumber(t *testing.T) {
 					On("GetL2BlockByNumber", context.Background(), tc.ExpectedResult.Number().Uint64(), m.DbTx).
 					Return(tc.ExpectedResult, nil).
 					Once()
+
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					m.State.
+						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
+						Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil).
+						Once()
+				}
 			},
 		},
 		{
@@ -1932,12 +1953,20 @@ func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
+	tx := ethTypes.NewTransaction(1, common.HexToAddress("0x111"), big.NewInt(2), 3, big.NewInt(4), []byte{5, 6, 7, 8})
+	privateKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
+	require.NoError(t, err)
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
 	testCases := []testCase{
 		{
 			Name:           "Get Tx Successfully",
 			Hash:           common.HexToHash("0x999"),
 			Index:          uint(1),
-			ExpectedResult: ethTypes.NewTransaction(1, common.HexToAddress("0x111"), big.NewInt(2), 3, big.NewInt(4), []byte{5, 6, 7, 8}),
+			ExpectedResult: signedTx,
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				tx := tc.ExpectedResult
@@ -2111,12 +2140,20 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 		SetupMocks     func(m *mocksWrapper, tc testCase)
 	}
 
+	tx := ethTypes.NewTransaction(1, common.HexToAddress("0x111"), big.NewInt(2), 3, big.NewInt(4), []byte{5, 6, 7, 8})
+	privateKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
+	require.NoError(t, err)
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
 	testCases := []testCase{
 		{
 			Name:           "Get Tx Successfully",
 			BlockNumber:    "0x1",
 			Index:          uint(0),
-			ExpectedResult: ethTypes.NewTransaction(1, common.HexToAddress("0x111"), big.NewInt(2), 3, big.NewInt(4), []byte{5, 6, 7, 8}),
+			ExpectedResult: signedTx,
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				tx := tc.ExpectedResult
@@ -2325,12 +2362,20 @@ func TestGetTransactionByHash(t *testing.T) {
 		SetupMocks      func(m *mocksWrapper, tc testCase)
 	}
 
+	tx := ethTypes.NewTransaction(1, common.HexToAddress("0x111"), big.NewInt(2), 3, big.NewInt(4), []byte{5, 6, 7, 8})
+	privateKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
+	require.NoError(t, err)
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
 	testCases := []testCase{
 		{
 			Name:            "Get TX Successfully from state",
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: false,
-			ExpectedResult:  ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
+			ExpectedResult:  signedTx,
 			ExpectedError:   nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
