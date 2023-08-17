@@ -234,7 +234,7 @@ benchmark-sequencer-eth-transfers: stop
 	$(RUNJSONRPC)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	@ cd benchmarks/sequencer/eth-transfers ; \
+	@ cd benchmarks/sequencer/e2e/eth-transfers ; \
  	mkdir -p results ; \
  	touch ./results/out.dat ; \
 	go test -bench=. -timeout=600m | tee ./results/out.dat ;
@@ -253,7 +253,27 @@ benchmark-sequencer-erc20-transfers: stop
 	$(RUNJSONRPC)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	@ cd benchmarks/sequencer/erc20-transfers ; \
+	@ cd benchmarks/sequencer/e2e/erc20-transfers ; \
+ 	mkdir -p results ; \
+ 	touch ./results/out.dat ; \
+	go test -bench=. -timeout=600m | tee ./results/out.dat ;
+
+
+.PHONY: benchmark-sequencer-uniswap-transfers
+benchmark-sequencer-uniswap-transfers: stop
+	$(RUNL1NETWORK)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNEVENTDB)
+	sleep 5
+	$(RUNZKPROVER)
+	$(RUNSYNC)
+	sleep 2
+	$(RUNL2GASPRICER)
+	$(RUNJSONRPC)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	@ cd benchmarks/sequencer/e2e/uniswap-transfers ; \
  	mkdir -p results ; \
  	touch ./results/out.dat ; \
 	go test -bench=. -timeout=600m | tee ./results/out.dat ;
