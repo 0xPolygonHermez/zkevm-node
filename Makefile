@@ -29,6 +29,51 @@ GENERATE_SCHEMA_DOC = $(VENV)/bin/generate-schema-doc
 GENERATE_DOC_PATH   = "docs/config-file/"
 GENERATE_DOC_TEMPLATES_PATH = "docs/config-file/templates/"
 
+# Check dependencies
+# Check for Go
+.PHONY: check-go
+check-go:
+	@which go > /dev/null || (echo "Error: Go is not installed" && exit 1)
+
+# Check for Docker
+.PHONY: check-docker
+check-docker:
+	@which docker > /dev/null || (echo "Error: docker is not installed" && exit 1)
+
+# Check for Docker-compose
+.PHONY: check-docker-compose
+check-docker-compose:
+	@which docker-compose > /dev/null || (echo "Error: docker-compose is not installed" && exit 1)
+
+# Check for Protoc
+.PHONY: check-protoc
+check-protoc:
+	@which protoc > /dev/null || (echo "Error: Protoc is not installed" && exit 1)
+
+# Check for Python
+.PHONY: check-python
+check-python:
+	@which python3 > /dev/null || which python > /dev/null || (echo "Error: Python is not installed" && exit 1)
+
+# Check for Curl
+.PHONY: check-curl
+check-curl:
+	@which curl > /dev/null || (echo "Error: curl is not installed" && exit 1)
+
+# Targets that require the checks
+build: check-go
+lint: check-go
+build-docker: check-docker
+build-docker-nc: check-docker
+run-rpc: check-docker check-docker-compose
+stop: check-docker check-docker-compose
+install-linter: check-go check-curl
+install-config-doc-gen: check-python
+config-doc-node: check-go check-python
+config-doc-custom_network: check-go check-python
+update-external-dependencies: check-go
+generate-code-from-proto: check-protoc
+
 .PHONY: build
 build: ## Builds the binary locally into ./dist
 	$(GOENVVARS) go build -ldflags "all=$(LDFLAGS)" -o $(GOBIN)/$(GOBINARY) $(GOCMD)
