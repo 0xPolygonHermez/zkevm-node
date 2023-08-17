@@ -4,7 +4,7 @@ ARCH := $(shell arch)
 
 ifeq ($(ARCH),x86_64)
 	ARCH = amd64
-else 
+else
 	ifeq ($(ARCH),aarch64)
 		ARCH = arm64
 	endif
@@ -26,8 +26,8 @@ VENV_PYTHON    = $(VENV)/bin/python
 SYSTEM_PYTHON  = $(or $(shell which python3), $(shell which python))
 PYTHON         = $(or $(wildcard $(VENV_PYTHON)), "install_first_venv")
 GENERATE_SCHEMA_DOC = $(VENV)/bin/generate-schema-doc
-GENERATE_DOC_PATH=  "docs/config-file/"
-GENERATE_DOC_TEMPLATES_PATH=  "docs/config-file/templates/"
+GENERATE_DOC_PATH   = "docs/config-file/"
+GENERATE_DOC_TEMPLATES_PATH = "docs/config-file/templates/"
 
 .PHONY: build
 build: ## Builds the binary locally into ./dist
@@ -42,7 +42,7 @@ build-docker-nc: ## Builds a docker image with the node binary - but without bui
 	docker build --no-cache=true -t zkevm-node -f ./Dockerfile .
 
 .PHONY: run-rpc
-run-rpc: ## Runs all the services need to run a local zkEMV RPC node
+run-rpc: ## Runs all the services needed to run a local zkEVM RPC node
 	docker-compose up -d zkevm-state-db zkevm-pool-db
 	sleep 2
 	docker-compose up -d zkevm-prover
@@ -63,7 +63,6 @@ install-linter: ## Installs the linter
 lint: ## Runs the linter
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run
 
-
 $(VENV_PYTHON):
 	rm -rf $(VENV)
 	$(SYSTEM_PYTHON) -m venv $(VENV)
@@ -76,38 +75,36 @@ $(GENERATE_SCHEMA_DOC): $(VENV_PYTHON)
 	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install json-schema-for-humans
 
-PHONY: config-doc-gen
+.PHONY: config-doc-gen
 config-doc-gen: config-doc-node config-doc-custom_network ## Generate config file's json-schema for node and custom_network and documentation
-	#
 
 .PHONY: config-doc-node
 config-doc-node: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema for node and documentation
 	go run ./cmd generate-json-schema --config-file=node --output=$(GENERATE_DOC_PATH)node-config-schema.json
 	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true \
-							--config footer_show_time=false \
-							--config expand_buttons=true \
-							--config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/js/base.html \
-							$(GENERATE_DOC_PATH)node-config-schema.json \
-							$(GENERATE_DOC_PATH)node-config-doc.html
+		--config footer_show_time=false \
+		--config expand_buttons=true \
+		--config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/js/base.html \
+		$(GENERATE_DOC_PATH)node-config-schema.json \
+		$(GENERATE_DOC_PATH)node-config-doc.html
 	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/md/base.md \
-							--config footer_show_time=false \
-							$(GENERATE_DOC_PATH)node-config-schema.json \
-							$(GENERATE_DOC_PATH)node-config-doc.md
+		--config footer_show_time=false \
+		$(GENERATE_DOC_PATH)node-config-schema.json \
+		$(GENERATE_DOC_PATH)node-config-doc.md
 
 .PHONY: config-doc-custom_network
 config-doc-custom_network: $(GENERATE_SCHEMA_DOC) ## Generate config file's json-schema for custom_network and documentation
 	go run ./cmd generate-json-schema --config-file=custom_network --output=$(GENERATE_DOC_PATH)custom_network-config-schema.json
 	$(GENERATE_SCHEMA_DOC) --config show_breadcrumbs=true --config footer_show_time=false \
-							--config expand_buttons=true \
-							--config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/js/base.html \
-							$(GENERATE_DOC_PATH)custom_network-config-schema.json \
-							$(GENERATE_DOC_PATH)custom_network-config-doc.html
+		--config expand_buttons=true \
+		--config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/js/base.html \
+		$(GENERATE_DOC_PATH)custom_network-config-schema.json \
+		$(GENERATE_DOC_PATH)custom_network-config-doc.html
 	$(GENERATE_SCHEMA_DOC)  --config custom_template_path=$(GENERATE_DOC_TEMPLATES_PATH)/md/base.md \
-							--config footer_show_time=false \
-							--config example_format=JSON \
-							$(GENERATE_DOC_PATH)custom_network-config-schema.json \
-							$(GENERATE_DOC_PATH)custom_network-config-doc.md
-	
+		--config footer_show_time=false \
+		--config example_format=JSON \
+		$(GENERATE_DOC_PATH)custom_network-config-schema.json \
+		$(GENERATE_DOC_PATH)custom_network-config-doc.md
 
 .PHONY: update-external-dependencies
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
@@ -130,6 +127,6 @@ generate-code-from-proto: ## Generates code from proto files
 
 .PHONY: help
 help: ## Prints this help
-		@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
-		| sort \
-		| awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+	| sort \
+	| awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
