@@ -33,7 +33,7 @@ var (
 	executorMock  = new(StateMock)
 	workerMock    = new(WorkerMock)
 	dbTxMock      = new(DbTxMock)
-	bc            = batchConstraints{
+	bc            = state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,

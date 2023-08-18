@@ -5,9 +5,29 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
+)
+
+const (
+	validIP = "10.23.100.1"
+)
+
+var (
+	// Init ZKEVM resourceCostMax values
+	rcMax = state.BatchConstraintsCfg{
+		MaxCumulativeGasUsed: 10,
+		MaxArithmetics:       10,
+		MaxBinaries:          10,
+		MaxKeccakHashes:      10,
+		MaxMemAligns:         10,
+		MaxPoseidonHashes:    10,
+		MaxPoseidonPaddings:  10,
+		MaxSteps:             10,
+		MaxBatchBytesSize:    10,
+	}
 )
 
 type workerAddTxTestCase struct {
@@ -20,6 +40,8 @@ type workerAddTxTestCase struct {
 	usedBytes            uint64
 	gasPrice             *big.Int
 	expectedTxSortedList []common.Hash
+	ip                   string
+	expectedErr          error
 }
 
 type workerAddrQueueInfo struct {
@@ -42,10 +64,17 @@ func processWorkerAddTxTestCases(ctx context.Context, t *testing.T, worker *Work
 			tx.BatchResources.Bytes = testCase.usedBytes
 			tx.GasPrice = testCase.gasPrice
 			tx.updateZKCounters(testCase.counters)
+			if testCase.ip == "" {
+				// A random valid IP Address
+				tx.IP = validIP
+			} else {
+				tx.IP = testCase.ip
+			}
 			t.Logf("%s=%d", testCase.name, tx.GasPrice)
 
 			_, err := worker.AddTxTracker(ctx, &tx)
-			if err != nil {
+			if err != nil && testCase.expectedErr != nil {
+				assert.ErrorIs(t, err, testCase.expectedErr)
 				return
 			}
 
@@ -66,9 +95,9 @@ func TestWorkerAddTx(t *testing.T) {
 	var nilErr error
 
 	stateMock := NewStateMock(t)
-	worker := initWorker(stateMock)
+	worker := initWorker(stateMock, rcMax)
 
-	ctx := context.Background()
+	ctx = context.Background()
 
 	stateMock.On("GetLastStateRoot", ctx, nil).Return(common.Hash{0}, nilErr)
 
@@ -122,6 +151,31 @@ func TestWorkerAddTx(t *testing.T) {
 			},
 		},
 		{
+			name: "Invalid IP address", from: common.Address{5}, txHash: common.Hash{5}, nonce: 1,
+			counters:    state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
+			usedBytes:   1,
+			ip:          "invalid IP",
+			expectedErr: pool.ErrInvalidIP,
+		},
+		{
+			name: "Out Of Counters Err",
+			from: common.Address{5}, txHash: common.Hash{5}, nonce: 1,
+			cost: new(big.Int).SetInt64(5),
+			// Here, we intentionally set the counters such that they violate the constraints
+			counters: state.ZKCounters{
+				CumulativeGasUsed:    worker.batchConstraints.MaxCumulativeGasUsed + 1,
+				UsedKeccakHashes:     worker.batchConstraints.MaxKeccakHashes + 1,
+				UsedPoseidonHashes:   worker.batchConstraints.MaxPoseidonHashes + 1,
+				UsedPoseidonPaddings: worker.batchConstraints.MaxPoseidonPaddings + 1,
+				UsedMemAligns:        worker.batchConstraints.MaxMemAligns + 1,
+				UsedArithmetics:      worker.batchConstraints.MaxArithmetics + 1,
+				UsedBinaries:         worker.batchConstraints.MaxBinaries + 1,
+				UsedSteps:            worker.batchConstraints.MaxSteps + 1,
+			},
+			usedBytes:   1,
+			expectedErr: pool.ErrOutOfCounters,
+		},
+		{
 			name: "Adding from:0x04, tx:0x04/gp:100", from: common.Address{4}, txHash: common.Hash{4}, nonce: 1, gasPrice: new(big.Int).SetInt64(100),
 			cost:      new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
@@ -144,7 +198,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 	}
 
 	stateMock := NewStateMock(t)
-	worker := initWorker(stateMock)
+	worker := initWorker(stateMock, rcMax)
 
 	ctx := context.Background()
 
@@ -232,7 +286,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 	}
 }
 
-func initWorker(stateMock *StateMock) *Worker {
-	worker := NewWorker(stateMock)
+func initWorker(stateMock *StateMock, rcMax state.BatchConstraintsCfg) *Worker {
+	worker := NewWorker(stateMock, rcMax)
 	return worker
 }

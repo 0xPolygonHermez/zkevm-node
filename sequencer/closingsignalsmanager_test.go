@@ -74,7 +74,7 @@ func setupTest(t *testing.T) {
 	localStateTree := merkletree.NewStateTree(localMtDBServiceClient)
 	localState = state.NewState(stateCfg, state.NewPostgresStorage(localStateDb), localExecutorClient, localStateTree, eventLog)
 
-	batchConstraints := batchConstraints{
+	batchConstraints := state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,
