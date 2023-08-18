@@ -489,7 +489,6 @@ func TestGetSafeL2BlockNumber(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.expectedL2SafeBlockNumber, l2SafeBlockNumber)
-
 		})
 	}
 }
