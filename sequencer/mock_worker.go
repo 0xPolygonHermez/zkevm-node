@@ -20,6 +20,11 @@ type WorkerMock struct {
 	mock.Mock
 }
 
+// AddForcedTx provides a mock function with given fields: txHash, addr
+func (_m *WorkerMock) AddForcedTx(txHash common.Hash, addr common.Address) {
+	_m.Called(txHash, addr)
+}
+
 // AddPendingTxToStore provides a mock function with given fields: txHash, addr
 func (_m *WorkerMock) AddPendingTxToStore(txHash common.Hash, addr common.Address) {
 	_m.Called(txHash, addr)
@@ -49,6 +54,11 @@ func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) (*
 	}
 
 	return r0, r1
+}
+
+// DeleteForcedTx provides a mock function with given fields: txHash, addr
+func (_m *WorkerMock) DeleteForcedTx(txHash common.Hash, addr common.Address) {
+	_m.Called(txHash, addr)
 }
 
 // DeletePendingTxToStore provides a mock function with given fields: txHash, addr

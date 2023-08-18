@@ -173,7 +173,7 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 	return txsToDelete
 }
 
-// DeleteTx delete the tx after it fails to execute
+// DeleteTx deletes a regular tx from the addrQueue
 func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
@@ -187,6 +187,19 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address) {
 		}
 	} else {
 		log.Warnf("DeleteTx addrQueue(%s) not found", addr.String())
+	}
+}
+
+// DeleteForcedTx deletes a forced tx from the addrQueue
+func (w *Worker) DeleteForcedTx(txHash common.Hash, addr common.Address) {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
+
+	addrQueue, found := w.pool[addr.String()]
+	if found {
+		addrQueue.deleteForcedTx(txHash)
+	} else {
+		log.Warnf("DeleteForcedTx addrQueue(%s) not found", addr.String())
 	}
 }
 
@@ -225,6 +238,20 @@ func (w *Worker) AddPendingTxToStore(txHash common.Hash, addr common.Address) {
 		addrQueue.addPendingTxToStore(txHash)
 	} else {
 		log.Warnf("AddPendingTxToStore addrQueue(%s) not found", addr.String())
+	}
+}
+
+// AddForcedTx adds a forced tx to the addrQueue
+func (w *Worker) AddForcedTx(txHash common.Hash, addr common.Address) {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
+
+	addrQueue, found := w.pool[addr.String()]
+
+	if found {
+		addrQueue.addForcedTx(txHash)
+	} else {
+		log.Warnf("AddForcedTx addrQueue(%s) not found", addr.String())
 	}
 }
 
