@@ -444,6 +444,7 @@ func TestGetSafeL2BlockNumber(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
 
 	// prepare data
 	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
@@ -488,6 +489,7 @@ func TestGetSafeL2BlockNumber(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.expectedL2SafeBlockNumber, l2SafeBlockNumber)
+
 		})
 	}
 }
@@ -497,6 +499,7 @@ func TestGetFinalizedL2BlockNumber(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
 
 	// prepare data
 	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
