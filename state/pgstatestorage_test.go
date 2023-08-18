@@ -438,3 +438,116 @@ func TestVirtualBatch(t *testing.T) {
 	require.Equal(t, virtualBatch, *actualVirtualBatch)
 	require.NoError(t, dbTx.Commit(ctx))
 }
+
+func TestGetSafeL2BlockNumber(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	// prepare data
+	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	hash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
+	for i := 1; i <= 10; i++ {
+		// add l1 block
+		err = testState.AddBlock(ctx, state.NewBlock(uint64(i)), dbTx)
+		require.NoError(t, err)
+
+		// add batch
+		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", i)
+		require.NoError(t, err)
+
+		// add l2 block
+		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(int64(i + 10))})
+		err = testState.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, uint8(0), dbTx)
+		require.NoError(t, err)
+
+		// virtualize batch
+		if i <= 6 {
+			b := state.VirtualBatch{BlockNumber: uint64(i), BatchNumber: uint64(i), Coinbase: addr, SequencerAddr: addr, TxHash: hash}
+			err = testState.AddVirtualBatch(ctx, &b, dbTx)
+			require.NoError(t, err)
+		}
+	}
+
+	type testCase struct {
+		name                      string
+		l1SafeBlockNumber         uint64
+		expectedL2SafeBlockNumber uint64
+	}
+
+	testCases := []testCase{
+		{name: "l1 safe block number smaller than block number for the last virtualized batch", l1SafeBlockNumber: 2, expectedL2SafeBlockNumber: 12},
+		{name: "l1 safe block number equal to block number for the last virtualized batch", l1SafeBlockNumber: 6, expectedL2SafeBlockNumber: 16},
+		{name: "l1 safe block number bigger than number for the last virtualized batch", l1SafeBlockNumber: 8, expectedL2SafeBlockNumber: 16},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			l2SafeBlockNumber, err := testState.GetSafeL2BlockNumber(ctx, uint64(tc.l1SafeBlockNumber), dbTx)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedL2SafeBlockNumber, l2SafeBlockNumber)
+		})
+	}
+}
+
+func TestGetFinalizedL2BlockNumber(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	// prepare data
+	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	hash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
+	for i := 1; i <= 10; i++ {
+		// add l1 block
+		err = testState.AddBlock(ctx, state.NewBlock(uint64(i)), dbTx)
+		require.NoError(t, err)
+
+		// add batch
+		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", i)
+		require.NoError(t, err)
+
+		// add l2 block
+		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(int64(i + 10))})
+		err = testState.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, uint8(0), dbTx)
+		require.NoError(t, err)
+
+		// virtualize batch
+		if i <= 6 {
+			b := state.VirtualBatch{BlockNumber: uint64(i), BatchNumber: uint64(i), Coinbase: addr, SequencerAddr: addr, TxHash: hash}
+			err = testState.AddVirtualBatch(ctx, &b, dbTx)
+			require.NoError(t, err)
+		}
+
+		// verify batch
+		if i <= 3 {
+			b := state.VerifiedBatch{BlockNumber: uint64(i), BatchNumber: uint64(i), TxHash: hash}
+			err = testState.AddVerifiedBatch(ctx, &b, dbTx)
+			require.NoError(t, err)
+		}
+	}
+
+	type testCase struct {
+		name                           string
+		l1FinalizedBlockNumber         uint64
+		expectedL2FinalizedBlockNumber uint64
+	}
+
+	testCases := []testCase{
+		{name: "l1 finalized block number smaller than block number for the last verified batch", l1FinalizedBlockNumber: 1, expectedL2FinalizedBlockNumber: 11},
+		{name: "l1 finalized block number equal to block number for the last verified batch", l1FinalizedBlockNumber: 3, expectedL2FinalizedBlockNumber: 13},
+		{name: "l1 finalized block number bigger than number for the last verified batch", l1FinalizedBlockNumber: 5, expectedL2FinalizedBlockNumber: 13},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			l2FinalizedBlockNumber, err := testState.GetFinalizedL2BlockNumber(ctx, uint64(tc.l1FinalizedBlockNumber), dbTx)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedL2FinalizedBlockNumber, l2FinalizedBlockNumber)
+		})
+	}
+}
