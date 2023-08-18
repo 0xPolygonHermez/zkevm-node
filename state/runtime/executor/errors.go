@@ -9,16 +9,20 @@ import (
 
 var (
 	// ErrUnspecified indicates an unspecified executor error
-	ErrUnspecified = fmt.Errorf("unspecified executor error")
+	ErrExecutorUnspecified = fmt.Errorf("unspecified executor error")
+	// ErrROMUnspecified indicates an unspecified ROM error
+	ErrROMUnspecified = fmt.Errorf("unspecified ROM error")
 	// ErrUnknown indicates an unknown executor error
-	ErrUnknown = fmt.Errorf("unknown error")
+	ErrExecutorUnknown = fmt.Errorf("unknown executor error")
+	// ErrROMUnknown indicates an unknown ROM error
+	ErrROMUnknown = fmt.Errorf("unknown ROM error")
 )
 
 // RomErr returns an instance of error related to the ExecutorError
 func RomErr(errorCode RomError) error {
 	switch errorCode {
 	case RomError_ROM_ERROR_UNSPECIFIED:
-		return fmt.Errorf("unspecified ROM error")
+		return ErrROMUnspecified
 	case RomError_ROM_ERROR_NO_ERROR:
 		return nil
 	case RomError_ROM_ERROR_OUT_OF_GAS:
@@ -158,7 +162,7 @@ func IsROMOutOfGasError(error RomError) bool {
 
 // IsExecutorOutOfCountersError indicates if the error is an ROM OOC
 func IsExecutorOutOfCountersError(error ExecutorError) bool {
-	return error >= ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK && error <= ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON
+	return error >= ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_STEPS && error <= ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_POSEIDON
 }
 
 // IsExecutorUnspecifiedError indicates an unspecified error in the executor
@@ -185,31 +189,31 @@ func IsInvalidBalanceError(error RomError) bool {
 func ExecutorErr(errorCode ExecutorError) error {
 	switch errorCode {
 	case ExecutorError_EXECUTOR_ERROR_UNSPECIFIED:
-		return ErrUnspecified
+		return ErrExecutorUnspecified
 	case ExecutorError_EXECUTOR_ERROR_NO_ERROR:
 		return nil
 	case ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK:
-		return runtime.ErrOutOfCountersKeccak
+		return runtime.ErrExecutorOutOfCountersKeccak
 	case ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_BINARY:
-		return runtime.ErrOutOfCountersBinary
+		return runtime.ErrErrExecutorOutOfCountersBinary
 	case ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_MEM:
-		return runtime.ErrOutOfCountersMemory
+		return runtime.ErrErrExecutorOutOfCountersMemory
 	case ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_ARITH:
-		return runtime.ErrOutOfCountersArith
+		return runtime.ErrErrExecutorOutOfCountersArith
 	case ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_PADDING:
-		return runtime.ErrOutOfCountersPadding
+		return runtime.ErrErrExecutorOutOfCountersPadding
 	case ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON:
-		return runtime.ErrOutOfCountersPoseidon
+		return runtime.ErrErrExecutorOutOfCountersPoseidon
 	case ExecutorError_EXECUTOR_ERROR_UNSUPPORTED_FORK_ID:
-		return runtime.ErrUnsupportedForkId
+		return runtime.ErrErrExecutorUnsupportedForkId
 	case ExecutorError_EXECUTOR_ERROR_BALANCE_MISMATCH:
-		return runtime.ErrBalanceMismatch
+		return runtime.ErrErrExecutorBalanceMismatch
 	case ExecutorError_EXECUTOR_ERROR_FEA2SCALAR:
-		return runtime.ErrFea2Scalar
+		return runtime.ErrErrExecutorFea2Scalar
 	case ExecutorError_EXECUTOR_ERROR_TOS32:
-		return runtime.ErrTos32
+		return runtime.ErrErrExecutorTos32
 	}
-	return ErrUnknown
+	return ErrExecutorUnknown
 }
 
 // ExecutorErrorCode returns the error code for a given error
@@ -231,11 +235,11 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON
 	case runtime.ErrUnsupportedForkId:
 		return ExecutorError_EXECUTOR_ERROR_UNSUPPORTED_FORK_ID
-	case runtime.ErrBalanceMismatch:
+	case runtime.ErrExecutorBalanceMismatch:
 		return ExecutorError_EXECUTOR_ERROR_BALANCE_MISMATCH
-	case runtime.ErrFea2Scalar:
+	case runtime.ErrExecutorFea2Scalar:
 		return ExecutorError_EXECUTOR_ERROR_FEA2SCALAR
-	case runtime.ErrTos32:
+	case runtime.ErrExecutorTos32:
 		return ExecutorError_EXECUTOR_ERROR_TOS32
 	}
 	return math.MaxInt32
