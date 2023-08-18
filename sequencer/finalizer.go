@@ -729,7 +729,7 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 
 		from, err := state.GetSender(txResp.Tx)
 		if err != nil {
-			log.Errorf("handleForcedTxsProcessResp: failed to get sender: %s", err)
+			log.Warnf("handleForcedTxsProcessResp: failed to get sender for tx (%s): %v", txResp.TxHash, err)
 		}
 
 		txToStore := transactionToStore{
@@ -993,7 +993,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		for _, txResponse := range response.Responses {
 			sender, err := state.GetSender(txResponse.Tx)
 			if err != nil {
-				log.Warnf("failed to get sender from tx, Err: %v", err)
+				log.Warnf("failed trying to add forced tx (%s) to worker. Error getting sender from tx, Err: %v", txResponse.TxHash, err)
 				continue
 			}
 			f.worker.AddForcedTx(txResponse.TxHash, sender)
