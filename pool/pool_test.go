@@ -924,12 +924,12 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	require.NoError(t, err)
 
 	chainIdOver64Bits := big.NewInt(0).SetUint64(math.MaxUint64)
-	chainIdOver64Bits = chainIdOver64Bits.Add(chainIdOver64Bits, big.NewInt(1))
+	chainIdOver64Bits = chainIdOver64Bits.Add(chainIdOver64Bits, big.NewInt(2))
 	authChainIdOver64Bits, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIdOver64Bits)
 	require.NoError(t, err)
 
 	bigIntOver256Bits, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
-	bigIntOver256Bits = bigIntOver256Bits.Add(bigIntOver256Bits, big.NewInt(1))
+	bigIntOver256Bits = bigIntOver256Bits.Add(bigIntOver256Bits, big.NewInt(2))
 
 	testCases := []testCase{
 		{

@@ -509,6 +509,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Timestamp:      ethBlock.ReceivedAt,
 				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
 				ForcedBatchNum: &f,
+				BatchL2Data:    &sequencedForceBatch.Transactions,
 			}
 
 			m.State.

@@ -2,9 +2,7 @@ package sequencer
 
 import (
 	"context"
-	"fmt"
 	"math/big"
-	"sync"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -12,23 +10,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	workerCfg = WorkerCfg{
-		ResourceCostMultiplier: 1000,
-	}
-)
-
 type workerAddTxTestCase struct {
-	name   string
-	from   common.Address
-	txHash common.Hash
-	nonce  uint64
-	// isClaim                bool
-	benefit                int64
-	cost                   *big.Int
-	counters               state.ZKCounters
-	usedBytes              uint64
-	expectedEfficiencyList []common.Hash
+	name                 string
+	from                 common.Address
+	txHash               common.Hash
+	nonce                uint64
+	cost                 *big.Int
+	counters             state.ZKCounters
+	usedBytes            uint64
+	gasPrice             *big.Int
+	expectedTxSortedList []common.Hash
 }
 
 type workerAddrQueueInfo struct {
@@ -37,43 +28,34 @@ type workerAddrQueueInfo struct {
 	balance *big.Int
 }
 
-func processWorkerAddTxTestCases(t *testing.T, worker *Worker, testCases []workerAddTxTestCase) {
-	totalWeight := float64(worker.batchResourceWeights.WeightArithmetics +
-		worker.batchResourceWeights.WeightBatchBytesSize + worker.batchResourceWeights.WeightBinaries +
-		worker.batchResourceWeights.WeightCumulativeGasUsed + worker.batchResourceWeights.WeightKeccakHashes +
-		worker.batchResourceWeights.WeightMemAligns + worker.batchResourceWeights.WeightPoseidonHashes +
-		worker.batchResourceWeights.WeightPoseidonPaddings + worker.batchResourceWeights.WeightSteps)
-
+func processWorkerAddTxTestCases(ctx context.Context, t *testing.T, worker *Worker, testCases []workerAddTxTestCase) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			tx := TxTracker{}
 
-			tx.WeightMultipliers = calculateWeightMultipliers(worker.batchResourceWeights, totalWeight)
-			tx.Constraints = worker.batchConstraints
-			tx.ResourceCostMultiplier = worker.cfg.ResourceCostMultiplier
 			tx.Hash = testCase.txHash
 			tx.HashStr = testCase.txHash.String()
 			tx.From = testCase.from
 			tx.FromStr = testCase.from.String()
 			tx.Nonce = testCase.nonce
-			tx.Benefit = new(big.Int).SetInt64(testCase.benefit)
 			tx.Cost = testCase.cost
 			tx.BatchResources.Bytes = testCase.usedBytes
-			tx.updateZKCounters(testCase.counters, worker.batchConstraints, worker.batchResourceWeights)
-			t.Logf("%s=%s", testCase.name, fmt.Sprintf("%.2f", tx.Efficiency))
+			tx.GasPrice = testCase.gasPrice
+			tx.updateZKCounters(testCase.counters)
+			t.Logf("%s=%d", testCase.name, tx.GasPrice)
 
 			_, err := worker.AddTxTracker(ctx, &tx)
 			if err != nil {
 				return
 			}
 
-			el := worker.efficiencyList
-			if el.len() != len(testCase.expectedEfficiencyList) {
-				t.Fatalf("Error efficiencylist.len(%d) != expectedEfficiencyList.len(%d)", el.len(), len(testCase.expectedEfficiencyList))
+			el := worker.txSortedList
+			if el.len() != len(testCase.expectedTxSortedList) {
+				t.Fatalf("Error txSortedList.len(%d) != expectedTxSortedList.len(%d)", el.len(), len(testCase.expectedTxSortedList))
 			}
 			for i := 0; i < el.len(); i++ {
-				if el.getByIndex(i).HashStr != string(testCase.expectedEfficiencyList[i].String()) {
-					t.Fatalf("Error efficiencylist(%d). Expected=%s, Actual=%s", i, testCase.expectedEfficiencyList[i].String(), el.getByIndex(i).HashStr)
+				if el.getByIndex(i).HashStr != string(testCase.expectedTxSortedList[i].String()) {
+					t.Fatalf("Error txSortedList(%d). Expected=%s, Actual=%s", i, testCase.expectedTxSortedList[i].String(), el.getByIndex(i).HashStr)
 				}
 			}
 		})
@@ -83,32 +65,8 @@ func processWorkerAddTxTestCases(t *testing.T, worker *Worker, testCases []worke
 func TestWorkerAddTx(t *testing.T) {
 	var nilErr error
 
-	// Init ZKEVM resourceCostWeight values
-	rcWeigth := batchResourceWeights{}
-	rcWeigth.WeightCumulativeGasUsed = 1
-	rcWeigth.WeightArithmetics = 1
-	rcWeigth.WeightBinaries = 1
-	rcWeigth.WeightKeccakHashes = 1
-	rcWeigth.WeightMemAligns = 1
-	rcWeigth.WeightPoseidonHashes = 1
-	rcWeigth.WeightPoseidonPaddings = 1
-	rcWeigth.WeightSteps = 1
-	rcWeigth.WeightBatchBytesSize = 2
-
-	// Init ZKEVM resourceCostMax values
-	rcMax := batchConstraints{}
-	rcMax.MaxCumulativeGasUsed = 10
-	rcMax.MaxArithmetics = 10
-	rcMax.MaxBinaries = 10
-	rcMax.MaxKeccakHashes = 10
-	rcMax.MaxMemAligns = 10
-	rcMax.MaxPoseidonHashes = 10
-	rcMax.MaxPoseidonPaddings = 10
-	rcMax.MaxSteps = 10
-	rcMax.MaxBatchBytesSize = 10
-
 	stateMock := NewStateMock(t)
-	worker := initWorker(stateMock, rcMax, rcWeigth)
+	worker := initWorker(stateMock)
 
 	ctx := context.Background()
 
@@ -128,90 +86,57 @@ func TestWorkerAddTx(t *testing.T) {
 
 	addTxsTC := []workerAddTxTestCase{
 		{
-			name: "Adding from:0x01, tx:0x01/ef:10", from: common.Address{1}, txHash: common.Hash{1}, nonce: 1,
-			benefit: 1000, cost: new(big.Int).SetInt64(5),
+			name: "Adding from:0x01, tx:0x01/gp:10", from: common.Address{1}, txHash: common.Hash{1}, nonce: 1, gasPrice: new(big.Int).SetInt64(10),
+			cost:      new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
 			usedBytes: 1,
-			expectedEfficiencyList: []common.Hash{
+			expectedTxSortedList: []common.Hash{
 				{1},
 			},
 		},
 		{
-			name: "Adding from:0x02, tx:0x02/ef:20", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1,
-			benefit: 2000, cost: new(big.Int).SetInt64(5),
+			name: "Adding from:0x02, tx:0x02/gp:4", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1, gasPrice: new(big.Int).SetInt64(4),
+			cost:      new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
 			usedBytes: 1,
-			expectedEfficiencyList: []common.Hash{
-				{2}, {1},
-			},
-		},
-		{
-			name: "Readding from:0x02, tx:0x02/ef:4", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1,
-			benefit: 2000, cost: new(big.Int).SetInt64(5),
-			counters:  state.ZKCounters{CumulativeGasUsed: 5, UsedKeccakHashes: 5, UsedPoseidonHashes: 5, UsedPoseidonPaddings: 5, UsedMemAligns: 5, UsedArithmetics: 5, UsedBinaries: 5, UsedSteps: 5},
-			usedBytes: 5,
-			expectedEfficiencyList: []common.Hash{
+			expectedTxSortedList: []common.Hash{
 				{1}, {2},
 			},
 		},
 		{
-			name: "Readding from:0x03, tx:0x03/ef:25", from: common.Address{3}, txHash: common.Hash{3}, nonce: 1,
-			benefit: 5000, cost: new(big.Int).SetInt64(5),
+			name: "Readding from:0x02, tx:0x02/gp:20", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1, gasPrice: new(big.Int).SetInt64(20),
+			cost:      new(big.Int).SetInt64(5),
+			counters:  state.ZKCounters{CumulativeGasUsed: 5, UsedKeccakHashes: 5, UsedPoseidonHashes: 5, UsedPoseidonPaddings: 5, UsedMemAligns: 5, UsedArithmetics: 5, UsedBinaries: 5, UsedSteps: 5},
+			usedBytes: 5,
+			expectedTxSortedList: []common.Hash{
+				{2}, {1},
+			},
+		},
+		{
+			name: "Readding from:0x03, tx:0x03/gp:25", from: common.Address{3}, txHash: common.Hash{3}, nonce: 1, gasPrice: new(big.Int).SetInt64(25),
+			cost:      new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 2, UsedKeccakHashes: 2, UsedPoseidonHashes: 2, UsedPoseidonPaddings: 2, UsedMemAligns: 2, UsedArithmetics: 2, UsedBinaries: 2, UsedSteps: 2},
 			usedBytes: 2,
-			expectedEfficiencyList: []common.Hash{
-				{3}, {1}, {2},
+			expectedTxSortedList: []common.Hash{
+				{3}, {2}, {1},
 			},
 		},
-	}
-
-	processWorkerAddTxTestCases(t, worker, addTxsTC)
-
-	// Change counters fpr tx:0x03/ef:9.61
-	counters := state.ZKCounters{CumulativeGasUsed: 6, UsedKeccakHashes: 6, UsedPoseidonHashes: 6, UsedPoseidonPaddings: 6, UsedMemAligns: 6, UsedArithmetics: 6, UsedBinaries: 6, UsedSteps: 6}
-	worker.UpdateTx(common.Hash{3}, common.Address{3}, counters)
-
-	addTxsTC = []workerAddTxTestCase{
 		{
-			name: "Adding from:0x04, tx:0x04/ef:100", from: common.Address{4}, txHash: common.Hash{4}, nonce: 1,
-			benefit: 10000, cost: new(big.Int).SetInt64(5),
+			name: "Adding from:0x04, tx:0x04/gp:100", from: common.Address{4}, txHash: common.Hash{4}, nonce: 1, gasPrice: new(big.Int).SetInt64(100),
+			cost:      new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
 			usedBytes: 1,
-			expectedEfficiencyList: []common.Hash{
-				{4}, {1}, {3}, {2},
+			expectedTxSortedList: []common.Hash{
+				{4}, {3}, {2}, {1},
 			},
 		},
 	}
 
-	processWorkerAddTxTestCases(t, worker, addTxsTC)
+	processWorkerAddTxTestCases(ctx, t, worker, addTxsTC)
 }
 
 func TestWorkerGetBestTx(t *testing.T) {
 	var nilErr error
-
-	// Init ZKEVM resourceCostWeight values
-	rcWeight := batchResourceWeights{}
-	rcWeight.WeightCumulativeGasUsed = 1
-	rcWeight.WeightArithmetics = 1
-	rcWeight.WeightBinaries = 1
-	rcWeight.WeightKeccakHashes = 1
-	rcWeight.WeightMemAligns = 1
-	rcWeight.WeightPoseidonHashes = 1
-	rcWeight.WeightPoseidonPaddings = 1
-	rcWeight.WeightSteps = 1
-	rcWeight.WeightBatchBytesSize = 2
-
-	// Init ZKEVM resourceCostMax values
-	rcMax := batchConstraints{}
-	rcMax.MaxCumulativeGasUsed = 10
-	rcMax.MaxArithmetics = 10
-	rcMax.MaxBinaries = 10
-	rcMax.MaxKeccakHashes = 10
-	rcMax.MaxMemAligns = 10
-	rcMax.MaxPoseidonHashes = 10
-	rcMax.MaxPoseidonPaddings = 10
-	rcMax.MaxSteps = 10
-	rcMax.MaxBatchBytesSize = 10
 
 	rc := state.BatchResources{
 		ZKCounters: state.ZKCounters{CumulativeGasUsed: 10, UsedKeccakHashes: 10, UsedPoseidonHashes: 10, UsedPoseidonPaddings: 10, UsedMemAligns: 10, UsedArithmetics: 10, UsedBinaries: 10, UsedSteps: 10},
@@ -219,7 +144,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 	}
 
 	stateMock := NewStateMock(t)
-	worker := initWorker(stateMock, rcMax, rcWeight)
+	worker := initWorker(stateMock)
 
 	ctx := context.Background()
 
@@ -239,44 +164,44 @@ func TestWorkerGetBestTx(t *testing.T) {
 
 	addTxsTC := []workerAddTxTestCase{
 		{
-			name: "Adding from:0x01, tx:0x01/ef:10", from: common.Address{1}, txHash: common.Hash{1}, nonce: 1,
-			benefit: 1000, cost: new(big.Int).SetInt64(5),
+			name: "Adding from:0x01, tx:0x01/gp:10", from: common.Address{1}, txHash: common.Hash{1}, nonce: 1, gasPrice: new(big.Int).SetInt64(10),
+			cost:      new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
 			usedBytes: 1,
-			expectedEfficiencyList: []common.Hash{
+			expectedTxSortedList: []common.Hash{
 				{1},
 			},
 		},
 		{
-			name: "Adding from:0x02, tx:0x02/ef:12", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1,
-			benefit: 6000, cost: new(big.Int).SetInt64(5),
+			name: "Adding from:0x02, tx:0x02/gp:12", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1, gasPrice: new(big.Int).SetInt64(12),
+			cost:      new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 5, UsedKeccakHashes: 5, UsedPoseidonHashes: 5, UsedPoseidonPaddings: 5, UsedMemAligns: 5, UsedArithmetics: 5, UsedBinaries: 5, UsedSteps: 5},
 			usedBytes: 5,
-			expectedEfficiencyList: []common.Hash{
+			expectedTxSortedList: []common.Hash{
 				{2}, {1},
 			},
 		},
 		{
-			name: "Readding from:0x03, tx:0x03/ef:25", from: common.Address{3}, txHash: common.Hash{3}, nonce: 1,
-			benefit: 5000, cost: new(big.Int).SetInt64(5),
+			name: "Readding from:0x03, tx:0x03/gp:25", from: common.Address{3}, txHash: common.Hash{3}, nonce: 1, gasPrice: new(big.Int).SetInt64(25),
+			cost:      new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 2, UsedKeccakHashes: 2, UsedPoseidonHashes: 2, UsedPoseidonPaddings: 2, UsedMemAligns: 2, UsedArithmetics: 2, UsedBinaries: 2, UsedSteps: 2},
 			usedBytes: 2,
-			expectedEfficiencyList: []common.Hash{
+			expectedTxSortedList: []common.Hash{
 				{3}, {2}, {1},
 			},
 		},
 		{
-			name: "Adding from:0x04, tx:0x04/ef:100", from: common.Address{4}, txHash: common.Hash{4}, nonce: 1,
-			benefit: 40000, cost: new(big.Int).SetInt64(5),
+			name: "Adding from:0x04, tx:0x04/gp:100", from: common.Address{4}, txHash: common.Hash{4}, nonce: 1, gasPrice: new(big.Int).SetInt64(100),
+			cost:      new(big.Int).SetInt64(5),
 			counters:  state.ZKCounters{CumulativeGasUsed: 4, UsedKeccakHashes: 4, UsedPoseidonHashes: 4, UsedPoseidonPaddings: 4, UsedMemAligns: 4, UsedArithmetics: 4, UsedBinaries: 4, UsedSteps: 4},
 			usedBytes: 4,
-			expectedEfficiencyList: []common.Hash{
+			expectedTxSortedList: []common.Hash{
 				{4}, {3}, {2}, {1},
 			},
 		},
 	}
 
-	processWorkerAddTxTestCases(t, worker, addTxsTC)
+	processWorkerAddTxTestCases(ctx, t, worker, addTxsTC)
 
 	expectedGetBestTx := []common.Hash{{4}, {3}, {1}}
 	ct := 0
@@ -307,10 +232,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 	}
 }
 
-func initWorker(stateMock *StateMock, rcMax batchConstraints, rcWeigth batchResourceWeights) *Worker {
-	pendingTxsToStoreMux := new(sync.RWMutex)
-	pendingTxsPerAddressTrackers := make(map[common.Address]*pendingTxPerAddressTracker)
-	worker := NewWorker(workerCfg, stateMock, rcMax, rcWeigth, pendingTxsToStoreMux, pendingTxsPerAddressTrackers)
-
+func initWorker(stateMock *StateMock) *Worker {
+	worker := NewWorker(stateMock)
 	return worker
 }

@@ -863,7 +863,9 @@ func (e *EthEndpoints) UninstallFilter(filterID string) (interface{}, types.Erro
 func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		_, err := e.state.GetLastL2BlockNumber(ctx, dbTx)
-		if err != nil {
+		if errors.Is(err, state.ErrStateNotSynchronized) {
+			return nil, types.NewRPCErrorWithData(types.DefaultErrorCode, state.ErrStateNotSynchronized.Error(), nil)
+		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get last block number from state", err)
 		}
 
@@ -998,7 +1000,10 @@ func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 			}
 
 			if changes != nil {
-				e.sendSubscriptionResponse(filter, changes)
+				ethLogs := changes.([]types.Log)
+				for _, ethLog := range ethLogs {
+					e.sendSubscriptionResponse(filter, ethLog)
+				}
 			}
 		}
 	}
@@ -1028,4 +1033,5 @@ func (e *EthEndpoints) sendSubscriptionResponse(filter *Filter, data interface{}
 	if err != nil {
 		log.Errorf(fmt.Sprintf(errMessage, filter.ID, err.Error()))
 	}
+	log.Debugf("WS message sent: %v", string(message))
 }
