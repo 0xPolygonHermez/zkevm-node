@@ -1004,7 +1004,6 @@ TrustedSequencerURL=""
 | - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string  | No         | -          | Duration                                                                                     |
 | - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                       |
 | - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                       |
-| - [Worker](#Sequencer_Worker )                                               | No      | object  | No         | -          | Worker's specific config properties                                                          |
 | - [EffectiveGasPrice](#Sequencer_EffectiveGasPrice )                         | No      | object  | No         | -          | EffectiveGasPrice is the config for the gas price                                            |
 
 ### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
@@ -1441,30 +1440,7 @@ PoolRetrievalInterval="500ms"
 L2ReorgRetrievalInterval="5s"
 ```
 
-### <a name="Sequencer_Worker"></a>10.8. `[Sequencer.Worker]`
-
-**Type:** : `object`
-**Description:** Worker's specific config properties
-
-| Property                                                              | Pattern | Type   | Deprecated | Definition | Title/Description                                              |
-| --------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | -------------------------------------------------------------- |
-| - [ResourceCostMultiplier](#Sequencer_Worker_ResourceCostMultiplier ) | No      | number | No         | -          | ResourceCostMultiplier is the multiplier for the resource cost |
-
-#### <a name="Sequencer_Worker_ResourceCostMultiplier"></a>10.8.1. `Sequencer.Worker.ResourceCostMultiplier`
-
-**Type:** : `number`
-
-**Default:** `1000`
-
-**Description:** ResourceCostMultiplier is the multiplier for the resource cost
-
-**Example setting the default value** (1000):
-```
-[Sequencer.Worker]
-ResourceCostMultiplier=1000
-```
-
-### <a name="Sequencer_EffectiveGasPrice"></a>10.9. `[Sequencer.EffectiveGasPrice]`
+### <a name="Sequencer_EffectiveGasPrice"></a>10.8. `[Sequencer.EffectiveGasPrice]`
 
 **Type:** : `object`
 **Description:** EffectiveGasPrice is the config for the gas price
@@ -1478,7 +1454,7 @@ ResourceCostMultiplier=1000
 | - [Enabled](#Sequencer_EffectiveGasPrice_Enabled )                                                                 | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                                         |
 | - [DefaultMinGasPriceAllowed](#Sequencer_EffectiveGasPrice_DefaultMinGasPriceAllowed )                             | No      | integer | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest<br />This value is assigned from [Pool].DefaultMinGasPriceAllowed |
 
-#### <a name="Sequencer_EffectiveGasPrice_MaxBreakEvenGasPriceDeviationPercentage"></a>10.9.1. `Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage`
+#### <a name="Sequencer_EffectiveGasPrice_MaxBreakEvenGasPriceDeviationPercentage"></a>10.8.1. `Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage`
 
 **Type:** : `integer`
 
@@ -1492,7 +1468,7 @@ ResourceCostMultiplier=1000
 MaxBreakEvenGasPriceDeviationPercentage=10
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_L1GasPriceFactor"></a>10.9.2. `Sequencer.EffectiveGasPrice.L1GasPriceFactor`
+#### <a name="Sequencer_EffectiveGasPrice_L1GasPriceFactor"></a>10.8.2. `Sequencer.EffectiveGasPrice.L1GasPriceFactor`
 
 **Type:** : `number`
 
@@ -1506,7 +1482,7 @@ MaxBreakEvenGasPriceDeviationPercentage=10
 L1GasPriceFactor=0.25
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_ByteGasCost"></a>10.9.3. `Sequencer.EffectiveGasPrice.ByteGasCost`
+#### <a name="Sequencer_EffectiveGasPrice_ByteGasCost"></a>10.8.3. `Sequencer.EffectiveGasPrice.ByteGasCost`
 
 **Type:** : `integer`
 
@@ -1520,7 +1496,7 @@ L1GasPriceFactor=0.25
 ByteGasCost=16
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_MarginFactor"></a>10.9.4. `Sequencer.EffectiveGasPrice.MarginFactor`
+#### <a name="Sequencer_EffectiveGasPrice_MarginFactor"></a>10.8.4. `Sequencer.EffectiveGasPrice.MarginFactor`
 
 **Type:** : `number`
 
@@ -1534,7 +1510,7 @@ ByteGasCost=16
 MarginFactor=1
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_Enabled"></a>10.9.5. `Sequencer.EffectiveGasPrice.Enabled`
+#### <a name="Sequencer_EffectiveGasPrice_Enabled"></a>10.8.5. `Sequencer.EffectiveGasPrice.Enabled`
 
 **Type:** : `boolean`
 
@@ -1548,7 +1524,7 @@ MarginFactor=1
 Enabled=false
 ```
 
-#### <a name="Sequencer_EffectiveGasPrice_DefaultMinGasPriceAllowed"></a>10.9.6. `Sequencer.EffectiveGasPrice.DefaultMinGasPriceAllowed`
+#### <a name="Sequencer_EffectiveGasPrice_DefaultMinGasPriceAllowed"></a>10.8.6. `Sequencer.EffectiveGasPrice.DefaultMinGasPriceAllowed`
 
 **Type:** : `integer`
 
@@ -1568,14 +1544,15 @@ DefaultMinGasPriceAllowed=0
 **Type:** : `object`
 **Description:** Configuration of the sequence sender service
 
-| Property                                                                                                | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                  |
-| ------------------------------------------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| - [WaitPeriodSendSequence](#SequenceSender_WaitPeriodSendSequence )                                     | No      | string          | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
-| - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string          | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
-| - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer         | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not. |
-| - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | string          | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                    |
-| - [PrivateKeys](#SequenceSender_PrivateKeys )                                                           | No      | array of object | No         | -          | PrivateKeys defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                 |
-| - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer         | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                         |
+| Property                                                                                                | Pattern | Type             | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| - [WaitPeriodSendSequence](#SequenceSender_WaitPeriodSendSequence )                                     | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
+| - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
+| - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer          | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not. |
+| - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | array of integer | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                    |
+| - [L2Coinbase](#SequenceSender_L2Coinbase )                                                             | No      | array of integer | No         | -          | L2Coinbase defines which addess is going to receive the fees                                                                                                                                                                                                                                                       |
+| - [PrivateKey](#SequenceSender_PrivateKey )                                                             | No      | object           | No         | -          | PrivateKey defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                  |
+| - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer          | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                         |
 
 ### <a name="SequenceSender_WaitPeriodSendSequence"></a>11.1. `SequenceSender.WaitPeriodSendSequence`
 
@@ -1649,67 +1626,64 @@ MaxTxSizeForL1=131072
 
 ### <a name="SequenceSender_SenderAddress"></a>11.4. `SequenceSender.SenderAddress`
 
-**Type:** : `string`
+**Type:** : `array of integer`
+**Description:** SenderAddress defines which private key the eth tx manager needs to use
+to sign the L1 txs
+
+### <a name="SequenceSender_L2Coinbase"></a>11.5. `SequenceSender.L2Coinbase`
+
+**Type:** : `array of integer`
 
 **Default:** `"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"`
 
-**Description:** SenderAddress defines which private key the eth tx manager needs to use
-to sign the L1 txs
+**Description:** L2Coinbase defines which addess is going to receive the fees
 
 **Example setting the default value** ("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"):
 ```
 [SequenceSender]
-SenderAddress="0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+L2Coinbase="0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 ```
 
-### <a name="SequenceSender_PrivateKeys"></a>11.5. `SequenceSender.PrivateKeys`
-
-**Type:** : `array of object`
-
-**Default:** `[{"Path": "/pk/sequencer.keystore", "Password": "testonly"}]`
-
-**Description:** PrivateKeys defines all the key store files that are going
-to be read in order to provide the private keys to sign the L1 txs
-
-**Example setting the default value** ([{"Path": "/pk/sequencer.keystore", "Password": "testonly"}]):
-```
-[SequenceSender]
-PrivateKeys=[{"Path": "/pk/sequencer.keystore", "Password": "testonly"}]
-```
-
-|                      | Array restrictions |
-| -------------------- | ------------------ |
-| **Min items**        | N/A                |
-| **Max items**        | N/A                |
-| **Items unicity**    | False              |
-| **Additional items** | False              |
-| **Tuple validation** | See below          |
-
-| Each item of this array must be                        | Description                                                                          |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| [PrivateKeys items](#SequenceSender_PrivateKeys_items) | KeystoreFileConfig has all the information needed to load a private key from a k ... |
-
-#### <a name="autogenerated_heading_3"></a>11.5.1. [SequenceSender.PrivateKeys.PrivateKeys items]
+### <a name="SequenceSender_PrivateKey"></a>11.6. `[SequenceSender.PrivateKey]`
 
 **Type:** : `object`
-**Description:** KeystoreFileConfig has all the information needed to load a private key from a key store file
+**Description:** PrivateKey defines all the key store files that are going
+to be read in order to provide the private keys to sign the L1 txs
 
-| Property                                                  | Pattern | Type   | Deprecated | Definition | Title/Description                                      |
-| --------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------ |
-| - [Path](#SequenceSender_PrivateKeys_items_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
-| - [Password](#SequenceSender_PrivateKeys_items_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
+| Property                                           | Pattern | Type   | Deprecated | Definition | Title/Description                                      |
+| -------------------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------ |
+| - [Path](#SequenceSender_PrivateKey_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
+| - [Password](#SequenceSender_PrivateKey_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
-##### <a name="SequenceSender_PrivateKeys_items_Path"></a>11.5.1.1. `SequenceSender.PrivateKeys.PrivateKeys items.Path`
+#### <a name="SequenceSender_PrivateKey_Path"></a>11.6.1. `SequenceSender.PrivateKey.Path`
 
 **Type:** : `string`
+
+**Default:** `"/pk/sequencer.keystore"`
+
 **Description:** Path is the file path for the key store file
 
-##### <a name="SequenceSender_PrivateKeys_items_Password"></a>11.5.1.2. `SequenceSender.PrivateKeys.PrivateKeys items.Password`
+**Example setting the default value** ("/pk/sequencer.keystore"):
+```
+[SequenceSender.PrivateKey]
+Path="/pk/sequencer.keystore"
+```
+
+#### <a name="SequenceSender_PrivateKey_Password"></a>11.6.2. `SequenceSender.PrivateKey.Password`
 
 **Type:** : `string`
+
+**Default:** `"testonly"`
+
 **Description:** Password is the password to decrypt the key store file
 
-### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.6. `SequenceSender.ForkUpgradeBatchNumber`
+**Example setting the default value** ("testonly"):
+```
+[SequenceSender.PrivateKey]
+Password="testonly"
+```
+
+### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.7. `SequenceSender.ForkUpgradeBatchNumber`
 
 **Type:** : `integer`
 
@@ -2093,7 +2067,7 @@ GenesisBlockNum=0
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | [GenesisActions items](#NetworkConfig_Genesis_GenesisActions_items) | GenesisAction represents one of the values set on the SMT during genesis. |
 
-##### <a name="autogenerated_heading_4"></a>13.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
+##### <a name="autogenerated_heading_3"></a>13.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
 
 **Type:** : `object`
 **Description:** GenesisAction represents one of the values set on the SMT during genesis.
@@ -2805,7 +2779,7 @@ ChainID=0
 | ----------------------------------------------------- | ------------------------------------ |
 | [ForkIDIntervals items](#State_ForkIDIntervals_items) | ForkIDInterval is a fork id interval |
 
-#### <a name="autogenerated_heading_5"></a>20.3.1. [State.ForkIDIntervals.ForkIDIntervals items]
+#### <a name="autogenerated_heading_4"></a>20.3.1. [State.ForkIDIntervals.ForkIDIntervals items]
 
 **Type:** : `object`
 **Description:** ForkIDInterval is a fork id interval

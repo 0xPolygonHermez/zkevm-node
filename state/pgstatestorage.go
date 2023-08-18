@@ -1468,7 +1468,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	return nil
 }
 
-// GetLastVirtualizedL2BlockNumber gets the last l2 block verified
+// GetLastVirtualizedL2BlockNumber gets the last l2 block virtualized
 func (p *PostgresStorage) GetLastVirtualizedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var lastVirtualizedBlockNumber uint64
 	const getLastVirtualizedBlockNumberSQL = `
@@ -1510,6 +1510,54 @@ func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, 
 	}
 
 	return lastConsolidatedBlockNumber, nil
+}
+
+// GetSafeL2BlockNumber gets the last l2 block virtualized that was mined
+// on or after the safe block on L1
+func (p *PostgresStorage) GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var l2SafeBlockNumber uint64
+	const query = `
+    SELECT b.block_num
+      FROM state.l2block b
+     INNER JOIN state.virtual_batch vb
+        ON vb.batch_num = b.batch_num
+	 WHERE vb.block_num >= $1
+     ORDER BY b.block_num DESC LIMIT 1`
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, l1SafeBlockNumber).Scan(&l2SafeBlockNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return l2SafeBlockNumber, nil
+}
+
+// GetFinalizedL2BlockNumber gets the last l2 block verified that was mined
+// on or after the finalized block on L1
+func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var l2FinalizedBlockNumber uint64
+	const query = `
+    SELECT b.block_num
+      FROM state.l2block b
+	 INNER JOIN state.verified_batch vb
+	    ON vb.batch_num = b.batch_num
+	 WHERE vb.block_num >= $1
+     ORDER BY b.block_num DESC LIMIT 1`
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, l1FinalizedBlockNumber).Scan(&l2FinalizedBlockNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return l2FinalizedBlockNumber, nil
 }
 
 // GetLastL2BlockNumber gets the last l2 block number
@@ -1847,51 +1895,60 @@ func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber 
 // GetLogs returns the logs that match the filter
 func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
 	const getLogsByBlockHashSQL = `
-	  SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
-		FROM state.log l
-	   INNER JOIN state.transaction t ON t.hash = l.tx_hash
-	   INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
-	   WHERE b.block_hash = $1
-	   ORDER BY b.block_num ASC, l.log_index ASC`
-	const getLogsByFilterSQL = `
-	  SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
-	    FROM state.log l
-	   INNER JOIN state.transaction t ON t.hash = l.tx_hash
-	   INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
-	   WHERE b.block_num BETWEEN $1 AND $2 AND (l.address = any($3) OR $3 IS NULL)
-	     AND (l.topic0 = any($4) OR $4 IS NULL)
-		 AND (l.topic1 = any($5) OR $5 IS NULL)
-		 AND (l.topic2 = any($6) OR $6 IS NULL)
-		 AND (l.topic3 = any($7) OR $7 IS NULL)
-		 AND (b.created_at >= $8 OR $8 IS NULL)
-		 ORDER BY b.block_num ASC, l.log_index ASC`
+      SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
+        FROM state.log l
+       INNER JOIN state.transaction t ON t.hash = l.tx_hash
+       INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
+       WHERE b.block_hash = $1
+         AND (l.address = any($2) OR $2 IS NULL)
+         AND (l.topic0 = any($3) OR $3 IS NULL)
+         AND (l.topic1 = any($4) OR $4 IS NULL)
+         AND (l.topic2 = any($5) OR $5 IS NULL)
+         AND (l.topic3 = any($6) OR $6 IS NULL)
+         AND (b.created_at >= $7 OR $7 IS NULL)
+       ORDER BY b.block_num ASC, l.log_index ASC`
+	const getLogsByBlockNumbersSQL = `
+      SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
+        FROM state.log l
+       INNER JOIN state.transaction t ON t.hash = l.tx_hash
+       INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
+       WHERE b.block_num BETWEEN $1 AND $2 
+         AND (l.address = any($3) OR $3 IS NULL)
+         AND (l.topic0 = any($4) OR $4 IS NULL)
+         AND (l.topic1 = any($5) OR $5 IS NULL)
+         AND (l.topic2 = any($6) OR $6 IS NULL)
+         AND (l.topic3 = any($7) OR $7 IS NULL)
+         AND (b.created_at >= $8 OR $8 IS NULL)
+       ORDER BY b.block_num ASC, l.log_index ASC`
 
-	var err error
-	var rows pgx.Rows
-	q := p.getExecQuerier(dbTx)
+	var args []interface{}
+	var query string
 	if blockHash != nil {
-		rows, err = q.Query(ctx, getLogsByBlockHashSQL, blockHash.String())
+		args = []interface{}{blockHash.String()}
+		query = getLogsByBlockHashSQL
 	} else {
-		args := []interface{}{fromBlock, toBlock}
+		args = []interface{}{fromBlock, toBlock}
+		query = getLogsByBlockNumbersSQL
+	}
 
-		if len(addresses) > 0 {
-			args = append(args, p.addressesToHex(addresses))
+	if len(addresses) > 0 {
+		args = append(args, p.addressesToHex(addresses))
+	} else {
+		args = append(args, nil)
+	}
+
+	for i := 0; i < maxTopics; i++ {
+		if len(topics) > i && len(topics[i]) > 0 {
+			args = append(args, p.hashesToHex(topics[i]))
 		} else {
 			args = append(args, nil)
 		}
-
-		for i := 0; i < maxTopics; i++ {
-			if len(topics) > i && len(topics[i]) > 0 {
-				args = append(args, p.hashesToHex(topics[i]))
-			} else {
-				args = append(args, nil)
-			}
-		}
-
-		args = append(args, since)
-
-		rows, err = q.Query(ctx, getLogsByFilterSQL, args...)
 	}
+
+	args = append(args, since)
+
+	q := p.getExecQuerier(dbTx)
+	rows, err := q.Query(ctx, query, args...)
 
 	if err != nil {
 		return nil, err

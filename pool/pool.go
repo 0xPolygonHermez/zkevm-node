@@ -334,6 +334,11 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		return ErrTxTypeNotSupported
 	}
 
+	// check Pre EIP155 txs signature
+	if txChainID == 0 && !state.IsPreEIP155Tx(poolTx.Transaction) {
+		return ErrInvalidSender
+	}
+
 	// gets tx sender for validations
 	from, err := state.GetSender(poolTx.Transaction)
 	if err != nil {

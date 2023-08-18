@@ -331,7 +331,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	if _, ok := apis[jsonrpc.APIEth]; ok {
 		services = append(services, jsonrpc.Service{
 			Name:    jsonrpc.APIEth,
-			Service: jsonrpc.NewEthEndpoints(c.RPC, chainID, pool, st, storage),
+			Service: jsonrpc.NewEthEndpoints(c.RPC, chainID, pool, st, etherman, storage),
 		})
 	}
 
@@ -359,7 +359,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	if _, ok := apis[jsonrpc.APIDebug]; ok {
 		services = append(services, jsonrpc.Service{
 			Name:    jsonrpc.APIDebug,
-			Service: jsonrpc.NewDebugEndpoints(c.RPC, st),
+			Service: jsonrpc.NewDebugEndpoints(c.RPC, st, etherman),
 		})
 	}
 
@@ -396,12 +396,11 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 		log.Fatal(err)
 	}
 
-	for _, privateKey := range cfg.SequenceSender.PrivateKeys {
-		_, err := etherman.LoadAuthFromKeyStore(privateKey.Path, privateKey.Password)
-		if err != nil {
-			log.Fatal(err)
-		}
+	auth, err := etherman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
+	if err != nil {
+		log.Fatal(err)
 	}
+	cfg.SequenceSender.SenderAddress = auth.From
 
 	cfg.SequenceSender.ForkUpgradeBatchNumber = cfg.ForkUpgradeBatchNumber
 

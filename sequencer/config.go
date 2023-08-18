@@ -28,9 +28,6 @@ type Config struct {
 	// DBManager's specific config properties
 	DBManager DBManagerCfg `mapstructure:"DBManager"`
 
-	// Worker's specific config properties
-	Worker WorkerCfg `mapstructure:"Worker"`
-
 	// EffectiveGasPrice is the config for the gas price
 	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
 }
@@ -69,12 +66,6 @@ type FinalizerCfg struct {
 
 	// StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
 	StopSequencerOnBatchNum uint64 `mapstructure:"StopSequencerOnBatchNum"`
-}
-
-// WorkerCfg contains the Worker's configuration properties
-type WorkerCfg struct {
-	// ResourceCostMultiplier is the multiplier for the resource cost
-	ResourceCostMultiplier float64 `mapstructure:"ResourceCostMultiplier"`
 }
 
 // DBManagerCfg contains the DBManager's configuration properties

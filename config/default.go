@@ -116,8 +116,6 @@ MaxTxLifetime = "3h"
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
-	[Sequencer.Worker]
-		ResourceCostMultiplier = 1000
 	[Sequencer.EffectiveGasPrice]
 		MaxBreakEvenGasPriceDeviationPercentage = 10
 		L1GasPriceFactor = 0.25
@@ -129,8 +127,8 @@ MaxTxLifetime = "3h"
 WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 MaxTxSizeForL1 = 131072
-SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 
 [Aggregator]
 Host = "0.0.0.0"

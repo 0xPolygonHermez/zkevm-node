@@ -133,10 +133,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "Sequencer.Worker.ResourceCostMultiplier",
-			expectedValue: float64(1000),
-		},
-		{
 			path:          "SequenceSender.WaitPeriodSendSequence",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},

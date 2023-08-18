@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -487,14 +488,14 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 }
 
 // EstimateGasSequenceBatches estimates gas for sending batches
-func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
+func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address) (*types.Transaction, error) {
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
 		return nil, ErrPrivateKeyNotFound
 	}
 	opts.NoSend = true
 
-	tx, err := etherMan.sequenceBatches(opts, sequences)
+	tx, err := etherMan.sequenceBatches(opts, sequences, l2Coinbase)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +504,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequen
 }
 
 // BuildSequenceBatchesTxData builds a []bytes to be sent to the PoE SC method SequenceBatches.
-func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence) (to *common.Address, data []byte, err error) {
+func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address) (to *common.Address, data []byte, err error) {
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
 		return nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
@@ -514,7 +515,7 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 	opts.GasLimit = uint64(1)
 	opts.GasPrice = big.NewInt(1)
 
-	tx, err := etherMan.sequenceBatches(opts, sequences)
+	tx, err := etherMan.sequenceBatches(opts, sequences, l2Coinbase)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -522,7 +523,7 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 	return tx.To(), tx.Data(), nil
 }
 
-func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
+func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address) (*types.Transaction, error) {
 	var batches []polygonzkevm.PolygonZkEVMBatchData
 	for _, seq := range sequences {
 		batch := polygonzkevm.PolygonZkEVMBatchData{
@@ -535,7 +536,7 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 		batches = append(batches, batch)
 	}
 
-	tx, err := etherMan.ZkEVM.SequenceBatches(&opts, batches, opts.From)
+	tx, err := etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
@@ -959,7 +960,22 @@ func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 
 // GetLatestBlockNumber gets the latest block number from the ethereum
 func (etherMan *Client) GetLatestBlockNumber(ctx context.Context) (uint64, error) {
-	header, err := etherMan.EthClient.HeaderByNumber(ctx, nil)
+	return etherMan.getBlockNumber(ctx, rpc.LatestBlockNumber)
+}
+
+// GetSafeBlockNumber gets the safe block number from the ethereum
+func (etherMan *Client) GetSafeBlockNumber(ctx context.Context) (uint64, error) {
+	return etherMan.getBlockNumber(ctx, rpc.SafeBlockNumber)
+}
+
+// GetFinalizedBlockNumber gets the Finalized block number from the ethereum
+func (etherMan *Client) GetFinalizedBlockNumber(ctx context.Context) (uint64, error) {
+	return etherMan.getBlockNumber(ctx, rpc.FinalizedBlockNumber)
+}
+
+// getBlockNumber gets the block header by the provided block number from the ethereum
+func (etherMan *Client) getBlockNumber(ctx context.Context, blockNumber rpc.BlockNumber) (uint64, error) {
+	header, err := etherMan.EthClient.HeaderByNumber(ctx, big.NewInt(int64(blockNumber)))
 	if err != nil || header == nil {
 		return 0, err
 	}

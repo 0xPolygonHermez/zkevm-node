@@ -22,7 +22,7 @@ var (
 )
 
 // Init sets up the environment for the benchmark
-func Init() (context.Context, *pgpoolstorage.PostgresPoolStorage, *state.PostgresStorage, *ethclient.Client, *bind.TransactOpts) {
+func Init() (*pgpoolstorage.PostgresPoolStorage, *state.PostgresStorage, *ethclient.Client, *bind.TransactOpts) {
 	ctx := context.Background()
 	pl, err := pgpoolstorage.NewPostgresPoolStorage(db.Config{
 		Name:      poolDbName,
@@ -93,5 +93,5 @@ func Init() (context.Context, *pgpoolstorage.PostgresPoolStorage, *state.Postgre
 	stateStorage := state.NewPostgresStorage(stateDb)
 	auth.Nonce = new(big.Int).SetUint64(senderNonce)
 
-	return ctx, pl, stateStorage, l2Client, auth
+	return pl, stateStorage, l2Client, auth
 }
