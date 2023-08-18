@@ -1,39 +1,43 @@
 package main
 
 import (
-	"time"
+	"flag"
+	"fmt"
+
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/environment"
 
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/transactions"
 	erc20transfers "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/e2e/erc20-transfers"
-	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/common/environment"
-	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/common/results"
-	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 func main() {
 	var (
 		err error
 	)
-	pl, state, l2Client, auth := environment.Init()
+
+	numOps := flag.Int("num-ops", 200, "The number of operations to run. Default is 200.")
+	flag.Parse()
+
+	if numOps == nil {
+		panic("numOps is nil")
+	}
+
+	pl, l2Client, auth := environment.Init()
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
 	if err != nil {
 		panic(err)
 	}
 
-	start := time.Now()
-	erc20SC, err := ERC20.NewERC20(common.HexToAddress(environment.Erc20TokenAddress), l2Client)
-	if err != nil {
-		panic(err)
-	}
-	// Send Txs
+	erc20SC, err := erc20transfers.DeployERC20Contract(l2Client, params.Ctx, auth)
+
 	allTxs, err := transactions.SendAndWait(
 		auth,
 		l2Client,
 		pl.GetTxsByStatus,
-		params.NumberOfOperations,
+		*numOps,
 		erc20SC,
 		nil,
 		erc20transfers.TxSender,
@@ -48,10 +52,6 @@ func main() {
 		panic(err)
 	}
 
-	lastL2BlockTimestamp, err := state.GetLastL2BlockCreatedAt(params.Ctx, nil)
-	if err != nil {
-		panic(err)
-	}
-	elapsed := lastL2BlockTimestamp.Sub(start)
-	results.Print(l2Client, elapsed, allTxs)
+	totalGas := metrics.GetTotalGasUsedFromTxs(l2Client, allTxs)
+	fmt.Println("Total Gas: ", totalGas)
 }

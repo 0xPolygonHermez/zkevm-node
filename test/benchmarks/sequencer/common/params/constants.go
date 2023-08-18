@@ -12,5 +12,5 @@ const (
 	// PrometheusPort is the port where prometheus is running
 	PrometheusPort = 9092
 	// NumberOfOperations is the number of transactions to send
-	NumberOfOperations = 300
+	NumberOfOperations = 2
 )

@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"strings"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	metricsLib "github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	metricsState "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 const (
@@ -20,48 +22,84 @@ const (
 )
 
 // CalculateAndPrint calculates and prints the results
-func CalculateAndPrint(prometheusResp *http.Response, profilingResult string, elapsed time.Duration, sequencerTimeSub, executorTimeSub float64, nTxs int) {
-	var (
-		metricValues Values
-		err          error
-	)
-	if prometheusResp != nil {
-		metricValues, err = GetValues(prometheusResp)
-		if err != nil {
-			log.Fatalf("error getting prometheus metrics: %v", err)
-		}
-	}
+func CalculateAndPrint(
+	txsType string,
+	totalTxs uint64,
+	client *ethclient.Client,
+	profilingResult string,
+	elapsed time.Duration,
+	sequencerTimeSub, executorTimeSub float64,
+	allTxs []*types.Transaction,
+) {
+	fmt.Println("##########")
+	fmt.Println("# Result #")
+	fmt.Println("##########")
+	fmt.Printf("Total time (including setup of environment and starting containers): %v\n", elapsed)
+	totalTime := elapsed.Seconds()
 
-	log.Info("##########")
-	log.Info("# Result #")
-	log.Info("##########")
-	log.Infof("Total time (including setup of environment and starting containers): %v", elapsed)
-
-	if prometheusResp != nil {
-		log.Info("######################")
-		log.Info("# Prometheus Metrics #")
-		log.Info("######################")
-		actualTotalTime := metricValues.SequencerTotalProcessingTime - sequencerTimeSub
-		actualExecutorTime := metricValues.ExecutorTotalProcessingTime - executorTimeSub
-		PrintPrometheus(actualTotalTime, actualExecutorTime, metricValues)
-		log.Infof("[Transactions per second]: %v", float64(nTxs)/actualTotalTime)
+	prometheusResp, err := FetchPrometheus()
+	if err != nil {
+		panic(fmt.Sprintf("error getting prometheus metrics: %v", err))
 	}
+	metricValues, err := GetValues(prometheusResp)
+	if err != nil {
+		panic(fmt.Sprintf("error getting prometheus metrics: %v\n", err))
+	}
+	actualTotalTime := metricValues.SequencerTotalProcessingTime - sequencerTimeSub
+	actualExecutorTime := metricValues.ExecutorTotalProcessingTime - executorTimeSub
+	totalTime = actualTotalTime
+	PrintSummary(txsType, params.NumberOfOperations, totalTxs, totalTime, actualExecutorTime, GetTotalGasUsedFromTxs(client, allTxs))
+
 	if profilingResult != "" {
-		log.Info("#####################")
-		log.Info("# Profiling Metrics #")
-		log.Info("#####################")
-		log.Infof("%v", profilingResult)
+		fmt.Println("#####################")
+		fmt.Println("# Profiling Metrics #")
+		fmt.Println("#####################")
+		fmt.Printf("%v", profilingResult)
 	}
 }
 
-// PrintPrometheus prints the prometheus metrics
-func PrintPrometheus(totalTime float64, executorTime float64, metricValues Values) {
-	log.Infof("[TOTAL Processing Time]: %v s", totalTime)
-	log.Infof("[EXECUTOR Processing Time]: %v s", executorTime)
-	log.Infof("[SEQUENCER Processing Time]: %v s", totalTime-executorTime)
-	log.Infof("[WORKER Processing Time]: %v s", metricValues.WorkerTotalProcessingTime)
-	log.Infof("[EXECUTOR Time Percentage from TOTAL]: %.2f %%", (executorTime/totalTime)*oneHundred)
-	log.Infof("[WORKER Time Percentage from TOTAL]: %.2f %%", (metricValues.WorkerTotalProcessingTime/totalTime)*oneHundred)
+func PrintSummary(
+	txsType string,
+	totalTransactionsSent uint64,
+	totalTxs uint64,
+	processingTimeSequencer float64,
+	processingTimeExecutor float64,
+	totalGas uint64,
+) {
+	var transactionsTypes *string
+	if txsType == "uniswap" {
+		transactionsTypes, totalTransactionsSent = getTransactionsBreakdownForUniswap(totalTransactionsSent)
+	}
+	randomTxs := totalTxs - totalTransactionsSent
+	txsType = strings.ToUpper(txsType)
+	msg := fmt.Sprintf("# %s Benchmarks Summary #", txsType)
+	delimiter := strings.Repeat("-", len(msg))
+	fmt.Println(delimiter)
+	fmt.Println(msg)
+	fmt.Println(delimiter)
+
+	if transactionsTypes != nil {
+		fmt.Printf("Transactions Types: %s\n", *transactionsTypes)
+	}
+	fmt.Printf("Total Transactions: %d (%d predefined + %d random transactions)\n\n", totalTxs, totalTransactionsSent, randomTxs)
+	fmt.Println("Processing Times:")
+	fmt.Printf("- Total Processing Time: %.2f seconds\n", processingTimeSequencer)
+	fmt.Printf("- Executor Processing Time: %.2f seconds\n", processingTimeExecutor)
+	fmt.Printf("- Sequencer Processing Time: %.2f seconds\n\n", processingTimeSequencer-processingTimeExecutor)
+	fmt.Println("Percentage Breakdown:")
+	fmt.Printf("- Executor Time Percentage from Total: %.2f%%\n\n", (processingTimeExecutor/processingTimeSequencer)*oneHundred)
+	fmt.Println("Metrics:")
+	fmt.Printf("- Transactions per Second: %.2f\n", float64(totalTxs)/processingTimeSequencer)
+	fmt.Printf("- Gas per Second: %.2f\n", float64(totalGas)/processingTimeSequencer)
+	fmt.Printf("- Total Gas Used: %d\n", totalGas)
+	fmt.Printf("- Average Gas Used per Transaction: %d\n\n", totalGas/totalTxs)
+}
+
+func getTransactionsBreakdownForUniswap(numberOfOperations uint64) (*string, uint64) {
+	transactionsBreakdown := fmt.Sprintf("Deployments, Approvals, Adding Liquidity, %d Swap Cycles (A -> B -> C)", numberOfOperations)
+	totalTransactionsSent := (numberOfOperations * 2) + 17
+
+	return &transactionsBreakdown, totalTransactionsSent
 }
 
 type Values struct {
@@ -76,7 +114,7 @@ func GetValues(metricsResponse *http.Response) (Values, error) {
 	if metricsResponse == nil {
 		metricsResponse, err = FetchPrometheus()
 		if err != nil {
-			log.Fatalf("error getting prometheus metrics: %v", err)
+			panic(fmt.Sprintf("error getting prometheus metrics: %v", err))
 		}
 	}
 
@@ -102,18 +140,53 @@ func GetValues(metricsResponse *http.Response) (Values, error) {
 
 // FetchPrometheus fetches the prometheus metrics
 func FetchPrometheus() (*http.Response, error) {
-	log.Infof("Fetching prometheus metrics ...")
+	fmt.Printf("Fetching prometheus metrics ...\n")
 	return http.Get(fmt.Sprintf("http://localhost:%d%s", params.PrometheusPort, metricsLib.Endpoint))
 }
 
 // FetchProfiling fetches the profiling metrics
 func FetchProfiling() (string, error) {
 	fullUrl := fmt.Sprintf("http://localhost:%d%s", profilingPort, metricsLib.ProfileEndpoint)
-	log.Infof("Fetching profiling metrics from: %s ...", fullUrl)
+	fmt.Printf("Fetching profiling metrics from: %s ...", fullUrl)
 	cmd := exec.Command("go", "tool", "pprof", "-show=sequencer", "-top", fullUrl)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Fatalf("Error running pprof: %v\n%s", err, out)
+		panic(fmt.Sprintf("error fetching profiling metrics: %v", err))
 	}
 	return string(out), err
+}
+
+func PrintUniswapDeployments(deployments time.Duration, count uint64) {
+	fmt.Println("#######################")
+	fmt.Println("# Uniswap Deployments #")
+	fmt.Println("#######################")
+	fmt.Printf("Total time took for the sequencer to deploy all contracts: %v\n", deployments)
+	fmt.Printf("Number of txs sent: %d\n", count)
+}
+
+// GetTotalGasUsedFromTxs sums the total gas used from the transactions
+func GetTotalGasUsedFromTxs(client *ethclient.Client, txs []*types.Transaction) uint64 {
+	// calculate the total gas used
+	var totalGas uint64
+	for _, tx := range txs {
+		// Fetch the transaction receipt
+		receipt, err := client.TransactionReceipt(params.Ctx, tx.Hash())
+		if err != nil {
+			fmt.Println("Unable to fetch transaction receipt", "error", err)
+			continue
+		}
+
+		totalGas += receipt.GasUsed
+
+		if receipt.Status != types.ReceiptStatusSuccessful {
+			reason := "unknown"
+			if receipt.Status == types.ReceiptStatusFailed {
+				reason = "reverted"
+			}
+			fmt.Println("Transaction failed", "tx", tx.Hash(), "status", receipt.Status, "reason", reason)
+			continue
+		}
+	}
+
+	return totalGas
 }
