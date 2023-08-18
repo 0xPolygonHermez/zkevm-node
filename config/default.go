@@ -99,6 +99,7 @@ MaxTxLifetime = "3h"
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		TimestampResolution = "10s"
 		StopSequencerOnBatchNum = 0
+		SequentialReprocessFullBatch = false
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"

@@ -1976,7 +1976,7 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			name:                    "Error while getting batch by number",
 			batchNum:                1,
 			mockGetBatchByNumberErr: errors.New("database err"),
-			expectedError:           fmt.Errorf("failed to get batch by number, err: database err"),
+			expectedError:           ErrGetBatchByNumber,
 		},
 		{
 			name:     "Error decoding BatchL2Data",
@@ -1988,8 +1988,8 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 				Coinbase:       common.Address{},
 				Timestamp:      time.Now(),
 			},
-			expectedDecodeErr: fmt.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: 1. Error: %v", errors.New("invalid data")),
-			expectedError:     fmt.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: 1. Error: %v", errors.New("invalid data")),
+			expectedDecodeErr: ErrDecodeBatchL2Data,
+			expectedError:     ErrDecodeBatchL2Data,
 		},
 		{
 			name:     "Error processing batch",
@@ -2001,8 +2001,8 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 				Coinbase:       common.Address{},
 				Timestamp:      time.Now(),
 			},
-			expectedExecutorErr: errors.New("processing err"),
-			expectedError:       errors.New("processing err"),
+			expectedExecutorErr: ErrProcessBatch,
+			expectedError:       ErrProcessBatch,
 		},
 		{
 			name:     "RomOOCError",
@@ -2015,7 +2015,7 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 				Timestamp:      time.Now(),
 			},
 			expectedExecutorResponse: roomOOCErrResult,
-			expectedError:            fmt.Errorf("failed to process batch because OutOfCounters error"),
+			expectedError:            ErrProcessBatchOOC,
 		},
 		{
 			name:     "Reprocessed batch has different state root",
@@ -2030,7 +2030,7 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			expectedExecutorResponse: &state.ProcessBatchResponse{
 				NewStateRoot: newHash2,
 			},
-			expectedError: fmt.Errorf("batchNumber: 1, reprocessed batch has different state root, expected: %s, got: %s", newHash.Hex(), newHash2.Hex()),
+			expectedError: ErrStateRootNoMatch,
 		},
 	}
 
@@ -2047,7 +2047,7 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			}
 
 			// act
-			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, newHash)
+			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, f.batch.initialStateRoot, newHash)
 
 			// assert
 			if tc.expectedError != nil {
