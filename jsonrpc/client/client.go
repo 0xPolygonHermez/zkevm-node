@@ -60,6 +60,7 @@ func JSONRPCCall(url, method string, parameters ...interface{}) (types.Response,
 	return res, nil
 }
 
+// BatchCall used in batch requests to send multiple methods and parameters at once
 type BatchCall struct {
 	Method     string
 	Parameters []interface{}
