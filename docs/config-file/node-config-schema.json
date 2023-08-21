@@ -333,7 +333,7 @@
 						"ReadLimit": {
 							"type": "integer",
 							"description": "ReadLimit defines the maximum size of a message read from the client (in bytes)",
-							"default": 83886080
+							"default": 104857600
 						}
 					},
 					"additionalProperties": false,

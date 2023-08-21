@@ -89,7 +89,7 @@ TraceBatchUseHTTPS = true
 		Enabled = true
 		Host = "0.0.0.0"
 		Port = 8546
-		ReadLimit = 83886080
+		ReadLimit = 104857600
 
 [Synchronizer]
 SyncInterval = "1s"

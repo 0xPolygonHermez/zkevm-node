@@ -541,7 +541,7 @@ func TestWebSocketsReadLimit(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	jReq := make([]byte, 83886081)
+	jReq := make([]byte, 104857601)
 	err = wsConn.WriteMessage(websocket.TextMessage, jReq)
 	require.NoError(t, err)
 

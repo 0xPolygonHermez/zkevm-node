@@ -900,14 +900,14 @@ Port=8546
 
 **Type:** : `integer`
 
-**Default:** `83886080`
+**Default:** `104857600`
 
 **Description:** ReadLimit defines the maximum size of a message read from the client (in bytes)
 
-**Example setting the default value** (83886080):
+**Example setting the default value** (104857600):
 ```
 [RPC.WebSockets]
-ReadLimit=83886080
+ReadLimit=104857600
 ```
 
 ### <a name="RPC_EnableL2SuggestedGasPricePolling"></a>8.9. `RPC.EnableL2SuggestedGasPricePolling`
