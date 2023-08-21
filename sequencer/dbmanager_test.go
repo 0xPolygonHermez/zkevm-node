@@ -73,7 +73,7 @@ func setupDBManager() {
 		GERCh:         make(chan common.Hash),
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
-	batchConstraints := batchConstraints{
+	batchConstraints := state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,

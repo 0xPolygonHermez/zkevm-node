@@ -44,8 +44,8 @@ func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, auth *bind.Transact
 	}
 
 	err = l2Client.SendTransaction(params.Ctx, signedTx)
-	if errors.Is(err, state.ErrStateNotSynchronized) {
-		for errors.Is(err, state.ErrStateNotSynchronized) {
+	if errors.Is(err, state.ErrStateNotSynchronized) || errors.Is(err, state.ErrInsufficientFunds) {
+		for errors.Is(err, state.ErrStateNotSynchronized) || errors.Is(err, state.ErrInsufficientFunds) {
 			time.Sleep(sleepTime)
 			err = l2Client.SendTransaction(params.Ctx, signedTx)
 		}

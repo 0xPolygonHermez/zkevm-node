@@ -38,3 +38,15 @@ type Config struct {
 	// GlobalQueue represents the maximum number of non-executable transaction slots for all accounts
 	GlobalQueue uint64 `mapstructure:"GlobalQueue"`
 }
+
+// EffectiveGasPrice has parameters for the effective gas price calculation.
+type EffectiveGasPrice struct {
+	// L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price
+	L1GasPriceFactor float64 `mapstructure:"L1GasPriceFactor"`
+
+	// ByteGasCost is the gas cost per byte
+	ByteGasCost uint64 `mapstructure:"ByteGasCost"`
+
+	// MarginFactor is the margin factor percentage to be added to the L2 min gas price
+	MarginFactor float64 `mapstructure:"MarginFactor"`
+}

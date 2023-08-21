@@ -404,56 +404,6 @@
 						"300ms"
 					]
 				},
-				"MaxTxsPerBatch": {
-					"type": "integer",
-					"description": "MaxTxsPerBatch is the maximum amount of transactions in the batch",
-					"default": 300
-				},
-				"MaxBatchBytesSize": {
-					"type": "integer",
-					"description": "MaxBatchBytesSize is the maximum batch size in bytes\n(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)",
-					"default": 120000
-				},
-				"MaxCumulativeGasUsed": {
-					"type": "integer",
-					"description": "MaxCumulativeGasUsed is max gas amount used by batch",
-					"default": 30000000
-				},
-				"MaxKeccakHashes": {
-					"type": "integer",
-					"description": "MaxKeccakHashes is max keccak hashes used by batch",
-					"default": 2145
-				},
-				"MaxPoseidonHashes": {
-					"type": "integer",
-					"description": "MaxPoseidonHashes is max poseidon hashes batch can handle",
-					"default": 252357
-				},
-				"MaxPoseidonPaddings": {
-					"type": "integer",
-					"description": "MaxPoseidonPaddings is max poseidon paddings batch can handle",
-					"default": 135191
-				},
-				"MaxMemAligns": {
-					"type": "integer",
-					"description": "MaxMemAligns is max mem aligns batch can handle",
-					"default": 236585
-				},
-				"MaxArithmetics": {
-					"type": "integer",
-					"description": "MaxArithmetics is max arithmetics batch can handle",
-					"default": 236585
-				},
-				"MaxBinaries": {
-					"type": "integer",
-					"description": "MaxBinaries is max binaries batch can handle",
-					"default": 473170
-				},
-				"MaxSteps": {
-					"type": "integer",
-					"description": "MaxSteps is max steps batch can handle",
-					"default": 7570538
-				},
 				"TxLifetimeCheckTimeout": {
 					"type": "string",
 					"title": "Duration",
@@ -1038,48 +988,6 @@
 			"type": "object",
 			"description": "Configuration of the merkle tree client service. Not use in the node, only for testing"
 		},
-		"StateDB": {
-			"properties": {
-				"Name": {
-					"type": "string",
-					"description": "Database name",
-					"default": "state_db"
-				},
-				"User": {
-					"type": "string",
-					"description": "Database User name",
-					"default": "state_user"
-				},
-				"Password": {
-					"type": "string",
-					"description": "Database Password of the user",
-					"default": "state_password"
-				},
-				"Host": {
-					"type": "string",
-					"description": "Host address of database",
-					"default": "zkevm-state-db"
-				},
-				"Port": {
-					"type": "string",
-					"description": "Port Number of database",
-					"default": "5432"
-				},
-				"EnableLog": {
-					"type": "boolean",
-					"description": "EnableLog",
-					"default": false
-				},
-				"MaxConns": {
-					"type": "integer",
-					"description": "MaxConns is the maximum number of connections in the pool.",
-					"default": 200
-				}
-			},
-			"additionalProperties": false,
-			"type": "object",
-			"description": "Configuration of the state database connection"
-		},
 		"Metrics": {
 			"properties": {
 				"Host": {
@@ -1207,6 +1115,208 @@
 			"additionalProperties": false,
 			"type": "object",
 			"description": "Configuration of the hash database connection"
+		},
+		"State": {
+			"properties": {
+				"MaxCumulativeGasUsed": {
+					"type": "integer",
+					"description": "MaxCumulativeGasUsed is the max gas allowed per batch",
+					"default": 0
+				},
+				"ChainID": {
+					"type": "integer",
+					"description": "ChainID is the L2 ChainID provided by the Network Config",
+					"default": 0
+				},
+				"ForkIDIntervals": {
+					"items": {
+						"properties": {
+							"FromBatchNumber": {
+								"type": "integer"
+							},
+							"ToBatchNumber": {
+								"type": "integer"
+							},
+							"ForkId": {
+								"type": "integer"
+							},
+							"Version": {
+								"type": "string"
+							}
+						},
+						"additionalProperties": false,
+						"type": "object",
+						"description": "ForkIDInterval is a fork id interval"
+					},
+					"type": "array",
+					"description": "ForkIdIntervals is the list of fork id intervals"
+				},
+				"MaxResourceExhaustedAttempts": {
+					"type": "integer",
+					"description": "MaxResourceExhaustedAttempts is the max number of attempts to make a transaction succeed because of resource exhaustion",
+					"default": 0
+				},
+				"WaitOnResourceExhaustion": {
+					"type": "string",
+					"title": "Duration",
+					"description": "WaitOnResourceExhaustion is the time to wait before retrying a transaction because of resource exhaustion",
+					"default": "0s",
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"ForkUpgradeBatchNumber": {
+					"type": "integer",
+					"description": "Batch number from which there is a forkid change (fork upgrade)",
+					"default": 0
+				},
+				"ForkUpgradeNewForkId": {
+					"type": "integer",
+					"description": "New fork id to be used for batches greaters than ForkUpgradeBatchNumber (fork upgrade)",
+					"default": 0
+				},
+				"DB": {
+					"properties": {
+						"Name": {
+							"type": "string",
+							"description": "Database name",
+							"default": "state_db"
+						},
+						"User": {
+							"type": "string",
+							"description": "Database User name",
+							"default": "state_user"
+						},
+						"Password": {
+							"type": "string",
+							"description": "Database Password of the user",
+							"default": "state_password"
+						},
+						"Host": {
+							"type": "string",
+							"description": "Host address of database",
+							"default": "zkevm-state-db"
+						},
+						"Port": {
+							"type": "string",
+							"description": "Port Number of database",
+							"default": "5432"
+						},
+						"EnableLog": {
+							"type": "boolean",
+							"description": "EnableLog",
+							"default": false
+						},
+						"MaxConns": {
+							"type": "integer",
+							"description": "MaxConns is the maximum number of connections in the pool.",
+							"default": 200
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "DB is the database configuration"
+				},
+				"Batch": {
+					"properties": {
+						"Constraints": {
+							"properties": {
+								"MaxTxsPerBatch": {
+									"type": "integer",
+									"default": 300
+								},
+								"MaxBatchBytesSize": {
+									"type": "integer",
+									"default": 120000
+								},
+								"MaxCumulativeGasUsed": {
+									"type": "integer",
+									"default": 30000000
+								},
+								"MaxKeccakHashes": {
+									"type": "integer",
+									"default": 2145
+								},
+								"MaxPoseidonHashes": {
+									"type": "integer",
+									"default": 252357
+								},
+								"MaxPoseidonPaddings": {
+									"type": "integer",
+									"default": 135191
+								},
+								"MaxMemAligns": {
+									"type": "integer",
+									"default": 236585
+								},
+								"MaxArithmetics": {
+									"type": "integer",
+									"default": 236585
+								},
+								"MaxBinaries": {
+									"type": "integer",
+									"default": 473170
+								},
+								"MaxSteps": {
+									"type": "integer",
+									"default": 7570538
+								}
+							},
+							"additionalProperties": false,
+							"type": "object"
+						},
+						"ResourceWeights": {
+							"properties": {
+								"WeightBatchBytesSize": {
+									"type": "integer",
+									"default": 1
+								},
+								"WeightCumulativeGasUsed": {
+									"type": "integer",
+									"default": 1
+								},
+								"WeightKeccakHashes": {
+									"type": "integer",
+									"default": 1
+								},
+								"WeightPoseidonHashes": {
+									"type": "integer",
+									"default": 1
+								},
+								"WeightPoseidonPaddings": {
+									"type": "integer",
+									"default": 1
+								},
+								"WeightMemAligns": {
+									"type": "integer",
+									"default": 1
+								},
+								"WeightArithmetics": {
+									"type": "integer",
+									"default": 1
+								},
+								"WeightBinaries": {
+									"type": "integer",
+									"default": 1
+								},
+								"WeightSteps": {
+									"type": "integer",
+									"default": 1
+								}
+							},
+							"additionalProperties": false,
+							"type": "object"
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "Configuration for the batch constraints"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object",
+			"description": "State service configuration"
 		}
 	},
 	"additionalProperties": false,
