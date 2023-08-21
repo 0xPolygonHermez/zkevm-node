@@ -344,6 +344,16 @@
 					"type": "boolean",
 					"description": "TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)\nto do the parallel requests to RPC.debug_traceTransaction endpoint",
 					"default": true
+				},
+				"BatchRequestsEnabled": {
+					"type": "boolean",
+					"description": "BatchRequestsEnabled defines if the Batch requests are enabled or disabled",
+					"default": false
+				},
+				"BatchRequestsLimit": {
+					"type": "integer",
+					"description": "BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request",
+					"default": 20
 				}
 			},
 			"additionalProperties": false,

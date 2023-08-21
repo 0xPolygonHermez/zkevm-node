@@ -322,6 +322,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
+			path:          "RPC.BatchRequestsEnabled",
+			expectedValue: false,
+		},
+		{
+			path:          "RPC.BatchRequestsLimit",
+			expectedValue: uint(20),
+		},
+		{
 			path:          "RPC.WebSockets.Enabled",
 			expectedValue: true,
 		},
