@@ -335,7 +335,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.WebSockets.ReadLimit",
-			expectedValue: int64(1048576),
+			expectedValue: int64(83886080),
 		},
 		{
 			path:          "Executor.URI",
