@@ -278,7 +278,7 @@ func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseW
 func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
 	// Checking if batch requests are enabled
 	if !s.config.BatchRequestsEnabled {
-		s.handleInvalidRequest(w, types.NewRPCError(types.InvalidRequestErrorCode, "batch requests are disabled"))
+		s.handleInvalidRequest(w, types.ErrBatchRequestsDisabled)
 		return 0
 	}
 
@@ -292,7 +292,7 @@ func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWr
 	// Checking if batch requests limit is exceeded
 	if s.config.BatchRequestsLimit > 0 {
 		if len(requests) > int(s.config.BatchRequestsLimit) {
-			s.handleInvalidRequest(w, types.NewRPCError(types.InvalidRequestErrorCode, "batch requests limit exceeded"))
+			s.handleInvalidRequest(w, types.ErrBatchRequestsLimitExceeded)
 			return 0
 		}
 	}
@@ -336,7 +336,11 @@ func (s *Server) parseRequests(data []byte) ([]types.Request, error) {
 
 func (s *Server) handleInvalidRequest(w http.ResponseWriter, err error) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelInvalid)
-	handleError(w, err)
+	log.Info(err)
+	_, err = w.Write([]byte(err.Error()))
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
@@ -393,6 +397,7 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 }
 
 func handleError(w http.ResponseWriter, err error) {
+	defer metrics.RequestHandled(metrics.RequestHandledLabelError)
 	log.Error(err)
 	_, err = w.Write([]byte(err.Error()))
 	if err != nil {
