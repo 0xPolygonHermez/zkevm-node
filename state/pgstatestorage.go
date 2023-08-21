@@ -2473,3 +2473,55 @@ func (p *PostgresStorage) GetBatchByForcedBatchNum(ctx context.Context, forcedBa
 
 	return &batch, nil
 }
+
+// AddForkID adds a new forkID to the storage
+func (p *PostgresStorage) AddForkID(ctx context.Context, forkID ForkIDInterval, dbTx pgx.Tx) error {
+	const addForkIDSQL = "INSERT INTO state.fork_id (from_batch_num, to_batch_num, fork_id, version, block_num) VALUES ($1, $2, $3, $4, $5)"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addForkIDSQL, forkID.FromBatchNumber, forkID.ToBatchNumber, forkID.ForkId, forkID.Version, forkID.BlockNumber)
+	return err
+}
+
+// CountForkIDs returns the number of forkIDs stored
+func (p *PostgresStorage) CountForkIDs(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	const numberForkIDSQL = "SELECT COUNT(*) FROM state.fork_id"
+
+	var count uint64
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, numberForkIDSQL).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetForkIDs get all the forkIDs stored
+func (p *PostgresStorage) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]ForkIDInterval, error) {
+	const getForkIDsSQL = "SELECT from_batch_num, to_batch_num, fork_id, version, block_num FROM state.fork_id ORDER BY from_batch_num ASC"
+	q := p.getExecQuerier(dbTx)
+
+	rows, err := q.Query(ctx, getForkIDsSQL)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	forkIDs := make([]ForkIDInterval, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var forkID ForkIDInterval
+		if err := rows.Scan(
+			&forkID.FromBatchNumber,
+			&forkID.ToBatchNumber,
+			&forkID.ForkId,
+			&forkID.Version,
+			&forkID.BlockNumber,
+		); err != nil {
+			return forkIDs, err
+		}
+		forkIDs = append(forkIDs, forkID)
+	}
+	return forkIDs, err
+}
