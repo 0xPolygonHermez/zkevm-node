@@ -5,15 +5,6 @@ Environment = "development" # "production" or "development"
 Level = "debug"
 Outputs = ["stderr"]
 
-[StateDB]
-User = "state_user"
-Password = "state_password"
-Name = "state_db"
-Host = "zkevm-state-db"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
-
 [Pool]
 FreeClaimGasLimit = 1500000
 IntervalToRefreshBlockedAddresses = "5m"
@@ -31,10 +22,6 @@ PollMinAllowedGasPriceInterval = "15s"
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
-	[Pool.EffectiveGasPrice]
-	L1GasPriceFactor = 0.25
-	ByteGasCost = 16
-	MarginFactor = 1
 
 [Etherman]
 URL = "http://zkevm-mock-l1-network:8545"
@@ -64,25 +51,6 @@ WaitPeriodPoolIsEmpty = "1s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
-MaxTxsPerBatch = 300
-MaxBatchBytesSize = 120000
-MaxCumulativeGasUsed = 30000000
-MaxKeccakHashes = 2145
-MaxPoseidonHashes = 252357
-MaxPoseidonPaddings = 135191
-MaxMemAligns = 236585
-MaxArithmetics = 236585
-MaxBinaries = 473170
-MaxSteps = 7570538
-WeightBatchBytesSize = 1
-WeightCumulativeGasUsed = 1
-WeightKeccakHashes = 1
-WeightPoseidonHashes = 1
-WeightPoseidonPaddings = 1
-WeightMemAligns = 1
-WeightArithmetics = 1
-WeightBinaries = 1
-WeightSteps = 1
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 	[Sequencer.Finalizer]
@@ -96,21 +64,23 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		ForcedBatchesFinalityNumberOfBlocks = 0
 		TimestampResolution = "10s"
+		StopSequencerOnBatchNum = 0
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
-	[Sequencer.Worker]
-		ResourceCostMultiplier = 1000
 	[Sequencer.EffectiveGasPrice]
 		MaxBreakEvenGasPriceDeviationPercentage = 10
+		L1GasPriceFactor = 0.25
+		ByteGasCost = 16
+		MarginFactor = 1
 		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 MaxTxSizeForL1 = 131072
-SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 
 [Aggregator]
 Host = "0.0.0.0"
@@ -136,6 +106,7 @@ Type = "default"
 UpdatePeriod = "10s"
 Factor = 0.5
 DefaultGasPriceWei = 1000000000
+MaxGasPriceWei = 0
 
 [MTClient]
 URI  = "zkevm-prover:50061"
@@ -170,3 +141,36 @@ Host = "zkevm-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200
+
+[State]
+	AccountQueue = 64
+	[State.DB]
+		User = "state_user"
+		Password = "state_password"
+		Name = "state_db"
+		Host = "zkevm-state-db"
+		Port = "5432"
+		EnableLog = false
+		MaxConns = 200
+	[State.Batch]
+		[State.Batch.Constraints]
+			MaxTxsPerBatch = 300
+			MaxBatchBytesSize = 120000
+			MaxCumulativeGasUsed = 30000000
+			MaxKeccakHashes = 2145
+			MaxPoseidonHashes = 252357
+			MaxPoseidonPaddings = 135191
+			MaxMemAligns = 236585
+			MaxArithmetics = 236585
+			MaxBinaries = 473170
+			MaxSteps = 7570538
+		[State.Batch.ResourceWeights]
+			WeightBatchBytesSize = 1
+			WeightCumulativeGasUsed = 1
+			WeightKeccakHashes = 1
+			WeightPoseidonHashes = 1
+			WeightPoseidonPaddings = 1
+			WeightMemAligns = 1
+			WeightArithmetics = 1
+			WeightBinaries = 1
+			WeightSteps = 1

@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -208,4 +209,38 @@ func TestMaliciousTransaction(t *testing.T) {
 	_, _, _, err = state.DecodeTxs(b, forkID4)
 	require.Error(t, err)
 	require.Equal(t, err, state.ErrInvalidData)
+}
+
+func TestCheckLogOrder(t *testing.T) {
+	log1 := types.Log{
+		Index:   4,
+		Address: common.HexToAddress("0x04"),
+	}
+	log2 := types.Log{
+		Index:   0,
+		Address: common.HexToAddress("0x00"),
+	}
+	log3 := types.Log{
+		Index:   3,
+		Address: common.HexToAddress("0x03"),
+	}
+	log4 := types.Log{
+		Index:   5,
+		Address: common.HexToAddress("0x05"),
+	}
+	log5 := types.Log{
+		Index:   1,
+		Address: common.HexToAddress("0x01"),
+	}
+	log6 := types.Log{
+		Index:   2,
+		Address: common.HexToAddress("0x02"),
+	}
+	logs := []*types.Log{&log1, &log2, &log3, &log4, &log5, &log6}
+	ok := state.CheckLogOrder(logs)
+	assert.Equal(t, false, ok)
+
+	logs = []*types.Log{&log2, &log5, &log6, &log3, &log1, &log4}
+	ok = state.CheckLogOrder(logs)
+	assert.Equal(t, true, ok)
 }

@@ -45,14 +45,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
-			path:          "Sequencer.MaxTxsPerBatch",
-			expectedValue: uint64(300),
-		},
-		{
-			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: uint64(120000),
-		},
-		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
 			expectedValue: uint64(100),
 		},
@@ -61,80 +53,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(12 * time.Hour),
 		},
 		{
-			path:          "Sequencer.MaxCumulativeGasUsed",
-			expectedValue: uint64(30000000),
-		},
-		{
-			path:          "Sequencer.MaxKeccakHashes",
-			expectedValue: uint32(2145),
-		},
-		{
-			path:          "Sequencer.MaxPoseidonHashes",
-			expectedValue: uint32(252357),
-		},
-		{
-			path:          "Sequencer.MaxPoseidonPaddings",
-			expectedValue: uint32(135191),
-		},
-		{
-			path:          "Sequencer.MaxMemAligns",
-			expectedValue: uint32(236585),
-		},
-		{
-			path:          "Sequencer.MaxArithmetics",
-			expectedValue: uint32(236585),
-		},
-		{
-			path:          "Sequencer.MaxBinaries",
-			expectedValue: uint32(473170),
-		},
-		{
-			path:          "Sequencer.MaxSteps",
-			expectedValue: uint32(7570538),
-		},
-		{
 			path:          "Sequencer.TxLifetimeCheckTimeout",
 			expectedValue: types.NewDuration(10 * time.Minute),
 		},
 		{
 			path:          "Sequencer.MaxTxLifetime",
 			expectedValue: types.NewDuration(3 * time.Hour),
-		},
-		{
-			path:          "Sequencer.WeightBatchBytesSize",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightCumulativeGasUsed",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightKeccakHashes",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightPoseidonHashes",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightPoseidonPaddings",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightMemAligns",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightArithmetics",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightBinaries",
-			expectedValue: 1,
-		},
-		{
-			path:          "Sequencer.WeightSteps",
-			expectedValue: 1,
 		},
 		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
@@ -173,12 +97,28 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
+			path:          "Sequencer.Finalizer.StopSequencerOnBatchNum",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "Sequencer.Finalizer.TimestampResolution",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
 			path:          "Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
 			expectedValue: uint64(10),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.L1GasPriceFactor",
+			expectedValue: float64(0.25),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.ByteGasCost",
+			expectedValue: uint64(16),
+		},
+		{
+			path:          "Sequencer.EffectiveGasPrice.MarginFactor",
+			expectedValue: float64(1),
 		},
 		{
 			path:          "Sequencer.EffectiveGasPrice.Enabled",
@@ -191,10 +131,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.DBManager.L2ReorgRetrievalInterval",
 			expectedValue: types.NewDuration(5 * time.Second),
-		},
-		{
-			path:          "Sequencer.Worker.ResourceCostMultiplier",
-			expectedValue: float64(1000),
 		},
 		{
 			path:          "SequenceSender.WaitPeriodSendSequence",
@@ -249,39 +185,51 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(0),
 		},
 		{
+			path:          "EthTxManager.GasPriceMarginFactor",
+			expectedValue: float64(1),
+		},
+		{
+			path:          "EthTxManager.MaxGasPriceLimit",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "L2GasPriceSuggester.DefaultGasPriceWei",
 			expectedValue: uint64(2000000000),
+		},
+		{
+			path:          "L2GasPriceSuggester.MaxGasPriceWei",
+			expectedValue: uint64(0),
 		},
 		{
 			path:          "MTClient.URI",
 			expectedValue: "zkevm-prover:50061",
 		},
 		{
-			path:          "StateDB.User",
+			path:          "State.DB.User",
 			expectedValue: "state_user",
 		},
 		{
-			path:          "StateDB.Password",
+			path:          "State.DB.Password",
 			expectedValue: "state_password",
 		},
 		{
-			path:          "StateDB.Name",
+			path:          "State.DB.Name",
 			expectedValue: "state_db",
 		},
 		{
-			path:          "StateDB.Host",
+			path:          "State.DB.Host",
 			expectedValue: "zkevm-state-db",
 		},
 		{
-			path:          "StateDB.Port",
+			path:          "State.DB.Port",
 			expectedValue: "5432",
 		},
 		{
-			path:          "StateDB.EnableLog",
+			path:          "State.DB.EnableLog",
 			expectedValue: false,
 		},
 		{
-			path:          "StateDB.MaxConns",
+			path:          "State.DB.MaxConns",
 			expectedValue: 200,
 		},
 		{
@@ -344,18 +292,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.DB.MaxConns",
 			expectedValue: 200,
-		},
-		{
-			path:          "Pool.EffectiveGasPrice.L1GasPriceFactor",
-			expectedValue: float64(0.25),
-		},
-		{
-			path:          "Pool.EffectiveGasPrice.ByteGasCost",
-			expectedValue: uint64(16),
-		},
-		{
-			path:          "Pool.EffectiveGasPrice.MarginFactor",
-			expectedValue: float64(1),
 		},
 		{
 			path:          "RPC.Host",
@@ -464,6 +400,83 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Aggregator.GeneratingProofCleanupThreshold",
 			expectedValue: "10m",
+		},
+
+		{
+			path:          "State.Batch.Constraints.MaxTxsPerBatch",
+			expectedValue: uint64(300),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxBatchBytesSize",
+			expectedValue: uint64(120000),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxCumulativeGasUsed",
+			expectedValue: uint64(30000000),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxKeccakHashes",
+			expectedValue: uint32(2145),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxPoseidonHashes",
+			expectedValue: uint32(252357),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxPoseidonPaddings",
+			expectedValue: uint32(135191),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxMemAligns",
+			expectedValue: uint32(236585),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxArithmetics",
+			expectedValue: uint32(236585),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxBinaries",
+			expectedValue: uint32(473170),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxSteps",
+			expectedValue: uint32(7570538),
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightBatchBytesSize",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightCumulativeGasUsed",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightKeccakHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightPoseidonHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightPoseidonPaddings",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightMemAligns",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightArithmetics",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightBinaries",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightSteps",
+			expectedValue: 1,
 		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")

@@ -46,25 +46,25 @@ func restore(ctx *cli.Context) error {
 	}
 
 	// Run migrations to create schemas and tables
-	runStateMigrations(c.StateDB)
+	runStateMigrations(c.State.DB)
 
-	port, err := strconv.Atoi(c.StateDB.Port)
+	port, err := strconv.Atoi(c.State.DB.Port)
 	if err != nil {
 		log.Error("error converting port to int. Error: ", err)
 		return err
 	}
 	restore, err := pg.NewRestore(&pg.Postgres{
-		Host:     c.StateDB.Host,
+		Host:     c.State.DB.Host,
 		Port:     port,
-		DB:       c.StateDB.Name,
-		Username: c.StateDB.User,
-		Password: c.StateDB.Password,
+		DB:       c.State.DB.Name,
+		Username: c.State.DB.User,
+		Password: c.State.DB.Password,
 	})
 	if err != nil {
 		log.Error("error: ", err)
 		return err
 	}
-	restore.Role = c.StateDB.User
+	restore.Role = c.State.DB.User
 	restore.Schemas = append(restore.Schemas, "state")
 	log.Info("Restore stateDB snapshot started, please wait...")
 	restoreExec := restore.Exec(inputFileStateDB, pg.ExecOptions{StreamPrint: false})

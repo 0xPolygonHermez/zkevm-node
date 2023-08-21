@@ -32,9 +32,6 @@ type Config struct {
 	// PollMinAllowedGasPriceInterval is the interval to poll the suggested min gas price for a tx
 	PollMinAllowedGasPriceInterval types.Duration `mapstructure:"PollMinAllowedGasPriceInterval"`
 
-	// EffectiveGasPrice is the configuration for the break even and effective gas price calculation
-	EffectiveGasPrice EffectiveGasPrice `mapstructure:"EffectiveGasPrice"`
-
 	// AccountQueue represents the maximum number of non-executable transaction slots permitted per account
 	AccountQueue uint64 `mapstructure:"AccountQueue"`
 

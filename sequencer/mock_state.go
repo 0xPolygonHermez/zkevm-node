@@ -8,11 +8,11 @@ import (
 
 	common "github.com/ethereum/go-ethereum/common"
 
+	executor "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+
 	metrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 
 	mock "github.com/stretchr/testify/mock"
-
-	pb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 
 	pgx "github.com/jackc/pgx/v4"
 
@@ -119,19 +119,19 @@ func (_m *StateMock) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, erro
 }
 
 // ExecuteBatch provides a mock function with given fields: ctx, batch, updateMerkleTree, dbTx
-func (_m *StateMock) ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+func (_m *StateMock) ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponse, error) {
 	ret := _m.Called(ctx, batch, updateMerkleTree, dbTx)
 
-	var r0 *pb.ProcessBatchResponse
+	var r0 *executor.ProcessBatchResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) (*pb.ProcessBatchResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) (*executor.ProcessBatchResponse, error)); ok {
 		return rf(ctx, batch, updateMerkleTree, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) *pb.ProcessBatchResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) *executor.ProcessBatchResponse); ok {
 		r0 = rf(ctx, batch, updateMerkleTree, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*pb.ProcessBatchResponse)
+			r0 = ret.Get(0).(*executor.ProcessBatchResponse)
 		}
 	}
 
@@ -260,6 +260,20 @@ func (_m *StateMock) GetForcedBatchesSince(ctx context.Context, forcedBatchNumbe
 	}
 
 	return r0, r1
+}
+
+// GetForkIDByBatchNumber provides a mock function with given fields: batchNumber
+func (_m *StateMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
+	ret := _m.Called(batchNumber)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(uint64) uint64); ok {
+		r0 = rf(batchNumber)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	return r0
 }
 
 // GetLastBatch provides a mock function with given fields: ctx, dbTx

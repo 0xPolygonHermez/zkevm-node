@@ -4,7 +4,7 @@ import "google/protobuf/empty.proto";
 
 package executor.v1;
 
-option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor";
 
 service ExecutorService {
     /// Processes a batch
@@ -308,6 +308,8 @@ enum RomError {
     ROM_ERROR_BATCH_DATA_TOO_BIG = 27;
     // ROM_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
     ROM_ERROR_UNSUPPORTED_FORK_ID = 28;
+    // ROM_ERROR_INVALID_RLP indicates that there has been an error while parsing the RLP
+    ROM_ERROR_INVALID_RLP = 29;
 }
 
 enum ExecutorError {

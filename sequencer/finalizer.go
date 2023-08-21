@@ -22,13 +22,13 @@ import (
 )
 
 const (
-	oneHundred                     = 100
-	pendingTxsBufferSizeMultiplier = 10
+	oneHundred                            = 100
+	pendingTxsBufferSizeMultiplier        = 10
+	forkId5                        uint64 = 5
 )
 
 var (
-	now                                 = time.Now
-	maxEffectivePercentageDecodedHex, _ = hex.DecodeHex(fmt.Sprintf("%x", state.MaxEffectivePercentage))
+	now = time.Now
 )
 
 // finalizer represents the finalizer component of the sequencer.
@@ -42,7 +42,7 @@ type finalizer struct {
 	dbManager            dbManagerInterface
 	executor             stateInterface
 	batch                *WipBatch
-	batchConstraints     batchConstraints
+	batchConstraints     state.BatchConstraintsCfg
 	processRequest       state.ProcessRequest
 	sharedResourcesMux   *sync.RWMutex
 	lastGERHash          common.Hash
@@ -58,15 +58,15 @@ type finalizer struct {
 	eventLog *event.EventLog
 	// effective gas price calculation
 	maxBreakEvenGasPriceDeviationPercentage *big.Int
+	defaultMinGasPriceAllowed               uint64
 	// Processed txs
-	pendingTransactionsToStore    chan transactionToStore
-	pendingTransactionsToStoreWG  *sync.WaitGroup
-	pendingTransactionsToStoreMux *sync.RWMutex
-	storedFlushID                 uint64
-	storedFlushIDCond             *sync.Cond
-	proverID                      string
-	lastPendingFlushID            uint64
-	pendingFlushIDCond            *sync.Cond
+	pendingTransactionsToStore   chan transactionToStore
+	pendingTransactionsToStoreWG *sync.WaitGroup
+	storedFlushID                uint64
+	storedFlushIDCond            *sync.Cond //Condition to wait until storedFlushID has been updated
+	proverID                     string
+	lastPendingFlushID           uint64
+	pendingFlushIDCond           *sync.Cond
 }
 
 type transactionToStore struct {
@@ -103,13 +103,14 @@ func (w *WipBatch) isEmpty() bool {
 func newFinalizer(
 	cfg FinalizerCfg,
 	effectiveGasPriceCfg EffectiveGasPriceCfg,
+
 	worker workerInterface,
 	dbManager dbManagerInterface,
 	executor stateInterface,
 	sequencerAddr common.Address,
 	isSynced func(ctx context.Context) bool,
 	closingSignalCh ClosingSignalCh,
-	batchConstraints batchConstraints,
+	batchConstraints state.BatchConstraintsCfg,
 	eventLog *event.EventLog,
 ) *finalizer {
 	return &finalizer{
@@ -139,7 +140,6 @@ func newFinalizer(
 		maxBreakEvenGasPriceDeviationPercentage: new(big.Int).SetUint64(effectiveGasPriceCfg.MaxBreakEvenGasPriceDeviationPercentage),
 		pendingTransactionsToStore:              make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
 		pendingTransactionsToStoreWG:            new(sync.WaitGroup),
-		pendingTransactionsToStoreMux:           &sync.RWMutex{},
 		storedFlushID:                           0,
 		// Mutex is unlocked when the condition is broadcasted
 		storedFlushIDCond:  sync.NewCond(&sync.Mutex{}),
@@ -151,6 +151,8 @@ func newFinalizer(
 
 // Start starts the finalizer.
 func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *state.ProcessRequest) {
+	f.defaultMinGasPriceAllowed = f.dbManager.GetDefaultMinGasPriceAllowed()
+
 	var err error
 	if batch != nil {
 		f.batch = batch
@@ -180,10 +182,53 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 	f.finalizeBatches(ctx)
 }
 
+// storePendingTransactions stores the pending transactions in the database
+func (f *finalizer) storePendingTransactions(ctx context.Context) {
+	for {
+		select {
+		case tx, ok := <-f.pendingTransactionsToStore:
+			if !ok {
+				// Channel is closed
+				return
+			}
+
+			// Wait until f.storedFlushID >= tx.flushId
+			f.storedFlushIDCond.L.Lock()
+			for f.storedFlushID < tx.flushId {
+				f.storedFlushIDCond.Wait()
+				// check if context is done after waking up
+				if ctx.Err() != nil {
+					f.storedFlushIDCond.L.Unlock()
+					return
+				}
+			}
+			f.storedFlushIDCond.L.Unlock()
+
+			// Now f.storedFlushID >= tx.flushId, we can store tx
+			f.storeProcessedTx(ctx, tx)
+
+			if tx.txTracker != nil {
+				// Delete the txTracker from the pending list in the worker (addrQueue)
+				f.worker.DeletePendingTxToStore(tx.txTracker.Hash, tx.txTracker.From)
+			}
+
+			f.pendingTransactionsToStoreWG.Done()
+		case <-ctx.Done():
+			// The context was cancelled from outside, Wait for all goroutines to finish, cleanup and exit
+			f.pendingTransactionsToStoreWG.Wait()
+			return
+		default:
+			time.Sleep(100 * time.Millisecond) //nolint:gomnd
+		}
+	}
+}
+
 // updateProverIdAndFlushId updates the prover id and flush id
 func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 	for {
 		f.pendingFlushIDCond.L.Lock()
+		// f.storedFlushID is >= than f.lastPendingFlushID, this means all pending txs (flushid) are stored by the executor.
+		// We are "synced" with the flush id, therefore we need to wait for new tx (new pending flush id to be stored by the executor)
 		for f.storedFlushID >= f.lastPendingFlushID {
 			f.pendingFlushIDCond.Wait()
 		}
@@ -195,7 +240,14 @@ func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 				log.Errorf("failed to get stored flush id, Err: %v", err)
 			} else {
 				if storedFlushID != f.storedFlushID {
-					f.checkProverIDAndUpdateStoredFlushID(storedFlushID, proverID)
+					// Check if prover/Executor has been restarted
+					f.checkIfProverRestarted(proverID)
+
+					// Update f.storeFlushID and signal condition f.storedFlushIDCond
+					f.storedFlushIDCond.L.Lock()
+					f.storedFlushID = storedFlushID
+					f.storedFlushIDCond.Broadcast()
+					f.storedFlushIDCond.L.Unlock()
 				}
 			}
 		}
@@ -237,12 +289,31 @@ func (f *finalizer) listenForClosingSignals(ctx context.Context) {
 	}
 }
 
-// updateStoredFlushID updates the stored flush id
-func (f *finalizer) updateStoredFlushID(newFlushID uint64) {
-	f.storedFlushIDCond.L.Lock()
-	f.storedFlushID = newFlushID
-	f.storedFlushIDCond.Broadcast()
-	f.storedFlushIDCond.L.Unlock()
+// updateLastPendingFLushID updates f.lastPendingFLushID with newFlushID value (it it has changed) and sends
+// the signal condition f.pendingFlushIDCond to notify other go funcs that the f.lastPendingFlushID value has changed
+func (f *finalizer) updateLastPendingFlushID(newFlushID uint64) {
+	if newFlushID > f.lastPendingFlushID {
+		f.lastPendingFlushID = newFlushID
+		f.pendingFlushIDCond.Broadcast()
+	}
+}
+
+// addPendingTxToStore adds a pending tx that is ready to be stored in the state DB once its flushid has been stored by the executor
+func (f *finalizer) addPendingTxToStore(ctx context.Context, txToStore transactionToStore) {
+	f.pendingTransactionsToStoreWG.Add(1)
+	if txToStore.txTracker != nil {
+		f.worker.AddPendingTxToStore(txToStore.txTracker.Hash, txToStore.txTracker.From)
+	}
+	select {
+	case f.pendingTransactionsToStore <- txToStore:
+	case <-ctx.Done():
+		// If context is cancelled before we can send to the channel, we must decrement the WaitGroup count and
+		// delete the pending TxToStore added in the worker
+		f.pendingTransactionsToStoreWG.Done()
+		if txToStore.txTracker != nil {
+			f.worker.DeletePendingTxToStore(txToStore.txTracker.Hash, txToStore.txTracker.From)
+		}
+	}
 }
 
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
@@ -250,15 +321,18 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	log.Debug("finalizer init loop")
 	for {
 		start := now()
+		if f.batch.batchNumber == f.cfg.StopSequencerOnBatchNum {
+			f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
+		}
+
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
-			// Timestamp resolution
-			if f.batch.isEmpty() {
-				f.batch.timestamp = now()
-			}
-
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
+
+			// reset the count of effective GasPrice process attempts (since the tx may have been tried to be processed before)
+			tx.EffectiveGasPriceProcessCount = 0
+
 			f.sharedResourcesMux.Lock()
 			for {
 				_, err := f.processTransaction(ctx, tx)
@@ -363,7 +437,7 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 }
 
 // checkProverIDAndUpdateStoredFlushID checks if the proverID changed and updates the stored flush id
-func (f *finalizer) checkProverIDAndUpdateStoredFlushID(storedFlushID uint64, proverID string) {
+func (f *finalizer) checkIfProverRestarted(proverID string) {
 	if f.proverID != "" && f.proverID != proverID {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
@@ -380,42 +454,6 @@ func (f *finalizer) checkProverIDAndUpdateStoredFlushID(storedFlushID uint64, pr
 		}
 
 		log.Fatal("restarting sequencer to discard current WIP batch and work with new executor")
-	}
-	f.updateStoredFlushID(storedFlushID)
-}
-
-// storePendingTransactions stores the pending transactions in the database
-func (f *finalizer) storePendingTransactions(ctx context.Context) {
-	for {
-		select {
-		case tx, ok := <-f.pendingTransactionsToStore:
-			if !ok {
-				// Channel is closed
-				return
-			}
-
-			// Print the formatted timestamp
-			f.storedFlushIDCond.L.Lock()
-			for f.storedFlushID < tx.flushId {
-				f.storedFlushIDCond.Wait()
-				// check if context is done after waking up
-				if ctx.Err() != nil {
-					f.storedFlushIDCond.L.Unlock()
-					return
-				}
-			}
-			f.storedFlushIDCond.L.Unlock()
-
-			// Now f.storedFlushID >= tx.flushId, you can store tx
-			f.storeProcessedTx(ctx, tx)
-			f.pendingTransactionsToStoreWG.Done()
-		case <-ctx.Done():
-			// The context was cancelled from outside, Wait for all goroutines to finish, cleanup and exit
-			f.pendingTransactionsToStoreWG.Wait()
-			return
-		default:
-			time.Sleep(100 * time.Millisecond) //nolint:gomnd
-		}
 	}
 }
 
@@ -519,29 +557,29 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 	if tx != nil {
 		f.processRequest.Transactions = tx.RawTx
 		hashStr = tx.HashStr
-		if tx.BreakEvenGasPrice.Uint64() == 0 {
+
+		log.Infof("EffectiveGasPriceProcessCount=%d", tx.EffectiveGasPriceProcessCount)
+		// If it is the first time we process this tx then we calculate the BreakEvenGasPrice
+		if tx.EffectiveGasPriceProcessCount == 0 {
+			// Get L1 gas price and store in txTracker to make it consistent during the lifespan of the transaction
+			tx.L1GasPrice = f.dbManager.GetL1GasPrice()
+			log.Infof("tx.L1GasPrice=%d", tx.L1GasPrice)
 			// Calculate the new breakEvenPrice
-			tx.BreakEvenGasPrice, err = f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPRice)
+			tx.BreakEvenGasPrice, err = f.CalculateTxBreakEvenGasPrice(tx, tx.BatchResources.ZKCounters.CumulativeGasUsed)
 			if err != nil {
 				if f.effectiveGasPriceCfg.Enabled {
 					return nil, err
 				} else {
-					log.Warnf("failed to calculate break even gas price: %s", err)
+					log.Warnf("EffectiveGasPrice is disabled, but failed to calculate BreakEvenGasPrice: %s", err)
 				}
 			}
 		}
 
-		var (
-			effectivePercentage uint8
-			err                 error
-		)
-
-		effectivePercentageAsDecodedHex := maxEffectivePercentageDecodedHex
+		effectivePercentage := state.MaxEffectivePercentage
 
 		if tx.BreakEvenGasPrice.Uint64() != 0 {
-			// If the tx gas price is lower than the break even gas price, we set the effective percentage to 255 (100%)
+			// If the tx gas price is lower than the break even gas price, we process the tx with the user gas price (100%)
 			if tx.GasPrice.Cmp(tx.BreakEvenGasPrice) <= 0 {
-				effectivePercentage = state.MaxEffectivePercentage
 				tx.IsEffectiveGasPriceFinalExecution = true
 			} else {
 				effectivePercentage, err = CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.BreakEvenGasPrice)
@@ -550,16 +588,24 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 					return nil, err
 				}
 			}
-
-			if f.effectiveGasPriceCfg.Enabled {
-				effectivePercentageAsDecodedHex, err = hex.DecodeHex(fmt.Sprintf("%x", effectivePercentage))
-				if err != nil {
-					return nil, err
-				}
-			}
-			log.Infof("calculated effectivePercentage: %d for tx: %s", effectivePercentage, txHash)
 		}
-		f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
+		log.Infof("calculated breakEvenGasPrice: %d, gasPrice: %d, effectivePercentage: %d for tx: %s", tx.BreakEvenGasPrice, tx.GasPrice, effectivePercentage, tx.HashStr)
+
+		// If EGP is disabled we use tx GasPrice (MaxEffectivePercentage=255)
+		if !f.effectiveGasPriceCfg.Enabled {
+			effectivePercentage = state.MaxEffectivePercentage
+		}
+
+		var effectivePercentageAsDecodedHex []byte
+		effectivePercentageAsDecodedHex, err = hex.DecodeHex(fmt.Sprintf("%x", effectivePercentage))
+		if err != nil {
+			return nil, err
+		}
+
+		forkId := f.dbManager.GetForkIDByBatchNumber(f.processRequest.BatchNumber)
+		if forkId >= forkId5 {
+			f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
+		}
 	} else {
 		f.processRequest.Transactions = []byte{}
 	}
@@ -572,6 +618,19 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 	} else if tx != nil && err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.Responses) == 0 {
 		err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
 		f.halt(ctx, err)
+	} else if tx != nil && processBatchResponse.IsExecutorLevelError {
+		log.Errorf("error received from executor. Error: %v", err)
+		// Delete tx from the worker
+		f.worker.DeleteTx(tx.Hash, tx.From)
+
+		// Set tx as invalid in the pool
+		errMsg := processBatchResponse.ExecutorError.Error()
+		err = f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &errMsg)
+		if err != nil {
+			log.Errorf("failed to update status to invalid in the pool for tx: %s, err: %s", tx.Hash.String(), err)
+		} else {
+			metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
+		}
 		return nil, err
 	}
 
@@ -608,70 +667,31 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	}
 
 	if f.effectiveGasPriceCfg.Enabled && !tx.IsEffectiveGasPriceFinalExecution {
-		// Increase nunber of executions related to gas price
-		tx.EffectiveGasPriceProcessCount++
-		gasPrices, err := f.dbManager.GetGasPrices(ctx)
+		err := f.CompareTxBreakEvenGasPrice(ctx, tx, result.Responses[0].GasUsed)
 		if err != nil {
-			log.Errorf("failed to get gas prices: %s", err)
 			return nil, err
 		}
-		tx.L1GasPRice = gasPrices.L1GasPrice
-		actualBreakEvenPrice, err := f.dbManager.CalculateTxBreakEvenGasPrice(ctx, tx.BatchResources.Bytes, result.Responses[0].GasUsed, tx.L1GasPRice)
+	} else if !f.effectiveGasPriceCfg.Enabled {
+		reprocessNeeded := false
+		newBreakEvenGasPrice, err := f.CalculateTxBreakEvenGasPrice(tx, result.Responses[0].GasUsed)
 		if err != nil {
-			log.Errorf("failed to calculate breakEvenPrice with actual gasUsed: %s", err.Error())
-			return nil, err
-		}
+			log.Warnf("EffectiveGasPrice is disabled, but failed to calculate BreakEvenGasPrice: %s", err)
+		} else {
+			// Compute the absolute difference between tx.BreakEvenGasPrice - newBreakEvenGasPrice
+			diff := new(big.Int).Abs(new(big.Int).Sub(tx.BreakEvenGasPrice, newBreakEvenGasPrice))
+			// Compute max difference allowed of breakEvenGasPrice
+			maxDiff := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
 
-		// if actualBreakEvenPrice < tx.BrakeEvenGasPrice
-		if actualBreakEvenPrice.Cmp(tx.BreakEvenGasPrice) == -1 {
-			// Compute the difference
-			diff := new(big.Int).Sub(tx.BreakEvenGasPrice, actualBreakEvenPrice)
-			// Compute deviation of breakEvenPrice
-			deviation := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
-
-			if diff.Cmp(deviation) == 1 {
-				if tx.EffectiveGasPriceProcessCount < 2 { //nolint:gomnd
-					tx.BreakEvenGasPrice = actualBreakEvenPrice
-					return nil, ErrEffectiveGasPriceReprocess
-				} else {
-					tx.BreakEvenGasPrice = tx.GasPrice
-					tx.IsEffectiveGasPriceFinalExecution = true
-					ev := &event.Event{
-						ReceivedAt:  time.Now(),
-						Source:      event.Source_Node,
-						Component:   event.Component_Sequencer,
-						Level:       event.Level_Critical,
-						EventID:     event.EventID_FinalizerBreakEvenGasPriceBigDifference,
-						Description: fmt.Sprintf("The difference: %s between the breakEvenPrice and the actualBreakEvenPrice is more than %d %%", diff.String(), f.effectiveGasPriceCfg.MaxBreakEvenGasPriceDeviationPercentage),
-						Json: struct {
-							transactionHash               string
-							preExecutionBreakEvenGasPrice string
-							actualBreakEvenGasPrice       string
-							diff                          string
-							deviation                     string
-						}{
-							transactionHash:               tx.Hash.String(),
-							preExecutionBreakEvenGasPrice: tx.BreakEvenGasPrice.String(),
-							actualBreakEvenGasPrice:       actualBreakEvenPrice.String(),
-							diff:                          diff.String(),
-							deviation:                     deviation.String(),
-						},
-					}
-					err = f.eventLog.LogEvent(ctx, ev)
-					if err != nil {
-						log.Errorf("failed to log event: %s", err.Error())
-					}
-					return nil, ErrEffectiveGasPriceReprocess
-				}
-			} // TODO: Review this check regarding tx.GasPrice being nil
-		} else if tx.GasPrice != nil && actualBreakEvenPrice.Cmp(tx.GasPrice) == 1 {
-			tx.BreakEvenGasPrice = tx.GasPrice
-			tx.IsEffectiveGasPriceFinalExecution = true
-			return nil, ErrEffectiveGasPriceReprocess
+			// if diff is greater than the maxDiff allowed
+			if diff.Cmp(maxDiff) == 1 {
+				reprocessNeeded = true
+			}
+			log.Infof("calculated newBreakEvenGasPrice: %d, tx.BreakEvenGasPrice: %d for tx: %s", newBreakEvenGasPrice, tx.BreakEvenGasPrice, tx.HashStr)
+			log.Infof("Would need reprocess: %t, diff: %d, maxDiff: %d", reprocessNeeded, diff, maxDiff)
 		}
 	}
 
-	processedTransaction := transactionToStore{
+	txToStore := transactionToStore{
 		txTracker:     tx,
 		response:      result.Responses[0],
 		batchResponse: result,
@@ -683,19 +703,9 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		flushId:       result.FlushID,
 	}
 
-	f.pendingTransactionsToStoreMux.Lock()
-	f.pendingTransactionsToStoreWG.Add(1)
-	if result.FlushID > f.lastPendingFlushID {
-		f.lastPendingFlushID = result.FlushID
-		f.pendingFlushIDCond.Broadcast()
-	}
-	f.pendingTransactionsToStoreMux.Unlock()
-	select {
-	case f.pendingTransactionsToStore <- processedTransaction:
-	case <-ctx.Done():
-		// If context is cancelled before we can send to the channel, we must decrement the WaitGroup count
-		f.pendingTransactionsToStoreWG.Done()
-	}
+	f.updateLastPendingFlushID(result.FlushID)
+
+	f.addPendingTxToStore(ctx, txToStore)
 
 	f.batch.countOfTxs++
 
@@ -720,7 +730,7 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			}
 		}
 
-		processedTransaction := transactionToStore{
+		txToStore := transactionToStore{
 			txTracker:     nil,
 			response:      txResp,
 			batchResponse: result,
@@ -732,21 +742,11 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			flushId:       result.FlushID,
 		}
 
-		f.pendingTransactionsToStoreMux.Lock()
-		f.pendingTransactionsToStoreWG.Add(1)
-		if result.FlushID > f.lastPendingFlushID {
-			f.lastPendingFlushID = result.FlushID
-			f.pendingFlushIDCond.Broadcast()
-		}
-		f.pendingTransactionsToStoreMux.Unlock()
 		oldStateRoot = txResp.StateRoot
 
-		select {
-		case f.pendingTransactionsToStore <- processedTransaction:
-		case <-ctx.Done():
-			// If context is cancelled before we can send to the channel, we must decrement the WaitGroup count
-			f.pendingTransactionsToStoreWG.Done()
-		}
+		f.updateLastPendingFlushID(result.FlushID)
+
+		f.addPendingTxToStore(ctx, txToStore)
 	}
 }
 
@@ -766,9 +766,9 @@ func (f *finalizer) storeProcessedTx(ctx context.Context, txToStore transactionT
 }
 
 func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse) {
-	// Delete the transaction from the efficiency list
+	// Delete the transaction from the txSorted list
 	f.worker.DeleteTx(tx.Hash, tx.From)
-	log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
+	log.Debug("tx deleted from txSorted list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
 
 	start := time.Now()
 	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(tx.From, result.ReadWriteAddresses)
@@ -833,9 +833,9 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 		}
 		metrics.WorkerProcessingTime(time.Since(start))
 	} else {
-		// Delete the transaction from the efficiency list
+		// Delete the transaction from the txSorted list
 		f.worker.DeleteTx(tx.Hash, tx.From)
-		log.Debug("tx deleted from efficiency list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
+		log.Debug("tx deleted from txSorted list", "txHash", tx.Hash.String(), "from", tx.From.Hex())
 
 		wg.Add(1)
 		go func() {
@@ -1081,7 +1081,8 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 		Caller:         stateMetrics.SequencerCallerLabel,
 	}
 	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, Ger: %s", batch.BatchNumber, f.batch.initialStateRoot.String(), batch.GlobalExitRoot.String())
-	txs, _, _, err := state.DecodeTxs(batch.BatchL2Data, f.cfg.ForkID)
+	forkID := f.dbManager.GetForkIDByBatchNumber(batchNum)
+	txs, _, _, err := state.DecodeTxs(batch.BatchL2Data, forkID)
 
 	if err != nil {
 		log.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: %d. Error: %v", batch.BatchNumber, err)
@@ -1187,7 +1188,7 @@ func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, 
 	if err != nil {
 		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
 		start := time.Now()
-		f.worker.UpdateTx(result.Responses[0].TxHash, tx.From, usedResources.ZKCounters)
+		f.worker.UpdateTxZKCounters(result.Responses[0].TxHash, tx.From, usedResources.ZKCounters)
 		metrics.WorkerProcessingTime(time.Since(start))
 		return err
 	}
@@ -1256,7 +1257,7 @@ func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 }
 
 // getUsedBatchResources returns the used resources in the batch
-func getUsedBatchResources(constraints batchConstraints, remainingResources state.BatchResources) state.BatchResources {
+func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResources state.BatchResources) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
 			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.CumulativeGasUsed,

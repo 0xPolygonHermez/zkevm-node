@@ -31,13 +31,6 @@ var (
 	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
 )
 
-const (
-	// constants used in calculation of BreakEvenGasPrice
-	signatureBytesLength           = 65
-	effectivePercentageBytesLength = 1
-	totalRlpFieldsLength           = signatureBytesLength + effectivePercentageBytesLength
-)
-
 // Pool is an implementation of the Pool interface
 // that uses a postgres database to store the data
 type Pool struct {
@@ -45,6 +38,7 @@ type Pool struct {
 	state                   stateInterface
 	chainID                 uint64
 	cfg                     Config
+	batchConstraintsCfg     state.BatchConstraintsCfg
 	blockedAddresses        sync.Map
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
@@ -55,11 +49,12 @@ type Pool struct {
 }
 
 type preExecutionResponse struct {
-	usedZkCounters state.ZKCounters
-	isOOC          bool
-	isOOG          bool
-	isReverted     bool
-	txResponse     *state.ProcessTransactionResponse
+	usedZkCounters       state.ZKCounters
+	isExecutorLevelError bool
+	isOOC                bool
+	isOOG                bool
+	isReverted           bool
+	txResponse           *state.ProcessTransactionResponse
 }
 
 // GasPrices contains the gas prices for L2 and L1
@@ -69,10 +64,11 @@ type GasPrices struct {
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
+func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
 	startTimestamp := time.Now()
 	p := &Pool{
 		cfg:                     cfg,
+		batchConstraintsCfg:     batchConstraintsCfg,
 		startTimestamp:          startTimestamp,
 		storage:                 s,
 		state:                   st,
@@ -177,8 +173,12 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	preExecutionResponse, err := p.preExecuteTx(ctx, tx)
 	if errors.Is(err, runtime.ErrIntrinsicInvalidBatchGasLimit) {
 		return ErrGasLimit
+	} else if preExecutionResponse.isExecutorLevelError {
+		// Do not add tx to the pool
+		return err
 	} else if err != nil {
-		log.Debugf("PreExecuteTx error (this can be ignored): %v", err)
+		log.Errorf("Pre execution error: %v", err)
+		return err
 	}
 
 	if preExecutionResponse.isOOC {
@@ -197,7 +197,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			log.Errorf("error adding event: %v", err)
 		}
 		// Do not add tx to the pool
-		return fmt.Errorf("out of counters")
+		return ErrOutOfCounters
 	} else if preExecutionResponse.isOOG {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
@@ -233,9 +233,18 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 
 	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
 		errorToCheck := processBatchResponse.Responses[0].RomError
-		response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
-		response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
-		response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+		response.isExecutorLevelError = processBatchResponse.IsExecutorLevelError
+		if errorToCheck != nil {
+			response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
+			response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
+			response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+		} else {
+			if !p.batchConstraintsCfg.IsWithinConstraints(processBatchResponse.UsedZkCounters) {
+				response.isOOC = true
+				log.Errorf("OutOfCounters Error (Node level)  for tx: %s", tx.Hash().String())
+			}
+		}
+
 		response.usedZkCounters = processBatchResponse.UsedZkCounters
 		response.txResponse = processBatchResponse.Responses[0]
 	}
@@ -304,6 +313,11 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 }
 
 func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
+	// Make sure the IP is valid.
+	if poolTx.IP != "" && !IsValidIP(poolTx.IP) {
+		return ErrInvalidIP
+	}
+
 	// Make sure the transaction is signed properly.
 	if err := state.CheckSignature(poolTx.Transaction); err != nil {
 		return ErrInvalidSender
@@ -318,6 +332,11 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// Accept only legacy transactions until EIP-2718/2930 activates.
 	if poolTx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported
+	}
+
+	// check Pre EIP155 txs signature
+	if txChainID == 0 && !state.IsPreEIP155Tx(poolTx.Transaction) {
+		return ErrInvalidSender
 	}
 
 	// gets tx sender for validations
@@ -528,31 +547,18 @@ func (p *Pool) UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bo
 	return p.storage.UpdateTxWIPStatus(ctx, hash, isWIP)
 }
 
-// CalculateTxBreakEvenGasPrice calculates the break even gas price for a transaction
-func (p *Pool) CalculateTxBreakEvenGasPrice(ctx context.Context, txDataLength uint64, gasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
+// GetDefaultMinGasPriceAllowed return the configured DefaultMinGasPriceAllowed value
+func (p *Pool) GetDefaultMinGasPriceAllowed() uint64 {
+	return p.cfg.DefaultMinGasPriceAllowed
+}
+
+// GetL1GasPrice returns the L1 gas price
+func (p *Pool) GetL1GasPrice() uint64 {
 	p.gasPricesMux.RLock()
 	gasPrices := p.gasPrices
 	p.gasPricesMux.RUnlock()
 
-	// We enforce l1GasPrice to make it consistent during the lifespan of the transaction
-	gasPrices.L1GasPrice = l1GasPrice
-
-	if gasPrices.L1GasPrice == 0 {
-		log.Warn("Received L1 gas price 0. Skipping estimation...")
-		return big.NewInt(0), ErrReceivedZeroL1GasPrice
-	}
-
-	// Get L2 Min Gas Price
-	l2MinGasPrice := uint64(float64(gasPrices.L1GasPrice) * p.cfg.EffectiveGasPrice.L1GasPriceFactor)
-	if l2MinGasPrice < p.cfg.DefaultMinGasPriceAllowed {
-		l2MinGasPrice = p.cfg.DefaultMinGasPriceAllowed
-	}
-
-	// Calculate break even gas price
-	totalTxPrice := (gasUsed * l2MinGasPrice) + (totalRlpFieldsLength * txDataLength * gasPrices.L1GasPrice)
-	breakEvenGasPrice := uint64(float64(totalTxPrice/gasUsed) * p.cfg.EffectiveGasPrice.MarginFactor)
-
-	return big.NewInt(0).SetUint64(breakEvenGasPrice), nil
+	return gasPrices.L1GasPrice
 }
 
 const (
