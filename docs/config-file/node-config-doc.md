@@ -847,11 +847,12 @@ MaxCumulativeGasUsed=0
 **Type:** : `object`
 **Description:** WebSockets configuration
 
-| Property                              | Pattern | Type    | Deprecated | Definition | Title/Description                                                           |
-| ------------------------------------- | ------- | ------- | ---------- | ---------- | --------------------------------------------------------------------------- |
-| - [Enabled](#RPC_WebSockets_Enabled ) | No      | boolean | No         | -          | Enabled defines if the WebSocket requests are enabled or disabled           |
-| - [Host](#RPC_WebSockets_Host )       | No      | string  | No         | -          | Host defines the network adapter that will be used to serve the WS requests |
-| - [Port](#RPC_WebSockets_Port )       | No      | integer | No         | -          | Port defines the port to serve the endpoints via WS                         |
+| Property                                  | Pattern | Type    | Deprecated | Definition | Title/Description                                                               |
+| ----------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------- |
+| - [Enabled](#RPC_WebSockets_Enabled )     | No      | boolean | No         | -          | Enabled defines if the WebSocket requests are enabled or disabled               |
+| - [Host](#RPC_WebSockets_Host )           | No      | string  | No         | -          | Host defines the network adapter that will be used to serve the WS requests     |
+| - [Port](#RPC_WebSockets_Port )           | No      | integer | No         | -          | Port defines the port to serve the endpoints via WS                             |
+| - [ReadLimit](#RPC_WebSockets_ReadLimit ) | No      | integer | No         | -          | ReadLimit defines the maximum size of a message read from the client (in bytes) |
 
 #### <a name="RPC_WebSockets_Enabled"></a>8.8.1. `RPC.WebSockets.Enabled`
 
@@ -893,6 +894,20 @@ Host="0.0.0.0"
 ```
 [RPC.WebSockets]
 Port=8546
+```
+
+#### <a name="RPC_WebSockets_ReadLimit"></a>8.8.4. `RPC.WebSockets.ReadLimit`
+
+**Type:** : `integer`
+
+**Default:** `83886080`
+
+**Description:** ReadLimit defines the maximum size of a message read from the client (in bytes)
+
+**Example setting the default value** (83886080):
+```
+[RPC.WebSockets]
+ReadLimit=83886080
 ```
 
 ### <a name="RPC_EnableL2SuggestedGasPricePolling"></a>8.9. `RPC.EnableL2SuggestedGasPricePolling`

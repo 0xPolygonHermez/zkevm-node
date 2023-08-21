@@ -329,6 +329,11 @@
 							"type": "integer",
 							"description": "Port defines the port to serve the endpoints via WS",
 							"default": 8546
+						},
+						"ReadLimit": {
+							"type": "integer",
+							"description": "ReadLimit defines the maximum size of a message read from the client (in bytes)",
+							"default": 83886080
 						}
 					},
 					"additionalProperties": false,
