@@ -258,11 +258,11 @@ const (
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_STORAGE_READ_MISMATCH ExecutorError = 36
 	// EXECUTOR_ERROR_SM_MAIN_STORAGE_WRITE_MISMATCH indicates that the storage read instruction check failed
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_STORAGE_WRITE_MISMATCH ExecutorError = 37
-	// EXECUTOR_ERROR_SM_MAIN_HASHK_VALUE_MISMATCH indicates that the Keccak hash instruction check failed
+	// EXECUTOR_ERROR_SM_MAIN_HASHK_VALUE_MISMATCH indicates that the Keccak hash instruction value check failed
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHK_VALUE_MISMATCH ExecutorError = 38
-	// EXECUTOR_ERROR_SM_MAIN_HASHK_PADDING_MISMATCH indicates that the Keccak hash instruction check failed
+	// EXECUTOR_ERROR_SM_MAIN_HASHK_PADDING_MISMATCH indicates that the Keccak hash instruction padding check failed
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHK_PADDING_MISMATCH ExecutorError = 39
-	// EXECUTOR_ERROR_SM_MAIN_HASHK_SIZE_MISMATCH indicates that the Keccak hash instruction check failed
+	// EXECUTOR_ERROR_SM_MAIN_HASHK_SIZE_MISMATCH indicates that the Keccak hash instruction size check failed
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHK_SIZE_MISMATCH ExecutorError = 40
 	// EXECUTOR_ERROR_SM_MAIN_HASHKLEN_LENGTH_MISMATCH indicates that the Keccak hash length instruction length check failed
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHKLEN_LENGTH_MISMATCH ExecutorError = 41
@@ -274,11 +274,11 @@ const (
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_DIGEST_MISMATCH ExecutorError = 44
 	// EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_CALLED_TWICE indicates that the Keccak hash digest instruction called once check failed
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_CALLED_TWICE ExecutorError = 45
-	// EXECUTOR_ERROR_SM_MAIN_HASHP_VALUE_MISMATCH indicates that the Poseidon hash instruction check failed
+	// EXECUTOR_ERROR_SM_MAIN_HASHP_VALUE_MISMATCH indicates that the Poseidon hash instruction value check failed
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHP_VALUE_MISMATCH ExecutorError = 46
-	// EXECUTOR_ERROR_SM_MAIN_HASHP_PADDING_MISMATCH indicates that the Poseidon hash instruction check failed
+	// EXECUTOR_ERROR_SM_MAIN_HASHP_PADDING_MISMATCH indicates that the Poseidon hash instruction padding check failed
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHP_PADDING_MISMATCH ExecutorError = 47
-	// EXECUTOR_ERROR_SM_MAIN_HASHP_SIZE_MISMATCH indicates that the Poseidon hash instruction check failed
+	// EXECUTOR_ERROR_SM_MAIN_HASHP_SIZE_MISMATCH indicates that the Poseidon hash instruction size check failed
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHP_SIZE_MISMATCH ExecutorError = 48
 	// EXECUTOR_ERROR_SM_MAIN_HASHPLEN_LENGTH_MISMATCH indicates that the Poseidon hash length instruction length check failed
 	ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHPLEN_LENGTH_MISMATCH ExecutorError = 49

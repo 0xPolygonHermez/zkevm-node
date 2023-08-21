@@ -77,18 +77,18 @@ var (
 	ErrExecutorDBError = errors.New("database error")
 	// ErrExecutorSMMainCountersOverflowSteps indicates that the main execution exceeded the maximum number of steps
 	ErrExecutorSMMainCountersOverflowSteps = errors.New("main execution exceeded the maximum number of steps")
-	// ErrExecutorCountersOverflowKeccak indicates that the keccak counter exceeded the maximum
-	ErrExecutorCountersOverflowKeccak = errors.New("keccak counter exceeded the maximum")
-	// ErrExecutorCountersOverflowBinary indicates that the binary counter exceeded the maximum
-	ErrExecutorCountersOverflowBinary = errors.New("binary counter exceeded the maximum")
-	// ErrExecutorCountersOverflowMem indicates that the memory align counter exceeded the maximum
-	ErrExecutorCountersOverflowMem = errors.New("memory align counter exceeded the maximum")
-	// ErrExecutorCountersOverflowArith indicates that the arith counter exceeded the maximum
-	ErrExecutorCountersOverflowArith = errors.New("arith counter exceeded the maximum")
-	// ErrExecutorCountersOverflowPadding indicates that the padding counter exceeded the maximum
-	ErrExecutorCountersOverflowPadding = errors.New("padding counter exceeded the maximum")
-	// ErrExecutorCountersOverflowPoseidon indicates that the poseidon counter exceeded the maximum
-	ErrExecutorCountersOverflowPoseidon = errors.New("poseidon counter exceeded the maximum")
+	// ErrExecutorSMMainCountersOverflowKeccak indicates that the keccak counter exceeded the maximum
+	ErrExecutorSMMainCountersOverflowKeccak = errors.New("keccak counter exceeded the maximum")
+	// ErrExecutorSMMainCountersOverflowBinary indicates that the binary counter exceeded the maximum
+	ErrExecutorSMMainCountersOverflowBinary = errors.New("binary counter exceeded the maximum")
+	// ErrExecutorSMMainCountersOverflowMem indicates that the memory align counter exceeded the maximum
+	ErrExecutorSMMainCountersOverflowMem = errors.New("memory align counter exceeded the maximum")
+	// ErrExecutorSMMainCountersOverflowArith indicates that the arith counter exceeded the maximum
+	ErrExecutorSMMainCountersOverflowArith = errors.New("arith counter exceeded the maximum")
+	// ErrExecutorSMMainCountersOverflowPadding indicates that the padding counter exceeded the maximum
+	ErrExecutorSMMainCountersOverflowPadding = errors.New("padding counter exceeded the maximum")
+	// ErrExecutorSMMainCountersOverflowPoseidon indicates that the poseidon counter exceeded the maximum
+	ErrExecutorSMMainCountersOverflowPoseidon = errors.New("poseidon counter exceeded the maximum")
 	// ErrExecutorUnsupportedForkId indicates that the fork id is not supported
 	ErrExecutorUnsupportedForkId = errors.New("unsupported fork id")
 	// ErrExecutorBalanceMismatch indicates that there is a balance mismatch error in the ROM
@@ -145,12 +145,12 @@ var (
 	ErrExecutorSMMainStorageReadMismatch = errors.New("storage read instruction check failed")
 	// ErrExecutorSMMainStorageWriteMismatch indicates that the storage read instruction check failed
 	ErrExecutorSMMainStorageWriteMismatch = errors.New("storage write instruction check failed")
-	// ErrExecutorSMMainHashKValueMismatch indicates that the Keccak hash instruction check failed
-	ErrExecutorSMMainHashKValueMismatch = errors.New("keccak hash instruction check failed")
-	// ErrExecutorSMMainHashKPaddingMismatch indicates that the Keccak hash instruction check failed
-	ErrExecutorSMMainHashKPaddingMismatch = errors.New("keccak hash instruction check failed")
-	// ErrExecutorSMMainHashKSizeMismatch indicates that the Keccak hash instruction check failed
-	ErrExecutorSMMainHashKSizeMismatch = errors.New("keccak hash instruction check failed")
+	// ErrExecutorSMMainHashKValueMismatch indicates that the Keccak hash instruction value check failed
+	ErrExecutorSMMainHashKValueMismatch = errors.New("keccak hash instruction value check failed")
+	// ErrExecutorSMMainHashKPaddingMismatch indicates that the Keccak hash instruction padding check failed
+	ErrExecutorSMMainHashKPaddingMismatch = errors.New("keccak hash instruction padding check failed")
+	// ErrExecutorSMMainHashKSizeMismatch indicates that the Keccak hash instruction size check failed
+	ErrExecutorSMMainHashKSizeMismatch = errors.New("keccak hash instruction check size failed")
 	// ErrExecutorSMMainHashKLenLengthMismatch indicates that the Keccak hash length instruction length check failed
 	ErrExecutorSMMainHashKLenLengthMismatch = errors.New("keccak hash length instruction length check failed")
 	// ErrExecutorSMMainHashKLenCalledTwice indicates that the Keccak hash length instruction called once check failed
@@ -161,15 +161,15 @@ var (
 	ErrExecutorSMMainHashKDigestDigestMismatch = errors.New("keccak hash digest instruction digest check failed")
 	// ErrExecutorSMMainHashKDigestCalledTwice indicates that the Keccak hash digest instruction called once check failed
 	ErrExecutorSMMainHashKDigestCalledTwice = errors.New("keccak hash digest instruction called once check failed")
-	// ErrExecutorSMMainHashPValueMismatch indicates that the Poseidon hash instruction check failed
-	ErrExecutorSMMainHashPValueMismatch = errors.New("poseidon hash instruction check failed")
-	// ErrExecutorSMMainHashPPaddingMismatch indicates that the Poseidon hash instruction check failed
-	ErrExecutorSMMainHashPPaddingMismatch = errors.New("poseidon hash instruction check failed")
-	// ErrExecutorSMMainHashPSizeMismatch indicates that the Poseidon hash instruction check failed
-	ErrExecutorSMMainHashPSizeMismatch = errors.New("poseidon hash instruction check failed")
+	// ErrExecutorSMMainHashPValueMismatch indicates that the Poseidon hash instruction value check failed
+	ErrExecutorSMMainHashPValueMismatch = errors.New("poseidon hash instruction value check failed")
+	// ErrExecutorSMMainHashPPaddingMismatch indicates that the Poseidon hash instruction padding check failed
+	ErrExecutorSMMainHashPPaddingMismatch = errors.New("poseidon hash instruction padding check failed")
+	// ErrExecutorSMMainHashPSizeMismatch indicates that the Poseidon hash instruction size check failed
+	ErrExecutorSMMainHashPSizeMismatch = errors.New("poseidon hash instruction size check failed")
 	// ErrExecutorSMMainHashPLenLengthMismatch indicates that the Poseidon hash length instruction length check failed
 	ErrExecutorSMMainHashPLenLengthMismatch = errors.New("poseidon hash length instruction length check failed")
-	// EXECUTOR_ERROR_SM_MAIN_HASHPLEN_CALLED_TWICE indicates that the Poseidon hash length instruction called once check failed
+	// ErrExecutorSMMainHashPLenCalledTwice indicates that the Poseidon hash length instruction called once check failed
 	ErrExecutorSMMainHashPLenCalledTwice = errors.New("poseidon hash length instruction called once check failed")
 	// ErrExecutorSMMainHashPDigestDigestMismatch indicates that the Poseidon hash digest instruction digest check failed
 	ErrExecutorSMMainHashPDigestDigestMismatch = errors.New("poseidon hash digest instruction digest check failed")
@@ -212,7 +212,7 @@ var (
 	// ===========
 
 	// ErrGRPCResourceExhaustedAsTimeout indicates a GRPC resource exhausted error
-	ErrExecutorGRPCResourceExhaustedAsTimeout = errors.New("request timed out")
+	ErrGRPCResourceExhaustedAsTimeout = errors.New("request timed out")
 )
 
 // ExecutionResult includes all output after executing given evm
