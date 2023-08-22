@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -13,9 +12,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
-	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
@@ -37,8 +36,8 @@ var (
 		ChainID:              1000,
 	}
 	dbManagerCfg      = DBManagerCfg{PoolRetrievalInterval: types.NewDuration(500 * time.Millisecond)}
-	executorClient    executorclientpb.ExecutorServiceClient
-	mtDBServiceClient mtDBclientpb.StateDBServiceClient
+	executorClient    executor.ExecutorServiceClient
+	mtDBServiceClient hashdb.HashDBServiceClient
 	mtDBClientConn    *grpc.ClientConn
 	testDbManager     *dbManager
 )
@@ -74,26 +73,20 @@ func setupDBManager() {
 		GERCh:         make(chan common.Hash),
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
-
-	txsStore := TxsStore{
-		Ch: make(chan *txToStore),
-		Wg: new(sync.WaitGroup),
-	}
-
-	batchConstraints := batchConstraints{
-		MaxTxsPerBatch:       150,
-		MaxBatchBytesSize:    129848,
+	batchConstraints := state.BatchConstraintsCfg{
+		MaxTxsPerBatch:       300,
+		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,
-		MaxKeccakHashes:      468,
-		MaxPoseidonHashes:    279620,
-		MaxPoseidonPaddings:  149796,
-		MaxMemAligns:         262144,
-		MaxArithmetics:       262144,
-		MaxBinaries:          262144,
-		MaxSteps:             8388608,
+		MaxKeccakHashes:      2145,
+		MaxPoseidonHashes:    252357,
+		MaxPoseidonPaddings:  135191,
+		MaxMemAligns:         236585,
+		MaxArithmetics:       236585,
+		MaxBinaries:          473170,
+		MaxSteps:             7570538,
 	}
 
-	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, txsStore, batchConstraints)
+	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, batchConstraints)
 }
 
 func initOrResetDB() {

@@ -13,6 +13,14 @@ type NetEndpoints struct {
 	chainID uint64
 }
 
+// NewNetEndpoints returns NetEndpoints
+func NewNetEndpoints(cfg Config, chainID uint64) *NetEndpoints {
+	return &NetEndpoints{
+		cfg:     cfg,
+		chainID: chainID,
+	}
+}
+
 // Version returns the current network id
 func (n *NetEndpoints) Version() (interface{}, types.Error) {
 	return strconv.FormatUint(n.chainID, encoding.Base10), nil

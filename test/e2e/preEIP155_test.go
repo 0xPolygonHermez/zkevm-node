@@ -2,6 +2,8 @@ package e2e
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"math/big"
 	"strings"
 	"testing"
 	"time"
@@ -86,5 +88,69 @@ func TestPreEIP155Tx(t *testing.T) {
 			err = operations.WaitL2BlockToBeVirtualized(receipt.BlockNumber, 4*time.Minute) //nolint:gomnd
 			require.NoError(t, err)
 		}
+	}
+}
+
+func TestFakeEIP155With_V_As35(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() {
+		require.NoError(t, operations.Teardown())
+	}()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	for _, network := range networks {
+		log.Debugf(network.Name)
+		client := operations.MustGetClient(network.URL)
+
+		privateKey, err := crypto.HexToECDSA("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+		require.NoError(t, err)
+		publicKey := privateKey.Public()
+		publicKeyECDSA, _ := publicKey.(*ecdsa.PublicKey)
+		fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+		nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+		require.NoError(t, err)
+
+		toAddress := common.HexToAddress("0x1234")
+		tx := &types.LegacyTx{
+			Nonce: nonce,
+			To:    &toAddress,
+			Value: big.NewInt(0),
+			Gas:   uint64(21000),
+
+			GasPrice: big.NewInt(10000000000000),
+			Data:     nil,
+		}
+
+		// set the chainID to 0 to fake a pre EIP155 tx
+		signer := types.NewEIP155Signer(big.NewInt(0))
+
+		// sign tx
+		h := signer.Hash(types.NewTx(tx))
+		sig, err := crypto.Sign(h[:], privateKey)
+		require.NoError(t, err)
+		r, s, _, err := signer.SignatureValues(types.NewTx(tx), sig)
+		require.NoError(t, err)
+
+		// set the value V of the signature to 35
+		tx.V = big.NewInt(35)
+		tx.R = r
+		tx.S = s
+
+		signedTx := types.NewTx(tx)
+		err = client.SendTransaction(context.Background(), signedTx)
+		require.Equal(t, "invalid sender", err.Error())
 	}
 }

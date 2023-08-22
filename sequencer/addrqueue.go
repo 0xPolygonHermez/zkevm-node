@@ -12,51 +12,75 @@ import (
 
 // addrQueue is a struct that stores the ready and notReady txs for a specific from address
 type addrQueue struct {
-	from           common.Address
-	fromStr        string
-	currentNonce   uint64
-	currentBalance *big.Int
-	readyTx        *TxTracker
-	notReadyTxs    map[uint64]*TxTracker
+	from              common.Address
+	fromStr           string
+	currentNonce      uint64
+	currentBalance    *big.Int
+	readyTx           *TxTracker
+	notReadyTxs       map[uint64]*TxTracker
+	pendingTxsToStore map[common.Hash]struct{}
 }
 
 // newAddrQueue creates and init a addrQueue
 func newAddrQueue(addr common.Address, nonce uint64, balance *big.Int) *addrQueue {
 	return &addrQueue{
-		from:           addr,
-		fromStr:        addr.String(),
-		currentNonce:   nonce,
-		currentBalance: balance,
-		readyTx:        nil,
-		notReadyTxs:    make(map[uint64]*TxTracker),
+		from:              addr,
+		fromStr:           addr.String(),
+		currentNonce:      nonce,
+		currentBalance:    balance,
+		readyTx:           nil,
+		notReadyTxs:       make(map[uint64]*TxTracker),
+		pendingTxsToStore: make(map[common.Hash]struct{}),
 	}
 }
 
-// addTx adds a tx to the addrQueue and updates the ready a notReady Txs
-func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx *TxTracker, dropReason error) {
+// addTx adds a tx to the addrQueue and updates the ready a notReady Txs. Also if the new tx matches
+// an existing tx with the same nonce but the new tx has better or equal gasPrice, we will return in the replacedTx
+// the existing tx with lower gasPrice (the replacedTx will be later set as failed in the pool).
+// If the existing tx has better gasPrice then we will drop the new tx (dropReason = ErrDuplicatedNonce)
+func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx, replacedTx *TxTracker, dropReason error) {
+	var repTx *TxTracker
+
 	if a.currentNonce == tx.Nonce { // Is a possible readyTx
 		// We set the tx as readyTx if we do not have one assigned or if the gasPrice is better or equal than the current readyTx
 		if a.readyTx == nil || ((a.readyTx != nil) && (tx.GasPrice.Cmp(a.readyTx.GasPrice) >= 0)) {
 			oldReadyTx := a.readyTx
-			if a.currentBalance.Cmp(tx.Cost) >= 0 { //
+			if (oldReadyTx != nil) && (oldReadyTx.HashStr != tx.HashStr) {
+				// if it is a different tx then we need to return the replaced tx to set as failed in the pool
+				repTx = oldReadyTx
+			}
+			if a.currentBalance.Cmp(tx.Cost) >= 0 {
 				a.readyTx = tx
-				return tx, oldReadyTx, nil
+				return tx, oldReadyTx, repTx, nil
 			} else { // If there is not enough balance we set the new tx as notReadyTxs
 				a.readyTx = nil
 				a.notReadyTxs[tx.Nonce] = tx
-				return nil, oldReadyTx, nil
+				return nil, oldReadyTx, repTx, nil
 			}
+		} else { // We have an already readytx with the same nonce and better gas price, we discard the new tx
+			return nil, nil, nil, ErrDuplicatedNonce
 		}
 	} else if a.currentNonce > tx.Nonce {
-		return nil, nil, runtime.ErrIntrinsicInvalidNonce
+		return nil, nil, nil, runtime.ErrIntrinsicInvalidNonce
 	}
 
 	nrTx, found := a.notReadyTxs[tx.Nonce]
 	if !found || ((found) && (tx.GasPrice.Cmp(nrTx.GasPrice) >= 0)) {
 		a.notReadyTxs[tx.Nonce] = tx
+		if (found) && (nrTx.HashStr != tx.HashStr) {
+			// if it is a different tx then we need to return the replaced tx to set as failed in the pool
+			repTx = nrTx
+		}
+		return nil, nil, repTx, nil
+	} else {
+		// We have an already notReadytx with the same nonce and better gas price, we discard the new tx
+		return nil, nil, nil, ErrDuplicatedNonce
 	}
+}
 
-	return nil, nil, nil
+// addPendingTxToStore adds a tx to the list of pending txs to store in the DB (trusted state)
+func (a *addrQueue) addPendingTxToStore(txHash common.Hash) {
+	a.pendingTxsToStore[txHash] = struct{}{}
 }
 
 // ExpireTransactions removes the txs that have been in the queue for more than maxTime
@@ -78,7 +102,7 @@ func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *Tx
 		prevReadyTx = a.readyTx
 		txs = append(txs, a.readyTx)
 		a.readyTx = nil
-		log.Debugf("Deleting notReadyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
+		log.Debugf("Deleting readyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
 	}
 
 	return txs, prevReadyTx
@@ -86,7 +110,7 @@ func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *Tx
 
 // IsEmpty returns true if the addrQueue is empty
 func (a *addrQueue) IsEmpty() bool {
-	return a.readyTx == nil && len(a.notReadyTxs) == 0
+	return a.readyTx == nil && len(a.notReadyTxs) == 0 && len(a.pendingTxsToStore) == 0
 }
 
 // deleteTx deletes the tx from the addrQueue
@@ -106,6 +130,15 @@ func (a *addrQueue) deleteTx(txHash common.Hash) (deletedReadyTx *TxTracker) {
 			}
 		}
 		return nil
+	}
+}
+
+// deletePendingTxToStore delete a tx from the list of pending txs to store in the DB (trusted state)
+func (a *addrQueue) deletePendingTxToStore(txHash common.Hash) {
+	if _, found := a.pendingTxsToStore[txHash]; found {
+		delete(a.pendingTxsToStore, txHash)
+	} else {
+		log.Warnf("tx (%s) not found in pendingTxsToStore list", txHash.String())
 	}
 }
 
@@ -145,7 +178,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 		}
 	}
 
-	// We check if we have a new readyTx from the notReadyTxs (at this point, to optmize the code,
+	// We check if we have a new readyTx from the notReadyTxs (at this point, to optimize the code,
 	// we are not including the oldReadyTx in notReadyTxs, as it can match again if the nonce has not changed)
 	if a.readyTx == nil {
 		nrTx, found := a.notReadyTxs[a.currentNonce]
@@ -168,29 +201,19 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 }
 
 // UpdateTxZKCounters updates the ZKCounters for the given tx (txHash)
-// If the updated tx is the readyTx it returns a copy of the previous readyTx, nil otherwise
-func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, counters state.ZKCounters, constraints batchConstraintsFloat64, weights batchResourceWeights) (newReadyTx, prevReadyTx *TxTracker) {
+func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, counters state.ZKCounters) {
 	txHashStr := txHash.String()
 
 	if (a.readyTx != nil) && (a.readyTx.HashStr == txHashStr) {
-		// We need to assign the new readyTx as a new TxTracker copy of the previous one with the updated efficiency
-		// We need to do in this way because the efficiency value is changed and we use this value as key field to
-		// add/delete TxTrackers in the efficiencyList
-		prevReadyTx := a.readyTx
-		newReadyTx := *a.readyTx
-		newReadyTx.updateZKCounters(counters, constraints, weights)
-		a.readyTx = &newReadyTx
 		log.Debugf("Updating readyTx %s with new ZKCounters from addrQueue %s", txHashStr, a.fromStr)
-		return a.readyTx, prevReadyTx
+		a.readyTx.updateZKCounters(counters)
 	} else {
-		txHashStr := txHash.String()
 		for _, txTracker := range a.notReadyTxs {
 			if txTracker.HashStr == txHashStr {
 				log.Debugf("Updating notReadyTx %s with new ZKCounters from addrQueue %s", txHashStr, a.fromStr)
-				txTracker.updateZKCounters(counters, constraints, weights)
+				txTracker.updateZKCounters(counters)
 				break
 			}
 		}
-		return nil, nil
 	}
 }

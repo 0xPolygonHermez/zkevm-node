@@ -8,10 +8,11 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -25,7 +26,7 @@ var (
 type State struct {
 	cfg Config
 	*PostgresStorage
-	executorClient pb.ExecutorServiceClient
+	executorClient executor.ExecutorServiceClient
 	tree           *merkletree.StateTree
 	eventLog       *event.EventLog
 
@@ -35,7 +36,7 @@ type State struct {
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog) *State {
+func NewState(cfg Config, storage *PostgresStorage, executorClient executor.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog) *State {
 	var once sync.Once
 	once.Do(func() {
 		metrics.Register()
@@ -138,5 +139,18 @@ func (s *State) FlushMerkleTree(ctx context.Context) error {
 	if s.tree == nil {
 		return ErrStateTreeNil
 	}
-	return s.tree.Flush(ctx)
+	return s.tree.Flush(ctx, "")
+}
+
+// GetStoredFlushID returns the stored flush ID and Prover ID
+func (s *State) GetStoredFlushID(ctx context.Context) (uint64, string, error) {
+	if s.executorClient == nil {
+		return 0, "", ErrExecutorNil
+	}
+	res, err := s.executorClient.GetFlushStatus(ctx, &emptypb.Empty{})
+	if err != nil {
+		return 0, "", err
+	}
+
+	return res.StoredFlushId, res.ProverId, nil
 }

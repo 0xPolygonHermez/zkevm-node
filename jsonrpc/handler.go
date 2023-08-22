@@ -156,15 +156,17 @@ func (h *Handler) Handle(req handleRequest) types.Response {
 }
 
 // HandleWs handle websocket requests
-func (h *Handler) HandleWs(reqBody []byte, wsConn *websocket.Conn) ([]byte, error) {
+func (h *Handler) HandleWs(reqBody []byte, wsConn *websocket.Conn, httpReq *http.Request) ([]byte, error) {
+	log.Debugf("WS message received: %v", string(reqBody))
 	var req types.Request
 	if err := json.Unmarshal(reqBody, &req); err != nil {
 		return types.NewResponse(req, nil, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")).Bytes()
 	}
 
 	handleReq := handleRequest{
-		Request: req,
-		wsConn:  wsConn,
+		Request:     req,
+		wsConn:      wsConn,
+		HttpRequest: httpReq,
 	}
 
 	return h.Handle(handleReq).Bytes()
@@ -195,10 +197,10 @@ func (h *Handler) RemoveFilterByWsConn(wsConn *websocket.Conn) {
 	}
 }
 
-func (h *Handler) registerService(serviceName string, service interface{}) {
-	st := reflect.TypeOf(service)
+func (h *Handler) registerService(service Service) {
+	st := reflect.TypeOf(service.Service)
 	if st.Kind() == reflect.Struct {
-		panic(fmt.Sprintf("jsonrpc: service '%s' must be a pointer to struct", serviceName))
+		panic(fmt.Sprintf("jsonrpc: service '%s' must be a pointer to struct", service.Name))
 	}
 
 	funcMap := make(map[string]*funcData)
@@ -210,7 +212,7 @@ func (h *Handler) registerService(serviceName string, service interface{}) {
 		}
 
 		name := lowerCaseFirst(mv.Name)
-		funcName := serviceName + "_" + name
+		funcName := service.Name + "_" + name
 		fd := &funcData{
 			fv: mv.Func,
 		}
@@ -228,8 +230,8 @@ func (h *Handler) registerService(serviceName string, service interface{}) {
 		funcMap[name] = fd
 	}
 
-	h.serviceMap[serviceName] = &serviceData{
-		sv:      reflect.ValueOf(service),
+	h.serviceMap[service.Name] = &serviceData{
+		sv:      reflect.ValueOf(service.Service),
 		funcMap: funcMap,
 	}
 }

@@ -6,8 +6,8 @@
     "runExecutorServer": true,
     "runExecutorClient": false,
 
-    "runStateDBServer": true,
-    "runStateDBTest": false,
+    "runHashDBServer": true,
+    "runHashDBTest": false,
 
     "runFile": false,
     "runFileFast": false,
@@ -21,7 +21,7 @@
     "runStarkTest": false,
 
     "executeInParallel" : false,
-    "useMainExecGenerated" : false,
+    "useMainExecGenerated" : true,
 
     "proverServerPort": 50051,
     "proverServerMockPort": 50052,
@@ -32,8 +32,8 @@
     "executorClientPort": 50071,
     "executorClientHost": "127.0.0.1",
 
-    "stateDBServerPort": 50061,
-    "stateDBURL": "local",    
+    "hashDBServerPort": 50061,
+    "hashDBURL": "local",    
 
     "inputFile": "input_executor.json",
     "outputPath": "output",

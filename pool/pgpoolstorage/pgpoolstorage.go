@@ -73,10 +73,11 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			received_at,
 			from_address,
 			is_wip,
-			ip
+			ip,
+			failed_reason
 		) 
 		VALUES 
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NULL)
 			ON CONFLICT (hash) DO UPDATE SET 
 			encoded = $2,
 			decoded = $3,
@@ -94,7 +95,8 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			received_at = $15,
 			from_address = $16,
 			is_wip = $17,
-			ip = $18
+			ip = $18,
+			failed_reason = NULL
 	`
 
 	// Get FromAddress from the JSON data
@@ -163,25 +165,18 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 	return txs, nil
 }
 
-// GetNonWIPTxsByStatus returns an array of transactions filtered by status
-// limit parameter is used to limit amount txs from the db,
-// if limit = 0, then there is no limit
-func (p *PostgresPoolStorage) GetNonWIPTxsByStatus(ctx context.Context, status pool.TxStatus, limit uint64) ([]pool.Transaction, error) {
+// GetNonWIPPendingTxs returns an array of transactions
+func (p *PostgresPoolStorage) GetNonWIPPendingTxs(ctx context.Context) ([]pool.Transaction, error) {
 	var (
 		rows pgx.Rows
 		err  error
 		sql  string
 	)
 
-	if limit == 0 {
-		sql = `SELECT encoded, status, received_at, is_wip, ip, cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
+	sql = `SELECT encoded, status, received_at, is_wip, ip, cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
 		used_arithmetics, used_binaries, used_steps, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1`
-		rows, err = p.db.Query(ctx, sql, status.String())
-	} else {
-		sql = `SELECT encoded, status, received_at, is_wip, ip, cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
-		used_arithmetics, used_binaries, used_steps, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1 DESC LIMIT $2`
-		rows, err = p.db.Query(ctx, sql, status.String(), limit)
-	}
+	rows, err = p.db.Query(ctx, sql, pool.TxStatusPending)
+
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +278,6 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		encoded, status, ip string
 		receivedAt          time.Time
 		cumulativeGasUsed   uint64
-
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
 		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
 		nonce uint64
@@ -344,7 +338,6 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		}
 		tx.IsWIP = isWIP
 		tx.IP = ip
-
 		txs = append(txs, tx)
 	}
 
@@ -422,34 +415,64 @@ func (p *PostgresPoolStorage) DeleteTransactionsByHashes(ctx context.Context, ha
 	return nil
 }
 
-// SetGasPrice allows an external component to define the gas price
-func (p *PostgresPoolStorage) SetGasPrice(ctx context.Context, gasPrice uint64) error {
-	sql := "INSERT INTO pool.gas_price (price, timestamp) VALUES ($1, $2)"
-	if _, err := p.db.Exec(ctx, sql, gasPrice, time.Now().UTC()); err != nil {
+// SetGasPrices sets the latest l2 and l1 gas prices
+func (p *PostgresPoolStorage) SetGasPrices(ctx context.Context, l2GasPrice, l1GasPrice uint64) error {
+	sql := "INSERT INTO pool.gas_price (price, l1_price, timestamp) VALUES ($1, $2, $3)"
+	if _, err := p.db.Exec(ctx, sql, l2GasPrice, l1GasPrice, time.Now().UTC()); err != nil {
 		return err
 	}
 	return nil
 }
 
-// GetGasPrice returns the current gas price
-func (p *PostgresPoolStorage) GetGasPrice(ctx context.Context) (uint64, error) {
-	sql := "SELECT price FROM pool.gas_price ORDER BY item_id DESC LIMIT 1"
+// GetGasPrices returns the latest l2 and l1 gas prices
+func (p *PostgresPoolStorage) GetGasPrices(ctx context.Context) (uint64, uint64, error) {
+	sql := "SELECT price, l1_price FROM pool.gas_price ORDER BY item_id DESC LIMIT 1"
 	rows, err := p.db.Query(ctx, sql)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, state.ErrNotFound
+		return 0, 0, state.ErrNotFound
 	} else if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	defer rows.Close()
 
-	gasPrice := uint64(0)
+	l2GasPrice := uint64(0)
+	l1GasPrice := uint64(0)
 
 	for rows.Next() {
-		err := rows.Scan(&gasPrice)
+		err := rows.Scan(&l2GasPrice, &l1GasPrice)
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
+	}
+
+	return l2GasPrice, l1GasPrice, nil
+}
+
+// DeleteGasPricesHistoryOlderThan deletes all gas prices older than the given date except the last one
+func (p *PostgresPoolStorage) DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error {
+	sql := `DELETE FROM pool.gas_price
+		WHERE timestamp < $1 AND item_id NOT IN (
+			SELECT item_id
+			FROM pool.gas_price
+			ORDER BY item_id DESC
+			LIMIT 1
+		)`
+	if _, err := p.db.Exec(ctx, sql, date); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MinL2GasPriceSince returns the min L2 gas price after given timestamp
+func (p *PostgresPoolStorage) MinL2GasPriceSince(ctx context.Context, timestamp time.Time) (uint64, error) {
+	sql := "SELECT COALESCE(MIN(price), 0) FROM pool.gas_price WHERE \"timestamp\" >= $1 LIMIT 1"
+	var gasPrice uint64
+	err := p.db.QueryRow(ctx, sql, timestamp).Scan(&gasPrice)
+	if gasPrice == 0 || errors.Is(err, pgx.ErrNoRows) {
+		return 0, state.ErrNotFound
+	} else if err != nil {
+		return 0, err
 	}
 
 	return gasPrice, nil

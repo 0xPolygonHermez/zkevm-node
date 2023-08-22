@@ -1,0 +1,50 @@
+{
+  "expectedOldStateRoot": "0x4a9bfcb163ec91c5beb22e6aca41592433092c8c7821b01d37fd0de483f9265d",
+  "expectedNewStateRoot": "0x7d132db5b2509e925565da8ed09fedc3028465031435cb3d6c9bb87982e497fe",
+  "batchL2Data": "0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e980801186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb9700910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c012259687999074321bffee01843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e98080b09a953b4dccf40c7333ed1a1df6fda10a18d01d7c4320b05f7680b34837b3bd421af00d0c99bb1b4d346d99f3634f46fba700dbc57908d3bfa647cbfbcb81a31cffee02843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e980807d6892a0b642053f641a040c5ba59132983cb41af9887cf01f5b132313d68d0f3c77a17d738c8d850a27fe7276b2c73e006b0e52938d960d7b6931dff1f49c971cff",
+  "genesis": [
+    {
+      "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+      "nonce": "0",
+      "balance": "100000000000000000000",
+      "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+      "isSmartContract": false
+    },
+    {
+      "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+      "nonce": "0",
+      "balance": "200000000000000000000",
+      "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+      "isSmartContract": false
+    }
+  ],
+  "expectedNewLeafs": [
+    {
+      "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+      "nonce": "3",
+      "balance": "99699937000000000000",
+      "isSmartContract": false
+    },
+    {
+      "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+      "nonce": "0",
+      "balance": "200300000000000000000",
+      "isSmartContract": false
+    },
+    {
+      "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+      "nonce": "0",
+      "balance": "63000000000000",
+      "isSmartContract": false
+    },
+    {
+      "address": "0xa40D5f56745a118D0906a34E69aeC8C0Db1cB8fA",
+      "nonce": "0",
+      "balance": "0",
+      "storage": {
+        "0x97c92adf8a3a4d220916a89b87a4e05eb2114733ecdcebc33348042b58dc1c3d": "0x73e6af6f"
+      },
+      "isSmartContract": false
+    }
+  ]
+}

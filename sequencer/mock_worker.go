@@ -20,28 +20,40 @@ type WorkerMock struct {
 	mock.Mock
 }
 
+// AddPendingTxToStore provides a mock function with given fields: txHash, addr
+func (_m *WorkerMock) AddPendingTxToStore(txHash common.Hash, addr common.Address) {
+	_m.Called(txHash, addr)
+}
+
 // AddTxTracker provides a mock function with given fields: ctx, txTracker
-func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) (error, bool) {
+func (_m *WorkerMock) AddTxTracker(ctx context.Context, txTracker *TxTracker) (*TxTracker, error) {
 	ret := _m.Called(ctx, txTracker)
 
-	var r0 error
-	var r1 bool
-	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) (error, bool)); ok {
+	var r0 *TxTracker
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) (*TxTracker, error)); ok {
 		return rf(ctx, txTracker)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *TxTracker) *TxTracker); ok {
 		r0 = rf(ctx, txTracker)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*TxTracker)
+		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *TxTracker) bool); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *TxTracker) error); ok {
 		r1 = rf(ctx, txTracker)
 	} else {
-		r1 = ret.Get(1).(bool)
+		r1 = ret.Error(1)
 	}
 
 	return r0, r1
+}
+
+// DeletePendingTxToStore provides a mock function with given fields: txHash, addr
+func (_m *WorkerMock) DeletePendingTxToStore(txHash common.Hash, addr common.Address) {
+	_m.Called(txHash, addr)
 }
 
 // DeleteTx provides a mock function with given fields: txHash, from
@@ -128,8 +140,8 @@ func (_m *WorkerMock) UpdateAfterSingleSuccessfulTxExecution(from common.Address
 	return r0
 }
 
-// UpdateTx provides a mock function with given fields: txHash, from, ZKCounters
-func (_m *WorkerMock) UpdateTx(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters) {
+// UpdateTxZKCounters provides a mock function with given fields: txHash, from, ZKCounters
+func (_m *WorkerMock) UpdateTxZKCounters(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters) {
 	_m.Called(txHash, from, ZKCounters)
 }
 

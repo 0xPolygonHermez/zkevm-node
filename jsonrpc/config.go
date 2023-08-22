@@ -34,6 +34,16 @@ type Config struct {
 
 	// EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.
 	EnableL2SuggestedGasPricePolling bool `mapstructure:"EnableL2SuggestedGasPricePolling"`
+
+	// TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)
+	// to do the parallel requests to RPC.debug_traceTransaction endpoint
+	TraceBatchUseHTTPS bool `mapstructure:"TraceBatchUseHTTPS"`
+
+	// BatchRequestsEnabled defines if the Batch requests are enabled or disabled
+	BatchRequestsEnabled bool `mapstructure:"BatchRequestsEnabled"`
+
+	// BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request
+	BatchRequestsLimit uint `mapstructure:"BatchRequestsLimit"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support
@@ -46,4 +56,7 @@ type WebSocketsConfig struct {
 
 	// Port defines the port to serve the endpoints via WS
 	Port int `mapstructure:"Port"`
+
+	// ReadLimit defines the maximum size of a message read from the client (in bytes)
+	ReadLimit int64 `mapstructure:"ReadLimit"`
 }

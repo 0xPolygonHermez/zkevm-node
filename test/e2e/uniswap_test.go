@@ -31,12 +31,12 @@ func TestUniswap(t *testing.T) {
 	app := cli.NewApp()
 	var n string
 	flag.StringVar(&n, "network", "local", "")
-	cfg, err := config.Load(cli.NewContext(app, flag.CommandLine, nil))
+	cfg, err := config.Load(cli.NewContext(app, flag.CommandLine, nil), true)
 	require.NoError(t, err)
 
 	opsCfg := &operations.Config{
 		State: &state.Config{
-			MaxCumulativeGasUsed: cfg.Sequencer.MaxCumulativeGasUsed,
+			MaxCumulativeGasUsed: cfg.State.Batch.Constraints.MaxCumulativeGasUsed,
 		},
 		SequenceSender: &operations.SequenceSenderConfig{
 			SenderAddress:                            "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",

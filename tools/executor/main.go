@@ -13,11 +13,11 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 )
 
 const (
+	forkID           = 4
 	waitForDBSeconds = 3
 	vectorDir        = "./vectors/"
 	genesisDir       = "./genesis/"
@@ -111,13 +111,13 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 	xecutor, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorURL, MaxGRPCMessageSize: 100000000}) //nolint:gomnd
 	// Execute batches
 	for i := 0; i < len(tc.Requests); i++ {
-		pbr := pb.ProcessBatchRequest(tc.Requests[i]) //nolint
+		pbr := executor.ProcessBatchRequest(tc.Requests[i]) //nolint
 		res, err := xecutor.ProcessBatch(ctx, &pbr)
 		if err != nil {
 			return err
 		}
 		log.Infof("**********              BATCH %d              **********", tc.Requests[i].OldBatchNum)
-		txs, _, err := state.DecodeTxs(tc.Requests[i].BatchL2Data)
+		txs, _, _, err := state.DecodeTxs(tc.Requests[i].BatchL2Data, forkID)
 		if err != nil {
 			log.Warnf("Txs are not correctly encoded")
 		}
@@ -229,7 +229,7 @@ type testCase struct {
 	Requests    []executorRequest `json:"batches"`
 }
 
-type executorRequest pb.ProcessBatchRequest
+type executorRequest executor.ProcessBatchRequest
 
 func (er *executorRequest) UnmarshalJSON(data []byte) error {
 	type jExecutorRequeststruct struct {
@@ -262,7 +262,7 @@ func (er *executorRequest) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	req := pb.ProcessBatchRequest{
+	req := executor.ProcessBatchRequest{
 		BatchL2Data:     batchL2Data,
 		GlobalExitRoot:  globalExitRoot,
 		OldBatchNum:     jer.OldBatchNum,

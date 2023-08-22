@@ -17,6 +17,16 @@ const (
 	ParserErrorCode = -32700
 )
 
+var (
+	// ErrBatchRequestsDisabled returned by the server when a batch request
+	// is detected and the batch requests are disabled via configuration
+	ErrBatchRequestsDisabled = fmt.Errorf("batch requests are disabled")
+
+	// ErrBatchRequestsLimitExceeded returned by the server when a batch request
+	// is detected and the number of requests are greater than the configured limit.
+	ErrBatchRequestsLimitExceeded = fmt.Errorf("batch requests limit exceeded")
+)
+
 // Error interface
 type Error interface {
 	Error() string

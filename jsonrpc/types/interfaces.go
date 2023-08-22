@@ -16,7 +16,7 @@ import (
 // PoolInterface contains the methods required to interact with the tx pool.
 type PoolInterface interface {
 	AddTx(ctx context.Context, tx types.Transaction, ip string) error
-	GetGasPrice(ctx context.Context) (uint64, error)
+	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetNonce(ctx context.Context, address common.Address) (uint64, error)
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
 	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
@@ -59,8 +59,16 @@ type StateInterface interface {
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
-	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error)
+	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, effectivePercentages []uint8, err error)
 	GetVirtualBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.VirtualBatch, error)
 	GetVerifiedBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*state.GlobalExitRoot, error)
+	GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetFinalizedL2BlockNumber(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error)
+}
+
+// EthermanInterface provides integration with L1
+type EthermanInterface interface {
+	GetSafeBlockNumber(ctx context.Context) (uint64, error)
+	GetFinalizedBlockNumber(ctx context.Context) (uint64, error)
 }

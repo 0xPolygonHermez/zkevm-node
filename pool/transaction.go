@@ -15,7 +15,7 @@ const (
 	TxStatusInvalid TxStatus = "invalid"
 	// TxStatusSelected represents a tx that has been selected
 	TxStatusSelected TxStatus = "selected"
-	// TxStatusFailed represents a tx that has been failed after processing, but can be processed in the future
+	// TxStatusFailed represents a tx that has been failed after processing
 	TxStatusFailed TxStatus = "failed"
 )
 
@@ -48,7 +48,7 @@ type Transaction struct {
 }
 
 // NewTransaction creates a new transaction
-func NewTransaction(tx types.Transaction, ip string, isWIP bool, p *Pool) *Transaction {
+func NewTransaction(tx types.Transaction, ip string, isWIP bool) *Transaction {
 	poolTx := Transaction{
 		Transaction: tx,
 		Status:      TxStatusPending,

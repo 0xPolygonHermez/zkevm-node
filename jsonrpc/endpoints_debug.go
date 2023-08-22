@@ -32,9 +32,19 @@ var defaultTraceConfig = &traceConfig{
 
 // DebugEndpoints is the debug jsonrpc endpoint
 type DebugEndpoints struct {
-	cfg   Config
-	state types.StateInterface
-	txMan dbTxManager
+	cfg      Config
+	state    types.StateInterface
+	etherman types.EthermanInterface
+	txMan    DBTxManager
+}
+
+// NewDebugEndpoints returns DebugEndpoints
+func NewDebugEndpoints(cfg Config, state types.StateInterface, etherman types.EthermanInterface) *DebugEndpoints {
+	return &DebugEndpoints{
+		cfg:      cfg,
+		state:    state,
+		etherman: etherman,
+	}
 }
 
 type traceConfig struct {
@@ -88,7 +98,7 @@ func (d *DebugEndpoints) TraceTransaction(hash types.ArgHash, cfg *traceConfig) 
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbynumber
 func (d *DebugEndpoints) TraceBlockByNumber(number types.BlockNumber, cfg *traceConfig) (interface{}, types.Error) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, d.state, dbTx)
+		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, d.state, d.etherman, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
@@ -96,8 +106,8 @@ func (d *DebugEndpoints) TraceBlockByNumber(number types.BlockNumber, cfg *trace
 		block, err := d.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("block #%d not found", blockNumber))
-		} else if err == state.ErrNotFound {
-			return rpcErrorResponse(types.DefaultErrorCode, "failed to get block by number", err)
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by number", err)
 		}
 
 		traces, rpcErr := d.buildTraceBlock(ctx, block.Transactions(), cfg, dbTx)
@@ -116,8 +126,8 @@ func (d *DebugEndpoints) TraceBlockByHash(hash types.ArgHash, cfg *traceConfig) 
 		block, err := d.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("block %s not found", hash.Hash().String()))
-		} else if err == state.ErrNotFound {
-			return rpcErrorResponse(types.DefaultErrorCode, "failed to get block by hash", err)
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash", err)
 		}
 
 		traces, rpcErr := d.buildTraceBlock(ctx, block.Transactions(), cfg, dbTx)
@@ -169,19 +179,19 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("batch #%d not found", batchNumber))
 		} else if err == state.ErrNotFound {
-			return rpcErrorResponse(types.DefaultErrorCode, "failed to get batch by number", err)
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get batch by number", err)
 		}
 
-		txs, err := d.state.GetTransactionsByBatchNumber(ctx, batch.BatchNumber, dbTx)
+		txs, _, err := d.state.GetTransactionsByBatchNumber(ctx, batch.BatchNumber, dbTx)
 		if !errors.Is(err, state.ErrNotFound) && err != nil {
-			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v to create the traces", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v to create the traces", batchNumber), err)
 		}
 
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := d.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
 			if err != nil {
-				return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v to get trace", tx.Hash().String()), err)
+				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v to get trace", tx.Hash().String()), err)
 			}
 			receipts = append(receipts, *receipt)
 		}
@@ -235,7 +245,7 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 
 		// wait the traces to be loaded
 		if waitTimeout(&wg, d.cfg.ReadTimeout.Duration) {
-			return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to get traces for batch %v: timeout reached", batchNumber), nil)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to get traces for batch %v: timeout reached", batchNumber), nil)
 		}
 
 		close(requests)
@@ -256,7 +266,7 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 		traces := make([]traceBatchTransactionResponse, 0, len(receipts))
 		for _, response := range responses {
 			if response.err != nil {
-				return rpcErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to get traces for batch %v: failed to get trace for tx: %v, err: %v", batchNumber, response.txHash.String(), response.err.Error()), nil)
+				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to get traces for batch %v: failed to get trace for tx: %v, err: %v", batchNumber, response.txHash.String(), response.err.Error()), nil)
 			}
 
 			traces = append(traces, traceBatchTransactionResponse{
@@ -274,7 +284,7 @@ func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*ethTypes.Tr
 		traceTransaction, err := d.buildTraceTransaction(ctx, tx.Hash(), cfg, dbTx)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to get trace for transaction %v", tx.Hash().String())
-			return rpcErrorResponse(types.DefaultErrorCode, errMsg, err)
+			return RPCErrorResponse(types.DefaultErrorCode, errMsg, err)
 		}
 		traceBlockTransaction := traceBlockTransactionResponse{
 			Result: traceTransaction,
@@ -293,7 +303,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 
 	// check tracer
 	if traceCfg.Tracer != nil && *traceCfg.Tracer != "" && !isBuiltInTracer(*traceCfg.Tracer) && !isJSCustomTracer(*traceCfg.Tracer) {
-		return rpcErrorResponse(types.DefaultErrorCode, "invalid tracer", nil)
+		return RPCErrorResponse(types.DefaultErrorCode, "invalid tracer", nil)
 	}
 
 	stateTraceConfig := state.TraceConfig{
@@ -306,7 +316,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 	}
 	result, err := d.state.DebugTransaction(ctx, hash, stateTraceConfig, dbTx)
 	if errors.Is(err, state.ErrNotFound) {
-		return rpcErrorResponse(types.DefaultErrorCode, "transaction not found", nil)
+		return RPCErrorResponse(types.DefaultErrorCode, "transaction not found", nil)
 	} else if err != nil {
 		const errorMessage = "failed to get trace"
 		log.Errorf("%v: %v", errorMessage, err)

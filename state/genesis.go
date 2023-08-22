@@ -12,15 +12,18 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
 
 // Genesis contains the information to populate state on creation
 type Genesis struct {
-	// GenesisBlockNum is the block number where the polygonZKEVM smc was deployed
+	// GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1
 	GenesisBlockNum uint64
-	Root            common.Hash
-	GenesisActions  []*GenesisAction
+	// Root hash of the genesis block
+	Root common.Hash
+	// Contracts to be deployed to L2
+	GenesisActions []*GenesisAction
 }
 
 // GenesisAction represents one of the values set on the SMT during genesis.
@@ -48,6 +51,8 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		return newRoot, ErrStateTreeNil
 	}
 
+	uuid := uuid.New().String()
+
 	for _, action := range genesis.GenesisActions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
@@ -56,7 +61,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 			if err != nil {
 				return newRoot, err
 			}
-			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
+			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot, uuid)
 			if err != nil {
 				return newRoot, err
 			}
@@ -65,7 +70,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 			if err != nil {
 				return newRoot, err
 			}
-			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
+			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot, uuid)
 			if err != nil {
 				return newRoot, err
 			}
@@ -74,7 +79,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 			if err != nil {
 				return newRoot, fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
 			}
-			newRoot, _, err = s.tree.SetCode(ctx, address, code, newRoot)
+			newRoot, _, err = s.tree.SetCode(ctx, address, code, newRoot, uuid)
 			if err != nil {
 				return newRoot, err
 			}
@@ -89,7 +94,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 				return newRoot, err
 			}
 			// Store
-			newRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot)
+			newRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot, uuid)
 			if err != nil {
 				return newRoot, err
 			}
@@ -103,7 +108,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	root.SetBytes(newRoot)
 
 	// flush state db
-	err = s.tree.Flush(ctx)
+	err = s.tree.Flush(ctx, uuid)
 	if err != nil {
 		log.Errorf("error flushing state tree after genesis: %v", err)
 		return newRoot, err
@@ -172,5 +177,5 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = block.ReceivedAt
 
-	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, dbTx)
+	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, MaxEffectivePercentage, dbTx)
 }

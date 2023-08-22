@@ -730,7 +730,7 @@ func scanBatch(row pgx.Row) (Batch, error) {
 		stateStr    *string
 		coinbaseStr string
 	)
-	if err := row.Scan(
+	err := row.Scan(
 		&batch.BatchNumber,
 		&gerStr,
 		&lerStr,
@@ -740,7 +740,8 @@ func scanBatch(row pgx.Row) (Batch, error) {
 		&coinbaseStr,
 		&batch.BatchL2Data,
 		&batch.ForcedBatchNum,
-	); err != nil {
+	)
+	if err != nil {
 		return batch, err
 	}
 	batch.GlobalExitRoot = common.HexToHash(gerStr)
@@ -824,44 +825,53 @@ func scanForcedBatch(row pgx.Row) (ForcedBatch, error) {
 
 // GetEncodedTransactionsByBatchNumber returns the encoded field of all
 // transactions in the given batch.
-func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []string, err error) {
-	const getEncodedTransactionsByBatchNumberSQL = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
+func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encodedTxs []string, effectivePercentages []uint8, err error) {
+	const getEncodedTransactionsByBatchNumberSQL = "SELECT encoded, COALESCE(effective_percentage, 255) FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
 
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
-	txs := make([]string, 0, len(rows.RawValues()))
+	encodedTxs = make([]string, 0, len(rows.RawValues()))
+	effectivePercentages = make([]uint8, 0, len(rows.RawValues()))
 
 	for rows.Next() {
-		var encoded string
-		err := rows.Scan(&encoded)
+		var (
+			encoded             string
+			effectivePercentage uint8
+		)
+		err := rows.Scan(&encoded, &effectivePercentage)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		txs = append(txs, encoded)
+		encodedTxs = append(encodedTxs, encoded)
+		effectivePercentages = append(effectivePercentages, effectivePercentage)
 	}
-	return txs, nil
+
+	return encodedTxs, effectivePercentages, nil
 }
 
 // GetTransactionsByBatchNumber returns the transactions in the given batch.
-func (p *PostgresStorage) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error) {
-	encodedTxs, err := p.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
+func (p *PostgresStorage) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, effectivePercentages []uint8, err error) {
+	var encodedTxs []string
+	encodedTxs, effectivePercentages, err = p.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
 	for i := 0; i < len(encodedTxs); i++ {
 		tx, err := DecodeTx(encodedTxs[i])
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		txs = append(txs, *tx)
 	}
-	return
+
+	return txs, effectivePercentages, nil
 }
 
 // GetTxsHashesByBatchNumber returns the hashes of the transactions in the
@@ -954,7 +964,7 @@ func (p *PostgresStorage) storeGenesisBatch(ctx context.Context, batch Batch, db
 // in this batch yet. In other words it's the creation of a WIP batch.
 // Note that this will add a batch with batch number N + 1, where N it's the greatest batch number on the state.
 func (p *PostgresStorage) openBatch(ctx context.Context, batchContext ProcessingContext, dbTx pgx.Tx) error {
-	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, forced_batch_num) VALUES ($1, $2, $3, $4, $5)"
+	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, forced_batch_num, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6)"
 
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(
@@ -964,6 +974,7 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 		batchContext.Timestamp.UTC(),
 		batchContext.Coinbase.String(),
 		batchContext.ForcedBatchNum,
+		batchContext.BatchL2Data,
 	)
 	return err
 }
@@ -1172,6 +1183,7 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
 	var txHash, encodedTx, contractAddress, l2BlockHash string
 	var l2BlockNum uint64
+	var effective_gas_price *uint64
 
 	const getReceiptSQL = `
 		SELECT 
@@ -1183,6 +1195,7 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 			r.cumulative_gas_used,
 			r.gas_used,
 			r.contract_address,
+			r.effective_gas_price,
 			t.encoded,
 			t.l2_block_num,
 			b.block_hash
@@ -1204,6 +1217,7 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 			&receipt.CumulativeGasUsed,
 			&receipt.GasUsed,
 			&contractAddress,
+			&effective_gas_price,
 			&encodedTx,
 			&l2BlockNum,
 			&l2BlockHash,
@@ -1225,7 +1239,9 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 
 	receipt.BlockNumber = big.NewInt(0).SetUint64(l2BlockNum)
 	receipt.BlockHash = common.HexToHash(l2BlockHash)
-
+	if effective_gas_price != nil {
+		receipt.EffectiveGasPrice = big.NewInt(0).SetUint64(*effective_gas_price)
+	}
 	receipt.Logs = logs
 	receipt.Bloom = types.CreateBloom(types.Receipts{&receipt})
 
@@ -1384,10 +1400,10 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 }
 
 // AddL2Block adds a new L2 block to the State Store
-func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, effectivePercentage uint8, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
-	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
+	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage) VALUES($1, $2, $3, $4, $5)"
 	const addL2BlockSQL = `
         INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
                            VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9)`
@@ -1429,7 +1445,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			return err
 		}
 		decoded := string(binary)
-		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64())
+		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), effectivePercentage)
 		if err != nil {
 			return err
 		}
@@ -1452,7 +1468,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	return nil
 }
 
-// GetLastVirtualizedL2BlockNumber gets the last l2 block verified
+// GetLastVirtualizedL2BlockNumber gets the last l2 block virtualized
 func (p *PostgresStorage) GetLastVirtualizedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var lastVirtualizedBlockNumber uint64
 	const getLastVirtualizedBlockNumberSQL = `
@@ -1494,6 +1510,54 @@ func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, 
 	}
 
 	return lastConsolidatedBlockNumber, nil
+}
+
+// GetSafeL2BlockNumber gets the last l2 block virtualized that was mined
+// on or after the safe block on L1
+func (p *PostgresStorage) GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var l2SafeBlockNumber uint64
+	const query = `
+    SELECT b.block_num
+      FROM state.l2block b
+     INNER JOIN state.virtual_batch vb
+        ON vb.batch_num = b.batch_num
+	 WHERE vb.block_num >= $1
+     ORDER BY b.block_num DESC LIMIT 1`
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, l1SafeBlockNumber).Scan(&l2SafeBlockNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return l2SafeBlockNumber, nil
+}
+
+// GetFinalizedL2BlockNumber gets the last l2 block verified that was mined
+// on or after the finalized block on L1
+func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var l2FinalizedBlockNumber uint64
+	const query = `
+    SELECT b.block_num
+      FROM state.l2block b
+	 INNER JOIN state.verified_batch vb
+	    ON vb.batch_num = b.batch_num
+	 WHERE vb.block_num >= $1
+     ORDER BY b.block_num DESC LIMIT 1`
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, l1FinalizedBlockNumber).Scan(&l2FinalizedBlockNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return l2FinalizedBlockNumber, nil
 }
 
 // GetLastL2BlockNumber gets the last l2 block number
@@ -1831,51 +1895,60 @@ func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber 
 // GetLogs returns the logs that match the filter
 func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
 	const getLogsByBlockHashSQL = `
-	  SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
-		FROM state.log l
-	   INNER JOIN state.transaction t ON t.hash = l.tx_hash
-	   INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
-	   WHERE b.block_hash = $1
-	   ORDER BY b.block_num ASC, l.log_index ASC`
-	const getLogsByFilterSQL = `
-	  SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
-	    FROM state.log l
-	   INNER JOIN state.transaction t ON t.hash = l.tx_hash
-	   INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
-	   WHERE b.block_num BETWEEN $1 AND $2 AND (l.address = any($3) OR $3 IS NULL)
-	     AND (l.topic0 = any($4) OR $4 IS NULL)
-		 AND (l.topic1 = any($5) OR $5 IS NULL)
-		 AND (l.topic2 = any($6) OR $6 IS NULL)
-		 AND (l.topic3 = any($7) OR $7 IS NULL)
-		 AND (b.created_at >= $8 OR $8 IS NULL)
-		 ORDER BY b.block_num ASC, l.log_index ASC`
+      SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
+        FROM state.log l
+       INNER JOIN state.transaction t ON t.hash = l.tx_hash
+       INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
+       WHERE b.block_hash = $1
+         AND (l.address = any($2) OR $2 IS NULL)
+         AND (l.topic0 = any($3) OR $3 IS NULL)
+         AND (l.topic1 = any($4) OR $4 IS NULL)
+         AND (l.topic2 = any($5) OR $5 IS NULL)
+         AND (l.topic3 = any($6) OR $6 IS NULL)
+         AND (b.created_at >= $7 OR $7 IS NULL)
+       ORDER BY b.block_num ASC, l.log_index ASC`
+	const getLogsByBlockNumbersSQL = `
+      SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
+        FROM state.log l
+       INNER JOIN state.transaction t ON t.hash = l.tx_hash
+       INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
+       WHERE b.block_num BETWEEN $1 AND $2 
+         AND (l.address = any($3) OR $3 IS NULL)
+         AND (l.topic0 = any($4) OR $4 IS NULL)
+         AND (l.topic1 = any($5) OR $5 IS NULL)
+         AND (l.topic2 = any($6) OR $6 IS NULL)
+         AND (l.topic3 = any($7) OR $7 IS NULL)
+         AND (b.created_at >= $8 OR $8 IS NULL)
+       ORDER BY b.block_num ASC, l.log_index ASC`
 
-	var err error
-	var rows pgx.Rows
-	q := p.getExecQuerier(dbTx)
+	var args []interface{}
+	var query string
 	if blockHash != nil {
-		rows, err = q.Query(ctx, getLogsByBlockHashSQL, blockHash.String())
+		args = []interface{}{blockHash.String()}
+		query = getLogsByBlockHashSQL
 	} else {
-		args := []interface{}{fromBlock, toBlock}
+		args = []interface{}{fromBlock, toBlock}
+		query = getLogsByBlockNumbersSQL
+	}
 
-		if len(addresses) > 0 {
-			args = append(args, p.addressesToHex(addresses))
+	if len(addresses) > 0 {
+		args = append(args, p.addressesToHex(addresses))
+	} else {
+		args = append(args, nil)
+	}
+
+	for i := 0; i < maxTopics; i++ {
+		if len(topics) > i && len(topics[i]) > 0 {
+			args = append(args, p.hashesToHex(topics[i]))
 		} else {
 			args = append(args, nil)
 		}
-
-		for i := 0; i < maxTopics; i++ {
-			if len(topics) > i && len(topics[i]) > 0 {
-				args = append(args, p.hashesToHex(topics[i]))
-			} else {
-				args = append(args, nil)
-			}
-		}
-
-		args = append(args, since)
-
-		rows, err = q.Query(ctx, getLogsByFilterSQL, args...)
 	}
+
+	args = append(args, since)
+
+	q := p.getExecQuerier(dbTx)
+	rows, err := q.Query(ctx, query, args...)
 
 	if err != nil {
 		return nil, err
@@ -1947,10 +2020,18 @@ func (p *PostgresStorage) hashesToHex(hashes []common.Hash) []string {
 // AddReceipt adds a new receipt to the State Store
 func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
+
+	var effectiveGasPrice *uint64
+
+	if receipt.EffectiveGasPrice != nil {
+		egf := receipt.EffectiveGasPrice.Uint64()
+		effectiveGasPrice = &egf
+	}
+
 	const addReceiptSQL = `
-        INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address)
-                           VALUES (     $1,   $2,         $3,     $4,                  $5,       $6,        $7,       $8,               $9)`
-	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
+        INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, effective_gas_price, block_num, tx_index, contract_address)
+                           VALUES (     $1,   $2,         $3,     $4,                  $5,       $6,        		  $7,        $8,       $9,			    $10)`
+	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, effectiveGasPrice, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
 	return err
 }
 

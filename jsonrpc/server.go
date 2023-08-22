@@ -46,6 +46,12 @@ type Server struct {
 	wsUpgrader websocket.Upgrader
 }
 
+// Service implementation of a service and it's name
+type Service struct {
+	Name    string
+	Service interface{}
+}
+
 // NewServer returns the JsonRPC server
 func NewServer(
 	cfg Config,
@@ -53,39 +59,13 @@ func NewServer(
 	p types.PoolInterface,
 	s types.StateInterface,
 	storage storageInterface,
-	apis map[string]bool,
+	services []Service,
 ) *Server {
 	s.PrepareWebSocket()
 	handler := newJSONRpcHandler()
 
-	if _, ok := apis[APIEth]; ok {
-		ethEndpoints := newEthEndpoints(cfg, chainID, p, s, storage)
-		handler.registerService(APIEth, ethEndpoints)
-	}
-
-	if _, ok := apis[APINet]; ok {
-		netEndpoints := &NetEndpoints{cfg: cfg, chainID: chainID}
-		handler.registerService(APINet, netEndpoints)
-	}
-
-	if _, ok := apis[APIZKEVM]; ok {
-		zkEVMEndpoints := &ZKEVMEndpoints{state: s, config: cfg}
-		handler.registerService(APIZKEVM, zkEVMEndpoints)
-	}
-
-	if _, ok := apis[APITxPool]; ok {
-		txPoolEndpoints := &TxPoolEndpoints{}
-		handler.registerService(APITxPool, txPoolEndpoints)
-	}
-
-	if _, ok := apis[APIDebug]; ok {
-		debugEndpoints := &DebugEndpoints{cfg: cfg, state: s}
-		handler.registerService(APIDebug, debugEndpoints)
-	}
-
-	if _, ok := apis[APIWeb3]; ok {
-		web3Endpoints := &Web3Endpoints{}
-		handler.registerService(APIWeb3, web3Endpoints)
+	for _, service := range services {
+		handler.registerService(service)
 	}
 
 	srv := &Server{
@@ -296,11 +276,25 @@ func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseW
 }
 
 func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
+	// Checking if batch requests are enabled
+	if !s.config.BatchRequestsEnabled {
+		s.handleInvalidRequest(w, types.ErrBatchRequestsDisabled)
+		return 0
+	}
+
 	defer metrics.RequestHandled(metrics.RequestHandledLabelBatch)
 	requests, err := s.parseRequests(data)
 	if err != nil {
 		handleError(w, err)
 		return 0
+	}
+
+	// Checking if batch requests limit is exceeded
+	if s.config.BatchRequestsLimit > 0 {
+		if len(requests) > int(s.config.BatchRequestsLimit) {
+			s.handleInvalidRequest(w, types.ErrBatchRequestsLimitExceeded)
+			return 0
+		}
 	}
 
 	responses := make([]types.Response, 0, len(requests))
@@ -342,7 +336,11 @@ func (s *Server) parseRequests(data []byte) ([]types.Request, error) {
 
 func (s *Server) handleInvalidRequest(w http.ResponseWriter, err error) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelInvalid)
-	handleError(w, err)
+	log.Info(err)
+	_, err = w.Write([]byte(err.Error()))
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
@@ -356,6 +354,9 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 
 		return
 	}
+
+	// Set read limit
+	wsConn.SetReadLimit(s.config.WebSockets.ReadLimit)
 
 	// Defer WS closure
 	defer func(ws *websocket.Conn) {
@@ -372,6 +373,8 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
 				log.Info("Closing WS connection gracefully")
+			} else if errors.Is(err, websocket.ErrReadLimit) {
+				log.Info("Closing WS connection due to read limit exceeded")
 			} else {
 				log.Error(fmt.Sprintf("Unable to read WS message, %s", err.Error()))
 				log.Info("Closing WS connection with error")
@@ -386,7 +389,7 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 			go func() {
 				mu.Lock()
 				defer mu.Unlock()
-				resp, err := s.handler.HandleWs(message, wsConn)
+				resp, err := s.handler.HandleWs(message, wsConn, req)
 				if err != nil {
 					log.Error(fmt.Sprintf("Unable to handle WS request, %s", err.Error()))
 					_ = wsConn.WriteMessage(msgType, []byte(fmt.Sprintf("WS Handle error: %s", err.Error())))
@@ -399,6 +402,7 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 }
 
 func handleError(w http.ResponseWriter, err error) {
+	defer metrics.RequestHandled(metrics.RequestHandledLabelError)
 	log.Error(err)
 	_, err = w.Write([]byte(err.Error()))
 	if err != nil {
@@ -406,13 +410,15 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 }
 
-func rpcErrorResponse(code int, message string, err error) (interface{}, types.Error) {
-	return rpcErrorResponseWithData(code, message, nil, err)
+// RPCErrorResponse formats error to be returned through RPC
+func RPCErrorResponse(code int, message string, err error) (interface{}, types.Error) {
+	return RPCErrorResponseWithData(code, message, nil, err)
 }
 
-func rpcErrorResponseWithData(code int, message string, data *[]byte, err error) (interface{}, types.Error) {
+// RPCErrorResponseWithData formats error to be returned through RPC
+func RPCErrorResponseWithData(code int, message string, data *[]byte, err error) (interface{}, types.Error) {
 	if err != nil {
-		log.Errorf("%v:%v", message, err.Error())
+		log.Errorf("%v: %v", message, err.Error())
 	} else {
 		log.Error(message)
 	}
