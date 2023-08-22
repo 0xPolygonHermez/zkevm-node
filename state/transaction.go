@@ -856,7 +856,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 				log.Error("reporting error as time out")
 				return nil, runtime.ErrGRPCResourceExhaustedAsTimeout
 			}
-			// Log this error as an executor unspecified error
+			// Log the executor error
 			s.eventLog.LogExecutorError(ctx, executor.ExecutorErrorCode(err), processBatchRequest)
 			log.Errorf("error processing unsigned transaction ", err)
 			return nil, err
