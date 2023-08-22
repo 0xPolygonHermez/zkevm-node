@@ -210,7 +210,7 @@ func TestBatchRequests(t *testing.T) {
 			BatchRequestsEnabled: false,
 			BatchRequestsLimit:   0,
 			NumberOfRequests:     10,
-			ExpectedError:        types.ErrBatchRequestsDisabled,
+			ExpectedError:        fmt.Errorf("400 - " + types.ErrBatchRequestsDisabled.Error() + "\n"),
 			SetupMocks:           func(m *mocksWrapper, tc testCase) {},
 		},
 		{
@@ -218,7 +218,7 @@ func TestBatchRequests(t *testing.T) {
 			BatchRequestsEnabled: true,
 			BatchRequestsLimit:   5,
 			NumberOfRequests:     6,
-			ExpectedError:        types.ErrBatchRequestsLimitExceeded,
+			ExpectedError:        fmt.Errorf("413 - " + types.ErrBatchRequestsLimitExceeded.Error() + "\n"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 			},
 		},
