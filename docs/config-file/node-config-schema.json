@@ -467,7 +467,7 @@
 				"MaxTxLifetime": {
 					"type": "string",
 					"title": "Duration",
-					"description": "MaxTxLifetime is the time a tx can be in the sequencer memory",
+					"description": "MaxTxLifetime is the time a tx can be in the sequencer/worker memory",
 					"default": "3h0m0s",
 					"examples": [
 						"1m",
@@ -565,6 +565,11 @@
 							"type": "integer",
 							"description": "StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number",
 							"default": 0
+						},
+						"SequentialReprocessFullBatch": {
+							"type": "boolean",
+							"description": "SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
