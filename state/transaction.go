@@ -836,13 +836,13 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
-		if status.Code(err) == codes.ResourceExhausted {
+		if status.Code(err) == codes.ResourceExhausted || errors.Is(err, runtime.ErrExecutorDBError) {
 			log.Errorf("error processing unsigned transaction ", err)
 			for attempts < s.cfg.MaxResourceExhaustedAttempts {
 				time.Sleep(s.cfg.WaitOnResourceExhaustion.Duration)
 				log.Errorf("retrying to process unsigned transaction")
 				processBatchResponse, err = s.executorClient.ProcessBatch(ctx, processBatchRequest)
-				if status.Code(err) == codes.ResourceExhausted {
+				if status.Code(err) == codes.ResourceExhausted || errors.Is(err, runtime.ErrExecutorDBError) {
 					log.Errorf("error processing unsigned transaction ", err)
 					attempts++
 					continue
@@ -852,12 +852,12 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		}
 
 		if err != nil {
-			if status.Code(err) == codes.ResourceExhausted {
+			if status.Code(err) == codes.ResourceExhausted || errors.Is(err, runtime.ErrExecutorDBError) {
 				log.Error("reporting error as time out")
 				return nil, runtime.ErrGRPCResourceExhaustedAsTimeout
 			}
 			// Log this error as an executor unspecified error
-			s.eventLog.LogExecutorError(ctx, executor.ExecutorError_EXECUTOR_ERROR_UNSPECIFIED, processBatchRequest)
+			s.eventLog.LogExecutorError(ctx, executor.ExecutorErrorCode(err), processBatchRequest)
 			log.Errorf("error processing unsigned transaction ", err)
 			return nil, err
 		}
