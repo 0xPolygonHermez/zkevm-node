@@ -404,6 +404,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 	defer func() {
 		metrics.ProcessingTime(time.Since(start))
 	}()
+
 	var err error
 	f.batch, err = f.newWIPBatch(ctx)
 	for err != nil {

@@ -409,6 +409,7 @@ func Test_Defaults(t *testing.T) {
 			path:          "Aggregator.GeneratingProofCleanupThreshold",
 			expectedValue: "10m",
 		},
+
 		{
 			path:          "State.Batch.Constraints.MaxTxsPerBatch",
 			expectedValue: uint64(300),
