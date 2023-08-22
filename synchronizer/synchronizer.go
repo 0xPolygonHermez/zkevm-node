@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 	"time"
@@ -692,6 +693,14 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 }
 
 func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
+	fID := state.ForkIDInterval {
+		FromBatchNumber: forkID.BatchNumber+1,
+    	ToBatchNumber:   math.MaxUint64,
+    	ForkId:          forkID.ForkID,
+    	Version:         forkID.Version,
+    	BlockNumber:     blockNumber,
+	}
+
 	//If the forkID.batchnumber is a future batch
 	latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx, dbTx)
 	if err != nil {
@@ -703,20 +712,18 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		}
 		return err
 	}
-	if latestBatchNumber < forkID.BatchNumber { //If the forkID will start in a future batch
-		// Read Fork ID FROM POE SC
-		forkIDIntervals, err := s.etherMan.GetForks(s.ctx, s.genesis.GenesisBlockNum)
-		if err != nil || len(forkIDIntervals) == 0 {
-			log.Error("error getting all forkIDs: ", err)
+	if latestBatchNumber <= forkID.BatchNumber { //If the forkID will start in a future batch
+		// Add new forkID to the state
+		err := s.state.AddForkIDInterval(s.ctx, fID, dbTx)
+		if err != nil {
+			log.Error("error adding new forkID interval to the state. Error: ", err)
 			rollbackErr := dbTx.Rollback(s.ctx)
 			if rollbackErr != nil {
-				log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+				log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
 				return rollbackErr
 			}
 			return err
 		}
-		// Update forkID intervals in the state
-		s.state.UpdateForkIDIntervals(forkIDIntervals)
 		return nil
 	}
 
@@ -736,18 +743,6 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		return nil
 	}
 
-	// Read Fork ID FROM POE SC
-	forkIDIntervals, err := s.etherMan.GetForks(s.ctx, s.genesis.GenesisBlockNum)
-	if err != nil || len(forkIDIntervals) == 0 {
-		log.Error("error getting all forkIDs: ", err)
-		rollbackErr := dbTx.Rollback(s.ctx)
-		if rollbackErr != nil {
-			log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
-			return rollbackErr
-		}
-		return err
-	}
-
 	//Reset DB
 	err = s.state.ResetForkID(s.ctx, forkID.BatchNumber+1, forkID.ForkID, forkID.Version, dbTx)
 	if err != nil {
@@ -759,6 +754,19 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		}
 		return err
 	}
+
+	// Add new forkID to the state
+	err = s.state.AddForkIDInterval(s.ctx, fID, dbTx)
+	if err != nil {
+		log.Error("error adding new forkID interval to the state. Error: ", err)
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+			return rollbackErr
+		}
+		return err
+	}
+
 	err = dbTx.Commit(s.ctx)
 	if err != nil {
 		log.Error("error committing the resetted state. Error: ", err)
@@ -769,9 +777,6 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		}
 		return err
 	}
-
-	// Update forkID intervals in the state
-	s.state.UpdateForkIDIntervals(forkIDIntervals)
 
 	return fmt.Errorf("new ForkID detected, reseting synchronizarion")
 }

@@ -2525,3 +2525,13 @@ func (p *PostgresStorage) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]ForkID
 	}
 	return forkIDs, err
 }
+
+// UpdateForkID updates the forkID stored in db
+func (p *PostgresStorage) UpdateForkID(ctx context.Context, forkID ForkIDInterval, dbTx pgx.Tx) error {
+	const updateForkIDSQL = "UPDATE state.fork_id SET to_batch_num = $1 WHERE fork_id = $2"
+	e := p.getExecQuerier(dbTx)
+	if _, err := e.Exec(ctx, updateForkIDSQL, forkID.ToBatchNumber, forkID.ForkId); err != nil {
+		return err
+	}
+	return nil
+}

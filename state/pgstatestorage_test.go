@@ -505,5 +505,15 @@ func TestForkIDs(t *testing.T) {
 		require.Equal(t, forks[i].ToBatchNumber, forkId.ToBatchNumber)
 		require.Equal(t, forks[i].Version, forkId.Version)
 	}
+	forkID3.ToBatchNumber = 99999999
+	err = testState.UpdateForkID(ctx, forkID3, dbTx)
+	require.NoError(t, err)
+
+	forkIDs, err = testState.GetForkIDs(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(forkIDs))
+	require.Equal(t, forkID3.ToBatchNumber, forkIDs[len(forkIDs)-1].ToBatchNumber)
+	require.Equal(t, forkID3.ForkId, forkIDs[len(forkIDs)-1].ForkId)
+
 	require.NoError(t, dbTx.Commit(ctx))
 }

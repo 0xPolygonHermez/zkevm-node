@@ -1,6 +1,11 @@
 package state
 
-import "github.com/0xPolygonHermez/zkevm-node/log"
+import (
+	"context"
+
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/jackc/pgx/v4"
+)
 
 // ForkIDInterval is a fork id interval
 type ForkIDInterval struct {
@@ -16,6 +21,37 @@ func (s *State) UpdateForkIDIntervals(intervals []ForkIDInterval) {
 	log.Infof("Updating forkIDs. Setting %d forkIDs", len(intervals))
 	log.Infof("intervals: %#v", intervals)
 	s.cfg.ForkIDIntervals = intervals
+}
+
+// AddForkIDInterval updates the forkID intervals
+func (s *State) AddForkIDInterval(ctx context.Context, newForkID ForkIDInterval, dbTx pgx.Tx) error {
+	// Add forkId to db and memori variable
+	oldForkIDs, err := s.GetForkIDs(ctx, dbTx)
+	if err != nil {
+		log.Error("error getting oldForkIDs. Error: ", err)
+		return err
+	}
+	if len(oldForkIDs) == 0 {
+		s.UpdateForkIDIntervals([]ForkIDInterval{newForkID})
+	} else {
+		var forkIDs []ForkIDInterval
+		forkIDs = oldForkIDs
+		forkIDs[len(forkIDs)-1].ToBatchNumber = newForkID.FromBatchNumber - 1
+		err := s.UpdateForkID(ctx, forkIDs[len(forkIDs)-1], dbTx)
+		if err != nil {
+			log.Errorf("error updating forkID: %d. Error: %v", forkIDs[len(forkIDs)-1].ForkId, err)
+			return err
+		}
+		forkIDs = append(forkIDs, newForkID)
+
+		s.UpdateForkIDIntervals(forkIDs)
+	}
+	err = s.AddForkID(ctx, newForkID, dbTx)
+	if err != nil {
+		log.Errorf("error adding forkID %d. Error: %v", newForkID.ForkId, err)
+		return err
+	}
+	return nil
 }
 
 // GetForkIDByBatchNumber returns the fork id for a given batch number
