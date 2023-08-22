@@ -13,7 +13,7 @@ merkletree/             @ToniRamirezM
 pool/                   @tclemos @Psykepro
 proto/                  @ToniRamirezM
 sequencer/              @ToniRamirezM @Psykepro @agnusmor
-sequencersender/        @ToniRamirezM @Psykepro @agnusmor
+sequencesender/        @ToniRamirezM @Psykepro @agnusmor
 state/                  @ToniRamirezM @tclemos
 synchronizer/           @ARR552 @joanestebanr
 test/                   @tclemos
