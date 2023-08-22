@@ -486,11 +486,11 @@ func TestWebSocketsConcurrentWrites(t *testing.T) {
 		log.Infof("Network %s", network.Name)
 
 		wsConn, _, err := websocket.DefaultDialer.Dial(network.WebSocketURL, nil)
+		require.NoError(t, err)
 		defer func() {
 			err := wsConn.Close()
 			require.NoError(t, err)
 		}()
-		require.NoError(t, err)
 
 		wg := sync.WaitGroup{}
 		wg.Add(msgQty)
@@ -525,6 +525,29 @@ func TestWebSocketsConcurrentWrites(t *testing.T) {
 
 		assert.Equal(t, msgQty, len(receivedMessages))
 	}
+}
+
+func TestWebSocketsReadLimit(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	setup()
+	defer teardown()
+
+	wsConn, _, err := websocket.DefaultDialer.Dial(operations.DefaultL2NetworkWebSocketURL, nil)
+	require.NoError(t, err)
+	defer func() {
+		err := wsConn.Close()
+		require.NoError(t, err)
+	}()
+
+	jReq := make([]byte, 104857601)
+	err = wsConn.WriteMessage(websocket.TextMessage, jReq)
+	require.NoError(t, err)
+
+	_, _, err = wsConn.ReadMessage()
+	require.NotNil(t, err)
+	require.Equal(t, websocket.CloseMessageTooBig, err.(*websocket.CloseError).Code)
 }
 
 // waitTimeout waits for the waitgroup for the specified max timeout.

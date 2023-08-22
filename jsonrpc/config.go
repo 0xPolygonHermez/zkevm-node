@@ -50,4 +50,7 @@ type WebSocketsConfig struct {
 
 	// Port defines the port to serve the endpoints via WS
 	Port int `mapstructure:"Port"`
+
+	// ReadLimit defines the maximum size of a message read from the client (in bytes)
+	ReadLimit int64 `mapstructure:"ReadLimit"`
 }
