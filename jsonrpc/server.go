@@ -355,6 +355,9 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Set read limit
+	wsConn.SetReadLimit(s.config.WebSockets.ReadLimit)
+
 	// Defer WS closure
 	defer func(ws *websocket.Conn) {
 		err = ws.Close()
@@ -370,6 +373,8 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
 				log.Info("Closing WS connection gracefully")
+			} else if errors.Is(err, websocket.ErrReadLimit) {
+				log.Info("Closing WS connection due to read limit exceeded")
 			} else {
 				log.Error(fmt.Sprintf("Unable to read WS message, %s", err.Error()))
 				log.Info("Closing WS connection with error")
