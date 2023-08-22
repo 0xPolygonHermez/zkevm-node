@@ -199,11 +199,6 @@ func (s *Server) Stop() error {
 }
 
 func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-
 	if req.Method == http.MethodOptions {
 		return
 	}
@@ -218,7 +213,6 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 
 	if code, err := validateRequest(req); err != nil {
 		handleInvalidRequest(w, err, code)
-		http.Error(w, err.Error(), code)
 		return
 	}
 
@@ -235,6 +229,10 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	start := time.Now()
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	var respLen int
 	if single {
 		respLen = s.handleSingleRequest(req, w, data)
@@ -248,7 +246,7 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 // validateRequest returns a non-zero response code and error message if the
 // request is invalid.
 func validateRequest(req *http.Request) (int, error) {
-	if req.Method != "POST" {
+	if req.Method != http.MethodPost {
 		err := errors.New("method " + req.Method + " not allowed")
 		return http.StatusMethodNotAllowed, err
 	}
@@ -271,21 +269,21 @@ func validateRequest(req *http.Request) (int, error) {
 	return http.StatusUnsupportedMediaType, err
 }
 
-func (s *Server) isSingleRequest(data []byte) (bool, types.Error) {
+func (s *Server) isSingleRequest(data []byte) (bool, error) {
 	x := bytes.TrimLeft(data, " \t\r\n")
 
 	if len(x) == 0 {
-		return false, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
+		return false, fmt.Errorf("empty request body")
 	}
 
-	return x[0] == '{', nil
+	return x[0] != '[', nil
 }
 
 func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelSingle)
 	request, err := s.parseRequest(data)
 	if err != nil {
-		handleError(w, err)
+		handleInvalidRequest(w, err, http.StatusBadRequest)
 		return 0
 	}
 	req := handleRequest{Request: request, HttpRequest: httpRequest}
@@ -315,7 +313,7 @@ func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWr
 	defer metrics.RequestHandled(metrics.RequestHandledLabelBatch)
 	requests, err := s.parseRequests(data)
 	if err != nil {
-		handleError(w, err)
+		handleInvalidRequest(w, err, http.StatusBadRequest)
 		return 0
 	}
 
@@ -348,7 +346,7 @@ func (s *Server) parseRequest(data []byte) (types.Request, error) {
 	var req types.Request
 
 	if err := json.Unmarshal(data, &req); err != nil {
-		return types.Request{}, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
+		return types.Request{}, fmt.Errorf("invalid json object request body")
 	}
 
 	return req, nil
@@ -358,7 +356,7 @@ func (s *Server) parseRequests(data []byte) ([]types.Request, error) {
 	var requests []types.Request
 
 	if err := json.Unmarshal(data, &requests); err != nil {
-		return nil, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
+		return nil, fmt.Errorf("invalid json array request body")
 	}
 
 	return requests, nil
@@ -424,13 +422,13 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 
 func handleInvalidRequest(w http.ResponseWriter, err error, code int) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelInvalid)
-	log.Info(err)
+	log.Infof("Invalid Request: %v", err.Error())
 	http.Error(w, err.Error(), code)
 }
 
 func handleError(w http.ResponseWriter, err error) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelError)
-	log.Error(err)
+	log.Errorf("Error processing request: %v", err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 

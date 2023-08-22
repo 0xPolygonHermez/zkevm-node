@@ -1,8 +1,10 @@
 package jsonrpc
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"testing"
@@ -147,6 +149,7 @@ func getDefaultConfig() Config {
 		Port:                      9123,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
 		MaxCumulativeGasUsed:      300000,
+		BatchRequestsEnabled:      true,
 	}
 	return cfg
 }
@@ -291,6 +294,139 @@ func TestBatchRequests(t *testing.T) {
 				assert.Equal(t, 0, len(result))
 				assert.Equal(t, testCase.ExpectedError.Error(), err.Error())
 			}
+		})
+	}
+}
+
+func TestRequestValidation(t *testing.T) {
+	type testCase struct {
+		Name               string
+		Method             string
+		Content            []byte
+		ContentType        string
+		ExpectedStatusCode int
+		ExpectedMessage    string
+	}
+
+	testCases := []testCase{
+		{
+			Name:               "OPTION request",
+			Method:             http.MethodOptions,
+			ExpectedStatusCode: http.StatusOK,
+			ExpectedMessage:    "",
+		},
+		{
+			Name:               "GET request",
+			Method:             http.MethodGet,
+			ExpectedStatusCode: http.StatusOK,
+			ExpectedMessage:    "zkEVM JSON RPC Server",
+		},
+		{
+			Name:               "HEAD request",
+			Method:             http.MethodHead,
+			ExpectedStatusCode: http.StatusMethodNotAllowed,
+			ExpectedMessage:    "",
+		},
+		{
+			Name:               "PUT request",
+			Method:             http.MethodPut,
+			ExpectedStatusCode: http.StatusMethodNotAllowed,
+			ExpectedMessage:    "method PUT not allowed\n",
+		},
+		{
+			Name:               "PATCH request",
+			Method:             http.MethodPatch,
+			ExpectedStatusCode: http.StatusMethodNotAllowed,
+			ExpectedMessage:    "method PATCH not allowed\n",
+		},
+		{
+			Name:               "DELETE request",
+			Method:             http.MethodDelete,
+			ExpectedStatusCode: http.StatusMethodNotAllowed,
+			ExpectedMessage:    "method DELETE not allowed\n",
+		},
+		{
+			Name:               "CONNECT request",
+			Method:             http.MethodConnect,
+			ExpectedStatusCode: http.StatusNotFound,
+			ExpectedMessage:    "404 page not found\n",
+		},
+		{
+			Name:               "TRACE request",
+			Method:             http.MethodTrace,
+			ExpectedStatusCode: http.StatusMethodNotAllowed,
+			ExpectedMessage:    "method TRACE not allowed\n",
+		},
+		{
+			Name:               "Request content bigger than limit",
+			Method:             http.MethodPost,
+			Content:            make([]byte, maxRequestContentLength+1),
+			ExpectedStatusCode: http.StatusRequestEntityTooLarge,
+			ExpectedMessage:    "content length too large (5242881>5242880)\n",
+		},
+		{
+			Name:               "Invalid content type",
+			Method:             http.MethodPost,
+			ContentType:        "text/html",
+			ExpectedStatusCode: http.StatusUnsupportedMediaType,
+			ExpectedMessage:    "invalid content type, only application/json is supported\n",
+		},
+		{
+			Name:               "Empty request body",
+			Method:             http.MethodPost,
+			ContentType:        contentType,
+			Content:            []byte(""),
+			ExpectedStatusCode: http.StatusBadRequest,
+			ExpectedMessage:    "empty request body\n",
+		},
+		{
+			Name:               "Invalid json",
+			Method:             http.MethodPost,
+			ContentType:        contentType,
+			Content:            []byte("this is not a json format string"),
+			ExpectedStatusCode: http.StatusBadRequest,
+			ExpectedMessage:    "invalid json object request body\n",
+		},
+		{
+			Name:               "Incomplete json object",
+			Method:             http.MethodPost,
+			ContentType:        contentType,
+			Content:            []byte("{ \"field\":"),
+			ExpectedStatusCode: http.StatusBadRequest,
+			ExpectedMessage:    "invalid json object request body\n",
+		},
+		{
+			Name:               "Incomplete json array",
+			Method:             http.MethodPost,
+			ContentType:        contentType,
+			Content:            []byte("[ { \"field\":"),
+			ExpectedStatusCode: http.StatusBadRequest,
+			ExpectedMessage:    "invalid json array request body\n",
+		},
+	}
+
+	s, _, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			reqBodyReader := bytes.NewReader(tc.Content)
+			httpReq, err := http.NewRequest(tc.Method, s.ServerURL, reqBodyReader)
+			require.NoError(t, err)
+
+			httpReq.Header.Add("Content-type", tc.ContentType)
+
+			httpRes, err := http.DefaultClient.Do(httpReq)
+			require.NoError(t, err)
+
+			resBody, err := io.ReadAll(httpRes.Body)
+			require.NoError(t, err)
+			defer httpRes.Body.Close()
+
+			message := string(resBody)
+			assert.Equal(t, tc.ExpectedStatusCode, httpRes.StatusCode)
+			assert.Equal(t, tc.ExpectedMessage, message)
 		})
 	}
 }
