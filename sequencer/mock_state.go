@@ -862,13 +862,13 @@ func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, p
 	return r0
 }
 
-// UpdateBatchL2Data provides a mock function with given fields: ctx, batchNumber, batchL2Data, dbTx
-func (_m *StateMock) UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, batchL2Data, dbTx)
+// UpdateBatchL2DataAndLER provides a mock function with given fields: ctx, batchNumber, batchL2Data, localExitRoot, dbTx
+func (_m *StateMock) UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, batchL2Data, localExitRoot, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, batchL2Data, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, common.Hash, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, batchL2Data, localExitRoot, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

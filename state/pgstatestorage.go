@@ -1033,7 +1033,7 @@ func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.H
 
 // IsBatchClosed indicates if the batch referenced by batchNum is closed or not
 func (p *PostgresStorage) IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error) {
-	const isBatchClosedSQL = "SELECT global_exit_root IS NOT NULL AND state_root IS NOT NULL FROM state.batch WHERE batch_num = $1 LIMIT 1"
+	const isBatchClosedSQL = "SELECT state_root IS NOT NULL FROM state.batch WHERE batch_num = $1 LIMIT 1"
 
 	q := p.getExecQuerier(dbTx)
 	var isClosed bool
@@ -2352,6 +2352,15 @@ func (p *PostgresStorage) UpdateBatchL2Data(ctx context.Context, batchNumber uin
 
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, updateL2DataSQL, batchNumber, batchL2Data)
+	return err
+}
+
+// UpdateBatchL2DataAndLER updates data tx data and local exit root for a batch
+func (p *PostgresStorage) UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
+	const updateL2DataSQL = "UPDATE state.batch SET raw_txs_data = $2, local_exit_root = $3 WHERE batch_num = $1"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, updateL2DataSQL, batchNumber, batchL2Data, localExitRoot.String())
 	return err
 }
 

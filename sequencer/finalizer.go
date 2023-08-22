@@ -1062,6 +1062,15 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 	for i, tx := range transactions {
 		log.Infof("closeBatch: BatchNum: %d, Tx position: %d, txHash: %s", f.batch.batchNumber, i, tx.Hash().String())
 	}
+
+	var emptyHash common.Hash
+	if f.batch.stateRoot == emptyHash {
+		f.batch.stateRoot, err = f.dbManager.GetLastStateRoot(ctx, nil)
+		if err != nil {
+			f.halt(ctx, fmt.Errorf("failed to get last state root, err: %w", err))
+		}
+	}
+
 	usedResources := getUsedBatchResources(f.batchConstraints, f.batch.remainingResources)
 	receipt := ClosingBatchParameters{
 		BatchNumber:          f.batch.batchNumber,

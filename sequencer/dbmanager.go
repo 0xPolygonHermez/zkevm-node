@@ -194,7 +194,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	batch.BatchL2Data = append(batch.BatchL2Data, txData...)
 
 	if !tx.isForcedBatch {
-		err = d.state.UpdateBatchL2Data(ctx, tx.batchNumber, batch.BatchL2Data, dbTx)
+		err = d.state.UpdateBatchL2DataAndLER(ctx, tx.batchNumber, batch.BatchL2Data, batch.LocalExitRoot, dbTx)
 		if err != nil {
 			return err
 		}

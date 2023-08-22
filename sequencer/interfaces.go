@@ -71,7 +71,7 @@ type stateInterface interface {
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
 	GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
-	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
+	UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error
 	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
@@ -132,6 +132,7 @@ type dbManagerInterface interface {
 	StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
+	GetLastStateRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error)
 }
 
 type ethTxManager interface {
