@@ -1588,7 +1588,7 @@ func (p *PostgresStorage) GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockN
       FROM state.l2block b
      INNER JOIN state.virtual_batch vb
         ON vb.batch_num = b.batch_num
-	 WHERE vb.block_num >= $1
+	 WHERE vb.block_num <= $1
      ORDER BY b.block_num DESC LIMIT 1`
 
 	q := p.getExecQuerier(dbTx)
@@ -1612,7 +1612,7 @@ func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1Final
       FROM state.l2block b
 	 INNER JOIN state.verified_batch vb
 	    ON vb.batch_num = b.batch_num
-	 WHERE vb.block_num >= $1
+	 WHERE vb.block_num <= $1
      ORDER BY b.block_num DESC LIMIT 1`
 
 	q := p.getExecQuerier(dbTx)
