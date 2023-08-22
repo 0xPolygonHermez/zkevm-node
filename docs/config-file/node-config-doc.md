@@ -715,6 +715,8 @@ GlobalQueue=1024
 | - [WebSockets](#RPC_WebSockets )                                             | No      | object  | No         | -          | WebSockets configuration                                                                                                                                                                   |
 | - [EnableL2SuggestedGasPricePolling](#RPC_EnableL2SuggestedGasPricePolling ) | No      | boolean | No         | -          | EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.                                                                          |
 | - [TraceBatchUseHTTPS](#RPC_TraceBatchUseHTTPS )                             | No      | boolean | No         | -          | TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)<br />to do the parallel requests to RPC.debug_traceTransaction endpoint |
+| - [BatchRequestsEnabled](#RPC_BatchRequestsEnabled )                         | No      | boolean | No         | -          | BatchRequestsEnabled defines if the Batch requests are enabled or disabled                                                                                                                 |
+| - [BatchRequestsLimit](#RPC_BatchRequestsLimit )                             | No      | integer | No         | -          | BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request                                                                                          |
 
 ### <a name="RPC_Host"></a>8.1. `RPC.Host`
 
@@ -937,6 +939,34 @@ to do the parallel requests to RPC.debug_traceTransaction endpoint
 ```
 [RPC]
 TraceBatchUseHTTPS=true
+```
+
+### <a name="RPC_BatchRequestsEnabled"></a>8.11. `RPC.BatchRequestsEnabled`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** BatchRequestsEnabled defines if the Batch requests are enabled or disabled
+
+**Example setting the default value** (false):
+```
+[RPC]
+BatchRequestsEnabled=false
+```
+
+### <a name="RPC_BatchRequestsLimit"></a>8.12. `RPC.BatchRequestsLimit`
+
+**Type:** : `integer`
+
+**Default:** `20`
+
+**Description:** BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request
+
+**Example setting the default value** (20):
+```
+[RPC]
+BatchRequestsLimit=20
 ```
 
 ## <a name="Synchronizer"></a>9. `[Synchronizer]`

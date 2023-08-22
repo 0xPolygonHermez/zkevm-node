@@ -38,6 +38,12 @@ type Config struct {
 	// TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)
 	// to do the parallel requests to RPC.debug_traceTransaction endpoint
 	TraceBatchUseHTTPS bool `mapstructure:"TraceBatchUseHTTPS"`
+
+	// BatchRequestsEnabled defines if the Batch requests are enabled or disabled
+	BatchRequestsEnabled bool `mapstructure:"BatchRequestsEnabled"`
+
+	// BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request
+	BatchRequestsLimit uint `mapstructure:"BatchRequestsLimit"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support
