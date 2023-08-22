@@ -64,7 +64,7 @@ func SendAndWait(
 		}
 
 		fmt.Printf("amount of pending txs: %d\n\n", pendingTxsCount)
-		done := len(pendingTxs) == 0
+		done := pendingTxsCount <= 0
 		return done, nil
 	})
 	if err != nil {
