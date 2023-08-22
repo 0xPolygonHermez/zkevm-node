@@ -851,7 +851,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		// First get trusted batch from db
 		tBatch, err := s.state.GetBatchByNumber(s.ctx, batch.BatchNumber, dbTx)
 		if err != nil {
-			if errors.Is(err, state.ErrNotFound) || errors.Is(err, state.ErrStateNotSynchronized) {
+			if errors.Is(err, state.ErrNotFound) {
 				log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
 				// If it is not found, store batch
 				newStateRoot, flushID, proverID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
@@ -1535,7 +1535,7 @@ func (s *ClientSynchronizer) getCurrentBatches(batches []*state.Batch, trustedBa
 	if len(batches) == 0 || batches[0] == nil || (batches[0] != nil && uint64(trustedBatch.Number) != batches[0].BatchNumber) {
 		log.Debug("Updating batch[0] value!")
 		batch, err := s.state.GetBatchByNumber(s.ctx, uint64(trustedBatch.Number), dbTx)
-		if err != nil && err != state.ErrStateNotSynchronized {
+		if err != nil && err != state.ErrNotFound {
 			log.Warnf("failed to get batch %v from local trusted state. Error: %v", trustedBatch.Number, err)
 			return nil, err
 		}
@@ -1543,7 +1543,7 @@ func (s *ClientSynchronizer) getCurrentBatches(batches []*state.Batch, trustedBa
 		if len(batches) == 0 || batches[0] == nil || (batches[0] != nil && uint64(trustedBatch.Number-1) != batches[0].BatchNumber) {
 			log.Debug("Updating batch[1] value!")
 			prevBatch, err = s.state.GetBatchByNumber(s.ctx, uint64(trustedBatch.Number-1), dbTx)
-			if err != nil && err != state.ErrStateNotSynchronized {
+			if err != nil && err != state.ErrNotFound {
 				log.Warnf("failed to get prevBatch %v from local trusted state. Error: %v", trustedBatch.Number-1, err)
 				return nil, err
 			}

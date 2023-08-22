@@ -178,7 +178,7 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 		batch, err := d.state.GetBatchByNumber(ctx, batchNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("batch #%d not found", batchNumber))
-		} else if err == state.ErrNotFound {
+		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get batch by number", err)
 		}
 
