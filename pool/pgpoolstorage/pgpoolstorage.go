@@ -478,20 +478,6 @@ func (p *PostgresPoolStorage) MinL2GasPriceSince(ctx context.Context, timestamp 
 	return gasPrice, nil
 }
 
-// MinGasPriceSince returns the min gas price after given timestamp
-func (p *PostgresPoolStorage) MinGasPriceSince(ctx context.Context, timestamp time.Time) (uint64, error) {
-	sql := "SELECT COALESCE(MIN(price), 0) FROM pool.gas_price WHERE \"timestamp\" >= $1 LIMIT 1"
-	var gasPrice uint64
-	err := p.db.QueryRow(ctx, sql, timestamp).Scan(&gasPrice)
-	if gasPrice == 0 || errors.Is(err, pgx.ErrNoRows) {
-		return 0, state.ErrNotFound
-	} else if err != nil {
-		return 0, err
-	}
-
-	return gasPrice, nil
-}
-
 // IsTxPending determines if the tx associated to the given hash is pending or
 // not.
 func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) {
