@@ -155,6 +155,15 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				return err
 			}
+			blocks, _, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber, &lastEthBlockSynced.BlockNumber)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = s.processForkID(blocks[0].ForkIDs[0],blocks[0].BlockNumber,dbTx)
+			if err != nil {
+				log.Error("error storing genesis forkID: ", err)
+				return err
+			}
 			var root common.Hash
 			root.SetBytes(newRoot)
 			if root != s.genesis.Root {
@@ -703,7 +712,7 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 
 	//If the forkID.batchnumber is a future batch
 	latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx, dbTx)
-	if err != nil {
+	if err != nil && !errors.Is(err, state.ErrStateNotSynchronized) {
 		log.Error("error getting last batch number. Error: ", err)
 		rollbackErr := dbTx.Rollback(s.ctx)
 		if rollbackErr != nil {

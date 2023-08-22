@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -67,9 +68,14 @@ func start(cliCtx *cli.Context) error {
 	}
 	checkStateMigrations(c.StateDB)
 
-	// Decide if this node instance needs an executor and/or a state tree
-	var needsExecutor, needsStateTree bool
+	var (
+		eventLog *event.EventLog
+		eventStorage event.Storage
+		cancelFuncs []context.CancelFunc
+		needsExecutor, needsStateTree bool
+	)
 
+	// Decide if this node instance needs an executor and/or a state tree
 	for _, component := range components {
 		switch component {
 		case SEQUENCER, RPC, SYNCHRONIZER:
@@ -77,10 +83,6 @@ func start(cliCtx *cli.Context) error {
 			needsStateTree = true
 		}
 	}
-
-	// Event log
-	var eventLog *event.EventLog
-	var eventStorage event.Storage
 
 	if c.EventLog.DB.Name != "" {
 		eventStorage, err = pgeventstorage.NewPostgresEventStorage(c.EventLog.DB)
@@ -101,12 +103,7 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	var (
-		cancelFuncs []context.CancelFunc
-		etherman    *etherman.Client
-	)
-
-	etherman, err = newEtherman(*c)
+	etherman, err := newEtherman(*c)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -116,22 +113,20 @@ func start(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Read Fork ID FROM POE SC
-	forkIDIntervals, err := etherman.GetForks(cliCtx.Context, c.NetworkConfig.Genesis.GenesisBlockNum)
+
+	st := newState(cliCtx.Context, c, l2ChainID, []state.ForkIDInterval{}, stateSqlDB, eventLog, needsExecutor, needsStateTree)
+	forkIDIntervals, err := forkIDIntervals(cliCtx.Context, st, etherman, c.NetworkConfig.Genesis.GenesisBlockNum)
 	if err != nil {
-		log.Fatal("error getting forks. Please check the configuration. Error: ", err)
-	} else if len(forkIDIntervals) == 0 {
-		log.Fatal("error: no forkID received. It should receive at least one, please check the configuration...")
+		log.Fatal("error getting forkIDs. Error: ", err)
 	}
+	st.UpdateForkIDIntervals(forkIDIntervals)
 
 	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
 	log.Infof("Fork ID read from POE SC = %v", forkIDIntervals[len(forkIDIntervals)-1].ForkId)
 	c.Aggregator.ChainID = l2ChainID
+	// If the aggregator is restarted before the end of the sync process, this currentForkID could be wrong
 	c.Aggregator.ForkId = currentForkID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
-
-	ctx := context.Background()
-	st := newState(ctx, c, l2ChainID, forkIDIntervals, stateSqlDB, eventLog, needsExecutor, needsStateTree)
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
 	if err != nil {
@@ -157,15 +152,15 @@ func start(cliCtx *cli.Context) error {
 		case AGGREGATOR:
 			ev.Component = event.Component_Aggregator
 			ev.Description = "Running aggregator"
-			err := eventLog.LogEvent(ctx, ev)
+			err := eventLog.LogEvent(cliCtx.Context, ev)
 			if err != nil {
 				log.Fatal(err)
 			}
-			go runAggregator(ctx, c.Aggregator, etherman, etm, st)
+			go runAggregator(cliCtx.Context, c.Aggregator, etherman, etm, st)
 		case SEQUENCER:
 			ev.Component = event.Component_Sequencer
 			ev.Description = "Running sequencer"
-			err := eventLog.LogEvent(ctx, ev)
+			err := eventLog.LogEvent(cliCtx.Context, ev)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -173,11 +168,11 @@ func start(cliCtx *cli.Context) error {
 				poolInstance = createPool(c.Pool, l2ChainID, st, eventLog)
 			}
 			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st, eventLog)
-			go seq.Start(ctx)
+			go seq.Start(cliCtx.Context)
 		case SEQUENCE_SENDER:
 			ev.Component = event.Component_Sequence_Sender
 			ev.Description = "Running sequence sender"
-			err := eventLog.LogEvent(ctx, ev)
+			err := eventLog.LogEvent(cliCtx.Context, ev)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -185,11 +180,11 @@ func start(cliCtx *cli.Context) error {
 				poolInstance = createPool(c.Pool, l2ChainID, st, eventLog)
 			}
 			seqSender := createSequenceSender(*c, poolInstance, ethTxManagerStorage, st, eventLog)
-			go seqSender.Start(ctx)
+			go seqSender.Start(cliCtx.Context)
 		case RPC:
 			ev.Component = event.Component_RPC
 			ev.Description = "Running JSON-RPC server"
-			err := eventLog.LogEvent(ctx, ev)
+			err := eventLog.LogEvent(cliCtx.Context, ev)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -198,7 +193,7 @@ func start(cliCtx *cli.Context) error {
 			}
 			if c.RPC.EnableL2SuggestedGasPricePolling {
 				// Needed for rejecting transactions with too low gas price
-				poolInstance.StartPollingMinSuggestedGasPrice(ctx)
+				poolInstance.StartPollingMinSuggestedGasPrice(cliCtx.Context)
 			}
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
@@ -208,7 +203,7 @@ func start(cliCtx *cli.Context) error {
 		case SYNCHRONIZER:
 			ev.Component = event.Component_Synchronizer
 			ev.Description = "Running synchronizer"
-			err := eventLog.LogEvent(ctx, ev)
+			err := eventLog.LogEvent(cliCtx.Context, ev)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -219,7 +214,7 @@ func start(cliCtx *cli.Context) error {
 		case ETHTXMANAGER:
 			ev.Component = event.Component_EthTxManager
 			ev.Description = "Running eth tx manager service"
-			err := eventLog.LogEvent(ctx, ev)
+			err := eventLog.LogEvent(cliCtx.Context, ev)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -228,7 +223,7 @@ func start(cliCtx *cli.Context) error {
 		case L2GASPRICER:
 			ev.Component = event.Component_GasPricer
 			ev.Description = "Running L2 gasPricer"
-			err := eventLog.LogEvent(ctx, ev)
+			err := eventLog.LogEvent(cliCtx.Context, ev)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -571,4 +566,63 @@ func logVersion() {
 		"built", zkevm.BuildDate,
 		"os/arch", fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 	)
+}
+
+func forkIDIntervals(ctx context.Context, st *state.State, etherman *etherman.Client, genesisBlockNumber uint64) ([]state.ForkIDInterval, error){
+	dbTx, err := st.BeginStateTransaction(ctx)
+	if err != nil {
+		return []state.ForkIDInterval{}, fmt.Errorf("error creating dbTx. Error: %v", err)
+	}
+	numberForkIDs, err := st.CountForkIDs(ctx, dbTx)
+	if err != nil {
+		return []state.ForkIDInterval{}, fmt.Errorf("error checking forkID table. Error: %v", err)
+	}
+	log.Debug("numberForkIDs: ", numberForkIDs)
+	var forkIDIntervals []state.ForkIDInterval
+	if numberForkIDs == 0 {
+		// Get last L1block Synced
+		lastBlock, err := st.GetLastBlock(ctx, dbTx)
+		if err != nil && !errors.Is(err, state.ErrStateNotSynchronized) {
+			return []state.ForkIDInterval{}, fmt.Errorf("error checking lastL1BlockSynced. Error: %v", err)
+		}
+		if lastBlock != nil {
+			log.Info("Getting forkIDs intervals. Please wait...")
+			// Read Fork ID FROM POE SC
+			forkIntervals, err := etherman.GetForks(ctx, genesisBlockNumber, lastBlock.BlockNumber)
+			if err != nil {
+				return []state.ForkIDInterval{}, fmt.Errorf("error getting forks. Please check the configuration. Error: %v", err)
+			} else if len(forkIntervals) == 0 {
+				return []state.ForkIDInterval{}, fmt.Errorf("error: no forkID received. It should receive at least one, please check the configuration...")
+			}
+			log.Info("Storing forkID inetrvals into db")
+			// Store forkIDs
+			for _, f := range forkIntervals {
+				err := st.AddForkID(ctx, f, dbTx)
+				if err != nil {
+					return []state.ForkIDInterval{}, fmt.Errorf("error adding forkID to db. Error: %v", err)
+				}
+			}
+			forkIDIntervals = forkIntervals
+		} else {
+			log.Debug("Getting initial forkID")
+			forkIntervals, err := etherman.GetForks(ctx, genesisBlockNumber, genesisBlockNumber)
+			if err != nil {
+				return []state.ForkIDInterval{}, fmt.Errorf("error getting forks. Please check the configuration. Error: %v", err)
+			} else if len(forkIntervals) == 0 {
+				return []state.ForkIDInterval{}, fmt.Errorf("error: no forkID received. It should receive at least one, please check the configuration...")
+			}
+			forkIDIntervals = forkIntervals
+		}
+	} else {
+		log.Debug("getting forkIDs from db")
+		forkIDIntervals, err = st.GetForkIDs(ctx, dbTx)
+		if err != nil {
+			return []state.ForkIDInterval{}, fmt.Errorf("error getting forkIDs from db. Error: %v", err)
+		}
+	}
+	err = dbTx.Commit(ctx)
+	if err != nil {
+		return []state.ForkIDInterval{}, fmt.Errorf("error commiting dbTx. Error: %v", err)
+	}
+	return forkIDIntervals, nil
 }

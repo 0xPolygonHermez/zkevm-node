@@ -2,8 +2,8 @@
 CREATE TABLE IF NOT EXISTS state.fork_id
 (
     fork_id        BIGINT NOT NULL PRIMARY KEY,
-    from_batch_num BIGINT NOT NULL,
-    to_batch_num   BIGINT NOT NULL,
+    from_batch_num numeric NOT NULL,
+    to_batch_num   numeric NOT NULL,
     version        VARCHAR,
     block_num      BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE
 );
