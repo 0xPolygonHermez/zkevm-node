@@ -116,6 +116,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 		GlobalExitRootManager: globalExitRoot,
 		SCAddresses:           []common.Address{poeAddr, exitManagerAddr},
 		auth:                  map[common.Address]bind.TransactOpts{},
+		cfg:                   cfg,
 	}
 	err = c.AddOrReplaceAuth(*auth)
 	if err != nil {
