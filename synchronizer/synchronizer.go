@@ -680,12 +680,9 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 
 	if reorgReasons.Len() > 0 {
 		reason := reorgReasons.String()
-		log.Warnf("Trusted Reorg detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
+		log.Warnf("Missmatch in trusted state detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
 		if s.isTrustedSequencer {
-			for {
-				log.Error("TRUSTED REORG DETECTED! Batch: ", batch.BatchNumber)
-				time.Sleep(5 * time.Second) //nolint:gomnd
-			}
+			s.halt(s.ctx, fmt.Errorf("TRUSTED REORG DETECTED! Batch: %d", batch.BatchNumber))
 		}
 		// Store trusted reorg register
 		tr := state.TrustedReorg{
@@ -721,7 +718,8 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		}
 		return err
 	}
-	if latestBatchNumber <= forkID.BatchNumber { //If the forkID will start in a future batch
+	if latestBatchNumber <= forkID.BatchNumber || s.isTrustedSequencer { //If the forkID will start in a future batch or isTrustedSequencer
+		log.Infof("Just adding forkID. Skipping reset forkID. ForkID: %+v.", fID)
 		// Add new forkID to the state
 		err := s.state.AddForkIDInterval(s.ctx, fID, dbTx)
 		if err != nil {
@@ -752,7 +750,8 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		return nil
 	}
 
-	//Reset DB
+	log.Info("ForkID received in the permissionless node that affects to a batch from the past")
+	//Reset DB only if permissionless node
 	err = s.state.ResetForkID(s.ctx, forkID.BatchNumber+1, forkID.ForkID, forkID.Version, dbTx)
 	if err != nil {
 		log.Error("error resetting the state. Error: ", err)
@@ -776,6 +775,7 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		return err
 	}
 
+	// Commit because it returns an error to force the resync
 	err = dbTx.Commit(s.ctx)
 	if err != nil {
 		log.Error("error committing the resetted state. Error: ", err)
@@ -937,7 +937,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 
 			// Reset trusted state
 			previousBatchNumber := batch.BatchNumber - 1
-			log.Warnf("Trusted reorg detected, discarding batches until batchNum %d", previousBatchNumber)
+			log.Warnf("Missmatch in trusted state detected, discarding batches until batchNum %d", previousBatchNumber)
 			err = s.state.ResetTrustedState(s.ctx, previousBatchNumber, dbTx) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
 			if err != nil {
 				log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
