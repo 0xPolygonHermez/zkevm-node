@@ -159,7 +159,7 @@ func (s *ClientSynchronizer) Sync() error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = s.processForkID(blocks[0].ForkIDs[0],blocks[0].BlockNumber,dbTx)
+			err = s.processForkID(blocks[0].ForkIDs[0], blocks[0].BlockNumber, dbTx)
 			if err != nil {
 				log.Error("error storing genesis forkID: ", err)
 				return err
@@ -702,12 +702,12 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 }
 
 func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
-	fID := state.ForkIDInterval {
-		FromBatchNumber: forkID.BatchNumber+1,
-    	ToBatchNumber:   math.MaxUint64,
-    	ForkId:          forkID.ForkID,
-    	Version:         forkID.Version,
-    	BlockNumber:     blockNumber,
+	fID := state.ForkIDInterval{
+		FromBatchNumber: forkID.BatchNumber + 1,
+		ToBatchNumber:   math.MaxUint64,
+		ForkId:          forkID.ForkID,
+		Version:         forkID.Version,
+		BlockNumber:     blockNumber,
 	}
 
 	//If the forkID.batchnumber is a future batch

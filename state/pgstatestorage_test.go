@@ -463,29 +463,28 @@ func TestForkIDs(t *testing.T) {
 	err = testState.AddBlock(ctx, block2, dbTx)
 	assert.NoError(t, err)
 
-	
-	forkID1 := state.ForkIDInterval {
+	forkID1 := state.ForkIDInterval{
 		FromBatchNumber: 0,
-    	ToBatchNumber:   10,
-    	ForkId:          1,
-    	Version:         "version 1",
-    	BlockNumber:     1,
+		ToBatchNumber:   10,
+		ForkId:          1,
+		Version:         "version 1",
+		BlockNumber:     1,
 	}
-	forkID2 := state.ForkIDInterval {
+	forkID2 := state.ForkIDInterval{
 		FromBatchNumber: 11,
-    	ToBatchNumber:   20,
-    	ForkId:          2,
-    	Version:         "version 2",
-    	BlockNumber:     1,
+		ToBatchNumber:   20,
+		ForkId:          2,
+		Version:         "version 2",
+		BlockNumber:     1,
 	}
-	forkID3 := state.ForkIDInterval {
+	forkID3 := state.ForkIDInterval{
 		FromBatchNumber: 21,
-    	ToBatchNumber:   100,
-    	ForkId:          3,
-    	Version:         "version 3",
-    	BlockNumber:     2,
+		ToBatchNumber:   100,
+		ForkId:          3,
+		Version:         "version 3",
+		BlockNumber:     2,
 	}
-	forks := []state.ForkIDInterval {forkID1, forkID2, forkID3}
+	forks := []state.ForkIDInterval{forkID1, forkID2, forkID3}
 	for _, fork := range forks {
 		err = testState.AddForkID(ctx, fork, dbTx)
 		require.NoError(t, err)

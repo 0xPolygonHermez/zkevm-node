@@ -69,9 +69,9 @@ func start(cliCtx *cli.Context) error {
 	checkStateMigrations(c.StateDB)
 
 	var (
-		eventLog *event.EventLog
-		eventStorage event.Storage
-		cancelFuncs []context.CancelFunc
+		eventLog                      *event.EventLog
+		eventStorage                  event.Storage
+		cancelFuncs                   []context.CancelFunc
 		needsExecutor, needsStateTree bool
 	)
 
@@ -568,7 +568,7 @@ func logVersion() {
 	)
 }
 
-func forkIDIntervals(ctx context.Context, st *state.State, etherman *etherman.Client, genesisBlockNumber uint64) ([]state.ForkIDInterval, error){
+func forkIDIntervals(ctx context.Context, st *state.State, etherman *etherman.Client, genesisBlockNumber uint64) ([]state.ForkIDInterval, error) {
 	dbTx, err := st.BeginStateTransaction(ctx)
 	if err != nil {
 		return []state.ForkIDInterval{}, fmt.Errorf("error creating dbTx. Error: %v", err)
@@ -622,7 +622,7 @@ func forkIDIntervals(ctx context.Context, st *state.State, etherman *etherman.Cl
 	}
 	err = dbTx.Commit(ctx)
 	if err != nil {
-		return []state.ForkIDInterval{}, fmt.Errorf("error commiting dbTx. Error: %v", err)
+		return []state.ForkIDInterval{}, fmt.Errorf("error committing dbTx. Error: %v", err)
 	}
 	return forkIDIntervals, nil
 }
