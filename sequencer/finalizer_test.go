@@ -1524,6 +1524,7 @@ func Test_processTransaction(t *testing.T) {
 
 			if errors.Is(tc.executorErr, runtime.ErrOutOfCountersKeccak) {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
+				dbManagerMock.On("UpdateTxStatus", tc.ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil).Once()
 			}
 
 			errWg, err := f.processTransaction(tc.ctx, tc.tx)
