@@ -1522,6 +1522,10 @@ func Test_processTransaction(t *testing.T) {
 				dbManagerMock.On("UpdateTxStatus", tc.ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil).Once()
 			}
 
+			if errors.Is(tc.executorErr, runtime.ErrOutOfCountersKeccak) {
+				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
+			}
+
 			errWg, err := f.processTransaction(tc.ctx, tc.tx)
 
 			if tc.expectedStoredTx.batchResponse != nil {
