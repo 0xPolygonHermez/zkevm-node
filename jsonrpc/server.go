@@ -216,7 +216,8 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	data, err := io.ReadAll(req.Body)
+	body := io.LimitReader(req.Body, maxRequestContentLength)
+	data, err := io.ReadAll(body)
 	if err != nil {
 		handleError(w, err)
 		return
