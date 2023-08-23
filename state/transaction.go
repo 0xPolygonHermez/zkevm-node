@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
@@ -836,13 +837,13 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
-		if status.Code(err) == codes.ResourceExhausted || errors.Is(err, runtime.ErrExecutorDBError) {
+		if status.Code(err) == codes.ResourceExhausted || processBatchResponse.Error == executor.ExecutorError(executor.ExecutorError_EXECUTOR_ERROR_DB_ERROR) {
 			log.Errorf("error processing unsigned transaction ", err)
 			for attempts < s.cfg.MaxResourceExhaustedAttempts {
 				time.Sleep(s.cfg.WaitOnResourceExhaustion.Duration)
 				log.Errorf("retrying to process unsigned transaction")
 				processBatchResponse, err = s.executorClient.ProcessBatch(ctx, processBatchRequest)
-				if status.Code(err) == codes.ResourceExhausted || errors.Is(err, runtime.ErrExecutorDBError) {
+				if status.Code(err) == codes.ResourceExhausted || processBatchResponse.Error == executor.ExecutorError(executor.ExecutorError_EXECUTOR_ERROR_DB_ERROR) {
 					log.Errorf("error processing unsigned transaction ", err)
 					attempts++
 					continue
@@ -852,12 +853,20 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		}
 
 		if err != nil {
-			if status.Code(err) == codes.ResourceExhausted || errors.Is(err, runtime.ErrExecutorDBError) {
+			if status.Code(err) == codes.ResourceExhausted || processBatchResponse.Error == executor.ExecutorError(executor.ExecutorError_EXECUTOR_ERROR_DB_ERROR) {
 				log.Error("reporting error as time out")
 				return nil, runtime.ErrGRPCResourceExhaustedAsTimeout
 			}
-			// Log the executor error
-			s.eventLog.LogExecutorError(ctx, executor.ExecutorErrorCode(err), processBatchRequest)
+			// Log the error
+			event := &event.Event{
+				ReceivedAt:  time.Now(),
+				Source:      event.Source_Node,
+				Level:       event.Level_Error,
+				EventID:     event.EventID_ExecutorError,
+				Description: fmt.Sprintf("error processing unsigned transaction %s: %v", tx.Hash(), err),
+			}
+
+			err = s.eventLog.LogEvent(context.Background(), event)
 			log.Errorf("error processing unsigned transaction ", err)
 			return nil, err
 		}
