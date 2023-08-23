@@ -1483,12 +1483,13 @@ func Test_processTransaction(t *testing.T) {
 			expectedUpdateTxStatus: pool.TxStatusInvalid,
 		},
 		{
-			name:             "Executor err",
-			ctx:              context.Background(),
-			tx:               txTracker,
-			expectedResponse: &outOfCountersExecutorErrBatchResp,
-			executorErr:      runtime.ErrOutOfCountersKeccak,
-			expectedErr:      runtime.ErrOutOfCountersKeccak,
+			name:                   "Executor err",
+			ctx:                    context.Background(),
+			tx:                     txTracker,
+			expectedResponse:       &outOfCountersExecutorErrBatchResp,
+			executorErr:            runtime.ErrOutOfCountersKeccak,
+			expectedErr:            runtime.ErrOutOfCountersKeccak,
+			expectedUpdateTxStatus: pool.TxStatusInvalid,
 		},
 	}
 
@@ -1519,12 +1520,11 @@ func Test_processTransaction(t *testing.T) {
 			}
 
 			if tc.expectedUpdateTxStatus != "" {
-				dbManagerMock.On("UpdateTxStatus", tc.ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil).Once()
+				dbManagerMock.On("UpdateTxStatus", tc.ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil)
 			}
 
 			if errors.Is(tc.executorErr, runtime.ErrOutOfCountersKeccak) {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
-				dbManagerMock.On("UpdateTxStatus", tc.ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil)
 			}
 
 			errWg, err := f.processTransaction(tc.ctx, tc.tx)
