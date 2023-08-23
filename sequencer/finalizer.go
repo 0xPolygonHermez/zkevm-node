@@ -1106,7 +1106,7 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 }
 
 // reprocessFullBatch reprocesses a batch used as sanity check
-func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, initialStateRoot common.Hash, expectedStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
+func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, initialStateRoot common.Hash, expectedNewStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
 	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
 		log.Errorf("reprocessFullBatch: failed to get batch %d, err: %v", batchNum, err)
@@ -1114,7 +1114,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		return nil, ErrGetBatchByNumber
 	}
 
-	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot.String(), batch.GlobalExitRoot.String())
+	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot.String(), expectedNewStateRoot.String(), batch.GlobalExitRoot.String())
 
 	processRequest := state.ProcessRequest{
 		BatchNumber:    batch.BatchNumber,
@@ -1129,7 +1129,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 	forkID := f.dbManager.GetForkIDByBatchNumber(batchNum)
 	txs, _, _, err := state.DecodeTxs(batch.BatchL2Data, forkID)
 	if err != nil {
-		log.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch %d. Error: %v", batch.BatchNumber, err)
+		log.Errorf("reprocessFullBatch: error decoding BatchL2Data for batch %d. Error: %v", batch.BatchNumber, err)
 		f.reprocessFullBatchError.Store(true)
 		return nil, ErrDecodeBatchL2Data
 	}
@@ -1145,12 +1145,12 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 	}
 
 	if result.IsRomOOCError {
-		log.Errorf("failed to process batch %d because OutOfCounters", batch.BatchNumber)
+		log.Errorf("reprocessFullBatch: failed to process batch %d because OutOfCounters", batch.BatchNumber)
 		f.reprocessFullBatchError.Store(true)
 
 		payload, err := json.Marshal(processRequest)
 		if err != nil {
-			log.Errorf("error marshaling payload: %v", err)
+			log.Errorf("reprocessFullBatch: error marshaling payload: %v", err)
 		} else {
 			event := &event.Event{
 				ReceivedAt:  time.Now(),
@@ -1163,25 +1163,26 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 			}
 			err = f.eventLog.LogEvent(ctx, event)
 			if err != nil {
-				log.Errorf("error storing payload: %v", err)
+				log.Errorf("reprocessFullBatch: error storing payload: %v", err)
 			}
 		}
 
 		return nil, ErrProcessBatchOOC
 	}
 
-	if result.NewStateRoot != expectedStateRoot {
-		log.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", batch.BatchNumber, expectedStateRoot.String(), result.NewStateRoot.String())
+	if result.NewStateRoot != expectedNewStateRoot {
+		log.Errorf("reprocessFullBatch: new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), result.NewStateRoot.String())
 		f.reprocessFullBatchError.Store(true)
 		return nil, ErrStateRootNoMatch
 	}
 
 	if result.ExecutorError != nil {
-		log.Errorf("executor error during reprocessFullBath: %v", result.ExecutorError)
+		log.Errorf("reprocessFullBatch: executor error when reprocessing batch %d, error: %v", batch.BatchNumber, result.ExecutorError)
 		f.reprocessFullBatchError.Store(true)
 		return nil, ErrExecutorError
 	}
 
+	log.Infof("reprocessFullBatch: reprocess successfully done for batch %d", batch.BatchNumber)
 	return result, nil
 }
 
