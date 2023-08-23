@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
@@ -34,19 +35,20 @@ var (
 
 // finalizer represents the finalizer component of the sequencer.
 type finalizer struct {
-	cfg                  FinalizerCfg
-	effectiveGasPriceCfg EffectiveGasPriceCfg
-	closingSignalCh      ClosingSignalCh
-	isSynced             func(ctx context.Context) bool
-	sequencerAddress     common.Address
-	worker               workerInterface
-	dbManager            dbManagerInterface
-	executor             stateInterface
-	batch                *WipBatch
-	batchConstraints     batchConstraints
-	processRequest       state.ProcessRequest
-	sharedResourcesMux   *sync.RWMutex
-	lastGERHash          common.Hash
+	cfg                     FinalizerCfg
+	effectiveGasPriceCfg    EffectiveGasPriceCfg
+	closingSignalCh         ClosingSignalCh
+	isSynced                func(ctx context.Context) bool
+	sequencerAddress        common.Address
+	worker                  workerInterface
+	dbManager               dbManagerInterface
+	executor                stateInterface
+	batch                   *WipBatch
+	batchConstraints        batchConstraints
+	processRequest          state.ProcessRequest
+	sharedResourcesMux      *sync.RWMutex
+	lastGERHash             common.Hash
+	reprocessFullBatchError atomic.Bool
 	// closing signals
 	nextGER                 common.Hash
 	nextGERDeadline         int64
@@ -115,7 +117,7 @@ func newFinalizer(
 	batchConstraints batchConstraints,
 	eventLog *event.EventLog,
 ) *finalizer {
-	return &finalizer{
+	f := finalizer{
 		cfg:                  cfg,
 		effectiveGasPriceCfg: effectiveGasPriceCfg,
 		closingSignalCh:      closingSignalCh,
@@ -149,6 +151,10 @@ func newFinalizer(
 		lastPendingFlushID: 0,
 		pendingFlushIDCond: sync.NewCond(&sync.Mutex{}),
 	}
+
+	f.reprocessFullBatchError.Store(false)
+
+	return &f
 }
 
 // Start starts the finalizer.
@@ -358,16 +364,22 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			}
 		}
 
+		if !f.cfg.SequentialReprocessFullBatch && f.reprocessFullBatchError.Load() {
+			// There is an error reprocessing previous batch closed (parallel sanity check)
+			// We halt the execution of the Sequencer at this point
+			f.halt(ctx, fmt.Errorf("halting Sequencer because of error reprocessing full batch (sanity check). Check previous errors in logs to know which was the cause"))
+		}
+
 		if f.isDeadlineEncountered() {
-			log.Infof("Closing batch: %d, because deadline was encountered.", f.batch.batchNumber)
+			log.Infof("closing batch %d because deadline was encountered.", f.batch.batchNumber)
 			f.finalizeBatch(ctx)
 		} else if f.isBatchFull() || f.isBatchAlmostFull() {
-			log.Infof("Closing batch: %d, because it's almost full.", f.batch.batchNumber)
+			log.Infof("closing batch %d because it's almost full.", f.batch.batchNumber)
 			f.finalizeBatch(ctx)
 		}
 
 		if err := ctx.Err(); err != nil {
-			log.Infof("Stopping finalizer because of context, err: %s", err)
+			log.Infof("stopping finalizer because of context, err: %s", err)
 			return
 		}
 	}
@@ -486,16 +498,18 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	}
 
 	// Reprocess full batch as sanity check
-	processBatchResponse, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.stateRoot)
-	if err != nil || processBatchResponse.IsRomOOCError || processBatchResponse.ExecutorError != nil {
-		log.Info("halting the finalizer because of a reprocessing error")
+	if f.cfg.SequentialReprocessFullBatch {
+		// Do the full batch reprocess now
+		_, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.initialStateRoot, f.batch.stateRoot)
 		if err != nil {
-			f.halt(ctx, fmt.Errorf("failed to reprocess batch, err: %v", err))
-		} else if processBatchResponse.IsRomOOCError {
-			f.halt(ctx, fmt.Errorf("out of counters during reprocessFullBath"))
-		} else {
-			f.halt(ctx, fmt.Errorf("executor error during reprocessFullBath: %v", processBatchResponse.ExecutorError))
+			// There is an error reprocessing the batch. We halt the execution of the Sequencer at this point
+			f.halt(ctx, fmt.Errorf("halting Sequencer because of error reprocessing full batch %d (sanity check). Error: %s ", f.batch.batchNumber, err))
 		}
+	} else {
+		// Do the full batch reprocess in parallel
+		go func() {
+			_, _ = f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.initialStateRoot, f.batch.stateRoot)
+		}()
 	}
 
 	// Close the current batch
@@ -1093,43 +1107,51 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 }
 
 // reprocessFullBatch reprocesses a batch used as sanity check
-func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, expectedStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
+func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, initialStateRoot common.Hash, expectedNewStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
 	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get batch by number, err: %v", err)
+		log.Errorf("reprocessFullBatch: failed to get batch %d, err: %v", batchNum, err)
+		f.reprocessFullBatchError.Store(true)
+		return nil, ErrGetBatchByNumber
 	}
+
+	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot.String(), expectedNewStateRoot.String(), batch.GlobalExitRoot.String())
+
 	processRequest := state.ProcessRequest{
 		BatchNumber:    batch.BatchNumber,
 		GlobalExitRoot: batch.GlobalExitRoot,
-		OldStateRoot:   f.batch.initialStateRoot,
+		OldStateRoot:   initialStateRoot,
 		Transactions:   batch.BatchL2Data,
 		Coinbase:       batch.Coinbase,
 		Timestamp:      batch.Timestamp,
 		Caller:         stateMetrics.SequencerCallerLabel,
 	}
-	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, Ger: %s", batch.BatchNumber, f.batch.initialStateRoot.String(), batch.GlobalExitRoot.String())
+
 	forkID := f.dbManager.GetForkIDByBatchNumber(batchNum)
 	txs, _, _, err := state.DecodeTxs(batch.BatchL2Data, forkID)
-
 	if err != nil {
-		log.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: %d. Error: %v", batch.BatchNumber, err)
-		return nil, fmt.Errorf("reprocessFullBatch: error decoding BatchL2Data before reprocessing full batch: %d. Error: %v", batch.BatchNumber, err)
+		log.Errorf("reprocessFullBatch: error decoding BatchL2Data for batch %d. Error: %v", batch.BatchNumber, err)
+		f.reprocessFullBatchError.Store(true)
+		return nil, ErrDecodeBatchL2Data
 	}
 	for i, tx := range txs {
-		log.Infof("reprocessFullBatch: Tx position %d. TxHash: %s", i, tx.Hash())
+		log.Infof("reprocessFullBatch: BatchNumber: %d, Tx position %d, Tx Hash: %s", batch.BatchNumber, i, tx.Hash())
 	}
 
 	result, err := f.executor.ProcessBatch(ctx, processRequest, false)
 	if err != nil {
-		log.Errorf("failed to process batch, err: %s", err)
-		return nil, err
+		log.Errorf("reprocessFullBatch: failed to process batch %d. Error: %s", batch.BatchNumber, err)
+		f.reprocessFullBatchError.Store(true)
+		return nil, ErrProcessBatch
 	}
 
 	if result.IsRomOOCError {
-		log.Errorf("failed to process batch %v because OutOfCounters", batch.BatchNumber)
+		log.Errorf("reprocessFullBatch: failed to process batch %d because OutOfCounters", batch.BatchNumber)
+		f.reprocessFullBatchError.Store(true)
+
 		payload, err := json.Marshal(processRequest)
 		if err != nil {
-			log.Errorf("error marshaling payload: %v", err)
+			log.Errorf("reprocessFullBatch: error marshaling payload: %v", err)
 		} else {
 			event := &event.Event{
 				ReceivedAt:  time.Now(),
@@ -1142,17 +1164,26 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, exp
 			}
 			err = f.eventLog.LogEvent(ctx, event)
 			if err != nil {
-				log.Errorf("error storing payload: %v", err)
+				log.Errorf("reprocessFullBatch: error storing payload: %v", err)
 			}
 		}
-		return nil, fmt.Errorf("failed to process batch because OutOfCounters error")
+
+		return nil, ErrProcessBatchOOC
 	}
 
-	if result.NewStateRoot != expectedStateRoot {
-		log.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", batch.BatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
-		return nil, fmt.Errorf("batchNumber: %d, reprocessed batch has different state root, expected: %s, got: %s", batch.BatchNumber, expectedStateRoot.Hex(), result.NewStateRoot.Hex())
+	if result.NewStateRoot != expectedNewStateRoot {
+		log.Errorf("reprocessFullBatch: new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), result.NewStateRoot.String())
+		f.reprocessFullBatchError.Store(true)
+		return nil, ErrStateRootNoMatch
 	}
 
+	if result.ExecutorError != nil {
+		log.Errorf("reprocessFullBatch: executor error when reprocessing batch %d, error: %v", batch.BatchNumber, result.ExecutorError)
+		f.reprocessFullBatchError.Store(true)
+		return nil, ErrExecutorError
+	}
+
+	log.Infof("reprocessFullBatch: reprocess successfully done for batch %d", batch.BatchNumber)
 	return result, nil
 }
 
