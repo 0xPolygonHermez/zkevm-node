@@ -27,15 +27,17 @@ type mockedServer struct {
 }
 
 type mocksWrapper struct {
-	Pool    *mocks.PoolMock
-	State   *mocks.StateMock
-	Storage *storageMock
-	DbTx    *mocks.DBTxMock
+	Pool     *mocks.PoolMock
+	State    *mocks.StateMock
+	Etherman *mocks.EthermanMock
+	Storage  *storageMock
+	DbTx     *mocks.DBTxMock
 }
 
 func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *ethclient.Client) {
 	pool := mocks.NewPoolMock(t)
 	st := mocks.NewStateMock(t)
+	etherman := mocks.NewEthermanMock(t)
 	storage := newStorageMock(t)
 	dbTx := mocks.NewDBTxMock(t)
 	apis := map[string]bool{
@@ -55,7 +57,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	if _, ok := apis[APIEth]; ok {
 		services = append(services, Service{
 			Name:    APIEth,
-			Service: NewEthEndpoints(cfg, chainID, pool, st, storage),
+			Service: NewEthEndpoints(cfg, chainID, pool, st, etherman, storage),
 		})
 	}
 
@@ -69,7 +71,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	if _, ok := apis[APIZKEVM]; ok {
 		services = append(services, Service{
 			Name:    APIZKEVM,
-			Service: NewZKEVMEndpoints(cfg, st),
+			Service: NewZKEVMEndpoints(cfg, st, etherman),
 		})
 	}
 
@@ -83,7 +85,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	if _, ok := apis[APIDebug]; ok {
 		services = append(services, Service{
 			Name:    APIDebug,
-			Service: NewDebugEndpoints(cfg, st),
+			Service: NewDebugEndpoints(cfg, st, etherman),
 		})
 	}
 
@@ -123,10 +125,11 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	}
 
 	mks := &mocksWrapper{
-		Pool:    pool,
-		State:   st,
-		Storage: storage,
-		DbTx:    dbTx,
+		Pool:     pool,
+		State:    st,
+		Etherman: etherman,
+		Storage:  storage,
+		DbTx:     dbTx,
 	}
 
 	return msv, mks, ethClient

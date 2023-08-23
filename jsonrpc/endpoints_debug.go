@@ -34,16 +34,18 @@ var defaultTraceConfig = &traceConfig{
 
 // DebugEndpoints is the debug jsonrpc endpoint
 type DebugEndpoints struct {
-	cfg   Config
-	state types.StateInterface
-	txMan DBTxManager
+	cfg      Config
+	state    types.StateInterface
+	etherman types.EthermanInterface
+	txMan    DBTxManager
 }
 
 // NewDebugEndpoints returns DebugEndpoints
-func NewDebugEndpoints(cfg Config, state types.StateInterface) *DebugEndpoints {
+func NewDebugEndpoints(cfg Config, state types.StateInterface, etherman types.EthermanInterface) *DebugEndpoints {
 	return &DebugEndpoints{
-		cfg:   cfg,
-		state: state,
+		cfg:      cfg,
+		state:    state,
+		etherman: etherman,
 	}
 }
 
@@ -98,7 +100,7 @@ func (d *DebugEndpoints) TraceTransaction(hash types.ArgHash, cfg *traceConfig) 
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbynumber
 func (d *DebugEndpoints) TraceBlockByNumber(number types.BlockNumber, cfg *traceConfig) (interface{}, types.Error) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, d.state, dbTx)
+		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, d.state, d.etherman, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
