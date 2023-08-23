@@ -578,7 +578,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 
 		effectivePercentage := state.MaxEffectivePercentage
 
-		if tx.BreakEvenGasPrice.Uint64() != 0 {
+		if tx.BreakEvenGasPrice != nil && tx.BreakEvenGasPrice.Uint64() != 0 {
 			// If the tx gas price is lower than the break even gas price, we process the tx with the user gas price (100%)
 			if tx.GasPrice.Cmp(tx.BreakEvenGasPrice) <= 0 {
 				tx.IsEffectiveGasPriceFinalExecution = true
