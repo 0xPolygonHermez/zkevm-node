@@ -16,16 +16,18 @@ import (
 
 // ZKEVMEndpoints contains implementations for the "zkevm" RPC endpoints
 type ZKEVMEndpoints struct {
-	cfg   Config
-	state types.StateInterface
-	txMan DBTxManager
+	cfg      Config
+	state    types.StateInterface
+	etherman types.EthermanInterface
+	txMan    DBTxManager
 }
 
 // NewZKEVMEndpoints returns ZKEVMEndpoints
-func NewZKEVMEndpoints(cfg Config, state types.StateInterface) *ZKEVMEndpoints {
+func NewZKEVMEndpoints(cfg Config, state types.StateInterface, etherman types.EthermanInterface) *ZKEVMEndpoints {
 	return &ZKEVMEndpoints{
-		cfg:   cfg,
-		state: state,
+		cfg:      cfg,
+		state:    state,
+		etherman: etherman,
 	}
 }
 
@@ -205,7 +207,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			return rpcBlock, nil
 		}
 		var err error
-		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, z.state, dbTx)
+		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, z.state, z.etherman, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
