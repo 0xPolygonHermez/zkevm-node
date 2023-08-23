@@ -1318,6 +1318,10 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				log.Info("Nothing to sync. Node updated. Checking if it is closed")
 				isBatchClosed := trustedBatch.StateRoot.String() != state.ZeroHash.String()
 				if isBatchClosed {
+					//Sanity check
+					if s.trustedState.lastStateRoot != nil && trustedBatch.StateRoot != *s.trustedState.lastStateRoot {
+						s.halt(s.ctx, fmt.Errorf("stateRoot calculated (%s) is different from the stateRoot (%s) received during the trustedState synchronization", *s.trustedState.lastStateRoot, trustedBatch.StateRoot))
+					}
 					receipt := state.ProcessingReceipt{
 						BatchNumber:   uint64(trustedBatch.Number),
 						StateRoot:     trustedBatch.StateRoot,
@@ -1395,6 +1399,10 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 	log.Debug("TrustedBatch.StateRoot ", trustedBatch.StateRoot)
 	isBatchClosed := trustedBatch.StateRoot.String() != state.ZeroHash.String()
 	if isBatchClosed {
+		//Sanity check
+		if trustedBatch.StateRoot != processBatchResp.NewStateRoot {
+			s.halt(s.ctx, fmt.Errorf("stateRoot calculated (%s) is different from the stateRoot (%s) received during the trustedState synchronization", processBatchResp.NewStateRoot, trustedBatch.StateRoot))
+		}
 		receipt := state.ProcessingReceipt{
 			BatchNumber:   uint64(trustedBatch.Number),
 			StateRoot:     processBatchResp.NewStateRoot,
@@ -1644,4 +1652,27 @@ func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
 	s.latestFlushIDIsFulfilled = true
 	s.previousExecutorFlushID = storedFlushID
 	return nil
+}
+
+// halt halts the Synchronizer
+func (s *ClientSynchronizer) halt(ctx context.Context, err error) {
+	event := &event.Event{
+		ReceivedAt:  time.Now(),
+		Source:      event.Source_Node,
+		Component:   event.Component_Synchronizer,
+		Level:       event.Level_Critical,
+		EventID:     event.EventID_SynchronizerHalt,
+		Description: fmt.Sprintf("Synchronizer halted due to error: %s", err),
+	}
+
+	eventErr := s.eventLog.LogEvent(ctx, event)
+	if eventErr != nil {
+		log.Errorf("error storing Synchronizer halt event: %v", eventErr)
+	}
+
+	for {
+		log.Errorf("fatal error: %s", err)
+		log.Error("halting the Synchronizer")
+		time.Sleep(5 * time.Second) //nolint:gomnd
+	}
 }
