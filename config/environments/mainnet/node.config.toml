@@ -29,7 +29,7 @@ PollMinAllowedGasPriceInterval = "15s"
 
 [Etherman]
 URL = "http://your.L1node.url"
-ForkIDChunkSize = 2000
+ForkIDChunkSize = 20000
 MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""

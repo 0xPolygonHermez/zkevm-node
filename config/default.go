@@ -41,6 +41,7 @@ GlobalQueue = 1024
 
 [Etherman]
 URL = "http://localhost:8545"
+ForkIDChunkSize = 20000
 MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""

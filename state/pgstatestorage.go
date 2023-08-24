@@ -2530,19 +2530,6 @@ func (p *PostgresStorage) AddForkID(ctx context.Context, forkID ForkIDInterval, 
 	return err
 }
 
-// CountForkIDs returns the number of forkIDs stored
-func (p *PostgresStorage) CountForkIDs(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	const numberForkIDSQL = "SELECT COUNT(*) FROM state.fork_id"
-
-	var count uint64
-	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, numberForkIDSQL).Scan(&count)
-	if err != nil {
-		return 0, err
-	}
-	return count, nil
-}
-
 // GetForkIDs get all the forkIDs stored
 func (p *PostgresStorage) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]ForkIDInterval, error) {
 	const getForkIDsSQL = "SELECT from_batch_num, to_batch_num, fork_id, version, block_num FROM state.fork_id ORDER BY from_batch_num ASC"

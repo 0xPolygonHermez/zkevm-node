@@ -490,10 +490,6 @@ func TestForkIDs(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	numberForkIDs, err := testState.CountForkIDs(ctx, dbTx)
-	require.NoError(t, err)
-	require.Equal(t, uint64(3), numberForkIDs)
-
 	forkIDs, err := testState.GetForkIDs(ctx, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(forkIDs))

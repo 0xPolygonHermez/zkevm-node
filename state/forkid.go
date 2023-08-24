@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/jackc/pgx/v4"
@@ -16,8 +17,8 @@ type ForkIDInterval struct {
 	BlockNumber     uint64
 }
 
-// UpdateForkIDIntervals updates the forkID intervals
-func (s *State) UpdateForkIDIntervals(intervals []ForkIDInterval) {
+// UpdateForkIDIntervalsInMemory updates the forkID intervals in memory
+func (s *State) UpdateForkIDIntervalsInMemory(intervals []ForkIDInterval) {
 	log.Infof("Updating forkIDs. Setting %d forkIDs", len(intervals))
 	log.Infof("intervals: %#v", intervals)
 	s.cfg.ForkIDIntervals = intervals
@@ -32,10 +33,15 @@ func (s *State) AddForkIDInterval(ctx context.Context, newForkID ForkIDInterval,
 		return err
 	}
 	if len(oldForkIDs) == 0 {
-		s.UpdateForkIDIntervals([]ForkIDInterval{newForkID})
+		s.UpdateForkIDIntervalsInMemory([]ForkIDInterval{newForkID})
 	} else {
 		var forkIDs []ForkIDInterval
 		forkIDs = oldForkIDs
+		// Check to detect forkID inconsistencies
+		if forkIDs[len(forkIDs)-1].ForkId+1 != newForkID.ForkId {
+			log.Errorf("error checking forkID sequence. Last ForkID stored: %d. New ForkID received: %d", forkIDs[len(forkIDs)-1].ForkId, newForkID.ForkId)
+			return fmt.Errorf("error checking forkID sequence. Last ForkID stored: %d. New ForkID received: %d", forkIDs[len(forkIDs)-1].ForkId, newForkID.ForkId)
+		}
 		forkIDs[len(forkIDs)-1].ToBatchNumber = newForkID.FromBatchNumber - 1
 		err := s.UpdateForkID(ctx, forkIDs[len(forkIDs)-1], dbTx)
 		if err != nil {
@@ -44,7 +50,7 @@ func (s *State) AddForkIDInterval(ctx context.Context, newForkID ForkIDInterval,
 		}
 		forkIDs = append(forkIDs, newForkID)
 
-		s.UpdateForkIDIntervals(forkIDs)
+		s.UpdateForkIDIntervalsInMemory(forkIDs)
 	}
 	err = s.AddForkID(ctx, newForkID, dbTx)
 	if err != nil {
