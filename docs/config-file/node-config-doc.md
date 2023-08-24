@@ -172,14 +172,14 @@ URL="http://localhost:8545"
 
 **Type:** : `integer`
 
-**Default:** `0`
+**Default:** `20000`
 
 **Description:** ForkIDChunkSize is the max interval for each call to L1 provider to get the forkIDs
 
-**Example setting the default value** (0):
+**Example setting the default value** (20000):
 ```
 [Etherman]
-ForkIDChunkSize=0
+ForkIDChunkSize=20000
 ```
 
 ### <a name="Etherman_MultiGasProvider"></a>5.3. `Etherman.MultiGasProvider`

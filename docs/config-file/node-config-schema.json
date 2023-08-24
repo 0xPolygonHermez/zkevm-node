@@ -67,7 +67,7 @@
 				"ForkIDChunkSize": {
 					"type": "integer",
 					"description": "ForkIDChunkSize is the max interval for each call to L1 provider to get the forkIDs",
-					"default": 0
+					"default": 20000
 				},
 				"MultiGasProvider": {
 					"type": "boolean",
