@@ -25,30 +25,44 @@ tl;dr:
 ZKEVM_NET=mainnet
 ZKEVM_DIR=./path/to/install # CHANGE THIS
 ZKEVM_CONFIG_DIR=./path/to/config  # CHANGE THIS
-curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip
-cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env
+curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/mainnet.zip > mainnet.zip && unzip -o mainnet.zip -d install && rm mainnet.zip
+cp install/mainnet/example.env config/.env
 
 # EDIT THIS env file:
-nano $ZKEVM_CONFIG_DIR/.env
+nano config/.env
 
-# RUN:
-docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml up -d
+# RUN: (in the same directory where the release was extracted)
+docker compose --env-file config/.env -f install/mainnet/docker-compose.yml up
 ```
 
-Explained step by step:
+Database and other settings: 
+
+```
+ZKEVM_NETWORK = "mainnet"
+# URL of a JSON RPC for Ethereum mainnet
+ZKEVM_NODE_ETHERMAN_URL = "https://eth-mainnet.g.alchemy.com/v2/"
+# PATH WHERE THE STATEDB POSTGRES CONTAINER WILL STORE PERSISTENT DATA
+ZKEVM_NODE_STATEDB_DATA_DIR = "./path/to/Desktop/zkevm-test/statedb"
+# PATH WHERE THE POOLDB POSTGRES CONTAINER WILL STORE PERSISTENT DATA
+ZKEVM_NODE_POOLDB_DATA_DIR = "./path/to/Desktop/zkevm-test/pooldb"
+# OPTIONAL, UNCOMENT IF YOU WANT TO DO ADVANCED CONFIG
+ZKEVM_ADVANCED_CONFIG_DIR = "./path/to/Desktop/zkevm-test/install/mainnet/config/environments/testnet"
+```
+
+### Explained step by step:
 
 1. Define network: `ZKEVM_NET=testnet` or `ZKEVM_NET=mainnet`
 2. Define installation path: `ZKEVM_DIR=./path/to/install`
 3. Define a config directory: `ZKEVM_CONFIG_DIR=./path/to/config`
 4. It's recommended to source this env vars in your `~/.bashrc`, `~/.zshrc` or whatever you're using
-5. Download and extract the artifacts: `curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip`. Note you may need to install `unzip` for this command to work. Also take into account this works for the latest release, in case you want to deploy a pre-release you should get the artifacts directly for that release and not using the "latest" link depicted here. [Here](https://github.com/0xPolygonHermez) you can check the node version deployed for each network.
-6. Copy the file with the env parameters: `cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env`
-7. Edit the env file, with your favourite editor. The example will use nano: `nano $ZKEVM_CONFIG_DIR/.env`. This file contains the configuration that anyone should modify. For advanced configuration:
-   1. Copy the config files into the config directory `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/testnet/* $ZKEVM_CONFIG_DIR/`
-   2. Make sure the modify the `ZKEVM_ADVANCED_CONFIG_DIR` from `$ZKEVM_CONFIG_DIR/.env` with the correct path
+5. Download and extract the artifacts: `curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/mainnet.zip > mainnet.zip && unzip -o mainnet.zip -d install && rm mainnet.zip`. Note you may need to install `unzip` for this command to work. Also take into account this works for the latest release, in case you want to deploy a pre-release you should get the artifacts directly for that release and not using the "latest" link depicted here. [Here](https://github.com/0xPolygonHermez) you can check the node version deployed for each network.
+6. Copy the file with the env parameters: `cp install/mainnet/example.env config/.env`
+7. Edit the env file, with your favourite editor. The example will use nano: `nano config/.env`. This file contains the configuration that anyone should modify. For advanced configuration:
+   1. Copy the config files into the config directory `cp install/mainnet/config/environments/testnet/* config/`
+   2. Make sure the modify the `ZKEVM_ADVANCED_CONFIG_DIR` from `config/.env` with the correct path
    3. Edit the different configuration files
-8. Run the node: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml up -d`. You may need to run this command using `sudo` depending on your Docker setup.
-9. Make sure that all components are running: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml ps`. You should see the following containers:
+8. Run the node (in the same directory where the release was extracted): `docker compose --env-file config/.env -f install/mainnet/docker-compose.yml up`. You may need to run this command using `sudo` depending on your Docker setup.
+9. Make sure that all components are running: `docker compose --env-file config/.env -f install/mainnet/docker-compose.yml ps`. You should see the following containers:
    1. zkevm-rpc
    2. zkevm-sync
    3. zkevm-state-db
@@ -61,18 +75,18 @@ If everything has gone as expected you should be able to run queries to the JSON
 
 ## Troubleshooting
 
-- It's possible that the machine you're using already uses some of the necessary ports. In this case you can change them directly at `$ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml`
-- If one or more containers are crashing please check the logs using `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml logs <cointainer_name>`
+- It's possible that the machine you're using already uses some of the necessary ports. In this case you can change them directly at `install/mainnet/docker-compose.yml`
+- If one or more containers are crashing please check the logs using `docker compose --env-file config/.env -f install/mainnet/docker-compose.yml logs <cointainer_name>`
 
 ## Stop
 
 ```bash
-docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml down
+docker compose --env-file config/.env -f install/mainnet/docker-compose.yml down
 ```
 
 ## Updating
 
-In order to update the software, you have to repeat the steps of the setup, but taking care of not overriding the config that you have modified. Basically, instead of running `cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env`, check if the variables of `$ZKEVM_DIR/$ZKEVM_NET/example.env` have been renamed or there are new ones, and update `$ZKEVM_CONFIG_DIR/.env` accordingly.
+In order to update the software, you have to repeat the steps of the setup, but taking care of not overriding the config that you have modified. Basically, instead of running `cp install/mainnet/example.env config/.env`, check if the variables of `install/mainnet/example.env` have been renamed or there are new ones, and update `config/.env` accordingly.
 
 ## Advanced setup
 
