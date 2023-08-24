@@ -316,24 +316,138 @@ enum ExecutorError {
     EXECUTOR_ERROR_UNSPECIFIED = 0;
     // EXECUTOR_ERROR_NO_ERROR indicates there was no error
     EXECUTOR_ERROR_NO_ERROR = 1;
+    // EXECUTOR_ERROR_DB_ERROR indicates that there is an error connecting to the database
+    EXECUTOR_ERROR_DB_ERROR = 2;
+    // EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_STEPS indicates that the main execution exceeded the maximum number of steps
+    EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_STEPS = 3;
     // EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK indicates that the keccak counter exceeded the maximum
-    EXECUTOR_ERROR_COUNTERS_OVERFLOW_KECCAK = 2;
+    EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_KECCAK = 4;
     // EXECUTOR_ERROR_COUNTERS_OVERFLOW_BINARY indicates that the binary counter exceeded the maximum
-    EXECUTOR_ERROR_COUNTERS_OVERFLOW_BINARY = 3;
+    EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_BINARY = 5;
     // EXECUTOR_ERROR_COUNTERS_OVERFLOW_MEM indicates that the memory align counter exceeded the maximum
-    EXECUTOR_ERROR_COUNTERS_OVERFLOW_MEM = 4;
+    EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_MEM = 6;
     // EXECUTOR_ERROR_COUNTERS_OVERFLOW_ARITH indicates that the arith counter exceeded the maximum
-    EXECUTOR_ERROR_COUNTERS_OVERFLOW_ARITH = 5;
+    EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_ARITH = 7;
     // EXECUTOR_ERROR_COUNTERS_OVERFLOW_PADDING indicates that the padding counter exceeded the maximum
-    EXECUTOR_ERROR_COUNTERS_OVERFLOW_PADDING = 6;
+    EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_PADDING = 8;
     // EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON indicates that the poseidon counter exceeded the maximum
-    EXECUTOR_ERROR_COUNTERS_OVERFLOW_POSEIDON = 7;
+    EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_POSEIDON = 9;
     // EXECUTOR_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
-    EXECUTOR_ERROR_UNSUPPORTED_FORK_ID = 8;
+    EXECUTOR_ERROR_UNSUPPORTED_FORK_ID = 10;
     // EXECUTOR_ERROR_BALANCE_MISMATCH indicates that there is a balance mismatch error in the ROM
-    EXECUTOR_ERROR_BALANCE_MISMATCH = 9;
+    EXECUTOR_ERROR_BALANCE_MISMATCH = 11;
     // EXECUTOR_ERROR_FEA2SCALAR indicates that there is a fea2scalar error in the execution
-    EXECUTOR_ERROR_FEA2SCALAR = 10;
+    EXECUTOR_ERROR_FEA2SCALAR = 12;
     // EXECUTOR_ERROR_TOS32 indicates that there is a TOS32 error in the execution
-    EXECUTOR_ERROR_TOS32 = 11;
+    EXECUTOR_ERROR_TOS32 = 13;
+    // EXECUTOR_ERROR_SM_MAIN_INVALID_UNSIGNED_TX indicates that there is an unsigned TX in a non-process batch (i.e. in a prover request)
+    EXECUTOR_ERROR_SM_MAIN_INVALID_UNSIGNED_TX = 14;
+    // EXECUTOR_ERROR_SM_MAIN_INVALID_NO_COUNTERS indicates that there is a no-counters request in a non-process batch (i.e. in a prover request)
+    EXECUTOR_ERROR_SM_MAIN_INVALID_NO_COUNTERS = 15;
+    // EXECUTOR_ERROR_SM_MAIN_ARITH_ECRECOVER_DIVIDE_BY_ZERO indicates that there is a divide-by-zero situation during an ECRecover
+    EXECUTOR_ERROR_SM_MAIN_ARITH_ECRECOVER_DIVIDE_BY_ZERO = 16;
+    // EXECUTOR_ERROR_SM_MAIN_ADDRESS_OUT_OF_RANGE indicates that an address is out of valid memory space range
+    EXECUTOR_ERROR_SM_MAIN_ADDRESS_OUT_OF_RANGE = 17;
+    // EXECUTOR_ERROR_SM_MAIN_ADDRESS_NEGATIVE indicates that an address is negative
+    EXECUTOR_ERROR_SM_MAIN_ADDRESS_NEGATIVE = 18;
+    // EXECUTOR_ERROR_SM_MAIN_STORAGE_INVALID_KEY indicates that a register value is out of range while building storage key
+    EXECUTOR_ERROR_SM_MAIN_STORAGE_INVALID_KEY = 19;
+    // EXECUTOR_ERROR_SM_MAIN_HASHK indicates that a register value is out of range while calculating a Keccak hash
+    EXECUTOR_ERROR_SM_MAIN_HASHK = 20;
+    // EXECUTOR_ERROR_SM_MAIN_HASHK_SIZE_OUT_OF_RANGE indicates that a size register value is out of range while calculating a Keccak hash
+    EXECUTOR_ERROR_SM_MAIN_HASHK_SIZE_OUT_OF_RANGE = 21;
+    // EXECUTOR_ERROR_SM_MAIN_HASHK_POSITION_NEGATIVE indicates that a position register value is negative while calculating a Keccak hash
+    EXECUTOR_ERROR_SM_MAIN_HASHK_POSITION_NEGATIVE = 22;
+    // EXECUTOR_ERROR_SM_MAIN_HASHK_POSITION_PLUS_SIZE_OUT_OF_RANGE indicates that a position register value plus a size register value is out of range while calculating a Keccak hash
+    EXECUTOR_ERROR_SM_MAIN_HASHK_POSITION_PLUS_SIZE_OUT_OF_RANGE = 23;
+    // EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_ADDRESS_NOT_FOUND indicates that an address has not been found while calculating a Keccak hash digest
+    EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_ADDRESS_NOT_FOUND = 24;
+    // EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_NOT_COMPLETED indicates that the hash has not been completed while calling a Keccak hash digest
+    EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_NOT_COMPLETED = 25;
+    // EXECUTOR_ERROR_SM_MAIN_HASHP indicates that a register value is out of range while calculating a Poseidon hash
+    EXECUTOR_ERROR_SM_MAIN_HASHP = 26;
+    // EXECUTOR_ERROR_SM_MAIN_HASHP_SIZE_OUT_OF_RANGE indicates that a size register value is out of range while calculating a Poseidon hash
+    EXECUTOR_ERROR_SM_MAIN_HASHP_SIZE_OUT_OF_RANGE = 27;
+    // EXECUTOR_ERROR_SM_MAIN_HASHP_POSITION_NEGATIVE indicates that a position register value is negative while calculating a Poseidon hash
+    EXECUTOR_ERROR_SM_MAIN_HASHP_POSITION_NEGATIVE = 28;
+    // EXECUTOR_ERROR_SM_MAIN_HASHP_POSITION_PLUS_SIZE_OUT_OF_RANGE indicates that a position register value plus a size register value is out of range while calculating a Poseidon hash
+    EXECUTOR_ERROR_SM_MAIN_HASHP_POSITION_PLUS_SIZE_OUT_OF_RANGE = 29;
+    // EXECUTOR_ERROR_SM_MAIN_HASHPDIGEST_ADDRESS_NOT_FOUND indicates that an address has not been found while calculating a Poseidon hash digest
+    EXECUTOR_ERROR_SM_MAIN_HASHPDIGEST_ADDRESS_NOT_FOUND = 30;
+    // EXECUTOR_ERROR_SM_MAIN_HASHPDIGEST_NOT_COMPLETED indicates that the hash has not been completed while calling a Poseidon hash digest
+    EXECUTOR_ERROR_SM_MAIN_HASHPDIGEST_NOT_COMPLETED = 31;
+    // EXECUTOR_ERROR_SM_MAIN_MEMALIGN_OFFSET_OUT_OF_RANGE indicates that the an offset register value is out of range while doing a mem align operation
+    EXECUTOR_ERROR_SM_MAIN_MEMALIGN_OFFSET_OUT_OF_RANGE = 32;
+    // EXECUTOR_ERROR_SM_MAIN_MULTIPLE_FREEIN indicates that we got more than one free inputs in one ROM instruction
+    EXECUTOR_ERROR_SM_MAIN_MULTIPLE_FREEIN = 33;
+    // EXECUTOR_ERROR_SM_MAIN_ASSERT indicates that the ROM assert instruction failed
+    EXECUTOR_ERROR_SM_MAIN_ASSERT = 34;
+    // EXECUTOR_ERROR_SM_MAIN_MEMORY indicates that the memory instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_MEMORY = 35;
+    // EXECUTOR_ERROR_SM_MAIN_STORAGE_READ_MISMATCH indicates that the storage read instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_STORAGE_READ_MISMATCH = 36;
+    // EXECUTOR_ERROR_SM_MAIN_STORAGE_WRITE_MISMATCH indicates that the storage read instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_STORAGE_WRITE_MISMATCH = 37;
+    // EXECUTOR_ERROR_SM_MAIN_HASHK_VALUE_MISMATCH indicates that the Keccak hash instruction value check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHK_VALUE_MISMATCH = 38;
+    // EXECUTOR_ERROR_SM_MAIN_HASHK_PADDING_MISMATCH indicates that the Keccak hash instruction padding check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHK_PADDING_MISMATCH = 39;
+    // EXECUTOR_ERROR_SM_MAIN_HASHK_SIZE_MISMATCH indicates that the Keccak hash instruction size check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHK_SIZE_MISMATCH = 40;
+    // EXECUTOR_ERROR_SM_MAIN_HASHKLEN_LENGTH_MISMATCH indicates that the Keccak hash length instruction length check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHKLEN_LENGTH_MISMATCH = 41;
+    // EXECUTOR_ERROR_SM_MAIN_HASHKLEN_CALLED_TWICE indicates that the Keccak hash length instruction called once check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHKLEN_CALLED_TWICE = 42;
+    // EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_NOT_FOUND indicates that the Keccak hash digest instruction slot not found
+    EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_NOT_FOUND = 43;
+    // EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_DIGEST_MISMATCH indicates that the Keccak hash digest instruction digest check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_DIGEST_MISMATCH = 44;
+    // EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_CALLED_TWICE indicates that the Keccak hash digest instruction called once check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHKDIGEST_CALLED_TWICE = 45;
+    // EXECUTOR_ERROR_SM_MAIN_HASHP_VALUE_MISMATCH indicates that the Poseidon hash instruction value check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHP_VALUE_MISMATCH = 46;
+    // EXECUTOR_ERROR_SM_MAIN_HASHP_PADDING_MISMATCH indicates that the Poseidon hash instruction padding check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHP_PADDING_MISMATCH = 47;
+    // EXECUTOR_ERROR_SM_MAIN_HASHP_SIZE_MISMATCH indicates that the Poseidon hash instruction size check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHP_SIZE_MISMATCH = 48;
+    // EXECUTOR_ERROR_SM_MAIN_HASHPLEN_LENGTH_MISMATCH indicates that the Poseidon hash length instruction length check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHPLEN_LENGTH_MISMATCH = 49;
+    // EXECUTOR_ERROR_SM_MAIN_HASHPLEN_CALLED_TWICE indicates that the Poseidon hash length instruction called once check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHPLEN_CALLED_TWICE = 50;
+    // EXECUTOR_ERROR_SM_MAIN_HASHPDIGEST_DIGEST_MISMATCH indicates that the Poseidon hash digest instruction digest check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHPDIGEST_DIGEST_MISMATCH = 51;
+    // EXECUTOR_ERROR_SM_MAIN_HASHPDIGEST_CALLED_TWICE indicates that the Poseidon hash digest instruction called once check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHPDIGEST_CALLED_TWICE = 52;
+    // EXECUTOR_ERROR_SM_MAIN_ARITH_MISMATCH indicates that the arith instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_ARITH_MISMATCH = 53;
+    // EXECUTOR_ERROR_SM_MAIN_ARITH_ECRECOVER_MISMATCH indicates that the arith ECRecover instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_ARITH_ECRECOVER_MISMATCH = 54;
+    // EXECUTOR_ERROR_SM_MAIN_BINARY_ADD_MISMATCH indicates that the binary add instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_BINARY_ADD_MISMATCH = 55;
+    // EXECUTOR_ERROR_SM_MAIN_BINARY_SUB_MISMATCH indicates that the binary sub instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_BINARY_SUB_MISMATCH = 56;
+    // EXECUTOR_ERROR_SM_MAIN_BINARY_LT_MISMATCH indicates that the binary less than instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_BINARY_LT_MISMATCH = 57;
+    // EXECUTOR_ERROR_SM_MAIN_BINARY_SLT_MISMATCH indicates that the binary signed less than instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_BINARY_SLT_MISMATCH = 58;
+    // EXECUTOR_ERROR_SM_MAIN_BINARY_EQ_MISMATCH indicates that the binary equal instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_BINARY_EQ_MISMATCH = 59;
+    // EXECUTOR_ERROR_SM_MAIN_BINARY_AND_MISMATCH indicates that the binary and instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_BINARY_AND_MISMATCH = 60;
+    // EXECUTOR_ERROR_SM_MAIN_BINARY_OR_MISMATCH indicates that the binary or instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_BINARY_OR_MISMATCH = 61;
+    // EXECUTOR_ERROR_SM_MAIN_BINARY_XOR_MISMATCH indicates that the binary xor instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_BINARY_XOR_MISMATCH = 62;
+    // EXECUTOR_ERROR_SM_MAIN_MEMALIGN_WRITE_MISMATCH indicates that the memory align write instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_MEMALIGN_WRITE_MISMATCH = 63;
+    // EXECUTOR_ERROR_SM_MAIN_MEMALIGN_WRITE8_MISMATCH indicates that the memory align write 8 instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_MEMALIGN_WRITE8_MISMATCH = 64;
+    // EXECUTOR_ERROR_SM_MAIN_MEMALIGN_READ_MISMATCH indicates that the memory align read instruction check failed
+    EXECUTOR_ERROR_SM_MAIN_MEMALIGN_READ_MISMATCH = 65;
+    // EXECUTOR_ERROR_SM_MAIN_JMPN_OUT_OF_RANGE indicates that the JMPN instruction found a jump position out of range
+    EXECUTOR_ERROR_SM_MAIN_JMPN_OUT_OF_RANGE = 66;
+    // EXECUTOR_ERROR_SM_MAIN_HASHK_READ_OUT_OF_RANGE indicates that the main execution Keccak check found read out of range
+    EXECUTOR_ERROR_SM_MAIN_HASHK_READ_OUT_OF_RANGE = 67;
+    // EXECUTOR_ERROR_SM_MAIN_HASHP_READ_OUT_OF_RANGE indicates that the main execution Poseidon check found read out of range
+    EXECUTOR_ERROR_SM_MAIN_HASHP_READ_OUT_OF_RANGE = 68;
 }

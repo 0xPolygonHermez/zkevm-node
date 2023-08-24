@@ -316,7 +316,7 @@ func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte
 
 // Flush flushes all changes to the persistent storage.
 func (tree *StateTree) Flush(ctx context.Context, uuid string) error {
-	flushRequest := &hashdb.FlushRequest{BatchUuid: uuid}
+	flushRequest := &hashdb.FlushRequest{BatchUuid: uuid, Persistence: hashdb.Persistence_PERSISTENCE_DATABASE}
 	_, err := tree.grpcClient.Flush(ctx, flushRequest)
 	return err
 }

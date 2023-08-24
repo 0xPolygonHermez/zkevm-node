@@ -1273,7 +1273,7 @@ TxLifetimeCheckTimeout="10m0s"
 
 **Default:** `"3h0m0s"`
 
-**Description:** MaxTxLifetime is the time a tx can be in the sequencer memory
+**Description:** MaxTxLifetime is the time a tx can be in the sequencer/worker memory
 
 **Examples:** 
 
@@ -1309,6 +1309,7 @@ MaxTxLifetime="3h0m0s"
 | - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                  |
 | - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
 | - [StopSequencerOnBatchNum](#Sequencer_Finalizer_StopSequencerOnBatchNum )                                                     | No      | integer | No         | -          | StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
+| - [SequentialReprocessFullBatch](#Sequencer_Finalizer_SequentialReprocessFullBatch )                                           | No      | boolean | No         | -          | SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                      |
 
 #### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.16.1. `Sequencer.Finalizer.GERDeadlineTimeout`
 
@@ -1546,6 +1547,21 @@ TimestampResolution="10s"
 ```
 [Sequencer.Finalizer]
 StopSequencerOnBatchNum=0
+```
+
+#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.16.12. `Sequencer.Finalizer.SequentialReprocessFullBatch`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
+sequential way (instead than in parallel)
+
+**Example setting the default value** (false):
+```
+[Sequencer.Finalizer]
+SequentialReprocessFullBatch=false
 ```
 
 ### <a name="Sequencer_DBManager"></a>10.17. `[Sequencer.DBManager]`
