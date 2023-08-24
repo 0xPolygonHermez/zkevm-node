@@ -90,7 +90,7 @@ func PrintSummary(
 	fmt.Printf("- Executor Time Percentage from Total: %.2f%%\n\n", (processingTimeExecutor/processingTimeSequencer)*oneHundred)
 	fmt.Println("Metrics:")
 	fmt.Printf("- Transactions per Second: %.2f\n", float64(totalTxs)/processingTimeSequencer)
-	fmt.Printf("(only for predefinded transactions - excluding the random transactions)")
+	fmt.Printf("-- the rest of the metrics are only for predefined transactions - excluding the random transactions --\n")
 	fmt.Printf("- Gas per Second: %.2f\n", float64(totalGas)/processingTimeSequencer)
 	fmt.Printf("- Total Gas Used: %d\n", totalGas)
 	fmt.Printf("- Average Gas Used per Transaction: %d\n\n", totalGas/totalTxs)
