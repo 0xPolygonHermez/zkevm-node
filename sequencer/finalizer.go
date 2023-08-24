@@ -245,7 +245,7 @@ func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 			if err != nil {
 				log.Errorf("failed to get stored flush id, Err: %v", err)
 			} else {
-				if storedFlushID == 0 {
+				if storedFlushID == 0 && f.lastPendingFlushID != 0 {
 					f.halt(ctx, fmt.Errorf("storedFlushID is 0. Please check that prover/executor config parameter dbReadOnly is false"))
 				}
 				if storedFlushID != f.storedFlushID {
