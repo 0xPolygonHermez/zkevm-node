@@ -50,7 +50,7 @@ type Config struct {
 	// TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
 	TxLifetimeCheckTimeout types.Duration `mapstructure:"TxLifetimeCheckTimeout"`
 
-	// MaxTxLifetime is the time a tx can be in the sequencer memory
+	// MaxTxLifetime is the time a tx can be in the sequencer/worker memory
 	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
 
 	// Finalizer's specific config properties
@@ -97,6 +97,10 @@ type FinalizerCfg struct {
 
 	// StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
 	StopSequencerOnBatchNum uint64 `mapstructure:"StopSequencerOnBatchNum"`
+
+	// SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
+	// sequential way (instead than in parallel)
+	SequentialReprocessFullBatch bool `mapstructure:"SequentialReprocessFullBatch"`
 }
 
 // DBManagerCfg contains the DBManager's configuration properties

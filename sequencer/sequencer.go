@@ -115,7 +115,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg, s.etherman)
 	go closingSignalsManager.Start()
 
-	go s.trackOldTxs(ctx)
+	go s.purgeOldPoolTxs(ctx)
 	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	defer tickerProcessTxs.Stop()
 
@@ -194,7 +194,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 	return currBatch, processRequest
 }
 
-func (s *Sequencer) trackOldTxs(ctx context.Context) {
+func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.FrequencyToCheckTxsForDelete.Duration)
 	for {
 		waitTick(ctx, ticker)

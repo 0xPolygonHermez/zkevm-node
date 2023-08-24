@@ -94,6 +94,8 @@ type workerInterface interface {
 	DeletePendingTxToStore(txHash common.Hash, addr common.Address)
 	HandleL2Reorg(txHashes []common.Hash)
 	NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error)
+	AddForcedTx(txHash common.Hash, addr common.Address)
+	DeleteForcedTx(txHash common.Hash, addr common.Address)
 }
 
 // The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.

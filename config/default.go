@@ -41,6 +41,7 @@ GlobalQueue = 1024
 
 [Etherman]
 URL = "http://localhost:8545"
+ForkIDChunkSize = 20000
 MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""
@@ -99,6 +100,7 @@ MaxTxLifetime = "3h"
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		TimestampResolution = "10s"
 		StopSequencerOnBatchNum = 0
+		SequentialReprocessFullBatch = false
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"

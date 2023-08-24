@@ -18,6 +18,7 @@ type addrQueue struct {
 	currentBalance    *big.Int
 	readyTx           *TxTracker
 	notReadyTxs       map[uint64]*TxTracker
+	forcedTxs         map[common.Hash]struct{}
 	pendingTxsToStore map[common.Hash]struct{}
 }
 
@@ -30,6 +31,7 @@ func newAddrQueue(addr common.Address, nonce uint64, balance *big.Int) *addrQueu
 		currentBalance:    balance,
 		readyTx:           nil,
 		notReadyTxs:       make(map[uint64]*TxTracker),
+		forcedTxs:         make(map[common.Hash]struct{}),
 		pendingTxsToStore: make(map[common.Hash]struct{}),
 	}
 }
@@ -78,6 +80,11 @@ func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx, replacedTx *T
 	}
 }
 
+// addForcedTx adds a forced tx to the list of forced txs
+func (a *addrQueue) addForcedTx(txHash common.Hash) {
+	a.forcedTxs[txHash] = struct{}{}
+}
+
 // addPendingTxToStore adds a tx to the list of pending txs to store in the DB (trusted state)
 func (a *addrQueue) addPendingTxToStore(txHash common.Hash) {
 	a.pendingTxsToStore[txHash] = struct{}{}
@@ -110,7 +117,7 @@ func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *Tx
 
 // IsEmpty returns true if the addrQueue is empty
 func (a *addrQueue) IsEmpty() bool {
-	return a.readyTx == nil && len(a.notReadyTxs) == 0 && len(a.pendingTxsToStore) == 0
+	return a.readyTx == nil && len(a.notReadyTxs) == 0 && len(a.forcedTxs) == 0 && len(a.pendingTxsToStore) == 0
 }
 
 // deleteTx deletes the tx from the addrQueue
@@ -130,6 +137,15 @@ func (a *addrQueue) deleteTx(txHash common.Hash) (deletedReadyTx *TxTracker) {
 			}
 		}
 		return nil
+	}
+}
+
+// deleteForcedTx deletes the tx from the addrQueue
+func (a *addrQueue) deleteForcedTx(txHash common.Hash) {
+	if _, found := a.forcedTxs[txHash]; found {
+		delete(a.forcedTxs, txHash)
+	} else {
+		log.Warnf("tx (%s) not found in forcedTxs list", txHash.String())
 	}
 }
 

@@ -64,6 +64,11 @@
 					"description": "URL is the URL of the Ethereum node for L1",
 					"default": "http://localhost:8545"
 				},
+				"ForkIDChunkSize": {
+					"type": "integer",
+					"description": "ForkIDChunkSize is the max interval for each call to L1 provider to get the forkIDs",
+					"default": 20000
+				},
 				"MultiGasProvider": {
 					"type": "boolean",
 					"description": "allow that L1 gas price calculation use multiples sources",
@@ -467,7 +472,7 @@
 				"MaxTxLifetime": {
 					"type": "string",
 					"title": "Duration",
-					"description": "MaxTxLifetime is the time a tx can be in the sequencer memory",
+					"description": "MaxTxLifetime is the time a tx can be in the sequencer/worker memory",
 					"default": "3h0m0s",
 					"examples": [
 						"1m",
@@ -565,6 +570,11 @@
 							"type": "integer",
 							"description": "StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number",
 							"default": 0
+						},
+						"SequentialReprocessFullBatch": {
+							"type": "boolean",
+							"description": "SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
