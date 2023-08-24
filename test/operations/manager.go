@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/big"
 	"os"
 	"os/exec"
@@ -152,7 +153,7 @@ func (m *Manager) SetGenesisAccountsBalance(genesisAccounts map[string]big.Int) 
 
 func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
 	genesisBlock := state.Block{
-		BlockNumber: 0,
+		BlockNumber: 102,
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
@@ -168,9 +169,34 @@ func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
 
 	_, err = m.st.SetGenesis(m.ctx, genesisBlock, genesis, dbTx)
 
-	err = dbTx.Commit(m.ctx)
+	errCommit := dbTx.Commit(m.ctx)
+	if errCommit != nil {
+		return errCommit
+	}
+
+	return err
+}
+
+// SetForkID sets the initial forkID in db for testing purposes
+func (m *Manager) SetForkID(forkID uint64) error {
+	dbTx, err := m.st.BeginStateTransaction(m.ctx)
 	if err != nil {
 		return err
+	}
+
+	// Add initial forkID
+	fID := state.ForkIDInterval {
+		FromBatchNumber: 1, 
+		ToBatchNumber:   math.MaxUint64,
+		ForkId:          forkID,
+		Version:         "forkID",
+		BlockNumber:     102,
+	}
+	err = m.st.AddForkIDInterval(m.ctx, fID, dbTx)
+
+	errCommit := dbTx.Commit(m.ctx)
+	if errCommit != nil {
+		return errCommit
 	}
 
 	return err

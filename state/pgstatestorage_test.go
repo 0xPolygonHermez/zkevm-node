@@ -439,6 +439,80 @@ func TestVirtualBatch(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
+func TestForkIDs(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	block1 := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f0"),
+		ReceivedAt:  time.Now(),
+	}
+	block2 := &state.Block{
+		BlockNumber: 2,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block1, dbTx)
+	assert.NoError(t, err)
+	err = testState.AddBlock(ctx, block2, dbTx)
+	assert.NoError(t, err)
+
+	forkID1 := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   10,
+		ForkId:          1,
+		Version:         "version 1",
+		BlockNumber:     1,
+	}
+	forkID2 := state.ForkIDInterval{
+		FromBatchNumber: 11,
+		ToBatchNumber:   20,
+		ForkId:          2,
+		Version:         "version 2",
+		BlockNumber:     1,
+	}
+	forkID3 := state.ForkIDInterval{
+		FromBatchNumber: 21,
+		ToBatchNumber:   100,
+		ForkId:          3,
+		Version:         "version 3",
+		BlockNumber:     2,
+	}
+	forks := []state.ForkIDInterval{forkID1, forkID2, forkID3}
+	for _, fork := range forks {
+		err = testState.AddForkID(ctx, fork, dbTx)
+		require.NoError(t, err)
+	}
+
+	forkIDs, err := testState.GetForkIDs(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(forkIDs))
+	for i, forkId := range forkIDs {
+		require.Equal(t, forks[i].BlockNumber, forkId.BlockNumber)
+		require.Equal(t, forks[i].ForkId, forkId.ForkId)
+		require.Equal(t, forks[i].FromBatchNumber, forkId.FromBatchNumber)
+		require.Equal(t, forks[i].ToBatchNumber, forkId.ToBatchNumber)
+		require.Equal(t, forks[i].Version, forkId.Version)
+	}
+	forkID3.ToBatchNumber = 18446744073709551615
+	err = testState.UpdateForkID(ctx, forkID3, dbTx)
+	require.NoError(t, err)
+
+	forkIDs, err = testState.GetForkIDs(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(forkIDs))
+	require.Equal(t, forkID3.ToBatchNumber, forkIDs[len(forkIDs)-1].ToBatchNumber)
+	require.Equal(t, forkID3.ForkId, forkIDs[len(forkIDs)-1].ForkId)
+
+	require.NoError(t, dbTx.Commit(ctx))
+}
+
 func TestGetSafeL2BlockNumber(t *testing.T) {
 	initOrResetDB()
 	ctx := context.Background()
