@@ -50,6 +50,16 @@ func restore(ctx *cli.Context) error {
 		return errors.New("stateDB input file must end in .sql.tar.gz")
 	}
 
+	d, err := db.NewSQLDB(c.StateDB)
+	if err != nil {
+		log.Error("error conecting to stateDB. Error: ", err)
+		return err
+	}
+	_, err = d.Exec(ctx.Context, "DROP SCHEMA IF EXISTS state CASCADE; DROP TABLE IF EXISTS gorp_migrations;")
+	if err != nil {
+		log.Error("error dropping state schema or migration table. Error: ", err)
+		return err
+	}
 	port, err := strconv.Atoi(c.StateDB.Port)
 	if err != nil {
 		log.Error("error converting port to int. Error: ", err)
@@ -85,12 +95,12 @@ func restore(ctx *cli.Context) error {
 		log.Error("error converting port to int. Error: ", err)
 		return err
 	}
-	d, err := db.NewSQLDB(c.HashDB)
+	d, err = db.NewSQLDB(c.HashDB)
 	if err != nil {
 		log.Error("error conecting to hashdb. Error: ", err)
 		return err
 	}
-	_, err = d.Exec(ctx.Context, "DROP SCHEMA IF EXISTS state CASCADE; CREATE SCHEMA IF NOT EXISTS state;")
+	_, err = d.Exec(ctx.Context, "DROP SCHEMA IF EXISTS state CASCADE;")
 	if err != nil {
 		log.Error("error dropping and creating state schema. Error: ", err)
 		return err
