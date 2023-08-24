@@ -25,7 +25,7 @@ func SendAndWait(
 	auth *bind.TransactOpts,
 	client *ethclient.Client,
 	getTxsByStatus func(ctx context.Context, status pool.TxStatus, limit uint64) ([]pool.Transaction, error),
-	nTxs int,
+	nTxs uint64,
 	erc20SC *ERC20.ERC20,
 	uniswapDeployments *pkg.Deployments,
 	txSenderFunc func(l2Client *ethclient.Client, gasPrice *big.Int, auth *bind.TransactOpts, erc20SC *ERC20.ERC20, uniswapDeployments *pkg.Deployments) ([]*types.Transaction, error),
@@ -37,7 +37,7 @@ func SendAndWait(
 	}
 
 	allTxs := make([]*types.Transaction, 0, nTxs)
-	for i := 0; i < nTxs; i++ {
+	for i := 0; i < int(nTxs); i++ {
 		txs, err := txSenderFunc(client, auth.GasPrice, auth, erc20SC, uniswapDeployments)
 		if err != nil {
 			return nil, err

@@ -18,7 +18,7 @@ func main() {
 		err error
 	)
 
-	numOps := flag.Int("num-ops", 200, "The number of operations to run. Default is 200.")
+	numOps := flag.Uint64("num-ops", 200, "The number of operations to run. Default is 200.")
 	flag.Parse()
 
 	if numOps == nil {
@@ -47,7 +47,7 @@ func main() {
 	}
 
 	// Wait for Txs to be selected
-	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfOperations)
+	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, *numOps)
 	if err != nil {
 		panic(err)
 	}
