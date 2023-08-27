@@ -76,7 +76,7 @@ func restore(ctx *cli.Context) error {
 		log.Error("error: ", err)
 		return err
 	}
-	params := []string{"--format=c"}
+	params := []string{"--no-owner", "--no-acl", "--format=c"}
 	log.Info("Restore stateDB snapshot started, please wait...")
 	restoreExec := execCommand(restore, inputFileStateDB, pg.ExecOptions{StreamPrint: false}, params)
 	if restoreExec.Error != nil {
