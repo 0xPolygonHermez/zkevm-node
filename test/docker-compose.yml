@@ -38,7 +38,7 @@ services:
 
   grafana-db:
     container_name: grafana-db
-    image: postgres
+    image: postgres:15
     expose:
       - 5432
     environment:
@@ -162,7 +162,7 @@ services:
 
   zkevm-state-db:
     container_name: zkevm-state-db
-    image: postgres
+    image: postgres:15
     deploy:
       resources:
         limits:
@@ -184,7 +184,7 @@ services:
 
   zkevm-pool-db:
     container_name: zkevm-pool-db
-    image: postgres
+    image: postgres:15
     deploy:
       resources:
         limits:
@@ -204,7 +204,7 @@ services:
 
   zkevm-event-db:
     container_name: zkevm-event-db
-    image: postgres
+    image: postgres:15
     deploy:
       resources:
         limits:
@@ -245,7 +245,7 @@ services:
 
   zkevm-explorer-l1-db:
     container_name: zkevm-explorer-l1-db
-    image: postgres
+    image: postgres:15
     ports:
       - 5436:5432
     environment:
@@ -299,7 +299,7 @@ services:
 
   zkevm-explorer-l2-db:
     container_name: zkevm-explorer-l2-db
-    image: postgres
+    image: postgres:15
     ports:
       - 5437:5432
     environment:
@@ -365,7 +365,7 @@ services:
 
   zkevm-permissionless-db:
     container_name: zkevm-permissionless-db
-    image: postgres
+    image: postgres:15
     deploy:
       resources:
         limits:
