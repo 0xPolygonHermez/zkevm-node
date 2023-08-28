@@ -1113,7 +1113,10 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 	}
 
 	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot.String(), expectedNewStateRoot.String(), batch.GlobalExitRoot.String())
-
+	caller := stateMetrics.DiscardCallerLabel
+	if f.cfg.SequentialReprocessFullBatch {
+		caller = stateMetrics.SequencerCallerLabel
+	}
 	processRequest := state.ProcessRequest{
 		BatchNumber:    batch.BatchNumber,
 		GlobalExitRoot: batch.GlobalExitRoot,
@@ -1121,7 +1124,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		Transactions:   batch.BatchL2Data,
 		Coinbase:       batch.Coinbase,
 		Timestamp:      batch.Timestamp,
-		Caller:         stateMetrics.SequencerCallerLabel,
+		Caller:         caller,
 	}
 
 	forkID := f.dbManager.GetForkIDByBatchNumber(batchNum)
