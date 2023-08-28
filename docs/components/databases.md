@@ -17,7 +17,7 @@ This is done via an sql file: [init_prover_db.sql](https://github.com/0xPolygonH
 ```yaml
 zkevm-state-db:
     container_name: zkevm-state-db
-    image: postgres
+    image: postgres:15
     deploy:
       resources:
         limits:
@@ -40,7 +40,7 @@ zkevm-state-db:
 ```yaml
   zkevm-pool-db:
     container_name: zkevm-pool-db
-    image: postgres
+    image: postgres:15
     deploy:
       resources:
         limits:
