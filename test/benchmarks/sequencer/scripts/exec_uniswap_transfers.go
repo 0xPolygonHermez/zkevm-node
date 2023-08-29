@@ -1,31 +1,22 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/environment"
-
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
-
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/metrics"
-
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/transactions"
 	uniswaptransfers "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/e2e/uniswap-transfers"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/environment"
 	uniswap "github.com/0xPolygonHermez/zkevm-node/test/scripts/uniswap/pkg"
 )
 
-func main() {
+func ExecuteUniswapTransfers(numOps uint64) uint64 {
 	var (
 		err error
 	)
-	numOps := flag.Uint64("num-ops", 200, "The number of operations to run. Default is 200.")
-	flag.Parse()
-	if numOps == nil {
-		panic("numOps is nil")
-	}
+
 	pl, l2Client, auth := environment.Init()
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
 	if err != nil {
@@ -40,7 +31,7 @@ func main() {
 		auth,
 		l2Client,
 		pl.GetTxsByStatus,
-		*numOps,
+		numOps,
 		nil,
 		&deployments,
 		uniswaptransfers.TxSender,
@@ -50,12 +41,13 @@ func main() {
 	}
 
 	// Wait for Txs to be selected
-	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, *numOps)
+	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, numOps)
 	if err != nil {
 		panic(err)
 	}
 
 	metrics.PrintUniswapDeployments(elapsedTimeForDeployments, deploymentTxsCount)
 	totalGas := metrics.GetTotalGasUsedFromTxs(l2Client, allTxs)
-	fmt.Println("Total Gas: ", totalGas)
+
+	return totalGas
 }

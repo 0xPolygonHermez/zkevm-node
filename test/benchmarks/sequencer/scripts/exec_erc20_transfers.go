@@ -1,29 +1,18 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-
-	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/environment"
-
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/transactions"
 	erc20transfers "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/e2e/erc20-transfers"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/environment"
 )
 
-func main() {
+func ExecuteERC20Transfers(numOps uint64) uint64 {
 	var (
 		err error
 	)
-
-	numOps := flag.Uint64("num-ops", 200, "The number of operations to run. Default is 200.")
-	flag.Parse()
-
-	if numOps == nil {
-		panic("numOps is nil")
-	}
 
 	pl, l2Client, auth := environment.Init()
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
@@ -32,12 +21,11 @@ func main() {
 	}
 
 	erc20SC, err := erc20transfers.DeployERC20Contract(l2Client, params.Ctx, auth)
-
 	allTxs, err := transactions.SendAndWait(
 		auth,
 		l2Client,
 		pl.GetTxsByStatus,
-		*numOps,
+		numOps,
 		erc20SC,
 		nil,
 		erc20transfers.TxSender,
@@ -47,11 +35,12 @@ func main() {
 	}
 
 	// Wait for Txs to be selected
-	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, *numOps)
+	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, numOps)
 	if err != nil {
 		panic(err)
 	}
 
 	totalGas := metrics.GetTotalGasUsedFromTxs(l2Client, allTxs)
-	fmt.Println("Total Gas: ", totalGas)
+
+	return totalGas
 }

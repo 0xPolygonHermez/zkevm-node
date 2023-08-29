@@ -21,12 +21,12 @@ func main() {
 	// Command line flags
 	tType := flag.String("type", "", "The type of transactions to test: erc20, uniswap, or eth.")
 	sequencerIP := flag.String("sequencer-ip", "", "The IP address of the sequencer.")
-	numOps := flag.Int("num-ops", 200, "The number of operations to run. Default is 200.")
+	numOps := flag.Uint64("num-ops", 200, "The number of operations to run. Default is 200.")
 	help := flag.Bool("help", false, "Display help message")
 	flag.Parse()
 
 	if *help {
-		fmt.Println("Usage: go run main.go --type TRANSACTIONS_TYPE --sequencer-ip SEQUENCER_IP [--num-ops NUMBER_OF_OPERATIONS]")
+		fmt.Println("Usage: go run exec_erc20_transfers.go --type TRANSACTIONS_TYPE --sequencer-ip SEQUENCER_IP [--num-ops NUMBER_OF_OPERATIONS]")
 		flag.PrintDefaults()
 		return
 	}
@@ -79,7 +79,7 @@ func main() {
 	}
 	defer killSSHProcess(err)
 
-	// Execute wget to get metrics from the BASTION HOST
+	// ExecuteERC20Transfers wget to get metrics from the BASTION HOST
 	fmt.Println("Fetching start metrics...")
 	fmt.Println("--------------------------")
 	output, err := runCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+*sequencerIP+":9091/metrics")
@@ -91,38 +91,20 @@ func main() {
 		panic(fmt.Sprintf("Failed to write start metrics to file: %v", err))
 	}
 
-	// Run the Go script depending on the type argument
-	var goScript string
-	switch *tType {
-	case "erc20":
-		goScript = "erc20-transfers"
-	case "uniswap":
-		goScript = "uniswap-transfers"
-	case "eth":
-		goScript = "eth-transfers"
-	}
-
 	// Run transfers script
 	fmt.Println("Running transfers script...")
 	fmt.Println("---------------------------")
-	lastLine, err := runCmdRealTime("go", "run", "./"+goScript+"/main.go", "--num-ops", strconv.Itoa(*numOps))
-	if err != nil {
-		panic(fmt.Sprintf("Failed to run Go script for %s transactions: %v", *tType, err))
+	var totalGas uint64
+	switch *tType {
+	case "erc20":
+		totalGas = ExecuteERC20Transfers(*numOps)
+	case "uniswap":
+		totalGas = ExecuteUniswapTransfers(*numOps)
+	case "eth":
+		totalGas = ExecuteEthTransfers(*numOps)
 	}
 
-	// Extract Total Gas
-	fmt.Println("Extracting Total Gas...")
-	fmt.Println("-----------------------")
-	var totalGas string
-	if strings.Contains(lastLine, "Total Gas") {
-		parts := strings.Split(lastLine, " ")
-		totalGas = parts[len(parts)-1]
-	}
-	if totalGas == "" {
-		fmt.Println("Warning: Failed to extract Total Gas from Go script output.")
-	}
-
-	// Execute wget to get metrics from the BASTION HOST
+	// ExecuteERC20Transfers wget to get metrics from the BASTION HOST
 	fmt.Println("Fetching end metrics...")
 	fmt.Println("------------------------")
 	output, err = runCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+*sequencerIP+":9091/metrics")
@@ -134,16 +116,10 @@ func main() {
 		panic(fmt.Sprintf("Failed to write end metrics to file: %v", err))
 	}
 
-	// Run the Go script that calculates the metrics and prints the results
-	totalGasInt, err := strconv.ParseUint(totalGas, 10, 64)
-	if err != nil {
-		fmt.Printf("Failed to convert totalGas to int: %v\n", err)
-	}
-
 	// Calc and Print Results
 	fmt.Println("Calculating and printing results...")
 	fmt.Printf("------------------------------------\n\n")
-	calculateAndPrintResults(*tType, totalGasInt, uint64(*numOps))
+	calculateAndPrintResults(*tType, totalGas, *numOps)
 
 	fmt.Println("Done!")
 }
