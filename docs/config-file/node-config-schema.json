@@ -1063,48 +1063,6 @@
 			"type": "object",
 			"description": "Configuration of the merkle tree client service. Not use in the node, only for testing"
 		},
-		"StateDB": {
-			"properties": {
-				"Name": {
-					"type": "string",
-					"description": "Database name",
-					"default": ""
-				},
-				"User": {
-					"type": "string",
-					"description": "Database User name",
-					"default": ""
-				},
-				"Password": {
-					"type": "string",
-					"description": "Database Password of the user",
-					"default": ""
-				},
-				"Host": {
-					"type": "string",
-					"description": "Host address of database",
-					"default": ""
-				},
-				"Port": {
-					"type": "string",
-					"description": "Port Number of database",
-					"default": ""
-				},
-				"EnableLog": {
-					"type": "boolean",
-					"description": "EnableLog",
-					"default": false
-				},
-				"MaxConns": {
-					"type": "integer",
-					"description": "MaxConns is the maximum number of connections in the pool.",
-					"default": 0
-				}
-			},
-			"additionalProperties": false,
-			"type": "object",
-			"description": "Configuration of the state database connection"
-		},
 		"Metrics": {
 			"properties": {
 				"Host": {
