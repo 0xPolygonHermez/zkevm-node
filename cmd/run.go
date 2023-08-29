@@ -128,7 +128,7 @@ func start(cliCtx *cli.Context) error {
 	c.Aggregator.ForkId = currentForkID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
-	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.StateDB)
+	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.State.DB)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -109,8 +109,6 @@ type Config struct {
 	Executor executor.Config
 	// Configuration of the merkle tree client service. Not use in the node, only for testing
 	MTClient merkletree.Config
-	// Configuration of the state database connection
-	StateDB db.Config
 	// Configuration of the metrics service, basically is where is going to publish the metrics
 	Metrics metrics.Config
 	// Configuration of the event database connection
