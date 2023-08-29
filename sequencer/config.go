@@ -16,37 +16,6 @@ type Config struct {
 	// FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
 	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
 
-	// MaxTxsPerBatch is the maximum amount of transactions in the batch
-	MaxTxsPerBatch uint64 `mapstructure:"MaxTxsPerBatch"`
-
-	// MaxBatchBytesSize is the maximum batch size in bytes
-	// (subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)
-	MaxBatchBytesSize uint64 `mapstructure:"MaxBatchBytesSize"`
-
-	// MaxCumulativeGasUsed is max gas amount used by batch
-	MaxCumulativeGasUsed uint64 `mapstructure:"MaxCumulativeGasUsed"`
-
-	// MaxKeccakHashes is max keccak hashes used by batch
-	MaxKeccakHashes uint32 `mapstructure:"MaxKeccakHashes"`
-
-	// MaxPoseidonHashes is max poseidon hashes batch can handle
-	MaxPoseidonHashes uint32 `mapstructure:"MaxPoseidonHashes"`
-
-	// MaxPoseidonPaddings is max poseidon paddings batch can handle
-	MaxPoseidonPaddings uint32 `mapstructure:"MaxPoseidonPaddings"`
-
-	// MaxMemAligns is max mem aligns batch can handle
-	MaxMemAligns uint32 `mapstructure:"MaxMemAligns"`
-
-	// MaxArithmetics is max arithmetics batch can handle
-	MaxArithmetics uint32 `mapstructure:"MaxArithmetics"`
-
-	// MaxBinaries is max binaries batch can handle
-	MaxBinaries uint32 `mapstructure:"MaxBinaries"`
-
-	// MaxSteps is max steps batch can handle
-	MaxSteps uint32 `mapstructure:"MaxSteps"`
-
 	// TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
 	TxLifetimeCheckTimeout types.Duration `mapstructure:"TxLifetimeCheckTimeout"`
 
