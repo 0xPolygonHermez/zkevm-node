@@ -135,7 +135,7 @@ func (d *dbManager) loadFromPool() {
 }
 
 func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
-	txTracker, err := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP)
+	txTracker, err := d.worker.NewTxTracker(tx, tx.ZKCounters, tx.IP)
 	if err != nil {
 		return err
 	}

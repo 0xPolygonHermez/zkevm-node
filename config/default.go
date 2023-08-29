@@ -21,6 +21,7 @@ EnableLog = false
 MaxConns = 200
 
 [Pool]
+FreeClaimGasLimit = 150000
 IntervalToRefreshBlockedAddresses = "5m"
 IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=100132
@@ -30,6 +31,7 @@ MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
 AccountQueue = 64
 GlobalQueue = 1024
+FreeGasAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"

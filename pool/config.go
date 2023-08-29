@@ -7,6 +7,9 @@ import (
 
 // Config is the pool configuration
 type Config struct {
+	// FreeClaimGasLimit is the max gas allowed use to do a free claim
+	FreeClaimGasLimit uint64 `mapstructure:"FreeClaimGasLimit"`
+
 	// IntervalToRefreshBlockedAddresses is the time it takes to sync the
 	// blocked address list from db to memory
 	IntervalToRefreshBlockedAddresses types.Duration `mapstructure:"IntervalToRefreshBlockedAddresses"`
@@ -37,4 +40,6 @@ type Config struct {
 
 	// GlobalQueue represents the maximum number of non-executable transaction slots for all accounts
 	GlobalQueue uint64 `mapstructure:"GlobalQueue"`
+
+	FreeGasAddress string `mapstructure:"FreeGasAddress"`
 }

@@ -3,6 +3,7 @@ package sequencer
 import (
 	"context"
 	"fmt"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"math/big"
 	"runtime"
 	"sync"
@@ -11,7 +12,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // Worker represents the worker component of the sequencer
@@ -34,7 +34,7 @@ func NewWorker(state stateInterface) *Worker {
 }
 
 // NewTxTracker creates and inits a TxTracker
-func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
+func (w *Worker) NewTxTracker(tx pool.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
 	return newTxTracker(tx, counters, ip)
 }
 

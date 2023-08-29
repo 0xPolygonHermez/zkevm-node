@@ -277,6 +277,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
+			path:          "Pool.FreeClaimGasLimit",
+			expectedValue: uint64(150000),
+		},
+		{
 			path:          "Pool.MaxTxBytesSize",
 			expectedValue: uint64(100132),
 		},
@@ -304,6 +308,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.GlobalQueue",
 			expectedValue: uint64(1024),
+		},
+		{
+			path:          "Pool.FreeGasAddress",
+			expectedValue: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
 		},
 		{
 			path:          "Pool.DB.User",

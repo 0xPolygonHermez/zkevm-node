@@ -18,6 +18,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+const (
+	// BridgeClaimMethodSignature for tracking BridgeClaimMethodSignature method
+	BridgeClaimMethodSignature = "0x2cffd02e"
+)
+
 var (
 	// ErrNotFound indicates an object has not been found for the search criteria used
 	ErrNotFound = errors.New("object not found")
@@ -29,6 +34,8 @@ var (
 	// ErrReplaceUnderpriced is returned if a transaction is attempted to be replaced
 	// with a different one without the required price bump.
 	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
+
+	FreeClaimAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 )
 
 // Pool is an implementation of the Pool interface
@@ -45,6 +52,7 @@ type Pool struct {
 	startTimestamp          time.Time
 	gasPrices               GasPrices
 	gasPricesMux            *sync.RWMutex
+	l2BridgeAddr            common.Address
 }
 
 type preExecutionResponse struct {
@@ -63,7 +71,7 @@ type GasPrices struct {
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
+func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64, eventLog *event.EventLog) *Pool {
 	startTimestamp := time.Now()
 	p := &Pool{
 		cfg:                     cfg,
@@ -76,7 +84,10 @@ func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog 
 		eventLog:                eventLog,
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),
+		l2BridgeAddr:            l2BridgeAddr,
 	}
+
+	FreeClaimAddress = cfg.FreeGasAddress
 
 	p.refreshBlockedAddresses()
 	go func(cfg *Config, p *Pool) {
@@ -157,7 +168,7 @@ func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
 
 // AddTx adds a transaction to the pool with the pending state
 func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
-	poolTx := NewTransaction(tx, ip, false)
+	poolTx := NewTransaction(tx, ip, false, p)
 	if err := p.validateTx(ctx, *poolTx); err != nil {
 		return err
 	}
@@ -213,10 +224,76 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		}
 	}
 
-	poolTx := NewTransaction(tx, ip, isWIP)
+	poolTx := NewTransaction(tx, ip, isWIP, p)
+	// CLAIM CHECK
+	if poolTx.IsClaims {
+		isFreeTx := poolTx.GasPrice().Cmp(big.NewInt(0)) <= 0
+		// if the tx is free and it was reverted in the pre execution
+		// the transaction gets rejected
+		if isFreeTx && preExecutionResponse.isReverted {
+			return fmt.Errorf("free claim reverted")
+		} else { // otherwise
+			// DEPOSIT COUNT CHECK
+			depositCount, err := p.extractDepositCountFromClaimTx(poolTx)
+			if err != nil {
+				return err
+			}
+			exists, err := p.storage.DepositCountExists(ctx, *depositCount)
+			if err != nil && !errors.Is(err, ErrNotFound) {
+				return err
+			}
+			// if the claim deposit count already exist in the pool,
+			// the transaction gets rejected
+			if exists {
+				return fmt.Errorf("deposit count already exists")
+			}
+
+			// CURRENT NONCE CHECK
+			from, err := state.GetSender(poolTx.Transaction)
+			if err != nil {
+				return ErrInvalidSender
+			}
+			lastL2Block, err := p.state.GetLastL2Block(ctx, nil)
+			if err != nil {
+				return err
+			}
+			nonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
+			if err != nil {
+				return err
+			}
+			// if the nonce is different from the current nonce for the
+			// account sending the claim, the transaction gets rejected
+			if poolTx.Nonce() != nonce {
+				return fmt.Errorf("invalid nonce")
+			}
+			poolTx.DepositCount = depositCount
+		}
+	}
+
 	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, *poolTx)
+}
+
+// extractDepositCountFromClaimTx reads the transaction data if this is a
+// proper defined claim transaction, extracts the deposit count parameter
+// from its data
+func (p *Pool) extractDepositCountFromClaimTx(poolTx *Transaction) (*uint64, error) {
+	data := make([]byte, len(poolTx.Data()))
+	copy(data, poolTx.Data())
+
+	const methodLength = 4
+	const skipParamsLength = 32 * 32
+	const depositCountLength = 32
+	const minimumDataLength = methodLength + skipParamsLength + depositCountLength
+	if len(data) < minimumDataLength {
+		return nil, fmt.Errorf("invalid data length")
+	}
+
+	depositCountBytes := data[methodLength+skipParamsLength : methodLength+skipParamsLength+depositCountLength]
+	depositCountBig := big.NewInt(0).SetBytes(depositCountBytes)
+	depositCount := depositCountBig.Uint64()
+	return &depositCount, nil
 }
 
 // preExecuteTx executes a transaction to calculate its zkCounters
@@ -277,6 +354,9 @@ func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus T
 
 // SetGasPrices sets the current L2 Gas Price and L1 Gas Price
 func (p *Pool) SetGasPrices(ctx context.Context, l2GasPrice uint64, l1GasPrice uint64) error {
+	if l2GasPrice == 0 {
+		return nil
+	}
 	return p.storage.SetGasPrices(ctx, l2GasPrice, l1GasPrice)
 }
 
@@ -331,10 +411,24 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		return ErrOversizedData
 	}
 
+	// Reject transactions with a gas price lower than the minimum gas price
+	if from != common.HexToAddress(FreeClaimAddress) || !poolTx.IsClaims {
+		p.minSuggestedGasPriceMux.RLock()
+		gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
+		p.minSuggestedGasPriceMux.RUnlock()
+		if gasPriceCmp == -1 {
+			return ErrGasPrice
+		}
+	}
+
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
 	if poolTx.Value().Sign() < 0 {
 		return ErrNegativeValue
+	}
+	// Make sure the transaction is signed properly.
+	if err := state.CheckSignature(poolTx.Transaction); err != nil {
+		return ErrInvalidSender
 	}
 
 	// check if sender is blocked

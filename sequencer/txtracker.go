@@ -1,12 +1,12 @@
 package sequencer
 
 import (
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // TxTracker is a struct that contains all the tx data needed to be managed by the worker
@@ -30,10 +30,12 @@ type TxTracker struct {
 	EffectiveGasPriceProcessCount     uint8
 	IsEffectiveGasPriceFinalExecution bool
 	L1GasPrice                        uint64
+	IsClaim                           bool
 }
 
 // newTxTracker creates and inti a TxTracker
-func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
+func newTxTracker(ptx pool.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
+	tx := ptx.Transaction
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err
@@ -63,6 +65,7 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*
 		BreakEvenGasPrice:                 new(big.Int).SetUint64(0),
 		EffectiveGasPriceProcessCount:     0,
 		IsEffectiveGasPriceFinalExecution: false,
+		IsClaim:                           ptx.IsClaims,
 	}
 
 	return txTracker, nil
