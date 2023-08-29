@@ -67,6 +67,20 @@ func (_m *stateMock) AddForcedBatch(ctx context.Context, forcedBatch *state.Forc
 	return r0
 }
 
+// AddForkIDInterval provides a mock function with given fields: ctx, newForkID, dbTx
+func (_m *stateMock) AddForkIDInterval(ctx context.Context, newForkID state.ForkIDInterval, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, newForkID, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ForkIDInterval, pgx.Tx) error); ok {
+		r0 = rf(ctx, newForkID, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // AddGlobalExitRoot provides a mock function with given fields: ctx, exitRoot, dbTx
 func (_m *stateMock) AddGlobalExitRoot(ctx context.Context, exitRoot *state.GlobalExitRoot, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, exitRoot, dbTx)
@@ -704,11 +718,6 @@ func (_m *stateMock) UpdateBatchL2Data(ctx context.Context, batchNumber uint64, 
 	}
 
 	return r0
-}
-
-// UpdateForkIDIntervals provides a mock function with given fields: intervals
-func (_m *stateMock) UpdateForkIDIntervals(intervals []state.ForkIDInterval) {
-	_m.Called(intervals)
 }
 
 type mockConstructorTestingTnewStateMock interface {

@@ -415,6 +415,32 @@ func (_m *StateMock) GetL2BlockTransactionCountByNumber(ctx context.Context, blo
 	return r0, r1
 }
 
+// GetL2BlocksByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StateMock) GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]coretypes.Block, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 []coretypes.Block
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) ([]coretypes.Block, error)); ok {
+		return rf(ctx, batchNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []coretypes.Block); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]coretypes.Block)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLastBatchNumber provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)

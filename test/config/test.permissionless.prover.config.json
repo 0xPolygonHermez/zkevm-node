@@ -81,8 +81,9 @@
     "maxExecutorThreads": 20,
     "maxProverThreads": 8,
     "maxHashDBThreads": 8,
-    "ECRecoverPrecalc": true,
-    "ECRecoverPrecalcNThreads": 16,
-    "stateManager": true
+    "ECRecoverPrecalc": false,
+    "ECRecoverPrecalcNThreads": 4,
+    "stateManager": true,
+    "useAssociativeCache" : false
 }
 

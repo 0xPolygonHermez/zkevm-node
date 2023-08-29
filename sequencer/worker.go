@@ -28,9 +28,9 @@ type Worker struct {
 func NewWorker(state stateInterface, constraints state.BatchConstraintsCfg) *Worker {
 	w := Worker{
 		pool:             make(map[string]*addrQueue),
-		batchConstraints: constraints,
 		txSortedList:     newTxSortedList(),
 		state:            state,
+		batchConstraints: constraints,
 	}
 
 	return &w
@@ -92,7 +92,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	}
 
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
-	log.Infof("AddTx new tx(%s) nonce(%d) cost(%s) to addrQueue(%s) nonce(%d) balance(%d)", tx.HashStr, tx.Nonce, tx.Cost.String(), addr.fromStr, addr.currentNonce, addr.currentBalance)
+	log.Infof("AddTx new tx(%s) nonce(%d) gasPrice(%d) to addrQueue(%s) nonce(%d) balance(%d)", tx.HashStr, tx.Nonce, tx.GasPrice, addr.fromStr, addr.currentNonce, addr.currentBalance)
 	var newReadyTx, prevReadyTx, repTx *TxTracker
 	newReadyTx, prevReadyTx, repTx, dropReason = addr.addTx(tx)
 	if dropReason != nil {
@@ -103,16 +103,16 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 
 	// Update the txSortedList (if needed)
 	if prevReadyTx != nil {
-		log.Infof("AddTx prevReadyTx(%s) nonce(%d) cost(%s) deleted from TxSortedList", prevReadyTx.HashStr, prevReadyTx.Nonce, prevReadyTx.Cost.String())
+		log.Infof("AddTx prevReadyTx(%s) nonce(%d) gasPrice(%d) addr(%s) deleted from TxSortedList", prevReadyTx.HashStr, prevReadyTx.Nonce, prevReadyTx.GasPrice, tx.FromStr)
 		w.txSortedList.delete(prevReadyTx)
 	}
 	if newReadyTx != nil {
-		log.Infof("AddTx newReadyTx(%s) nonce(%d) cost(%s) added to TxSortedList", newReadyTx.HashStr, newReadyTx.Nonce, newReadyTx.Cost.String())
+		log.Infof("AddTx newReadyTx(%s) nonce(%d) gasPrice(%d) addr(%s) added to TxSortedList", newReadyTx.HashStr, newReadyTx.Nonce, newReadyTx.GasPrice, tx.FromStr)
 		w.txSortedList.add(newReadyTx)
 	}
 
 	if repTx != nil {
-		log.Infof("AddTx replacedTx(%s) nonce(%d) cost(%s) has been replaced", repTx.HashStr, repTx.Nonce, repTx.Cost.String())
+		log.Infof("AddTx replacedTx(%s) nonce(%d) gasPrice(%d) addr(%s) has been replaced", repTx.HashStr, repTx.Nonce, repTx.GasPrice, tx.FromStr)
 	}
 
 	w.workerMutex.Unlock()
@@ -127,11 +127,11 @@ func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, from
 
 		// Update the TxSortedList (if needed)
 		if prevReadyTx != nil {
-			log.Infof("applyAddressUpdate prevReadyTx(%s) nonce(%d) cost(%s) deleted from TxSortedList", prevReadyTx.Hash.String(), prevReadyTx.Nonce, prevReadyTx.Cost.String())
+			log.Infof("applyAddressUpdate prevReadyTx(%s) nonce(%d) gasPrice(%d) deleted from TxSortedList", prevReadyTx.Hash.String(), prevReadyTx.Nonce, prevReadyTx.GasPrice)
 			w.txSortedList.delete(prevReadyTx)
 		}
 		if newReadyTx != nil {
-			log.Infof("applyAddressUpdate newReadyTx(%s) nonce(%d) cost(%s) added to TxSortedList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.Cost.String())
+			log.Infof("applyAddressUpdate newReadyTx(%s) nonce(%d) gasPrice(%d) added to TxSortedList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.GasPrice)
 			w.txSortedList.add(newReadyTx)
 		}
 
@@ -188,7 +188,7 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 	return txsToDelete
 }
 
-// DeleteTx delete the tx after it fails to execute
+// DeleteTx deletes a regular tx from the addrQueue
 func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
@@ -202,6 +202,19 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address) {
 		}
 	} else {
 		log.Warnf("DeleteTx addrQueue(%s) not found", addr.String())
+	}
+}
+
+// DeleteForcedTx deletes a forced tx from the addrQueue
+func (w *Worker) DeleteForcedTx(txHash common.Hash, addr common.Address) {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
+
+	addrQueue, found := w.pool[addr.String()]
+	if found {
+		addrQueue.deleteForcedTx(txHash)
+	} else {
+		log.Warnf("DeleteForcedTx addrQueue(%s) not found", addr.String())
 	}
 }
 
@@ -240,6 +253,20 @@ func (w *Worker) AddPendingTxToStore(txHash common.Hash, addr common.Address) {
 		addrQueue.addPendingTxToStore(txHash)
 	} else {
 		log.Warnf("AddPendingTxToStore addrQueue(%s) not found", addr.String())
+	}
+}
+
+// AddForcedTx adds a forced tx to the addrQueue
+func (w *Worker) AddForcedTx(txHash common.Hash, addr common.Address) {
+	w.workerMutex.Lock()
+	defer w.workerMutex.Unlock()
+
+	addrQueue, found := w.pool[addr.String()]
+
+	if found {
+		addrQueue.addForcedTx(txHash)
+	} else {
+		log.Warnf("AddForcedTx addrQueue(%s) not found", addr.String())
 	}
 }
 

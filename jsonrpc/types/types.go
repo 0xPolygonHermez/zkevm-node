@@ -262,7 +262,7 @@ type Block struct {
 }
 
 // NewBlock creates a Block instance
-func NewBlock(b *types.Block, fullTx bool) *Block {
+func NewBlock(b *types.Block, receipts []types.Receipt, fullTx, includeReceipts bool) (*Block, error) {
 	h := b.Header()
 
 	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
@@ -298,17 +298,28 @@ func NewBlock(b *types.Block, fullTx bool) *Block {
 		Uncles:          []common.Hash{},
 	}
 
-	for idx, txn := range b.Transactions() {
+	receiptsMap := make(map[common.Hash]types.Receipt, len(receipts))
+	for _, receipt := range receipts {
+		receiptsMap[receipt.TxHash] = receipt
+	}
+
+	for _, tx := range b.Transactions() {
 		if fullTx {
-			blockHash := b.Hash()
-			txIndex := uint64(idx)
-			tx := NewTransaction(*txn, b.Number(), &blockHash, &txIndex)
+			var receiptPtr *types.Receipt
+			if receipt, found := receiptsMap[tx.Hash()]; found {
+				receiptPtr = &receipt
+			}
+
+			rpcTx, err := NewTransaction(*tx, receiptPtr, includeReceipts)
+			if err != nil {
+				return nil, err
+			}
 			res.Transactions = append(
 				res.Transactions,
-				TransactionOrHash{Tx: tx},
+				TransactionOrHash{Tx: rpcTx},
 			)
 		} else {
-			h := txn.Hash()
+			h := tx.Hash()
 			res.Transactions = append(
 				res.Transactions,
 				TransactionOrHash{Hash: &h},
@@ -320,7 +331,7 @@ func NewBlock(b *types.Block, fullTx bool) *Block {
 		res.Uncles = append(res.Uncles, uncle.Hash())
 	}
 
-	return res
+	return res, nil
 }
 
 // Batch structure
@@ -337,13 +348,16 @@ type Batch struct {
 	Timestamp           ArgUint64           `json:"timestamp"`
 	SendSequencesTxHash *common.Hash        `json:"sendSequencesTxHash"`
 	VerifyBatchTxHash   *common.Hash        `json:"verifyBatchTxHash"`
+	Closed              bool                `json:"closed"`
+	Blocks              []BlockOrHash       `json:"blocks"`
 	Transactions        []TransactionOrHash `json:"transactions"`
 	BatchL2Data         ArgBytes            `json:"batchL2Data"`
 }
 
 // NewBatch creates a Batch instance
-func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, receipts []types.Receipt, fullTx bool, ger *state.GlobalExitRoot) *Batch {
+func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, blocks []types.Block, receipts []types.Receipt, fullTx, includeReceipts bool, ger *state.GlobalExitRoot) (*Batch, error) {
 	batchL2Data := batch.BatchL2Data
+	closed := batch.StateRoot.String() != state.ZeroHash.String() || batch.BatchNumber == 0
 	res := &Batch{
 		Number:          ArgUint64(batch.BatchNumber),
 		GlobalExitRoot:  batch.GlobalExitRoot,
@@ -355,6 +369,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 		Coinbase:        batch.Coinbase,
 		LocalExitRoot:   batch.LocalExitRoot,
 		BatchL2Data:     ArgBytes(batchL2Data),
+		Closed:          closed,
 	}
 	if batch.ForcedBatchNum != nil {
 		fb := ArgUint64(*batch.ForcedBatchNum)
@@ -376,9 +391,14 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 
 	for _, tx := range batch.Transactions {
 		if fullTx {
-			receipt := receiptsMap[tx.Hash()]
-			txIndex := uint64(receipt.TransactionIndex)
-			rpcTx := NewTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex)
+			var receiptPtr *types.Receipt
+			if receipt, found := receiptsMap[tx.Hash()]; found {
+				receiptPtr = &receipt
+			}
+			rpcTx, err := NewTransaction(tx, receiptPtr, includeReceipts)
+			if err != nil {
+				return nil, err
+			}
 			res.Transactions = append(res.Transactions, TransactionOrHash{Tx: rpcTx})
 		} else {
 			h := tx.Hash()
@@ -386,7 +406,21 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 		}
 	}
 
-	return res
+	for _, b := range blocks {
+		b := b
+		if fullTx {
+			block, err := NewBlock(&b, nil, false, false)
+			if err != nil {
+				return nil, err
+			}
+			res.Blocks = append(res.Blocks, BlockOrHash{Block: block})
+		} else {
+			h := b.Hash()
+			res.Blocks = append(res.Blocks, BlockOrHash{Hash: &h})
+		}
+	}
+
+	return res, nil
 }
 
 // TransactionOrHash for union type of transaction and types.Hash
@@ -396,15 +430,15 @@ type TransactionOrHash struct {
 }
 
 // MarshalJSON marshals into json
-func (b TransactionOrHash) MarshalJSON() ([]byte, error) {
-	if b.Hash != nil {
-		return json.Marshal(b.Hash)
+func (th TransactionOrHash) MarshalJSON() ([]byte, error) {
+	if th.Hash != nil {
+		return json.Marshal(th.Hash)
 	}
-	return json.Marshal(b.Tx)
+	return json.Marshal(th.Tx)
 }
 
 // UnmarshalJSON unmarshals from json
-func (b *TransactionOrHash) UnmarshalJSON(input []byte) error {
+func (th *TransactionOrHash) UnmarshalJSON(input []byte) error {
 	v := string(input)
 	if strings.HasPrefix(v, "0x") || strings.HasPrefix(v, "\"0x") {
 		var h common.Hash
@@ -412,7 +446,7 @@ func (b *TransactionOrHash) UnmarshalJSON(input []byte) error {
 		if err != nil {
 			return err
 		}
-		*b = TransactionOrHash{Hash: &h}
+		*th = TransactionOrHash{Hash: &h}
 		return nil
 	}
 
@@ -421,7 +455,43 @@ func (b *TransactionOrHash) UnmarshalJSON(input []byte) error {
 	if err != nil {
 		return err
 	}
-	*b = TransactionOrHash{Tx: &t}
+	*th = TransactionOrHash{Tx: &t}
+	return nil
+}
+
+// BlockOrHash for union type of block and types.Hash
+type BlockOrHash struct {
+	Hash  *common.Hash
+	Block *Block
+}
+
+// MarshalJSON marshals into json
+func (bh BlockOrHash) MarshalJSON() ([]byte, error) {
+	if bh.Hash != nil {
+		return json.Marshal(bh.Hash)
+	}
+	return json.Marshal(bh.Block)
+}
+
+// UnmarshalJSON unmarshals from json
+func (bh *BlockOrHash) UnmarshalJSON(input []byte) error {
+	v := string(input)
+	if strings.HasPrefix(v, "0x") || strings.HasPrefix(v, "\"0x") {
+		var h common.Hash
+		err := json.Unmarshal(input, &h)
+		if err != nil {
+			return err
+		}
+		*bh = BlockOrHash{Hash: &h}
+		return nil
+	}
+
+	var b Block
+	err := json.Unmarshal(input, &b)
+	if err != nil {
+		return err
+	}
+	*bh = BlockOrHash{Block: &b}
 	return nil
 }
 
@@ -443,6 +513,7 @@ type Transaction struct {
 	TxIndex     *ArgUint64      `json:"transactionIndex"`
 	ChainID     ArgBig          `json:"chainId"`
 	Type        ArgUint64       `json:"type"`
+	Receipt     *Receipt        `json:"receipt,omitempty"`
 }
 
 // CoreTx returns a geth core type Transaction
@@ -462,44 +533,46 @@ func (t Transaction) CoreTx() *types.Transaction {
 
 // NewTransaction creates a transaction instance
 func NewTransaction(
-	t types.Transaction,
-	blockNumber *big.Int,
-	blockHash *common.Hash,
-	txIndex *uint64,
-) *Transaction {
-	v, r, s := t.RawSignatureValues()
+	tx types.Transaction,
+	receipt *types.Receipt,
+	includeReceipt bool,
+) (*Transaction, error) {
+	v, r, s := tx.RawSignatureValues()
 
-	from, _ := state.GetSender(t)
+	from, _ := state.GetSender(tx)
 
 	res := &Transaction{
-		Nonce:    ArgUint64(t.Nonce()),
-		GasPrice: ArgBig(*t.GasPrice()),
-		Gas:      ArgUint64(t.Gas()),
-		To:       t.To(),
-		Value:    ArgBig(*t.Value()),
-		Input:    t.Data(),
+		Nonce:    ArgUint64(tx.Nonce()),
+		GasPrice: ArgBig(*tx.GasPrice()),
+		Gas:      ArgUint64(tx.Gas()),
+		To:       tx.To(),
+		Value:    ArgBig(*tx.Value()),
+		Input:    tx.Data(),
 		V:        ArgBig(*v),
 		R:        ArgBig(*r),
 		S:        ArgBig(*s),
-		Hash:     t.Hash(),
+		Hash:     tx.Hash(),
 		From:     from,
-		ChainID:  ArgBig(*t.ChainId()),
-		Type:     ArgUint64(t.Type()),
+		ChainID:  ArgBig(*tx.ChainId()),
+		Type:     ArgUint64(tx.Type()),
 	}
 
-	if blockNumber != nil {
-		bn := ArgUint64(blockNumber.Uint64())
+	if receipt != nil {
+		bn := ArgUint64(receipt.BlockNumber.Uint64())
 		res.BlockNumber = &bn
-	}
-
-	res.BlockHash = blockHash
-
-	if txIndex != nil {
-		ti := ArgUint64(*txIndex)
+		res.BlockHash = &receipt.BlockHash
+		ti := ArgUint64(receipt.TransactionIndex)
 		res.TxIndex = &ti
+		rpcReceipt, err := NewReceipt(tx, receipt)
+		if err != nil {
+			return nil, err
+		}
+		if includeReceipt {
+			res.Receipt = &rpcReceipt
+		}
 	}
 
-	return res
+	return res, nil
 }
 
 // Receipt structure

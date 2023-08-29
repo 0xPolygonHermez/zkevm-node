@@ -14,6 +14,7 @@ import (
 
 var snapshotFlags = []cli.Flag{
 	&configFileFlag,
+	&outputFileFlag,
 }
 
 func snapshot(ctx *cli.Context) error {
@@ -43,6 +44,7 @@ func snapshot(ctx *cli.Context) error {
 	}
 	dump.Options = append(dump.Options, "-Z 9")
 	log.Info("StateDB snapshot is being created...")
+	dump.Path = ctx.String(config.FlagOutputFile)
 	dump.SetFileName(fmt.Sprintf(`%v_%v_%v_%v.sql.tar.gz`, dump.DB, time.Now().Unix(), zkevm.Version, zkevm.GitRev))
 	dumpExec := dump.Exec(pg.ExecOptions{StreamPrint: false})
 	if dumpExec.Error != nil {
@@ -71,6 +73,7 @@ func snapshot(ctx *cli.Context) error {
 	}
 	dump.Options = append(dump.Options, "-Z 9")
 	log.Info("HashDB snapshot is being created...")
+	dump.Path = ctx.String(config.FlagOutputFile)
 	dump.SetFileName(fmt.Sprintf(`%v_%v_%v_%v.sql.tar.gz`, dump.DB, time.Now().Unix(), zkevm.Version, zkevm.GitRev))
 	dumpExec = dump.Exec(pg.ExecOptions{StreamPrint: false})
 	if dumpExec.Error != nil {
