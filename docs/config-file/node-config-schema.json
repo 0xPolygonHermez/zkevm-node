@@ -64,14 +64,11 @@
 					"description": "URL is the URL of the Ethereum node for L1",
 					"default": "http://localhost:8545"
 				},
-<<<<<<< HEAD
 				"ForkIDChunkSize": {
 					"type": "integer",
 					"description": "ForkIDChunkSize is the max interval for each call to L1 provider to get the forkIDs",
 					"default": 20000
 				},
-=======
->>>>>>> develop
 				"MultiGasProvider": {
 					"type": "boolean",
 					"description": "allow that L1 gas price calculation use multiples sources",
@@ -337,14 +334,11 @@
 							"type": "integer",
 							"description": "Port defines the port to serve the endpoints via WS",
 							"default": 8546
-<<<<<<< HEAD
-=======
 						},
 						"ReadLimit": {
 							"type": "integer",
 							"description": "ReadLimit defines the maximum size of a message read from the client (in bytes)",
 							"default": 104857600
->>>>>>> develop
 						}
 					},
 					"additionalProperties": false,
@@ -360,8 +354,6 @@
 					"type": "boolean",
 					"description": "TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)\nto do the parallel requests to RPC.debug_traceTransaction endpoint",
 					"default": true
-<<<<<<< HEAD
-=======
 				},
 				"BatchRequestsEnabled": {
 					"type": "boolean",
@@ -372,7 +364,6 @@
 					"type": "integer",
 					"description": "BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request",
 					"default": 20
->>>>>>> develop
 				}
 			},
 			"additionalProperties": false,
@@ -433,59 +424,56 @@
 						"300ms"
 					]
 				},
-<<<<<<< HEAD
 				"MaxTxsPerBatch": {
 					"type": "integer",
 					"description": "MaxTxsPerBatch is the maximum amount of transactions in the batch",
-					"default": 300
+					"default": 0
 				},
 				"MaxBatchBytesSize": {
 					"type": "integer",
 					"description": "MaxBatchBytesSize is the maximum batch size in bytes\n(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)",
-					"default": 120000
+					"default": 0
 				},
 				"MaxCumulativeGasUsed": {
 					"type": "integer",
 					"description": "MaxCumulativeGasUsed is max gas amount used by batch",
-					"default": 30000000
+					"default": 0
 				},
 				"MaxKeccakHashes": {
 					"type": "integer",
 					"description": "MaxKeccakHashes is max keccak hashes used by batch",
-					"default": 2145
+					"default": 0
 				},
 				"MaxPoseidonHashes": {
 					"type": "integer",
 					"description": "MaxPoseidonHashes is max poseidon hashes batch can handle",
-					"default": 252357
+					"default": 0
 				},
 				"MaxPoseidonPaddings": {
 					"type": "integer",
 					"description": "MaxPoseidonPaddings is max poseidon paddings batch can handle",
-					"default": 135191
+					"default": 0
 				},
 				"MaxMemAligns": {
 					"type": "integer",
 					"description": "MaxMemAligns is max mem aligns batch can handle",
-					"default": 236585
+					"default": 0
 				},
 				"MaxArithmetics": {
 					"type": "integer",
 					"description": "MaxArithmetics is max arithmetics batch can handle",
-					"default": 236585
+					"default": 0
 				},
 				"MaxBinaries": {
 					"type": "integer",
 					"description": "MaxBinaries is max binaries batch can handle",
-					"default": 473170
+					"default": 0
 				},
 				"MaxSteps": {
 					"type": "integer",
 					"description": "MaxSteps is max steps batch can handle",
-					"default": 7570538
+					"default": 0
 				},
-=======
->>>>>>> develop
 				"TxLifetimeCheckTimeout": {
 					"type": "string",
 					"title": "Duration",
@@ -499,11 +487,7 @@
 				"MaxTxLifetime": {
 					"type": "string",
 					"title": "Duration",
-<<<<<<< HEAD
 					"description": "MaxTxLifetime is the time a tx can be in the sequencer/worker memory",
-=======
-					"description": "MaxTxLifetime is the time a tx can be in the sequencer memory",
->>>>>>> develop
 					"default": "3h0m0s",
 					"examples": [
 						"1m",
@@ -601,14 +585,11 @@
 							"type": "integer",
 							"description": "StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number",
 							"default": 0
-<<<<<<< HEAD
 						},
 						"SequentialReprocessFullBatch": {
 							"type": "boolean",
 							"description": "SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
 							"default": false
-=======
->>>>>>> develop
 						}
 					},
 					"additionalProperties": false,
@@ -1082,33 +1063,32 @@
 			"type": "object",
 			"description": "Configuration of the merkle tree client service. Not use in the node, only for testing"
 		},
-<<<<<<< HEAD
 		"StateDB": {
 			"properties": {
 				"Name": {
 					"type": "string",
 					"description": "Database name",
-					"default": "state_db"
+					"default": ""
 				},
 				"User": {
 					"type": "string",
 					"description": "Database User name",
-					"default": "state_user"
+					"default": ""
 				},
 				"Password": {
 					"type": "string",
 					"description": "Database Password of the user",
-					"default": "state_password"
+					"default": ""
 				},
 				"Host": {
 					"type": "string",
 					"description": "Host address of database",
-					"default": "zkevm-state-db"
+					"default": ""
 				},
 				"Port": {
 					"type": "string",
 					"description": "Port Number of database",
-					"default": "5432"
+					"default": ""
 				},
 				"EnableLog": {
 					"type": "boolean",
@@ -1118,15 +1098,13 @@
 				"MaxConns": {
 					"type": "integer",
 					"description": "MaxConns is the maximum number of connections in the pool.",
-					"default": 200
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
 			"type": "object",
 			"description": "Configuration of the state database connection"
 		},
-=======
->>>>>>> develop
 		"Metrics": {
 			"properties": {
 				"Host": {
@@ -1254,8 +1232,6 @@
 			"additionalProperties": false,
 			"type": "object",
 			"description": "Configuration of the hash database connection"
-<<<<<<< HEAD
-=======
 		},
 		"State": {
 			"properties": {
@@ -1283,6 +1259,9 @@
 							},
 							"Version": {
 								"type": "string"
+							},
+							"BlockNumber": {
+								"type": "integer"
 							}
 						},
 						"additionalProperties": false,
@@ -1458,7 +1437,6 @@
 			"additionalProperties": false,
 			"type": "object",
 			"description": "State service configuration"
->>>>>>> develop
 		}
 	},
 	"additionalProperties": false,
