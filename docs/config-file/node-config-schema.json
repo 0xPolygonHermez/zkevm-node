@@ -424,56 +424,6 @@
 						"300ms"
 					]
 				},
-				"MaxTxsPerBatch": {
-					"type": "integer",
-					"description": "MaxTxsPerBatch is the maximum amount of transactions in the batch",
-					"default": 0
-				},
-				"MaxBatchBytesSize": {
-					"type": "integer",
-					"description": "MaxBatchBytesSize is the maximum batch size in bytes\n(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)",
-					"default": 0
-				},
-				"MaxCumulativeGasUsed": {
-					"type": "integer",
-					"description": "MaxCumulativeGasUsed is max gas amount used by batch",
-					"default": 0
-				},
-				"MaxKeccakHashes": {
-					"type": "integer",
-					"description": "MaxKeccakHashes is max keccak hashes used by batch",
-					"default": 0
-				},
-				"MaxPoseidonHashes": {
-					"type": "integer",
-					"description": "MaxPoseidonHashes is max poseidon hashes batch can handle",
-					"default": 0
-				},
-				"MaxPoseidonPaddings": {
-					"type": "integer",
-					"description": "MaxPoseidonPaddings is max poseidon paddings batch can handle",
-					"default": 0
-				},
-				"MaxMemAligns": {
-					"type": "integer",
-					"description": "MaxMemAligns is max mem aligns batch can handle",
-					"default": 0
-				},
-				"MaxArithmetics": {
-					"type": "integer",
-					"description": "MaxArithmetics is max arithmetics batch can handle",
-					"default": 0
-				},
-				"MaxBinaries": {
-					"type": "integer",
-					"description": "MaxBinaries is max binaries batch can handle",
-					"default": 0
-				},
-				"MaxSteps": {
-					"type": "integer",
-					"description": "MaxSteps is max steps batch can handle",
-					"default": 0
-				},
 				"TxLifetimeCheckTimeout": {
 					"type": "string",
 					"title": "Duration",
