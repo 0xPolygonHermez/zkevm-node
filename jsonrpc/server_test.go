@@ -233,6 +233,7 @@ func TestBatchRequests(t *testing.T) {
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Times(tc.NumberOfRequests)
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(block.Number().Uint64(), nil).Times(tc.NumberOfRequests)
 				m.State.On("GetL2BlockByNumber", context.Background(), block.Number().Uint64(), m.DbTx).Return(block, nil).Times(tc.NumberOfRequests)
+				m.State.On("GetTransactionReceipt", context.Background(), mock.Anything, m.DbTx).Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil)
 			},
 		},
 		{
@@ -246,6 +247,7 @@ func TestBatchRequests(t *testing.T) {
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Times(tc.NumberOfRequests)
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(block.Number().Uint64(), nil).Times(tc.NumberOfRequests)
 				m.State.On("GetL2BlockByNumber", context.Background(), block.Number().Uint64(), m.DbTx).Return(block, nil).Times(tc.NumberOfRequests)
+				m.State.On("GetTransactionReceipt", context.Background(), mock.Anything, m.DbTx).Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil)
 			},
 		},
 		{
@@ -259,6 +261,7 @@ func TestBatchRequests(t *testing.T) {
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Times(tc.NumberOfRequests)
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(block.Number().Uint64(), nil).Times(tc.NumberOfRequests)
 				m.State.On("GetL2BlockByNumber", context.Background(), block.Number().Uint64(), m.DbTx).Return(block, nil).Times(tc.NumberOfRequests)
+				m.State.On("GetTransactionReceipt", context.Background(), mock.Anything, m.DbTx).Return(ethTypes.NewReceipt([]byte{}, false, uint64(0)), nil)
 			},
 		},
 	}
