@@ -276,11 +276,25 @@ func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseW
 }
 
 func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
+	// Checking if batch requests are enabled
+	if !s.config.BatchRequestsEnabled {
+		s.handleInvalidRequest(w, types.ErrBatchRequestsDisabled)
+		return 0
+	}
+
 	defer metrics.RequestHandled(metrics.RequestHandledLabelBatch)
 	requests, err := s.parseRequests(data)
 	if err != nil {
 		handleError(w, err)
 		return 0
+	}
+
+	// Checking if batch requests limit is exceeded
+	if s.config.BatchRequestsLimit > 0 {
+		if len(requests) > int(s.config.BatchRequestsLimit) {
+			s.handleInvalidRequest(w, types.ErrBatchRequestsLimitExceeded)
+			return 0
+		}
 	}
 
 	responses := make([]types.Response, 0, len(requests))
@@ -322,7 +336,11 @@ func (s *Server) parseRequests(data []byte) ([]types.Request, error) {
 
 func (s *Server) handleInvalidRequest(w http.ResponseWriter, err error) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelInvalid)
-	handleError(w, err)
+	log.Info(err)
+	_, err = w.Write([]byte(err.Error()))
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
@@ -336,6 +354,9 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 
 		return
 	}
+
+	// Set read limit
+	wsConn.SetReadLimit(s.config.WebSockets.ReadLimit)
 
 	// Defer WS closure
 	defer func(ws *websocket.Conn) {
@@ -352,6 +373,8 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
 				log.Info("Closing WS connection gracefully")
+			} else if errors.Is(err, websocket.ErrReadLimit) {
+				log.Info("Closing WS connection due to read limit exceeded")
 			} else {
 				log.Error(fmt.Sprintf("Unable to read WS message, %s", err.Error()))
 				log.Info("Closing WS connection with error")
@@ -379,6 +402,7 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 }
 
 func handleError(w http.ResponseWriter, err error) {
+	defer metrics.RequestHandled(metrics.RequestHandledLabelError)
 	log.Error(err)
 	_, err = w.Write([]byte(err.Error()))
 	if err != nil {

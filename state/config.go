@@ -1,6 +1,9 @@
 package state
 
-import "github.com/0xPolygonHermez/zkevm-node/config/types"
+import (
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/db"
+)
 
 // Config is state config
 type Config struct {
@@ -24,4 +27,55 @@ type Config struct {
 
 	// New fork id to be used for batches greaters than ForkUpgradeBatchNumber (fork upgrade)
 	ForkUpgradeNewForkId uint64
+
+	// DB is the database configuration
+	DB db.Config `mapstructure:"DB"`
+
+	// Configuration for the batch constraints
+	Batch BatchConfig `mapstructure:"Batch"`
+}
+
+// BatchConfig represents the configuration of the batch constraints
+type BatchConfig struct {
+	Constraints     BatchConstraintsCfg     `mapstructure:"Constraints"`
+	ResourceWeights BatchResourceWeightsCfg `mapstructure:"ResourceWeights"`
+}
+
+// BatchConstraintsCfg represents the configuration of the batch constraints
+type BatchConstraintsCfg struct {
+	MaxTxsPerBatch       uint64 `mapstructure:"MaxTxsPerBatch"`
+	MaxBatchBytesSize    uint64 `mapstructure:"MaxBatchBytesSize"`
+	MaxCumulativeGasUsed uint64 `mapstructure:"MaxCumulativeGasUsed"`
+	MaxKeccakHashes      uint32 `mapstructure:"MaxKeccakHashes"`
+	MaxPoseidonHashes    uint32 `mapstructure:"MaxPoseidonHashes"`
+	MaxPoseidonPaddings  uint32 `mapstructure:"MaxPoseidonPaddings"`
+	MaxMemAligns         uint32 `mapstructure:"MaxMemAligns"`
+	MaxArithmetics       uint32 `mapstructure:"MaxArithmetics"`
+	MaxBinaries          uint32 `mapstructure:"MaxBinaries"`
+	MaxSteps             uint32 `mapstructure:"MaxSteps"`
+}
+
+// IsWithinConstraints checks if the counters are within the batch constraints
+func (c BatchConstraintsCfg) IsWithinConstraints(counters ZKCounters) bool {
+	return counters.CumulativeGasUsed <= c.MaxCumulativeGasUsed &&
+		counters.UsedKeccakHashes <= c.MaxKeccakHashes &&
+		counters.UsedPoseidonHashes <= c.MaxPoseidonHashes &&
+		counters.UsedPoseidonPaddings <= c.MaxPoseidonPaddings &&
+		counters.UsedMemAligns <= c.MaxMemAligns &&
+		counters.UsedArithmetics <= c.MaxArithmetics &&
+		counters.UsedBinaries <= c.MaxBinaries &&
+		counters.UsedSteps <= c.MaxSteps
+}
+
+// BatchResourceWeightsCfg represents the configuration of the batch resource weights
+type BatchResourceWeightsCfg struct {
+	WeightBatchBytesSize    int `mapstructure:"WeightBatchBytesSize"`
+	WeightCumulativeGasUsed int `mapstructure:"WeightCumulativeGasUsed"`
+	WeightKeccakHashes      int `mapstructure:"WeightKeccakHashes"`
+	WeightPoseidonHashes    int `mapstructure:"WeightPoseidonHashes"`
+	WeightPoseidonPaddings  int `mapstructure:"WeightPoseidonPaddings"`
+	WeightMemAligns         int `mapstructure:"WeightMemAligns"`
+	WeightArithmetics       int `mapstructure:"WeightArithmetics"`
+	WeightBinaries          int `mapstructure:"WeightBinaries"`
+	WeightSteps             int `mapstructure:"WeightSteps"`
 }

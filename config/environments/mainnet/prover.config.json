@@ -113,5 +113,5 @@
     "ECRecoverPrecalc": false,
     "ECRecoverPrecalcNThreads": 4,
     "stateManager": true,
-    "useAssociativeCache" : false    
+    "useAssociativeCache" : false
 }

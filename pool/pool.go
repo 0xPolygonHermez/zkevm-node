@@ -38,6 +38,7 @@ type Pool struct {
 	state                   stateInterface
 	chainID                 uint64
 	cfg                     Config
+	batchConstraintsCfg     state.BatchConstraintsCfg
 	blockedAddresses        sync.Map
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
@@ -63,10 +64,11 @@ type GasPrices struct {
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
+func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
 	startTimestamp := time.Now()
 	p := &Pool{
 		cfg:                     cfg,
+		batchConstraintsCfg:     batchConstraintsCfg,
 		startTimestamp:          startTimestamp,
 		storage:                 s,
 		state:                   st,
@@ -195,7 +197,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			log.Errorf("error adding event: %v", err)
 		}
 		// Do not add tx to the pool
-		return fmt.Errorf("out of counters")
+		return ErrOutOfCounters
 	} else if preExecutionResponse.isOOG {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
@@ -231,10 +233,18 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 
 	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
 		errorToCheck := processBatchResponse.Responses[0].RomError
-		response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
 		response.isExecutorLevelError = processBatchResponse.IsExecutorLevelError
-		response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
-		response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+		if errorToCheck != nil {
+			response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
+			response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
+			response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+		} else {
+			if !p.batchConstraintsCfg.IsWithinConstraints(processBatchResponse.UsedZkCounters) {
+				response.isOOC = true
+				log.Errorf("OutOfCounters Error (Node level)  for tx: %s", tx.Hash().String())
+			}
+		}
+
 		response.usedZkCounters = processBatchResponse.UsedZkCounters
 		response.txResponse = processBatchResponse.Responses[0]
 	}
@@ -303,6 +313,11 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 }
 
 func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
+	// Make sure the IP is valid.
+	if poolTx.IP != "" && !IsValidIP(poolTx.IP) {
+		return ErrInvalidIP
+	}
+
 	// Make sure the transaction is signed properly.
 	if err := state.CheckSignature(poolTx.Transaction); err != nil {
 		return ErrInvalidSender
@@ -317,6 +332,11 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// Accept only legacy transactions until EIP-2718/2930 activates.
 	if poolTx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported
+	}
+
+	// check Pre EIP155 txs signature
+	if txChainID == 0 && !state.IsPreEIP155Tx(poolTx.Transaction) {
+		return ErrInvalidSender
 	}
 
 	// gets tx sender for validations

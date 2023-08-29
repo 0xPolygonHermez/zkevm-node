@@ -11,14 +11,38 @@ Environment = "development" # "production" or "development"
 Level = "info"
 Outputs = ["stderr"]
 
-[StateDB]
-User = "state_user"
-Password = "state_password"
-Name = "state_db"
-Host = "zkevm-state-db"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
+[State]
+AccountQueue = 64
+	[State.DB]
+	User = "state_user"
+	Password = "state_password"
+	Name = "state_db"
+	Host = "zkevm-state-db"
+	Port = "5432"
+	EnableLog = false	
+	MaxConns = 200
+	[State.Batch]
+		[State.Batch.Constraints]
+		MaxTxsPerBatch = 300
+		MaxBatchBytesSize = 120000
+		MaxCumulativeGasUsed = 30000000
+		MaxKeccakHashes = 2145
+		MaxPoseidonHashes = 252357
+		MaxPoseidonPaddings = 135191
+		MaxMemAligns = 236585
+		MaxArithmetics = 236585
+		MaxBinaries = 473170
+		MaxSteps = 7570538
+		[State.Batch.ResourceWeights]
+		WeightBatchBytesSize = 1
+		WeightCumulativeGasUsed = 1
+		WeightKeccakHashes = 1
+		WeightPoseidonHashes = 1
+		WeightPoseidonPaddings = 1
+		WeightMemAligns = 1
+		WeightArithmetics = 1
+		WeightBinaries = 1
+		WeightSteps = 1
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
@@ -62,10 +86,13 @@ MaxRequestsPerIPAndSecond = 500
 SequencerNodeURI = ""
 EnableL2SuggestedGasPricePolling = true
 TraceBatchUseHTTPS = true
+BatchRequestsEnabled = false
+BatchRequestsLimit = 20
 	[RPC.WebSockets]
 		Enabled = true
 		Host = "0.0.0.0"
 		Port = 8546
+		ReadLimit = 104857600
 
 [Synchronizer]
 SyncInterval = "1s"
@@ -76,16 +103,6 @@ TrustedSequencerURL = "" # If it is empty or not specified, then the value is re
 WaitPeriodPoolIsEmpty = "1s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
-MaxTxsPerBatch = 300
-MaxBatchBytesSize = 120000
-MaxCumulativeGasUsed = 30000000
-MaxKeccakHashes = 2145
-MaxPoseidonHashes = 252357
-MaxPoseidonPaddings = 135191
-MaxMemAligns = 236585
-MaxArithmetics = 236585
-MaxBinaries = 473170
-MaxSteps = 7570538
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 	[Sequencer.Finalizer]

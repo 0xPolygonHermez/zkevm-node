@@ -31,7 +31,7 @@ To orchestrate multiple deployments of the different ZKEVM Node components, a `d
 The container alone needs some parameters configured, access to certain configuration files and the appropriate ports exposed.
 
 - environment: Env variables that supersede the config file
-    - `ZKEVM_NODE_STATEDB_HOST`: Name of StateDB Database Host
+    - `ZKEVM_NODE_STATE_DB_HOST`: Name of StateDB Database Host
 - volumes:
     - `your config.toml file`: /app/config.toml
     - `your genesis.json file`: /app/genesis.json

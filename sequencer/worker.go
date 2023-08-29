@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -16,18 +17,20 @@ import (
 
 // Worker represents the worker component of the sequencer
 type Worker struct {
-	pool         map[string]*addrQueue
-	txSortedList *txSortedList
-	workerMutex  sync.Mutex
-	state        stateInterface
+	pool             map[string]*addrQueue
+	txSortedList     *txSortedList
+	workerMutex      sync.Mutex
+	state            stateInterface
+	batchConstraints state.BatchConstraintsCfg
 }
 
 // NewWorker creates an init a worker
-func NewWorker(state stateInterface) *Worker {
+func NewWorker(state stateInterface, constraints state.BatchConstraintsCfg) *Worker {
 	w := Worker{
-		pool:         make(map[string]*addrQueue),
-		txSortedList: newTxSortedList(),
-		state:        state,
+		pool:             make(map[string]*addrQueue),
+		txSortedList:     newTxSortedList(),
+		state:            state,
+		batchConstraints: constraints,
 	}
 
 	return &w
@@ -42,8 +45,20 @@ func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, i
 func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *TxTracker, dropReason error) {
 	w.workerMutex.Lock()
 
-	addr, found := w.pool[tx.FromStr]
+	// Make sure the IP is valid.
+	if tx.IP != "" && !pool.IsValidIP(tx.IP) {
+		w.workerMutex.Unlock()
+		return nil, pool.ErrInvalidIP
+	}
 
+	// Make sure the transaction's batch resources are within the constraints.
+	if !w.batchConstraints.IsWithinConstraints(tx.BatchResources.ZKCounters) {
+		log.Errorf("OutOfCounters Error (Node level)  for tx: %s", tx.Hash.String())
+		w.workerMutex.Unlock()
+		return nil, pool.ErrOutOfCounters
+	}
+
+	addr, found := w.pool[tx.FromStr]
 	if !found {
 		// Unlock the worker to let execute other worker functions while creating the new AddrQueue
 		w.workerMutex.Unlock()

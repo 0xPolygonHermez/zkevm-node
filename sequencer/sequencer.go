@@ -17,7 +17,8 @@ import (
 
 // Sequencer represents a sequencer
 type Sequencer struct {
-	cfg Config
+	cfg      Config
+	batchCfg state.BatchConfig
 
 	pool         txPool
 	state        stateInterface
@@ -26,20 +27,6 @@ type Sequencer struct {
 	etherman     etherman
 
 	address common.Address
-}
-
-// batchConstraints represents the constraints for a batch
-type batchConstraints struct {
-	MaxTxsPerBatch       uint64
-	MaxBatchBytesSize    uint64
-	MaxCumulativeGasUsed uint64
-	MaxKeccakHashes      uint32
-	MaxPoseidonHashes    uint32
-	MaxPoseidonPaddings  uint32
-	MaxMemAligns         uint32
-	MaxArithmetics       uint32
-	MaxBinaries          uint32
-	MaxSteps             uint32
 }
 
 // L2ReorgEvent is the event that is triggered when a reorg happens in the L2
@@ -55,7 +42,7 @@ type ClosingSignalCh struct {
 }
 
 // New init sequencer
-func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
+func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
@@ -63,6 +50,7 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 
 	return &Sequencer{
 		cfg:          cfg,
+		batchCfg:     batchCfg,
 		pool:         txPool,
 		state:        state,
 		etherman:     etherman,
@@ -86,29 +74,17 @@ func (s *Sequencer) Start(ctx context.Context) {
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 
-	batchConstraints := batchConstraints{
-		MaxTxsPerBatch:       s.cfg.MaxTxsPerBatch,
-		MaxBatchBytesSize:    s.cfg.MaxBatchBytesSize,
-		MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed,
-		MaxKeccakHashes:      s.cfg.MaxKeccakHashes,
-		MaxPoseidonHashes:    s.cfg.MaxPoseidonHashes,
-		MaxPoseidonPaddings:  s.cfg.MaxPoseidonPaddings,
-		MaxMemAligns:         s.cfg.MaxMemAligns,
-		MaxArithmetics:       s.cfg.MaxArithmetics,
-		MaxBinaries:          s.cfg.MaxBinaries,
-		MaxSteps:             s.cfg.MaxSteps,
-	}
-
 	err := s.pool.MarkWIPTxsAsPending(ctx)
 	if err != nil {
 		log.Fatalf("failed to mark WIP txs as pending, err: %v", err)
 	}
 
-	worker := NewWorker(s.state)
-	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, batchConstraints)
+	worker := NewWorker(s.state, s.batchCfg.Constraints)
+	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, s.batchCfg.Constraints)
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, batchConstraints, s.eventLog)
+	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog)
+
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 
@@ -250,7 +226,7 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	return true
 }
 
-func getMaxRemainingResources(constraints batchConstraints) state.BatchResources {
+func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
 			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed,

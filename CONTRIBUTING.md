@@ -2,22 +2,22 @@
 
 This document addresses how we should create PRs, give and receive reviews. The motivation is to have better code, reduce the time from creation to merge while sharing knowledge and insights that help everyone becoming better developers.
 
-Note that non of this is a hard rule, but suggestions / guidelines. Although everyone is encouraged to stick to this points as much as posible. Use your common sense if some of this do not apply well on a particular PR
+Note that non of this is a hard rule, but suggestions / guidelines. Although everyone is encouraged to stick to this points as much as possible. Use your common sense if some of this do not apply well on a particular PR
 
 ## How to create a good PR
 
 - Follow the template, unless for some reason it doesn't fit the content of the PR
 - Try hard on doing small PRs (> ~400 lines), in general is better to have 2 small PRs rather than a big one
 - Indicate clearly who should review it, ideally 2 team mates
-- Author of the PR is responsible for merging. Never do it until you have the aproval of the specified reviewers unless you have their explicit permision
+- Author of the PR is responsible for merging. Never do it until you have the approval of the specified reviewers unless you have their explicit permission
 - Introduce the purpose of the PR, for example: `Fixes the handle of ...`
 - Give brief context on why this is being done and link it to any relevant issue
 - Feel free to ask to specific team mates to review specific parts of the PR
 
 ## How to do a good review
 
-- In general it's hard to set a quality treshold for changes. A good measure for when to approve is to accept changes once the overall quality of the code has been improved (compared to the code base before the PR)
-- Try hard to avoid taking things personaly. For instance avoid using `I`, `you`, `I (don't) like`, ...
+- In general it's hard to set a quality threshold for changes. A good measure for when to approve is to accept changes once the overall quality of the code has been improved (compared to the code base before the PR)
+- Try hard to avoid taking things personally. For instance avoid using `I`, `you`, `I (don't) like`, ...
 - Ask, don’t tell. ("What about trying...?" rather than "Don’t do...")
 - Try to use positive language. You can even use emoji to clarify tone.
 - Be super clear on how confident you are when requesting changes. One way to do it is by starting the message like this:

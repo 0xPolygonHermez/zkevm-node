@@ -45,52 +45,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
-			path:          "Sequencer.MaxTxsPerBatch",
-			expectedValue: uint64(300),
-		},
-		{
-			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: uint64(120000),
-		},
-		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
 			expectedValue: uint64(100),
 		},
 		{
 			path:          "Sequencer.FrequencyToCheckTxsForDelete",
 			expectedValue: types.NewDuration(12 * time.Hour),
-		},
-		{
-			path:          "Sequencer.MaxCumulativeGasUsed",
-			expectedValue: uint64(30000000),
-		},
-		{
-			path:          "Sequencer.MaxKeccakHashes",
-			expectedValue: uint32(2145),
-		},
-		{
-			path:          "Sequencer.MaxPoseidonHashes",
-			expectedValue: uint32(252357),
-		},
-		{
-			path:          "Sequencer.MaxPoseidonPaddings",
-			expectedValue: uint32(135191),
-		},
-		{
-			path:          "Sequencer.MaxMemAligns",
-			expectedValue: uint32(236585),
-		},
-		{
-			path:          "Sequencer.MaxArithmetics",
-			expectedValue: uint32(236585),
-		},
-		{
-			path:          "Sequencer.MaxBinaries",
-			expectedValue: uint32(473170),
-		},
-		{
-			path:          "Sequencer.MaxSteps",
-			expectedValue: uint32(7570538),
 		},
 		{
 			path:          "Sequencer.TxLifetimeCheckTimeout",
@@ -245,31 +205,31 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: "zkevm-prover:50061",
 		},
 		{
-			path:          "StateDB.User",
+			path:          "State.DB.User",
 			expectedValue: "state_user",
 		},
 		{
-			path:          "StateDB.Password",
+			path:          "State.DB.Password",
 			expectedValue: "state_password",
 		},
 		{
-			path:          "StateDB.Name",
+			path:          "State.DB.Name",
 			expectedValue: "state_db",
 		},
 		{
-			path:          "StateDB.Host",
+			path:          "State.DB.Host",
 			expectedValue: "zkevm-state-db",
 		},
 		{
-			path:          "StateDB.Port",
+			path:          "State.DB.Port",
 			expectedValue: "5432",
 		},
 		{
-			path:          "StateDB.EnableLog",
+			path:          "State.DB.EnableLog",
 			expectedValue: false,
 		},
 		{
-			path:          "StateDB.MaxConns",
+			path:          "State.DB.MaxConns",
 			expectedValue: 200,
 		},
 		{
@@ -362,6 +322,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
+			path:          "RPC.BatchRequestsEnabled",
+			expectedValue: false,
+		},
+		{
+			path:          "RPC.BatchRequestsLimit",
+			expectedValue: uint(20),
+		},
+		{
 			path:          "RPC.WebSockets.Enabled",
 			expectedValue: true,
 		},
@@ -372,6 +340,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.WebSockets.Port",
 			expectedValue: int(8546),
+		},
+		{
+			path:          "RPC.WebSockets.ReadLimit",
+			expectedValue: int64(104857600),
 		},
 		{
 			path:          "Executor.URI",
@@ -436,6 +408,83 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Aggregator.GeneratingProofCleanupThreshold",
 			expectedValue: "10m",
+		},
+
+		{
+			path:          "State.Batch.Constraints.MaxTxsPerBatch",
+			expectedValue: uint64(300),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxBatchBytesSize",
+			expectedValue: uint64(120000),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxCumulativeGasUsed",
+			expectedValue: uint64(30000000),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxKeccakHashes",
+			expectedValue: uint32(2145),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxPoseidonHashes",
+			expectedValue: uint32(252357),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxPoseidonPaddings",
+			expectedValue: uint32(135191),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxMemAligns",
+			expectedValue: uint32(236585),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxArithmetics",
+			expectedValue: uint32(236585),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxBinaries",
+			expectedValue: uint32(473170),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxSteps",
+			expectedValue: uint32(7570538),
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightBatchBytesSize",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightCumulativeGasUsed",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightKeccakHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightPoseidonHashes",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightPoseidonPaddings",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightMemAligns",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightArithmetics",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightBinaries",
+			expectedValue: 1,
+		},
+		{
+			path:          "State.Batch.ResourceWeights.WeightSteps",
+			expectedValue: 1,
 		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")

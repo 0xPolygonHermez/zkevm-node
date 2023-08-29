@@ -66,11 +66,11 @@ func restore(ctx *cli.Context) error {
 		return err
 	}
 	restore, err := pg.NewRestore(&pg.Postgres{
-		Host:     c.StateDB.Host,
+		Host:     c.State.DB.Host,
 		Port:     port,
-		DB:       c.StateDB.Name,
-		Username: c.StateDB.User,
-		Password: c.StateDB.Password,
+		DB:       c.State.DB.Name,
+		Username: c.State.DB.User,
+		Password: c.State.DB.Password,
 	})
 	if err != nil {
 		log.Error("error: ", err)
