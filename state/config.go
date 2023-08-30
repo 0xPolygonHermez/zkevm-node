@@ -37,7 +37,7 @@ type Config struct {
 
 // BatchConfig represents the configuration of the batch constraints
 type BatchConfig struct {
-	Constraints     BatchConstraintsCfg     `mapstructure:"Constraints"`
+	Constraints BatchConstraintsCfg `mapstructure:"Constraints"`
 }
 
 // BatchConstraintsCfg represents the configuration of the batch constraints
@@ -65,4 +65,3 @@ func (c BatchConstraintsCfg) IsWithinConstraints(counters ZKCounters) bool {
 		counters.UsedBinaries <= c.MaxBinaries &&
 		counters.UsedSteps <= c.MaxSteps
 }
-
