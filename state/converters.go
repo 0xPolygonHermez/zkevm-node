@@ -152,25 +152,29 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 		result.EffectiveGasPrice = response.EffectiveGasPrice
 		result.EffectivePercentage = response.EffectivePercentage
 
-		tx, err := DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
-		if err != nil {
-			timestamp := time.Now()
-			log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
+		tx := new(types.Transaction)
 
-			event := &event.Event{
-				ReceivedAt: timestamp,
-				Source:     event.Source_Node,
-				Level:      event.Level_Error,
-				EventID:    event.EventID_ExecutorRLPError,
-				Json:       string(response.GetRlpTx()),
-			}
-
-			err = s.eventLog.LogEvent(context.Background(), event)
+		if len(response.GetRlpTx()) > 0 {
+			tx, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
 			if err != nil {
-				log.Errorf("error storing payload: %v", err)
-			}
+				timestamp := time.Now()
+				log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
 
-			return nil, err
+				event := &event.Event{
+					ReceivedAt: timestamp,
+					Source:     event.Source_Node,
+					Level:      event.Level_Error,
+					EventID:    event.EventID_ExecutorRLPError,
+					Json:       string(response.GetRlpTx()),
+				}
+
+				eventErr := s.eventLog.LogEvent(context.Background(), event)
+				if eventErr != nil {
+					log.Errorf("error storing payload: %v", err)
+				}
+
+				return nil, err
+			}
 		}
 
 		result.Tx = *tx
