@@ -3074,10 +3074,9 @@ MaxConns=200
 **Type:** : `object`
 **Description:** Configuration for the batch constraints
 
-| Property                                           | Pattern | Type   | Deprecated | Definition | Title/Description |
-| -------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| - [Constraints](#State_Batch_Constraints )         | No      | object | No         | -          | -                 |
-| - [ResourceWeights](#State_Batch_ResourceWeights ) | No      | object | No         | -          | -                 |
+| Property                                   | Pattern | Type   | Deprecated | Definition | Title/Description |
+| ------------------------------------------ | ------- | ------ | ---------- | ---------- | ----------------- |
+| - [Constraints](#State_Batch_Constraints ) | No      | object | No         | -          | -                 |
 
 #### <a name="State_Batch_Constraints"></a>20.9.1. `[State.Batch.Constraints]`
 
@@ -3214,130 +3213,6 @@ MaxBinaries=473170
 ```
 [State.Batch.Constraints]
 MaxSteps=7570538
-```
-
-#### <a name="State_Batch_ResourceWeights"></a>20.9.2. `[State.Batch.ResourceWeights]`
-
-**Type:** : `object`
-
-| Property                                                                           | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [WeightBatchBytesSize](#State_Batch_ResourceWeights_WeightBatchBytesSize )       | No      | integer | No         | -          | -                 |
-| - [WeightCumulativeGasUsed](#State_Batch_ResourceWeights_WeightCumulativeGasUsed ) | No      | integer | No         | -          | -                 |
-| - [WeightKeccakHashes](#State_Batch_ResourceWeights_WeightKeccakHashes )           | No      | integer | No         | -          | -                 |
-| - [WeightPoseidonHashes](#State_Batch_ResourceWeights_WeightPoseidonHashes )       | No      | integer | No         | -          | -                 |
-| - [WeightPoseidonPaddings](#State_Batch_ResourceWeights_WeightPoseidonPaddings )   | No      | integer | No         | -          | -                 |
-| - [WeightMemAligns](#State_Batch_ResourceWeights_WeightMemAligns )                 | No      | integer | No         | -          | -                 |
-| - [WeightArithmetics](#State_Batch_ResourceWeights_WeightArithmetics )             | No      | integer | No         | -          | -                 |
-| - [WeightBinaries](#State_Batch_ResourceWeights_WeightBinaries )                   | No      | integer | No         | -          | -                 |
-| - [WeightSteps](#State_Batch_ResourceWeights_WeightSteps )                         | No      | integer | No         | -          | -                 |
-
-##### <a name="State_Batch_ResourceWeights_WeightBatchBytesSize"></a>20.9.2.1. `State.Batch.ResourceWeights.WeightBatchBytesSize`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Example setting the default value** (1):
-```
-[State.Batch.ResourceWeights]
-WeightBatchBytesSize=1
-```
-
-##### <a name="State_Batch_ResourceWeights_WeightCumulativeGasUsed"></a>20.9.2.2. `State.Batch.ResourceWeights.WeightCumulativeGasUsed`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Example setting the default value** (1):
-```
-[State.Batch.ResourceWeights]
-WeightCumulativeGasUsed=1
-```
-
-##### <a name="State_Batch_ResourceWeights_WeightKeccakHashes"></a>20.9.2.3. `State.Batch.ResourceWeights.WeightKeccakHashes`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Example setting the default value** (1):
-```
-[State.Batch.ResourceWeights]
-WeightKeccakHashes=1
-```
-
-##### <a name="State_Batch_ResourceWeights_WeightPoseidonHashes"></a>20.9.2.4. `State.Batch.ResourceWeights.WeightPoseidonHashes`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Example setting the default value** (1):
-```
-[State.Batch.ResourceWeights]
-WeightPoseidonHashes=1
-```
-
-##### <a name="State_Batch_ResourceWeights_WeightPoseidonPaddings"></a>20.9.2.5. `State.Batch.ResourceWeights.WeightPoseidonPaddings`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Example setting the default value** (1):
-```
-[State.Batch.ResourceWeights]
-WeightPoseidonPaddings=1
-```
-
-##### <a name="State_Batch_ResourceWeights_WeightMemAligns"></a>20.9.2.6. `State.Batch.ResourceWeights.WeightMemAligns`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Example setting the default value** (1):
-```
-[State.Batch.ResourceWeights]
-WeightMemAligns=1
-```
-
-##### <a name="State_Batch_ResourceWeights_WeightArithmetics"></a>20.9.2.7. `State.Batch.ResourceWeights.WeightArithmetics`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Example setting the default value** (1):
-```
-[State.Batch.ResourceWeights]
-WeightArithmetics=1
-```
-
-##### <a name="State_Batch_ResourceWeights_WeightBinaries"></a>20.9.2.8. `State.Batch.ResourceWeights.WeightBinaries`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Example setting the default value** (1):
-```
-[State.Batch.ResourceWeights]
-WeightBinaries=1
-```
-
-##### <a name="State_Batch_ResourceWeights_WeightSteps"></a>20.9.2.9. `State.Batch.ResourceWeights.WeightSteps`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Example setting the default value** (1):
-```
-[State.Batch.ResourceWeights]
-WeightSteps=1
 ```
 
 ----------------------------------------------------------------------------------------------------------------------------

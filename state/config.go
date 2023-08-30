@@ -37,8 +37,7 @@ type Config struct {
 
 // BatchConfig represents the configuration of the batch constraints
 type BatchConfig struct {
-	Constraints     BatchConstraintsCfg     `mapstructure:"Constraints"`
-	ResourceWeights BatchResourceWeightsCfg `mapstructure:"ResourceWeights"`
+	Constraints BatchConstraintsCfg `mapstructure:"Constraints"`
 }
 
 // BatchConstraintsCfg represents the configuration of the batch constraints
@@ -65,17 +64,4 @@ func (c BatchConstraintsCfg) IsWithinConstraints(counters ZKCounters) bool {
 		counters.UsedArithmetics <= c.MaxArithmetics &&
 		counters.UsedBinaries <= c.MaxBinaries &&
 		counters.UsedSteps <= c.MaxSteps
-}
-
-// BatchResourceWeightsCfg represents the configuration of the batch resource weights
-type BatchResourceWeightsCfg struct {
-	WeightBatchBytesSize    int `mapstructure:"WeightBatchBytesSize"`
-	WeightCumulativeGasUsed int `mapstructure:"WeightCumulativeGasUsed"`
-	WeightKeccakHashes      int `mapstructure:"WeightKeccakHashes"`
-	WeightPoseidonHashes    int `mapstructure:"WeightPoseidonHashes"`
-	WeightPoseidonPaddings  int `mapstructure:"WeightPoseidonPaddings"`
-	WeightMemAligns         int `mapstructure:"WeightMemAligns"`
-	WeightArithmetics       int `mapstructure:"WeightArithmetics"`
-	WeightBinaries          int `mapstructure:"WeightBinaries"`
-	WeightSteps             int `mapstructure:"WeightSteps"`
 }
