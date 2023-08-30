@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"sync"
@@ -34,7 +35,12 @@ const (
 	APIWeb3 = "web3"
 
 	wsBufferSizeLimitInBytes = 1024
+	maxRequestContentLength  = 1024 * 1024 * 5
+	contentType              = "application/json"
 )
+
+// https://www.jsonrpc.org/historical/json-rpc-over-http.html#http-header
+var acceptedContentTypes = []string{contentType, "application/json-rpc", "application/jsonrequest"}
 
 // Server is an API backend to handle RPC requests
 type Server struct {
@@ -193,18 +199,11 @@ func (s *Server) Stop() error {
 }
 
 func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-
-	if (*req).Method == "OPTIONS" {
-		// TODO(pg): need to count it in the metrics?
+	if req.Method == http.MethodOptions {
 		return
 	}
 
-	if req.Method == "GET" {
-		// TODO(pg): need to count it in the metrics?
+	if req.Method == http.MethodGet {
 		_, err := w.Write([]byte("zkEVM JSON RPC Server"))
 		if err != nil {
 			log.Error(err)
@@ -212,25 +211,29 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.Method != "POST" {
-		err := errors.New("method " + req.Method + " not allowed")
-		s.handleInvalidRequest(w, err)
+	if code, err := validateRequest(req); err != nil {
+		handleInvalidRequest(w, err, code)
 		return
 	}
 
-	data, err := io.ReadAll(req.Body)
+	body := io.LimitReader(req.Body, maxRequestContentLength)
+	data, err := io.ReadAll(body)
 	if err != nil {
-		s.handleInvalidRequest(w, err)
+		handleError(w, err)
 		return
 	}
 
 	single, err := s.isSingleRequest(data)
 	if err != nil {
-		s.handleInvalidRequest(w, err)
+		handleInvalidRequest(w, err, http.StatusBadRequest)
 		return
 	}
 
 	start := time.Now()
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	var respLen int
 	if single {
 		respLen = s.handleSingleRequest(req, w, data)
@@ -241,21 +244,47 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	combinedLog(req, start, http.StatusOK, respLen)
 }
 
-func (s *Server) isSingleRequest(data []byte) (bool, types.Error) {
+// validateRequest returns a non-zero response code and error message if the
+// request is invalid.
+func validateRequest(req *http.Request) (int, error) {
+	if req.Method != http.MethodPost {
+		err := errors.New("method " + req.Method + " not allowed")
+		return http.StatusMethodNotAllowed, err
+	}
+
+	if req.ContentLength > maxRequestContentLength {
+		err := fmt.Errorf("content length too large (%d>%d)", req.ContentLength, maxRequestContentLength)
+		return http.StatusRequestEntityTooLarge, err
+	}
+
+	// Check content-type
+	if mt, _, err := mime.ParseMediaType(req.Header.Get("content-type")); err == nil {
+		for _, accepted := range acceptedContentTypes {
+			if accepted == mt {
+				return 0, nil
+			}
+		}
+	}
+	// Invalid content-type
+	err := fmt.Errorf("invalid content type, only %s is supported", contentType)
+	return http.StatusUnsupportedMediaType, err
+}
+
+func (s *Server) isSingleRequest(data []byte) (bool, error) {
 	x := bytes.TrimLeft(data, " \t\r\n")
 
 	if len(x) == 0 {
-		return false, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
+		return false, fmt.Errorf("empty request body")
 	}
 
-	return x[0] == '{', nil
+	return x[0] != '[', nil
 }
 
 func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelSingle)
 	request, err := s.parseRequest(data)
 	if err != nil {
-		handleError(w, err)
+		handleInvalidRequest(w, err, http.StatusBadRequest)
 		return 0
 	}
 	req := handleRequest{Request: request, HttpRequest: httpRequest}
@@ -278,21 +307,21 @@ func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseW
 func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
 	// Checking if batch requests are enabled
 	if !s.config.BatchRequestsEnabled {
-		s.handleInvalidRequest(w, types.ErrBatchRequestsDisabled)
+		handleInvalidRequest(w, types.ErrBatchRequestsDisabled, http.StatusBadRequest)
 		return 0
 	}
 
 	defer metrics.RequestHandled(metrics.RequestHandledLabelBatch)
 	requests, err := s.parseRequests(data)
 	if err != nil {
-		handleError(w, err)
+		handleInvalidRequest(w, err, http.StatusBadRequest)
 		return 0
 	}
 
 	// Checking if batch requests limit is exceeded
 	if s.config.BatchRequestsLimit > 0 {
 		if len(requests) > int(s.config.BatchRequestsLimit) {
-			s.handleInvalidRequest(w, types.ErrBatchRequestsLimitExceeded)
+			handleInvalidRequest(w, types.ErrBatchRequestsLimitExceeded, http.StatusRequestEntityTooLarge)
 			return 0
 		}
 	}
@@ -318,7 +347,7 @@ func (s *Server) parseRequest(data []byte) (types.Request, error) {
 	var req types.Request
 
 	if err := json.Unmarshal(data, &req); err != nil {
-		return types.Request{}, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
+		return types.Request{}, fmt.Errorf("invalid json object request body")
 	}
 
 	return req, nil
@@ -328,19 +357,10 @@ func (s *Server) parseRequests(data []byte) ([]types.Request, error) {
 	var requests []types.Request
 
 	if err := json.Unmarshal(data, &requests); err != nil {
-		return nil, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")
+		return nil, fmt.Errorf("invalid json array request body")
 	}
 
 	return requests, nil
-}
-
-func (s *Server) handleInvalidRequest(w http.ResponseWriter, err error) {
-	defer metrics.RequestHandled(metrics.RequestHandledLabelInvalid)
-	log.Info(err)
-	_, err = w.Write([]byte(err.Error()))
-	if err != nil {
-		log.Error(err)
-	}
 }
 
 func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
@@ -401,13 +421,16 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func handleInvalidRequest(w http.ResponseWriter, err error, code int) {
+	defer metrics.RequestHandled(metrics.RequestHandledLabelInvalid)
+	log.Infof("Invalid Request: %v", err.Error())
+	http.Error(w, err.Error(), code)
+}
+
 func handleError(w http.ResponseWriter, err error) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelError)
-	log.Error(err)
-	_, err = w.Write([]byte(err.Error()))
-	if err != nil {
-		log.Error(err)
-	}
+	log.Errorf("Error processing request: %v", err)
+	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
 // RPCErrorResponse formats error to be returned through RPC

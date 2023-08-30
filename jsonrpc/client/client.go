@@ -51,12 +51,15 @@ func JSONRPCCall(url, method string, parameters ...interface{}) (types.Response,
 	}
 	defer httpRes.Body.Close()
 
+	if httpRes.StatusCode != http.StatusOK {
+		return types.Response{}, fmt.Errorf("%v - %v", httpRes.StatusCode, string(resBody))
+	}
+
 	var res types.Response
 	err = json.Unmarshal(resBody, &res)
 	if err != nil {
 		return types.Response{}, err
 	}
-
 	return res, nil
 }
 
@@ -99,6 +102,10 @@ func JSONRPCBatchCall(url string, calls ...BatchCall) ([]types.Response, error) 
 	}
 	defer httpRes.Body.Close()
 
+	if httpRes.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%v - %v", httpRes.StatusCode, string(resBody))
+	}
+
 	var res []types.Response
 	err = json.Unmarshal(resBody, &res)
 	if err != nil {
@@ -128,8 +135,5 @@ func sendJSONRPC_HTTPRequest(url string, payload interface{}) (*http.Response, e
 		return nil, err
 	}
 
-	if httpRes.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("invalid status code, expected: %v, found: %v", http.StatusOK, httpRes.StatusCode)
-	}
 	return httpRes, nil
 }
