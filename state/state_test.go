@@ -1071,7 +1071,7 @@ func TestExecutorTransfer(t *testing.T) {
 	require.Equal(t, "21002", data.Balance)
 
 	// Read Modified Addresses from converted response
-	converted, err := testState.TestConvertToProcessBatchResponse([]types.Transaction{*signedTx}, processBatchResponse)
+	converted, err := testState.TestConvertToProcessBatchResponse(processBatchResponse)
 	require.NoError(t, err)
 	convertedData := converted.ReadWriteAddresses[receiverAddress]
 	require.Equal(t, uint64(21002), convertedData.Balance.Uint64())
@@ -2037,7 +2037,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
 
-	convertedResponse, err := testState.TestConvertToProcessBatchResponse([]types.Transaction{*signedTx0, *signedTx1}, processBatchResponse)
+	convertedResponse, err := testState.TestConvertToProcessBatchResponse(processBatchResponse)
 	require.NoError(t, err)
 	log.Debugf("%v", len(convertedResponse.Responses))
 
@@ -2411,7 +2411,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	require.Equal(t, uint64(1000000000), balance.Uint64())
 
 	// Preparation to be able to estimate gas
-	convertedResponse, err := testState.TestConvertToProcessBatchResponse(transactions, processBatchResponse)
+	convertedResponse, err := testState.TestConvertToProcessBatchResponse(processBatchResponse)
 	require.NoError(t, err)
 	log.Debugf("%v", len(convertedResponse.Responses))
 
