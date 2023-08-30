@@ -2,17 +2,18 @@ package transactions
 
 import (
 	"context"
-	"io/ioutil"
+	"fmt"
 	"math/big"
-	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/state"
+
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
-	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	"github.com/0xPolygonHermez/zkevm-node/test/scripts/uniswap/pkg"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -24,37 +25,27 @@ func SendAndWait(
 	auth *bind.TransactOpts,
 	client *ethclient.Client,
 	getTxsByStatus func(ctx context.Context, status pool.TxStatus, limit uint64) ([]pool.Transaction, error),
-	nTxs int,
+	nTxs uint64,
 	erc20SC *ERC20.ERC20,
 	uniswapDeployments *pkg.Deployments,
-	txSenderFunc func(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts, erc20SC *ERC20.ERC20, uniswapDeployments *pkg.Deployments) ([]*types.Transaction, error),
+	txSenderFunc func(l2Client *ethclient.Client, gasPrice *big.Int, auth *bind.TransactOpts, erc20SC *ERC20.ERC20, uniswapDeployments *pkg.Deployments) ([]*types.Transaction, error),
 ) ([]*types.Transaction, error) {
 	auth.GasLimit = 2100000
-	log.Debugf("Sending %d txs ...", nTxs)
-	startingNonce := uint64(0)
+	fmt.Printf("Sending %d txs ...\n", nTxs)
 	if auth.Nonce != nil {
-		startingNonce = auth.Nonce.Uint64()
+		auth.Nonce = nil
 	}
-	maxNonce := uint64(nTxs) + startingNonce
-	IP := getPublicIP()
 
 	allTxs := make([]*types.Transaction, 0, nTxs)
-	for nonce := startingNonce; nonce < maxNonce; nonce++ {
-		txs, err := txSenderFunc(client, auth.GasPrice, nonce, auth, erc20SC, uniswapDeployments)
+	for i := 0; i < int(nTxs); i++ {
+		txs, err := txSenderFunc(client, auth.GasPrice, auth, erc20SC, uniswapDeployments)
 		if err != nil {
-			for err != nil && err.Error() == "nonce intrinsic error" {
-				log.Warnf("nonce intrinsic error, retrying with nonce %d", nonce)
-				txs, err = txSenderFunc(client, auth.GasPrice, nonce, auth, erc20SC, uniswapDeployments)
-			}
-			if err == nil {
-				continue
-			}
 			return nil, err
 		}
 		allTxs = append(allTxs, txs...)
 	}
-	log.Debug("All txs were sent!")
-	log.Debug("Waiting pending transactions To be added in the pool ...")
+	fmt.Println("All txs were sent!")
+	fmt.Println("Waiting pending transactions To be added in the pool ...")
 	err := operations.Poll(1*time.Second, params.DefaultDeadline, func() (bool, error) {
 		// using a closure here To capture st and currentBatchNumber
 		pendingTxs, err := getTxsByStatus(params.Ctx, pool.TxStatusPending, 0)
@@ -63,42 +54,31 @@ func SendAndWait(
 		}
 		pendingTxsCount := 0
 		for _, tx := range pendingTxs {
-			if tx.IP == IP {
+			sender, err := state.GetSender(tx.Transaction)
+			if err != nil {
+				panic(err)
+			}
+			if sender == auth.From {
 				pendingTxsCount++
 			}
 		}
 
-		log.Debugf("amount of pending txs: %d\n", pendingTxsCount)
-		done := pendingTxsCount == 0
+		fmt.Printf("amount of pending txs: %d\n\n", pendingTxsCount)
+		done := pendingTxsCount <= 0
 		return done, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	log.Debug("All pending txs are added in the pool!")
+	fmt.Println("All pending txs are added in the pool!")
 
 	return allTxs, nil
 }
 
-func getPublicIP() string {
-	resp, err := http.Get("https://api.ipify.org?format=text")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	ip, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return string(ip)
-}
-
 // WaitStatusSelected waits for a number of transactions to be marked as selected in the pool
 func WaitStatusSelected(countByStatusFunc func(ctx context.Context, status ...pool.TxStatus) (uint64, error), initialCount uint64, nTxs uint64) error {
-	log.Debug("Wait for sequencer to select all txs from the pool")
+	fmt.Println("Wait for sequencer to select all txs from the pool")
 	pollingInterval := 1 * time.Second
 
 	prevCount := uint64(0)
@@ -121,7 +101,7 @@ func WaitStatusSelected(countByStatusFunc func(ctx context.Context, status ...po
 			}
 			txsPerSecondAsStr = strconv.Itoa(txsPerSecond)
 		}
-		log.Debugf("amount of selected txs: %d/%d, estimated txs per second: %s, time to finish: %s", selectedCount-initialCount, nTxs, txsPerSecondAsStr, estimatedTimeToFinish)
+		fmt.Printf("amount of selected txs: %d/%d, estimated txs per second: %s, time to finish: %s\n", selectedCount-initialCount, nTxs, txsPerSecondAsStr, estimatedTimeToFinish)
 		prevCount = currCount
 
 		done := (int64(selectedCount) - int64(initialCount)) >= int64(nTxs)

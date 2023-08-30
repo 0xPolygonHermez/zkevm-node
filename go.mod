@@ -93,6 +93,7 @@ require (
 	github.com/jackc/puddle v1.3.0 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/karrick/godirwalk v1.17.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect

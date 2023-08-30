@@ -2,6 +2,7 @@ package setup
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -89,10 +89,10 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	require.NoError(b, err)
 
 	// Print Initial Stats
-	log.Infof("Receiver Addr: %v", params.To.String())
-	log.Infof("Sender Addr: %v", auth.From.String())
-	log.Infof("Sender Balance: %v", senderBalance.String())
-	log.Infof("Sender Nonce: %v", senderNonce)
+	fmt.Printf("Receiver Addr: %v\n", params.To.String())
+	fmt.Printf("Sender Addr: %v\n", auth.From.String())
+	fmt.Printf("Sender Balance: %v\n", senderBalance.String())
+	fmt.Printf("Sender Nonce: %v\n", senderNonce)
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(b, err)
@@ -108,7 +108,6 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 		panic(err)
 	}
 	auth.GasPrice = gasPrice
-	auth.Nonce = new(big.Int).SetUint64(senderNonce)
 
 	return opsman, client, pl, auth
 }
@@ -143,8 +142,8 @@ func Components(opsman *operations.Manager) error {
 
 // BootstrapSequencer starts the sequencer and waits for it to be ready
 func BootstrapSequencer(b *testing.B, opsman *operations.Manager) {
-	log.Debug("Starting sequencer ....")
+	fmt.Println("Starting sequencer ....")
 	err := operations.StartComponent("seq")
 	require.NoError(b, err)
-	log.Debug("Sequencer Started!")
+	fmt.Println("Sequencer Started!")
 }

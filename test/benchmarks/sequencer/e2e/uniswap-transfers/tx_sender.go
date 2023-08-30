@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	uniswap "github.com/0xPolygonHermez/zkevm-node/test/scripts/uniswap/pkg"
@@ -25,10 +24,12 @@ var (
 )
 
 // TxSender sends eth transfer to the sequencer
-func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, nonce uint64, auth *bind.TransactOpts, erc20SC *ERC20.ERC20, uniswapDeployments *uniswap.Deployments) ([]*types.Transaction, error) {
-	msg := fmt.Sprintf("# swap cycle number: %d #", countTxs)
+func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, auth *bind.TransactOpts, erc20SC *ERC20.ERC20, uniswapDeployments *uniswap.Deployments) ([]*types.Transaction, error) {
+	msg := fmt.Sprintf("# Swap Cycle Number: %d #", countTxs+1)
 	delimiter := strings.Repeat("#", len(msg))
-	log.Infof("%s\n%s\n%s", delimiter, msg, delimiter)
+	fmt.Println(delimiter)
+	fmt.Println(msg)
+	fmt.Println(delimiter)
 	var err error
 
 	transactions := uniswap.SwapTokens(l2Client, auth, *uniswapDeployments)
