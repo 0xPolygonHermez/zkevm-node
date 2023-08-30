@@ -32,12 +32,12 @@ func ConvertToCounters(resp *executor.ProcessBatchResponse) ZKCounters {
 }
 
 // TestConvertToProcessBatchResponse for test purposes
-func (s *State) TestConvertToProcessBatchResponse(txs []types.Transaction, response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	return s.convertToProcessBatchResponse(txs, response)
+func (s *State) TestConvertToProcessBatchResponse(response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	return s.convertToProcessBatchResponse(response)
 }
 
-func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	responses, err := s.convertToProcessTransactionResponse(txs, response.Responses)
+func (s *State) convertToProcessBatchResponse(response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	responses, err := s.convertToProcessTransactionResponse(response.Responses)
 	if err != nil {
 		return nil, err
 	}
@@ -123,9 +123,9 @@ func convertToReadWriteAddresses(addresses map[string]*executor.InfoReadWrite) (
 	return results, nil
 }
 
-func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, responses []*executor.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
+func (s *State) convertToProcessTransactionResponse(responses []*executor.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
-	for i, response := range responses {
+	for _, response := range responses {
 		trace, err := convertToStructLogArray(response.ExecutionTrace)
 		if err != nil {
 			return nil, err
@@ -151,9 +151,8 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		result.CallTrace = *callTrace
 		result.EffectiveGasPrice = response.EffectiveGasPrice
 		result.EffectivePercentage = response.EffectivePercentage
-		result.Tx = txs[i]
 
-		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
+		tx, err := DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
 		if err != nil {
 			timestamp := time.Now()
 			log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
@@ -170,7 +169,11 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 			if err != nil {
 				log.Errorf("error storing payload: %v", err)
 			}
+
+			return nil, err
 		}
+
+		result.Tx = *tx
 
 		results = append(results, result)
 
