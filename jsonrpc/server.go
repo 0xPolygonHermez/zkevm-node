@@ -52,7 +52,14 @@ type Server struct {
 	wsUpgrader websocket.Upgrader
 }
 
-// Service implementation of a service an it's name
+// Service defines a struct that will provide public methods to be exposed
+// by the RPC server as endpoints, the endpoints will be prefixed with the
+// value in the Name property followed by an underscore and the method name
+// starting with a lower case char, resulting in a mix of snake case and
+// camel case, for example:
+//
+// A service with name `eth` and with a public method BlockNumber() will allow
+// the RPC server to expose this method as `eth_blockNumber`.
 type Service struct {
 	Name    string
 	Service interface{}

@@ -577,7 +577,7 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	batch, err := scanBatch(row)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrStateNotSynchronized
+		return nil, ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}

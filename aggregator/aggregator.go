@@ -973,7 +973,7 @@ func (a *Aggregator) isSynced(ctx context.Context, batchNum *uint64) bool {
 
 func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.Batch) (*prover.InputProver, error) {
 	previousBatch, err := a.State.GetBatchByNumber(ctx, batchToVerify.BatchNumber-1, nil)
-	if err != nil && err != state.ErrStateNotSynchronized {
+	if err != nil && err != state.ErrNotFound {
 		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
 	}
 

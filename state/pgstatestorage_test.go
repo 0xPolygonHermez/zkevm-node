@@ -627,3 +627,29 @@ func TestGetFinalizedL2BlockNumber(t *testing.T) {
 		})
 	}
 }
+
+func TestGetBatchByNumber(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	_, err = testState.PostgresStorage.Exec(ctx, `INSERT INTO state.batch
+	(batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data)
+	VALUES(1, '0x0000000000000000000000000000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000000000000000000000000000', '0xbf34f9a52a63229e90d1016011655bc12140bba5b771817b88cbf340d08dcbde', '2022-12-19 08:17:45.000', '0x0000000000000000000000000000000000000000', NULL);
+	`)
+	require.NoError(t, err)
+
+	batchNum := uint64(1)
+	b, err := testState.GetBatchByNumber(ctx, batchNum, dbTx)
+	require.NoError(t, err)
+	assert.Equal(t, b.BatchNumber, batchNum)
+
+	batchNum = uint64(2)
+	b, err = testState.GetBatchByNumber(ctx, batchNum, dbTx)
+	require.Error(t, state.ErrNotFound, err)
+	assert.Nil(t, b)
+
+	require.NoError(t, dbTx.Commit(ctx))
+}
