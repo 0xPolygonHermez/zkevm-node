@@ -149,17 +149,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 		return nil, err
 	}
 
-	txs := []types.Transaction{}
-	forkID := s.GetForkIDByBatchNumber(batchNumber)
-
-	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
-		txs, _, _, err = DecodeTxs(batchL2Data, forkID)
-		if err != nil && !errors.Is(err, ErrInvalidData) {
-			return nil, err
-		}
-	}
-
-	result, err := s.convertToProcessBatchResponse(txs, processBatchResponse)
+	result, err := s.convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -198,14 +188,8 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		return nil, err
 	}
 
-	txs, _, effP, err := DecodeTxs(request.Transactions, forkID)
-	if err != nil && !errors.Is(err, ErrInvalidData) {
-		return nil, err
-	}
-	log.Infof("ProcessBatch: %d txs, %#v effP", len(txs), effP)
-
 	var result *ProcessBatchResponse
-	result, err = s.convertToProcessBatchResponse(txs, res)
+	result, err = s.convertToProcessBatchResponse(res)
 	if err != nil {
 		return nil, err
 	}
@@ -448,16 +432,14 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
-				decodedTransactions = decodedTransactions[:i]
 			} else {
 				processed.Responses = append(processed.Responses[:i], processed.Responses[i+1:]...)
-				decodedTransactions = append(decodedTransactions[:i], decodedTransactions[i+1:]...)
 			}
 			i--
 		}
 	}
 
-	processedBatch, err := s.convertToProcessBatchResponse(decodedTransactions, processed)
+	processedBatch, err := s.convertToProcessBatchResponse(processed)
 	if err != nil {
 		return common.Hash{}, noFlushID, noProverID, err
 	}

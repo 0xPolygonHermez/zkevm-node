@@ -300,6 +300,8 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
+	// Transaction are decoded only for logging purposes
+	// as they are not longer needed in the convertToProcessBatchResponse function
 	txs, _, _, err := DecodeTxs(batchL2Data, forkId)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		return nil, err
@@ -309,7 +311,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		log.Debugf(tx.Hash().String())
 	}
 
-	convertedResponse, err := s.convertToProcessBatchResponse(txs, processBatchResponse)
+	convertedResponse, err := s.convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -878,7 +880,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
-	response, err := s.convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
+	response, err := s.convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
