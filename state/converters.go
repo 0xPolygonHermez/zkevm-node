@@ -169,6 +169,8 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 			if err != nil {
 				log.Errorf("error storing payload: %v", err)
 			}
+
+			return nil, err
 		}
 
 		result.Tx = *tx
