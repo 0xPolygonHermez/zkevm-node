@@ -300,7 +300,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	// Transaction are decoded only for logging purposes
+	// Transactions are decoded only for logging purposes
 	// as they are not longer needed in the convertToProcessBatchResponse function
 	txs, _, _, err := DecodeTxs(batchL2Data, forkId)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
