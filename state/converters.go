@@ -175,9 +175,13 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 
 				return nil, err
 			}
+		} else {
+			log.Warnf("ProcessTransactionResponse[GetRlpTx]: empty for tx %v", result.TxHash)
 		}
 
-		result.Tx = *tx
+		if tx != nil {
+			result.Tx = *tx
+		}
 
 		results = append(results, result)
 
