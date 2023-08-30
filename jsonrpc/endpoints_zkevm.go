@@ -137,49 +137,49 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err, true)
 		}
 
 		txs, _, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 		if !errors.Is(err, state.ErrNotFound) && err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v", batchNumber), err, true)
 		}
 
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
 			if err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", tx.Hash().String()), err)
+				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", tx.Hash().String()), err, true)
 			}
 			receipts = append(receipts, *receipt)
 		}
 
 		virtualBatch, err := z.state.GetVirtualBatch(ctx, batchNumber, dbTx)
 		if err != nil && !errors.Is(err, state.ErrNotFound) {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err, true)
 		}
 
 		verifiedBatch, err := z.state.GetVerifiedBatch(ctx, batchNumber, dbTx)
 		if err != nil && !errors.Is(err, state.ErrNotFound) {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load virtual batch from state by number %v", batchNumber), err, true)
 		}
 
 		ger, err := z.state.GetExitRootByGlobalExitRoot(ctx, batch.GlobalExitRoot, dbTx)
 		if err != nil && !errors.Is(err, state.ErrNotFound) {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load full GER from state by number %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load full GER from state by number %v", batchNumber), err, true)
 		} else if errors.Is(err, state.ErrNotFound) {
 			ger = &state.GlobalExitRoot{}
 		}
 
 		blocks, err := z.state.GetL2BlocksByBatchNumber(ctx, batchNumber, dbTx)
 		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load blocks associated to the batch %v", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load blocks associated to the batch %v", batchNumber), err, true)
 		}
 
 		batch.Transactions = txs
 		rpcBatch, err := types.NewBatch(batch, virtualBatch, verifiedBatch, blocks, receipts, fullTx, true, ger)
 		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build the batch %v response", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build the batch %v response", batchNumber), err, true)
 		}
 		return rpcBatch, nil
 	})
@@ -191,7 +191,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 		if number == types.PendingBlockNumber {
 			lastBlock, err := z.state.GetLastL2Block(ctx, dbTx)
 			if err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err)
+				return RPCErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err, true)
 			}
 			header := ethTypes.CopyHeader(lastBlock.Header())
 			header.ParentHash = lastBlock.Hash()
@@ -201,7 +201,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			block := ethTypes.NewBlockWithHeader(header)
 			rpcBlock, err := types.NewBlock(block, nil, fullTx, true)
 			if err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err)
+				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
 
 			return rpcBlock, nil
@@ -216,7 +216,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load block from state by number %v", blockNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load block from state by number %v", blockNumber), err, true)
 		}
 
 		txs := block.Transactions()
@@ -224,14 +224,14 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 		for _, tx := range txs {
 			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
 			if err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", tx.Hash().String()), err)
+				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", tx.Hash().String()), err, true)
 			}
 			receipts = append(receipts, *receipt)
 		}
 
 		rpcBlock, err := types.NewBlock(block, receipts, fullTx, true)
 		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 		}
 
 		return rpcBlock, nil
@@ -245,7 +245,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (in
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash from state", err)
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash from state", err, true)
 		}
 
 		txs := block.Transactions()
@@ -253,14 +253,14 @@ func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (in
 		for _, tx := range txs {
 			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
 			if err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", tx.Hash().String()), err)
+				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v", tx.Hash().String()), err, true)
 			}
 			receipts = append(receipts, *receipt)
 		}
 
 		rpcBlock, err := types.NewBlock(block, receipts, fullTx, true)
 		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 		}
 
 		return rpcBlock, nil

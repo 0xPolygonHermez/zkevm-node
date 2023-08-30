@@ -411,12 +411,12 @@ func handleError(w http.ResponseWriter, err error) {
 }
 
 // RPCErrorResponse formats error to be returned through RPC
-func RPCErrorResponse(code int, message string, err error) (interface{}, types.Error) {
-	return RPCErrorResponseWithData(code, message, nil, err)
+func RPCErrorResponse(code int, message string, err error, logError bool) (interface{}, types.Error) {
+	return RPCErrorResponseWithData(code, message, nil, err, logError)
 }
 
 // RPCErrorResponseWithData formats error to be returned through RPC
-func RPCErrorResponseWithData(code int, message string, data *[]byte, err error) (interface{}, types.Error) {
+func RPCErrorResponseWithData(code int, message string, data *[]byte, err error, logError bool) (interface{}, types.Error) {
 	if err != nil {
 		log.Errorf("%v: %v", message, err.Error())
 	} else {
