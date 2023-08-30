@@ -1293,48 +1293,6 @@
 							},
 							"additionalProperties": false,
 							"type": "object"
-						},
-						"ResourceWeights": {
-							"properties": {
-								"WeightBatchBytesSize": {
-									"type": "integer",
-									"default": 1
-								},
-								"WeightCumulativeGasUsed": {
-									"type": "integer",
-									"default": 1
-								},
-								"WeightKeccakHashes": {
-									"type": "integer",
-									"default": 1
-								},
-								"WeightPoseidonHashes": {
-									"type": "integer",
-									"default": 1
-								},
-								"WeightPoseidonPaddings": {
-									"type": "integer",
-									"default": 1
-								},
-								"WeightMemAligns": {
-									"type": "integer",
-									"default": 1
-								},
-								"WeightArithmetics": {
-									"type": "integer",
-									"default": 1
-								},
-								"WeightBinaries": {
-									"type": "integer",
-									"default": 1
-								},
-								"WeightSteps": {
-									"type": "integer",
-									"default": 1
-								}
-							},
-							"additionalProperties": false,
-							"type": "object"
 						}
 					},
 					"additionalProperties": false,

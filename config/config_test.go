@@ -450,42 +450,6 @@ func Test_Defaults(t *testing.T) {
 			path:          "State.Batch.Constraints.MaxSteps",
 			expectedValue: uint32(7570538),
 		},
-		{
-			path:          "State.Batch.ResourceWeights.WeightBatchBytesSize",
-			expectedValue: 1,
-		},
-		{
-			path:          "State.Batch.ResourceWeights.WeightCumulativeGasUsed",
-			expectedValue: 1,
-		},
-		{
-			path:          "State.Batch.ResourceWeights.WeightKeccakHashes",
-			expectedValue: 1,
-		},
-		{
-			path:          "State.Batch.ResourceWeights.WeightPoseidonHashes",
-			expectedValue: 1,
-		},
-		{
-			path:          "State.Batch.ResourceWeights.WeightPoseidonPaddings",
-			expectedValue: 1,
-		},
-		{
-			path:          "State.Batch.ResourceWeights.WeightMemAligns",
-			expectedValue: 1,
-		},
-		{
-			path:          "State.Batch.ResourceWeights.WeightArithmetics",
-			expectedValue: 1,
-		},
-		{
-			path:          "State.Batch.ResourceWeights.WeightBinaries",
-			expectedValue: 1,
-		},
-		{
-			path:          "State.Batch.ResourceWeights.WeightSteps",
-			expectedValue: 1,
-		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")
 	require.NoError(t, err)
