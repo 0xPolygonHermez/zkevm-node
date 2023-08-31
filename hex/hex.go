@@ -40,6 +40,12 @@ func DecodeString(str string) ([]byte, error) {
 func DecodeHex(str string) ([]byte, error) {
 	str = strings.TrimPrefix(str, "0x")
 
+	// Check if the string has an odd length
+	if len(str)%2 != 0 {
+		// Prepend a '0' to make it even-length
+		str = "0" + str
+	}
+
 	return hex.DecodeString(str)
 }
 
