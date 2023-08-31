@@ -1013,6 +1013,8 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 					continue
 				}
 				f.worker.AddForcedTx(txResponse.TxHash, sender)
+			} else {
+				log.Warnf("ROM_ERROR_INVALID_RLP error received from executor for forced batch %d", forcedBatch.ForcedBatchNumber)
 			}
 		}
 
