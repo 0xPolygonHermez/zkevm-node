@@ -86,7 +86,7 @@ func (s *State) convertToProcessBatchResponse(response *executor.ProcessBatchRes
 
 // IsStateRootChanged returns true if the transaction changes the state root
 func IsStateRootChanged(err executor.RomError) bool {
-	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
+	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err) && err != executor.RomError_ROM_ERROR_INVALID_RLP
 }
 
 func convertToReadWriteAddresses(addresses map[string]*executor.InfoReadWrite) (map[common.Address]*InfoReadWrite, error) {
