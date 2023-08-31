@@ -182,7 +182,9 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 		if tx != nil {
 			result.Tx = *tx
 			log.Debugf("ProcessTransactionResponse[TxHash]: %v", result.TxHash)
-			log.Debugf("ProcessTransactionResponse[Nonce]: %v", result.Tx.Nonce())
+			if response.Error == executor.RomError_ROM_ERROR_NO_ERROR {
+				log.Debugf("ProcessTransactionResponse[Nonce]: %v", result.Tx.Nonce())
+			}
 			log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
 			log.Debugf("ProcessTransactionResponse[Error]: %v", result.RomError)
 			log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
