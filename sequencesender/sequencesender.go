@@ -73,11 +73,13 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	}
 
 	// Check if synchronizer is up to date
-	if !s.isSynced(ctx) {
-		log.Info("wait for synchronizer to sync last batch")
-		waitTick(ctx, ticker)
-		return
-	}
+	/*
+		if !s.isSynced(ctx) {
+			log.Info("wait for synchronizer to sync last batch")
+			waitTick(ctx, ticker)
+			return
+		}
+	*/
 
 	// Check if should send sequence to L1
 	log.Infof("getting sequences to send")
