@@ -311,6 +311,7 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 	}
 }
 
+/*
 func (s *SequenceSender) isSynced(ctx context.Context) bool {
 	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
@@ -337,3 +338,4 @@ func (s *SequenceSender) isSynced(ctx context.Context) bool {
 
 	return true
 }
+*/
