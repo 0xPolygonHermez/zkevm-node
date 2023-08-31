@@ -154,7 +154,7 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 
 		tx := new(types.Transaction)
 
-		if len(response.GetRlpTx()) > 0 {
+		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP && len(response.GetRlpTx()) > 0 {
 			tx, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
 			if err != nil {
 				timestamp := time.Now()
@@ -176,25 +176,24 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 				return nil, err
 			}
 		} else {
-			log.Warnf("ProcessTransactionResponse[GetRlpTx]: empty for tx %v", result.TxHash)
+			log.Warnf("Invalid RLP (tx hash may be empty) for tx %v", result.TxHash)
 		}
 
 		if tx != nil {
 			result.Tx = *tx
+			log.Debugf("ProcessTransactionResponse[TxHash]: %v", result.TxHash)
+			log.Debugf("ProcessTransactionResponse[Nonce]: %v", result.Tx.Nonce())
+			log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
+			log.Debugf("ProcessTransactionResponse[Error]: %v", result.RomError)
+			log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
+			log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
+			log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
+			log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
+			log.Debugf("ProcessTransactionResponse[EffectiveGasPrice]: %v", result.EffectiveGasPrice)
+			log.Debugf("ProcessTransactionResponse[EffectivePercentage]: %v", result.EffectivePercentage)
 		}
 
 		results = append(results, result)
-
-		log.Debugf("ProcessTransactionResponse[TxHash]: %v", result.TxHash)
-		log.Debugf("ProcessTransactionResponse[Nonce]: %v", result.Tx.Nonce())
-		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
-		log.Debugf("ProcessTransactionResponse[Error]: %v", result.RomError)
-		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
-		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
-		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
-		log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
-		log.Debugf("ProcessTransactionResponse[EffectiveGasPrice]: %v", result.EffectiveGasPrice)
-		log.Debugf("ProcessTransactionResponse[EffectivePercentage]: %v", result.EffectivePercentage)
 	}
 
 	return results, nil

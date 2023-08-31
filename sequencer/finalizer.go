@@ -1006,12 +1006,14 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 
 	if len(response.Responses) > 0 && !response.IsRomOOCError {
 		for _, txResponse := range response.Responses {
-			sender, err := state.GetSender(txResponse.Tx)
-			if err != nil {
-				log.Warnf("failed trying to add forced tx (%s) to worker. Error getting sender from tx, Err: %v", txResponse.TxHash, err)
-				continue
+			if !errors.Is(txResponse.RomError, executor.RomErr(executor.RomError_ROM_ERROR_INVALID_RLP)) {
+				sender, err := state.GetSender(txResponse.Tx)
+				if err != nil {
+					log.Warnf("failed trying to add forced tx (%s) to worker. Error getting sender from tx, Err: %v", txResponse.TxHash, err)
+					continue
+				}
+				f.worker.AddForcedTx(txResponse.TxHash, sender)
 			}
-			f.worker.AddForcedTx(txResponse.TxHash, sender)
 		}
 
 		f.handleForcedTxsProcessResp(ctx, request, response, stateRoot)
