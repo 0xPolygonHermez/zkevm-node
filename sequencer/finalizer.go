@@ -735,8 +735,9 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 		// Handle Transaction Error
 		if txResp.RomError != nil {
 			romErr := executor.RomErrorCode(txResp.RomError)
-			if executor.IsIntrinsicError(romErr) {
-				// If we have an intrinsic error, we should continue processing the batch, but skip the transaction
+			if executor.IsIntrinsicError(romErr) || romErr == executor.RomError_ROM_ERROR_INVALID_RLP {
+				// If we have an intrinsic error or the RLP is invalid
+				// we should continue processing the batch, but skip the transaction
 				log.Errorf("handleForcedTxsProcessResp: ROM error: %s", txResp.RomError)
 				continue
 			}
