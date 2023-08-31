@@ -176,7 +176,7 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 				return nil, err
 			}
 		} else {
-			log.Warnf("Invalid RLP (tx hash may be empty) for tx %v", result.TxHash)
+			log.Warnf("ROM_ERROR_INVALID_RLP returned by the executor")
 		}
 
 		if tx != nil {
