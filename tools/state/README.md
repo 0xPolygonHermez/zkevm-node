@@ -17,6 +17,7 @@ it override state_db
 - `--fist_batch`: first batch to process (default: 1)
 - `--last_batch`: last batch to process (default: the highest batch on batch table)
 - `--l2_chain_id`:  Intead of asking to SMC you can set it 
+- `--dont_stop_on_error`: If a batch have an error the process doesn't stop
 
 To see the full flags execute:
 ```

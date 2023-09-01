@@ -56,6 +56,7 @@ func reprocessCmd(cliCtx *cli.Context) error {
 		ctx:              cliCtx.Context,
 		output:           &reprocessingOutputPretty{},
 		flushIdCtrl:      NewFlushIDController(st, cliCtx.Context),
+		stopOnError:      !cliCtx.Bool(dontStopOnErrorFlag.Name),
 	}
 	action.output.start(action.firstBatchNumber, action.lastBatchNumber, l2ChainID)
 	log.Infof("Reprocessing batches from %d to %d", action.firstBatchNumber, action.lastBatchNumber)

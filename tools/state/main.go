@@ -22,7 +22,7 @@ var (
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
 		Usage:    "Configuration `FILE`",
-		Required: true,
+		Required: false,
 	}
 	configChainIDFlag = cli.StringFlag{
 		Name:     flagChainID,
@@ -58,6 +58,12 @@ var (
 		Usage:    "When process batches say to exectuor to write on the MT in a persistent way (default:false)",
 		Required: false,
 	}
+
+	dontStopOnErrorFlag = cli.BoolFlag{
+		Name:     "dont_stop_on_error",
+		Usage:    "Keep processing even if a batch have an error (default:false)",
+		Required: false,
+	}
 )
 
 func main() {
@@ -77,7 +83,7 @@ func main() {
 			Aliases: []string{},
 			Usage:   "reprocess batches",
 			Action:  reprocessCmd,
-			Flags:   []cli.Flag{&configFileFlag, &networkFlag, &customNetworkFlag, &configChainIDFlag, &firstBatchNumberFlag, &lastBatchNumberFlag, &writeOnHashDBFlag},
+			Flags:   []cli.Flag{&configFileFlag, &networkFlag, &customNetworkFlag, &configChainIDFlag, &firstBatchNumberFlag, &lastBatchNumberFlag, &writeOnHashDBFlag, &dontStopOnErrorFlag},
 		},
 	}
 	err := app.Run(os.Args)

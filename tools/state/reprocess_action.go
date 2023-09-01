@@ -15,6 +15,7 @@ type reprocessAction struct {
 	l2ChainId        uint64
 	// If true, when execute a batch write the MT in hashDB
 	updateHasbDB bool
+	stopOnError  bool
 
 	st          *state.State
 	ctx         context.Context
@@ -45,6 +46,9 @@ func (r *reprocessAction) start() error {
 		if batchOnDB != nil {
 			oldStateRoot = batchOnDB.StateRoot
 			oldAccInputHash = batchOnDB.AccInputHash
+		}
+		if r.stopOnError && err != nil {
+			log.Fatalf("error processing batch %d. Error: %v", i, err)
 		}
 	}
 	return nil
