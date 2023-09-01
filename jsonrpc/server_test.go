@@ -143,7 +143,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	return msv, mks, ethClient
 }
 
-func getDefaultConfig() Config {
+func getSequencerDefaultConfig() Config {
 	cfg := Config{
 		Host:                      "0.0.0.0",
 		Port:                      9123,
@@ -154,19 +154,24 @@ func getDefaultConfig() Config {
 	return cfg
 }
 
+func getNonSequencerDefaultConfig(sequencerNodeURI string) Config {
+	cfg := getSequencerDefaultConfig()
+	cfg.Port = 9124
+	cfg.SequencerNodeURI = sequencerNodeURI
+	return cfg
+}
+
 func newSequencerMockedServer(t *testing.T) (*mockedServer, *mocksWrapper, *ethclient.Client) {
-	cfg := getDefaultConfig()
+	cfg := getSequencerDefaultConfig()
 	return newMockedServer(t, cfg)
 }
 
-func newSequencerMockedServerWithCustomConfig(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *ethclient.Client) {
+func newMockedServerWithCustomConfig(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *ethclient.Client) {
 	return newMockedServer(t, cfg)
 }
 
 func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mockedServer, *mocksWrapper, *ethclient.Client) {
-	cfg := getDefaultConfig()
-	cfg.Port = 9124
-	cfg.SequencerNodeURI = sequencerNodeURI
+	cfg := getNonSequencerDefaultConfig(sequencerNodeURI)
 	return newMockedServer(t, cfg)
 }
 
@@ -273,11 +278,10 @@ func TestBatchRequests(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
 
-			cfg := getDefaultConfig()
+			cfg := getSequencerDefaultConfig()
 			cfg.BatchRequestsEnabled = tc.BatchRequestsEnabled
 			cfg.BatchRequestsLimit = tc.BatchRequestsLimit
-			s, m, _ := newSequencerMockedServerWithCustomConfig(t, cfg)
-			defer s.Stop()
+			s, m, _ := newMockedServerWithCustomConfig(t, cfg)
 
 			tc.SetupMocks(m, tc)
 
@@ -297,6 +301,8 @@ func TestBatchRequests(t *testing.T) {
 				assert.Equal(t, 0, len(result))
 				assert.Equal(t, testCase.ExpectedError.Error(), err.Error())
 			}
+
+			s.Stop()
 		})
 	}
 }
