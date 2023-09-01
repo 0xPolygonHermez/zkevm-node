@@ -1,15 +1,10 @@
 # state tool
 
-
+This tool allows to rerun a set of batches, you could set a flag to persist changes in hashDB
 
 # Usage
 
-## Show current status
-This command show the current status:
-- Last batches
-```
-go run cmd/main.go -cfg cfg.toml status
-```
+
 
 ## Network configuration
 If you want to avoid passing network configuration (`--network` and `--custom-network-file`) you need to provide the L2ChainID (`--l2_chain_id`)
