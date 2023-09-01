@@ -20,7 +20,6 @@ func main() {
 
 	// Command line flags
 	tType := flag.String("type", "", "The type of transactions to test: erc20, uniswap, or eth.")
-	sequencerIP := flag.String("sequencer-ip", "", "The IP address of the sequencer.")
 	numOps := flag.Int("num-ops", 200, "The number of operations to run. Default is 200.")
 	help := flag.Bool("help", false, "Display help message")
 	flag.Parse()
@@ -52,13 +51,6 @@ func main() {
 		panic(fmt.Sprintf("Error: Invalid TYPE argument. Accepted values are 'erc20', 'uniswap', or 'eth'."))
 	}
 
-	fmt.Println("Validating SEQUENCER_IP...")
-	fmt.Println("---------------------------")
-	// Validate SEQUENCER_IP
-	if *sequencerIP == "" {
-		panic(fmt.Sprintf("Error: SEQUENCER_IP argument is missing. Please provide it as the second argument."))
-	}
-
 	fmt.Println("Checking environment variables...")
 	fmt.Println("---------------------------------")
 	// Check environment variables
@@ -68,6 +60,7 @@ func main() {
 	checkEnvVar("RPC_URL")
 	checkEnvVar("CHAIN_ID")
 	checkEnvVar("PRIVATE_KEY")
+	checkEnvVar("SEQUENCER_IP")
 
 	// Forward BASTION Ports
 	fmt.Println("Forwarding BASTION ports...")
@@ -82,9 +75,10 @@ func main() {
 	defer killSSHProcess(err)
 
 	// Execute wget to get metrics from the BASTION HOST
+	sequencerIP := os.Getenv("SEQUENCER_IP")
 	fmt.Println("Fetching start metrics...")
 	fmt.Println("--------------------------")
-	output, err := runCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+*sequencerIP+":9091/metrics")
+	output, err := runCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9091/metrics")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to collect start metrics from BASTION HOST: %v", err))
 	}
@@ -127,7 +121,7 @@ func main() {
 	// Execute wget to get metrics from the BASTION HOST
 	fmt.Println("Fetching end metrics...")
 	fmt.Println("------------------------")
-	output, err = runCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+*sequencerIP+":9091/metrics")
+	output, err = runCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9091/metrics")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to collect end metrics from BASTION HOST: %v", err))
 	}
