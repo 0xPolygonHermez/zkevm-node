@@ -18,6 +18,7 @@ it override state_db
 - `--last_batch`: last batch to process (default: the highest batch on batch table)
 - `--l2_chain_id`:  Intead of asking to SMC you can set it 
 - `--dont_stop_on_error`: If a batch have an error the process doesn't stop
+- `--prefer_execution_state_root`: The oldStateRoot used to process a batch is usually is the stateRoot of the previous batch on database but, with this flag, you could use the calculated stateRoot from the execution result from previous batch instead
 
 To see the full flags execute:
 ```

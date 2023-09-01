@@ -48,19 +48,19 @@ func reprocessCmd(cliCtx *cli.Context) error {
 	st.UpdateForkIDIntervalsInMemory(forksIdIntervals)
 
 	action := reprocessAction{
-		firstBatchNumber: getFirstBatchNumber(cliCtx),
-		lastBatchNumber:  getLastBatchNumber(cliCtx, cliCtx.Context, st),
-		l2ChainId:        l2ChainID,
-		updateHasbDB:     getUpdateHashDB(cliCtx),
-		st:               st,
-		ctx:              cliCtx.Context,
-		output:           &reprocessingOutputPretty{},
-		flushIdCtrl:      NewFlushIDController(st, cliCtx.Context),
-		stopOnError:      !cliCtx.Bool(dontStopOnErrorFlag.Name),
+		firstBatchNumber:         getFirstBatchNumber(cliCtx),
+		lastBatchNumber:          getLastBatchNumber(cliCtx, cliCtx.Context, st),
+		l2ChainId:                l2ChainID,
+		updateHasbDB:             getUpdateHashDB(cliCtx),
+		st:                       st,
+		ctx:                      cliCtx.Context,
+		output:                   &reprocessingOutputPretty{},
+		flushIdCtrl:              NewFlushIDController(st, cliCtx.Context),
+		stopOnError:              !cliCtx.Bool(dontStopOnErrorFlag.Name),
+		preferExecutionStateRoot: cliCtx.Bool(preferExecutionStateRootFlag.Name),
 	}
 	action.output.start(action.firstBatchNumber, action.lastBatchNumber, l2ChainID)
 	log.Infof("Reprocessing batches from %d to %d", action.firstBatchNumber, action.lastBatchNumber)
-	//err = reprocess(cliCtx.Context, st, l2ChainID, params, output)
 	err = action.start()
 	action.output.end(err)
 

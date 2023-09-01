@@ -58,10 +58,14 @@ var (
 		Usage:    "When process batches say to exectuor to write on the MT in a persistent way (default:false)",
 		Required: false,
 	}
-
 	dontStopOnErrorFlag = cli.BoolFlag{
 		Name:     "dont_stop_on_error",
 		Usage:    "Keep processing even if a batch have an error (default:false)",
+		Required: false,
+	}
+	preferExecutionStateRootFlag = cli.BoolFlag{
+		Name:     "prefer_execution_state_root",
+		Usage:    "Instaed of using the state_root from previous batch use the stateRoot from previous execution (default:false)",
 		Required: false,
 	}
 )
@@ -83,7 +87,8 @@ func main() {
 			Aliases: []string{},
 			Usage:   "reprocess batches",
 			Action:  reprocessCmd,
-			Flags:   []cli.Flag{&configFileFlag, &networkFlag, &customNetworkFlag, &configChainIDFlag, &firstBatchNumberFlag, &lastBatchNumberFlag, &writeOnHashDBFlag, &dontStopOnErrorFlag},
+			Flags: []cli.Flag{&configFileFlag, &networkFlag, &customNetworkFlag, &configChainIDFlag, &firstBatchNumberFlag,
+				&lastBatchNumberFlag, &writeOnHashDBFlag, &dontStopOnErrorFlag, &preferExecutionStateRootFlag},
 		},
 	}
 	err := app.Run(os.Args)
