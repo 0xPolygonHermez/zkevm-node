@@ -80,14 +80,6 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		gasPricesMux:            new(sync.RWMutex),
 	}
 
-	p.refreshBlockedAddresses()
-	go func(cfg *Config, p *Pool) {
-		for {
-			time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
-			p.refreshBlockedAddresses()
-		}
-	}(&cfg, p)
-
 	go func(cfg *Config, p *Pool) {
 		for {
 			p.refreshGasPrices()
@@ -109,6 +101,19 @@ func (p *Pool) refreshGasPrices() {
 	p.gasPricesMux.Lock()
 	p.gasPrices = gasPrices
 	p.gasPricesMux.Unlock()
+}
+
+// StartRefreshingBlockedAddressesPeriodically will make this instance of the pool
+// to check periodically(accordingly to the configuration) for updates regarding
+// the blocked address and update the in memory blocked addresses
+func (p *Pool) StartRefreshingBlockedAddressesPeriodically() {
+	p.refreshBlockedAddresses()
+	go func(p *Pool) {
+		for {
+			time.Sleep(p.cfg.IntervalToRefreshBlockedAddresses.Duration)
+			p.refreshBlockedAddresses()
+		}
+	}(p)
 }
 
 // refreshBlockedAddresses refreshes the list of blocked addresses for the provided instance of pool
