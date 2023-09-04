@@ -1486,7 +1486,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 	} else if processBatchResp.IsExecutorLevelError {
 		log.Warn("ExecutorLevelError detected. Avoid store txs...")
 		return processBatchResp, nil
-	} 
+	}
 	for _, tx := range processBatchResp.Responses {
 		if state.IsStateRootChanged(executor.RomErrorCode(tx.RomError)) {
 			if err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), dbTx); err != nil {
