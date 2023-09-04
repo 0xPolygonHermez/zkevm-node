@@ -36,10 +36,11 @@ type Synchronizer interface {
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
 	isTrustedSequencer bool
+	etherMan           EthermanInterface
 	latestFlushID      uint64
 	// If true the lastFlushID is stored in DB and we don't need to check again
 	latestFlushIDIsFulfilled bool
-	etherMan                 ethermanInterface
+	etherManForL1            []EthermanInterface
 	state                    stateInterface
 	pool                     poolInterface
 	ethTxManager             ethTxManager
@@ -65,7 +66,8 @@ type ClientSynchronizer struct {
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(
 	isTrustedSequencer bool,
-	ethMan ethermanInterface,
+	ethMan EthermanInterface,
+	etherManForL1 []EthermanInterface,
 	st stateInterface,
 	pool poolInterface,
 	ethTxManager ethTxManager,
@@ -80,6 +82,7 @@ func NewSynchronizer(
 		isTrustedSequencer:      isTrustedSequencer,
 		state:                   st,
 		etherMan:                ethMan,
+		etherManForL1:           etherManForL1,
 		pool:                    pool,
 		ctx:                     ctx,
 		cancelCtx:               cancel,
@@ -262,7 +265,13 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 			//Sync L1Blocks
 			startL1 := time.Now()
-			lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced)
+			if s.cfg.UseParallelModeForL1Synchronization {
+				log.Info("Syncing L1 blocks in parallel")
+				lastEthBlockSynced, err = s.syncBlocksParallel(lastEthBlockSynced)
+			} else {
+				log.Infof("Syncing L1 blocks sequentially")
+				lastEthBlockSynced, err = s.syncBlocksSequential(lastEthBlockSynced)
+			}
 			metrics.FullL1SyncTime(time.Since(startL1))
 			if err != nil {
 				log.Warn("error syncing blocks: ", err)
@@ -281,7 +290,39 @@ func (s *ClientSynchronizer) Sync() error {
 }
 
 // This function syncs the node from a specific block to the latest
-func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
+// lastEthBlockSynced -> last block synced in the db
+func (s *ClientSynchronizer) syncBlocksParallel(lastEthBlockSynced *state.Block) (*state.Block, error) {
+	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
+	block, err := s.checkReorg(lastEthBlockSynced)
+	if err != nil {
+		log.Errorf("error checking reorgs. Retrying... Err: %v", err)
+		return lastEthBlockSynced, fmt.Errorf("error checking reorgs")
+	}
+	if block != nil {
+		log.Infof("reorg detected. Resetting the state from block %v to block %v", lastEthBlockSynced.BlockNumber, block.BlockNumber)
+		err = s.resetState(block.BlockNumber)
+		if err != nil {
+			log.Errorf("error resetting the state to a previous block. Retrying... Err: %v", err)
+			return lastEthBlockSynced, fmt.Errorf("error resetting the state to a previous block")
+		}
+		return block, nil
+	}
+
+	chIncommingRollupInfo := make(chan l1SyncMessage, s.cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
+	L1DataProcessor := newL1RollupInfoConsumer(s, s.ctx, chIncommingRollupInfo)
+	l1DataRetriever := newL1DataRetriever(s.ctx, s.etherManForL1, lastEthBlockSynced.BlockNumber, s.cfg.SyncChunkSize, chIncommingRollupInfo, false)
+	l1SyncOrchestration := newL1SyncOrchestration(l1DataRetriever, L1DataProcessor)
+	err = l1DataRetriever.initialize()
+	if err != nil {
+		log.Warnf("error initializing L1DataRetriever. Error: %s", err)
+		return nil, err
+	}
+
+	return l1SyncOrchestration.start()
+}
+
+// This function syncs the node from a specific block to the latest
+func (s *ClientSynchronizer) syncBlocksSequential(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {

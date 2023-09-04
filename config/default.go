@@ -88,6 +88,10 @@ BatchRequestsLimit = 20
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
+UseParallelModeForL1Synchronization = true
+	[Synchronizer.L1ParallelSynchronization]
+		NumberOfParallelOfEthereumClients = 2
+		CapacityOfBufferingRollupInfoFromL1 = 10
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
