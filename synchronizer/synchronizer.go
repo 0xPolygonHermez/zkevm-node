@@ -1481,10 +1481,16 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 	s.pendingFlushID(processBatchResp.FlushID, processBatchResp.ProverID)
 
 	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.Responses), trustedBatch.Number)
+	if !processBatchResp.IsRomLevelError && len(processBatchResp.Responses) == 0 {
+		return nil, fmt.Errorf("No RomLevelError by empty responses")
+	} else if processBatchResp.IsExecutorLevelError {
+		log.Warn("ExecutorLevelError detected. Avoid store txs...")
+		return processBatchResp, nil
+	} 
 	for _, tx := range processBatchResp.Responses {
-		if !errors.Is(tx.RomError, executor.RomErr(executor.RomError_ROM_ERROR_INVALID_RLP)) {
+		if state.IsStateRootChanged(executor.RomErrorCode(tx.RomError)) {
 			if err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), dbTx); err != nil {
-				log.Errorf("failed to store transactions for batch: %v", trustedBatch.Number)
+				log.Errorf("failed to store transactions for batch: %v. Tx: %s", trustedBatch.Number, tx.TxHash.String())
 				return nil, err
 			}
 		}
