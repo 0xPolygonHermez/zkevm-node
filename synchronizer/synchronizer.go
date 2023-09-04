@@ -1481,9 +1481,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 	s.pendingFlushID(processBatchResp.FlushID, processBatchResp.ProverID)
 
 	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.Responses), trustedBatch.Number)
-	if !processBatchResp.IsRomLevelError && len(processBatchResp.Responses) == 0 {
-		return nil, fmt.Errorf("No RomLevelError by empty responses")
-	} else if processBatchResp.IsExecutorLevelError {
+	if processBatchResp.IsExecutorLevelError {
 		log.Warn("ExecutorLevelError detected. Avoid store txs...")
 		return processBatchResp, nil
 	}
