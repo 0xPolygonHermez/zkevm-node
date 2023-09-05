@@ -11,8 +11,6 @@ import (
 // this migration changes length of the token name
 type migrationTest0009 struct{}
 
-var indexes_0009 = []string{"receipt_block_num_idx"}
-
 func (m migrationTest0009) InsertData(db *sql.DB) error {
 	// Insert block to respect the FKey
 	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
@@ -41,7 +39,6 @@ func (m migrationTest0009) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 	);`
 	_, err = db.Exec(insertForkID2)
 	assert.NoError(t, err)
-
 }
 
 func (m migrationTest0009) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
