@@ -55,21 +55,13 @@ func (p *PostgresStorage) Reset(ctx context.Context, blockNumber uint64, dbTx pg
 }
 
 // ResetForkID resets the state to reprocess the newer batches with the correct forkID
-func (p *PostgresStorage) ResetForkID(ctx context.Context, batchNumber, forkID uint64, version string, dbTx pgx.Tx) error {
+func (p *PostgresStorage) ResetForkID(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 	const resetVirtualStateSQL = "delete from state.block where block_num >=(select min(block_num) from state.virtual_batch where batch_num >= $1)"
 	if _, err := e.Exec(ctx, resetVirtualStateSQL, batchNumber); err != nil {
 		return err
 	}
 	err := p.ResetTrustedState(ctx, batchNumber-1, dbTx)
-	if err != nil {
-		return err
-	}
-	reorg := TrustedReorg{
-		BatchNumber: batchNumber,
-		Reason:      fmt.Sprintf("New ForkID: %d. Version: %s", forkID, version),
-	}
-	err = p.AddTrustedReorg(ctx, &reorg, dbTx)
 	if err != nil {
 		return err
 	}
@@ -2446,19 +2438,6 @@ func (p *PostgresStorage) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64,
 	return count, nil
 }
 
-// GetForkIDTrustedReorgCount returns the forkID
-func (p *PostgresStorage) GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error) {
-	const forkIDTrustedReorgSQL = "SELECT COUNT(*) FROM state.trusted_reorg WHERE reason=$1"
-
-	var count uint64
-	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, forkIDTrustedReorgSQL, fmt.Sprintf("New ForkID: %d. Version: %s", forkID, version)).Scan(&count)
-	if err != nil {
-		return 0, err
-	}
-	return count, nil
-}
-
 // GetReorgedTransactions returns the transactions that were reorged
 func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
 	const getReorgedTransactionsSql = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num >= $1 ORDER BY l2_block_num ASC"
@@ -2524,15 +2503,15 @@ func (p *PostgresStorage) GetBatchByForcedBatchNum(ctx context.Context, forcedBa
 
 // AddForkID adds a new forkID to the storage
 func (p *PostgresStorage) AddForkID(ctx context.Context, forkID ForkIDInterval, dbTx pgx.Tx) error {
-	const addForkIDSQL = "INSERT INTO state.fork_id (from_batch_num, to_batch_num, fork_id, version, block_num) VALUES ($1, $2, $3, $4, $5)"
+	const addForkIDSQL = "INSERT INTO state.fork_id (from_batch_num, to_batch_num, fork_id, version) VALUES ($1, $2, $3, $4) ON CONFLICT (fork_id) DO NOTHING;"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addForkIDSQL, forkID.FromBatchNumber, forkID.ToBatchNumber, forkID.ForkId, forkID.Version, forkID.BlockNumber)
+	_, err := e.Exec(ctx, addForkIDSQL, forkID.FromBatchNumber, forkID.ToBatchNumber, forkID.ForkId, forkID.Version)
 	return err
 }
 
 // GetForkIDs get all the forkIDs stored
 func (p *PostgresStorage) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]ForkIDInterval, error) {
-	const getForkIDsSQL = "SELECT from_batch_num, to_batch_num, fork_id, version, block_num FROM state.fork_id ORDER BY from_batch_num ASC"
+	const getForkIDsSQL = "SELECT from_batch_num, to_batch_num, fork_id, version FROM state.fork_id ORDER BY from_batch_num ASC"
 	q := p.getExecQuerier(dbTx)
 
 	rows, err := q.Query(ctx, getForkIDsSQL)
@@ -2552,7 +2531,6 @@ func (p *PostgresStorage) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]ForkID
 			&forkID.ToBatchNumber,
 			&forkID.ForkId,
 			&forkID.Version,
-			&forkID.BlockNumber,
 		); err != nil {
 			return forkIDs, err
 		}

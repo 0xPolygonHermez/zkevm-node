@@ -705,9 +705,23 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		ToBatchNumber:   math.MaxUint64,
 		ForkId:          forkID.ForkID,
 		Version:         forkID.Version,
-		BlockNumber:     blockNumber,
 	}
 
+	// If forkID affects to a batch from the past. State must be reseted.
+	log.Debugf("ForkID: %d, Reverting synchronization to batch: %d", forkID.ForkID, forkID.BatchNumber+1)
+	fIds, err := s.state.GetForkIDs(s.ctx, dbTx)
+	if err != nil {
+		log.Error("error getting ForkIDTrustedReorg. Error: ", err)
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Errorf("error rolling back state get forkID trusted state. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+			return rollbackErr
+		}
+		return err
+	}
+	if len(fIds) != 0 && fIds[len(fIds)-1].ForkId == fID.ForkId { // If the forkID reset was already done
+		return nil
+	}
 	//If the forkID.batchnumber is a future batch
 	latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx, dbTx)
 	if err != nil && !errors.Is(err, state.ErrStateNotSynchronized) {
@@ -719,43 +733,10 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		}
 		return err
 	}
-	if latestBatchNumber <= forkID.BatchNumber || s.isTrustedSequencer { //If the forkID will start in a future batch or isTrustedSequencer
-		log.Infof("Just adding forkID. Skipping reset forkID. ForkID: %+v.", fID)
-		// Add new forkID to the state
-		err := s.state.AddForkIDInterval(s.ctx, fID, dbTx)
-		if err != nil {
-			log.Error("error adding new forkID interval to the state. Error: ", err)
-			rollbackErr := dbTx.Rollback(s.ctx)
-			if rollbackErr != nil {
-				log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
-				return rollbackErr
-			}
-			return err
-		}
-		return nil
-	}
-
-	// If forkID affects to a batch from the past. State must be reseted.
-	log.Debugf("ForkID: %d, Reverting synchronization to batch: %d", forkID.ForkID, forkID.BatchNumber+1)
-	count, err := s.state.GetForkIDTrustedReorgCount(s.ctx, forkID.ForkID, forkID.Version, dbTx)
+	// Add new forkID to the state
+	err = s.state.AddForkIDInterval(s.ctx, fID, dbTx)
 	if err != nil {
-		log.Error("error getting ForkIDTrustedReorg. Error: ", err)
-		rollbackErr := dbTx.Rollback(s.ctx)
-		if rollbackErr != nil {
-			log.Errorf("error rolling back state get forkID trusted state. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
-			return rollbackErr
-		}
-		return err
-	}
-	if count > 0 { // If the forkID reset was already done
-		return nil
-	}
-
-	log.Info("ForkID received in the permissionless node that affects to a batch from the past")
-	//Reset DB only if permissionless node
-	err = s.state.ResetForkID(s.ctx, forkID.BatchNumber+1, forkID.ForkID, forkID.Version, dbTx)
-	if err != nil {
-		log.Error("error resetting the state. Error: ", err)
+		log.Error("error adding new forkID interval to the state. Error: ", err)
 		rollbackErr := dbTx.Rollback(s.ctx)
 		if rollbackErr != nil {
 			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
@@ -763,11 +744,16 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		}
 		return err
 	}
+	if latestBatchNumber <= forkID.BatchNumber || s.isTrustedSequencer { //If the forkID will start in a future batch or isTrustedSequencer
+		log.Infof("Just adding forkID. Skipping reset forkID. ForkID: %+v.", fID)
+		return nil
+	}
 
-	// Add new forkID to the state
-	err = s.state.AddForkIDInterval(s.ctx, fID, dbTx)
+	log.Info("ForkID received in the permissionless node that affects to a batch from the past")
+	//Reset DB only if permissionless node
+	err = s.state.ResetForkID(s.ctx, forkID.BatchNumber+1, dbTx)
 	if err != nil {
-		log.Error("error adding new forkID interval to the state. Error: ", err)
+		log.Error("error resetting the state. Error: ", err)
 		rollbackErr := dbTx.Rollback(s.ctx)
 		if rollbackErr != nil {
 			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)

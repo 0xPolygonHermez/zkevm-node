@@ -14,7 +14,6 @@ type ForkIDInterval struct {
 	ToBatchNumber   uint64
 	ForkId          uint64
 	Version         string
-	BlockNumber     uint64
 }
 
 // UpdateForkIDIntervalsInMemory updates the forkID intervals in memory
