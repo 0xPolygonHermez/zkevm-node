@@ -709,7 +709,7 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 	}
 
 	// If forkID affects to a batch from the past. State must be reseted.
-	log.Debugf("ForkID: %d, Reverting synchronization to batch: %d", forkID.ForkID, forkID.BatchNumber+1)
+	log.Debugf("ForkID: %d, synchronization must use the new forkID since batch: %d", forkID.ForkID, forkID.BatchNumber+1)
 	fIds, err := s.state.GetForkIDs(s.ctx, dbTx)
 	if err != nil {
 		log.Error("error getting ForkIDTrustedReorg. Error: ", err)
@@ -752,6 +752,7 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 
 	log.Info("ForkID received in the permissionless node that affects to a batch from the past")
 	//Reset DB only if permissionless node
+	log.Debugf("ForkID: %d, Reverting synchronization to batch: %d", forkID.ForkID, forkID.BatchNumber+1)
 	err = s.state.ResetForkID(s.ctx, forkID.BatchNumber+1, dbTx)
 	if err != nil {
 		log.Error("error resetting the state. Error: ", err)
