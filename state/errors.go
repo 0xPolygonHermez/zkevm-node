@@ -57,6 +57,15 @@ var (
 	ErrInvalidData = errors.New("invalid data")
 	// ErrBatchResourceBytesUnderflow happens when the batch runs out of Bytes
 	ErrBatchResourceBytesUnderflow = NewBatchRemainingResourcesUnderflowError(nil, "Bytes")
+	// ErrInvalidBlockRange returned when the selected block range is invalid, generally
+	// because the toBlock is bigger than the fromBlock
+	ErrInvalidBlockRange = errors.New("invalid block range")
+	// ErrMaxLogsCountLimitExceeded returned when the number of logs is bigger than the
+	// configured limit
+	ErrMaxLogsCountLimitExceeded = errors.New("query returned more than %v results")
+	// ErrMaxLogsCountLimitExceeded returned when the range between block numbers to filter logs
+	// is bigger than the configured limit
+	ErrMaxLogsBlockRangeLimitExceeded = errors.New("logs are limited to a %v blocks range")
 
 	zkCounterErrPrefix = "ZKCounter: "
 )

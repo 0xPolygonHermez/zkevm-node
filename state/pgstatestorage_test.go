@@ -27,7 +27,11 @@ var (
 )
 
 func setup() {
-	pgStateStorage = state.NewPostgresStorage(stateDb)
+	cfg := state.Config{
+		MaxLogsCount:      10000,
+		MaxLogsBlockRange: 10000,
+	}
+	pgStateStorage = state.NewPostgresStorage(cfg, stateDb)
 }
 
 func TestGetBatchByL2BlockNumber(t *testing.T) {

@@ -33,6 +33,14 @@ type Config struct {
 
 	// Configuration for the batch constraints
 	Batch BatchConfig `mapstructure:"Batch"`
+
+	// MaxLogsCount is a configuration to set the max number of logs that can be returned
+	// in a single call to the state, if zero it means no limit
+	MaxLogsCount uint64
+
+	// MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs
+	// logs in a single call to the state, if zero it means no limit
+	MaxLogsBlockRange uint64
 }
 
 // BatchConfig represents the configuration of the batch constraints

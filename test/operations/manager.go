@@ -185,8 +185,8 @@ func (m *Manager) SetForkID(forkID uint64) error {
 	}
 
 	// Add initial forkID
-	fID := state.ForkIDInterval {
-		FromBatchNumber: 1, 
+	fID := state.ForkIDInterval{
+		FromBatchNumber: 1,
 		ToBatchNumber:   math.MaxUint64,
 		ForkId:          forkID,
 		Version:         "forkID",
@@ -462,15 +462,15 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 		return nil, err
 	}
 
-	ctx := context.Background()
-	stateDb := state.NewPostgresStorage(sqlDB)
-	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
-	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkleTreeConfig)
-	stateTree := merkletree.NewStateTree(stateDBClient)
-
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: maxCumulativeGasUsed,
 	}
+
+	ctx := context.Background()
+	stateDb := state.NewPostgresStorage(stateCfg, sqlDB)
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkleTreeConfig)
+	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {

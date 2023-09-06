@@ -25,12 +25,14 @@ const (
 
 // PostgresStorage implements the Storage interface
 type PostgresStorage struct {
+	cfg Config
 	*pgxpool.Pool
 }
 
 // NewPostgresStorage creates a new StateDB
-func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
+func NewPostgresStorage(cfg Config, db *pgxpool.Pool) *PostgresStorage {
 	return &PostgresStorage{
+		cfg,
 		db,
 	}
 }
@@ -1941,41 +1943,64 @@ func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber 
 
 // GetLogs returns the logs that match the filter
 func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
-	const getLogsByBlockHashSQL = `
-      SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
-        FROM state.log l
+	const queryCount = `SELECT count(*)`
+	const querySelect = `SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3`
+
+	const queryBody = `FROM state.log l
        INNER JOIN state.transaction t ON t.hash = l.tx_hash
        INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
-       WHERE b.block_hash = $1
-         AND (l.address = any($2) OR $2 IS NULL)
+       WHERE (l.address = any($2) OR $2 IS NULL)
          AND (l.topic0 = any($3) OR $3 IS NULL)
          AND (l.topic1 = any($4) OR $4 IS NULL)
          AND (l.topic2 = any($5) OR $5 IS NULL)
          AND (l.topic3 = any($6) OR $6 IS NULL)
-         AND (b.created_at >= $7 OR $7 IS NULL)
-       ORDER BY b.block_num ASC, l.log_index ASC`
-	const getLogsByBlockNumbersSQL = `
-      SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
-        FROM state.log l
-       INNER JOIN state.transaction t ON t.hash = l.tx_hash
-       INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
-       WHERE b.block_num BETWEEN $1 AND $2 
-         AND (l.address = any($3) OR $3 IS NULL)
-         AND (l.topic0 = any($4) OR $4 IS NULL)
-         AND (l.topic1 = any($5) OR $5 IS NULL)
-         AND (l.topic2 = any($6) OR $6 IS NULL)
-         AND (l.topic3 = any($7) OR $7 IS NULL)
-         AND (b.created_at >= $8 OR $8 IS NULL)
-       ORDER BY b.block_num ASC, l.log_index ASC`
+         AND (b.created_at >= $7 OR $7 IS NULL)`
+
+	const queryOrder = `ORDER BY b.block_num ASC, l.log_index ASC`
+
+	const queryFilterByBlockHash = `AND b.block_hash = $1`
+	const queryFilterByBlockNumbers = `AND b.block_num BETWEEN $1 AND $2`
+
+	const queryToCountLogsByBlockHash = queryCount +
+		queryBody +
+		queryFilterByBlockHash +
+		queryOrder
+
+	const queryToCountLogsByBlockNumbers = queryCount +
+		queryBody +
+		queryFilterByBlockNumbers +
+		queryOrder
+
+	const queryToSelectLogsByBlockHash = querySelect +
+		queryBody +
+		queryFilterByBlockHash +
+		queryOrder
+
+	const queryToSelectLogsByBlockNumbers = querySelect +
+		queryBody +
+		queryFilterByBlockHash +
+		queryOrder
 
 	var args []interface{}
-	var query string
+	var queryToCount string
+	var queryToSelect string
 	if blockHash != nil {
 		args = []interface{}{blockHash.String()}
-		query = getLogsByBlockHashSQL
+		queryToCount = queryToCountLogsByBlockHash
+		queryToSelect = queryToSelectLogsByBlockHash
 	} else {
+		if toBlock > fromBlock {
+			return nil, ErrInvalidBlockRange
+		}
+
+		blockRange := toBlock - fromBlock
+		if p.cfg.MaxLogsBlockRange > 0 && blockRange > p.cfg.MaxLogsBlockRange {
+			return nil, ErrMaxLogsBlockRangeLimitExceeded
+		}
+
 		args = []interface{}{fromBlock, toBlock}
-		query = getLogsByBlockNumbersSQL
+		queryToCount = queryToCountLogsByBlockNumbers
+		queryToSelect = queryToSelectLogsByBlockNumbers
 	}
 
 	if len(addresses) > 0 {
@@ -1995,8 +2020,20 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 	args = append(args, since)
 
 	q := p.getExecQuerier(dbTx)
-	rows, err := q.Query(ctx, query, args...)
 
+	if p.cfg.MaxLogsCount > 0 {
+		var count uint64
+		err := q.QueryRow(ctx, queryToCount, args...).Scan(&count)
+		if err != nil {
+			return nil, err
+		}
+
+		if count > p.cfg.MaxLogsCount {
+			return nil, ErrMaxLogsCountLimitExceeded
+		}
+	}
+
+	rows, err := q.Query(ctx, queryToSelect, args...)
 	if err != nil {
 		return nil, err
 	}

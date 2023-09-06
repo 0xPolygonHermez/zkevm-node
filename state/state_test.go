@@ -58,6 +58,8 @@ var (
 	stateCfg   = state.Config{
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
+		MaxLogsCount:         10000,
+		MaxLogsBlockRange:    10000,
 		ForkIDIntervals: []state.ForkIDInterval{{
 			FromBatchNumber: 0,
 			ToBatchNumber:   math.MaxUint64,
@@ -117,7 +119,7 @@ func TestMain(m *testing.M) {
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree, eventLog)
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateCfg, stateDb), executorClient, stateTree, eventLog)
 
 	result := m.Run()
 
