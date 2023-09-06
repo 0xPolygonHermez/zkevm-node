@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -23,6 +24,7 @@ type dbManager struct {
 	ctx              context.Context
 	batchConstraints batchConstraints
 	numberOfReorgs   uint64
+	streamServer     *datastreamer.StreamServer
 }
 
 func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
@@ -200,9 +202,55 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		}
 	}
 
+	// Send tx data to data stream server
+	if d.streamServer != nil {
+		l2BlochHeader, err := d.GetLastL2BlockHeader(ctx, nil)
+		if err != nil {
+			return err
+		}
+
+		l2Block := L2Block{
+			BatchNumber:    tx.batchNumber,
+			L2BlockNumber:  l2BlochHeader.Number.Uint64(),
+			Timestamp:      tx.timestamp,
+			GlobalExitRoot: batch.GlobalExitRoot,
+			Coinbase:       tx.coinbase,
+		}
+
+		l2Transaction := L2Transaction{
+			BatchNumber:                 batch.BatchNumber,
+			EffectiveGasPricePercentage: uint8(tx.response.EffectivePercentage),
+			IsValid:                     1,
+			EncodedLength:               uint32(len(txData)),
+			Encoded:                     txData,
+		}
+
+		err = d.streamServer.StartAtomicOp()
+		if err != nil {
+			return err
+		}
+
+		_, err = d.streamServer.AddStreamEntry(EntryTypeL2Block, l2Block.Encode())
+		if err != nil {
+			return err
+		}
+
+		_, err = d.streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transaction.Encode())
+		if err != nil {
+			return err
+		}
+	}
+
 	err = dbTx.Commit(ctx)
 	if err != nil {
 		return err
+	} else {
+		if d.streamServer != nil {
+			err = d.streamServer.CommitAtomicOp()
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// Change Tx status to selected

@@ -40,8 +40,8 @@ cloud.google.com/go/storage v1.8.0/go.mod h1:Wv1Oy7z6Yz3DshWRJFhqM/UCfaWIRTdp0RX
 cloud.google.com/go/storage v1.10.0/go.mod h1:FLPqc6j+Ki4BU591ie1oL6qBQGu2Bl/tZ9ullr3+Kg0=
 cloud.google.com/go/storage v1.14.0/go.mod h1:GrKmX003DSIwi9o29oFT7YDnHYwZoctc3fOKtUw0Xmo=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
-github.com/0xPolygonHermez/zkevm-data-streamer v0.0.0-20230905094114-4c0f9e471a6f h1:7DgUjQ0x96tLEUD+Z9LTgXUZyVy23dWnJK1xD8DLlrI=
-github.com/0xPolygonHermez/zkevm-data-streamer v0.0.0-20230905094114-4c0f9e471a6f/go.mod h1:nI0qmJ9/SZaM6Q/VT2HhjofCZHAU1T2H6uyXBEcS6oE=
+github.com/0xPolygonHermez/zkevm-data-streamer v0.0.1-alpha h1:DqidO3QusDcAb3vUN9zwClIuSFCI/w1dy7/bUjFWNUc=
+github.com/0xPolygonHermez/zkevm-data-streamer v0.0.1-alpha/go.mod h1:nI0qmJ9/SZaM6Q/VT2HhjofCZHAU1T2H6uyXBEcS6oE=
 github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9/go.mod h1:bOvUY6CB00SOBii9/FifXqc0awNKxLFCL/+pkDPuyl8=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 h1:w+iIsaOQNcT7OZ575w+acHgRric5iCyQh+xv+KJ4HB8=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=

@@ -25,7 +25,6 @@ type Sequencer struct {
 	eventLog     *event.EventLog
 	ethTxManager ethTxManager
 	etherman     etherman
-	streamServer datastreamer.StreamServer
 
 	address common.Address
 }
@@ -73,16 +72,6 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 		eventLog:     eventLog,
 	}
 
-	// Create stream server if enabled
-	if cfg.StreamServer.Port != 0 && cfg.StreamServer.Filename != "" {
-		streamServer, err := datastreamer.New(cfg.StreamServer.Port, cfg.StreamServer.Filename)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create stream server, err: %v", err)
-		}
-
-		sequencer.streamServer = streamServer
-	}
-
 	return sequencer, nil
 }
 
@@ -119,7 +108,23 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	worker := NewWorker(s.state)
+
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, batchConstraints)
+
+	// Start stream server if enabled
+	if s.cfg.StreamServer.Port != 0 && s.cfg.StreamServer.Filename != "" {
+		streamServer, err := datastreamer.New(s.cfg.StreamServer.Port, s.cfg.StreamServer.Filename)
+		if err != nil {
+			log.Fatalf("failed to create stream server, err: %v", err)
+		}
+
+		dbManager.streamServer = &streamServer
+		err = dbManager.streamServer.Start()
+		if err != nil {
+			log.Fatalf("failed to start stream server, err: %v", err)
+		}
+	}
+
 	go dbManager.Start()
 
 	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, batchConstraints, s.eventLog)
@@ -148,14 +153,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 			}
 		}
 	}()
-
-	// Start stream server if enabled
-	if s.cfg.StreamServer.Port != 0 && s.cfg.StreamServer.Filename != "" {
-		err = s.streamServer.Start()
-		if err != nil {
-			log.Errorf("failed to start stream server, err: %v", err)
-		}
-	}
 
 	// Wait until context is done
 	<-ctx.Done()
