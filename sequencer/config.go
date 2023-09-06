@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 )
 
@@ -61,6 +62,9 @@ type Config struct {
 
 	// EffectiveGasPrice is the config for the gas price
 	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
+
+	// StreamServer is the config for the stream server
+	StreamServer datastreamer.Config `mapstructure:"StreamServer"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties

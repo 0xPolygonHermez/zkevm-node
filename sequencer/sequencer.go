@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -24,6 +25,7 @@ type Sequencer struct {
 	eventLog     *event.EventLog
 	ethTxManager ethTxManager
 	etherman     etherman
+	streamServer datastreamer.StreamServer
 
 	address common.Address
 }
@@ -61,7 +63,7 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
 
-	return &Sequencer{
+	sequencer := &Sequencer{
 		cfg:          cfg,
 		pool:         txPool,
 		state:        state,
@@ -69,7 +71,19 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 		ethTxManager: manager,
 		address:      addr,
 		eventLog:     eventLog,
-	}, nil
+	}
+
+	// Create stream server if enabled
+	if cfg.StreamServer.Port != 0 && cfg.StreamServer.Filename != "" {
+		streamServer, err := datastreamer.New(cfg.StreamServer.Port, cfg.StreamServer.Filename)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create stream server, err: %v", err)
+		}
+
+		sequencer.streamServer = streamServer
+	}
+
+	return sequencer, nil
 }
 
 // Start starts the sequencer
@@ -134,6 +148,14 @@ func (s *Sequencer) Start(ctx context.Context) {
 			}
 		}
 	}()
+
+	// Start stream server if enabled
+	if s.cfg.StreamServer.Port != 0 && s.cfg.StreamServer.Filename != "" {
+		err = s.streamServer.Start()
+		if err != nil {
+			log.Errorf("failed to start stream server, err: %v", err)
+		}
+	}
 
 	// Wait until context is done
 	<-ctx.Done()
