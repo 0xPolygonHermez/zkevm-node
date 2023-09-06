@@ -2503,15 +2503,15 @@ func (p *PostgresStorage) GetBatchByForcedBatchNum(ctx context.Context, forcedBa
 
 // AddForkID adds a new forkID to the storage
 func (p *PostgresStorage) AddForkID(ctx context.Context, forkID ForkIDInterval, dbTx pgx.Tx) error {
-	const addForkIDSQL = "INSERT INTO state.fork_id (from_batch_num, to_batch_num, fork_id, version) VALUES ($1, $2, $3, $4) ON CONFLICT (fork_id) DO NOTHING;"
+	const addForkIDSQL = "INSERT INTO state.fork_id (from_batch_num, to_batch_num, fork_id, version, block_num) VALUES ($1, $2, $3, $4, $5)"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addForkIDSQL, forkID.FromBatchNumber, forkID.ToBatchNumber, forkID.ForkId, forkID.Version)
+	_, err := e.Exec(ctx, addForkIDSQL, forkID.FromBatchNumber, forkID.ToBatchNumber, forkID.ForkId, forkID.Version, forkID.BlockNumber)
 	return err
 }
 
 // GetForkIDs get all the forkIDs stored
 func (p *PostgresStorage) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]ForkIDInterval, error) {
-	const getForkIDsSQL = "SELECT from_batch_num, to_batch_num, fork_id, version FROM state.fork_id ORDER BY from_batch_num ASC"
+	const getForkIDsSQL = "SELECT from_batch_num, to_batch_num, fork_id, version, block_num FROM state.fork_id ORDER BY from_batch_num ASC"
 	q := p.getExecQuerier(dbTx)
 
 	rows, err := q.Query(ctx, getForkIDsSQL)
@@ -2531,6 +2531,7 @@ func (p *PostgresStorage) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]ForkID
 			&forkID.ToBatchNumber,
 			&forkID.ForkId,
 			&forkID.Version,
+			&forkID.BlockNumber,
 		); err != nil {
 			return forkIDs, err
 		}

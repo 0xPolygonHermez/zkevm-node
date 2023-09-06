@@ -705,6 +705,7 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 		ToBatchNumber:   math.MaxUint64,
 		ForkId:          forkID.ForkID,
 		Version:         forkID.Version,
+		BlockNumber:     blockNumber,
 	}
 
 	// If forkID affects to a batch from the past. State must be reseted.

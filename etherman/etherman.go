@@ -269,6 +269,7 @@ func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64, las
 				ToBatchNumber:   math.MaxUint64,
 				ForkId:          zkevmVersion.ForkID,
 				Version:         zkevmVersion.Version,
+				BlockNumber:     l.BlockNumber,
 			}
 		} else {
 			forks[len(forks)-1].ToBatchNumber = zkevmVersion.NumBatch
@@ -277,6 +278,7 @@ func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64, las
 				ToBatchNumber:   math.MaxUint64,
 				ForkId:          zkevmVersion.ForkID,
 				Version:         zkevmVersion.Version,
+				BlockNumber:     l.BlockNumber,
 			}
 		}
 		forks = append(forks, fork)

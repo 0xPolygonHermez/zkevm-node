@@ -1,7 +1,7 @@
 -- +migrate Up
-ALTER TABLE state.fork_id
-DROP COLUMN IF EXISTS block_num;
+ALTER TABLE IF EXISTS state.fork_id DROP CONSTRAINT IF EXISTS fork_id_block_num_fkey;
 
 -- +migrate Down
-ALTER TABLE state.fork_id
-ADD IF NOT EXISTS block_num BIGINT;
+ALTER TABLE IF EXISTS state.fork_id ADD CONSTRAINT fork_id_block_num_fkey
+FOREIGN KEY(block_num)
+REFERENCES state.block (block_num) ON DELETE CASCADE;

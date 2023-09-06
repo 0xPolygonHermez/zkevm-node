@@ -190,6 +190,7 @@ func (m *Manager) SetForkID(forkID uint64) error {
 		ToBatchNumber:   math.MaxUint64,
 		ForkId:          forkID,
 		Version:         "forkID",
+		BlockNumber:     102,
 	}
 	err = m.st.AddForkIDInterval(m.ctx, fID, dbTx)
 
