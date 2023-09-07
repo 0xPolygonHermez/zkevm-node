@@ -1943,49 +1943,75 @@ func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber 
 
 // GetLogs returns the logs that match the filter
 func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
+	// query parts
 	const queryCount = `SELECT count(*)`
 	const querySelect = `SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3`
 
 	const queryBody = `FROM state.log l
        INNER JOIN state.transaction t ON t.hash = l.tx_hash
        INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
-       WHERE (l.address = any($2) OR $2 IS NULL)
-         AND (l.topic0 = any($3) OR $3 IS NULL)
-         AND (l.topic1 = any($4) OR $4 IS NULL)
-         AND (l.topic2 = any($5) OR $5 IS NULL)
-         AND (l.topic3 = any($6) OR $6 IS NULL)
-         AND (b.created_at >= $7 OR $7 IS NULL)`
+       WHERE (l.address = any($1) OR $1 IS NULL)
+         AND (l.topic0 = any($2) OR $2 IS NULL)
+         AND (l.topic1 = any($3) OR $3 IS NULL)
+         AND (l.topic2 = any($4) OR $4 IS NULL)
+         AND (l.topic3 = any($5) OR $5 IS NULL)
+         AND (b.created_at >= $6 OR $6 IS NULL)`
+
+	const queryFilterByBlockHash = `AND b.block_hash = $7`
+	const queryFilterByBlockNumbers = `AND b.block_num BETWEEN $7 AND $8`
 
 	const queryOrder = `ORDER BY b.block_num ASC, l.log_index ASC`
 
-	const queryFilterByBlockHash = `AND b.block_hash = $1`
-	const queryFilterByBlockNumbers = `AND b.block_num BETWEEN $1 AND $2`
-
-	const queryToCountLogsByBlockHash = queryCount +
+	// count queries
+	const queryToCountLogsByBlockHash = "" +
+		queryCount +
 		queryBody +
 		queryFilterByBlockHash +
 		queryOrder
-
-	const queryToCountLogsByBlockNumbers = queryCount +
+	const queryToCountLogsByBlockNumbers = "" +
+		queryCount +
 		queryBody +
 		queryFilterByBlockNumbers +
 		queryOrder
 
-	const queryToSelectLogsByBlockHash = querySelect +
+	// select queries
+	const queryToSelectLogsByBlockHash = "" +
+		querySelect +
 		queryBody +
 		queryFilterByBlockHash +
 		queryOrder
-
-	const queryToSelectLogsByBlockNumbers = querySelect +
+	const queryToSelectLogsByBlockNumbers = "" +
+		querySelect +
 		queryBody +
-		queryFilterByBlockHash +
+		queryFilterByBlockNumbers +
 		queryOrder
 
-	var args []interface{}
+	args := []interface{}{}
+
+	// address filter
+	if len(addresses) > 0 {
+		args = append(args, p.addressesToHex(addresses))
+	} else {
+		args = append(args, nil)
+	}
+
+	// topic filters
+	for i := 0; i < maxTopics; i++ {
+		if len(topics) > i && len(topics[i]) > 0 {
+			args = append(args, p.hashesToHex(topics[i]))
+		} else {
+			args = append(args, nil)
+		}
+	}
+
+	// since filter
+	args = append(args, since)
+
+	// block filter
 	var queryToCount string
 	var queryToSelect string
 	if blockHash != nil {
-		args = []interface{}{blockHash.String()}
+		args = append(args, blockHash.String())
 		queryToCount = queryToCountLogsByBlockHash
 		queryToSelect = queryToSelectLogsByBlockHash
 	} else {
@@ -1998,29 +2024,12 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 			return nil, ErrMaxLogsBlockRangeLimitExceeded
 		}
 
-		args = []interface{}{fromBlock, toBlock}
+		args = append(args, fromBlock, toBlock)
 		queryToCount = queryToCountLogsByBlockNumbers
 		queryToSelect = queryToSelectLogsByBlockNumbers
 	}
 
-	if len(addresses) > 0 {
-		args = append(args, p.addressesToHex(addresses))
-	} else {
-		args = append(args, nil)
-	}
-
-	for i := 0; i < maxTopics; i++ {
-		if len(topics) > i && len(topics[i]) > 0 {
-			args = append(args, p.hashesToHex(topics[i]))
-		} else {
-			args = append(args, nil)
-		}
-	}
-
-	args = append(args, since)
-
 	q := p.getExecQuerier(dbTx)
-
 	if p.cfg.MaxLogsCount > 0 {
 		var count uint64
 		err := q.QueryRow(ctx, queryToCount, args...).Scan(&count)
