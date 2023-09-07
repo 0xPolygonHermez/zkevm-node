@@ -15,22 +15,39 @@ type lastBlockOnL1Interface interface {
 	isOutdated() bool
 }
 
+type syncStatusEnum int8
+
+const (
+	syncStatusIdle         syncStatusEnum = 0
+	syncStatusWorking      syncStatusEnum = 1
+	syncStatusSynchronized syncStatusEnum = 2
+)
+
+func (s syncStatusEnum) String() string {
+	return [...]string{"idle", "working", "synchronized"}[s]
+}
+
+const (
+	invalidLastBlock = 0
+)
+
 type syncStatus struct {
 	mutex                     sync.Mutex
 	lastBlockStoreOnStateDB   uint64
 	highestBlockRequested     uint64
 	lastBlockTTLDuration      time.Duration
-	lastBlockOnL1             lastBlockOnL1Interface
+	lastBlockOnL1             uint64
 	amountOfBlocksInEachRange uint64
 	// This ranges are being processed
 	processingRanges liveBlockRanges
 	// This ranges need to be retried because the last execution was an error
 	errorRanges liveBlockRanges
+	status      syncStatusEnum
 }
 
 func (s *syncStatus) toStringBrief() string {
-	return fmt.Sprintf("lastBlockStoreOnStateDB: %v, highestBlockRequested:%v, lastBlockOnL1: %s, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
-		s.lastBlockStoreOnStateDB, s.highestBlockRequested, s.lastBlockOnL1.toString(), s.amountOfBlocksInEachRange, s.processingRanges.toStringBrief(), s.errorRanges.toStringBrief())
+	return fmt.Sprintf("status: %s lastBlockStoreOnStateDB: %v, highestBlockRequested:%v, lastBlockOnL1: %v, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
+		s.status.String(), s.lastBlockStoreOnStateDB, s.highestBlockRequested, s.lastBlockOnL1, s.amountOfBlocksInEachRange, s.processingRanges.toStringBrief(), s.errorRanges.toStringBrief())
 }
 
 func (s *syncStatus) toString() string {
@@ -51,9 +68,22 @@ func newSyncStatus(lastBlockStoreOnStateDB uint64, amountOfBlocksInEachRange uin
 		amountOfBlocksInEachRange: amountOfBlocksInEachRange,
 		// lastBlockTTLDuration is the TTL assign to the incomming lastBlock values from L1
 		lastBlockTTLDuration: lastBlockTTLDuration,
-		lastBlockOnL1:        newSyncLastBlockEmpty(),
+		lastBlockOnL1:        invalidLastBlock,
 		processingRanges:     newLiveBlockRanges(),
+		status:               syncStatusIdle,
 	}
+}
+
+func (s *syncStatus) getLastBlockOnL1() uint64 {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.lastBlockOnL1
+}
+
+func (s *syncStatus) getStatus() syncStatusEnum {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.status
 }
 
 // isNodeFullySynchronizedWithL1 returns true if the node is fully synchronized with L1
@@ -61,12 +91,11 @@ func newSyncStatus(lastBlockStoreOnStateDB uint64, amountOfBlocksInEachRange uin
 func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	lastBlock, err := s.lastBlockOnL1.getLastBlock()
-	if err != nil {
-		log.Warnf(fmt.Sprintf("Can't decide if it's fully sync because Last block on L1  is no valid: %s", err))
+	if s.lastBlockOnL1 == invalidLastBlock {
+		log.Warnf(fmt.Sprintf("Can't decide if it's fully sync because Last block on L1  is no valid: %v", s.lastBlockOnL1))
 		return false
 	}
-	return s._isNodeFullySynchronizedWithL1(lastBlock)
+	return s._isNodeFullySynchronizedWithL1(s.lastBlockOnL1)
 }
 
 func (s *syncStatus) _isNodeFullySynchronizedWithL1(lastBlock uint64) bool {
@@ -90,20 +119,17 @@ func (s *syncStatus) getNextRange() *blockRange {
 	}
 
 	brs := &blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: s.highestBlockRequested} //s.processingRanges.GetSuperBlockRange()
-	// if brs == nil {
-	// 	brs = &blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: s.lastBlockStoreOnStateDB}
-	// }
-	lastBlock, err := s.lastBlockOnL1.getLastBlock()
-	if err != nil {
-		log.Debug("Last block is no valid: ", err)
+
+	if s.lastBlockOnL1 == invalidLastBlock {
+		log.Debug("Last block is no valid: ", s.lastBlockOnL1)
 		return nil
 	}
-	if lastBlock <= s.highestBlockRequested {
+	if s.lastBlockOnL1 <= s.highestBlockRequested {
 		log.Debug("No blocks to ask, we have requested all blocks from L1!")
 		return nil
 	}
 
-	br := _getNextBlockRangeFrom(brs.toBlock, lastBlock, s.amountOfBlocksInEachRange)
+	br := _getNextBlockRangeFrom(brs.toBlock, s.lastBlockOnL1, s.amountOfBlocksInEachRange)
 	err = br.isValid()
 	if err != nil {
 		log.Error(s.toString())
@@ -124,6 +150,8 @@ func (s *syncStatus) onStartedNewWorker(br blockRange) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	s.status = syncStatusWorking
+
 	if br.toBlock > s.highestBlockRequested {
 		s.highestBlockRequested = br.toBlock
 	}
@@ -158,6 +186,11 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 			log.Fatal(err)
 		}
 	}
+	if s._isNodeFullySynchronizedWithL1(s.lastBlockOnL1) {
+		s.status = syncStatusSynchronized
+	} else {
+		s.status = syncStatusWorking
+	}
 	log.Debugf("onFinishWorker final_status: %s", s.toStringBrief())
 }
 
@@ -170,11 +203,16 @@ func _getNextBlockRangeFrom(lastBlockInState uint64, lastBlockInL1 uint64, amoun
 func (s *syncStatus) setLastBlockOnL1(lastBlock uint64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.lastBlockOnL1 = newSyncLastBlock(lastBlock, s.lastBlockTTLDuration)
+	s._setLastBlockOnL1(lastBlock)
 }
 
 func (s *syncStatus) _setLastBlockOnL1(lastBlock uint64) {
-	s.lastBlockOnL1 = newSyncLastBlock(lastBlock, s.lastBlockTTLDuration)
+	s.lastBlockOnL1 = lastBlock
+	if s._isNodeFullySynchronizedWithL1(s.lastBlockOnL1) {
+		s.status = syncStatusSynchronized
+	} else {
+		s.status = syncStatusWorking
+	}
 }
 
 type onNewLastBlockResponse struct {
@@ -201,8 +239,8 @@ func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
 	response := onNewLastBlockResponse{
 		fullRange: blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: lastBlock},
 	}
-	oldLastBlock, err := s.lastBlockOnL1.getLastBlock()
-	if err != nil {
+
+	if s.lastBlockOnL1 == invalidLastBlock {
 		// No previous last block
 		response.extendedRange = &blockRange{
 			fromBlock: s.lastBlockStoreOnStateDB,
@@ -211,6 +249,7 @@ func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
 		s._setLastBlockOnL1(lastBlock)
 		return response
 	}
+	oldLastBlock := s.lastBlockOnL1
 	if lastBlock > oldLastBlock {
 		response.extendedRange = &blockRange{
 			fromBlock: oldLastBlock + 1,
@@ -237,7 +276,7 @@ func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
 func (s *syncStatus) needToRenewLastBlockOnL1() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	return s.lastBlockOnL1.isOutdated()
+	return s.lastBlockOnL1 == invalidLastBlock
 }
 
 func (s *syncStatus) verify(allowModify bool) error {

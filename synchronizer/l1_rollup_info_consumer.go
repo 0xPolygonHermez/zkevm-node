@@ -88,7 +88,7 @@ func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1Consu
 	log.Infof("consumer: processing controlPackage: %s", control.toString())
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	if control.action == actionStop {
+	if control.event == eventStop {
 		return errors.New(errConsumerStopped)
 	}
 	return nil
@@ -138,7 +138,7 @@ func (l *l1RollupInfoConsumer) stopAfterProcessChannelQueue() {
 
 func (l *l1RollupInfoConsumer) sendStopPackage() {
 	// Send a dummy result to wake up select
-	l.chIncommingRollupInfo <- *newL1SyncMessageControl(actionStop)
+	l.chIncommingRollupInfo <- *newL1SyncMessageControl(eventStop)
 }
 
 func (l *l1RollupInfoConsumer) _Process(rollupInfo responseRollupInfoByBlockRange) (*state.Block, error) {

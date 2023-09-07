@@ -24,8 +24,8 @@ func Test_SOR_Multicase(t *testing.T) {
 		{
 			description:             "just_ctrl",
 			lastBlock:               100,
-			packages:                []l1SyncMessage{*newActionPackage(actionNone)},
-			expected:                []l1SyncMessage{*newActionPackage(actionNone)},
+			packages:                []l1SyncMessage{*newActionPackage(eventNone)},
+			expected:                []l1SyncMessage{*newActionPackage(eventNone)},
 			lastBlockOnSynchronizer: 100,
 		},
 		{
@@ -61,14 +61,14 @@ func Test_SOR_Multicase(t *testing.T) {
 			lastBlock:   100,
 			packages: []l1SyncMessage{
 				*newDataPackage(131, 141),
-				*newActionPackage(actionNone),
+				*newActionPackage(eventNone),
 				*newDataPackage(120, 130),
 				*newDataPackage(101, 119)},
 			expected: []l1SyncMessage{
 				*newDataPackage(101, 119),
 				*newDataPackage(120, 130),
 				*newDataPackage(131, 141),
-				*newActionPackage(actionNone),
+				*newActionPackage(eventNone),
 			},
 			lastBlockOnSynchronizer: 141,
 		},
@@ -79,14 +79,14 @@ func Test_SOR_Multicase(t *testing.T) {
 				*newDataPackage(111, 120),
 				*newDataPackage(121, 130),
 				*newDataPackage(131, 140),
-				*newActionPackage(actionNone),
+				*newActionPackage(eventNone),
 				*newDataPackage(101, 110)},
 			expected: []l1SyncMessage{
 				*newDataPackage(101, 110),
 				*newDataPackage(111, 120),
 				*newDataPackage(121, 130),
 				*newDataPackage(131, 140),
-				*newActionPackage(actionNone),
+				*newActionPackage(eventNone),
 			},
 			lastBlockOnSynchronizer: 140,
 		},
@@ -119,7 +119,7 @@ func newDataPackage(fromBlock, toBlock uint64) *l1SyncMessage {
 	}
 }
 
-func newActionPackage(action actionsEnum) *l1SyncMessage {
+func newActionPackage(action eventEnum) *l1SyncMessage {
 	return &l1SyncMessage{
 		dataIsValid: false,
 		data: responseRollupInfoByBlockRange{
@@ -131,7 +131,7 @@ func newActionPackage(action actionsEnum) *l1SyncMessage {
 
 		ctrlIsValid: true,
 		ctrl: l1ConsumerControl{
-			action: action,
+			event: action,
 		},
 	}
 }

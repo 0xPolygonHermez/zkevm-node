@@ -266,10 +266,10 @@ func (s *ClientSynchronizer) Sync() error {
 			//Sync L1Blocks
 			startL1 := time.Now()
 			if s.cfg.UseParallelModeForL1Synchronization {
-				log.Info("Syncing L1 blocks in parallel")
+				log.Infof("Syncing L1 blocks in parallel lastEthBlockSynced=%d", lastEthBlockSynced.BlockNumber)
 				lastEthBlockSynced, err = s.syncBlocksParallel(lastEthBlockSynced)
 			} else {
-				log.Infof("Syncing L1 blocks sequentially")
+				log.Infof("Syncing L1 blocks sequentially lastEthBlockSynced=%d", lastEthBlockSynced.BlockNumber)
 				lastEthBlockSynced, err = s.syncBlocksSequential(lastEthBlockSynced)
 			}
 			metrics.FullL1SyncTime(time.Since(startL1))

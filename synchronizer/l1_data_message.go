@@ -29,22 +29,23 @@ type l1SyncMessage struct {
 }
 
 type l1ConsumerControl struct {
-	action actionsEnum
+	event eventEnum
 }
 
-type actionsEnum int8
+type eventEnum int8
 
 const (
-	actionNone actionsEnum = 0
-	actionStop actionsEnum = 1
+	eventNone                  eventEnum = 0
+	eventStop                  eventEnum = 1
+	eventProducerIsFullySynced eventEnum = 2
 )
 
-func newL1SyncMessageControl(action actionsEnum) *l1SyncMessage {
+func newL1SyncMessageControl(event eventEnum) *l1SyncMessage {
 	return &l1SyncMessage{
 		dataIsValid: false,
 		ctrlIsValid: true,
 		ctrl: l1ConsumerControl{
-			action: action,
+			event: event,
 		},
 	}
 }
@@ -60,19 +61,21 @@ func newL1SyncMessageData(result *responseRollupInfoByBlockRange) *l1SyncMessage
 	}
 }
 
-func (a actionsEnum) toString() string {
+func (a eventEnum) toString() string {
 	switch a {
-	case actionNone:
+	case eventNone:
 		return "actionNone"
-	case actionStop:
+	case eventStop:
 		return "actionStop"
+	case eventProducerIsFullySynced:
+		return "eventIsFullySynced"
 	default:
 		return "actionUnknown"
 	}
 }
 
 func (l *l1ConsumerControl) toString() string {
-	return fmt.Sprintf("action:%s", l.action.toString())
+	return fmt.Sprintf("action:%s", l.event.toString())
 }
 
 func (l *l1SyncMessage) toStringBrief() string {

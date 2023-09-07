@@ -98,9 +98,6 @@ type worker struct {
 	etherman             EthermanInterface
 	status               ethermanStatusEnum
 	typeOfCurrentRequest typeOfRequest
-	// channels
-	//chRollupInfo chan genericResponse[getRollupInfoByBlockRangeResult]
-	//chLastBlock  chan genericResponse[retrieveL1LastBlockResult]
 }
 
 func newWorker(etherman EthermanInterface) *worker {
@@ -135,33 +132,26 @@ func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, ch chan
 	go launch()
 	return nil
 }
-
-func (w *worker) asyncRequestLastBlock(ctx context.Context, ch chan genericResponse[retrieveL1LastBlockResult], wg *sync.WaitGroup) error {
+func (w *worker) requestLastBlock(ctx context.Context) genericResponse[retrieveL1LastBlockResult] {
 	w.mutex.Lock()
-	defer w.mutex.Unlock()
 	if w._isBusy() {
-		return errors.New(errWorkerBusy)
+		w.mutex.Unlock()
+		return newGenericAnswer[retrieveL1LastBlockResult](errors.New(errWorkerBusy), time.Duration(0), typeRequestLastBlock, nil)
 	}
 	w.status = ethermanWorking
 	w.typeOfCurrentRequest = typeRequestLastBlock
-	launch := func() {
-		if wg != nil {
-			defer wg.Done()
-		}
-		now := time.Now()
-		header, err := w.etherman.HeaderByNumber(ctx, nil)
-		duration := time.Since(now)
-		var result genericResponse[retrieveL1LastBlockResult]
-		if err == nil {
-			result = newGenericAnswer(err, duration, typeRequestLastBlock, &retrieveL1LastBlockResult{header.Number.Uint64()})
-		} else {
-			result = newGenericAnswer[retrieveL1LastBlockResult](err, duration, typeRequestLastBlock, nil)
-		}
-		w.setStatus(ethermanIdle)
-		ch <- result
+	w.mutex.Unlock()
+	now := time.Now()
+	header, err := w.etherman.HeaderByNumber(ctx, nil)
+	duration := time.Since(now)
+	var result genericResponse[retrieveL1LastBlockResult]
+	if err == nil {
+		result = newGenericAnswer(err, duration, typeRequestLastBlock, &retrieveL1LastBlockResult{header.Number.Uint64()})
+	} else {
+		result = newGenericAnswer[retrieveL1LastBlockResult](err, duration, typeRequestLastBlock, nil)
 	}
-	go launch()
-	return nil
+	w.setStatus(ethermanIdle)
+	return result
 }
 
 func (w *worker) setStatus(status ethermanStatusEnum) {

@@ -3,11 +3,9 @@
 //   - multiples etherman to do it in parallel
 //   - generate blocks to be retrieved
 //   - retrieve blocks (parallel)
-//   - check last block on L1:
-//     The idea is to run all the time and renew the las block from L1
-//     but for best fitting current implementation of synchronizer and match the
-//     previous behaviour of syncBlocks we update the last block at beginning of the process
-//     and finish the process when we reach the last block.
+//   - when reach the update state:
+// 		- send a update to channel and  keep retrieving last block to ask for new rollup info
+//
 //     To control that:
 //   - cte: ttlOfLastBlockDefault
 //   - when creating object param renewLastBlockOnL1
@@ -35,10 +33,11 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"golang.org/x/exp/constraints"
 )
 
 const (
-	ttlOfLastBlockDefault                      = time.Second * 60
+	ttlOfLastBlockDefault                      = time.Second * 5
 	timeOutMainLoop                            = time.Minute * 5
 	timeForShowUpStatisticsLog                 = time.Second * 60
 	conversionFactorPercentage                 = 100
@@ -57,6 +56,8 @@ type syncStatusInterface interface {
 	getNextRange() *blockRange
 	isNodeFullySynchronizedWithL1() bool
 	needToRenewLastBlockOnL1() bool
+	getStatus() syncStatusEnum
+	getLastBlockOnL1() uint64
 
 	onStartedNewWorker(br blockRange)
 	onFinishWorker(br blockRange, successful bool)
@@ -72,26 +73,20 @@ type workersInterface interface {
 	finalize() error
 	// waits until all workers have finish the current task
 	waitFinishAllWorkers()
-
-	// asyncRetrieveLastBlock start a async request to retrieve the last block
-	asyncRequestLastBlock(ctx context.Context) (chan genericResponse[retrieveL1LastBlockResult], error)
-	// asyncGetRollupInfoByBlockRange start a async request to retrieve the rollup info
 	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan genericResponse[responseRollupInfoByBlockRange], error)
-
-	// requestRollupInfoByBlockRange start a sync request to retrieve the last block
-	requestLastBlock(ctx context.Context, timeout time.Duration) genericResponse[retrieveL1LastBlockResult]
-
-	getResponseChannelForLastBlock() chan genericResponse[retrieveL1LastBlockResult]
+	requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) genericResponse[retrieveL1LastBlockResult]
 	getResponseChannelForRollupInfo() chan genericResponse[responseRollupInfoByBlockRange]
 }
 
 type l1RollupInfoProducer struct {
-	mutex           sync.Mutex
-	ctx             context.Context
-	cancelCtx       context.CancelFunc
-	workers         workersInterface
-	syncStatus      syncStatusInterface
-	outgoingChannel chan l1SyncMessage
+	mutex              sync.Mutex
+	ctx                context.Context
+	cancelCtx          context.CancelFunc
+	workers            workersInterface
+	syncStatus         syncStatusInterface
+	outgoingChannel    chan l1SyncMessage
+	timeLastBLockOnL1  time.Time
+	ttlOfLastBlockOnL1 time.Duration
 	// filter is an object that sort l1DataMessage to be send ordered by block number
 	filterToSendOrdererResultsToConsumer filter
 	statistics                           l1RollupInfoProducerStatistics
@@ -107,7 +102,7 @@ func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 	ctx, cancel := context.WithCancel(ctx)
 	ttlOfLastBlock := ttlOfLastBlockDefault
 	if !renewLastBlockOnL1 {
-		ttlOfLastBlock = ttlOfLastBlockInfinity
+		ttlOfLastBlock = ttlOfLastBlockDefault
 	}
 	result := l1RollupInfoProducer{
 		ctx:                                  ctx,
@@ -116,10 +111,8 @@ func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 		workers:                              newWorkers(ctx, ethermans),
 		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(startingBlockNumber),
 		outgoingChannel:                      outgoingChannel,
-		statistics: l1RollupInfoProducerStatistics{
-			initialBlockNumber: startingBlockNumber,
-			startTime:          time.Now(),
-		},
+		statistics:                           newRollupInfoProducerStatistics(startingBlockNumber),
+		ttlOfLastBlockOnL1:                   ttlOfLastBlock,
 	}
 	err := result.verify(false)
 	if err != nil {
@@ -128,33 +121,16 @@ func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 	return &result
 }
 
-// This object keep track of the statistics of the process, to be able to estimate the ETA
-type l1RollupInfoProducerStatistics struct {
-	initialBlockNumber  uint64
-	lastBlockNumber     uint64
-	numRollupInfoOk     uint64
-	numRollupInfoErrors uint64
-	numRetrievedBlocks  uint64
-	startTime           time.Time
-	lastShowUpTime      time.Time
-}
-
-func (l *l1RollupInfoProducerStatistics) getETA() string {
-	numTotalOfBlocks := l.lastBlockNumber - l.initialBlockNumber
-	if l.numRetrievedBlocks == 0 {
-		return "N/A"
-	}
-	elapsedTime := time.Since(l.startTime)
-	eta := time.Duration(float64(elapsedTime) / float64(l.numRetrievedBlocks) * float64(numTotalOfBlocks-l.numRetrievedBlocks))
-	percent := float64(l.numRetrievedBlocks) / float64(numTotalOfBlocks) * conversionFactorPercentage
-	blocks_per_seconds := float64(l.numRetrievedBlocks) / float64(elapsedTime.Seconds())
-	return fmt.Sprintf("ETA: %s percent:%2.2f  blocks_per_seconds:%2.2f pending_block:%v/%v num_errors:%v",
-		eta, percent, blocks_per_seconds, l.numRetrievedBlocks, numTotalOfBlocks, l.numRollupInfoErrors)
-}
-
 // TDOO: There is no min function in golang??
 func min(a, b uint64) uint64 {
 	if a < b {
+		return a
+	}
+	return b
+}
+
+func max[T constraints.Ordered](a, b T) T {
+	if a > b {
 		return a
 	}
 	return b
@@ -186,77 +162,31 @@ func (l *l1RollupInfoProducer) initialize() error {
 	if l.syncStatus.needToRenewLastBlockOnL1() {
 		log.Infof("producer: Need a initial value for Last Block On L1, doing the request (maxRetries:%v, timeRequest:%v)",
 			maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
-		result := l.retrieveInitialValueOfLastBlock(maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
+		//result := l.retrieveInitialValueOfLastBlock(maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
+		result := l.workers.requestLastBlockWithRetries(l.ctx, timeRequestInitialValueOfLastBlock, maxRetriesForRequestnitialValueOfLastBlock)
 		if result.err != nil {
 			log.Error(result.err)
 			return result.err
 		}
 		l.onNewLastBlock(result.result.block, false)
 	}
-	// We don't want to start request to L1 until calling Start()
 
 	return nil
 }
 
-// retrieveInitialValueOfLastBlock: get initial value of Last Block On L1
-func (l *l1RollupInfoProducer) retrieveInitialValueOfLastBlock(maxPermittedRetries int, timeout time.Duration) genericResponse[retrieveL1LastBlockResult] {
-	for {
-		log.Infof("producer: Retrieving last block on L1 (remaining tries=%v, timeout=%v)", maxPermittedRetries, timeout)
-		result := l.workers.requestLastBlock(l.ctx, timeout)
-		if result.err == nil {
-			return result
-		}
-		log.Info("producer: can't start request because: ", result.err)
-		maxPermittedRetries--
-		if maxPermittedRetries == 0 {
-			log.Error("producer: exhausted retries, returning error: ", result.err)
-			return result
-		}
-		time.Sleep(time.Second)
-	}
-}
-
-// OnNewLastBlock is called when a new last block on L1 is received
-func (l *l1RollupInfoProducer) onNewLastBlock(lastBlock uint64, launchWork bool) {
-	resp := l.syncStatus.onNewLastBlockOnL1(lastBlock)
-	l.statistics.lastBlockNumber = lastBlock
-	log.Infof("producer: New last block on L1: %v -> %s", lastBlock, resp.toString())
-	if launchWork {
-		l.launchWork()
-	}
-}
-
-// launchWork: launch new workers if possible and returns new channels created
-// returns the number of workers launched
-func (l *l1RollupInfoProducer) launchWork() int {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-	launchedWorker := 0
-	accDebugStr := ""
-	for {
-		br := l.syncStatus.getNextRange()
-		if br == nil {
-			// No more work to do
-			accDebugStr += "[NoNextRange] "
-			break
-		}
-		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctx, *br)
-		if err != nil {
-			accDebugStr += fmt.Sprintf(" [Error:%s] ", err.Error())
-			break
-		}
-		launchedWorker++
-		l.syncStatus.onStartedNewWorker(*br)
-	}
-	if launchedWorker == 0 {
-		log.Infof("producer: No workers launched because: %s", accDebugStr)
-	}
-	return launchedWorker
-}
-
 func (l *l1RollupInfoProducer) start() error {
 	var waitDuration = time.Duration(0)
+	previousStatus := l.syncStatus.getStatus()
 	for l.step(&waitDuration) {
+		newStatus := l.syncStatus.getStatus()
+		if previousStatus != newStatus {
+			log.Infof("producer: Status changed from [%s] to [%s]", previousStatus.String(), newStatus.String())
+			if newStatus == syncStatusSynchronized {
+				log.Infof("producer: send a message to consumer to indicate that we are synchronized")
+				l.sendPackages([]l1SyncMessage{*newL1SyncMessageControl(eventProducerIsFullySynced)})
+			}
+		}
+		previousStatus = newStatus
 	}
 	l.workers.waitFinishAllWorkers()
 	return nil
@@ -268,66 +198,115 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 		return false
 	// That timeout is not need, but just in case that stop launching request
 	case <-time.After(*waitDuration):
-		log.Infof("producer: Periodic timeout each [%s]: just in case, launching work if need", timeOutMainLoop)
-		*waitDuration = timeOutMainLoop
-		//log.Debugf(" ** Periodic status: %s", l.toStringBrief())
+		log.Debugf("producer: timeout [%s]", *waitDuration)
 	case resultRollupInfo := <-l.workers.getResponseChannelForRollupInfo():
 		l.onResponseRollupInfo(resultRollupInfo)
-
-	case resultLastBlock := <-l.workers.getResponseChannelForLastBlock():
-		l.onResponseRetrieveLastBlockOnL1(resultLastBlock)
 	}
-	// We check if we have finish the work
-	if l.syncStatus.isNodeFullySynchronizedWithL1() {
-		log.Infof("producer: we have retieve all rollupInfo from  L1")
-		return false
+	if l.syncStatus.getStatus() == syncStatusSynchronized {
+		// Try to nenew last block on L1 if needed
+		log.Debugf("producer: status==syncStatusSynchronized -> getting last block on L1")
+		l.renewLastBlockOnL1IfNeeded(false)
 	}
-	// Try to nenew last block on L1 if needed
-	l.renewLastBlockOnL1IfNeeded()
 	// Try to launch retrieve more rollupInfo from L1
 	l.launchWork()
 	if time.Since(l.statistics.lastShowUpTime) > timeForShowUpStatisticsLog {
 		log.Infof("producer: Statistics:%s", l.statistics.getETA())
 		l.statistics.lastShowUpTime = time.Now()
 	}
+	*waitDuration = l.getNextTimeout()
+	log.Debugf("producer: Next timeout: %s status: %s", *waitDuration, l.syncStatus.toStringBrief())
 	return true
 }
 
-func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded() {
-	if !l.syncStatus.needToRenewLastBlockOnL1() {
-		return
+func (l *l1RollupInfoProducer) getNextTimeout() time.Duration {
+	switch l.syncStatus.getStatus() {
+	case syncStatusIdle:
+		return timeOutMainLoop
+	case syncStatusWorking:
+		return timeOutMainLoop
+	case syncStatusSynchronized:
+		nextRenewLastBlock := time.Since(l.timeLastBLockOnL1) + l.ttlOfLastBlockOnL1
+		return max(nextRenewLastBlock, time.Second)
+	default:
+		log.Fatalf("producer: Unknown status: %s", l.syncStatus.getStatus().String())
 	}
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-
-	_, err := l.workers.asyncRequestLastBlock(l.ctx)
-	if err != nil {
-		if err.Error() == errReachMaximumLiveRequestsOfThisType {
-			log.Debugf("producer: There are a request to get last block on L1 already running")
-		} else {
-			log.Warnf("producer: Error while trying to get last block on L1: %v", err)
-		}
-	}
+	return time.Second
 }
 
-func (l *l1RollupInfoProducer) onResponseRetrieveLastBlockOnL1(result genericResponse[retrieveL1LastBlockResult]) {
-	if result.err != nil {
-		log.Warnf("producer: Error while trying to get last block on L1: %v", result.err)
-		return
+// OnNewLastBlock is called when a new last block on L1 is received
+func (l *l1RollupInfoProducer) onNewLastBlock(lastBlock uint64, launchWork bool) onNewLastBlockResponse {
+	resp := l.syncStatus.onNewLastBlockOnL1(lastBlock)
+	l.statistics.updateLastBlockNumber(resp.fullRange.toBlock)
+	l.timeLastBLockOnL1 = time.Now()
+	if resp.extendedRange != nil {
+		log.Infof("producer: New last block on L1: %v -> %s", resp.fullRange.toBlock, resp.toString())
 	}
-	l.onNewLastBlock(result.result.block, true)
+	if launchWork {
+		l.launchWork()
+	}
+	return resp
+}
+
+// launchWork: launch new workers if possible and returns new channels created
+// returns the number of workers launched
+func (l *l1RollupInfoProducer) launchWork() int {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	launchedWorker := 0
+	accDebugStr := ""
+	thereAreAnError := false
+	for {
+		br := l.syncStatus.getNextRange()
+		if br == nil {
+			// No more work to do
+			accDebugStr += "[NoNextRange] "
+			break
+		}
+		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctx, *br)
+		if err != nil {
+			thereAreAnError = true
+			accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.toString(), err.Error())
+			break
+		}
+		launchedWorker++
+		l.syncStatus.onStartedNewWorker(*br)
+	}
+	if launchedWorker == 0 {
+		log.Debugf("producer: No workers launched because: %s", accDebugStr)
+	}
+	if thereAreAnError {
+		log.Warnf("producer: launched workers: %d , but there are an error: %s", launchedWorker, accDebugStr)
+	}
+	return launchedWorker
+}
+
+func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
+	l.mutex.Lock()
+	elapsed := time.Since(l.timeLastBLockOnL1)
+	ttl := l.ttlOfLastBlockOnL1
+	oldBlock := l.syncStatus.getLastBlockOnL1()
+	l.mutex.Unlock()
+	if elapsed > ttl || forced {
+		log.Infof("producer: Need a new value for Last Block On L1, doing the request")
+		result := l.workers.requestLastBlockWithRetries(l.ctx, timeRequestInitialValueOfLastBlock, maxRetriesForRequestnitialValueOfLastBlock)
+		log.Infof("producer: Need a new value for Last Block On L1, doing the request old_block:%v -> new block:%v", oldBlock, result.result.block)
+		if result.err != nil {
+			log.Error(result.err)
+			return
+		}
+		l.onNewLastBlock(result.result.block, true)
+	}
 }
 
 func (l *l1RollupInfoProducer) onResponseRollupInfo(result genericResponse[responseRollupInfoByBlockRange]) {
 	isOk := (result.err == nil)
 	l.syncStatus.onFinishWorker(result.result.blockRange, isOk)
 	if isOk {
-		l.statistics.numRollupInfoOk++
-		l.statistics.numRetrievedBlocks += result.result.blockRange.len()
+		l.statistics.updateNumRollupInfoOk(1, result.result.blockRange.len())
 		outgoingPackages := l.filterToSendOrdererResultsToConsumer.filter(*newL1SyncMessageData(result.result))
 		l.sendPackages(outgoingPackages)
 	} else {
-		l.statistics.numRollupInfoErrors++
+		l.statistics.updateNumRollupInfoErrors(1)
 		log.Warnf("producer: Error while trying to get rollup info by block range: %v", result.err)
 	}
 }
