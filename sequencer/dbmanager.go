@@ -243,6 +243,10 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 
 	err = dbTx.Commit(ctx)
 	if err != nil {
+		err2 := d.streamServer.RollbackAtomicOp()
+		if err2 != nil {
+			log.Error("failed to rollback atomic op: %v", err2)
+		}
 		return err
 	} else {
 		if d.streamServer != nil {

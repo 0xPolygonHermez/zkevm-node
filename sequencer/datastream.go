@@ -4,14 +4,17 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
+	// StreamTypeSequencer represents a Sequencer stream
+	StreamTypeSequencer datastreamer.StreamType = 1
 	// EntryTypeL2Block represents a L2 block
-	EntryTypeL2Block = 1
+	EntryTypeL2Block datastreamer.EntryType = 1
 	// EntryTypeL2Tx represents a L2 transaction
-	EntryTypeL2Tx = 2
+	EntryTypeL2Tx datastreamer.EntryType = 2
 )
 
 // L2Block represents a L2 block
