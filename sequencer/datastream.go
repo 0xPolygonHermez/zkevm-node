@@ -18,7 +18,7 @@ const (
 )
 
 // L2Block represents a L2 block
-type L2Block struct {
+type DSL2Block struct {
 	BatchNumber    uint64
 	L2BlockNumber  uint64
 	Timestamp      time.Time
@@ -27,13 +27,13 @@ type L2Block struct {
 }
 
 // Encode returns the encoded L2Block as a byte slice
-func (b L2Block) Encode() []byte {
-	const size = int(unsafe.Sizeof(L2Block{}))
+func (b DSL2Block) Encode() []byte {
+	const size = int(unsafe.Sizeof(DSL2Block{}))
 	return (*(*[size]byte)(unsafe.Pointer(&b)))[:]
 }
 
 // L2Transaction represents a L2 transaction
-type L2Transaction struct {
+type DSL2Transaction struct {
 	BatchNumber                 uint64
 	EffectiveGasPricePercentage uint8
 	IsValid                     uint8
@@ -42,7 +42,7 @@ type L2Transaction struct {
 }
 
 // Encode returns the encoded L2Transaction as a byte slice
-func (l L2Transaction) Encode() []byte {
-	const size = int(unsafe.Sizeof(L2Transaction{}))
+func (l DSL2Transaction) Encode() []byte {
+	const size = int(unsafe.Sizeof(DSL2Transaction{}))
 	return (*(*[size]byte)(unsafe.Pointer(&l)))[:]
 }

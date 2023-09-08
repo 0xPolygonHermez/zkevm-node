@@ -204,12 +204,12 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 
 	// Send tx data to data stream server
 	if d.streamServer != nil {
-		l2BlochHeader, err := d.GetLastL2BlockHeader(ctx, nil)
+		l2BlochHeader, err := d.GetLastL2BlockHeader(ctx, dbTx)
 		if err != nil {
 			return err
 		}
 
-		l2Block := L2Block{
+		l2Block := DSL2Block{
 			BatchNumber:    tx.batchNumber,
 			L2BlockNumber:  l2BlochHeader.Number.Uint64(),
 			Timestamp:      tx.timestamp,
@@ -217,7 +217,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 			Coinbase:       tx.coinbase,
 		}
 
-		l2Transaction := L2Transaction{
+		l2Transaction := DSL2Transaction{
 			BatchNumber:                 batch.BatchNumber,
 			EffectiveGasPricePercentage: uint8(tx.response.EffectivePercentage),
 			IsValid:                     1,

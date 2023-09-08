@@ -124,12 +124,12 @@ func (s *Sequencer) Start(ctx context.Context) {
 			EntryTypeL2Block: {
 				Name:       "L2Block",
 				StreamType: StreamTypeSequencer,
-				Definition: reflect.TypeOf(L2Block{}),
+				Definition: reflect.TypeOf(DSL2Block{}),
 			},
 			EntryTypeL2Tx: {
 				Name:       "L2Transaction",
 				StreamType: StreamTypeSequencer,
-				Definition: reflect.TypeOf(L2Transaction{}),
+				Definition: reflect.TypeOf(DSL2Transaction{}),
 			},
 		}
 
