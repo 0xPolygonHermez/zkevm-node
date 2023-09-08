@@ -47,7 +47,7 @@ docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker
 
 6. Copy the file with the env parameters into config directory: `mkdir -p $ZKEVM_CONFIG_DIR && cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env`
 7. Edit the env file, with your favourite editor. The example will use nano: `nano $ZKEVM_CONFIG_DIR/.env`. This file contains the configuration that anyone should modify. For advanced configuration:
-   1. Copy the config files into the config directory `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/testnet/* $ZKEVM_CONFIG_DIR/`
+   1. Copy the config files into the config directory `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/$ZKEVM_NET/* $ZKEVM_CONFIG_DIR/`
    2. Make sure the modify the `ZKEVM_ADVANCED_CONFIG_DIR` from `$ZKEVM_CONFIG_DIR/.env` with the correct path
    3. Edit the different configuration files in the $ZKEVM_CONFIG_DIR directory and make the necessary changes
 8. Run the node: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml up -d`. You may need to run this command using `sudo` depending on your Docker setup.
