@@ -17,7 +17,7 @@ const (
 	EntryTypeL2Tx datastreamer.EntryType = 2
 )
 
-// L2Block represents a L2 block
+// DSL2Block represents a data stream L2 block
 type DSL2Block struct {
 	BatchNumber    uint64
 	L2BlockNumber  uint64
@@ -32,7 +32,7 @@ func (b DSL2Block) Encode() []byte {
 	return (*(*[size]byte)(unsafe.Pointer(&b)))[:]
 }
 
-// L2Transaction represents a L2 transaction
+// DSL2Transaction represents a data stream L2 transaction
 type DSL2Transaction struct {
 	BatchNumber                 uint64
 	EffectiveGasPricePercentage uint8
