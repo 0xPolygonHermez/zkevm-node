@@ -3,6 +3,7 @@ package synchronizer
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -12,8 +13,9 @@ import (
 This object is to coordinate the producer process and the consumer process.
 */
 type l1RollupProducerInterface interface {
-	start() error
+	start(startingBlockNumber uint64) error
 	stop()
+	reset(startingBlockNumber uint64)
 }
 
 type l1RollupConsumerInterface interface {
@@ -23,8 +25,10 @@ type l1RollupConsumerInterface interface {
 }
 
 type l1SyncOrchestration struct {
-	producer l1RollupProducerInterface
-	consumer l1RollupConsumerInterface
+	mutex           sync.Mutex
+	producer        l1RollupProducerInterface
+	consumer        l1RollupConsumerInterface
+	producerStarted bool
 }
 
 const (
@@ -33,37 +37,61 @@ const (
 
 func newL1SyncOrchestration(producer l1RollupProducerInterface, consumer l1RollupConsumerInterface) *l1SyncOrchestration {
 	return &l1SyncOrchestration{
-		producer: producer,
-		consumer: consumer,
+		producer:        producer,
+		consumer:        consumer,
+		producerStarted: false,
 	}
 }
 
-// There are 2 reason for finish:
-// 1) The producer process finish (have requested all the data from L1):
-//   - Wait until consumer run out of data on channel
-//
-// 2) The consumer process finish if there are an error in the process of the data:
-//   - Abort cosumer
-func (l *l1SyncOrchestration) start() (*state.Block, error) {
-	log.Info("orchestration: starting L1 sync orchestration")
+func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
+	log.Warnf("Reset L1 sync process to blockNumber %d", startingBlockNumber)
+	l.producer.reset(startingBlockNumber)
+}
+
+func (l *l1SyncOrchestration) start(startingBlockNumber uint64) (*state.Block, error) {
 	chProducer := make(chan error, 1)
 	chConsumer := make(chan error, 1)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	// Start producer: L1DataRetriever from L1
-	go func() {
-		defer wg.Done()
-		err := l.producer.start()
-		if err != nil {
-			log.Warnf("orchestration: producer error . Error: %s", err)
+	l.launch_producer(startingBlockNumber, chProducer, &wg)
+	l.launch_consumer(chConsumer, &wg)
+	return l.orchestrate(&wg, chProducer, chConsumer)
+}
+
+func (l *l1SyncOrchestration) launch_producer(startingBlockNumber uint64, chProducer chan error, wg *sync.WaitGroup) {
+	l.mutex.Lock()
+	if !l.producerStarted {
+		if wg != nil {
+			wg.Add(1)
 		}
-		log.Infof("orchestration: producer finished")
-		chProducer <- err
-	}()
-	// Start consumer: L1DataProcessor execute the RollupInfo
+
+		// Start producer: L1DataRetriever from L1
+		l.producerStarted = true
+		l.mutex.Unlock()
+		go func() {
+			if wg != nil {
+				defer wg.Done()
+			}
+			log.Infof("orchestration: starting producer(%v)", startingBlockNumber)
+			err := l.producer.start(startingBlockNumber)
+			if err != nil {
+				log.Warnf("orchestration: producer error . Error: %s", err)
+			}
+			l.mutex.Lock()
+			l.producerStarted = false
+			l.mutex.Unlock()
+			log.Infof("orchestration: producer finished")
+			chProducer <- err
+		}()
+	} else {
+		l.mutex.Unlock()
+	}
+}
+
+func (l *l1SyncOrchestration) launch_consumer(chConsumer chan error, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		log.Infof("orchestration: starting consumer")
 		err := l.consumer.start()
 		if err != nil {
 			log.Warnf("orchestration: consumer error. Error: %s", err)
@@ -71,8 +99,6 @@ func (l *l1SyncOrchestration) start() (*state.Block, error) {
 		log.Infof("orchestration: consumer finished")
 		chConsumer <- err
 	}()
-
-	return l.orchestrate(&wg, chProducer, chConsumer)
 }
 
 func (l *l1SyncOrchestration) orchestrate(wg *sync.WaitGroup, hProducer chan error, chConsumer chan error) (*state.Block, error) {
@@ -83,29 +109,19 @@ func (l *l1SyncOrchestration) orchestrate(wg *sync.WaitGroup, hProducer chan err
 		select {
 		case err = <-hProducer:
 			// Producer have finish
-			if err != nil {
-				log.Warnf("orchestration: DataRetriever (producer) have finish with  Error: %s", err)
-			} else {
-				log.Info("orchestration: DataRetriever (producer) have finish")
-			}
-			// process all pending RollupInfo and finish
-			log.Info("orchestration: consumer consume all pending RollupInfo and finish")
-			l.consumer.stopAfterProcessChannelQueue()
-
+			log.Warnf("orchestration: consumer have finish! this never have to happen, restarting it. Error:%s", err)
+			// to avoid respawn too fast it sleeps a bit
+			time.Sleep(time.Second)
+			l.launch_producer(invalidBlockNumber, hProducer, wg)
 		case err = <-chConsumer:
 			if err != nil {
-				log.Warnf("orchestration: DataProcessor (consumer) have finish with Error: %s", err)
+				log.Warnf("orchestration: consumer have finish with Error: %s", err)
 			} else {
-				log.Info("orchestration: DataProcessor (consumer) have finish")
+				log.Info("orchestration: consumer have finish ok")
 			}
-			log.Info("orchestration: Stoping producer because we don't need more rollupinfo")
-			l.producer.stop()
-			// Consumer have finish, return
 			done = true
 		}
 	}
-	log.Info("orchestration: waiting to finish producer and consumer")
-	wg.Wait()
 	retBlock, ok := l.consumer.getLastEthBlockSynced()
 	if ok {
 		log.Infof("orchestration: finished L1 sync orchestration. Last block synced: %d err:%s", retBlock.BlockNumber, err)

@@ -26,6 +26,13 @@ func (s *filterToSendOrdererResultsToConsumer) toStringBrief() string {
 		s.lastBlockOnSynchronizer, len(s.pendingResults))
 }
 
+func (s *filterToSendOrdererResultsToConsumer) reset(lastBlockOnSynchronizer uint64) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.lastBlockOnSynchronizer = lastBlockOnSynchronizer
+	s.pendingResults = []l1SyncMessage{}
+}
+
 func (s *filterToSendOrdererResultsToConsumer) filter(data l1SyncMessage) []l1SyncMessage {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -39,7 +46,7 @@ func (s *filterToSendOrdererResultsToConsumer) filter(data l1SyncMessage) []l1Sy
 func (s *filterToSendOrdererResultsToConsumer) _checkValidData(result *l1SyncMessage) {
 	if result.dataIsValid {
 		if result.data.blockRange.fromBlock < s.lastBlockOnSynchronizer {
-			log.Fatalf("It's not possible to receive a old block [%s] range that have been already send to synchronizer. Ignoring it.  status:[%s]",
+			log.Warnf("It's not possible to receive a old block [%s] range that have been already send to synchronizer. Ignoring it.  status:[%s]",
 				result.data.blockRange.toString(), s.toStringBrief())
 			return
 		}

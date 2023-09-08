@@ -48,10 +48,12 @@ const (
 type filter interface {
 	toStringBrief() string
 	filter(data l1SyncMessage) []l1SyncMessage
+	reset(lastBlockOnSynchronizer uint64)
 }
 
 type syncStatusInterface interface {
-	verify(allowModify bool) error
+	verify() error
+	reset(lastBlockStoreOnStateDB uint64)
 	toStringBrief() string
 	getNextRange() *blockRange
 	isNodeFullySynchronizedWithL1() bool
@@ -65,12 +67,10 @@ type syncStatusInterface interface {
 }
 
 type workersInterface interface {
-	// verify test params, if allowModify = true allow to change things or make connections
-	verify(allowModify bool) error
 	// initialize object
 	initialize() error
 	// finalize object
-	finalize() error
+	stop()
 	// waits until all workers have finish the current task
 	waitFinishAllWorkers()
 	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan genericResponse[responseRollupInfoByBlockRange], error)
@@ -107,22 +107,18 @@ func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 	result := l1RollupInfoProducer{
 		ctx:                                  ctx,
 		cancelCtx:                            cancel,
-		syncStatus:                           newSyncStatus(startingBlockNumber, SyncChunkSize, ttlOfLastBlock),
+		syncStatus:                           newSyncStatus(startingBlockNumber, SyncChunkSize),
 		workers:                              newWorkers(ctx, ethermans),
 		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(startingBlockNumber),
 		outgoingChannel:                      outgoingChannel,
 		statistics:                           newRollupInfoProducerStatistics(startingBlockNumber),
 		ttlOfLastBlockOnL1:                   ttlOfLastBlock,
 	}
-	err := result.verify(false)
-	if err != nil {
-		log.Fatal(err)
-	}
 	return &result
 }
 
-// TDOO: There is no min function in golang??
-func min(a, b uint64) uint64 {
+// TDOO: There is no min/max function in golang??
+func min[T constraints.Ordered](a, b T) T {
 	if a < b {
 		return a
 	}
@@ -136,22 +132,27 @@ func max[T constraints.Ordered](a, b T) T {
 	return b
 }
 
+func (l *l1RollupInfoProducer) reset(startingBlockNumber uint64) {
+	log.Warnf("producer: Reset L1 sync process to blockNumber %d", startingBlockNumber)
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	l.syncStatus.reset(startingBlockNumber)
+	l.statistics.reset(startingBlockNumber)
+	l.workers.stop()
+	// Empty pending rollupinfos
+	for len(l.outgoingChannel) > 0 {
+		<-l.outgoingChannel
+	}
+	l.filterToSendOrdererResultsToConsumer.reset(startingBlockNumber)
+}
+
 // verify: test params and status without if not allowModify avoid doing connection or modification of objects
-func (l *l1RollupInfoProducer) verify(allowModify bool) error {
-	err := l.workers.verify(allowModify)
-	if err != nil {
-		return err
-	}
-	err = l.syncStatus.verify(allowModify)
-	if err != nil {
-		return err
-	}
-	return nil
+func (l *l1RollupInfoProducer) verify() error {
+	return l.syncStatus.verify()
 }
 
 func (l *l1RollupInfoProducer) initialize() error {
-	// TODO: check that all ethermans have the same chainID and get last block in L1
-	err := l.verify(true)
+	err := l.verify()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -174,7 +175,18 @@ func (l *l1RollupInfoProducer) initialize() error {
 	return nil
 }
 
-func (l *l1RollupInfoProducer) start() error {
+// If startingBlockNumber is invalidBlockNumber it will use the last block on stateDB
+func (l *l1RollupInfoProducer) start(startingBlockNumber uint64) error {
+	if startingBlockNumber != invalidBlockNumber {
+		log.Infof("producer: starting L1 sync from %v, previous status:%s", startingBlockNumber, l.syncStatus.toStringBrief())
+		l.reset(startingBlockNumber)
+	} else {
+		log.Infof("producer: starting L1 sync with no changed status:%s", l.syncStatus.toStringBrief())
+	}
+	err := l.initialize()
+	if err != nil {
+		return err
+	}
 	var waitDuration = time.Duration(0)
 	previousStatus := l.syncStatus.getStatus()
 	for l.step(&waitDuration) {
@@ -198,7 +210,7 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 		return false
 	// That timeout is not need, but just in case that stop launching request
 	case <-time.After(*waitDuration):
-		log.Debugf("producer: timeout [%s]", *waitDuration)
+		log.Debugf("producer: step reach periodic timeout of [%s]", *waitDuration)
 	case resultRollupInfo := <-l.workers.getResponseChannelForRollupInfo():
 		l.onResponseRollupInfo(resultRollupInfo)
 	}
@@ -269,12 +281,13 @@ func (l *l1RollupInfoProducer) launchWork() int {
 			break
 		}
 		launchedWorker++
+		log.Infof("producer: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.toString(), launchedWorker)
 		l.syncStatus.onStartedNewWorker(*br)
 	}
 	if launchedWorker == 0 {
 		log.Debugf("producer: No workers launched because: %s", accDebugStr)
 	}
-	if thereAreAnError {
+	if thereAreAnError && launchedWorker == 0 {
 		log.Warnf("producer: launched workers: %d , but there are an error: %s", launchedWorker, accDebugStr)
 	}
 	return launchedWorker
@@ -299,14 +312,13 @@ func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
 }
 
 func (l *l1RollupInfoProducer) onResponseRollupInfo(result genericResponse[responseRollupInfoByBlockRange]) {
+	l.statistics.onResponseRollupInfo(result)
 	isOk := (result.err == nil)
 	l.syncStatus.onFinishWorker(result.result.blockRange, isOk)
 	if isOk {
-		l.statistics.updateNumRollupInfoOk(1, result.result.blockRange.len())
 		outgoingPackages := l.filterToSendOrdererResultsToConsumer.filter(*newL1SyncMessageData(result.result))
 		l.sendPackages(outgoingPackages)
 	} else {
-		l.statistics.updateNumRollupInfoErrors(1)
 		log.Warnf("producer: Error while trying to get rollup info by block range: %v", result.err)
 	}
 }
@@ -317,7 +329,7 @@ func (l *l1RollupInfoProducer) stop() {
 
 func (l *l1RollupInfoProducer) sendPackages(outgoingPackages []l1SyncMessage) {
 	for _, pkg := range outgoingPackages {
-		log.Infof("producer: Sending results [data] to consumer:%s: It could block channel [%d/%d]", pkg.toStringBrief(), len(l.outgoingChannel), cap(l.outgoingChannel))
+		log.Infof("producer: Sending results [data] to consumer:%s:  channel status [%d/%d]", pkg.toStringBrief(), len(l.outgoingChannel), cap(l.outgoingChannel))
 		l.outgoingChannel <- pkg
 	}
 }

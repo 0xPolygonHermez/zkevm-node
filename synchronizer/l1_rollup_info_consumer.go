@@ -3,7 +3,6 @@ package synchronizer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -20,7 +19,8 @@ const (
 	numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData = 20
 	acceptableTimeWaitingForNewRollupInfoData                       = 1 * time.Second
 
-	errConsumerStopped = "consumer:stopped by request"
+	errConsumerStopped                      = "consumer:stopped by request"
+	errConsumerStoppedBecauseIsSynchronized = "consumer:stopped because is synchronized"
 )
 
 // synchronizerProcessBlockRangeInterface is the interface with synchronizer
@@ -39,13 +39,6 @@ type l1RollupInfoConsumer struct {
 	lastEthBlockSynced    *state.Block
 }
 
-type ll1RollupInfoConsumerStatistics struct {
-	numProcessedRollupInfo         uint64
-	numProcessedBlocks             uint64
-	startTime                      time.Time
-	timePreviousProcessingDuration time.Duration
-}
-
 func newL1RollupInfoConsumer(synchronizer synchronizerProcessBlockRangeInterface,
 	ctx context.Context, ch chan l1SyncMessage) *l1RollupInfoConsumer {
 	return &l1RollupInfoConsumer{
@@ -59,60 +52,61 @@ func newL1RollupInfoConsumer(synchronizer synchronizerProcessBlockRangeInterface
 }
 
 func (l *l1RollupInfoConsumer) start() error {
+	l.statistics.onStart()
 	err := l.step()
 	for ; err == nil; err = l.step() {
 	}
-	if err.Error() != errConsumerStopped {
+	if err.Error() != errConsumerStopped && err.Error() != errConsumerStoppedBecauseIsSynchronized {
 		return err
 	}
 	// The errConsumerStopped is not an error, so we return nil meaning that the process finished in a normal way
 	return nil
 }
 func (l *l1RollupInfoConsumer) step() error {
-	timeWaitingStart := time.Now()
+	l.statistics.onStartStep()
 	var err error
 	select {
 	case <-l.ctx.Done():
 		return errors.New(errCanceled)
 	case rollupInfo := <-l.chIncommingRollupInfo:
 		if rollupInfo.dataIsValid {
-			err = l.processIncommingRollupInfoData(rollupInfo.data, timeWaitingStart)
+			err = l.processIncommingRollupInfoData(rollupInfo.data)
 		}
 		if rollupInfo.ctrlIsValid {
-			err = l.processIncommingRollupControlData(rollupInfo.ctrl, timeWaitingStart)
+			err = l.processIncommingRollupControlData(rollupInfo.ctrl)
 		}
 	}
 	return err
 }
-func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1ConsumerControl, timeWaitingStart time.Time) error {
+func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1ConsumerControl) error {
 	log.Infof("consumer: processing controlPackage: %s", control.toString())
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	if control.event == eventStop {
+		log.Infof("consumer: received a stop, so it stops processing. ignoring rest of items on channel len=%d", len(l.chIncommingRollupInfo))
 		return errors.New(errConsumerStopped)
+	}
+	if control.event == eventProducerIsFullySynced {
+		itemsInChannel := len(l.chIncommingRollupInfo)
+		if itemsInChannel == 0 {
+			log.Infof("consumer: received a fullSync and nothing pending in channel to process, so stopping consumer")
+			return errors.New(errConsumerStoppedBecauseIsSynchronized)
+		} else {
+			log.Warnf("consumer: received a fullSync but still have %d items in channel to process, so not stopping consumer", itemsInChannel)
+		}
 	}
 	return nil
 }
 
-func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo responseRollupInfoByBlockRange, timeWaitingStart time.Time) error {
+func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo responseRollupInfoByBlockRange) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	var err error
-	timeWaitingEnd := time.Now()
-	waitingTimeForData := timeWaitingEnd.Sub(timeWaitingStart)
-	blocksPerSecond := float64(l.statistics.numProcessedBlocks) / time.Since(l.statistics.startTime).Seconds()
-	if l.statistics.numProcessedRollupInfo > numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData && waitingTimeForData > acceptableTimeWaitingForNewRollupInfoData {
-		msg := fmt.Sprintf("wasted waiting for new rollupInfo from L1: %s last_process: %s new range: %s block_per_second: %f",
-			waitingTimeForData, l.statistics.timePreviousProcessingDuration, rollupInfo.blockRange.toString(), blocksPerSecond)
-		log.Warnf("consumer:: Too much wasted time:%s", msg)
-	}
-	// Process
-	l.statistics.numProcessedRollupInfo++
-	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] wasted_time_waiting_for_data [%s] last_process_time [%s] block_per_second [%f]", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.toString(), len(rollupInfo.blocks),
-		waitingTimeForData, l.statistics.timePreviousProcessingDuration, blocksPerSecond)
+	statisticsMsg := l.statistics.onStartProcessIncommingRollupInfoData(rollupInfo)
+	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] statistics:%s", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.toString(), len(rollupInfo.blocks), statisticsMsg)
 	timeProcessingStart := time.Now()
 	l.lastEthBlockSynced, err = l._Process(rollupInfo)
-	l.statistics.timePreviousProcessingDuration = time.Since(timeProcessingStart)
+	l.statistics.onFinishProcessIncommingRollupInfoData(rollupInfo, time.Since(timeProcessingStart), err)
 	if err != nil {
 		log.Error("consumer: error processing rollupInfo. Error: ", err)
 		return err
@@ -137,7 +131,7 @@ func (l *l1RollupInfoConsumer) stopAfterProcessChannelQueue() {
 }
 
 func (l *l1RollupInfoConsumer) sendStopPackage() {
-	// Send a dummy result to wake up select
+	// Send a stop to the channel to stop the consumer when reach this point
 	l.chIncommingRollupInfo <- *newL1SyncMessageControl(eventStop)
 }
 

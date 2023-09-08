@@ -3,7 +3,6 @@ package synchronizer
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
@@ -35,7 +34,6 @@ type syncStatus struct {
 	mutex                     sync.Mutex
 	lastBlockStoreOnStateDB   uint64
 	highestBlockRequested     uint64
-	lastBlockTTLDuration      time.Duration
 	lastBlockOnL1             uint64
 	amountOfBlocksInEachRange uint64
 	// This ranges are being processed
@@ -61,17 +59,24 @@ func (s *syncStatus) toString() string {
 // lastBlockStoreOnStateDB: last block stored on stateDB
 // amountOfBlocksInEachRange: amount of blocks to be retrieved in each range
 // lastBlockTTLDuration: TTL of the last block on L1 (it could be ttlOfLastBlockInfinity that means that is no renewed)
-func newSyncStatus(lastBlockStoreOnStateDB uint64, amountOfBlocksInEachRange uint64, lastBlockTTLDuration time.Duration) *syncStatus {
+func newSyncStatus(lastBlockStoreOnStateDB uint64, amountOfBlocksInEachRange uint64) *syncStatus {
 	return &syncStatus{
 		lastBlockStoreOnStateDB:   lastBlockStoreOnStateDB,
 		highestBlockRequested:     lastBlockStoreOnStateDB,
 		amountOfBlocksInEachRange: amountOfBlocksInEachRange,
-		// lastBlockTTLDuration is the TTL assign to the incomming lastBlock values from L1
-		lastBlockTTLDuration: lastBlockTTLDuration,
-		lastBlockOnL1:        invalidLastBlock,
-		processingRanges:     newLiveBlockRanges(),
-		status:               syncStatusIdle,
+		lastBlockOnL1:             invalidLastBlock,
+		processingRanges:          newLiveBlockRanges(),
+		status:                    syncStatusIdle,
 	}
+}
+func (s *syncStatus) reset(lastBlockStoreOnStateDB uint64) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.lastBlockStoreOnStateDB = lastBlockStoreOnStateDB
+	s.highestBlockRequested = lastBlockStoreOnStateDB
+	s.processingRanges = newLiveBlockRanges()
+	s.lastBlockOnL1 = invalidLastBlock
+	s.status = syncStatusIdle
 }
 
 func (s *syncStatus) getLastBlockOnL1() uint64 {
@@ -165,7 +170,8 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 	// also move the s.lastBlockStoreOnStateDB to the end of the range if needed
 	err := s.processingRanges.removeBlockRange(br)
 	if err != nil {
-		log.Fatal(err)
+		log.Warnf("finished a unknownblock range, ignoring it: %s", err)
+		return
 	}
 
 	if successful {
@@ -279,7 +285,7 @@ func (s *syncStatus) needToRenewLastBlockOnL1() bool {
 	return s.lastBlockOnL1 == invalidLastBlock
 }
 
-func (s *syncStatus) verify(allowModify bool) error {
+func (s *syncStatus) verify() error {
 	if s.amountOfBlocksInEachRange == 0 {
 		return fmt.Errorf("SyncChunkSize must be greater than 0")
 	}

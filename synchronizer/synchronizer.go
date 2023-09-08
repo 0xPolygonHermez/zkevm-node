@@ -61,6 +61,7 @@ type ClientSynchronizer struct {
 	proverID string
 	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
 	previousExecutorFlushID uint64
+	l1SyncOrchestration     *l1SyncOrchestration
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -78,7 +79,7 @@ func NewSynchronizer(
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
 
-	return &ClientSynchronizer{
+	res := &ClientSynchronizer{
 		isTrustedSequencer:      isTrustedSequencer,
 		state:                   st,
 		etherMan:                ethMan,
@@ -93,10 +94,27 @@ func NewSynchronizer(
 		cfg:                     cfg,
 		proverID:                "",
 		previousExecutorFlushID: 0,
-	}, nil
+		l1SyncOrchestration:     nil,
+	}
+	if cfg.UseParallelModeForL1Synchronization {
+		var err error
+		res.l1SyncOrchestration, err = NewL1SyncParallel(ctx, cfg, etherManForL1, res)
+		if err != nil {
+			log.Fatalf("Can't initialize L1SyncParallel. Error: %s", err)
+		}
+	}
+	return res, nil
 }
 
 var waitDuration = time.Duration(0)
+
+func NewL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer) (*l1SyncOrchestration, error) {
+	chIncommingRollupInfo := make(chan l1SyncMessage, cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
+	L1DataProcessor := newL1RollupInfoConsumer(sync, ctx, chIncommingRollupInfo)
+	l1DataRetriever := newL1DataRetriever(ctx, etherManForL1, invalidBlockNumber, cfg.SyncChunkSize, chIncommingRollupInfo, false)
+	l1SyncOrchestration := newL1SyncOrchestration(l1DataRetriever, L1DataProcessor)
+	return l1SyncOrchestration, nil
+}
 
 // Sync function will read the last state synced and will continue from that point.
 // Sync() will read blockchain events to detect rollup updates
@@ -307,18 +325,7 @@ func (s *ClientSynchronizer) syncBlocksParallel(lastEthBlockSynced *state.Block)
 		}
 		return block, nil
 	}
-
-	chIncommingRollupInfo := make(chan l1SyncMessage, s.cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
-	L1DataProcessor := newL1RollupInfoConsumer(s, s.ctx, chIncommingRollupInfo)
-	l1DataRetriever := newL1DataRetriever(s.ctx, s.etherManForL1, lastEthBlockSynced.BlockNumber, s.cfg.SyncChunkSize, chIncommingRollupInfo, false)
-	l1SyncOrchestration := newL1SyncOrchestration(l1DataRetriever, L1DataProcessor)
-	err = l1DataRetriever.initialize()
-	if err != nil {
-		log.Warnf("error initializing L1DataRetriever. Error: %s", err)
-		return nil, err
-	}
-
-	return l1SyncOrchestration.start()
+	return s.l1SyncOrchestration.start(lastEthBlockSynced.BlockNumber)
 }
 
 // This function syncs the node from a specific block to the latest
@@ -620,7 +627,9 @@ func (s *ClientSynchronizer) resetState(blockNumber uint64) error {
 		log.Error("error committing the resetted state. Error: ", err)
 		return err
 	}
-
+	if s.l1SyncOrchestration != nil {
+		s.l1SyncOrchestration.reset(blockNumber)
+	}
 	return nil
 }
 

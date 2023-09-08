@@ -50,21 +50,19 @@ func newWorkers(ctx context.Context, ethermans []EthermanInterface) *workers {
 	result.chOutgoingRollupInfo = make(chan genericResponse[responseRollupInfoByBlockRange], len(ethermans)+1)
 	return &result
 }
-func (w *workers) verify(allowModify bool) error {
+
+func (w *workers) initialize() error {
 	if len(w.workers) == 0 {
 		return errors.New(errRequiredEtherman)
 	}
-	// TODO: checks that all ethermans have the same chainID
-	//verifyChainIDOfEthermans()
 	return nil
 }
 
-func (w *workers) initialize() error {
-	return nil
-}
-
-func (w *workers) finalize() error {
-	return nil
+func (w *workers) stop() {
+	// TODO: ctx cancel
+	for _, wg := range w.waitGroups {
+		wg.Wait()
+	}
 }
 
 func (w *workers) getResponseChannelForRollupInfo() chan genericResponse[responseRollupInfoByBlockRange] {
@@ -132,9 +130,9 @@ func (w *workers) asyncGenericRequest(ctx context.Context, requestType typeOfReq
 
 	err := funcRequest(worker, ctx, wg)
 	if err == nil {
-		log.Infof("workers: worker started call:[%s]", requestStrForDebug)
+		log.Debugf("workers: worker started call:[%s]", requestStrForDebug)
 	} else {
-		log.Warnf("workers: worker started failed! call:[%s] failed err:[%s]", requestStrForDebug, err.Error())
+		log.Debugf("workers: worker started failed! call:[%s] failed err:[%s]", requestStrForDebug, err.Error())
 	}
 	return err
 }
@@ -191,7 +189,7 @@ func (w *workers) _checkReachedLimitLiveRequest(typeOfRequest typeOfRequest) boo
 	maximumLiveRequests := w.limitLiveRequests[typeOfRequest]
 	reachedLimit := numberOfWorkers >= maximumLiveRequests
 	if reachedLimit {
-		log.Infof("workers: reached limit live request of type [%d] currentWorkes:%d >= maxPermitted:%d", typeOfRequest, numberOfWorkers, maximumLiveRequests)
+		log.Debugf("workers: reached limit live request of type [%d] currentWorkes:%d >= maxPermitted:%d", typeOfRequest, numberOfWorkers, maximumLiveRequests)
 	}
 	return reachedLimit
 }

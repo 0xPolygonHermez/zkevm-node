@@ -3,6 +3,8 @@ package synchronizer
 import (
 	"fmt"
 	"time"
+
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 )
 
 // This object keep track of the statistics of the process, to be able to estimate the ETA
@@ -23,17 +25,29 @@ func newRollupInfoProducerStatistics(startingBlockNumber uint64) l1RollupInfoPro
 	}
 }
 
+func (l *l1RollupInfoProducerStatistics) reset(startingBlockNumber uint64) {
+	l.initialBlockNumber = startingBlockNumber
+	l.startTime = time.Now()
+	l.numRollupInfoOk = 0
+	l.numRollupInfoErrors = 0
+	l.numRetrievedBlocks = 0
+	l.lastShowUpTime = time.Now()
+
+}
+
 func (l *l1RollupInfoProducerStatistics) updateLastBlockNumber(lastBlockNumber uint64) {
 	l.lastBlockNumber = lastBlockNumber
 }
 
-func (l *l1RollupInfoProducerStatistics) updateNumRollupInfoOk(numRollupInfo uint, numBlocks uint64) {
-	l.numRollupInfoOk += uint64(numRollupInfo)
-	l.numRetrievedBlocks += uint64(numBlocks)
-}
-
-func (l *l1RollupInfoProducerStatistics) updateNumRollupInfoErrors(numRollupInfoWithErrors uint) {
-	l.numRollupInfoErrors += uint64(numRollupInfoWithErrors)
+func (l *l1RollupInfoProducerStatistics) onResponseRollupInfo(result genericResponse[responseRollupInfoByBlockRange]) {
+	metrics.ReadL1DataTime(result.duration)
+	isOk := (result.err == nil)
+	if isOk {
+		l.numRollupInfoOk++
+		l.numRetrievedBlocks += uint64(result.result.blockRange.len())
+	} else {
+		l.numRollupInfoErrors++
+	}
 }
 
 func (l *l1RollupInfoProducerStatistics) getETA() string {
