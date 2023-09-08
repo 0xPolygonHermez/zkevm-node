@@ -60,8 +60,8 @@ func (w *workers) initialize() error {
 
 func (w *workers) stop() {
 	// TODO: ctx cancel
-	for _, wg := range w.waitGroups {
-		wg.Wait()
+	for i := 0; i < len(w.waitGroups); i++ {
+		w.waitGroups[i].Wait()
 	}
 }
 

@@ -7,13 +7,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
-type lastBlockOnL1Interface interface {
-	toString() string
-	getLastBlock() (uint64, error)
-	isValid() bool
-	isOutdated() bool
-}
-
 type syncStatusEnum int8
 
 const (

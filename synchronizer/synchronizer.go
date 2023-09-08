@@ -98,7 +98,7 @@ func NewSynchronizer(
 	}
 	if cfg.UseParallelModeForL1Synchronization {
 		var err error
-		res.l1SyncOrchestration, err = NewL1SyncParallel(ctx, cfg, etherManForL1, res)
+		res.l1SyncOrchestration, err = newL1SyncParallel(ctx, cfg, etherManForL1, res)
 		if err != nil {
 			log.Fatalf("Can't initialize L1SyncParallel. Error: %s", err)
 		}
@@ -108,7 +108,7 @@ func NewSynchronizer(
 
 var waitDuration = time.Duration(0)
 
-func NewL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer) (*l1SyncOrchestration, error) {
+func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer) (*l1SyncOrchestration, error) {
 	chIncommingRollupInfo := make(chan l1SyncMessage, cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
 	L1DataProcessor := newL1RollupInfoConsumer(sync, ctx, chIncommingRollupInfo)
 	l1DataRetriever := newL1DataRetriever(ctx, etherManForL1, invalidBlockNumber, cfg.SyncChunkSize, chIncommingRollupInfo, false)

@@ -10,6 +10,7 @@ import (
 )
 
 func Test_Exploratory(t *testing.T) {
+	t.Skip("no real test, just exploratory")
 	cfg := etherman.Config{
 		URL: "http://localhost:8545",
 	}
@@ -29,8 +30,8 @@ func Test_Exploratory(t *testing.T) {
 		fromBlock: 100,
 		toBlock:   20000,
 	}
-	worker.asyncRequestRollupInfoByBlockRange(context.Background(), ch, nil, blockRange)
+	err = worker.asyncRequestRollupInfoByBlockRange(context.Background(), ch, nil, blockRange)
+	require.NoError(t, err)
 	result := <-ch
 	require.Equal(t, result.err.Error(), "not found")
-
 }

@@ -2,6 +2,8 @@ package synchronizer
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mocksOrgertration struct {
@@ -12,7 +14,8 @@ type mocksOrgertration struct {
 func Test_A(t *testing.T) {
 	t.Skip("TODO")
 	sut, _ := setupOrchestrationTest(t)
-	sut.start(123)
+	_, err := sut.start(123)
+	require.NoError(t, err)
 }
 
 func setupOrchestrationTest(t *testing.T) (*l1SyncOrchestration, mocksOrgertration) {

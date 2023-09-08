@@ -32,7 +32,6 @@ func (l *l1RollupInfoProducerStatistics) reset(startingBlockNumber uint64) {
 	l.numRollupInfoErrors = 0
 	l.numRetrievedBlocks = 0
 	l.lastShowUpTime = time.Now()
-
 }
 
 func (l *l1RollupInfoProducerStatistics) updateLastBlockNumber(lastBlockNumber uint64) {
