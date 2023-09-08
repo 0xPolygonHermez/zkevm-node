@@ -340,8 +340,6 @@ services:
     container_name: zkevm-prover
     image: hermeznetwork/zkevm-prover:v2.2.1
     ports:
-      # - 50051:50051 # Prover
-      - 50052:50052 # Mock prover
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
