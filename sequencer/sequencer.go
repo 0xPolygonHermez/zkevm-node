@@ -114,7 +114,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	// Start stream server if enabled
 	if s.cfg.StreamServer.Port != 0 && s.cfg.StreamServer.Filename != "" {
-		streamServer, err := datastreamer.New(s.cfg.StreamServer.Port, s.cfg.StreamServer.Filename)
+		streamServer, err := datastreamer.New(s.cfg.StreamServer.Port, StreamTypeSequencer, s.cfg.StreamServer.Filename)
 		if err != nil {
 			log.Fatalf("failed to create stream server, err: %v", err)
 		}
