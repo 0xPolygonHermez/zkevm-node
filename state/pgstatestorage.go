@@ -1944,8 +1944,8 @@ func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber 
 // GetLogs returns the logs that match the filter
 func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
 	// query parts
-	const queryCount = `SELECT count(*)`
-	const querySelect = `SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3`
+	const queryCount = `SELECT count(*) `
+	const querySelect = `SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 `
 
 	const queryBody = `FROM state.log l
        INNER JOIN state.transaction t ON t.hash = l.tx_hash
@@ -1955,10 +1955,10 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
          AND (l.topic1 = any($3) OR $3 IS NULL)
          AND (l.topic2 = any($4) OR $4 IS NULL)
          AND (l.topic3 = any($5) OR $5 IS NULL)
-         AND (b.created_at >= $6 OR $6 IS NULL)`
+         AND (b.created_at >= $6 OR $6 IS NULL) `
 
-	const queryFilterByBlockHash = `AND b.block_hash = $7`
-	const queryFilterByBlockNumbers = `AND b.block_num BETWEEN $7 AND $8`
+	const queryFilterByBlockHash = `AND b.block_hash = $7 `
+	const queryFilterByBlockNumbers = `AND b.block_num BETWEEN $7 AND $8 `
 
 	const queryOrder = `ORDER BY b.block_num ASC, l.log_index ASC`
 
@@ -2015,7 +2015,7 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		queryToCount = queryToCountLogsByBlockHash
 		queryToSelect = queryToSelectLogsByBlockHash
 	} else {
-		if toBlock > fromBlock {
+		if toBlock < fromBlock {
 			return nil, ErrInvalidBlockRange
 		}
 
