@@ -2,6 +2,7 @@ package etherman
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/datacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
@@ -124,6 +126,8 @@ type L1Config struct {
 	MaticAddr common.Address `json:"maticTokenAddress"`
 	// Address of the L1 GlobalExitRootManager contract
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
+	// Address of the data availability committee contract
+	DataCommitteeAddr common.Address `json:"dataCommitteeContract"`
 }
 
 type externalGasProviders struct {
@@ -137,6 +141,7 @@ type Client struct {
 	ZkEVM                 *polygonzkevm.Polygonzkevm
 	GlobalExitRootManager *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
 	Matic                 *matic.Matic
+	DataCommittee         *datacommittee.Datacommittee
 	SCAddresses           []common.Address
 
 	GasProviders externalGasProviders
@@ -167,6 +172,12 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	dataCommittee, err := datacommittee.NewDatacommittee(l1Config.DataCommitteeAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
+
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, l1Config.ZkEVMAddr, l1Config.GlobalExitRootManagerAddr)
 
@@ -187,6 +198,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		ZkEVM:                 poe,
 		Matic:                 matic,
 		GlobalExitRootManager: globalExitRoot,
+		DataCommittee:         dataCommittee,
 		SCAddresses:           scAddresses,
 		GasProviders: externalGasProviders{
 			MultiGasProvider: cfg.MultiGasProvider,
@@ -505,14 +517,14 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 }
 
 // EstimateGasSequenceBatches estimates gas for sending batches
-func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address) (*types.Transaction, error) {
+func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, committeeSignaturesAndAddrs []byte) (*types.Transaction, error) {
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
 		return nil, ErrPrivateKeyNotFound
 	}
 	opts.NoSend = true
 
-	tx, err := etherMan.sequenceBatches(opts, sequences, l2Coinbase)
+	tx, err := etherMan.sequenceBatches(opts, sequences, l2Coinbase, committeeSignaturesAndAddrs)
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +533,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequen
 }
 
 // BuildSequenceBatchesTxData builds a []bytes to be sent to the PoE SC method SequenceBatches.
-func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address) (to *common.Address, data []byte, err error) {
+func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, committeeSignaturesAndAddrs []byte) (to *common.Address, data []byte, err error) {
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
 		return nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
@@ -532,7 +544,7 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 	opts.GasLimit = uint64(1)
 	opts.GasPrice = big.NewInt(1)
 
-	tx, err := etherMan.sequenceBatches(opts, sequences, l2Coinbase)
+	tx, err := etherMan.sequenceBatches(opts, sequences, l2Coinbase, committeeSignaturesAndAddrs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -540,11 +552,11 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 	return tx.To(), tx.Data(), nil
 }
 
-func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address) (*types.Transaction, error) {
+func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, committeeSignaturesAndAddrs []byte) (*types.Transaction, error) {
 	var batches []polygonzkevm.PolygonZkEVMBatchData
 	for _, seq := range sequences {
 		batch := polygonzkevm.PolygonZkEVMBatchData{
-			Transactions:       seq.BatchL2Data,
+			TransactionsHash:   crypto.Keccak256Hash(seq.BatchL2Data),
 			GlobalExitRoot:     seq.GlobalExitRoot,
 			Timestamp:          uint64(seq.Timestamp),
 			MinForcedTimestamp: uint64(seq.ForcedBatchTimestamp),
@@ -553,11 +565,15 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 		batches = append(batches, batch)
 	}
 
-	tx, err := etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase)
+	tx, err := etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase, committeeSignaturesAndAddrs)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
 		}
+		err = fmt.Errorf(
+			"error sequencing batches: %w, committeeSignaturesAndAddrs %s",
+			err, common.Bytes2Hex(committeeSignaturesAndAddrs),
+		)
 	}
 
 	return tx, err
@@ -1152,15 +1168,15 @@ func (etherMan *Client) AddOrReplaceAuth(auth bind.TransactOpts) error {
 }
 
 // LoadAuthFromKeyStore loads an authorization from a key store file
-func (etherMan *Client) LoadAuthFromKeyStore(path, password string) (*bind.TransactOpts, error) {
-	auth, err := newAuthFromKeystore(path, password, etherMan.l1Cfg.L1ChainID)
+func (etherMan *Client) LoadAuthFromKeyStore(path, password string) (*bind.TransactOpts, *ecdsa.PrivateKey, error) {
+	auth, pk, err := newAuthFromKeystore(path, password, etherMan.l1Cfg.L1ChainID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Infof("loaded authorization for address: %v", auth.From.String())
 	etherMan.auth[auth.From] = auth
-	return &auth, nil
+	return &auth, pk, nil
 }
 
 // newKeyFromKeystore creates an instance of a keystore key from a keystore file
@@ -1181,20 +1197,20 @@ func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 }
 
 // newAuthFromKeystore an authorization instance from a keystore file
-func newAuthFromKeystore(path, password string, chainID uint64) (bind.TransactOpts, error) {
+func newAuthFromKeystore(path, password string, chainID uint64) (bind.TransactOpts, *ecdsa.PrivateKey, error) {
 	log.Infof("reading key from: %v", path)
 	key, err := newKeyFromKeystore(path, password)
 	if err != nil {
-		return bind.TransactOpts{}, err
+		return bind.TransactOpts{}, nil, err
 	}
 	if key == nil {
-		return bind.TransactOpts{}, nil
+		return bind.TransactOpts{}, nil, nil
 	}
 	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, new(big.Int).SetUint64(chainID))
 	if err != nil {
-		return bind.TransactOpts{}, err
+		return bind.TransactOpts{}, nil, err
 	}
-	return *auth, nil
+	return *auth, key.PrivateKey, nil
 }
 
 // getAuthByAddress tries to get an authorization from the authorizations map

@@ -585,6 +585,21 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	return &batch, nil
 }
 
+// GetBatchL2DataByNumber returns the batch L2 data of the given batch number.
+func (p *PostgresStorage) GetBatchL2DataByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]byte, error) {
+	getBatchL2DataByBatchNumber := "SELECT raw_txs_data FROM state.batch WHERE batch_num = $1"
+	q := p.getExecQuerier(dbTx)
+	var batchL2Data []byte
+	err := q.QueryRow(ctx, getBatchL2DataByBatchNumber, batchNumber).Scan(&batchL2Data)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	return batchL2Data, nil
+}
+
 // GetBatchByTxHash returns the batch including the given tx
 func (p *PostgresStorage) GetBatchByTxHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*Batch, error) {
 	const getBatchByTxHashSQL = `

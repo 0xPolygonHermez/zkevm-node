@@ -259,6 +259,7 @@ type Block struct {
 	Hash            common.Hash         `json:"hash"`
 	Transactions    []TransactionOrHash `json:"transactions"`
 	Uncles          []common.Hash       `json:"uncles"`
+	BatchL2Data     ArgBytes            `json:"batchL2Data"`
 }
 
 // NewBlock creates a Block instance

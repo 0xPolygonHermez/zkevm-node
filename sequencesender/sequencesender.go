@@ -2,6 +2,7 @@ package sequencesender
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -32,6 +32,7 @@ var (
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg          Config
+	privKey      *ecdsa.PrivateKey
 	state        stateInterface
 	ethTxManager ethTxManager
 	etherman     etherman
@@ -39,13 +40,14 @@ type SequenceSender struct {
 }
 
 // New inits sequence sender
-func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*SequenceSender, error) {
+func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, privKey *ecdsa.PrivateKey) (*SequenceSender, error) {
 	return &SequenceSender{
 		cfg:          cfg,
 		state:        state,
 		etherman:     etherman,
 		ethTxManager: manager,
 		eventLog:     eventLog,
+		privKey:      privKey,
 	}, nil
 }
 
@@ -107,7 +109,13 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// add sequence to be monitored
-	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+	// to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+	signaturesAndAddrs, err := s.getSignaturesAndAddrsFromDataCommittee(ctx, sequences)
+	if err != nil {
+		log.Error("error getting signatures and addresses from the data committee: ", err)
+		return
+	}
+	to, data, err := s.etherman.BuildSequenceBatchesTxData(sender, sequences, signaturesAndAddrs)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
 		return
@@ -135,7 +143,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 	sequences := []types.Sequence{}
 	// var estimatedGas uint64
 
-	var tx *ethTypes.Transaction
+	// var tx *ethTypes.Transaction
 
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	for {
@@ -177,27 +185,35 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 
 		sequences = append(sequences, seq)
 		// Check if can be send
-		tx, err = s.etherman.EstimateGasSequenceBatches(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
-		if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
-			metrics.SequencesOvesizedDataError()
-			log.Infof("oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
-			err = ErrOversizedData
-		}
-		if err != nil {
-			log.Infof("Handling estimage gas send sequence error: %v", err)
-			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
-			if sequences != nil {
-				// Handling the error gracefully, re-processing the sequence as a sanity check
-				_, err = s.etherman.EstimateGasSequenceBatches(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
-				return sequences, err
-			}
-			return sequences, err
-		}
-		// estimatedGas = tx.Gas()
+		// tx, err = s.etherman.EstimateGasSequenceBatches(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+		// if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
+		// 	metrics.SequencesOvesizedDataError()
+		// 	log.Infof("oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
+		// 	err = ErrOversizedData
+		// }
+		// if err != nil {
+		// 	log.Infof("Handling estimage gas send sequence error: %v", err)
+		// 	sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
+		// 	if sequences != nil {
+		// 		// Handling the error gracefully, re-processing the sequence as a sanity check
+		// 		_, err = s.etherman.EstimateGasSequenceBatches(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+		// 		return sequences, err
+		// 	}
+		// 	return sequences, err
+		// }
+		// // estimatedGas = tx.Gas()
 
-		//Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
-		if (s.cfg.ForkUpgradeBatchNumber != 0) && (currentBatchNumToSequence == (s.cfg.ForkUpgradeBatchNumber)) {
-			log.Info("sequence should be sent to L1, as we have reached the batch %d from which a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber)
+		// //Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
+		// if (s.cfg.ForkUpgradeBatchNumber != 0) && (currentBatchNumToSequence == (s.cfg.ForkUpgradeBatchNumber)) {
+		// 	log.Info("sequence should be sent to L1, as we have reached the batch %d from which a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber)
+		// 	return sequences, nil
+		// }
+
+		if len(sequences) == int(s.cfg.MaxBatchesForL1) {
+			log.Info(
+				"sequence should be sent to L1, because MaxBatchesForL1 (%d) has been reached",
+				s.cfg.MaxBatchesForL1,
+			)
 			return sequences, nil
 		}
 

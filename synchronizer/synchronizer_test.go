@@ -26,12 +26,13 @@ const (
 )
 
 type mocks struct {
-	Etherman     *ethermanMock
-	State        *stateMock
-	Pool         *poolMock
-	EthTxManager *ethTxManagerMock
-	DbTx         *dbTxMock
-	ZKEVMClient  *zkEVMClientMock
+	Etherman                   *ethermanMock
+	State                      *stateMock
+	Pool                       *poolMock
+	EthTxManager               *ethTxManagerMock
+	DbTx                       *dbTxMock
+	ZKEVMClient                *zkEVMClientMock
+	DataCommitteeClientFactory *dataCommitteeClientFactoryMock
 	//EventLog     *eventLogMock
 }
 
