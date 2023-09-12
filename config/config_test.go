@@ -173,6 +173,18 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
+			path:          "Sequencer.StreamServer.Port",
+			expectedValue: 6900,
+		},
+		{
+			path:          "Sequencer.StreamServer.Filename",
+			expectedValue: "/datastreamer/datastream.bin",
+		},
+		{
+			path:          "Sequencer.StreamServer.Enabled",
+			expectedValue: true,
+		},
+		{
 			path:          "SequenceSender.WaitPeriodSendSequence",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
@@ -183,18 +195,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "SequenceSender.MaxTxSizeForL1",
 			expectedValue: uint64(131072),
-		},
-		{
-			path:          "SequenceSender.StreamServer.Port",
-			expectedValue: 6900,
-		},
-		{
-			path:          "SequenceSender.StreamServer.Filename",
-			expectedValue: "/datastreamer/datastream.bin",
-		},
-		{
-			path:          "SequenceSender.StreamServer.Enabled",
-			expectedValue: true,
 		},
 		{
 			path:          "Etherman.URL",
