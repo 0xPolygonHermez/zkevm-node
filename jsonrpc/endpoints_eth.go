@@ -125,6 +125,32 @@ func (e *EthEndpoints) ChainId() (interface{}, types.Error) { //nolint:revive
 	return hex.EncodeUint64(e.chainID), nil
 }
 
+// Coinbase Returns the client coinbase address.
+func (e *EthEndpoints) Coinbase() (interface{}, types.Error) { //nolint:revive
+	if e.cfg.SequencerNodeURI != "" {
+		return e.getCoinbaseFromSequencerNode()
+	}
+	return e.cfg.L2Coinbase.String(), nil
+}
+
+func (e *EthEndpoints) getCoinbaseFromSequencerNode() (interface{}, types.Error) {
+	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_coinbase")
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to get coinbase from sequencer node", err)
+	}
+
+	if res.Error != nil {
+		return RPCErrorResponse(res.Error.Code, res.Error.Message, nil)
+	}
+
+	var coinbaseAddress common.Address
+	err = json.Unmarshal(res.Result, &coinbaseAddress)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to read coinbase from sequencer node", err)
+	}
+	return coinbaseAddress.String(), nil
+}
+
 // EstimateGas generates and returns an estimate of how much gas is necessary to
 // allow the transaction to complete.
 // The transaction will not be added to the blockchain.

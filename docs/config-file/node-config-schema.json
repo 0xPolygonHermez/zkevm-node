@@ -364,6 +364,15 @@
 					"type": "integer",
 					"description": "BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request",
 					"default": 20
+				},
+				"L2Coinbase": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "L2Coinbase defines which address is going to receive the fees"
 				}
 			},
 			"additionalProperties": false,
@@ -656,7 +665,7 @@
 					"type": "array",
 					"maxItems": 20,
 					"minItems": 20,
-					"description": "L2Coinbase defines which addess is going to receive the fees",
+					"description": "L2Coinbase defines which address is going to receive the fees",
 					"default": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 				},
 				"PrivateKey": {
