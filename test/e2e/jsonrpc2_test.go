@@ -26,8 +26,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func Test_Misc(t *testing.T) {
@@ -561,7 +559,7 @@ func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
 
 	ctx := context.Background()
 
-	ethereumClient, err := ethclient.Dial(operations.PermissionlessL2NetworkURL)
+	ethereumClient, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
 
 	sender := common.HexToAddress(operations.DefaultSequencerAddress)
@@ -578,7 +576,9 @@ func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
 		GasPrice: new(big.Int).SetUint64(0),
 		Data:     make([]byte, 120000), // large data
 	})
-	require.Equal(t, codes.Canceled, status.Code(err))
+	rpcErr := err.(rpc.Error)
+	assert.Equal(t, -32000, rpcErr.ErrorCode())
+	assert.Equal(t, "batch_l2_data is invalid", rpcErr.Error())
 }
 
 // waitTimeout waits for the waitgroup for the specified max timeout.

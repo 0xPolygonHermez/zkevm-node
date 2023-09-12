@@ -42,8 +42,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -2773,6 +2771,7 @@ func TestBigDataTx(t *testing.T) {
 		ForkId:           forkID,
 	}
 
-	_, err = executorClient.ProcessBatch(ctx, processBatchRequest)
-	require.Equal(t, codes.Canceled, status.Code(err))
+	response, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+	require.Equal(t, executor.ExecutorError_EXECUTOR_ERROR_INVALID_BATCH_L2_DATA, response.Error)
 }
