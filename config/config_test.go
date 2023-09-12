@@ -174,7 +174,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.StreamServer.Port",
-			expectedValue: 0,
+			expectedValue: uint16(0),
 		},
 		{
 			path:          "Sequencer.StreamServer.Filename",
