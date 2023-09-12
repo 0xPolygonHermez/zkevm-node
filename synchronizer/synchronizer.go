@@ -254,6 +254,8 @@ func (s *ClientSynchronizer) Sync() error {
 				metrics.FullTrustedSyncTime(time.Since(startTrusted))
 				if err != nil {
 					log.Warn("error syncing trusted state. Error: ", err)
+					s.trustedState.lastTrustedBatches = nil
+					s.trustedState.lastStateRoot = nil
 					continue
 				}
 				waitDuration = s.cfg.SyncInterval.Duration
@@ -1309,7 +1311,11 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				if isBatchClosed {
 					//Sanity check
 					if s.trustedState.lastStateRoot != nil && trustedBatch.StateRoot != *s.trustedState.lastStateRoot {
-						s.halt(s.ctx, fmt.Errorf("stateRoot calculated (%s) is different from the stateRoot (%s) received during the trustedState synchronization", *s.trustedState.lastStateRoot, trustedBatch.StateRoot))
+						if trustedBatchL2Data.Hex() != "0x"+common.Bytes2Hex(batches[0].BatchL2Data) {
+							log.Errorf("batch %d, different batchL2Datas (trustedBatchL2Data: %s, batches[0].BatchL2Data: %s). Decoded txs are len(storedTxs): %d, len(syncedTxs): %d", uint64(trustedBatch.Number), trustedBatchL2Data.Hex(), "0x"+common.Bytes2Hex(batches[0].BatchL2Data), len(storedTxs), len(syncedTxs))
+						}
+						log.Errorf("batch: %d, stateRoot calculated (%s) is different from the stateRoot (%s) received during the trustedState synchronization", uint64(trustedBatch.Number), *s.trustedState.lastStateRoot, trustedBatch.StateRoot)
+						return nil, nil, fmt.Errorf("batch: %d, stateRoot calculated (%s) is different from the stateRoot (%s) received during the trustedState synchronization", uint64(trustedBatch.Number), *s.trustedState.lastStateRoot, trustedBatch.StateRoot)
 					}
 					receipt := state.ProcessingReceipt{
 						BatchNumber:   uint64(trustedBatch.Number),
@@ -1322,10 +1328,10 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 					if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
 						// This is a workaround to avoid closing a batch that was already closed
 						if err.Error() != state.ErrBatchAlreadyClosed.Error() {
-							log.Errorf("error closing batch %d", trustedBatch.Number)
+							log.Errorf("error closing batch %d", uint64(trustedBatch.Number))
 							return nil, nil, err
 						} else {
-							log.Warnf("CASE 02: the batch [%d] was already closed", trustedBatch.Number)
+							log.Warnf("CASE 02: the batch [%d] was already closed", uint64(trustedBatch.Number))
 							log.Info("batches[0].BatchNumber: ", batches[0].BatchNumber)
 							log.Info("batches[0].AccInputHash: ", batches[0].AccInputHash)
 							log.Info("batches[0].StateRoot: ", batches[0].StateRoot)
@@ -1361,7 +1367,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		// Update batchL2Data
 		err := s.state.UpdateBatchL2Data(s.ctx, batches[0].BatchNumber, trustedBatchL2Data, dbTx)
 		if err != nil {
-			log.Errorf("error opening batch %d", trustedBatch.Number)
+			log.Errorf("error opening batch %v", trustedBatch.Number)
 			return nil, nil, err
 		}
 		batches[0].BatchL2Data = trustedBatchL2Data
@@ -1390,7 +1396,8 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 	if isBatchClosed {
 		//Sanity check
 		if trustedBatch.StateRoot != processBatchResp.NewStateRoot {
-			s.halt(s.ctx, fmt.Errorf("stateRoot calculated (%s) is different from the stateRoot (%s) received during the trustedState synchronization", processBatchResp.NewStateRoot, trustedBatch.StateRoot))
+			log.Errorf("batch: %d, stateRoot calculated (%s) is different from the stateRoot (%s) received during the trustedState synchronization", uint64(trustedBatch.Number), processBatchResp.NewStateRoot.String(), trustedBatch.StateRoot.String())
+			return nil, nil, fmt.Errorf("batch: %d, stateRoot calculated (%s) is different from the stateRoot (%s) received during the trustedState synchronization", uint64(trustedBatch.Number), processBatchResp.NewStateRoot.String(), trustedBatch.StateRoot.String())
 		}
 		receipt := state.ProcessingReceipt{
 			BatchNumber:   uint64(trustedBatch.Number),
@@ -1404,10 +1411,10 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
 			// This is a workarround to avoid closing a batch that was already closed
 			if err.Error() != state.ErrBatchAlreadyClosed.Error() {
-				log.Errorf("error closing batch %d", trustedBatch.Number)
+				log.Errorf("error closing batch %v", trustedBatch.Number)
 				return nil, nil, err
 			} else {
-				log.Warnf("CASE 01: batch [%d] was already closed", trustedBatch.Number)
+				log.Warnf("CASE 01: batch [%v] was already closed", trustedBatch.Number)
 			}
 		}
 		log.Info("Batch closed right after processing some tx")
@@ -1416,6 +1423,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 			batches[0].AccInputHash = trustedBatch.AccInputHash
 			batches[0].StateRoot = trustedBatch.StateRoot
 			batches[0].LocalExitRoot = trustedBatch.LocalExitRoot
+			batches[0].BatchL2Data = trustedBatchL2Data
 		}
 	}
 
