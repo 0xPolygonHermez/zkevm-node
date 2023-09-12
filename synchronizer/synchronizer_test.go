@@ -727,8 +727,7 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 
 	m.State.
 		On("GetStoredFlushID", sync.ctx).
-		Return(uint64(1), cProverIDExecution, nil).
-		Once()
+		Return(uint64(1), cProverIDExecution, nil)
 
 	m.DbTx.
 		On("Commit", sync.ctx).
