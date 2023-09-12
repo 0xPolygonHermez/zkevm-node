@@ -556,8 +556,8 @@ func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	//setup()
-	// defer teardown()
+	setup()
+	defer teardown()
 
 	ctx := context.Background()
 
