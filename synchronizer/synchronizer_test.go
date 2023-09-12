@@ -731,6 +731,5 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 
 	m.DbTx.
 		On("Commit", sync.ctx).
-		Return(nil).
-		Once()
+		Return(nil)
 }
