@@ -177,7 +177,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	err = d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
+	l2BlochHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
 	if err != nil {
 		return err
 	}
@@ -185,6 +185,10 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	// Update batch l2 data
 	batch, err := d.state.GetBatchByNumber(ctx, tx.batchNumber, dbTx)
 	if err != nil {
+		err2 := dbTx.Rollback(ctx)
+		if err2 != nil {
+			log.Errorf("failed to rollback dbTx when getting batch that gave err: %v. Rollback err: %v", err2, err)
+		}
 		return err
 	}
 
@@ -198,17 +202,16 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	if !tx.isForcedBatch {
 		err = d.state.UpdateBatchL2Data(ctx, tx.batchNumber, batch.BatchL2Data, dbTx)
 		if err != nil {
+			err2 := dbTx.Rollback(ctx)
+			if err2 != nil {
+				log.Errorf("failed to rollback dbTx when updating batch l2 data that gave err: %v. Rollback err: %v", err2, err)
+			}
 			return err
 		}
 	}
 
 	// Send tx data to data stream server
 	if d.streamServer != nil {
-		l2BlochHeader, err := d.GetLastL2BlockHeader(ctx, dbTx)
-		if err != nil {
-			return err
-		}
-
 		l2Block := DSL2Block{
 			BatchNumber:    tx.batchNumber,
 			L2BlockNumber:  l2BlochHeader.Number.Uint64(),
@@ -241,19 +244,24 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		}
 	}
 
-	err = dbTx.Commit(ctx)
-	if err != nil {
-		err2 := d.streamServer.RollbackAtomicOp()
-		if err2 != nil {
-			log.Error("failed to rollback atomic op: %v", err2)
-		}
-		return err
-	} else {
-		if d.streamServer != nil {
-			err = d.streamServer.CommitAtomicOp()
-			if err != nil {
-				return err
+	if d.streamServer != nil {
+		err = d.streamServer.CommitAtomicOp()
+		if err != nil {
+			log.Error("failed to commit atomic op: %v", err)
+			err2 := dbTx.Rollback(ctx)
+			if err2 != nil {
+				log.Errorf("failed to rollback dbTx when committing atomic op that gave err: %v. Rollback err: %v", err2, err)
 			}
+			return err
+		}
+		err = dbTx.Commit(ctx)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = dbTx.Commit(ctx)
+		if err != nil {
+			return err
 		}
 	}
 

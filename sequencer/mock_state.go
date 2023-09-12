@@ -849,17 +849,29 @@ func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint
 }
 
 // StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, dbTx
-func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
+func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) (*types.Header, error) {
 	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) error); ok {
+	var r0 *types.Header
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) (*types.Header, error)); ok {
+		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) *types.Header); ok {
 		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.Header)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // UpdateBatchL2Data provides a mock function with given fields: ctx, batchNumber, batchL2Data, dbTx

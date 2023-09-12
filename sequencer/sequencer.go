@@ -113,7 +113,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, batchConstraints)
 
 	// Start stream server if enabled
-	if s.cfg.StreamServer.Port != 0 && s.cfg.StreamServer.Filename != "" {
+	if s.cfg.StreamServer.Enabled {
 		streamServer, err := datastreamer.New(s.cfg.StreamServer.Port, StreamTypeSequencer, s.cfg.StreamServer.Filename)
 		if err != nil {
 			log.Fatalf("failed to create stream server, err: %v", err)

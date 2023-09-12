@@ -185,6 +185,18 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(131072),
 		},
 		{
+			path:          "SequenceSender.StreamServer.Port",
+			expectedValue: uint64(6900),
+		},
+		{
+			path:          "SequenceSender.StreamServer.Filename",
+			expectedValue: "/datastreamer/datastream.bin",
+		},
+		{
+			path:          "SequenceSender.StreamServer.Enabled",
+			expectedValue: true,
+		},
+		{
 			path:          "Etherman.URL",
 			expectedValue: "http://localhost:8545",
 		},

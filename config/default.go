@@ -113,6 +113,7 @@ MaxTxLifetime = "3h"
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "5s"
