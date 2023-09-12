@@ -366,11 +366,13 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 
 	lastL2Block, err := p.state.GetLastL2Block(ctx, nil)
 	if err != nil {
+		log.Errorf("failed to load last l2 block while adding tx to the pool", err)
 		return err
 	}
 
 	currentNonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
 	if err != nil {
+		log.Errorf("failed to get nonce while adding tx to the pool", err)
 		return err
 	}
 	// Ensure the transaction adheres to nonce ordering
@@ -399,6 +401,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	if p.cfg.GlobalQueue > 0 {
 		txCount, err := p.storage.CountTransactionsByStatus(ctx, TxStatusPending)
 		if err != nil {
+			log.Errorf("failed to count pool txs by status pending while adding tx to the pool", err)
 			return err
 		}
 		if txCount >= p.cfg.GlobalQueue {
@@ -418,6 +421,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// cost == V + GP * GL
 	balance, err := p.state.GetBalance(ctx, from, lastL2Block.Root())
 	if err != nil {
+		log.Errorf("failed to get balance for account %v while adding tx to the pool", from.String(), err)
 		return err
 	}
 
@@ -438,6 +442,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// if the new one has a price bump
 	oldTxs, err := p.storage.GetTxsByFromAndNonce(ctx, from, poolTx.Nonce())
 	if err != nil {
+		log.Errorf("failed to txs for the same account and nonce while adding tx to the pool", err)
 		return err
 	}
 
