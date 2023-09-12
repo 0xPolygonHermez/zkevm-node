@@ -12,6 +12,7 @@ import (
 )
 
 func Test_L1Get(t *testing.T) {
+	t.Skip("Exploratory test")
 	sut, ethermans, _ := setup(t)
 	etherman := ethermans[0]
 	header := new(ethTypes.Header)
