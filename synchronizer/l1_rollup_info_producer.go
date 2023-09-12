@@ -57,8 +57,8 @@ type syncStatusInterface interface {
 	toStringBrief() string
 	getNextRange() *blockRange
 	isNodeFullySynchronizedWithL1() bool
+	haveRequiredAllBlocksToBeSynchronized() bool
 	needToRenewLastBlockOnL1() bool
-	getStatus() syncStatusEnum
 	getLastBlockOnL1() uint64
 
 	onStartedNewWorker(br blockRange)
@@ -78,6 +78,18 @@ type workersInterface interface {
 	getResponseChannelForRollupInfo() chan genericResponse[responseRollupInfoByBlockRange]
 }
 
+type producerStatusEnum int8
+
+const (
+	producerIdle         producerStatusEnum = 0
+	producerWorking      producerStatusEnum = 1
+	producerSynchronized producerStatusEnum = 2
+)
+
+func (s producerStatusEnum) String() string {
+	return [...]string{"idle", "working", "synchronized"}[s]
+}
+
 type l1RollupInfoProducer struct {
 	mutex              sync.Mutex
 	ctx                context.Context
@@ -87,6 +99,7 @@ type l1RollupInfoProducer struct {
 	outgoingChannel    chan l1SyncMessage
 	timeLastBLockOnL1  time.Time
 	ttlOfLastBlockOnL1 time.Duration
+	status             producerStatusEnum
 	// filter is an object that sort l1DataMessage to be send ordered by block number
 	filterToSendOrdererResultsToConsumer filter
 	statistics                           l1RollupInfoProducerStatistics
@@ -113,6 +126,7 @@ func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
 		outgoingChannel:                      outgoingChannel,
 		statistics:                           newRollupInfoProducerStatistics(startingBlockNumber),
 		ttlOfLastBlockOnL1:                   ttlOfLastBlock,
+		status:                               producerIdle,
 	}
 	return &result
 }
@@ -144,6 +158,7 @@ func (l *l1RollupInfoProducer) reset(startingBlockNumber uint64) {
 		<-l.outgoingChannel
 	}
 	l.filterToSendOrdererResultsToConsumer.reset(startingBlockNumber)
+	l.status = producerIdle
 }
 
 // verify: test params and status without if not allowModify avoid doing connection or modification of objects
@@ -188,20 +203,24 @@ func (l *l1RollupInfoProducer) start(startingBlockNumber uint64) error {
 		return err
 	}
 	var waitDuration = time.Duration(0)
-	previousStatus := l.syncStatus.getStatus()
-	for l.step(&waitDuration) {
-		newStatus := l.syncStatus.getStatus()
-		if previousStatus != newStatus {
-			log.Infof("producer: Status changed from [%s] to [%s]", previousStatus.String(), newStatus.String())
-			if newStatus == syncStatusSynchronized {
-				log.Infof("producer: send a message to consumer to indicate that we are synchronized")
-				l.sendPackages([]l1SyncMessage{*newL1SyncMessageControl(eventProducerIsFullySynced)})
-			}
-		}
-		previousStatus = newStatus
+	for l.stepWithCheckStatus(&waitDuration) {
 	}
 	l.workers.waitFinishAllWorkers()
 	return nil
+}
+
+func (l *l1RollupInfoProducer) stepWithCheckStatus(waitDuration *time.Duration) bool {
+	previousStatus := l.status
+	res := l.step(waitDuration)
+	newStatus := l.status
+	if previousStatus != newStatus {
+		log.Infof("producer: Status changed from [%s] to [%s]", previousStatus.String(), newStatus.String())
+		if newStatus == producerSynchronized {
+			log.Infof("producer: send a message to consumer to indicate that we are synchronized")
+			l.sendPackages([]l1SyncMessage{*newL1SyncMessageControl(eventProducerIsFullySynced)})
+		}
+	}
+	return res
 }
 
 func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
@@ -214,9 +233,9 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 	case resultRollupInfo := <-l.workers.getResponseChannelForRollupInfo():
 		l.onResponseRollupInfo(resultRollupInfo)
 	}
-	if l.syncStatus.getStatus() == syncStatusSynchronized {
+	if l.syncStatus.haveRequiredAllBlocksToBeSynchronized() {
 		// Try to nenew last block on L1 if needed
-		log.Debugf("producer: status==syncStatusSynchronized -> getting last block on L1")
+		log.Debugf("producer: we have required (maybe not responsed yet) all blocks, so  getting last block on L1")
 		l.renewLastBlockOnL1IfNeeded(false)
 	}
 	// Try to launch retrieve more rollupInfo from L1
@@ -225,22 +244,27 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 		log.Infof("producer: Statistics:%s", l.statistics.getETA())
 		l.statistics.lastShowUpTime = time.Now()
 	}
+	if l.syncStatus.isNodeFullySynchronizedWithL1() {
+		l.status = producerSynchronized
+	} else {
+		l.status = producerWorking
+	}
 	*waitDuration = l.getNextTimeout()
-	log.Debugf("producer: Next timeout: %s status: %s", *waitDuration, l.syncStatus.toStringBrief())
+	log.Debugf("producer: Next timeout: %s status:%s sync_status: %s", *waitDuration, l.status, l.syncStatus.toStringBrief())
 	return true
 }
 
 func (l *l1RollupInfoProducer) getNextTimeout() time.Duration {
-	switch l.syncStatus.getStatus() {
-	case syncStatusIdle:
+	switch l.status {
+	case producerIdle:
 		return timeOutMainLoop
-	case syncStatusWorking:
+	case producerWorking:
 		return timeOutMainLoop
-	case syncStatusSynchronized:
+	case producerSynchronized:
 		nextRenewLastBlock := time.Since(l.timeLastBLockOnL1) + l.ttlOfLastBlockOnL1
 		return max(nextRenewLastBlock, time.Second)
 	default:
-		log.Fatalf("producer: Unknown status: %s", l.syncStatus.getStatus().String())
+		log.Fatalf("producer: Unknown status: %s", l.status)
 	}
 	return time.Second
 }

@@ -31,7 +31,7 @@ func Test_Given_NeedSync_When_Start_Then_AskForRollupInfo(t *testing.T) {
 	sut, ethermans, _ := setup(t)
 	etherman := ethermans[0]
 	expectedForGettingL1LastBlock(t, etherman, 150)
-	expectedCalls(t, etherman, 1)
+	expectedRollupInfoCalls(t, etherman, 1)
 	err := sut.initialize()
 	require.NoError(t, err)
 	sut.launchWork()
@@ -41,20 +41,61 @@ func Test_Given_NeedSync_When_Start_Then_AskForRollupInfo(t *testing.T) {
 	sut.workers.waitFinishAllWorkers()
 }
 
-func Test_Given_NeedSync_When_ReachLastBlock_Then_Finish(t *testing.T) {
-	sut, ethermans, _ := setup(t)
+// func Test_Given_NeedSync_When_ReachLastBlock_Then_SendAndEventOfSynchronized(t *testing.T) {
+func Test_Given_NoNeedSync_When_Starts_SendAndEventOfSynchronized(t *testing.T) {
+	sut, ethermans, ch := setup(t)
 	etherman := ethermans[0]
-	expectedForGettingL1LastBlock(t, etherman, 101)
-	expectedCalls(t, etherman, 1)
+	// Our last block is 100 in DB and it returns 100 as last block on L1
+	// so is synchronized
+	expectedForGettingL1LastBlock(t, etherman, 100)
+	//expectedRollupInfoCalls(t, etherman, 1)
 	err := sut.initialize()
 	require.NoError(t, err)
 	sut.launchWork()
 	var waitDuration = time.Duration(0)
 
-	sut.step(&waitDuration)
-	sut.workers.waitFinishAllWorkers()
-	res := sut.step(&waitDuration)
-	require.False(t, res)
+	sut.stepWithCheckStatus(&waitDuration)
+
+	waitDuration = time.Duration(0)
+	res := sut.stepWithCheckStatus(&waitDuration)
+	require.True(t, res)
+	// read everything in channel ch
+	for len(ch) > 0 {
+		data := <-ch
+		if data.ctrlIsValid == true && data.ctrl.event == eventProducerIsFullySynced {
+			return // ok
+		}
+	}
+	require.Fail(t, "should not have send a eventProducerIsFullySynced in channel")
+}
+
+func Test_Given_NeedSync_When_ReachLastBlock_Then_SendAndEventOfSynchronized(t *testing.T) {
+	sut, ethermans, ch := setup(t)
+	etherman := ethermans[0]
+	// Our last block is 100 in DB and it returns 101 as last block on L1
+	// so it need to retrieve 1 rollupinfo
+	expectedForGettingL1LastBlock(t, etherman, 101)
+	expectedRollupInfoCalls(t, etherman, 1)
+	err := sut.initialize()
+	require.NoError(t, err)
+	var waitDuration = time.Duration(0)
+
+	// Is going to ask for last block again because it'll launch all request
+	expectedForGettingL1LastBlock(t, etherman, 101)
+	sut.stepWithCheckStatus(&waitDuration)
+	require.Equal(t, sut.status, producerWorking)
+	waitDuration = time.Millisecond * 100 // need a bit of time to receive the response to rollupinfo
+	res := sut.stepWithCheckStatus(&waitDuration)
+	require.True(t, res)
+	require.Equal(t, sut.status, producerSynchronized)
+	// read everything in channel ch
+	for len(ch) > 0 {
+		data := <-ch
+		if data.ctrlIsValid == true && data.ctrl.event == eventProducerIsFullySynced {
+			return // ok
+		}
+	}
+	require.Fail(t, "should not have send a eventProducerIsFullySynced in channel")
 }
 
 func setup(t *testing.T) (*l1RollupInfoProducer, []*ethermanMock, chan l1SyncMessage) {
@@ -75,7 +116,7 @@ func expectedForGettingL1LastBlock(t *testing.T, etherman *ethermanMock, blockNu
 		Maybe()
 }
 
-func expectedCalls(t *testing.T, etherman *ethermanMock, calls int) {
+func expectedRollupInfoCalls(t *testing.T, etherman *ethermanMock, calls int) {
 	etherman.
 		On("GetRollupInfoByBlockRange", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil, nil).

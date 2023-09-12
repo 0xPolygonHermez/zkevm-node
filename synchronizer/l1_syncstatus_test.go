@@ -174,55 +174,6 @@ func Test_Given_MultiplesWorkers_When_NextRange_Then_TheRangeIsCappedToLastBlock
 	require.Equal(t, *br, blockRange{fromBlock: 101, toBlock: 105})
 }
 
-// Test status
-
-func Test_When_Create_Then_status_is_idle(t *testing.T) {
-	s := newSyncStatus(1617, 10)
-	require.Equal(t, syncStatusIdle, s.getStatus())
-}
-
-func Test_When_SetLastBlockOnL1GreaterCurrentBlock_Then_status_is_working(t *testing.T) {
-	s := newSyncStatus(1617, 10)
-	s.setLastBlockOnL1(2000)
-	require.Equal(t, syncStatusWorking, s.getStatus())
-}
-
-func Test_When_SetLastBlockOnL1BelowCurrentBlock_Then_status_is_working(t *testing.T) {
-	s := newSyncStatus(1617, 10)
-	s.setLastBlockOnL1(100)
-	require.Equal(t, syncStatusSynchronized, s.getStatus())
-}
-
-func Test_When_StartedWorker_Then_status_is_working(t *testing.T) {
-	s := newSyncStatus(1617, 10)
-	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
-	require.Equal(t, syncStatusWorking, s.getStatus())
-}
-
-func Test_When_EndWorkerIfNoEqualLastBlockL1_Then_status_is_working(t *testing.T) {
-	s := newSyncStatus(1617, 10)
-	s.setLastBlockOnL1(2000)
-	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
-	s.onFinishWorker(blockRange{fromBlock: 1820, toBlock: 1920}, true)
-	require.Equal(t, syncStatusWorking, s.getStatus())
-}
-
-func Test_When_EndWorkerEqualToLastBlockL1_Then_status_is_sync(t *testing.T) {
-	s := newSyncStatus(1617, 10)
-	s.setLastBlockOnL1(2000)
-	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 2000})
-	s.onFinishWorker(blockRange{fromBlock: 1820, toBlock: 2000}, true)
-	require.Equal(t, syncStatusSynchronized, s.getStatus())
-}
-
-func Test_When_EndWorkerGreaterToLastBlockL1_Then_status_is_sync(t *testing.T) {
-	s := newSyncStatus(1617, 10)
-	s.setLastBlockOnL1(2000)
-	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 2001})
-	s.onFinishWorker(blockRange{fromBlock: 1820, toBlock: 2001}, true)
-	require.Equal(t, syncStatusSynchronized, s.getStatus())
-}
-
 func Test_When_AllRequestAreSend_Then_getNextRange_ReturnsNil2(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)

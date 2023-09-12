@@ -7,18 +7,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
-type syncStatusEnum int8
-
-const (
-	syncStatusIdle         syncStatusEnum = 0
-	syncStatusWorking      syncStatusEnum = 1
-	syncStatusSynchronized syncStatusEnum = 2
-)
-
-func (s syncStatusEnum) String() string {
-	return [...]string{"idle", "working", "synchronized"}[s]
-}
-
 const (
 	invalidLastBlock = 0
 )
@@ -33,12 +21,11 @@ type syncStatus struct {
 	processingRanges liveBlockRanges
 	// This ranges need to be retried because the last execution was an error
 	errorRanges liveBlockRanges
-	status      syncStatusEnum
 }
 
 func (s *syncStatus) toStringBrief() string {
-	return fmt.Sprintf("status: %s lastBlockStoreOnStateDB: %v, highestBlockRequested:%v, lastBlockOnL1: %v, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
-		s.status.String(), s.lastBlockStoreOnStateDB, s.highestBlockRequested, s.lastBlockOnL1, s.amountOfBlocksInEachRange, s.processingRanges.toStringBrief(), s.errorRanges.toStringBrief())
+	return fmt.Sprintf(" lastBlockStoreOnStateDB: %v, highestBlockRequested:%v, lastBlockOnL1: %v, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
+		s.lastBlockStoreOnStateDB, s.highestBlockRequested, s.lastBlockOnL1, s.amountOfBlocksInEachRange, s.processingRanges.toStringBrief(), s.errorRanges.toStringBrief())
 }
 
 func (s *syncStatus) toString() string {
@@ -59,7 +46,6 @@ func newSyncStatus(lastBlockStoreOnStateDB uint64, amountOfBlocksInEachRange uin
 		amountOfBlocksInEachRange: amountOfBlocksInEachRange,
 		lastBlockOnL1:             invalidLastBlock,
 		processingRanges:          newLiveBlockRanges(),
-		status:                    syncStatusIdle,
 	}
 }
 func (s *syncStatus) reset(lastBlockStoreOnStateDB uint64) {
@@ -69,7 +55,6 @@ func (s *syncStatus) reset(lastBlockStoreOnStateDB uint64) {
 	s.highestBlockRequested = lastBlockStoreOnStateDB
 	s.processingRanges = newLiveBlockRanges()
 	s.lastBlockOnL1 = invalidLastBlock
-	s.status = syncStatusIdle
 }
 
 func (s *syncStatus) getLastBlockOnL1() uint64 {
@@ -78,10 +63,10 @@ func (s *syncStatus) getLastBlockOnL1() uint64 {
 	return s.lastBlockOnL1
 }
 
-func (s *syncStatus) getStatus() syncStatusEnum {
+func (s *syncStatus) haveRequiredAllBlocksToBeSynchronized() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	return s.status
+	return s.lastBlockOnL1 <= s.highestBlockRequested && s.errorRanges.len() == 0
 }
 
 // isNodeFullySynchronizedWithL1 returns true if the node is fully synchronized with L1
@@ -97,8 +82,8 @@ func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
 }
 
 func (s *syncStatus) _isNodeFullySynchronizedWithL1(lastBlock uint64) bool {
-	if lastBlock <= s.highestBlockRequested && s.errorRanges.len() == 0 {
-		log.Debug("No blocks to ask, we have requested all blocks from L1!")
+	if lastBlock <= s.highestBlockRequested && s.errorRanges.len() == 0 && s.processingRanges.len() == 0 {
+		log.Debug("No blocks to ask, we have requested and responsed all blocks from L1!")
 		return true
 	}
 	return false
@@ -148,7 +133,6 @@ func (s *syncStatus) onStartedNewWorker(br blockRange) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.status = syncStatusWorking
 
 	if br.toBlock > s.highestBlockRequested {
 		s.highestBlockRequested = br.toBlock
@@ -185,11 +169,6 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 			log.Fatal(err)
 		}
 	}
-	if s._isNodeFullySynchronizedWithL1(s.lastBlockOnL1) {
-		s.status = syncStatusSynchronized
-	} else {
-		s.status = syncStatusWorking
-	}
 	log.Debugf("onFinishWorker final_status: %s", s.toStringBrief())
 }
 
@@ -207,11 +186,6 @@ func (s *syncStatus) setLastBlockOnL1(lastBlock uint64) {
 
 func (s *syncStatus) _setLastBlockOnL1(lastBlock uint64) {
 	s.lastBlockOnL1 = lastBlock
-	if s._isNodeFullySynchronizedWithL1(s.lastBlockOnL1) {
-		s.status = syncStatusSynchronized
-	} else {
-		s.status = syncStatusWorking
-	}
 }
 
 type onNewLastBlockResponse struct {
