@@ -1396,6 +1396,7 @@ func Test_BlockedAddress(t *testing.T) {
 	}
 
 	p := setupPool(t, cfg, bc, s, st, chainID.Uint64(), ctx, eventLog)
+	p.StartRefreshingBlockedAddressesPeriodically()
 
 	gasPrices, err := p.GetGasPrices(ctx)
 	require.NoError(t, err)

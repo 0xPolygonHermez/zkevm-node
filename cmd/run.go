@@ -195,6 +195,7 @@ func start(cliCtx *cli.Context) error {
 				// Needed for rejecting transactions with too low gas price
 				poolInstance.StartPollingMinSuggestedGasPrice(cliCtx.Context)
 			}
+			poolInstance.StartRefreshingBlockedAddressesPeriodically()
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
