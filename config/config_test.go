@@ -186,7 +186,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "SequenceSender.StreamServer.Port",
-			expectedValue: uint64(6900),
+			expectedValue: 6900,
 		},
 		{
 			path:          "SequenceSender.StreamServer.Filename",
