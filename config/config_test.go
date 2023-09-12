@@ -174,15 +174,15 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.StreamServer.Port",
-			expectedValue: 6900,
+			expectedValue: 0,
 		},
 		{
 			path:          "Sequencer.StreamServer.Filename",
-			expectedValue: "/datastreamer/datastream.bin",
+			expectedValue: "",
 		},
 		{
 			path:          "Sequencer.StreamServer.Enabled",
-			expectedValue: true,
+			expectedValue: false,
 		},
 		{
 			path:          "SequenceSender.WaitPeriodSendSequence",
