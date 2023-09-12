@@ -647,11 +647,18 @@
 					"properties": {
 						"Port": {
 							"type": "integer",
+							"description": "Port to listen on",
 							"default": 0
 						},
 						"Filename": {
 							"type": "string",
+							"description": "Filename of the binary data file",
 							"default": ""
+						},
+						"Enabled": {
+							"type": "boolean",
+							"description": "Enabled is a flag to enable/disable the data streamer",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
