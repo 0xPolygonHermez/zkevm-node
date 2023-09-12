@@ -26,6 +26,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func Test_Misc(t *testing.T) {
@@ -548,6 +550,35 @@ func TestWebSocketsReadLimit(t *testing.T) {
 	_, _, err = wsConn.ReadMessage()
 	require.NotNil(t, err)
 	require.Equal(t, websocket.CloseMessageTooBig, err.(*websocket.CloseError).Code)
+}
+
+func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	//setup()
+	// defer teardown()
+
+	ctx := context.Background()
+
+	ethereumClient, err := ethclient.Dial(operations.PermissionlessL2NetworkURL)
+	require.NoError(t, err)
+
+	sender := common.HexToAddress(operations.DefaultSequencerAddress)
+	receiver := common.HexToAddress(operations.DefaultSequencerAddress)
+
+	balance, err := ethereumClient.BalanceAt(ctx, sender, nil)
+	require.NoError(t, err)
+
+	_, err = ethereumClient.EstimateGas(ctx, ethereum.CallMsg{
+		From:     sender,
+		To:       &receiver,
+		Value:    new(big.Int),
+		Gas:      balance.Uint64(),
+		GasPrice: new(big.Int).SetUint64(0),
+		Data:     make([]byte, 120000), // large data
+	})
+	require.Equal(t, codes.Canceled, status.Code(err))
 }
 
 // waitTimeout waits for the waitgroup for the specified max timeout.
