@@ -48,9 +48,9 @@ func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneI
 	sync, ok := sync_interface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
 	lastBatchNumber := uint64(10)
-	batch10With1Tx := createBatch(t, lastBatchNumber, 1)
-	batch10With2Tx := createBatch(t, lastBatchNumber, 2)
-	batch10With3Tx := createBatch(t, lastBatchNumber, 3)
+	batch10With1Tx := createBatch(t, lastBatchNumber, 2)
+	batch10With2Tx := createBatch(t, lastBatchNumber, 3)
+	batch10With3Tx := createBatch(t, lastBatchNumber, 4)
 
 	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, true)
 	err = sync.syncTrustedState(lastBatchNumber)
