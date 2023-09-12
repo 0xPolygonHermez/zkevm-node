@@ -136,17 +136,17 @@ func (e *EthEndpoints) Coinbase() (interface{}, types.Error) { //nolint:revive
 func (e *EthEndpoints) getCoinbaseFromSequencerNode() (interface{}, types.Error) {
 	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_coinbase")
 	if err != nil {
-		return RPCErrorResponse(types.DefaultErrorCode, "failed to get coinbase from sequencer node", err)
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to get coinbase from sequencer node", err, true)
 	}
 
 	if res.Error != nil {
-		return RPCErrorResponse(res.Error.Code, res.Error.Message, nil)
+		return RPCErrorResponse(res.Error.Code, res.Error.Message, nil, false)
 	}
 
 	var coinbaseAddress common.Address
 	err = json.Unmarshal(res.Result, &coinbaseAddress)
 	if err != nil {
-		return RPCErrorResponse(types.DefaultErrorCode, "failed to read coinbase from sequencer node", err)
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to read coinbase from sequencer node", err, true)
 	}
 	return coinbaseAddress.String(), nil
 }
