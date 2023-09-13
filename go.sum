@@ -42,8 +42,6 @@ cloud.google.com/go/storage v1.14.0/go.mod h1:GrKmX003DSIwi9o29oFT7YDnHYwZoctc3f
 dario.cat/mergo v1.0.0 h1:AGCNq9Evsj31mOgNPcLyXc+4PNABt905YmuqPYYpBWk=
 dario.cat/mergo v1.0.0/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
-github.com/0xPolygon/cdk-validium-node v0.0.0-20230831094457-8d07bc9043a8 h1:YAE4/B4nufZNzNgytGjO7nmWxkeo8zIk1sNJvLSslC8=
-github.com/0xPolygon/cdk-validium-node v0.0.0-20230831094457-8d07bc9043a8/go.mod h1:fRivadZM1gxM3n00U1jIt/udwYaN/ktap0GRGiwLBug=
 github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9/go.mod h1:bOvUY6CB00SOBii9/FifXqc0awNKxLFCL/+pkDPuyl8=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 h1:w+iIsaOQNcT7OZ575w+acHgRric5iCyQh+xv+KJ4HB8=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
@@ -548,8 +546,8 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLA
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
-github.com/okx/cdk-data-availability v0.0.0-20230831100042-1da5d033d9ff h1:cvMXJJxwWDIEQ1Gafu/+6k7pICoArOaa5F2CJEgdW0k=
-github.com/okx/cdk-data-availability v0.0.0-20230831100042-1da5d033d9ff/go.mod h1:Gp5SXtHSs+w69PoH1NJI8JWqSEYkLhz1Kq8ePV1fkWo=
+github.com/okx/cdk-data-availability v0.0.1-dac.0.20230913020111-2ec48291d6db h1:k/H1h3GaN8HMbW4zrEWIVYUSXH0AUqW9M8LyYLU+VdI=
+github.com/okx/cdk-data-availability v0.0.1-dac.0.20230913020111-2ec48291d6db/go.mod h1:ibXaJbsD4mHUOwv+n8BlWN85u1Ya9WgwaN4CTV9d+ck=
 github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=
 github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6HuIJcUGPhkA7kY=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=

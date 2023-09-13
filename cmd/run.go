@@ -36,7 +36,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -401,8 +400,8 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("from pk %s, from sender %s", crypto.PubkeyToAddress(pk.PublicKey), common.HexToAddress(cfg.SequenceSender.SenderAddress))
-	if crypto.PubkeyToAddress(pk.PublicKey) == common.HexToAddress(cfg.SequenceSender.SenderAddress) {
+	log.Infof("from pk %s, from sender %s", crypto.PubkeyToAddress(pk.PublicKey), cfg.SequenceSender.SenderAddress.String())
+	if crypto.PubkeyToAddress(pk.PublicKey) == cfg.SequenceSender.SenderAddress {
 		seqPrivKey = pk
 	}
 

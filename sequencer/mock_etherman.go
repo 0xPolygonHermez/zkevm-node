@@ -21,7 +21,7 @@ type EthermanMock struct {
 }
 
 // BuildSequenceBatchesTxData provides a mock function with given fields: sender, sequences, l2CoinBase
-func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequences []types.Sequence, l2CoinBase common.Address) (*common.Address, []byte, error) {
+func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequences []types.Sequence, l2CoinBase common.Address, committeeSignaturesAndAddrs []byte) (*common.Address, []byte, error) {
 	ret := _m.Called(sender, sequences, l2CoinBase)
 
 	var r0 *common.Address
