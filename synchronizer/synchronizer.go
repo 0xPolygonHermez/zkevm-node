@@ -1230,7 +1230,7 @@ func (s *ClientSynchronizer) processTrustedVerifyBatches(lastVerifiedBatch ether
 }
 
 func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx pgx.Tx) ([]*state.Batch, *common.Hash, error) {
-	log.Debugf("Processing trusted batch: %v", trustedBatch.Number)
+	log.Debugf("Processing trusted batch: %d", uint64(trustedBatch.Number))
 	trustedBatchL2Data := trustedBatch.BatchL2Data
 	batches := s.trustedState.lastTrustedBatches
 	log.Debug("len(batches): ", len(batches))
@@ -1272,10 +1272,10 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 	// check if batch needs to be synchronized
 	if batches[0] != nil {
 		if checkIfSynced(batches, trustedBatch) {
-			log.Debugf("Batch %v already synchronized", trustedBatch.Number)
+			log.Debugf("Batch %d already synchronized", uint64(trustedBatch.Number))
 			return batches, s.trustedState.lastStateRoot, nil
 		}
-		log.Infof("Batch %v needs to be updated", trustedBatch.Number)
+		log.Infof("Batch %d needs to be updated", uint64(trustedBatch.Number))
 
 		// Find txs to be processed and included in the trusted state
 		if *s.trustedState.lastStateRoot == batches[1].StateRoot {
@@ -1339,7 +1339,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 						BatchL2Data:   trustedBatchL2Data,
 						AccInputHash:  trustedBatch.AccInputHash,
 					}
-					log.Debugf("closing batch %v", trustedBatch.Number)
+					log.Debugf("closing batch %d", uint64(trustedBatch.Number))
 					if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
 						// This is a workaround to avoid closing a batch that was already closed
 						if err.Error() != state.ErrBatchAlreadyClosed.Error() {
@@ -1382,13 +1382,13 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		// Update batchL2Data
 		err := s.state.UpdateBatchL2Data(s.ctx, batches[0].BatchNumber, trustedBatchL2Data, dbTx)
 		if err != nil {
-			log.Errorf("error opening batch %v", trustedBatch.Number)
+			log.Errorf("error opening batch %d", uint64(trustedBatch.Number))
 			return nil, nil, err
 		}
 		batches[0].BatchL2Data = trustedBatchL2Data
 		log.Debug("BatchL2Data updated for batch: ", batches[0].BatchNumber)
 	} else {
-		log.Infof("Batch %v needs to be synchronized", trustedBatch.Number)
+		log.Infof("Batch %d needs to be synchronized", uint64(trustedBatch.Number))
 		err := s.openBatch(trustedBatch, dbTx)
 		if err != nil {
 			log.Error("error openning batch. Error: ", err)
@@ -1398,7 +1398,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		request.Transactions = trustedBatchL2Data
 	}
 
-	log.Debugf("Processing sequencer for batch %v", trustedBatch.Number)
+	log.Debugf("Processing sequencer for batch %d", uint64(trustedBatch.Number))
 
 	processBatchResp, err := s.processAndStoreTxs(trustedBatch, request, dbTx)
 	if err != nil {
@@ -1424,14 +1424,14 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 			AccInputHash:  trustedBatch.AccInputHash,
 		}
 
-		log.Debugf("closing batch %v", trustedBatch.Number)
+		log.Debugf("closing batch %d", uint64(trustedBatch.Number))
 		if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
 			// This is a workarround to avoid closing a batch that was already closed
 			if err.Error() != state.ErrBatchAlreadyClosed.Error() {
-				log.Errorf("error closing batch %v", trustedBatch.Number)
+				log.Errorf("error closing batch %d", uint64(trustedBatch.Number))
 				return nil, nil, err
 			} else {
-				log.Warnf("CASE 01: batch [%v] was already closed", trustedBatch.Number)
+				log.Warnf("CASE 01: batch [%d] was already closed", uint64(trustedBatch.Number))
 			}
 		}
 		log.Info("Batch closed right after processing some tx")
@@ -1444,7 +1444,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 		}
 	}
 
-	log.Infof("Batch %v synchronized", trustedBatch.Number)
+	log.Infof("Batch %d synchronized", uint64(trustedBatch.Number))
 	return batches, &processBatchResp.NewStateRoot, nil
 }
 
