@@ -866,11 +866,13 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 				Description: fmt.Sprintf("error processing unsigned transaction %s: %v", tx.Hash(), err),
 			}
 
-			err = s.eventLog.LogEvent(context.Background(), event)
+			err2 := s.eventLog.LogEvent(context.Background(), event)
+			if err2 != nil {
+				log.Errorf("error logging event %v", err2)
+			}
 			log.Errorf("error processing unsigned transaction ", err)
 			return nil, err
 		}
-		return nil, err
 	}
 
 	if err == nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
