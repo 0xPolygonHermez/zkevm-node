@@ -9,8 +9,8 @@ gen() {
 }
 
 gen polygonzkevm
-# gen polygonzkevmbridge
-# gen matic
-# gen polygonzkevmglobalexitroot
-# gen mockverifier
+gen polygonzkevmbridge
+gen matic
+gen polygonzkevmglobalexitroot
+gen mockverifier
 gen datacommittee
