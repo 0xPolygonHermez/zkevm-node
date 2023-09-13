@@ -50,7 +50,7 @@ func (s *SequenceSender) getSignaturesAndAddrsFromDataCommittee(ctx context.Cont
 			Number:         jTypes.ArgUint64(seq.BatchNumber),
 			GlobalExitRoot: seq.GlobalExitRoot,
 			Timestamp:      jTypes.ArgUint64(seq.Timestamp),
-			Coinbase:       common.HexToAddress(s.cfg.SenderAddress),
+			Coinbase:       s.cfg.SenderAddress,
 			L2Data:         seq.BatchL2Data,
 		})
 	}
