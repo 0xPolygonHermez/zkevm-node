@@ -154,11 +154,15 @@ func (l *l1RollupInfoProducer) reset(startingBlockNumber uint64) {
 	l.statistics.reset(startingBlockNumber)
 	l.workers.stop()
 	// Empty pending rollupinfos
+	l.emptyChannel()
+	l.filterToSendOrdererResultsToConsumer.reset(startingBlockNumber)
+	l.status = producerIdle
+}
+
+func (l *l1RollupInfoProducer) emptyChannel() {
 	for len(l.outgoingChannel) > 0 {
 		<-l.outgoingChannel
 	}
-	l.filterToSendOrdererResultsToConsumer.reset(startingBlockNumber)
-	l.status = producerIdle
 }
 
 // verify: test params and status without if not allowModify avoid doing connection or modification of objects

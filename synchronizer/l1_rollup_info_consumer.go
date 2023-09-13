@@ -15,7 +15,7 @@ import (
 
 const (
 	errMissingLastBlock                                             = "consumer:the received rollupinfo have no blocks and need to fill last block"
-	errCanceled                                                     = "consumer:context canceled"
+	errContextCanceled                                              = "consumer:context canceled"
 	numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData = 20
 	acceptableTimeWaitingForNewRollupInfoData                       = 1 * time.Second
 
@@ -67,7 +67,7 @@ func (l *l1RollupInfoConsumer) step() error {
 	var err error
 	select {
 	case <-l.ctx.Done():
-		return errors.New(errCanceled)
+		return errors.New(errContextCanceled)
 	case rollupInfo := <-l.chIncommingRollupInfo:
 		if rollupInfo.dataIsValid {
 			err = l.processIncommingRollupInfoData(rollupInfo.data)
