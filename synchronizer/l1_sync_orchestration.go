@@ -29,6 +29,7 @@ type l1SyncOrchestration struct {
 	producer        l1RollupProducerInterface
 	consumer        l1RollupConsumerInterface
 	producerStarted bool
+	consumerStarted bool
 }
 
 const (
@@ -40,12 +41,19 @@ func newL1SyncOrchestration(producer l1RollupProducerInterface, consumer l1Rollu
 		producer:        producer,
 		consumer:        consumer,
 		producerStarted: false,
+		consumerStarted: false,
 	}
 }
 
 func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
 	log.Warnf("Reset L1 sync process to blockNumber %d", startingBlockNumber)
+	l.mutex.Lock()
+	if l.consumerStarted {
+		log.Warnf("orchestration: Undefined behaviour,  reset (%v) and consumer is running", startingBlockNumber)
+	}
 	l.producer.reset(startingBlockNumber)
+
+	l.mutex.Unlock()
 }
 
 func (l *l1SyncOrchestration) start(startingBlockNumber uint64) (*state.Block, error) {
@@ -83,16 +91,29 @@ func (l *l1SyncOrchestration) launch_producer(startingBlockNumber uint64, chProd
 			chProducer <- err
 		}()
 	} else {
+		// staringBlockNumber could imply a reset...
+		//
 		l.mutex.Unlock()
 	}
 }
 
 func (l *l1SyncOrchestration) launch_consumer(chConsumer chan error, wg *sync.WaitGroup) {
+	l.mutex.Lock()
+	if l.consumerStarted {
+		l.mutex.Unlock()
+		return
+	}
+	l.consumerStarted = true
+	l.mutex.Unlock()
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		log.Infof("orchestration: starting consumer")
 		err := l.consumer.start()
+		l.mutex.Lock()
+		l.consumerStarted = false
+		l.mutex.Unlock()
 		if err != nil {
 			log.Warnf("orchestration: consumer error. Error: %s", err)
 		}

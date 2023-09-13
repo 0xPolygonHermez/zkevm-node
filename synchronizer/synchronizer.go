@@ -283,7 +283,7 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 			//Sync L1Blocks
 			startL1 := time.Now()
-			if s.cfg.UseParallelModeForL1Synchronization {
+			if s.l1SyncOrchestration != nil {
 				log.Infof("Syncing L1 blocks in parallel lastEthBlockSynced=%d", lastEthBlockSynced.BlockNumber)
 				lastEthBlockSynced, err = s.syncBlocksParallel(lastEthBlockSynced)
 			} else {
@@ -291,11 +291,17 @@ func (s *ClientSynchronizer) Sync() error {
 				lastEthBlockSynced, err = s.syncBlocksSequential(lastEthBlockSynced)
 			}
 			metrics.FullL1SyncTime(time.Since(startL1))
+			// Process of syncBlocksXXXX fails?
 			if err != nil {
 				log.Warn("error syncing blocks: ", err)
 				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
 				if err != nil {
 					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)
+				}
+				if s.l1SyncOrchestration != nil {
+					// If have failed execution and get starting point from DB, we must reset parallel sync to this point
+					// producer must start requesting this block
+					s.l1SyncOrchestration.reset(lastEthBlockSynced.BlockNumber)
 				}
 				if s.ctx.Err() != nil {
 					continue
