@@ -872,6 +872,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 			log.Errorf("error processing unsigned transaction ", err)
 			return nil, err
 		}
+		return nil, err
 	}
 
 	if err == nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
