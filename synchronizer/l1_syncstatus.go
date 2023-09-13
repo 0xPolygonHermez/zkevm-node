@@ -142,12 +142,12 @@ func (s *syncStatus) onStartedNewWorker(br blockRange) {
 func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	log.Debugf("onFinishWorker initial_status: %s", s.toStringBrief())
+	log.Debugf("onFinishWorker(br=%s, sucessful=%v) initial_status: %s", br.toString(), successful, s.toStringBrief())
 	// The work have been done, remove the range from pending list
 	// also move the s.lastBlockStoreOnStateDB to the end of the range if needed
 	err := s.processingRanges.removeBlockRange(br)
 	if err != nil {
-		log.Warnf("finished a unknownblock range, ignoring it: %s", err)
+		log.Warnf("finished a unknownblock range %s, ignoring it: %s", br.toString(), err)
 		return
 	}
 

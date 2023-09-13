@@ -22,9 +22,7 @@ func (l *ll1RollupInfoConsumerStatistics) onStart() {
 }
 
 func (l *ll1RollupInfoConsumerStatistics) onStartStep() {
-	if l.startStepTime.IsZero() {
-		l.startStepTime = time.Now()
-	}
+	l.startStepTime = time.Now()
 }
 
 func (l *ll1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(rollupInfo responseRollupInfoByBlockRange) string {

@@ -71,9 +71,15 @@ func (l *l1RollupInfoConsumer) step() error {
 	case rollupInfo := <-l.chIncommingRollupInfo:
 		if rollupInfo.dataIsValid {
 			err = l.processIncommingRollupInfoData(rollupInfo.data)
+			if err != nil {
+				log.Error("consumer: error processing package.RollupInfoData. Error: ", err)
+			}
 		}
 		if rollupInfo.ctrlIsValid {
 			err = l.processIncommingRollupControlData(rollupInfo.ctrl)
+			if err != nil {
+				log.Error("consumer: error processing package.ControlData. Error: ", err)
+			}
 		}
 	}
 	return err

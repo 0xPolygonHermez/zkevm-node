@@ -144,12 +144,18 @@ func (l *l1SyncOrchestration) orchestrate(wg *sync.WaitGroup, hProducer chan err
 		}
 	}
 	retBlock, ok := l.consumer.getLastEthBlockSynced()
-	if ok {
-		log.Infof("orchestration: finished L1 sync orchestration. Last block synced: %d err:%s", retBlock.BlockNumber, err)
-		return &retBlock, nil
+
+	if err == nil {
+		if ok {
+			log.Infof("orchestration: finished L1 sync orchestration. Last block synced: %d err:%s", retBlock.BlockNumber, err)
+			return &retBlock, nil
+		} else {
+			err := errors.New(errMissingLastEthBlockSynced)
+			log.Warnf("orchestration: finished L1 sync orchestration. Last block synced: %s err:%s", "<no previous block>", err)
+			return nil, err
+		}
 	} else {
-		err := errors.New(errMissingLastEthBlockSynced)
-		log.Infof("orchestration: finished L1 sync orchestration. Last block synced: %s err:%s", "???", err)
+		log.Warnf("orchestration: finished L1 sync orchestration. Last block synced: %s err:%s", "IGNORED (nil)", err)
 		return nil, err
 	}
 }

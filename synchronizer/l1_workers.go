@@ -34,6 +34,14 @@ type workers struct {
 	limitLiveRequests [typeRequestEOF]uint64
 }
 
+func (w *workers) toString() string {
+	result := fmt.Sprintf("workers: limitLiveRequests: %v  ch_out:%d ch_in_worker:%d ", w.limitLiveRequests, len(w.chOutgoingRollupInfo), len(w.chIncommingRollupInfo))
+	for i := range w.workers {
+		result += fmt.Sprintf(" worker[%d]: %s", i, w.workers[i].toString())
+	}
+	return result
+}
+
 func newWorkers(ctx context.Context, ethermans []EthermanInterface) *workers {
 	result := workers{ctx: ctx,
 		chIncommingRollupInfo:             make(chan genericResponse[responseRollupInfoByBlockRange], len(ethermans)+1),

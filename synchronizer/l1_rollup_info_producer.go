@@ -76,6 +76,7 @@ type workersInterface interface {
 	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan genericResponse[responseRollupInfoByBlockRange], error)
 	requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) genericResponse[retrieveL1LastBlockResult]
 	getResponseChannelForRollupInfo() chan genericResponse[responseRollupInfoByBlockRange]
+	toString() string
 }
 
 type producerStatusEnum int8
@@ -147,16 +148,24 @@ func max[T constraints.Ordered](a, b T) T {
 }
 
 func (l *l1RollupInfoProducer) reset(startingBlockNumber uint64) {
-	log.Warnf("producer: Reset L1 sync process to blockNumber %d", startingBlockNumber)
+	log.Infof("producer: Reset L1 sync process to blockNumber %d", startingBlockNumber)
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
+	log.Debugf("producer: Reset(%d): context cancel", startingBlockNumber)
+	l.cancelCtx()
+	l.ctx, l.cancelCtx = context.WithCancel(context.Background())
+	log.Debugf("producer: Reset(%d): syncStatus.reset", startingBlockNumber)
 	l.syncStatus.reset(startingBlockNumber)
 	l.statistics.reset(startingBlockNumber)
+	log.Debugf("producer: Reset(%d): stop workers (%s)", startingBlockNumber, l.workers.toString())
 	l.workers.stop()
 	// Empty pending rollupinfos
+	log.Debugf("producer: Reset(%d): emptyChannel", startingBlockNumber)
 	l.emptyChannel()
+	log.Debugf("producer: Reset(%d): reset Filter", startingBlockNumber)
 	l.filterToSendOrdererResultsToConsumer.reset(startingBlockNumber)
 	l.status = producerIdle
+	log.Debugf("producer: Reset(%d): reset done!", startingBlockNumber)
 }
 
 func (l *l1RollupInfoProducer) emptyChannel() {

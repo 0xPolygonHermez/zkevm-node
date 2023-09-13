@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 	types "github.com/ethereum/go-ethereum/core/types"
 )
@@ -20,6 +21,10 @@ const (
 	ethermanError   ethermanStatusEnum = 2
 )
 
+func (s ethermanStatusEnum) String() string {
+	return [...]string{"idle", "working", "error"}[s]
+}
+
 type typeOfRequest int8
 
 const (
@@ -29,19 +34,8 @@ const (
 	typeRequestEOF        typeOfRequest = 3
 )
 
-func (t typeOfRequest) toString() string {
-	switch t {
-	case typeRequestNone:
-		return "typeRequestNone"
-	case typeRequestRollupInfo:
-		return "typeRequestRollupInfo"
-	case typeRequestLastBlock:
-		return "typeRequestLastBlock"
-	case typeRequestEOF:
-		return "typeRequestEOF"
-	default:
-		return "unknown"
-	}
+func (s typeOfRequest) String() string {
+	return [...]string{"none", "rollup", "lastBlock", "EOF"}[s]
 }
 
 const (
@@ -57,7 +51,7 @@ type genericResponse[T any] struct {
 
 func (r *genericResponse[T]) toStringBrief() string {
 	return fmt.Sprintf("typeOfRequest: [%v] duration: [%v] err: [%v]  ",
-		r.typeOfRequest.toString(), r.duration, r.err)
+		r.typeOfRequest.String(), r.duration, r.err)
 }
 
 type blockRange struct {
@@ -100,6 +94,12 @@ type worker struct {
 	typeOfCurrentRequest typeOfRequest
 }
 
+func (w *worker) toString() string {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	return fmt.Sprintf("status:%s req:%s", w.status.String(), w.typeOfCurrentRequest.String())
+}
+
 func newWorker(etherman EthermanInterface) *worker {
 	return &worker{etherman: etherman, status: ethermanIdle}
 }
@@ -122,6 +122,7 @@ func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, ch chan
 		blocks, order, err := w.etherman.GetRollupInfoByBlockRange(ctx, fromBlock, &toBlock)
 		var lastBlock *types.Block = nil
 		if err == nil && len(blocks) == 0 {
+			log.Debugf("worker: calling EthBlockByNumber(%v)", toBlock)
 			lastBlock, err = w.etherman.EthBlockByNumber(ctx, toBlock)
 		}
 		duration := time.Since(now)
