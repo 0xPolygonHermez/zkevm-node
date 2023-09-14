@@ -108,7 +108,7 @@ func (s *filterToSendOrdererResultsToConsumer) _setLastBlockOnSynchronizerCorres
 	s.lastBlockOnSynchronizer = newVaule
 }
 
-func (s *filterToSendOrdererResultsToConsumer) _matchNextBlock(results *responseRollupInfoByBlockRange) bool {
+func (s *filterToSendOrdererResultsToConsumer) _matchNextBlock(results *rollupInfoByBlockRangeResult) bool {
 	return results.blockRange.fromBlock == s.lastBlockOnSynchronizer+1
 }
 

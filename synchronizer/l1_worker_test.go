@@ -25,7 +25,7 @@ func Test_Exploratory(t *testing.T) {
 	etherman, err := etherman.NewClient(cfg, l1Config)
 	require.NoError(t, err)
 	worker := newWorker(etherman)
-	ch := make(chan genericResponse[responseRollupInfoByBlockRange])
+	ch := make(chan responseRollupInfoByBlockRange)
 	blockRange := blockRange{
 		fromBlock: 100,
 		toBlock:   20000,
@@ -33,5 +33,5 @@ func Test_Exploratory(t *testing.T) {
 	err = worker.asyncRequestRollupInfoByBlockRange(context.Background(), ch, nil, blockRange)
 	require.NoError(t, err)
 	result := <-ch
-	require.Equal(t, result.err.Error(), "not found")
+	require.Equal(t, result.generic.err.Error(), "not found")
 }

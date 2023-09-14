@@ -104,7 +104,7 @@ func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1Consu
 	return nil
 }
 
-func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo responseRollupInfoByBlockRange) error {
+func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	var err error
@@ -141,7 +141,7 @@ func (l *l1RollupInfoConsumer) sendStopPackage() {
 	l.chIncommingRollupInfo <- *newL1SyncMessageControl(eventStop)
 }
 
-func (l *l1RollupInfoConsumer) _Process(rollupInfo responseRollupInfoByBlockRange) (*state.Block, error) {
+func (l *l1RollupInfoConsumer) _Process(rollupInfo rollupInfoByBlockRangeResult) (*state.Block, error) {
 	blocks := rollupInfo.blocks
 	order := rollupInfo.order
 	err := l.synchronizer.processBlockRange(blocks, order)

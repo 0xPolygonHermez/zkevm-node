@@ -22,10 +22,10 @@ type workers struct {
 	mutex   sync.Mutex
 	workers []*worker
 	// Channel to send to outside the responses from worker
-	chOutgoingRollupInfo chan genericResponse[responseRollupInfoByBlockRange]
+	chOutgoingRollupInfo chan responseRollupInfoByBlockRange
 
 	// Channel that receive the responses from worker
-	chIncommingRollupInfo chan genericResponse[responseRollupInfoByBlockRange]
+	chIncommingRollupInfo chan responseRollupInfoByBlockRange
 
 	// It need a goroutine that listen in chIncomming and send to chOutgoing
 	launchedGoRoutineToRouteResponses bool
@@ -44,7 +44,7 @@ func (w *workers) toString() string {
 
 func newWorkers(ctx context.Context, ethermans []EthermanInterface) *workers {
 	result := workers{ctx: ctx,
-		chIncommingRollupInfo:             make(chan genericResponse[responseRollupInfoByBlockRange], len(ethermans)+1),
+		chIncommingRollupInfo:             make(chan responseRollupInfoByBlockRange, len(ethermans)+1),
 		launchedGoRoutineToRouteResponses: false,
 	}
 
@@ -55,7 +55,7 @@ func newWorkers(ctx context.Context, ethermans []EthermanInterface) *workers {
 	for i, etherman := range ethermans {
 		result.workers[i] = newWorker(etherman)
 	}
-	result.chOutgoingRollupInfo = make(chan genericResponse[responseRollupInfoByBlockRange], len(ethermans)+1)
+	result.chOutgoingRollupInfo = make(chan responseRollupInfoByBlockRange, len(ethermans)+1)
 	return &result
 }
 
@@ -73,11 +73,11 @@ func (w *workers) stop() {
 	}
 }
 
-func (w *workers) getResponseChannelForRollupInfo() chan genericResponse[responseRollupInfoByBlockRange] {
+func (w *workers) getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange {
 	return w.chOutgoingRollupInfo
 }
 
-func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan genericResponse[responseRollupInfoByBlockRange], error) {
+func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan responseRollupInfoByBlockRange, error) {
 	requestStrForDebug := fmt.Sprintf("GetRollupInfoByBlockRange(%s)", blockRange.toString())
 	f := func(worker *worker, ctx context.Context, wg *sync.WaitGroup) error {
 		res := worker.asyncRequestRollupInfoByBlockRange(ctx, w.getResponseChannelForRollupInfo(), wg, blockRange)
@@ -87,24 +87,24 @@ func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockR
 	return w.chOutgoingRollupInfo, res
 }
 
-func (w *workers) requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) genericResponse[retrieveL1LastBlockResult] {
+func (w *workers) requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) responseL1LastBlock {
 	for {
 		log.Debugf("workers: Retrieving last block on L1 (remaining tries=%v, timeout=%v)", maxPermittedRetries, timeout)
 		result := w.requestLastBlock(ctx, timeout)
-		if result.err == nil {
+		if result.generic.err == nil {
 			return result
 		}
 		maxPermittedRetries--
-		log.Debugf("workers: fail request pending retries:%d : err:%s ", maxPermittedRetries, result.err)
+		log.Debugf("workers: fail request pending retries:%d : err:%s ", maxPermittedRetries, result.generic.err)
 		if maxPermittedRetries == 0 {
-			log.Error("workers: exhausted retries for last block on L1, returning error: ", result.err)
+			log.Error("workers: exhausted retries for last block on L1, returning error: ", result.generic.err)
 			return result
 		}
 		time.Sleep(time.Second)
 	}
 }
 
-func (w *workers) requestLastBlock(ctx context.Context, timeout time.Duration) genericResponse[retrieveL1LastBlockResult] {
+func (w *workers) requestLastBlock(ctx context.Context, timeout time.Duration) responseL1LastBlock {
 	ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	w.mutex.Lock()
@@ -112,7 +112,7 @@ func (w *workers) requestLastBlock(ctx context.Context, timeout time.Duration) g
 	worker := w._getIdleWorker()
 	if worker == nil {
 		log.Debugf("workers: call:[%s] failed err:%s", "requestLastBlock", errAllWorkersBusy)
-		return genericResponse[retrieveL1LastBlockResult]{err: errors.New(errAllWorkersBusy), typeOfRequest: typeRequestLastBlock}
+		return newResponseL1LastBlock(errors.New(errAllWorkersBusy), time.Duration(0), typeRequestLastBlock, nil)
 	}
 	result := worker.requestLastBlock(ctxTimeout)
 	return result
@@ -164,11 +164,8 @@ func (w *workers) _launchGoroutineForRoutingResponsesIfNeed() {
 	w.launchedGoRoutineToRouteResponses = true
 }
 
-func (w *workers) onResponseRollupInfo(v genericResponse[responseRollupInfoByBlockRange]) {
+func (w *workers) onResponseRollupInfo(v responseRollupInfoByBlockRange) {
 	msg := fmt.Sprintf("workers: worker finished:[ %s ]", v.toStringBrief())
-	if v.err == nil {
-		msg += fmt.Sprintf(" block_range:%s", v.result.blockRange.toString())
-	}
 	log.Infof(msg)
 	w.chOutgoingRollupInfo <- v
 }

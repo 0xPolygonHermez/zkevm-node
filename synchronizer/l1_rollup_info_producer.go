@@ -73,9 +73,9 @@ type workersInterface interface {
 	stop()
 	// waits until all workers have finish the current task
 	waitFinishAllWorkers()
-	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan genericResponse[responseRollupInfoByBlockRange], error)
-	requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) genericResponse[retrieveL1LastBlockResult]
-	getResponseChannelForRollupInfo() chan genericResponse[responseRollupInfoByBlockRange]
+	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan responseRollupInfoByBlockRange, error)
+	requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) responseL1LastBlock
+	getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange
 	toString() string
 }
 
@@ -193,9 +193,9 @@ func (l *l1RollupInfoProducer) initialize() error {
 			maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
 		//result := l.retrieveInitialValueOfLastBlock(maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
 		result := l.workers.requestLastBlockWithRetries(l.ctx, timeRequestInitialValueOfLastBlock, maxRetriesForRequestnitialValueOfLastBlock)
-		if result.err != nil {
-			log.Error(result.err)
-			return result.err
+		if result.generic.err != nil {
+			log.Error(result.generic.err)
+			return result.generic.err
 		}
 		l.onNewLastBlock(result.result.block, false)
 	}
@@ -340,23 +340,23 @@ func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request")
 		result := l.workers.requestLastBlockWithRetries(l.ctx, timeRequestInitialValueOfLastBlock, maxRetriesForRequestnitialValueOfLastBlock)
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request old_block:%v -> new block:%v", oldBlock, result.result.block)
-		if result.err != nil {
-			log.Error(result.err)
+		if result.generic.err != nil {
+			log.Error(result.generic.err)
 			return
 		}
 		l.onNewLastBlock(result.result.block, true)
 	}
 }
 
-func (l *l1RollupInfoProducer) onResponseRollupInfo(result genericResponse[responseRollupInfoByBlockRange]) {
+func (l *l1RollupInfoProducer) onResponseRollupInfo(result responseRollupInfoByBlockRange) {
 	l.statistics.onResponseRollupInfo(result)
-	isOk := (result.err == nil)
+	isOk := (result.generic.err == nil)
 	l.syncStatus.onFinishWorker(result.result.blockRange, isOk)
 	if isOk {
 		outgoingPackages := l.filterToSendOrdererResultsToConsumer.filter(*newL1SyncMessageData(result.result))
 		l.sendPackages(outgoingPackages)
 	} else {
-		log.Warnf("producer: Error while trying to get rollup info by block range: %v", result.err)
+		log.Warnf("producer: Error while trying to get rollup info by block range: %v", result.generic.err)
 	}
 }
 

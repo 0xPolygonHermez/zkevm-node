@@ -38,9 +38,9 @@ func (l *l1RollupInfoProducerStatistics) updateLastBlockNumber(lastBlockNumber u
 	l.lastBlockNumber = lastBlockNumber
 }
 
-func (l *l1RollupInfoProducerStatistics) onResponseRollupInfo(result genericResponse[responseRollupInfoByBlockRange]) {
-	metrics.ReadL1DataTime(result.duration)
-	isOk := (result.err == nil)
+func (l *l1RollupInfoProducerStatistics) onResponseRollupInfo(result responseRollupInfoByBlockRange) {
+	metrics.ReadL1DataTime(result.generic.duration)
+	isOk := (result.generic.err == nil)
 	if isOk {
 		l.numRollupInfoOk++
 		l.numRetrievedBlocks += uint64(result.result.blockRange.len())

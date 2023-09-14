@@ -43,7 +43,7 @@ func Test_Given_Consumer_When_FailsToProcessRollup_Then_IDontKnown(t *testing.T)
 	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	data := setupConsumerTest(t, &ctxTimeout)
 	defer cancel()
-	responseRollupInfoByBlockRange := responseRollupInfoByBlockRange{
+	responseRollupInfoByBlockRange := rollupInfoByBlockRangeResult{
 		blockRange: blockRange{
 			fromBlock: 100,
 			toBlock:   200,

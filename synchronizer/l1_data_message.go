@@ -21,7 +21,7 @@ import (
 type l1SyncMessage struct {
 	// dataIsValid : true if data is valid
 	dataIsValid bool
-	data        responseRollupInfoByBlockRange
+	data        rollupInfoByBlockRangeResult
 	// ctrlIsValid : true if ctrl is valid
 	ctrlIsValid bool
 	// ctrl : control package, it send actions to consumer
@@ -50,7 +50,7 @@ func newL1SyncMessageControl(event eventEnum) *l1SyncMessage {
 	}
 }
 
-func newL1SyncMessageData(result *responseRollupInfoByBlockRange) *l1SyncMessage {
+func newL1SyncMessageData(result *rollupInfoByBlockRangeResult) *l1SyncMessage {
 	if result == nil {
 		log.Fatal("newL1PackageDataFromResult: result is nil, the idea of this func is create packages with data")
 	}

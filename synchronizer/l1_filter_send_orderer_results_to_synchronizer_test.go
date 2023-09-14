@@ -169,7 +169,7 @@ func Test_SOR_Multicase(t *testing.T) {
 
 func newDataPackage(fromBlock, toBlock uint64) *l1SyncMessage {
 	return &l1SyncMessage{
-		data: responseRollupInfoByBlockRange{
+		data: rollupInfoByBlockRangeResult{
 			blockRange: blockRange{
 				fromBlock: fromBlock,
 				toBlock:   toBlock,
@@ -183,7 +183,7 @@ func newDataPackage(fromBlock, toBlock uint64) *l1SyncMessage {
 func newActionPackage(action eventEnum) *l1SyncMessage {
 	return &l1SyncMessage{
 		dataIsValid: false,
-		data: responseRollupInfoByBlockRange{
+		data: rollupInfoByBlockRangeResult{
 			blockRange: blockRange{
 				fromBlock: 0,
 				toBlock:   0,

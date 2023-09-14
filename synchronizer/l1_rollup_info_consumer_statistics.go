@@ -25,7 +25,7 @@ func (l *ll1RollupInfoConsumerStatistics) onStartStep() {
 	l.startStepTime = time.Now()
 }
 
-func (l *ll1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(rollupInfo responseRollupInfoByBlockRange) string {
+func (l *ll1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult) string {
 	now := time.Now()
 	waitingTimeForData := now.Sub(l.startStepTime)
 	blocksPerSecond := float64(l.numProcessedBlocks) / time.Since(l.startTime).Seconds()
@@ -39,7 +39,7 @@ func (l *ll1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(
 	return msg
 }
 
-func (l *ll1RollupInfoConsumerStatistics) onFinishProcessIncommingRollupInfoData(rollupInfo responseRollupInfoByBlockRange, executionTime time.Duration, err error) {
+func (l *ll1RollupInfoConsumerStatistics) onFinishProcessIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult, executionTime time.Duration, err error) {
 	l.timePreviousProcessingDuration = executionTime
 	if err == nil {
 		l.numProcessedBlocks += uint64(len(rollupInfo.blocks))
