@@ -18,11 +18,14 @@ import (
 )
 
 // l1SyncMessage : struct to hold L1 rollup info data package
+// It could contain data or control information, or both.
+// A control package is used to send actions to consumer or to notify that producer is fully synced.
 type l1SyncMessage struct {
-	// dataIsValid : true if data is valid
+	// dataIsValid : true if data field is valid
 	dataIsValid bool
-	data        rollupInfoByBlockRangeResult
-	// ctrlIsValid : true if ctrl is valid
+	// data: is the rollup info data
+	data rollupInfoByBlockRangeResult
+	// ctrlIsValid : true if ctrl field is valid
 	ctrlIsValid bool
 	// ctrl : control package, it send actions to consumer
 	ctrl l1ConsumerControl

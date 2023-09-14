@@ -11,10 +11,13 @@ import (
 )
 
 const (
-	noLimitLiveRequests                   = 0
-	errRequiredEtherman                   = "required etherman"
-	errAllWorkersBusy                     = "all workers are busy"
-	errReachMaximumLiveRequestsOfThisType = "reach maximum live requests of this type"
+	noLimitLiveRequests = 0
+)
+
+var (
+	errAllWorkersBusy                     = errors.New("all workers are busy")
+	errRequiredEtherman                   = errors.New("required etherman")
+	errReachMaximumLiveRequestsOfThisType = errors.New("reach maximum live requests of this type")
 )
 
 type workers struct {
@@ -61,7 +64,7 @@ func newWorkers(ctx context.Context, ethermans []EthermanInterface) *workers {
 
 func (w *workers) initialize() error {
 	if len(w.workers) == 0 {
-		return errors.New(errRequiredEtherman)
+		return errRequiredEtherman
 	}
 	return nil
 }
@@ -112,7 +115,7 @@ func (w *workers) requestLastBlock(ctx context.Context, timeout time.Duration) r
 	worker := w.getIdleWorkerUnsafe()
 	if worker == nil {
 		log.Debugf("workers: call:[%s] failed err:%s", "requestLastBlock", errAllWorkersBusy)
-		return newResponseL1LastBlock(errors.New(errAllWorkersBusy), time.Duration(0), typeRequestLastBlock, nil)
+		return newResponseL1LastBlock(errAllWorkersBusy, time.Duration(0), typeRequestLastBlock, nil)
 	}
 	result := worker.requestLastBlock(ctxTimeout)
 	return result
@@ -125,12 +128,12 @@ func (w *workers) asyncGenericRequest(ctx context.Context, requestType typeOfReq
 	defer w.mutex.Unlock()
 	if w.checkReachedLimitLiveRequestUnsafe(requestType) {
 		log.Debugf("workers: call:[%s] failed err:%s", requestStrForDebug, errReachMaximumLiveRequestsOfThisType)
-		return errors.New(errReachMaximumLiveRequestsOfThisType)
+		return errReachMaximumLiveRequestsOfThisType
 	}
 	worker := w.getIdleWorkerUnsafe()
 	if worker == nil {
 		log.Debugf("workers: call:[%s] failed err:%s", requestStrForDebug, errAllWorkersBusy)
-		return errors.New(errAllWorkersBusy)
+		return errAllWorkersBusy
 	}
 	w.launchGoroutineForRoutingResponsesIfNeedUnsafe()
 	wg := &w.waitGroups[requestType]

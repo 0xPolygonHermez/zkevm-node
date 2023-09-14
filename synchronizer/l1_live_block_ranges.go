@@ -29,13 +29,13 @@ const (
 	invalidBlockNumber = uint64(0)
 )
 
-const (
-	errBlockRangeInvalidIsNil   = "block Range Invalid: block range is nil"
-	errBlockRangeInvalidIsZero  = "block Range Invalid: Invalid: from or to are 0"
-	errBlockRangeInvalidIsWrong = "block Range Invalid: fromBlock is greater than toBlock"
-	errBlockRangeInvalidOverlap = "block Range Invalid: block range overlaps"
-	errBlockRangeNotFound       = "block Range not found"
-	errBlockRangeIsEmpty        = "block Range is empty"
+var (
+	errBlockRangeInvalidIsNil   = errors.New("block Range Invalid: block range is nil")
+	errBlockRangeInvalidIsZero  = errors.New("block Range Invalid: Invalid: from or to are 0")
+	errBlockRangeInvalidIsWrong = errors.New("block Range Invalid: fromBlock is greater than toBlock")
+	errBlockRangeInvalidOverlap = errors.New("block Range Invalid: block range overlaps")
+	errBlockRangeNotFound       = errors.New("block Range not found")
+	errBlockRangeIsEmpty        = errors.New("block Range is empty")
 )
 
 func newLiveBlockRanges() liveBlockRanges {
@@ -44,13 +44,13 @@ func newLiveBlockRanges() liveBlockRanges {
 
 func (b *blockRange) isValid() error {
 	if b == nil {
-		return errors.New(errBlockRangeInvalidIsNil)
+		return errBlockRangeInvalidIsNil
 	}
 	if b.fromBlock == invalidBlockNumber || b.toBlock == invalidBlockNumber {
-		return errors.New(errBlockRangeInvalidIsZero)
+		return errBlockRangeInvalidIsZero
 	}
 	if b.fromBlock > b.toBlock {
-		return errors.New(errBlockRangeInvalidIsWrong + b.String())
+		return errBlockRangeInvalidIsWrong
 	}
 	return nil
 }
@@ -64,7 +64,7 @@ func (l *liveBlockRanges) addBlockRange(br blockRange) error {
 		return err
 	}
 	if l.overlaps(br) {
-		return errors.New(errBlockRangeInvalidOverlap)
+		return errBlockRangeInvalidOverlap
 	}
 	l.ranges = append(l.ranges, liveBlockRangeItem{br})
 	return nil
@@ -77,12 +77,12 @@ func (l *liveBlockRanges) removeBlockRange(br blockRange) error {
 			return nil
 		}
 	}
-	return errors.New(errBlockRangeNotFound)
+	return errBlockRangeNotFound
 }
 
 func (l *liveBlockRanges) getFirstBlockRange() (blockRange, error) {
 	if l.len() == 0 {
-		return blockRange{}, errors.New(errBlockRangeIsEmpty)
+		return blockRange{}, errBlockRangeIsEmpty
 	}
 	return l.ranges[0].blockRange, nil
 }
