@@ -30,13 +30,22 @@ type L1ParallelSynchronizationConfig struct {
 	// (if UseParallelModeForL1Synchronization is true)
 	CapacityOfBufferingRollupInfoFromL1 uint64 `mapstructure:"CapacityOfBufferingRollupInfoFromL1"`
 
-	// CheckForLastBlockOnL1Time is the time to wait to request the
+	// TimeForCheckLastBlockOnL1Time is the time to wait to request the
 	// last block to L1 to known if we need to retrieve more data.
 	// This value only apply when the system is synchronized
-	CheckForLastBlockOnL1Time types.Duration `mapstructure:"CheckForLastBlockOnL1Time"`
+	TimeForCheckLastBlockOnL1Time types.Duration `mapstructure:"TimeForCheckLastBlockOnL1Time"`
 
 	// Consumer Configuration for the consumer of rollup information from L1
 	PerformanceCheck L1PerformanceCheckConfig `mapstructure:"PerformanceCheck"`
+
+	// TimeoutForRequestLastBlockOnL1 Timeout for request LastBlock On L1
+	TimeoutForRequestLastBlockOnL1 types.Duration `mapstructure:"TimeoutForRequestLastBlockOnL1"`
+	// MaxNumberOfRetriesForRequestLastBlockOnL1 Max number of retries to request LastBlock On L1
+	MaxNumberOfRetriesForRequestLastBlockOnL1 int `mapstructure:"MaxNumberOfRetriesForRequestLastBlockOnL1"`
+	// TimeForShowUpStatisticsLog how ofter show a log with statistics (0 is disabled)
+	TimeForShowUpStatisticsLog types.Duration `mapstructure:"TimeForShowUpStatisticsLog"`
+	// TimeOutMainLoop is the timeout for the main loop of the L1 synchronizer when is not updated
+	TimeOutMainLoop types.Duration `mapstructure:"TimeOutMainLoop"`
 }
 
 // L1PerformanceCheckConfig Configuration for the consumer of rollup information from L1

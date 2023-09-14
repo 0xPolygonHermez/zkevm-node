@@ -23,12 +23,12 @@ import (
 )
 
 const (
-	minTTLOfLastBlock                          = time.Second
-	timeOutMainLoop                            = time.Minute * 5
-	timeForShowUpStatisticsLog                 = time.Second * 60
-	conversionFactorPercentage                 = 100
-	maxRetriesForRequestnitialValueOfLastBlock = 10
-	timeRequestInitialValueOfLastBlock         = time.Second * 5
+	minTTLOfLastBlock                             = time.Second
+	minTimeoutForRequestLastBlockOnL1             = time.Second * 1
+	minNumOfAllowedRetriesForRequestLastBlockOnL1 = 1
+	minTimeOutMainLoop                            = time.Minute * 5
+	timeForShowUpStatisticsLog                    = time.Second * 60
+	conversionFactorPercentage                    = 100
 )
 
 type filter interface {
@@ -80,15 +80,35 @@ func (s producerStatusEnum) String() string {
 type configProducer struct {
 	syncChunkSize      uint64
 	ttlOfLastBlockOnL1 time.Duration
+
+	timeoutForRequestLastBlockOnL1             time.Duration
+	numOfAllowedRetriesForRequestLastBlockOnL1 int
+
+	//timeout for main loop if no is synchronized yet, this time is a safeguard because is not needed
+	timeOutMainLoop time.Duration
+	//how ofter we show a log with statistics, 0 means disabled
+	timeForShowUpStatisticsLog time.Duration
 }
 
 func (cfg *configProducer) normalize() {
 	if cfg.syncChunkSize == 0 {
-		log.Fatalf("l1RollupInfoProducer: SyncChunkSize must be greater than 0")
+		log.Fatalf("producer:config: SyncChunkSize must be greater than 0")
 	}
 	if cfg.ttlOfLastBlockOnL1 < minTTLOfLastBlock {
-		log.Warnf("l1RollupInfoProducer: ttlOfLastBlockOnL1 is too low (%s) so setting to %s", cfg.ttlOfLastBlockOnL1, minTTLOfLastBlock)
+		log.Warnf("producer:config: ttlOfLastBlockOnL1 is too low (%s) so setting to %s", cfg.ttlOfLastBlockOnL1, minTTLOfLastBlock)
 		cfg.ttlOfLastBlockOnL1 = minTTLOfLastBlock
+	}
+	if cfg.timeoutForRequestLastBlockOnL1 < minTimeoutForRequestLastBlockOnL1 {
+		log.Warnf("producer:config: timeRequestInitialValueOfLastBlock is too low (%s) so setting to %s", cfg.timeoutForRequestLastBlockOnL1, minTimeoutForRequestLastBlockOnL1)
+		cfg.timeoutForRequestLastBlockOnL1 = minTimeoutForRequestLastBlockOnL1
+	}
+	if cfg.numOfAllowedRetriesForRequestLastBlockOnL1 < minNumOfAllowedRetriesForRequestLastBlockOnL1 {
+		log.Warnf("producer:config: retriesForRequestnitialValueOfLastBlock is too low (%d) so setting to %d", cfg.numOfAllowedRetriesForRequestLastBlockOnL1, minNumOfAllowedRetriesForRequestLastBlockOnL1)
+		cfg.numOfAllowedRetriesForRequestLastBlockOnL1 = minNumOfAllowedRetriesForRequestLastBlockOnL1
+	}
+	if cfg.timeOutMainLoop < minTimeOutMainLoop {
+		log.Warnf("producer:config: timeOutMainLoop is too low (%s) so setting to %s", cfg.timeOutMainLoop, minTimeOutMainLoop)
+		cfg.timeOutMainLoop = minTimeOutMainLoop
 	}
 }
 
@@ -112,7 +132,7 @@ type l1RollupInfoProducer struct {
 func newL1DataRetriever(ctx context.Context, cfg configProducer, ethermans []EthermanInterface,
 	startingBlockNumber uint64, outgoingChannel chan l1SyncMessage) *l1RollupInfoProducer {
 	if cap(outgoingChannel) < len(ethermans) {
-		log.Warnf("l1RollupInfoProducer: outgoingChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(outgoingChannel), len(ethermans))
+		log.Warnf("producer: outgoingChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(outgoingChannel), len(ethermans))
 	}
 	newCtx, cancel := context.WithCancel(ctx)
 	cfg.normalize()
@@ -190,9 +210,9 @@ func (l *l1RollupInfoProducer) initialize() error {
 	}
 	if l.syncStatus.isSetLastBlockOnL1Value() {
 		log.Infof("producer: Need a initial value for Last Block On L1, doing the request (maxRetries:%v, timeRequest:%v)",
-			maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
+			l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1, l.cfg.timeoutForRequestLastBlockOnL1)
 		//result := l.retrieveInitialValueOfLastBlock(maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
-		result := l.workers.requestLastBlockWithRetries(l.ctx, timeRequestInitialValueOfLastBlock, maxRetriesForRequestnitialValueOfLastBlock)
+		result := l.workers.requestLastBlockWithRetries(l.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
 		if result.generic.err != nil {
 			log.Error(result.generic.err)
 			return result.generic.err
@@ -211,6 +231,7 @@ func (l *l1RollupInfoProducer) start(startingBlockNumber uint64) error {
 	} else {
 		log.Infof("producer: starting L1 sync with no changed status:%s (startingBlock:%v)", l.syncStatus.toStringBrief(), l.syncStatus.getLastBlockOnL1())
 	}
+	log.Debugf("producer:  starting configuration", l.cfg)
 	err := l.initialize()
 	if err != nil {
 		return err
@@ -254,7 +275,7 @@ func (l *l1RollupInfoProducer) stepInner(waitDuration *time.Duration) bool {
 	}
 	// Try to launch retrieve more rollupInfo from L1
 	l.launchWork()
-	if time.Since(l.statistics.lastShowUpTime) > timeForShowUpStatisticsLog {
+	if l.cfg.timeForShowUpStatisticsLog != 0 && time.Since(l.statistics.lastShowUpTime) > l.cfg.timeForShowUpStatisticsLog {
 		log.Infof("producer: Statistics:%s", l.statistics.getETA())
 		l.statistics.lastShowUpTime = time.Now()
 	}
@@ -273,6 +294,7 @@ func (l *l1RollupInfoProducer) ttlOfLastBlockOnL1() time.Duration {
 }
 
 func (l *l1RollupInfoProducer) getNextTimeout() time.Duration {
+	timeOutMainLoop := l.cfg.timeOutMainLoop
 	switch l.status {
 	case producerIdle:
 		return timeOutMainLoop
@@ -284,7 +306,7 @@ func (l *l1RollupInfoProducer) getNextTimeout() time.Duration {
 	default:
 		log.Fatalf("producer: Unknown status: %s", l.status)
 	}
-	return time.Second
+	return timeOutMainLoop
 }
 
 // OnNewLastBlock is called when a new last block on L1 is received
@@ -343,7 +365,7 @@ func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
 	l.mutex.Unlock()
 	if elapsed > ttl || forced {
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request")
-		result := l.workers.requestLastBlockWithRetries(l.ctx, timeRequestInitialValueOfLastBlock, maxRetriesForRequestnitialValueOfLastBlock)
+		result := l.workers.requestLastBlockWithRetries(l.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request old_block:%v -> new block:%v", oldBlock, result.result.block)
 		if result.generic.err != nil {
 			log.Error(result.generic.err)

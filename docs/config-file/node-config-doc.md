@@ -1078,12 +1078,16 @@ UseParallelModeForL1Synchronization=true
 **Type:** : `object`
 **Description:** L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)
 
-| Property                                                                                                              | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                           |
-| --------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [NumberOfParallelOfEthereumClients](#Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients )     | No      | integer | No         | -          | NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1<br />(if UseParallelModeForL1Synchronization is true)                                                                                                                       |
-| - [CapacityOfBufferingRollupInfoFromL1](#Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1 ) | No      | integer | No         | -          | CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync<br />sugested twice of NumberOfParallelOfEthereumClients<br />(if UseParallelModeForL1Synchronization is true) |
-| - [CheckForLastBlockOnL1Time](#Synchronizer_L1ParallelSynchronization_CheckForLastBlockOnL1Time )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
-| - [PerformanceCheck](#Synchronizer_L1ParallelSynchronization_PerformanceCheck )                                       | No      | object  | No         | -          | Consumer Configuration for the consumer of rollup information from L1                                                                                                                                                                                       |
+| Property                                                                                                                          | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [NumberOfParallelOfEthereumClients](#Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients )                 | No      | integer | No         | -          | NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1<br />(if UseParallelModeForL1Synchronization is true)                                                                                                                       |
+| - [CapacityOfBufferingRollupInfoFromL1](#Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1 )             | No      | integer | No         | -          | CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync<br />sugested twice of NumberOfParallelOfEthereumClients<br />(if UseParallelModeForL1Synchronization is true) |
+| - [TimeForCheckLastBlockOnL1Time](#Synchronizer_L1ParallelSynchronization_TimeForCheckLastBlockOnL1Time )                         | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+| - [PerformanceCheck](#Synchronizer_L1ParallelSynchronization_PerformanceCheck )                                                   | No      | object  | No         | -          | Consumer Configuration for the consumer of rollup information from L1                                                                                                                                                                                       |
+| - [TimeoutForRequestLastBlockOnL1](#Synchronizer_L1ParallelSynchronization_TimeoutForRequestLastBlockOnL1 )                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+| - [MaxNumberOfRetriesForRequestLastBlockOnL1](#Synchronizer_L1ParallelSynchronization_MaxNumberOfRetriesForRequestLastBlockOnL1 ) | No      | integer | No         | -          | MaxNumberOfRetriesForRequestLastBlockOnL1 Max number of retries to request LastBlock On L1                                                                                                                                                                  |
+| - [TimeForShowUpStatisticsLog](#Synchronizer_L1ParallelSynchronization_TimeForShowUpStatisticsLog )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+| - [TimeOutMainLoop](#Synchronizer_L1ParallelSynchronization_TimeOutMainLoop )                                                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
 
 #### <a name="Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients"></a>9.5.1. `Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients`
 
@@ -1116,15 +1120,15 @@ sugested twice of NumberOfParallelOfEthereumClients
 CapacityOfBufferingRollupInfoFromL1=10
 ```
 
-#### <a name="Synchronizer_L1ParallelSynchronization_CheckForLastBlockOnL1Time"></a>9.5.3. `Synchronizer.L1ParallelSynchronization.CheckForLastBlockOnL1Time`
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeForCheckLastBlockOnL1Time"></a>9.5.3. `Synchronizer.L1ParallelSynchronization.TimeForCheckLastBlockOnL1Time`
 
 **Title:** Duration
 
 **Type:** : `string`
 
-**Default:** `"0s"`
+**Default:** `"5s"`
 
-**Description:** CheckForLastBlockOnL1Time is the time to wait to request the
+**Description:** TimeForCheckLastBlockOnL1Time is the time to wait to request the
 last block to L1 to known if we need to retrieve more data.
 This value only apply when the system is synchronized
 
@@ -1138,10 +1142,10 @@ This value only apply when the system is synchronized
 "300ms"
 ```
 
-**Example setting the default value** ("0s"):
+**Example setting the default value** ("5s"):
 ```
 [Synchronizer.L1ParallelSynchronization]
-CheckForLastBlockOnL1Time="0s"
+TimeForCheckLastBlockOnL1Time="5s"
 ```
 
 #### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck"></a>9.5.4. `[Synchronizer.L1ParallelSynchronization.PerformanceCheck]`
@@ -1196,6 +1200,98 @@ start checking the time waiting for new rollup info data
 ```
 [Synchronizer.L1ParallelSynchronization.PerformanceCheck]
 NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo=10
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeoutForRequestLastBlockOnL1"></a>9.5.5. `Synchronizer.L1ParallelSynchronization.TimeoutForRequestLastBlockOnL1`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5s"`
+
+**Description:** TimeoutForRequestLastBlockOnL1 Timeout for request LastBlock On L1
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5s"):
+```
+[Synchronizer.L1ParallelSynchronization]
+TimeoutForRequestLastBlockOnL1="5s"
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_MaxNumberOfRetriesForRequestLastBlockOnL1"></a>9.5.6. `Synchronizer.L1ParallelSynchronization.MaxNumberOfRetriesForRequestLastBlockOnL1`
+
+**Type:** : `integer`
+
+**Default:** `3`
+
+**Description:** MaxNumberOfRetriesForRequestLastBlockOnL1 Max number of retries to request LastBlock On L1
+
+**Example setting the default value** (3):
+```
+[Synchronizer.L1ParallelSynchronization]
+MaxNumberOfRetriesForRequestLastBlockOnL1=3
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeForShowUpStatisticsLog"></a>9.5.7. `Synchronizer.L1ParallelSynchronization.TimeForShowUpStatisticsLog`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5m0s"`
+
+**Description:** TimeForShowUpStatisticsLog how ofter show a log with statistics (0 is disabled)
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5m0s"):
+```
+[Synchronizer.L1ParallelSynchronization]
+TimeForShowUpStatisticsLog="5m0s"
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeOutMainLoop"></a>9.5.8. `Synchronizer.L1ParallelSynchronization.TimeOutMainLoop`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5m0s"`
+
+**Description:** TimeOutMainLoop is the timeout for the main loop of the L1 synchronizer when is not updated
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5m0s"):
+```
+[Synchronizer.L1ParallelSynchronization]
+TimeOutMainLoop="5m0s"
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`
