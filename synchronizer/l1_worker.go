@@ -42,7 +42,7 @@ const (
 	errWorkerBusy = "worker is busy"
 )
 
-// genericResponse struct containts all common data for any kind of transaction
+// genericResponse struct contains all common data for any kind of transaction
 type genericResponse struct {
 	err           error
 	duration      time.Duration
