@@ -37,7 +37,7 @@ func Test_Given_NeedSync_When_Start_Then_AskForRollupInfo(t *testing.T) {
 	sut.launchWork()
 	var waitDuration = time.Duration(0)
 
-	sut.step(&waitDuration)
+	sut.stepInner(&waitDuration)
 	sut.workers.waitFinishAllWorkers()
 }
 
@@ -54,10 +54,10 @@ func Test_Given_NoNeedSync_When_Starts_SendAndEventOfSynchronized(t *testing.T) 
 	sut.launchWork()
 	var waitDuration = time.Duration(0)
 
-	sut.stepWithCheckStatus(&waitDuration)
+	sut.step(&waitDuration)
 
 	waitDuration = time.Duration(0)
-	res := sut.stepWithCheckStatus(&waitDuration)
+	res := sut.step(&waitDuration)
 	require.True(t, res)
 	// read everything in channel ch
 	for len(ch) > 0 {
@@ -82,10 +82,10 @@ func Test_Given_NeedSync_When_ReachLastBlock_Then_SendAndEventOfSynchronized(t *
 
 	// Is going to ask for last block again because it'll launch all request
 	expectedForGettingL1LastBlock(t, etherman, 101)
-	sut.stepWithCheckStatus(&waitDuration)
+	sut.step(&waitDuration)
 	require.Equal(t, sut.status, producerWorking)
 	waitDuration = time.Millisecond * 100 // need a bit of time to receive the response to rollupinfo
-	res := sut.stepWithCheckStatus(&waitDuration)
+	res := sut.step(&waitDuration)
 	require.True(t, res)
 	require.Equal(t, sut.status, producerSynchronized)
 	// read everything in channel ch
@@ -103,7 +103,13 @@ func setup(t *testing.T) (*l1RollupInfoProducer, []*ethermanMock, chan l1SyncMes
 	ethermansMock := []*ethermanMock{etherman}
 	ethermans := []EthermanInterface{etherman}
 	resultChannel := make(chan l1SyncMessage, 100)
-	sut := newL1DataRetriever(context.Background(), ethermans, 100, 10, resultChannel, false)
+	//sut := newL1DataRetriever(context.Background(), ethermans, 100, 10, resultChannel, false)
+	cfg := configProducer{
+		SyncChunkSize:      100,
+		ttlOfLastBlockOnL1: time.Second,
+	}
+
+	sut := newL1DataRetriever(context.Background(), cfg, ethermans, 100, resultChannel)
 	return sut, ethermansMock, resultChannel
 }
 

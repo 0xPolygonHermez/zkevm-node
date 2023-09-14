@@ -110,8 +110,17 @@ var waitDuration = time.Duration(0)
 
 func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer) (*l1SyncOrchestration, error) {
 	chIncommingRollupInfo := make(chan l1SyncMessage, cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
-	L1DataProcessor := newL1RollupInfoConsumer(sync, ctx, chIncommingRollupInfo)
-	l1DataRetriever := newL1DataRetriever(ctx, etherManForL1, invalidBlockNumber, cfg.SyncChunkSize, chIncommingRollupInfo, false)
+	cfgConsumer := configConsumer{
+		numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData: cfg.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo,
+		acceptableTimeWaitingForNewRollupInfoData:                       cfg.L1ParallelSynchronization.PerformanceCheck.AcceptableTimeWaitingForNewRollupInfo.Duration,
+	}
+	L1DataProcessor := newL1RollupInfoConsumer(ctx, cfgConsumer, sync, chIncommingRollupInfo)
+
+	cfgProducer := configProducer{
+		SyncChunkSize:      cfg.SyncChunkSize,
+		ttlOfLastBlockOnL1: cfg.L1ParallelSynchronization.CheckForLastBlockOnL1Time.Duration,
+	}
+	l1DataRetriever := newL1DataRetriever(ctx, cfgProducer, etherManForL1, invalidBlockNumber, chIncommingRollupInfo)
 	l1SyncOrchestration := newL1SyncOrchestration(l1DataRetriever, L1DataProcessor)
 	return l1SyncOrchestration, nil
 }

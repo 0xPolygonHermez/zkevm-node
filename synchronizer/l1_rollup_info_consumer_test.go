@@ -36,7 +36,7 @@ func Test_Given_Consumer_When_ReceiveAFullSyncAndChannelIsNotEmpty_Then_DontStop
 	data.ch <- *newL1SyncMessageControl(eventNone)
 	err := data.sut.start()
 	require.Error(t, err)
-	require.Equal(t, errContextCanceled, err.Error())
+	require.Equal(t, errContextCanceled, err)
 }
 
 func Test_Given_Consumer_When_FailsToProcessRollup_Then_IDontKnown(t *testing.T) {
@@ -71,6 +71,10 @@ func setupConsumerTest(t *testing.T, ctx *context.Context) consumerTestData {
 		rctx := context.Background()
 		ctx = &rctx
 	}
-	sut := newL1RollupInfoConsumer(syncMock, *ctx, ch)
+	cfg := configConsumer{
+		numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData: minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData,
+		acceptableTimeWaitingForNewRollupInfoData:                       minAcceptableTimeWaitingForNewRollupInfoData,
+	}
+	sut := newL1RollupInfoConsumer(*ctx, cfg, syncMock, ch)
 	return consumerTestData{sut, syncMock, ch, *ctx}
 }

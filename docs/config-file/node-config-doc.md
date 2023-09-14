@@ -1082,6 +1082,8 @@ UseParallelModeForL1Synchronization=true
 | --------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | - [NumberOfParallelOfEthereumClients](#Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients )     | No      | integer | No         | -          | NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1<br />(if UseParallelModeForL1Synchronization is true)                                                                                                                       |
 | - [CapacityOfBufferingRollupInfoFromL1](#Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1 ) | No      | integer | No         | -          | CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync<br />sugested twice of NumberOfParallelOfEthereumClients<br />(if UseParallelModeForL1Synchronization is true) |
+| - [CheckForLastBlockOnL1Time](#Synchronizer_L1ParallelSynchronization_CheckForLastBlockOnL1Time )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+| - [PerformanceCheck](#Synchronizer_L1ParallelSynchronization_PerformanceCheck )                                       | No      | object  | No         | -          | Consumer Configuration for the consumer of rollup information from L1                                                                                                                                                                                       |
 
 #### <a name="Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients"></a>9.5.1. `Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients`
 
@@ -1112,6 +1114,88 @@ sugested twice of NumberOfParallelOfEthereumClients
 ```
 [Synchronizer.L1ParallelSynchronization]
 CapacityOfBufferingRollupInfoFromL1=10
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_CheckForLastBlockOnL1Time"></a>9.5.3. `Synchronizer.L1ParallelSynchronization.CheckForLastBlockOnL1Time`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"0s"`
+
+**Description:** CheckForLastBlockOnL1Time is the time to wait to request the
+last block to L1 to known if we need to retrieve more data.
+This value only apply when the system is synchronized
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("0s"):
+```
+[Synchronizer.L1ParallelSynchronization]
+CheckForLastBlockOnL1Time="0s"
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck"></a>9.5.4. `[Synchronizer.L1ParallelSynchronization.PerformanceCheck]`
+
+**Type:** : `object`
+**Description:** Consumer Configuration for the consumer of rollup information from L1
+
+| Property                                                                                                                                                                               | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [AcceptableTimeWaitingForNewRollupInfo](#Synchronizer_L1ParallelSynchronization_PerformanceCheck_AcceptableTimeWaitingForNewRollupInfo )                                             | No      | string  | No         | -          | Duration                                                                                                                                                 |
+| - [NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo](#Synchronizer_L1ParallelSynchronization_PerformanceCheck_NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo ) | No      | integer | No         | -          | NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo is the number of iterations to<br />start checking the time waiting for new rollup info data |
+
+##### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck_AcceptableTimeWaitingForNewRollupInfo"></a>9.5.4.1. `Synchronizer.L1ParallelSynchronization.PerformanceCheck.AcceptableTimeWaitingForNewRollupInfo`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5s"`
+
+**Description:** AcceptableTimeWaitingForNewRollupInfo is the expected maximum time that the consumer
+could wait until new data are produced. If the time is greater it emmit a log to warn about
+that. The idea is keep working the consumer as much as possible, so if the producer is not
+fast enought then you could increse the number of parallel clients to sync with L1
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5s"):
+```
+[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
+AcceptableTimeWaitingForNewRollupInfo="5s"
+```
+
+##### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck_NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo"></a>9.5.4.2. `Synchronizer.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo`
+
+**Type:** : `integer`
+
+**Default:** `10`
+
+**Description:** NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo is the number of iterations to
+start checking the time waiting for new rollup info data
+
+**Example setting the default value** (10):
+```
+[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
+NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo=10
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`

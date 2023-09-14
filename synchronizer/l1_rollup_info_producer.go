@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	ttlOfLastBlockDefault                      = time.Second * 5
+	minTTLOfLastBlock                          = time.Second
 	timeOutMainLoop                            = time.Minute * 5
 	timeForShowUpStatisticsLog                 = time.Second * 60
 	conversionFactorPercentage                 = 100
@@ -91,43 +91,57 @@ func (s producerStatusEnum) String() string {
 	return [...]string{"idle", "working", "synchronized"}[s]
 }
 
-type l1RollupInfoProducer struct {
-	mutex              sync.Mutex
-	ctx                context.Context
-	cancelCtx          context.CancelFunc
-	workers            workersInterface
-	syncStatus         syncStatusInterface
-	outgoingChannel    chan l1SyncMessage
-	timeLastBLockOnL1  time.Time
+type configProducer struct {
+	SyncChunkSize      uint64
 	ttlOfLastBlockOnL1 time.Duration
-	status             producerStatusEnum
+}
+
+func (cfg *configProducer) normalize() {
+	if cfg.SyncChunkSize == 0 {
+		log.Fatalf("l1RollupInfoProducer: SyncChunkSize must be greater than 0")
+	}
+	if cfg.ttlOfLastBlockOnL1 < minTTLOfLastBlock {
+		log.Warnf("l1RollupInfoProducer: ttlOfLastBlockOnL1 is too low (%s) so setting to %s", cfg.ttlOfLastBlockOnL1, minTTLOfLastBlock)
+		cfg.ttlOfLastBlockOnL1 = minTTLOfLastBlock
+	}
+}
+
+type l1RollupInfoProducer struct {
+	mutex             sync.Mutex
+	ctxParent         context.Context
+	ctx               context.Context
+	cancelCtx         context.CancelFunc
+	workers           workersInterface
+	syncStatus        syncStatusInterface
+	outgoingChannel   chan l1SyncMessage
+	timeLastBLockOnL1 time.Time
+	status            producerStatusEnum
 	// filter is an object that sort l1DataMessage to be send ordered by block number
 	filterToSendOrdererResultsToConsumer filter
 	statistics                           l1RollupInfoProducerStatistics
+	cfg                                  configProducer
 }
 
 // l1DataRetrieverStatistics : create an instance of l1RollupInfoProducer
-func newL1DataRetriever(ctx context.Context, ethermans []EthermanInterface,
-	startingBlockNumber uint64, SyncChunkSize uint64,
-	outgoingChannel chan l1SyncMessage, renewLastBlockOnL1 bool) *l1RollupInfoProducer {
+func newL1DataRetriever(ctx context.Context, cfg configProducer, ethermans []EthermanInterface,
+	startingBlockNumber uint64, outgoingChannel chan l1SyncMessage) *l1RollupInfoProducer {
 	if cap(outgoingChannel) < len(ethermans) {
 		log.Warnf("l1RollupInfoProducer: outgoingChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(outgoingChannel), len(ethermans))
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	ttlOfLastBlock := ttlOfLastBlockDefault
-	if !renewLastBlockOnL1 {
-		ttlOfLastBlock = ttlOfLastBlockDefault
-	}
+	newCtx, cancel := context.WithCancel(ctx)
+	cfg.normalize()
+
 	result := l1RollupInfoProducer{
-		ctx:                                  ctx,
+		ctxParent:                            ctx,
+		ctx:                                  newCtx,
 		cancelCtx:                            cancel,
-		syncStatus:                           newSyncStatus(startingBlockNumber, SyncChunkSize),
+		syncStatus:                           newSyncStatus(startingBlockNumber, cfg.SyncChunkSize),
 		workers:                              newWorkers(ctx, ethermans),
 		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(startingBlockNumber),
 		outgoingChannel:                      outgoingChannel,
 		statistics:                           newRollupInfoProducerStatistics(startingBlockNumber),
-		ttlOfLastBlockOnL1:                   ttlOfLastBlock,
 		status:                               producerIdle,
+		cfg:                                  cfg,
 	}
 	return &result
 }
@@ -153,7 +167,7 @@ func (l *l1RollupInfoProducer) reset(startingBlockNumber uint64) {
 	defer l.mutex.Unlock()
 	log.Debugf("producer: Reset(%d): context cancel", startingBlockNumber)
 	l.cancelCtx()
-	l.ctx, l.cancelCtx = context.WithCancel(context.Background())
+	l.ctx, l.cancelCtx = context.WithCancel(l.ctxParent)
 	log.Debugf("producer: Reset(%d): syncStatus.reset", startingBlockNumber)
 	l.syncStatus.reset(startingBlockNumber)
 	l.statistics.reset(startingBlockNumber)
@@ -209,22 +223,22 @@ func (l *l1RollupInfoProducer) start(startingBlockNumber uint64) error {
 		log.Infof("producer: starting L1 sync from %v, previous status:%s", startingBlockNumber, l.syncStatus.toStringBrief())
 		l.reset(startingBlockNumber)
 	} else {
-		log.Infof("producer: starting L1 sync with no changed status:%s", l.syncStatus.toStringBrief())
+		log.Infof("producer: starting L1 sync with no changed status:%s (startingBlock:%v)", l.syncStatus.toStringBrief(), l.syncStatus.getLastBlockOnL1())
 	}
 	err := l.initialize()
 	if err != nil {
 		return err
 	}
 	var waitDuration = time.Duration(0)
-	for l.stepWithCheckStatus(&waitDuration) {
+	for l.step(&waitDuration) {
 	}
 	l.workers.waitFinishAllWorkers()
 	return nil
 }
 
-func (l *l1RollupInfoProducer) stepWithCheckStatus(waitDuration *time.Duration) bool {
+func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 	previousStatus := l.status
-	res := l.step(waitDuration)
+	res := l.stepInner(waitDuration)
 	newStatus := l.status
 	if previousStatus != newStatus {
 		log.Infof("producer: Status changed from [%s] to [%s]", previousStatus.String(), newStatus.String())
@@ -236,9 +250,10 @@ func (l *l1RollupInfoProducer) stepWithCheckStatus(waitDuration *time.Duration) 
 	return res
 }
 
-func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
+func (l *l1RollupInfoProducer) stepInner(waitDuration *time.Duration) bool {
 	select {
 	case <-l.ctx.Done():
+		log.Debugf("producer: context canceled")
 		return false
 	// That timeout is not need, but just in case that stop launching request
 	case <-time.After(*waitDuration):
@@ -267,6 +282,10 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 	return true
 }
 
+func (l *l1RollupInfoProducer) ttlOfLastBlockOnL1() time.Duration {
+	return l.cfg.ttlOfLastBlockOnL1
+}
+
 func (l *l1RollupInfoProducer) getNextTimeout() time.Duration {
 	switch l.status {
 	case producerIdle:
@@ -274,7 +293,7 @@ func (l *l1RollupInfoProducer) getNextTimeout() time.Duration {
 	case producerWorking:
 		return timeOutMainLoop
 	case producerSynchronized:
-		nextRenewLastBlock := time.Since(l.timeLastBLockOnL1) + l.ttlOfLastBlockOnL1
+		nextRenewLastBlock := time.Since(l.timeLastBLockOnL1) + l.ttlOfLastBlockOnL1()
 		return max(nextRenewLastBlock, time.Second)
 	default:
 		log.Fatalf("producer: Unknown status: %s", l.status)
@@ -333,7 +352,7 @@ func (l *l1RollupInfoProducer) launchWork() int {
 func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
 	l.mutex.Lock()
 	elapsed := time.Since(l.timeLastBLockOnL1)
-	ttl := l.ttlOfLastBlockOnL1
+	ttl := l.ttlOfLastBlockOnL1()
 	oldBlock := l.syncStatus.getLastBlockOnL1()
 	l.mutex.Unlock()
 	if elapsed > ttl || forced {

@@ -417,6 +417,38 @@
 							"type": "integer",
 							"description": "CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsugested twice of NumberOfParallelOfEthereumClients\n(if UseParallelModeForL1Synchronization is true)",
 							"default": 10
+						},
+						"CheckForLastBlockOnL1Time": {
+							"type": "string",
+							"title": "Duration",
+							"description": "CheckForLastBlockOnL1Time is the time to wait to request the\nlast block to L1 to known if we need to retrieve more data.\nThis value only apply when the system is synchronized",
+							"default": "0s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"PerformanceCheck": {
+							"properties": {
+								"AcceptableTimeWaitingForNewRollupInfo": {
+									"type": "string",
+									"title": "Duration",
+									"description": "AcceptableTimeWaitingForNewRollupInfo is the expected maximum time that the consumer\ncould wait until new data are produced. If the time is greater it emmit a log to warn about\nthat. The idea is keep working the consumer as much as possible, so if the producer is not\nfast enought then you could increse the number of parallel clients to sync with L1",
+									"default": "5s",
+									"examples": [
+										"1m",
+										"300ms"
+									]
+								},
+								"NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo": {
+									"type": "integer",
+									"description": "NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo is the number of iterations to\nstart checking the time waiting for new rollup info data",
+									"default": 10
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Consumer Configuration for the consumer of rollup information from L1"
 						}
 					},
 					"additionalProperties": false,

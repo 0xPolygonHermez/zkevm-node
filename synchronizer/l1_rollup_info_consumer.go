@@ -14,14 +14,21 @@ import (
 )
 
 const (
-	errMissingLastBlock                                             = "consumer:the received rollupinfo have no blocks and need to fill last block"
-	errContextCanceled                                              = "consumer:context canceled"
-	numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData = 20
-	acceptableTimeWaitingForNewRollupInfoData                       = 1 * time.Second
-
-	errConsumerStopped                      = "consumer:stopped by request"
-	errConsumerStoppedBecauseIsSynchronized = "consumer:stopped because is synchronized"
+	minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData = 20
+	minAcceptableTimeWaitingForNewRollupInfoData                       = 1 * time.Second
 )
+
+var (
+	errMissingLastBlock                     = errors.New("consumer:the received rollupinfo have no blocks and need to fill last block")
+	errContextCanceled                      = errors.New("consumer:context canceled")
+	errConsumerStopped                      = errors.New("consumer:stopped by request")
+	errConsumerStoppedBecauseIsSynchronized = errors.New("consumer:stopped because is synchronized")
+)
+
+type configConsumer struct {
+	numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData int
+	acceptableTimeWaitingForNewRollupInfoData                       time.Duration
+}
 
 // synchronizerProcessBlockRangeInterface is the interface with synchronizer
 // to execute blocks. This interface is used to mock the synchronizer in the tests
@@ -39,14 +46,24 @@ type l1RollupInfoConsumer struct {
 	lastEthBlockSynced    *state.Block
 }
 
-func newL1RollupInfoConsumer(synchronizer synchronizerProcessBlockRangeInterface,
-	ctx context.Context, ch chan l1SyncMessage) *l1RollupInfoConsumer {
+func newL1RollupInfoConsumer(ctx context.Context, cfg configConsumer,
+	synchronizer synchronizerProcessBlockRangeInterface, ch chan l1SyncMessage) *l1RollupInfoConsumer {
+	if cfg.acceptableTimeWaitingForNewRollupInfoData < minAcceptableTimeWaitingForNewRollupInfoData {
+		log.Warnf("consumer: the acceptableTimeWaitingForNewRollupInfoData is too low (%s) so setting to %s", cfg.acceptableTimeWaitingForNewRollupInfoData, minAcceptableTimeWaitingForNewRollupInfoData)
+		cfg.acceptableTimeWaitingForNewRollupInfoData = minAcceptableTimeWaitingForNewRollupInfoData
+	}
+	if cfg.numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData < minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData {
+		log.Warnf("consumer: the numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData is too low (%d) so setting to %d", cfg.numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData, minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData)
+		cfg.numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData = minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData
+	}
+
 	return &l1RollupInfoConsumer{
 		synchronizer:          synchronizer,
 		ctx:                   ctx,
 		chIncommingRollupInfo: ch,
 		statistics: ll1RollupInfoConsumerStatistics{
 			startTime: time.Now(),
+			cfg:       cfg,
 		},
 	}
 }
@@ -56,7 +73,7 @@ func (l *l1RollupInfoConsumer) start() error {
 	err := l.step()
 	for ; err == nil; err = l.step() {
 	}
-	if err.Error() != errConsumerStopped && err.Error() != errConsumerStoppedBecauseIsSynchronized {
+	if err != errConsumerStopped && err != errConsumerStoppedBecauseIsSynchronized {
 		return err
 	}
 	// The errConsumerStopped is not an error, so we return nil meaning that the process finished in a normal way
@@ -67,7 +84,7 @@ func (l *l1RollupInfoConsumer) step() error {
 	var err error
 	select {
 	case <-l.ctx.Done():
-		return errors.New(errContextCanceled)
+		return errContextCanceled
 	case rollupInfo := <-l.chIncommingRollupInfo:
 		if rollupInfo.dataIsValid {
 			err = l.processIncommingRollupInfoData(rollupInfo.data)
@@ -90,13 +107,13 @@ func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1Consu
 	defer l.mutex.Unlock()
 	if control.event == eventStop {
 		log.Infof("consumer: received a stop, so it stops processing. ignoring rest of items on channel len=%d", len(l.chIncommingRollupInfo))
-		return errors.New(errConsumerStopped)
+		return errConsumerStopped
 	}
 	if control.event == eventProducerIsFullySynced {
 		itemsInChannel := len(l.chIncommingRollupInfo)
 		if itemsInChannel == 0 {
 			log.Infof("consumer: received a fullSync and nothing pending in channel to process, so stopping consumer")
-			return errors.New(errConsumerStoppedBecauseIsSynchronized)
+			return errConsumerStoppedBecauseIsSynchronized
 		} else {
 			log.Warnf("consumer: received a fullSync but still have %d items in channel to process, so not stopping consumer", itemsInChannel)
 		}
@@ -159,7 +176,7 @@ func (l *l1RollupInfoConsumer) _Process(rollupInfo rollupInfoByBlockRangeResult)
 		fb := rollupInfo.lastBlockOfRange
 		if fb == nil {
 			log.Warn("consumer: Error processing block range: ", rollupInfo.blockRange, " err: need the last block of range and got a nil")
-			return nil, errors.New(errMissingLastBlock)
+			return nil, errMissingLastBlock
 		}
 		b := convertL1BlockToEthBlock(fb)
 		err = l.synchronizer.processBlockRange([]etherman.Block{b}, order)

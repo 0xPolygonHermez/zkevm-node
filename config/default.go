@@ -92,6 +92,9 @@ UseParallelModeForL1Synchronization = true
 	[Synchronizer.L1ParallelSynchronization]
 		NumberOfParallelOfEthereumClients = 2
 		CapacityOfBufferingRollupInfoFromL1 = 10
+		[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
+			AcceptableTimeWaitingForNewRollupInfo = "5s"
+			NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo = 10
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"

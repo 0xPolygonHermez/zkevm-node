@@ -29,4 +29,24 @@ type L1ParallelSynchronizationConfig struct {
 	// sugested twice of NumberOfParallelOfEthereumClients
 	// (if UseParallelModeForL1Synchronization is true)
 	CapacityOfBufferingRollupInfoFromL1 uint64 `mapstructure:"CapacityOfBufferingRollupInfoFromL1"`
+
+	// CheckForLastBlockOnL1Time is the time to wait to request the
+	// last block to L1 to known if we need to retrieve more data.
+	// This value only apply when the system is synchronized
+	CheckForLastBlockOnL1Time types.Duration `mapstructure:"CheckForLastBlockOnL1Time"`
+
+	// Consumer Configuration for the consumer of rollup information from L1
+	PerformanceCheck L1PerformanceCheckConfig `mapstructure:"PerformanceCheck"`
+}
+
+// L1PerformanceCheckConfig Configuration for the consumer of rollup information from L1
+type L1PerformanceCheckConfig struct {
+	// AcceptableTimeWaitingForNewRollupInfo is the expected maximum time that the consumer
+	// could wait until new data are produced. If the time is greater it emmit a log to warn about
+	// that. The idea is keep working the consumer as much as possible, so if the producer is not
+	// fast enought then you could increse the number of parallel clients to sync with L1
+	AcceptableTimeWaitingForNewRollupInfo types.Duration `mapstructure:"AcceptableTimeWaitingForNewRollupInfo"`
+	// NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo is the number of iterations to
+	// start checking the time waiting for new rollup info data
+	NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo int `mapstructure:"NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo"`
 }
