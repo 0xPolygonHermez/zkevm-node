@@ -1030,7 +1030,7 @@ TrustedSequencerURL=""
 | - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                                                                             |
 | - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                                                                             |
 | - [EffectiveGasPrice](#Sequencer_EffectiveGasPrice )                         | No      | object  | No         | -          | EffectiveGasPrice is the config for the gas price                                                                                                  |
-| - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServer is the config for the stream server                                                                                                   |
+| - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                                                                                |
 
 ### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
 
@@ -1725,7 +1725,7 @@ DefaultMinGasPriceAllowed=0
 ### <a name="Sequencer_StreamServer"></a>10.19. `[Sequencer.StreamServer]`
 
 **Type:** : `object`
-**Description:** StreamServer is the config for the stream server
+**Description:** StreamServerCfg is the config for the stream server
 
 | Property                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                     |
 | ----------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------- |

@@ -62,12 +62,12 @@ type Config struct {
 	// EffectiveGasPrice is the config for the gas price
 	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
 
-	// StreamServer is the config for the stream server
-	StreamServer DataStreamerCfg `mapstructure:"StreamServer"`
+	// StreamServerCfg is the config for the stream server
+	StreamServer StreamServerCfg `mapstructure:"StreamServer"`
 }
 
-// DataStreamerCfg contains the data streamer's configuration properties
-type DataStreamerCfg struct {
+// StreamServerCfg contains the data streamer's configuration properties
+type StreamServerCfg struct {
 	// Port to listen on
 	Port uint16 `mapstructure:"Port"`
 	// Filename of the binary data file

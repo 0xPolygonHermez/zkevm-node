@@ -663,7 +663,7 @@
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"description": "StreamServer is the config for the stream server"
+					"description": "StreamServerCfg is the config for the stream server"
 				}
 			},
 			"additionalProperties": false,

@@ -211,6 +211,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	}
 
 	// Send tx data to data stream server
+	var streamServerErr error
 	if d.streamServer != nil {
 		l2Block := DSL2Block{
 			BatchNumber:    tx.batchNumber,
@@ -228,41 +229,48 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 			Encoded:                     txData,
 		}
 
-		err = d.streamServer.StartAtomicOp()
-		if err != nil {
-			return err
+		streamServerErr = d.streamServer.StartAtomicOp()
+		if streamServerErr != nil {
+			log.Errorf("failed to start atomic op: %v", streamServerErr)
+			goto StreamServerEnd
 		}
 
-		_, err = d.streamServer.AddStreamEntry(EntryTypeL2Block, l2Block.Encode())
-		if err != nil {
-			return err
+		_, streamServerErr = d.streamServer.AddStreamEntry(EntryTypeL2Block, l2Block.Encode())
+		if streamServerErr != nil {
+			log.Errorf("failed to add stream entry: %v", streamServerErr)
+			goto StreamServerEnd
 		}
 
-		_, err = d.streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transaction.Encode())
+		_, streamServerErr = d.streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transaction.Encode())
 		if err != nil {
-			return err
+			log.Errorf("failed to add stream entry: %v", streamServerErr)
+			goto StreamServerEnd
+		}
+
+		streamServerErr = d.streamServer.CommitAtomicOp()
+		if streamServerErr != nil {
+			log.Errorf("failed to rollback atomic op: %v", streamServerErr)
 		}
 	}
 
-	if d.streamServer != nil {
-		err = d.streamServer.CommitAtomicOp()
-		if err != nil {
-			log.Error("failed to commit atomic op: %v", err)
-			err2 := dbTx.Rollback(ctx)
-			if err2 != nil {
-				log.Errorf("failed to rollback dbTx when committing atomic op that gave err: %v. Rollback err: %v", err2, err)
-			}
-			return err
+StreamServerEnd:
+	if d.streamServer != nil && streamServerErr != nil {
+		streamServerErr = d.streamServer.RollbackAtomicOp()
+		if streamServerErr != nil {
+			log.Errorf("failed to rollback atomic op: %v", streamServerErr)
 		}
-		err = dbTx.Commit(ctx)
+
+		err := dbTx.Rollback(ctx)
 		if err != nil {
-			return err
+			log.Errorf("failed to rollback dbTx when storing tx: %v", err)
 		}
-	} else {
-		err = dbTx.Commit(ctx)
-		if err != nil {
-			return err
-		}
+
+		return streamServerErr
+	}
+
+	err = dbTx.Commit(ctx)
+	if err != nil {
+		return err
 	}
 
 	// Change Tx status to selected
