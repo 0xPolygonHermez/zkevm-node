@@ -58,7 +58,7 @@ type syncStatusInterface interface {
 	getNextRange() *blockRange
 	isNodeFullySynchronizedWithL1() bool
 	haveRequiredAllBlocksToBeSynchronized() bool
-	needToRenewLastBlockOnL1() bool
+	isSetLastBlockOnL1Value() bool
 	getLastBlockOnL1() uint64
 
 	onStartedNewWorker(br blockRange)
@@ -188,7 +188,7 @@ func (l *l1RollupInfoProducer) initialize() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if l.syncStatus.needToRenewLastBlockOnL1() {
+	if l.syncStatus.isSetLastBlockOnL1Value() {
 		log.Infof("producer: Need a initial value for Last Block On L1, doing the request (maxRetries:%v, timeRequest:%v)",
 			maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
 		//result := l.retrieveInitialValueOfLastBlock(maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)

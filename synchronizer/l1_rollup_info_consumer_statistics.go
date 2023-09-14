@@ -27,12 +27,13 @@ func (l *ll1RollupInfoConsumerStatistics) onStartStep() {
 
 func (l *ll1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult) string {
 	now := time.Now()
+	// Time have have been blocked in the select statement
 	waitingTimeForData := now.Sub(l.startStepTime)
 	blocksPerSecond := float64(l.numProcessedBlocks) / time.Since(l.startTime).Seconds()
 	if l.numProcessedRollupInfo > numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData && waitingTimeForData > acceptableTimeWaitingForNewRollupInfoData {
 		msg := fmt.Sprintf("wasted waiting for new rollupInfo from L1: %s last_process: %s new range: %s block_per_second: %f",
 			waitingTimeForData, l.timePreviousProcessingDuration, rollupInfo.blockRange.toString(), blocksPerSecond)
-		log.Warnf("consumer:: Too much wasted time:%s", msg)
+		log.Warnf("consumer:: Too much wasted time (waiting to receive a new data):%s", msg)
 	}
 	l.numProcessedRollupInfo++
 	msg := fmt.Sprintf("wasted_time_waiting_for_data [%s] last_process_time [%s] block_per_second [%f]", waitingTimeForData, l.timePreviousProcessingDuration, blocksPerSecond)

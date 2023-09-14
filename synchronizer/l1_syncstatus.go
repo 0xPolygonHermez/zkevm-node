@@ -246,7 +246,7 @@ func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
 	return response
 }
 
-func (s *syncStatus) needToRenewLastBlockOnL1() bool {
+func (s *syncStatus) isSetLastBlockOnL1Value() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.lastBlockOnL1 == invalidLastBlock
