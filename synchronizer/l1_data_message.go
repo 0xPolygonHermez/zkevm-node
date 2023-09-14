@@ -61,7 +61,7 @@ func newL1SyncMessageData(result *rollupInfoByBlockRangeResult) *l1SyncMessage {
 	}
 }
 
-func (a eventEnum) toString() string {
+func (a eventEnum) String() string {
 	switch a {
 	case eventNone:
 		return "actionNone"
@@ -74,8 +74,8 @@ func (a eventEnum) toString() string {
 	}
 }
 
-func (l *l1ConsumerControl) toString() string {
-	return fmt.Sprintf("action:%s", l.event.toString())
+func (l *l1ConsumerControl) String() string {
+	return fmt.Sprintf("action:%s", l.event.String())
 }
 
 func (l *l1SyncMessage) toStringBrief() string {
@@ -86,7 +86,7 @@ func (l *l1SyncMessage) toStringBrief() string {
 		res += " NO_DATA "
 	}
 	if l.ctrlIsValid {
-		res += fmt.Sprintf("ctrl:%v ", l.ctrl.toString())
+		res += fmt.Sprintf("ctrl:%v ", l.ctrl.String())
 	} else {
 		res += " NO_CTRL "
 	}

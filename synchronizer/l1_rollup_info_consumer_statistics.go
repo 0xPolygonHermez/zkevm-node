@@ -33,7 +33,7 @@ func (l *ll1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(
 	blocksPerSecond := float64(l.numProcessedBlocks) / time.Since(l.startTime).Seconds()
 	if l.numProcessedRollupInfo > uint64(l.cfg.numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData) && waitingTimeForData > l.cfg.acceptableTimeWaitingForNewRollupInfoData {
 		msg := fmt.Sprintf("wasted waiting for new rollupInfo from L1: %s last_process: %s new range: %s block_per_second: %f",
-			waitingTimeForData, l.timePreviousProcessingDuration, rollupInfo.blockRange.toString(), blocksPerSecond)
+			waitingTimeForData, l.timePreviousProcessingDuration, rollupInfo.blockRange.String(), blocksPerSecond)
 		log.Warnf("consumer:: Too much wasted time (waiting to receive a new data):%s", msg)
 	}
 	l.numProcessedRollupInfo++

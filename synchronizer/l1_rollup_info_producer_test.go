@@ -105,7 +105,7 @@ func setup(t *testing.T) (*l1RollupInfoProducer, []*ethermanMock, chan l1SyncMes
 	resultChannel := make(chan l1SyncMessage, 100)
 	//sut := newL1DataRetriever(context.Background(), ethermans, 100, 10, resultChannel, false)
 	cfg := configProducer{
-		SyncChunkSize:      100,
+		syncChunkSize:      100,
 		ttlOfLastBlockOnL1: time.Second,
 	}
 

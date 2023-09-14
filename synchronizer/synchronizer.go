@@ -117,7 +117,7 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []Etherman
 	L1DataProcessor := newL1RollupInfoConsumer(ctx, cfgConsumer, sync, chIncommingRollupInfo)
 
 	cfgProducer := configProducer{
-		SyncChunkSize:      cfg.SyncChunkSize,
+		syncChunkSize:      cfg.SyncChunkSize,
 		ttlOfLastBlockOnL1: cfg.L1ParallelSynchronization.CheckForLastBlockOnL1Time.Duration,
 	}
 	l1DataRetriever := newL1DataRetriever(ctx, cfgProducer, etherManForL1, invalidBlockNumber, chIncommingRollupInfo)

@@ -6,23 +6,9 @@
 //   - when reach the update state:
 // 		- send a update to channel and  keep retrieving last block to ask for new rollup info
 //
-//     To control that:
-//   - cte: ttlOfLastBlockDefault
-//   - when creating object param renewLastBlockOnL1
 //
 // TODO:
-//   - All the stuff related to update last block on L1 could be moved to another class
-//   - Check context usage:
-//     It need a context to cancel it self and create another context to cancel workers?
-//   - Emit metrics
-//   - if nothing to update reduce de code to be executed
-//   - Improve the unittest of this object
 //   - Check all log.fatals to remove it or add status before the panic
-//   - Old syncBlocks method try to ask for blocks over last L1 block, I suppose that is for keep
-//     synchronizing even a long the synchronization have new blocks. This is not implemented here
-//     This is the behaviour of ethman in that situation:
-//   - GetRollupInfoByBlockRange returns no error, zero blocks...
-//   - EthBlockByNumber returns error:  "not found"
 
 package synchronizer
 
@@ -46,9 +32,9 @@ const (
 )
 
 type filter interface {
-	toStringBrief() string
-	filter(data l1SyncMessage) []l1SyncMessage
-	reset(lastBlockOnSynchronizer uint64)
+	ToStringBrief() string
+	Filter(data l1SyncMessage) []l1SyncMessage
+	Reset(lastBlockOnSynchronizer uint64)
 }
 
 type syncStatusInterface interface {
@@ -92,12 +78,12 @@ func (s producerStatusEnum) String() string {
 }
 
 type configProducer struct {
-	SyncChunkSize      uint64
+	syncChunkSize      uint64
 	ttlOfLastBlockOnL1 time.Duration
 }
 
 func (cfg *configProducer) normalize() {
-	if cfg.SyncChunkSize == 0 {
+	if cfg.syncChunkSize == 0 {
 		log.Fatalf("l1RollupInfoProducer: SyncChunkSize must be greater than 0")
 	}
 	if cfg.ttlOfLastBlockOnL1 < minTTLOfLastBlock {
@@ -135,7 +121,7 @@ func newL1DataRetriever(ctx context.Context, cfg configProducer, ethermans []Eth
 		ctxParent:                            ctx,
 		ctx:                                  newCtx,
 		cancelCtx:                            cancel,
-		syncStatus:                           newSyncStatus(startingBlockNumber, cfg.SyncChunkSize),
+		syncStatus:                           newSyncStatus(startingBlockNumber, cfg.syncChunkSize),
 		workers:                              newWorkers(ctx, ethermans),
 		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(startingBlockNumber),
 		outgoingChannel:                      outgoingChannel,
@@ -177,7 +163,7 @@ func (l *l1RollupInfoProducer) reset(startingBlockNumber uint64) {
 	log.Debugf("producer: Reset(%d): emptyChannel", startingBlockNumber)
 	l.emptyChannel()
 	log.Debugf("producer: Reset(%d): reset Filter", startingBlockNumber)
-	l.filterToSendOrdererResultsToConsumer.reset(startingBlockNumber)
+	l.filterToSendOrdererResultsToConsumer.Reset(startingBlockNumber)
 	l.status = producerIdle
 	log.Debugf("producer: Reset(%d): reset done!", startingBlockNumber)
 }
@@ -333,11 +319,11 @@ func (l *l1RollupInfoProducer) launchWork() int {
 		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctx, *br)
 		if err != nil {
 			thereAreAnError = true
-			accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.toString(), err.Error())
+			accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
 			break
 		}
 		launchedWorker++
-		log.Infof("producer: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.toString(), launchedWorker)
+		log.Infof("producer: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.String(), launchedWorker)
 		l.syncStatus.onStartedNewWorker(*br)
 	}
 	if launchedWorker == 0 {
@@ -372,7 +358,7 @@ func (l *l1RollupInfoProducer) onResponseRollupInfo(result responseRollupInfoByB
 	isOk := (result.generic.err == nil)
 	l.syncStatus.onFinishWorker(result.result.blockRange, isOk)
 	if isOk {
-		outgoingPackages := l.filterToSendOrdererResultsToConsumer.filter(*newL1SyncMessageData(result.result))
+		outgoingPackages := l.filterToSendOrdererResultsToConsumer.Filter(*newL1SyncMessageData(result.result))
 		l.sendPackages(outgoingPackages)
 	} else {
 		log.Warnf("producer: Error while trying to get rollup info by block range: %v", result.generic.err)

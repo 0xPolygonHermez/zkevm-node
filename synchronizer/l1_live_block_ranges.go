@@ -13,10 +13,10 @@ type liveBlockRanges struct {
 	ranges []liveBlockRangeItem
 }
 
-func (l *liveBlockRanges) toString() string {
+func (l *liveBlockRanges) String() string {
 	res := l.toStringBrief() + "["
 	for _, r := range l.ranges {
-		res += fmt.Sprintf("%s ,", r.blockRange.toString())
+		res += fmt.Sprintf("%s ,", r.blockRange.String())
 	}
 	return res + "]"
 }
@@ -50,7 +50,7 @@ func (b *blockRange) isValid() error {
 		return errors.New(errBlockRangeInvalidIsZero)
 	}
 	if b.fromBlock > b.toBlock {
-		return errors.New(errBlockRangeInvalidIsWrong + b.toString())
+		return errors.New(errBlockRangeInvalidIsWrong + b.String())
 	}
 	return nil
 }

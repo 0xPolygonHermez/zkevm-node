@@ -60,12 +60,12 @@ func (l *l1SyncOrchestration) start(startingBlockNumber uint64) (*state.Block, e
 	chProducer := make(chan error, 1)
 	chConsumer := make(chan error, 1)
 	var wg sync.WaitGroup
-	l.launch_producer(startingBlockNumber, chProducer, &wg)
-	l.launch_consumer(chConsumer, &wg)
+	l.launchProducer(startingBlockNumber, chProducer, &wg)
+	l.launchConsumer(chConsumer, &wg)
 	return l.orchestrate(&wg, chProducer, chConsumer)
 }
 
-func (l *l1SyncOrchestration) launch_producer(startingBlockNumber uint64, chProducer chan error, wg *sync.WaitGroup) {
+func (l *l1SyncOrchestration) launchProducer(startingBlockNumber uint64, chProducer chan error, wg *sync.WaitGroup) {
 	l.mutex.Lock()
 	if !l.producerStarted {
 		if wg != nil {
@@ -97,7 +97,7 @@ func (l *l1SyncOrchestration) launch_producer(startingBlockNumber uint64, chProd
 	}
 }
 
-func (l *l1SyncOrchestration) launch_consumer(chConsumer chan error, wg *sync.WaitGroup) {
+func (l *l1SyncOrchestration) launchConsumer(chConsumer chan error, wg *sync.WaitGroup) {
 	l.mutex.Lock()
 	if l.consumerStarted {
 		l.mutex.Unlock()
@@ -133,7 +133,7 @@ func (l *l1SyncOrchestration) orchestrate(wg *sync.WaitGroup, hProducer chan err
 			log.Warnf("orchestration: consumer have finish! this never have to happen, restarting it. Error:%s", err)
 			// to avoid respawn too fast it sleeps a bit
 			time.Sleep(time.Second)
-			l.launch_producer(invalidBlockNumber, hProducer, wg)
+			l.launchProducer(invalidBlockNumber, hProducer, wg)
 		case err = <-chConsumer:
 			if err != nil {
 				log.Warnf("orchestration: consumer have finish with Error: %s", err)

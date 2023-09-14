@@ -102,7 +102,7 @@ func (l *l1RollupInfoConsumer) step() error {
 	return err
 }
 func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1ConsumerControl) error {
-	log.Infof("consumer: processing controlPackage: %s", control.toString())
+	log.Infof("consumer: processing controlPackage: %s", control.String())
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	if control.event == eventStop {
@@ -126,9 +126,9 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 	defer l.mutex.Unlock()
 	var err error
 	statisticsMsg := l.statistics.onStartProcessIncommingRollupInfoData(rollupInfo)
-	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] statistics:%s", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.toString(), len(rollupInfo.blocks), statisticsMsg)
+	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] statistics:%s", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.String(), len(rollupInfo.blocks), statisticsMsg)
 	timeProcessingStart := time.Now()
-	l.lastEthBlockSynced, err = l._Process(rollupInfo)
+	l.lastEthBlockSynced, err = l.processUnsafe(rollupInfo)
 	l.statistics.onFinishProcessIncommingRollupInfoData(rollupInfo, time.Since(timeProcessingStart), err)
 	if err != nil {
 		log.Error("consumer: error processing rollupInfo. Error: ", err)
@@ -158,7 +158,7 @@ func (l *l1RollupInfoConsumer) sendStopPackage() {
 	l.chIncommingRollupInfo <- *newL1SyncMessageControl(eventStop)
 }
 
-func (l *l1RollupInfoConsumer) _Process(rollupInfo rollupInfoByBlockRangeResult) (*state.Block, error) {
+func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeResult) (*state.Block, error) {
 	blocks := rollupInfo.blocks
 	order := rollupInfo.order
 	err := l.synchronizer.processBlockRange(blocks, order)

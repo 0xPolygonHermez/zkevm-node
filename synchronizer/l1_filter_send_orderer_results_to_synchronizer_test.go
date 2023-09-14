@@ -55,9 +55,9 @@ func Test_SOR_Multicase_With_Reset(t *testing.T) {
 			sendData := []l1SyncMessage{}
 			for i, p := range tc.packages {
 				if i == tc.resetOnPackageNumber {
-					sut.reset(tc.resetToBlock)
+					sut.Reset(tc.resetToBlock)
 				}
-				dataToSend := sut.filter(p)
+				dataToSend := sut.Filter(p)
 				sendData = append(sendData, dataToSend...)
 			}
 
@@ -157,7 +157,7 @@ func Test_SOR_Multicase(t *testing.T) {
 			sut := newFilterToSendOrdererResultsToConsumer(tc.lastBlock)
 			sendData := []l1SyncMessage{}
 			for _, p := range tc.packages {
-				dataToSend := sut.filter(p)
+				dataToSend := sut.Filter(p)
 				sendData = append(sendData, dataToSend...)
 			}
 

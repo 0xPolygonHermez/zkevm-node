@@ -30,8 +30,8 @@ func (s *syncStatus) toStringBrief() string {
 
 func (s *syncStatus) toString() string {
 	brief := s.toStringBrief()
-	brief += fmt.Sprintf(" processingRanges:{ %s }", s.processingRanges.toString())
-	brief += fmt.Sprintf(" errorRanges:{ %s }", s.errorRanges.toString())
+	brief += fmt.Sprintf(" processingRanges:{ %s }", s.processingRanges.String())
+	brief += fmt.Sprintf(" errorRanges:{ %s }", s.errorRanges.String())
 	return brief
 }
 
@@ -75,14 +75,11 @@ func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if s.lastBlockOnL1 == invalidLastBlock {
-		log.Warnf(fmt.Sprintf("Can't decide if it's fully sync because Last block on L1  is no valid: %v", s.lastBlockOnL1))
+		log.Warnf("Can't decide if it's fully sync because Last block on L1  is no valid: %v", s.lastBlockOnL1)
 		return false
 	}
-	return s._isNodeFullySynchronizedWithL1(s.lastBlockOnL1)
-}
 
-func (s *syncStatus) _isNodeFullySynchronizedWithL1(lastBlock uint64) bool {
-	if lastBlock <= s.highestBlockRequested && s.errorRanges.len() == 0 && s.processingRanges.len() == 0 {
+	if s.lastBlockOnL1 <= s.highestBlockRequested && s.errorRanges.len() == 0 && s.processingRanges.len() == 0 {
 		log.Debug("No blocks to ask, we have requested and responsed all blocks from L1!")
 		return true
 	}
@@ -112,7 +109,7 @@ func (s *syncStatus) getNextRange() *blockRange {
 		return nil
 	}
 
-	br := _getNextBlockRangeFrom(brs.toBlock, s.lastBlockOnL1, s.amountOfBlocksInEachRange)
+	br := getNextBlockRangeFromUnsafe(brs.toBlock, s.lastBlockOnL1, s.amountOfBlocksInEachRange)
 	err = br.isValid()
 	if err != nil {
 		log.Error(s.toString())
@@ -127,7 +124,7 @@ func (s *syncStatus) onStartedNewWorker(br blockRange) {
 	// Try to remove from error Blocks
 	err := s.errorRanges.removeBlockRange(br)
 	if err == nil {
-		log.Infof("Retrying ranges: %s ", br.toString())
+		log.Infof("Retrying ranges: %s ", br.String())
 	}
 	err = s.processingRanges.addBlockRange(br)
 	if err != nil {
@@ -142,12 +139,12 @@ func (s *syncStatus) onStartedNewWorker(br blockRange) {
 func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	log.Debugf("onFinishWorker(br=%s, successful=%v) initial_status: %s", br.toString(), successful, s.toStringBrief())
+	log.Debugf("onFinishWorker(br=%s, successful=%v) initial_status: %s", br.String(), successful, s.toStringBrief())
 	// The work have been done, remove the range from pending list
 	// also move the s.lastBlockStoreOnStateDB to the end of the range if needed
 	err := s.processingRanges.removeBlockRange(br)
 	if err != nil {
-		log.Warnf("finished a unknownblock range %s, ignoring it: %s", br.toString(), err)
+		log.Warnf("finished a unknownblock range %s, ignoring it: %s", br.String(), err)
 		return
 	}
 
@@ -163,7 +160,7 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 			s.lastBlockStoreOnStateDB = newValue
 		}
 	} else {
-		log.Infof("Range %s was not successful, adding to errorRanges to be retried", br.toString())
+		log.Infof("Range %s was not successful, adding to errorRanges to be retried", br.String())
 		err := s.errorRanges.addBlockRange(br)
 		if err != nil {
 			log.Fatal(err)
@@ -172,7 +169,7 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 	log.Debugf("onFinishWorker final_status: %s", s.toStringBrief())
 }
 
-func _getNextBlockRangeFrom(lastBlockInState uint64, lastBlockInL1 uint64, amountOfBlocksInEachRange uint64) *blockRange {
+func getNextBlockRangeFromUnsafe(lastBlockInState uint64, lastBlockInL1 uint64, amountOfBlocksInEachRange uint64) *blockRange {
 	fromBlock := lastBlockInState + 1
 	toBlock := min(lastBlockInL1, fromBlock+amountOfBlocksInEachRange)
 	return &blockRange{fromBlock: fromBlock, toBlock: toBlock}
@@ -181,10 +178,10 @@ func _getNextBlockRangeFrom(lastBlockInState uint64, lastBlockInL1 uint64, amoun
 func (s *syncStatus) setLastBlockOnL1(lastBlock uint64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s._setLastBlockOnL1(lastBlock)
+	s.setLastBlockOnL1Unsafe(lastBlock)
 }
 
-func (s *syncStatus) _setLastBlockOnL1(lastBlock uint64) {
+func (s *syncStatus) setLastBlockOnL1Unsafe(lastBlock uint64) {
 	s.lastBlockOnL1 = lastBlock
 }
 
@@ -196,9 +193,9 @@ type onNewLastBlockResponse struct {
 }
 
 func (n *onNewLastBlockResponse) toString() string {
-	res := fmt.Sprintf("fullRange: %s", n.fullRange.toString())
+	res := fmt.Sprintf("fullRange: %s", n.fullRange.String())
 	if n.extendedRange != nil {
-		res += fmt.Sprintf(" extendedRange: %s", n.extendedRange.toString())
+		res += fmt.Sprintf(" extendedRange: %s", n.extendedRange.String())
 	} else {
 		res += " extendedRange: nil"
 	}
@@ -219,7 +216,7 @@ func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
 			fromBlock: s.lastBlockStoreOnStateDB,
 			toBlock:   lastBlock,
 		}
-		s._setLastBlockOnL1(lastBlock)
+		s.setLastBlockOnL1Unsafe(lastBlock)
 		return response
 	}
 	oldLastBlock := s.lastBlockOnL1
@@ -228,12 +225,12 @@ func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
 			fromBlock: oldLastBlock + 1,
 			toBlock:   lastBlock,
 		}
-		s._setLastBlockOnL1(lastBlock)
+		s.setLastBlockOnL1Unsafe(lastBlock)
 		return response
 	}
 	if lastBlock == oldLastBlock {
 		response.extendedRange = nil
-		s._setLastBlockOnL1(lastBlock)
+		s.setLastBlockOnL1Unsafe(lastBlock)
 		return response
 	}
 	if lastBlock < oldLastBlock {

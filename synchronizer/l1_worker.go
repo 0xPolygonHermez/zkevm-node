@@ -49,7 +49,7 @@ type genericResponse struct {
 	typeOfRequest typeOfRequest
 }
 
-func (r *genericResponse) toStringBrief() string {
+func (r *genericResponse) String() string {
 	return fmt.Sprintf("typeOfRequest: [%v] duration: [%v] err: [%v]  ",
 		r.typeOfRequest.String(), r.duration, r.err)
 }
@@ -61,7 +61,7 @@ type responseRollupInfoByBlockRange struct {
 
 func (r *responseRollupInfoByBlockRange) toStringBrief() string {
 	result := fmt.Sprintf(" generic:[%s] ",
-		r.generic.toStringBrief())
+		r.generic.String())
 	if r.result != nil {
 		result += fmt.Sprintf(" result:[%s]", r.result.toStringBrief())
 	} else {
@@ -82,7 +82,7 @@ type rollupInfoByBlockRangeResult struct {
 func (r *rollupInfoByBlockRangeResult) toStringBrief() string {
 	isLastBlockOfRangeSet := r.lastBlockOfRange != nil
 	return fmt.Sprintf(" blockRange: %s len_blocks: [%d] len_order:[%d] lastBlockOfRangeSet [%t]",
-		r.blockRange.toString(),
+		r.blockRange.String(),
 		len(r.blocks), len(r.order), isLastBlockOfRangeSet)
 }
 
@@ -91,7 +91,7 @@ type blockRange struct {
 	toBlock   uint64
 }
 
-func (b *blockRange) toString() string {
+func (b *blockRange) String() string {
 	return fmt.Sprintf("[%v, %v]", b.fromBlock, b.toBlock)
 }
 
@@ -115,7 +115,7 @@ type worker struct {
 	typeOfCurrentRequest typeOfRequest
 }
 
-func (w *worker) toString() string {
+func (w *worker) String() string {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	return fmt.Sprintf("status:%s req:%s", w.status.String(), w.typeOfCurrentRequest.String())
@@ -128,7 +128,7 @@ func newWorker(etherman EthermanInterface) *worker {
 func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	if w._isBusy() {
+	if w.isBusyUnsafe() {
 		return errors.New(errWorkerBusy)
 	}
 	w.status = ethermanWorking
@@ -156,7 +156,7 @@ func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, ch chan
 }
 func (w *worker) requestLastBlock(ctx context.Context) responseL1LastBlock {
 	w.mutex.Lock()
-	if w._isBusy() {
+	if w.isBusyUnsafe() {
 		w.mutex.Unlock()
 		return newResponseL1LastBlock(errors.New(errWorkerBusy), time.Duration(0), typeRequestLastBlock, nil)
 	}
@@ -186,15 +186,11 @@ func (w *worker) setStatus(status ethermanStatusEnum) {
 func (w *worker) isIdle() bool {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	return w._isIdle()
-}
-
-func (w *worker) _isBusy() bool {
-	return w.status != ethermanIdle
-}
-
-func (w *worker) _isIdle() bool {
 	return w.status == ethermanIdle
+}
+
+func (w *worker) isBusyUnsafe() bool {
+	return w.status != ethermanIdle
 }
 
 func newResponseRollupInfo(err error, duration time.Duration, typeOfRequest typeOfRequest, result *rollupInfoByBlockRangeResult) responseRollupInfoByBlockRange {
