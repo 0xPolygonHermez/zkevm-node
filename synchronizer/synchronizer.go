@@ -304,7 +304,6 @@ func (s *ClientSynchronizer) Sync() error {
 				lastEthBlockSynced, err = s.syncBlocksSequential(lastEthBlockSynced)
 			}
 			metrics.FullL1SyncTime(time.Since(startL1))
-			// Process of syncBlocksXXXX fails?
 			if err != nil {
 				log.Warn("error syncing blocks: ", err)
 				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
