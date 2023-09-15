@@ -74,8 +74,8 @@ type rollupInfoByBlockRangeResult struct {
 	blockRange blockRange
 	blocks     []etherman.Block
 	order      map[common.Hash][]etherman.Order
-	// If there are no blocks in this range get get the last one
-	// so it could be nil if there are blocks.
+	// If there are no blocks in this range, it gets the last one
+	// so it could be nil if there are no blocks.
 	lastBlockOfRange *types.Block
 }
 

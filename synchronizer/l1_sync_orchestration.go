@@ -129,7 +129,7 @@ func (l *l1SyncOrchestration) orchestrate(wg *sync.WaitGroup, hProducer chan err
 	for !done {
 		select {
 		case err = <-hProducer:
-			// Producer have finished
+			// Producer has finished
 			log.Warnf("orchestration: consumer have finished! this situation shouldn't happen, restarting it. Error:%s", err)
 			// to avoid respawn too fast it sleeps a bit
 			time.Sleep(time.Second)

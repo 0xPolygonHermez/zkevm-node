@@ -51,7 +51,7 @@ type L1ParallelSynchronizationConfig struct {
 // L1PerformanceCheckConfig Configuration for the consumer of rollup information from L1
 type L1PerformanceCheckConfig struct {
 	// AcceptableTimeWaitingForNewRollupInfo is the expected maximum time that the consumer
-	// could wait until new data are produced. If the time is greater it emmit a log to warn about
+	// could wait until new data is produced. If the time is greater it emmit a log to warn about
 	// that. The idea is keep working the consumer as much as possible, so if the producer is not
 	// fast enought then you could increse the number of parallel clients to sync with L1
 	AcceptableTimeWaitingForNewRollupInfo types.Duration `mapstructure:"AcceptableTimeWaitingForNewRollupInfo"`

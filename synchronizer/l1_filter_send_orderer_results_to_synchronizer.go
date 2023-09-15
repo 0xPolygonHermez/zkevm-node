@@ -103,9 +103,8 @@ func (s *filterToSendOrdererResultsToConsumer) removeIndexFromPendingResultsUnsa
 }
 
 func (s *filterToSendOrdererResultsToConsumer) setLastBlockOnSynchronizerCorrespondingLatBlockRangeSendUnsafe(lastBlock blockRange) {
-	newVaule := lastBlock.toBlock
-	log.Debug("Moving lastBlockSend from ", s.lastBlockOnSynchronizer, " to ", newVaule)
-	s.lastBlockOnSynchronizer = newVaule
+	log.Debug("Moving lastBlockSend from ", s.lastBlockOnSynchronizer, " to ", lastBlock.toBlock)
+	s.lastBlockOnSynchronizer = lastBlock.toBlock
 }
 
 func (s *filterToSendOrdererResultsToConsumer) matchNextBlockUnsafe(results *rollupInfoByBlockRangeResult) bool {

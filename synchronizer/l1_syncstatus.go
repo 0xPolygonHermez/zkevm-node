@@ -75,7 +75,7 @@ func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if s.lastBlockOnL1 == invalidLastBlock {
-		log.Warnf("Can't decide if it's fully sync because Last block on L1  is no valid: %v", s.lastBlockOnL1)
+		log.Warnf("Can't decide if it's fully synced because last block on L1  is no valid: %d", s.lastBlockOnL1)
 		return false
 	}
 
@@ -234,12 +234,12 @@ func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
 		return response
 	}
 	if lastBlock < oldLastBlock {
-		log.Warnf("new block [%v] is less than old block [%v]!", lastBlock, oldLastBlock)
+		log.Warnf("new block [%d] is less than old block [%d]!", lastBlock, oldLastBlock)
 		lastBlock = oldLastBlock
 		response.fullRange = blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: lastBlock}
 		return response
 	}
-	log.Debugf("onNewLastBlockOnL1(%v) final_status: %s", lastBlock, s.toStringBrief())
+	log.Debugf("onNewLastBlockOnL1(%d) final_status: %s", lastBlock, s.toStringBrief())
 	return response
 }
 
