@@ -95,20 +95,16 @@ func (cfg *configProducer) normalize() {
 		log.Fatalf("producer:config: SyncChunkSize must be greater than 0")
 	}
 	if cfg.ttlOfLastBlockOnL1 < minTTLOfLastBlock {
-		log.Warnf("producer:config: ttlOfLastBlockOnL1 is too low (%s) so setting to %s", cfg.ttlOfLastBlockOnL1, minTTLOfLastBlock)
-		cfg.ttlOfLastBlockOnL1 = minTTLOfLastBlock
+		log.Warnf("producer:config: ttlOfLastBlockOnL1 is too low (%s) minimum recomender value %s", cfg.ttlOfLastBlockOnL1, minTTLOfLastBlock)
 	}
 	if cfg.timeoutForRequestLastBlockOnL1 < minTimeoutForRequestLastBlockOnL1 {
-		log.Warnf("producer:config: timeRequestInitialValueOfLastBlock is too low (%s) so setting to %s", cfg.timeoutForRequestLastBlockOnL1, minTimeoutForRequestLastBlockOnL1)
-		cfg.timeoutForRequestLastBlockOnL1 = minTimeoutForRequestLastBlockOnL1
+		log.Warnf("producer:config: timeRequestInitialValueOfLastBlock is too low (%s) minimum recomender value%s", cfg.timeoutForRequestLastBlockOnL1, minTimeoutForRequestLastBlockOnL1)
 	}
 	if cfg.numOfAllowedRetriesForRequestLastBlockOnL1 < minNumOfAllowedRetriesForRequestLastBlockOnL1 {
-		log.Warnf("producer:config: retriesForRequestnitialValueOfLastBlock is too low (%d) so setting to %d", cfg.numOfAllowedRetriesForRequestLastBlockOnL1, minNumOfAllowedRetriesForRequestLastBlockOnL1)
-		cfg.numOfAllowedRetriesForRequestLastBlockOnL1 = minNumOfAllowedRetriesForRequestLastBlockOnL1
+		log.Warnf("producer:config: retriesForRequestnitialValueOfLastBlock is too low (%d) minimum recomender value %d", cfg.numOfAllowedRetriesForRequestLastBlockOnL1, minNumOfAllowedRetriesForRequestLastBlockOnL1)
 	}
 	if cfg.timeOutMainLoop < minTimeOutMainLoop {
-		log.Warnf("producer:config: timeOutMainLoop is too low (%s) so setting to %s", cfg.timeOutMainLoop, minTimeOutMainLoop)
-		cfg.timeOutMainLoop = minTimeOutMainLoop
+		log.Warnf("producer:config: timeOutMainLoop is too low (%s) minimum recomender value %s", cfg.timeOutMainLoop, minTimeOutMainLoop)
 	}
 }
 
@@ -202,11 +198,11 @@ func (l *l1RollupInfoProducer) verify() error {
 func (l *l1RollupInfoProducer) initialize() error {
 	err := l.verify()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	err = l.workers.initialize()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if l.syncStatus.isSetLastBlockOnL1Value() {
 		log.Infof("producer: Need a initial value for Last Block On L1, doing the request (maxRetries:%v, timeRequest:%v)",
@@ -343,17 +339,20 @@ func (l *l1RollupInfoProducer) launchWork() int {
 			thereAreAnError = true
 			accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
 			break
+		} else {
+			accDebugStr += fmt.Sprintf(" segment %s -> [LAUNCHED] ", br.String())
 		}
 		launchedWorker++
-		log.Infof("producer: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.String(), launchedWorker)
+		log.Debugf("producer: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.String(), launchedWorker)
 		l.syncStatus.onStartedNewWorker(*br)
 	}
 	if launchedWorker == 0 {
 		log.Debugf("producer: No workers launched because: %s", accDebugStr)
 	}
-	if thereAreAnError && launchedWorker == 0 {
-		log.Warnf("producer: launched workers: %d , but there are an error: %s", launchedWorker, accDebugStr)
+	if thereAreAnError || launchedWorker > 0 {
+		log.Infof("producer: launched workers: %d  result: %s", launchedWorker, accDebugStr)
 	}
+
 	return launchedWorker
 }
 

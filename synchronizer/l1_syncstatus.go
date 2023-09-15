@@ -128,6 +128,7 @@ func (s *syncStatus) onStartedNewWorker(br blockRange) {
 	}
 	err = s.processingRanges.addBlockRange(br)
 	if err != nil {
+		log.Error(s.toString())
 		log.Fatal(err)
 	}
 
