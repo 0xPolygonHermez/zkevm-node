@@ -14,8 +14,8 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// ethermanInterface contains the methods required to interact with ethereum.
-type ethermanInterface interface {
+// EthermanInterface contains the methods required to interact with ethereum.
+type EthermanInterface interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*ethTypes.Header, error)
 	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error)
 	EthBlockByNumber(ctx context.Context, blockNumber uint64) (*ethTypes.Block, error)

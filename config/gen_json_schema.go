@@ -44,7 +44,7 @@ func NewNodeConfigJsonSchemaGenerater() ConfigJsonSchemaGenerater[Config] {
 	config_default_values, err := Default()
 	res.defaultValues = config_default_values
 	if err != nil {
-		panic("can't create default values for config file")
+		log.Fatal("can't create default values for config file: " + err.Error())
 	}
 	return res
 }
