@@ -25,7 +25,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/umbracle/ethgo v0.1.3
 	github.com/urfave/cli/v2 v2.25.7
-	go.uber.org/zap v1.25.0
+	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.13.0
 	golang.org/x/net v0.15.0
 	golang.org/x/sync v0.3.0
