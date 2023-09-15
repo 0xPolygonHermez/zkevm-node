@@ -247,7 +247,7 @@ func Fatalf(template string, args ...interface{}) {
 // the ErrorFile.
 func Errorf(template string, args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	getDefaultLog().Errorf(template+" %s", args...)
+	getDefaultLog().Errorf(template, args...)
 }
 
 // appendStackTraceMaybeKV will append the stacktrace to the KV

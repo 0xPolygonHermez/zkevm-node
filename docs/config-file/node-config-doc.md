@@ -718,20 +718,21 @@ GlobalQueue=1024
 **Type:** : `object`
 **Description:** Configuration for RPC service. THis one offers a extended Ethereum JSON-RPC API interface to interact with the node
 
-| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                          |
-| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| - [Host](#RPC_Host )                                                         | No      | string  | No         | -          | Host defines the network adapter that will be used to serve the HTTP requests                                                                                                              |
-| - [Port](#RPC_Port )                                                         | No      | integer | No         | -          | Port defines the port to serve the endpoints via HTTP                                                                                                                                      |
-| - [ReadTimeout](#RPC_ReadTimeout )                                           | No      | string  | No         | -          | Duration                                                                                                                                                                                   |
-| - [WriteTimeout](#RPC_WriteTimeout )                                         | No      | string  | No         | -          | Duration                                                                                                                                                                                   |
-| - [MaxRequestsPerIPAndSecond](#RPC_MaxRequestsPerIPAndSecond )               | No      | number  | No         | -          | MaxRequestsPerIPAndSecond defines how much requests a single IP can<br />send within a single second                                                                                       |
-| - [SequencerNodeURI](#RPC_SequencerNodeURI )                                 | No      | string  | No         | -          | SequencerNodeURI is used allow Non-Sequencer nodes<br />to relay transactions to the Sequencer node                                                                                        |
-| - [MaxCumulativeGasUsed](#RPC_MaxCumulativeGasUsed )                         | No      | integer | No         | -          | MaxCumulativeGasUsed is the max gas allowed per batch                                                                                                                                      |
-| - [WebSockets](#RPC_WebSockets )                                             | No      | object  | No         | -          | WebSockets configuration                                                                                                                                                                   |
-| - [EnableL2SuggestedGasPricePolling](#RPC_EnableL2SuggestedGasPricePolling ) | No      | boolean | No         | -          | EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.                                                                          |
-| - [TraceBatchUseHTTPS](#RPC_TraceBatchUseHTTPS )                             | No      | boolean | No         | -          | TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)<br />to do the parallel requests to RPC.debug_traceTransaction endpoint |
-| - [BatchRequestsEnabled](#RPC_BatchRequestsEnabled )                         | No      | boolean | No         | -          | BatchRequestsEnabled defines if the Batch requests are enabled or disabled                                                                                                                 |
-| - [BatchRequestsLimit](#RPC_BatchRequestsLimit )                             | No      | integer | No         | -          | BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request                                                                                          |
+| Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                                                                                                                                          |
+| ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| - [Host](#RPC_Host )                                                         | No      | string           | No         | -          | Host defines the network adapter that will be used to serve the HTTP requests                                                                                                              |
+| - [Port](#RPC_Port )                                                         | No      | integer          | No         | -          | Port defines the port to serve the endpoints via HTTP                                                                                                                                      |
+| - [ReadTimeout](#RPC_ReadTimeout )                                           | No      | string           | No         | -          | Duration                                                                                                                                                                                   |
+| - [WriteTimeout](#RPC_WriteTimeout )                                         | No      | string           | No         | -          | Duration                                                                                                                                                                                   |
+| - [MaxRequestsPerIPAndSecond](#RPC_MaxRequestsPerIPAndSecond )               | No      | number           | No         | -          | MaxRequestsPerIPAndSecond defines how much requests a single IP can<br />send within a single second                                                                                       |
+| - [SequencerNodeURI](#RPC_SequencerNodeURI )                                 | No      | string           | No         | -          | SequencerNodeURI is used allow Non-Sequencer nodes<br />to relay transactions to the Sequencer node                                                                                        |
+| - [MaxCumulativeGasUsed](#RPC_MaxCumulativeGasUsed )                         | No      | integer          | No         | -          | MaxCumulativeGasUsed is the max gas allowed per batch                                                                                                                                      |
+| - [WebSockets](#RPC_WebSockets )                                             | No      | object           | No         | -          | WebSockets configuration                                                                                                                                                                   |
+| - [EnableL2SuggestedGasPricePolling](#RPC_EnableL2SuggestedGasPricePolling ) | No      | boolean          | No         | -          | EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.                                                                          |
+| - [TraceBatchUseHTTPS](#RPC_TraceBatchUseHTTPS )                             | No      | boolean          | No         | -          | TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)<br />to do the parallel requests to RPC.debug_traceTransaction endpoint |
+| - [BatchRequestsEnabled](#RPC_BatchRequestsEnabled )                         | No      | boolean          | No         | -          | BatchRequestsEnabled defines if the Batch requests are enabled or disabled                                                                                                                 |
+| - [BatchRequestsLimit](#RPC_BatchRequestsLimit )                             | No      | integer          | No         | -          | BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request                                                                                          |
+| - [L2Coinbase](#RPC_L2Coinbase )                                             | No      | array of integer | No         | -          | L2Coinbase defines which address is going to receive the fees                                                                                                                              |
 
 ### <a name="RPC_Host"></a>8.1. `RPC.Host`
 
@@ -984,17 +985,24 @@ BatchRequestsEnabled=false
 BatchRequestsLimit=20
 ```
 
+### <a name="RPC_L2Coinbase"></a>8.13. `RPC.L2Coinbase`
+
+**Type:** : `array of integer`
+**Description:** L2Coinbase defines which address is going to receive the fees
+
 ## <a name="Synchronizer"></a>9. `[Synchronizer]`
 
 **Type:** : `object`
 **Description:** Configuration of service `Syncrhonizer`. For this service is also really important the value of `IsTrustedSequencer`
 because depending of this values is going to ask to a trusted node for trusted transactions or not
 
-| Property                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                        |
-| ----------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------ |
-| - [SyncInterval](#Synchronizer_SyncInterval )               | No      | string  | No         | -          | Duration                                                                 |
-| - [SyncChunkSize](#Synchronizer_SyncChunkSize )             | No      | integer | No         | -          | SyncChunkSize is the number of blocks to sync on each chunk              |
-| - [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL ) | No      | string  | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state |
+| Property                                                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                        |
+| ------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [SyncInterval](#Synchronizer_SyncInterval )                                               | No      | string  | No         | -          | Duration                                                                                                                                                 |
+| - [SyncChunkSize](#Synchronizer_SyncChunkSize )                                             | No      | integer | No         | -          | SyncChunkSize is the number of blocks to sync on each chunk                                                                                              |
+| - [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL )                                 | No      | string  | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state                                                                                 |
+| - [UseParallelModeForL1Synchronization](#Synchronizer_UseParallelModeForL1Synchronization ) | No      | boolean | No         | -          | L1ParallelSynchronization Use new L1 synchronization that do in parallel request to L1 and process the data<br />If false use the legacy sequential mode |
+| - [L1ParallelSynchronization](#Synchronizer_L1ParallelSynchronization )                     | No      | object  | No         | -          | L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)                                               |
 
 ### <a name="Synchronizer_SyncInterval"></a>9.1. `Synchronizer.SyncInterval`
 
@@ -1048,6 +1056,242 @@ SyncChunkSize=100
 ```
 [Synchronizer]
 TrustedSequencerURL=""
+```
+
+### <a name="Synchronizer_UseParallelModeForL1Synchronization"></a>9.4. `Synchronizer.UseParallelModeForL1Synchronization`
+
+**Type:** : `boolean`
+
+**Default:** `true`
+
+**Description:** L1ParallelSynchronization Use new L1 synchronization that do in parallel request to L1 and process the data
+If false use the legacy sequential mode
+
+**Example setting the default value** (true):
+```
+[Synchronizer]
+UseParallelModeForL1Synchronization=true
+```
+
+### <a name="Synchronizer_L1ParallelSynchronization"></a>9.5. `[Synchronizer.L1ParallelSynchronization]`
+
+**Type:** : `object`
+**Description:** L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)
+
+| Property                                                                                                                          | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [NumberOfParallelOfEthereumClients](#Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients )                 | No      | integer | No         | -          | NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1<br />(if UseParallelModeForL1Synchronization is true)                                                                                                                       |
+| - [CapacityOfBufferingRollupInfoFromL1](#Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1 )             | No      | integer | No         | -          | CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync<br />sugested twice of NumberOfParallelOfEthereumClients<br />(if UseParallelModeForL1Synchronization is true) |
+| - [TimeForCheckLastBlockOnL1Time](#Synchronizer_L1ParallelSynchronization_TimeForCheckLastBlockOnL1Time )                         | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+| - [PerformanceCheck](#Synchronizer_L1ParallelSynchronization_PerformanceCheck )                                                   | No      | object  | No         | -          | Consumer Configuration for the consumer of rollup information from L1                                                                                                                                                                                       |
+| - [TimeoutForRequestLastBlockOnL1](#Synchronizer_L1ParallelSynchronization_TimeoutForRequestLastBlockOnL1 )                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+| - [MaxNumberOfRetriesForRequestLastBlockOnL1](#Synchronizer_L1ParallelSynchronization_MaxNumberOfRetriesForRequestLastBlockOnL1 ) | No      | integer | No         | -          | MaxNumberOfRetriesForRequestLastBlockOnL1 Max number of retries to request LastBlock On L1                                                                                                                                                                  |
+| - [TimeForShowUpStatisticsLog](#Synchronizer_L1ParallelSynchronization_TimeForShowUpStatisticsLog )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+| - [TimeOutMainLoop](#Synchronizer_L1ParallelSynchronization_TimeOutMainLoop )                                                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+
+#### <a name="Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients"></a>9.5.1. `Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients`
+
+**Type:** : `integer`
+
+**Default:** `2`
+
+**Description:** NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1
+(if UseParallelModeForL1Synchronization is true)
+
+**Example setting the default value** (2):
+```
+[Synchronizer.L1ParallelSynchronization]
+NumberOfParallelOfEthereumClients=2
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1"></a>9.5.2. `Synchronizer.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1`
+
+**Type:** : `integer`
+
+**Default:** `10`
+
+**Description:** CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync
+sugested twice of NumberOfParallelOfEthereumClients
+(if UseParallelModeForL1Synchronization is true)
+
+**Example setting the default value** (10):
+```
+[Synchronizer.L1ParallelSynchronization]
+CapacityOfBufferingRollupInfoFromL1=10
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeForCheckLastBlockOnL1Time"></a>9.5.3. `Synchronizer.L1ParallelSynchronization.TimeForCheckLastBlockOnL1Time`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5s"`
+
+**Description:** TimeForCheckLastBlockOnL1Time is the time to wait to request the
+last block to L1 to known if we need to retrieve more data.
+This value only apply when the system is synchronized
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5s"):
+```
+[Synchronizer.L1ParallelSynchronization]
+TimeForCheckLastBlockOnL1Time="5s"
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck"></a>9.5.4. `[Synchronizer.L1ParallelSynchronization.PerformanceCheck]`
+
+**Type:** : `object`
+**Description:** Consumer Configuration for the consumer of rollup information from L1
+
+| Property                                                                                                                                                                               | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [AcceptableTimeWaitingForNewRollupInfo](#Synchronizer_L1ParallelSynchronization_PerformanceCheck_AcceptableTimeWaitingForNewRollupInfo )                                             | No      | string  | No         | -          | Duration                                                                                                                                                 |
+| - [NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo](#Synchronizer_L1ParallelSynchronization_PerformanceCheck_NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo ) | No      | integer | No         | -          | NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo is the number of iterations to<br />start checking the time waiting for new rollup info data |
+
+##### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck_AcceptableTimeWaitingForNewRollupInfo"></a>9.5.4.1. `Synchronizer.L1ParallelSynchronization.PerformanceCheck.AcceptableTimeWaitingForNewRollupInfo`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5s"`
+
+**Description:** AcceptableTimeWaitingForNewRollupInfo is the expected maximum time that the consumer
+could wait until new data is produced. If the time is greater it emmit a log to warn about
+that. The idea is keep working the consumer as much as possible, so if the producer is not
+fast enought then you could increse the number of parallel clients to sync with L1
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5s"):
+```
+[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
+AcceptableTimeWaitingForNewRollupInfo="5s"
+```
+
+##### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck_NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo"></a>9.5.4.2. `Synchronizer.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo`
+
+**Type:** : `integer`
+
+**Default:** `10`
+
+**Description:** NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo is the number of iterations to
+start checking the time waiting for new rollup info data
+
+**Example setting the default value** (10):
+```
+[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
+NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo=10
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeoutForRequestLastBlockOnL1"></a>9.5.5. `Synchronizer.L1ParallelSynchronization.TimeoutForRequestLastBlockOnL1`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5s"`
+
+**Description:** TimeoutForRequestLastBlockOnL1 Timeout for request LastBlock On L1
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5s"):
+```
+[Synchronizer.L1ParallelSynchronization]
+TimeoutForRequestLastBlockOnL1="5s"
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_MaxNumberOfRetriesForRequestLastBlockOnL1"></a>9.5.6. `Synchronizer.L1ParallelSynchronization.MaxNumberOfRetriesForRequestLastBlockOnL1`
+
+**Type:** : `integer`
+
+**Default:** `3`
+
+**Description:** MaxNumberOfRetriesForRequestLastBlockOnL1 Max number of retries to request LastBlock On L1
+
+**Example setting the default value** (3):
+```
+[Synchronizer.L1ParallelSynchronization]
+MaxNumberOfRetriesForRequestLastBlockOnL1=3
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeForShowUpStatisticsLog"></a>9.5.7. `Synchronizer.L1ParallelSynchronization.TimeForShowUpStatisticsLog`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5m0s"`
+
+**Description:** TimeForShowUpStatisticsLog how ofter show a log with statistics (0 is disabled)
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5m0s"):
+```
+[Synchronizer.L1ParallelSynchronization]
+TimeForShowUpStatisticsLog="5m0s"
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeOutMainLoop"></a>9.5.8. `Synchronizer.L1ParallelSynchronization.TimeOutMainLoop`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5m0s"`
+
+**Description:** TimeOutMainLoop is the timeout for the main loop of the L1 synchronizer when is not updated
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5m0s"):
+```
+[Synchronizer.L1ParallelSynchronization]
+TimeOutMainLoop="5m0s"
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`
@@ -1626,7 +1870,7 @@ DefaultMinGasPriceAllowed=0
 | - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
 | - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer          | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not. |
 | - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | array of integer | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                    |
-| - [L2Coinbase](#SequenceSender_L2Coinbase )                                                             | No      | array of integer | No         | -          | L2Coinbase defines which addess is going to receive the fees                                                                                                                                                                                                                                                       |
+| - [L2Coinbase](#SequenceSender_L2Coinbase )                                                             | No      | array of integer | No         | -          | L2Coinbase defines which address is going to receive the fees                                                                                                                                                                                                                                                      |
 | - [PrivateKey](#SequenceSender_PrivateKey )                                                             | No      | object           | No         | -          | PrivateKey defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                  |
 | - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer          | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                         |
 
@@ -1712,7 +1956,7 @@ to sign the L1 txs
 
 **Default:** `"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"`
 
-**Description:** L2Coinbase defines which addess is going to receive the fees
+**Description:** L2Coinbase defines which address is going to receive the fees
 
 **Example setting the default value** ("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"):
 ```

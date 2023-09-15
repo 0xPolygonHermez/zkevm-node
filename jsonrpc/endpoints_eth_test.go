@@ -569,6 +569,65 @@ func TestChainID(t *testing.T) {
 	assert.Equal(t, s.ChainID(), chainID.Uint64())
 }
 
+func TestCoinbase(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		callSequencer          bool
+		trustedCoinbase        *common.Address
+		permissionlessCoinbase *common.Address
+		error                  error
+		expectedCoinbase       common.Address
+	}{
+		{"Coinbase not configured", true, nil, nil, nil, common.Address{}},
+		{"Get trusted sequencer coinbase directly", true, state.AddressPtr(common.HexToAddress("0x1")), nil, nil, common.HexToAddress("0x1")},
+		{"Get trusted sequencer coinbase via permissionless", false, state.AddressPtr(common.HexToAddress("0x1")), nil, nil, common.HexToAddress("0x1")},
+		{"Ignore permissionless config", false, state.AddressPtr(common.HexToAddress("0x2")), state.AddressPtr(common.HexToAddress("0x1")), nil, common.HexToAddress("0x2")},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := getSequencerDefaultConfig()
+			if tc.trustedCoinbase != nil {
+				cfg.L2Coinbase = *tc.trustedCoinbase
+			}
+			sequencerServer, _, _ := newMockedServerWithCustomConfig(t, cfg)
+
+			var nonSequencerServer *mockedServer
+			if !tc.callSequencer {
+				cfg = getNonSequencerDefaultConfig(sequencerServer.ServerURL)
+				if tc.permissionlessCoinbase != nil {
+					cfg.L2Coinbase = *tc.permissionlessCoinbase
+				}
+				nonSequencerServer, _, _ = newMockedServerWithCustomConfig(t, cfg)
+			}
+
+			var res types.Response
+			var err error
+			if tc.callSequencer {
+				res, err = sequencerServer.JSONRPCCall("eth_coinbase")
+			} else {
+				res, err = nonSequencerServer.JSONRPCCall("eth_coinbase")
+			}
+			require.NoError(t, err)
+
+			assert.Nil(t, res.Error)
+			assert.NotNil(t, res.Result)
+
+			var s string
+			err = json.Unmarshal(res.Result, &s)
+			require.NoError(t, err)
+			result := common.HexToAddress(s)
+
+			assert.Equal(t, tc.expectedCoinbase.String(), result.String())
+
+			sequencerServer.Stop()
+			if !tc.callSequencer {
+				nonSequencerServer.Stop()
+			}
+		})
+	}
+}
+
 func TestEstimateGas(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()

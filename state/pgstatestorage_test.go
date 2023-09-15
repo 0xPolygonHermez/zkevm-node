@@ -492,6 +492,9 @@ func TestForkIDs(t *testing.T) {
 	for _, fork := range forks {
 		err = testState.AddForkID(ctx, fork, dbTx)
 		require.NoError(t, err)
+		// Insert twice to test on conflict do nothing
+		err = testState.AddForkID(ctx, fork, dbTx)
+		require.NoError(t, err)
 	}
 
 	forkIDs, err := testState.GetForkIDs(ctx, dbTx)
@@ -513,6 +516,26 @@ func TestForkIDs(t *testing.T) {
 	require.Equal(t, 3, len(forkIDs))
 	require.Equal(t, forkID3.ToBatchNumber, forkIDs[len(forkIDs)-1].ToBatchNumber)
 	require.Equal(t, forkID3.ForkId, forkIDs[len(forkIDs)-1].ForkId)
+
+	forkID3.BlockNumber = 101
+	err = testState.AddForkID(ctx, forkID3, dbTx)
+	require.NoError(t, err)
+	forkIDs, err = testState.GetForkIDs(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(forkIDs))
+	require.Equal(t, forkID3.ToBatchNumber, forkIDs[len(forkIDs)-1].ToBatchNumber)
+	require.Equal(t, forkID3.ForkId, forkIDs[len(forkIDs)-1].ForkId)
+	require.Equal(t, forkID3.BlockNumber, forkIDs[len(forkIDs)-1].BlockNumber)
+
+	forkID3.BlockNumber = 2
+	err = testState.AddForkID(ctx, forkID3, dbTx)
+	require.NoError(t, err)
+	forkIDs, err = testState.GetForkIDs(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(forkIDs))
+	require.Equal(t, forkID3.ToBatchNumber, forkIDs[len(forkIDs)-1].ToBatchNumber)
+	require.Equal(t, forkID3.ForkId, forkIDs[len(forkIDs)-1].ForkId)
+	require.Equal(t, forkID3.BlockNumber, forkIDs[len(forkIDs)-1].BlockNumber)
 
 	require.NoError(t, dbTx.Commit(ctx))
 }

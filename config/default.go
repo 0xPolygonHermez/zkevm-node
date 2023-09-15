@@ -90,6 +90,18 @@ MaxLogsBlockRange = 10000
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
+UseParallelModeForL1Synchronization = true
+	[Synchronizer.L1ParallelSynchronization]
+		NumberOfParallelOfEthereumClients = 2
+		CapacityOfBufferingRollupInfoFromL1 = 10
+		TimeForCheckLastBlockOnL1Time = "5s"
+		TimeoutForRequestLastBlockOnL1 = "5s"
+		MaxNumberOfRetriesForRequestLastBlockOnL1 = 3
+		TimeForShowUpStatisticsLog = "5m"
+		TimeOutMainLoop = "5m"
+		[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
+			AcceptableTimeWaitingForNewRollupInfo = "5s"
+			NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo = 10
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"

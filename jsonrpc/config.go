@@ -1,6 +1,9 @@
 package jsonrpc
 
-import "github.com/0xPolygonHermez/zkevm-node/config/types"
+import (
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/ethereum/go-ethereum/common"
+)
 
 // Config represents the configuration of the json rpc
 type Config struct {
@@ -44,6 +47,9 @@ type Config struct {
 
 	// BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request
 	BatchRequestsLimit uint `mapstructure:"BatchRequestsLimit"`
+
+	// L2Coinbase defines which address is going to receive the fees
+	L2Coinbase common.Address
 
 	// MaxLogsCount is a configuration to set the max number of logs that can be returned
 	// in a single call to the state, if zero it means no limit

@@ -364,6 +364,15 @@
 					"type": "integer",
 					"description": "BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request",
 					"default": 20
+				},
+				"L2Coinbase": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "L2Coinbase defines which address is going to receive the fees"
 				}
 			},
 			"additionalProperties": false,
@@ -391,6 +400,95 @@
 					"type": "string",
 					"description": "TrustedSequencerURL is the rpc url to connect and sync the trusted state",
 					"default": ""
+				},
+				"UseParallelModeForL1Synchronization": {
+					"type": "boolean",
+					"description": "L1ParallelSynchronization Use new L1 synchronization that do in parallel request to L1 and process the data\nIf false use the legacy sequential mode",
+					"default": true
+				},
+				"L1ParallelSynchronization": {
+					"properties": {
+						"NumberOfParallelOfEthereumClients": {
+							"type": "integer",
+							"description": "NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1\n(if UseParallelModeForL1Synchronization is true)",
+							"default": 2
+						},
+						"CapacityOfBufferingRollupInfoFromL1": {
+							"type": "integer",
+							"description": "CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsugested twice of NumberOfParallelOfEthereumClients\n(if UseParallelModeForL1Synchronization is true)",
+							"default": 10
+						},
+						"TimeForCheckLastBlockOnL1Time": {
+							"type": "string",
+							"title": "Duration",
+							"description": "TimeForCheckLastBlockOnL1Time is the time to wait to request the\nlast block to L1 to known if we need to retrieve more data.\nThis value only apply when the system is synchronized",
+							"default": "5s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"PerformanceCheck": {
+							"properties": {
+								"AcceptableTimeWaitingForNewRollupInfo": {
+									"type": "string",
+									"title": "Duration",
+									"description": "AcceptableTimeWaitingForNewRollupInfo is the expected maximum time that the consumer\ncould wait until new data is produced. If the time is greater it emmit a log to warn about\nthat. The idea is keep working the consumer as much as possible, so if the producer is not\nfast enought then you could increse the number of parallel clients to sync with L1",
+									"default": "5s",
+									"examples": [
+										"1m",
+										"300ms"
+									]
+								},
+								"NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo": {
+									"type": "integer",
+									"description": "NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo is the number of iterations to\nstart checking the time waiting for new rollup info data",
+									"default": 10
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Consumer Configuration for the consumer of rollup information from L1"
+						},
+						"TimeoutForRequestLastBlockOnL1": {
+							"type": "string",
+							"title": "Duration",
+							"description": "TimeoutForRequestLastBlockOnL1 Timeout for request LastBlock On L1",
+							"default": "5s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"MaxNumberOfRetriesForRequestLastBlockOnL1": {
+							"type": "integer",
+							"description": "MaxNumberOfRetriesForRequestLastBlockOnL1 Max number of retries to request LastBlock On L1",
+							"default": 3
+						},
+						"TimeForShowUpStatisticsLog": {
+							"type": "string",
+							"title": "Duration",
+							"description": "TimeForShowUpStatisticsLog how ofter show a log with statistics (0 is disabled)",
+							"default": "5m0s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"TimeOutMainLoop": {
+							"type": "string",
+							"title": "Duration",
+							"description": "TimeOutMainLoop is the timeout for the main loop of the L1 synchronizer when is not updated",
+							"default": "5m0s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)"
 				}
 			},
 			"additionalProperties": false,
@@ -656,7 +754,7 @@
 					"type": "array",
 					"maxItems": 20,
 					"minItems": 20,
-					"description": "L2Coinbase defines which addess is going to receive the fees",
+					"description": "L2Coinbase defines which address is going to receive the fees",
 					"default": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 				},
 				"PrivateKey": {

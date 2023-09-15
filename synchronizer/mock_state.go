@@ -257,23 +257,25 @@ func (_m *stateMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	return r0
 }
 
-// GetForkIDTrustedReorgCount provides a mock function with given fields: ctx, forkID, version, dbTx
-func (_m *stateMock) GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error) {
-	ret := _m.Called(ctx, forkID, version, dbTx)
+// GetForkIDs provides a mock function with given fields: ctx, dbTx
+func (_m *stateMock) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]state.ForkIDInterval, error) {
+	ret := _m.Called(ctx, dbTx)
 
-	var r0 uint64
+	var r0 []state.ForkIDInterval
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, string, pgx.Tx) (uint64, error)); ok {
-		return rf(ctx, forkID, version, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) ([]state.ForkIDInterval, error)); ok {
+		return rf(ctx, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, string, pgx.Tx) uint64); ok {
-		r0 = rf(ctx, forkID, version, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) []state.ForkIDInterval); ok {
+		r0 = rf(ctx, dbTx)
 	} else {
-		r0 = ret.Get(0).(uint64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]state.ForkIDInterval)
+		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, string, pgx.Tx) error); ok {
-		r1 = rf(ctx, forkID, version, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -610,13 +612,13 @@ func (_m *stateMock) Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx)
 	return r0
 }
 
-// ResetForkID provides a mock function with given fields: ctx, batchNumber, forkID, version, dbTx
-func (_m *stateMock) ResetForkID(ctx context.Context, batchNumber uint64, forkID uint64, version string, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, forkID, version, dbTx)
+// ResetForkID provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) ResetForkID(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, string, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, forkID, version, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
