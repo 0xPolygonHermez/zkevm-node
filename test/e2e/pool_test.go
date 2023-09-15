@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
@@ -186,6 +187,15 @@ func TestPendingNonce(t *testing.T) {
 			log.Debug("sending tx")
 			err = client.SendTransaction(ctx, signedTx)
 			require.NoError(t, err)
+
+			for i := 0; i < 10; i++ {
+				_, _, err := client.TransactionByHash(ctx, signedTx.Hash())
+				if err == ethereum.NotFound {
+					time.Sleep(100 * time.Millisecond)
+				} else if err == nil {
+					break
+				}
+			}
 
 			newPendingNonce, err := client.PendingNonceAt(ctx, auth.From)
 			require.NoError(t, err)
