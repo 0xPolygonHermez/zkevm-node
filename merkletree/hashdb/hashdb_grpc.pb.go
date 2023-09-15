@@ -20,16 +20,19 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	HashDBService_Set_FullMethodName            = "/hashdb.v1.HashDBService/Set"
-	HashDBService_Get_FullMethodName            = "/hashdb.v1.HashDBService/Get"
-	HashDBService_SetProgram_FullMethodName     = "/hashdb.v1.HashDBService/SetProgram"
-	HashDBService_GetProgram_FullMethodName     = "/hashdb.v1.HashDBService/GetProgram"
-	HashDBService_LoadDB_FullMethodName         = "/hashdb.v1.HashDBService/LoadDB"
-	HashDBService_LoadProgramDB_FullMethodName  = "/hashdb.v1.HashDBService/LoadProgramDB"
-	HashDBService_Flush_FullMethodName          = "/hashdb.v1.HashDBService/Flush"
-	HashDBService_SemiFlush_FullMethodName      = "/hashdb.v1.HashDBService/SemiFlush"
-	HashDBService_GetFlushStatus_FullMethodName = "/hashdb.v1.HashDBService/GetFlushStatus"
-	HashDBService_GetFlushData_FullMethodName   = "/hashdb.v1.HashDBService/GetFlushData"
+	HashDBService_Set_FullMethodName              = "/hashdb.v1.HashDBService/Set"
+	HashDBService_Get_FullMethodName              = "/hashdb.v1.HashDBService/Get"
+	HashDBService_SetProgram_FullMethodName       = "/hashdb.v1.HashDBService/SetProgram"
+	HashDBService_GetProgram_FullMethodName       = "/hashdb.v1.HashDBService/GetProgram"
+	HashDBService_LoadDB_FullMethodName           = "/hashdb.v1.HashDBService/LoadDB"
+	HashDBService_LoadProgramDB_FullMethodName    = "/hashdb.v1.HashDBService/LoadProgramDB"
+	HashDBService_Flush_FullMethodName            = "/hashdb.v1.HashDBService/Flush"
+	HashDBService_SemiFlush_FullMethodName        = "/hashdb.v1.HashDBService/SemiFlush"
+	HashDBService_GetFlushStatus_FullMethodName   = "/hashdb.v1.HashDBService/GetFlushStatus"
+	HashDBService_GetFlushData_FullMethodName     = "/hashdb.v1.HashDBService/GetFlushData"
+	HashDBService_ConsolidateState_FullMethodName = "/hashdb.v1.HashDBService/ConsolidateState"
+	HashDBService_Purge_FullMethodName            = "/hashdb.v1.HashDBService/Purge"
+	HashDBService_ReadTree_FullMethodName         = "/hashdb.v1.HashDBService/ReadTree"
 )
 
 // HashDBServiceClient is the client API for HashDBService service.
@@ -46,6 +49,9 @@ type HashDBServiceClient interface {
 	SemiFlush(ctx context.Context, in *SemiFlushRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetFlushStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetFlushStatusResponse, error)
 	GetFlushData(ctx context.Context, in *GetFlushDataRequest, opts ...grpc.CallOption) (*GetFlushDataResponse, error)
+	ConsolidateState(ctx context.Context, in *ConsolidateStateRequest, opts ...grpc.CallOption) (*ConsolidateStateResponse, error)
+	Purge(ctx context.Context, in *PurgeRequest, opts ...grpc.CallOption) (*PurgeResponse, error)
+	ReadTree(ctx context.Context, in *ReadTreeRequest, opts ...grpc.CallOption) (*ReadTreeResponse, error)
 }
 
 type hashDBServiceClient struct {
@@ -146,6 +152,33 @@ func (c *hashDBServiceClient) GetFlushData(ctx context.Context, in *GetFlushData
 	return out, nil
 }
 
+func (c *hashDBServiceClient) ConsolidateState(ctx context.Context, in *ConsolidateStateRequest, opts ...grpc.CallOption) (*ConsolidateStateResponse, error) {
+	out := new(ConsolidateStateResponse)
+	err := c.cc.Invoke(ctx, HashDBService_ConsolidateState_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hashDBServiceClient) Purge(ctx context.Context, in *PurgeRequest, opts ...grpc.CallOption) (*PurgeResponse, error) {
+	out := new(PurgeResponse)
+	err := c.cc.Invoke(ctx, HashDBService_Purge_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hashDBServiceClient) ReadTree(ctx context.Context, in *ReadTreeRequest, opts ...grpc.CallOption) (*ReadTreeResponse, error) {
+	out := new(ReadTreeResponse)
+	err := c.cc.Invoke(ctx, HashDBService_ReadTree_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HashDBServiceServer is the server API for HashDBService service.
 // All implementations must embed UnimplementedHashDBServiceServer
 // for forward compatibility
@@ -160,6 +193,9 @@ type HashDBServiceServer interface {
 	SemiFlush(context.Context, *SemiFlushRequest) (*emptypb.Empty, error)
 	GetFlushStatus(context.Context, *emptypb.Empty) (*GetFlushStatusResponse, error)
 	GetFlushData(context.Context, *GetFlushDataRequest) (*GetFlushDataResponse, error)
+	ConsolidateState(context.Context, *ConsolidateStateRequest) (*ConsolidateStateResponse, error)
+	Purge(context.Context, *PurgeRequest) (*PurgeResponse, error)
+	ReadTree(context.Context, *ReadTreeRequest) (*ReadTreeResponse, error)
 	mustEmbedUnimplementedHashDBServiceServer()
 }
 
@@ -196,6 +232,15 @@ func (UnimplementedHashDBServiceServer) GetFlushStatus(context.Context, *emptypb
 }
 func (UnimplementedHashDBServiceServer) GetFlushData(context.Context, *GetFlushDataRequest) (*GetFlushDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFlushData not implemented")
+}
+func (UnimplementedHashDBServiceServer) ConsolidateState(context.Context, *ConsolidateStateRequest) (*ConsolidateStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ConsolidateState not implemented")
+}
+func (UnimplementedHashDBServiceServer) Purge(context.Context, *PurgeRequest) (*PurgeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Purge not implemented")
+}
+func (UnimplementedHashDBServiceServer) ReadTree(context.Context, *ReadTreeRequest) (*ReadTreeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadTree not implemented")
 }
 func (UnimplementedHashDBServiceServer) mustEmbedUnimplementedHashDBServiceServer() {}
 
@@ -390,6 +435,60 @@ func _HashDBService_GetFlushData_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HashDBService_ConsolidateState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConsolidateStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HashDBServiceServer).ConsolidateState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HashDBService_ConsolidateState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HashDBServiceServer).ConsolidateState(ctx, req.(*ConsolidateStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HashDBService_Purge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PurgeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HashDBServiceServer).Purge(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HashDBService_Purge_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HashDBServiceServer).Purge(ctx, req.(*PurgeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HashDBService_ReadTree_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadTreeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HashDBServiceServer).ReadTree(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HashDBService_ReadTree_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HashDBServiceServer).ReadTree(ctx, req.(*ReadTreeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // HashDBService_ServiceDesc is the grpc.ServiceDesc for HashDBService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -436,6 +535,18 @@ var HashDBService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFlushData",
 			Handler:    _HashDBService_GetFlushData_Handler,
+		},
+		{
+			MethodName: "ConsolidateState",
+			Handler:    _HashDBService_ConsolidateState_Handler,
+		},
+		{
+			MethodName: "Purge",
+			Handler:    _HashDBService_Purge_Handler,
+		},
+		{
+			MethodName: "ReadTree",
+			Handler:    _HashDBService_ReadTree_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

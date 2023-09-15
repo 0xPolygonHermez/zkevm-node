@@ -114,6 +114,8 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		return newRoot, err
 	}
 
+	// TODO: CALL CONSOLIDATE HERE
+
 	// store L1 block related to genesis batch
 	err = s.AddBlock(ctx, &block, dbTx)
 	if err != nil {
