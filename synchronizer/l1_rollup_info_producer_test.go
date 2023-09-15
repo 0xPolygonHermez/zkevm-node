@@ -41,7 +41,6 @@ func Test_Given_NeedSync_When_Start_Then_AskForRollupInfo(t *testing.T) {
 	sut.workers.waitFinishAllWorkers()
 }
 
-// func Test_Given_NeedSync_When_ReachLastBlock_Then_SendAndEventOfSynchronized(t *testing.T) {
 func Test_Given_NoNeedSync_When_Starts_SendAndEventOfSynchronized(t *testing.T) {
 	sut, ethermans, ch := setup(t)
 	etherman := ethermans[0]

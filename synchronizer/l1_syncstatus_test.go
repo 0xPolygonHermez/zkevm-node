@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_When_Reset_Then_Forget_LastBlockOnL1_getNextRange_ReturnsNil(t *testing.T) {
+func Test_Given_ObjectWithData_When_Reset_Then_ForgetLastBlockOnL1AndgetNextRangeReturnsNil(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
 	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
@@ -18,7 +18,7 @@ func Test_When_Reset_Then_Forget_LastBlockOnL1_getNextRange_ReturnsNil(t *testin
 	require.Nil(t, br)
 }
 
-func Test_When_Reset_Then_If_Set_LastBlockOnL1_getNextRange_ReturnsNextRange(t *testing.T) {
+func Test_Given_ObjectWithData_When_ResetAndSetLastBlockOnL1_Then_GetNextRangeReturnsNextRange(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
 	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
@@ -65,7 +65,7 @@ func Test_When_ReceiveAndNoStartedBlockRange_Then_Ignore(t *testing.T) {
 	require.Equal(t, blockRange{fromBlock: 1618, toBlock: 1628}, *br)
 }
 
-func Test_When_AllRequestAreSend_Then_getNextRange_ReturnsNil(t *testing.T) {
+func Test_When_AllRequestAreSend_Then_getNextRangeReturnsNil(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
 	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
@@ -174,7 +174,7 @@ func Test_Given_MultiplesWorkers_When_NextRange_Then_TheRangeIsCappedToLastBlock
 	require.Equal(t, *br, blockRange{fromBlock: 101, toBlock: 105})
 }
 
-func Test_When_AllRequestAreSend_Then_getNextRange_ReturnsNil2(t *testing.T) {
+func Test_When_AllRequestAreSend_Then_getNextRangeReturnsNil2(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
 	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})

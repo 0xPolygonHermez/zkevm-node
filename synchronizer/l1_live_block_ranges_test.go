@@ -6,13 +6,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Insert_BR(t *testing.T) {
+func TestInsertBR(t *testing.T) {
 	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
 	require.NoError(t, err)
 	require.Equal(t, sut.len(), 1)
 }
-func Test_Insert_Overlapped_BR(t *testing.T) {
+func TestInsertOverlappedBR(t *testing.T) {
 	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
 	require.NoError(t, err)
@@ -20,7 +20,7 @@ func Test_Insert_Overlapped_BR(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, sut.len(), 1)
 }
-func Test_Insert_Duplicated_BR(t *testing.T) {
+func TestInsertDuplicatedBR(t *testing.T) {
 	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func Test_Insert_Duplicated_BR(t *testing.T) {
 	require.Equal(t, sut.len(), 1)
 }
 
-func Test_Remove_Existing_BR(t *testing.T) {
+func TestRemoveExistingBR(t *testing.T) {
 	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
 	require.NoError(t, err)
@@ -40,26 +40,26 @@ func Test_Remove_Existing_BR(t *testing.T) {
 	require.Equal(t, sut.len(), 1)
 }
 
-func Test_Insert_Wrong_BR1(t *testing.T) {
+func TestInsertWrongBR1(t *testing.T) {
 	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{})
 	require.Error(t, err)
 	require.Equal(t, sut.len(), 0)
 }
-func Test_Insert_Wrong_BR2(t *testing.T) {
+func TestInsertWrongBR2(t *testing.T) {
 	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{fromBlock: 10, toBlock: 5})
 	require.Error(t, err)
 	require.Equal(t, sut.len(), 0)
 }
 
-func Test_GetSuperBlockRange_Empty(t *testing.T) {
+func TestGetSuperBlockRangeEmpty(t *testing.T) {
 	sut := newLiveBlockRanges()
 	res := sut.getSuperBlockRange()
 	require.Nil(t, res)
 }
 
-func Test_GetSuperBlockRange_WithData(t *testing.T) {
+func TestGetSuperBlockRangeWithData(t *testing.T) {
 	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})
 	require.NoError(t, err)

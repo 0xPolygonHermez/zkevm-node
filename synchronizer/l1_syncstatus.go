@@ -164,6 +164,7 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 		log.Infof("Range %s was not successful, adding to errorRanges to be retried", br.String())
 		err := s.errorRanges.addBlockRange(br)
 		if err != nil {
+			log.Error(s.toString())
 			log.Fatal(err)
 		}
 	}
