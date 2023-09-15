@@ -8,7 +8,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 )
 
-type ll1RollupInfoConsumerStatistics struct {
+type l1RollupInfoConsumerStatistics struct {
 	numProcessedRollupInfo         uint64
 	numProcessedBlocks             uint64
 	startTime                      time.Time
@@ -17,16 +17,16 @@ type ll1RollupInfoConsumerStatistics struct {
 	cfg                            configConsumer
 }
 
-func (l *ll1RollupInfoConsumerStatistics) onStart() {
+func (l *l1RollupInfoConsumerStatistics) onStart() {
 	l.startTime = time.Now()
 	l.startStepTime = time.Time{}
 }
 
-func (l *ll1RollupInfoConsumerStatistics) onStartStep() {
+func (l *l1RollupInfoConsumerStatistics) onStartStep() {
 	l.startStepTime = time.Now()
 }
 
-func (l *ll1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult) string {
+func (l *l1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult) string {
 	now := time.Now()
 	// Time have have been blocked in the select statement
 	waitingTimeForData := now.Sub(l.startStepTime)
@@ -41,7 +41,7 @@ func (l *ll1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(
 	return msg
 }
 
-func (l *ll1RollupInfoConsumerStatistics) onFinishProcessIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult, executionTime time.Duration, err error) {
+func (l *l1RollupInfoConsumerStatistics) onFinishProcessIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult, executionTime time.Duration, err error) {
 	l.timePreviousProcessingDuration = executionTime
 	if err == nil {
 		l.numProcessedBlocks += uint64(len(rollupInfo.blocks))

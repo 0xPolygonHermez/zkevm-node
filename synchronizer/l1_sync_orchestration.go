@@ -10,7 +10,7 @@ import (
 )
 
 /*
-This object is to coordinate the producer process and the consumer process.
+This object is used to coordinate the producer and the consumer process.
 */
 type l1RollupProducerInterface interface {
 	start(startingBlockNumber uint64) error
@@ -49,7 +49,7 @@ func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
 	log.Warnf("Reset L1 sync process to blockNumber %d", startingBlockNumber)
 	l.mutex.Lock()
 	if l.consumerStarted {
-		log.Warnf("orchestration: Undefined behaviour,  reset (%v) and consumer is running", startingBlockNumber)
+		log.Warnf("orchestration: Undefined behaviour, reset (%v) and consumer is running", startingBlockNumber)
 	}
 	l.producer.reset(startingBlockNumber)
 
@@ -129,16 +129,16 @@ func (l *l1SyncOrchestration) orchestrate(wg *sync.WaitGroup, hProducer chan err
 	for !done {
 		select {
 		case err = <-hProducer:
-			// Producer have finish
-			log.Warnf("orchestration: consumer have finish! this never have to happen, restarting it. Error:%s", err)
+			// Producer have finished
+			log.Warnf("orchestration: consumer have finished! this situation shouldn't happen, restarting it. Error:%s", err)
 			// to avoid respawn too fast it sleeps a bit
 			time.Sleep(time.Second)
 			l.launchProducer(invalidBlockNumber, hProducer, wg)
 		case err = <-chConsumer:
 			if err != nil {
-				log.Warnf("orchestration: consumer have finish with Error: %s", err)
+				log.Warnf("orchestration: consumer have finished with Error: %s", err)
 			} else {
-				log.Info("orchestration: consumer have finish ok")
+				log.Info("orchestration: consumer has processed everything and is synced")
 			}
 			done = true
 		}

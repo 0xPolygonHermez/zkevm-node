@@ -42,7 +42,7 @@ type l1RollupInfoConsumer struct {
 	synchronizer          synchronizerProcessBlockRangeInterface
 	chIncommingRollupInfo chan l1SyncMessage
 	ctx                   context.Context
-	statistics            ll1RollupInfoConsumerStatistics
+	statistics            l1RollupInfoConsumerStatistics
 	lastEthBlockSynced    *state.Block
 }
 
@@ -61,7 +61,7 @@ func newL1RollupInfoConsumer(ctx context.Context, cfg configConsumer,
 		synchronizer:          synchronizer,
 		ctx:                   ctx,
 		chIncommingRollupInfo: ch,
-		statistics: ll1RollupInfoConsumerStatistics{
+		statistics: l1RollupInfoConsumerStatistics{
 			startTime: time.Now(),
 			cfg:       cfg,
 		},
@@ -161,8 +161,8 @@ func (l *l1RollupInfoConsumer) sendStopPackage() {
 func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeResult) (*state.Block, error) {
 	blocks := rollupInfo.blocks
 	order := rollupInfo.order
-	err := l.synchronizer.processBlockRange(blocks, order)
 	var lastEthBlockSynced *state.Block
+	err := l.synchronizer.processBlockRange(blocks, order)
 	if err != nil {
 		log.Error("consumer: Error processing block range: ", rollupInfo.blockRange, " err:", err)
 		return nil, err
@@ -173,18 +173,18 @@ func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeRe
 		logBlocks(blocks)
 	}
 	if len(blocks) == 0 {
-		fb := rollupInfo.lastBlockOfRange
-		if fb == nil {
+		lb := rollupInfo.lastBlockOfRange
+		if lb == nil {
 			log.Warn("consumer: Error processing block range: ", rollupInfo.blockRange, " err: need the last block of range and got a nil")
 			return nil, errMissingLastBlock
 		}
-		b := convertL1BlockToEthBlock(fb)
+		b := convertL1BlockToEthBlock(lb)
 		err = l.synchronizer.processBlockRange([]etherman.Block{b}, order)
 		if err != nil {
 			log.Error("consumer: Error processing last block of range: ", rollupInfo.blockRange, " err:", err)
 			return nil, err
 		}
-		block := convertL1BlockToStateBlock(fb)
+		block := convertL1BlockToStateBlock(lb)
 		lastEthBlockSynced = &block
 		log.Debug("consumer: Storing empty block. BlockNumber: ", b.BlockNumber, ". BlockHash: ", b.BlockHash)
 	}
