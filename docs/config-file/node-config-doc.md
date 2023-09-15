@@ -1167,7 +1167,7 @@ TimeForCheckLastBlockOnL1Time="5s"
 **Default:** `"5s"`
 
 **Description:** AcceptableTimeWaitingForNewRollupInfo is the expected maximum time that the consumer
-could wait until new data are produced. If the time is greater it emmit a log to warn about
+could wait until new data is produced. If the time is greater it emmit a log to warn about
 that. The idea is keep working the consumer as much as possible, so if the producer is not
 fast enought then you could increse the number of parallel clients to sync with L1
 
