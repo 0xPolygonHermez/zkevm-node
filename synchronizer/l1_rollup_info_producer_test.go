@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_L1Get(t *testing.T) {
+func TestExploratoryL1Get(t *testing.T) {
 	t.Skip("Exploratory test")
 	sut, ethermans, _ := setup(t)
 	etherman := ethermans[0]
@@ -27,7 +27,7 @@ func Test_L1Get(t *testing.T) {
 	sut.launchWork()
 }
 
-func Test_Given_NeedSync_When_Start_Then_AskForRollupInfo(t *testing.T) {
+func TestGivenNeedSyncWhenStartThenAskForRollupInfo(t *testing.T) {
 	sut, ethermans, _ := setup(t)
 	etherman := ethermans[0]
 	expectedForGettingL1LastBlock(t, etherman, 150)
@@ -41,7 +41,7 @@ func Test_Given_NeedSync_When_Start_Then_AskForRollupInfo(t *testing.T) {
 	sut.workers.waitFinishAllWorkers()
 }
 
-func Test_Given_NoNeedSync_When_Starts_SendAndEventOfSynchronized(t *testing.T) {
+func TestGivenNoNeedSyncWhenStartsSendAndEventOfSynchronized(t *testing.T) {
 	sut, ethermans, ch := setup(t)
 	etherman := ethermans[0]
 	// Our last block is 100 in DB and it returns 100 as last block on L1
@@ -68,7 +68,7 @@ func Test_Given_NoNeedSync_When_Starts_SendAndEventOfSynchronized(t *testing.T) 
 	require.Fail(t, "should not have send a eventProducerIsFullySynced in channel")
 }
 
-func Test_Given_NeedSync_When_ReachLastBlock_Then_SendAndEventOfSynchronized(t *testing.T) {
+func TestGivenNeedSyncWhenReachLastBlockThenSendAndEventOfSynchronized(t *testing.T) {
 	sut, ethermans, ch := setup(t)
 	etherman := ethermans[0]
 	// Our last block is 100 in DB and it returns 101 as last block on L1

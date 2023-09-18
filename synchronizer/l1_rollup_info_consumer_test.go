@@ -19,7 +19,7 @@ type consumerTestData struct {
 	ctx      context.Context
 }
 
-func Test_Given_Consumer_When_ReceiveAFullSyncAndChannelIsEmpty_Then_StopOk(t *testing.T) {
+func TestGivenConsumerWhenReceiveAFullSyncAndChannelIsEmptyThenStopOk(t *testing.T) {
 	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	data := setupConsumerTest(t, &ctxTimeout)
 	defer cancel()
@@ -27,7 +27,7 @@ func Test_Given_Consumer_When_ReceiveAFullSyncAndChannelIsEmpty_Then_StopOk(t *t
 	err := data.sut.start()
 	require.NoError(t, err)
 }
-func Test_Given_Consumer_When_ReceiveAFullSyncAndChannelIsNotEmpty_Then_DontStop(t *testing.T) {
+func TestGivenConsumerWhenReceiveAFullSyncAndChannelIsNotEmptyThenDontStop(t *testing.T) {
 	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	data := setupConsumerTest(t, &ctxTimeout)
 	defer cancel()
@@ -39,7 +39,7 @@ func Test_Given_Consumer_When_ReceiveAFullSyncAndChannelIsNotEmpty_Then_DontStop
 	require.Equal(t, errContextCanceled, err)
 }
 
-func Test_Given_Consumer_When_FailsToProcessRollup_Then_IDontKnown(t *testing.T) {
+func TestGivenConsumerWhenFailsToProcessRollupThenDontKnownLastEthBlock(t *testing.T) {
 	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	data := setupConsumerTest(t, &ctxTimeout)
 	defer cancel()
