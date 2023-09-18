@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/didip/tollbooth/v6 v6.1.2
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127
-	github.com/ethereum/go-ethereum v1.13.0
+	github.com/ethereum/go-ethereum v1.13.1
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.9.0
 	github.com/gobuffalo/packr/v2 v2.8.3
