@@ -320,3 +320,27 @@ func (tree *StateTree) Flush(ctx context.Context, uuid string) error {
 	_, err := tree.grpcClient.Flush(ctx, flushRequest)
 	return err
 }
+
+// ConsolidateState consolidates a virtual state root into the persistent storage.
+func (tree *StateTree) ConsolidateState(ctx context.Context, oldRoot common.Hash) ([]byte, *hashdb.ConsolidateStateResponse, error) {
+	virtualStateRoot, err := StringToh4(oldRoot.Hex())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	consolidateStateRequest := hashdb.ConsolidateStateRequest{
+		VirtualStateRoot: &hashdb.Fea{Fe0: virtualStateRoot[0], Fe1: virtualStateRoot[1], Fe2: virtualStateRoot[2], Fe3: virtualStateRoot[3]},
+		Persistence:      hashdb.Persistence_PERSISTENCE_DATABASE,
+	}
+	response, err := tree.grpcClient.ConsolidateState(ctx, &consolidateStateRequest)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	newRoot := []uint64{response.ConsolidatedStateRoot.Fe0,
+		response.ConsolidatedStateRoot.Fe1,
+		response.ConsolidatedStateRoot.Fe2,
+		response.ConsolidatedStateRoot.Fe3}
+
+	return h4ToFilledByteSlice(newRoot), response, nil
+}

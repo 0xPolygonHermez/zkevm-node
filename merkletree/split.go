@@ -126,8 +126,6 @@ func string2fea(s string) ([]uint64, error) {
 // fea2string converts an array of 32bit uint64 values into a string.
 func fea2string(fea []uint64) string {
 	bi := fea2scalar(fea)
-
 	biBytes := ScalarToFilledByteSlice(bi)
-
 	return hex.EncodeToHex(biBytes)
 }

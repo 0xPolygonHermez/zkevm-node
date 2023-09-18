@@ -40,9 +40,9 @@ type GenesisAction struct {
 // SetGenesis populates state with genesis information
 func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, dbTx pgx.Tx) ([]byte, error) {
 	var (
-		root    common.Hash
-		newRoot []byte
-		err     error
+		virtualRoot, root common.Hash
+		newRoot           []byte
+		err               error
 	)
 	if dbTx == nil {
 		return newRoot, ErrDBTxNil
@@ -105,8 +105,6 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		}
 	}
 
-	root.SetBytes(newRoot)
-
 	// flush state db
 	err = s.tree.Flush(ctx, uuid)
 	if err != nil {
@@ -114,7 +112,10 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		return newRoot, err
 	}
 
-	// TODO: CALL CONSOLIDATE HERE
+	virtualRoot.SetBytes(newRoot)
+	newRoot, _, _ = s.tree.ConsolidateState(ctx, virtualRoot)
+
+	root.SetBytes(newRoot)
 
 	// store L1 block related to genesis batch
 	err = s.AddBlock(ctx, &block, dbTx)
