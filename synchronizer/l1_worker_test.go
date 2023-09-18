@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Exploratory(t *testing.T) {
+func TestExploratoryWorker(t *testing.T) {
 	t.Skip("no real test, just exploratory")
 	cfg := etherman.Config{
 		URL: "http://localhost:8545",

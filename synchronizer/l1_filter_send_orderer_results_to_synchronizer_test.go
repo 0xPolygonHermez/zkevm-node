@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_SOR_Multicase_With_Reset(t *testing.T) {
+func TestSORMulticaseWithReset(t *testing.T) {
 	tcs := []struct {
 		description                     string
 		lastBlock                       uint64
@@ -67,7 +67,7 @@ func Test_SOR_Multicase_With_Reset(t *testing.T) {
 	}
 }
 
-func Test_SOR_Multicase(t *testing.T) {
+func TestSORMulticase(t *testing.T) {
 	tcs := []struct {
 		description                      string
 		lastBlock                        uint64
