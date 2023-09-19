@@ -165,9 +165,6 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			copy(data, returnValue)
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), &data)
 		} else if err != nil {
-			return nil, types.NewRPCErrorWithData(types.DefaultErrorCode, err.Error(), nil)
-		}
-		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil)
 		}
 		return hex.EncodeUint64(gasEstimation), nil

@@ -207,6 +207,28 @@ var (
 	ErrExecutorSMMainHashKReadOutOfRange = errors.New("main execution Keccak check found read out of range")
 	// ErrExecutorSMMainHashPReadOutOfRange indicates that the main execution Poseidon check found read out of range
 	ErrExecutorSMMainHashPReadOutOfRange = errors.New("main execution Poseidon check found read out of range")
+	// ErrExecutorErrorInvalidOldStateRoot indicates that the input parameter old_state_root is invalid
+	ErrExecutorErrorInvalidOldStateRoot = errors.New("old_state_root is invalid")
+	// ErrExecutorErrorInvalidOldAccInputHash indicates that the input parameter old_acc_input_hash is invalid
+	ErrExecutorErrorInvalidOldAccInputHash = errors.New("old_acc_input_hash is invalid")
+	// ErrExecutorErrorInvalidChainId indicates that the input parameter chain_id is invalid
+	ErrExecutorErrorInvalidChainId = errors.New("chain_id is invalid")
+	// ErrExecutorErrorInvalidBatchL2Data indicates that the input parameter batch_l2_data is invalid
+	ErrExecutorErrorInvalidBatchL2Data = errors.New("batch_l2_data is invalid")
+	// ErrExecutorErrorInvalidGlobalExitRoot indicates that the input parameter global_exit_root is invalid
+	ErrExecutorErrorInvalidGlobalExitRoot = errors.New("global_exit_root is invalid")
+	// ErrExecutorErrorInvalidCoinbase indicates that the input parameter coinbase (i.e. sequencer address) is invalid
+	ErrExecutorErrorInvalidCoinbase = errors.New("coinbase (i.e. sequencer address) is invalid")
+	// ErrExecutorErrorInvalidFrom indicates that the input parameter from is invalid
+	ErrExecutorErrorInvalidFrom = errors.New("from is invalid")
+	// ErrExecutorErrorInvalidDbKey indicates that the input parameter db key is invalid
+	ErrExecutorErrorInvalidDbKey = errors.New("db key is invalid")
+	// ErrExecutorErrorInvalidDbValue indicates that the input parameter db value is invalid
+	ErrExecutorErrorInvalidDbValue = errors.New("db value is invalid")
+	// ErrExecutorErrorInvalidContractsBytecodeKey indicates that the input parameter contracts_bytecode key is invalid
+	ErrExecutorErrorInvalidContractsBytecodeKey = errors.New("contracts_bytecode key is invalid")
+	// ErrExecutorErrorInvalidContractsBytecodeValue indicates that the input parameter contracts_bytecode value is invalid
+	ErrExecutorErrorInvalidContractsBytecodeValue = errors.New("contracts_bytecode value is invalid")
 
 	// GRPC ERRORS
 	// ===========
