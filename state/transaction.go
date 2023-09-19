@@ -900,20 +900,20 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 }
 
 // StoreTransaction is used by the sequencer and trusted state synchronizer to add process a transaction.
-func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
+func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) (*types.Header, error) {
 	if dbTx == nil {
-		return ErrDBTxNil
+		return nil, ErrDBTxNil
 	}
 
 	// if the transaction has an intrinsic invalid tx error it means
 	// the transaction has not changed the state, so we don't store it
 	if executor.IsIntrinsicError(executor.RomErrorCode(processedTx.RomError)) {
-		return nil
+		return nil, nil
 	}
 
 	lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	header := &types.Header{
@@ -938,10 +938,10 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 
 	// Store L2 block and its transaction
 	if err := s.AddL2Block(ctx, batchNumber, block, receipts, uint8(processedTx.EffectivePercentage), dbTx); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return block.Header(), nil
 }
 
 // CheckSupersetBatchTransactions verifies that processedTransactions is a

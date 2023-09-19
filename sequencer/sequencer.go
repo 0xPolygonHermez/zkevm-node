@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -48,7 +50,7 @@ func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInter
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
 
-	return &Sequencer{
+	sequencer := &Sequencer{
 		cfg:          cfg,
 		batchCfg:     batchCfg,
 		pool:         txPool,
@@ -57,7 +59,9 @@ func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInter
 		ethTxManager: manager,
 		address:      addr,
 		eventLog:     eventLog,
-	}, nil
+	}
+
+	return sequencer, nil
 }
 
 // Start starts the sequencer
@@ -81,6 +85,37 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	worker := NewWorker(s.state, s.batchCfg.Constraints)
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, s.batchCfg.Constraints)
+
+	// Start stream server if enabled
+	if s.cfg.StreamServer.Enabled {
+		streamServer, err := datastreamer.New(s.cfg.StreamServer.Port, StreamTypeSequencer, s.cfg.StreamServer.Filename)
+		if err != nil {
+			log.Fatalf("failed to create stream server, err: %v", err)
+		}
+
+		// Set entities definition
+		entriesDefinition := map[datastreamer.EntryType]datastreamer.EntityDefinition{
+			EntryTypeL2Block: {
+				Name:       "L2Block",
+				StreamType: StreamTypeSequencer,
+				Definition: reflect.TypeOf(DSL2Block{}),
+			},
+			EntryTypeL2Tx: {
+				Name:       "L2Transaction",
+				StreamType: StreamTypeSequencer,
+				Definition: reflect.TypeOf(DSL2Transaction{}),
+			},
+		}
+
+		streamServer.SetEntriesDefinition(entriesDefinition)
+
+		dbManager.streamServer = &streamServer
+		err = dbManager.streamServer.Start()
+		if err != nil {
+			log.Fatalf("failed to start stream server, err: %v", err)
+		}
+	}
+
 	go dbManager.Start()
 
 	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog)
