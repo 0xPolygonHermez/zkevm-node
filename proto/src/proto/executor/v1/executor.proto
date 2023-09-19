@@ -31,7 +31,6 @@ message ProcessBatchRequest {
     map<string, string> db = 13;
     map<string, string> contracts_bytecode = 14; // For debug/testing purpposes only. Don't fill this on production
     TraceConfig trace_config = 15;
-    string external_request_id = 16;
 }
 
 message ProcessBatchResponse {
@@ -168,8 +167,6 @@ message Contract {
     string value = 3;
     bytes data = 4;
     uint64 gas = 5;
-    // Define type of internal call: CREATE, CREATE2, CALL, CALLCODE, DELEGATECALL, STATICCALL
-    string type = 6;
 }
 
 message ProcessTransactionResponse {
