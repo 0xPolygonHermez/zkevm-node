@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -23,6 +24,7 @@ type dbManager struct {
 	ctx              context.Context
 	batchConstraints batchConstraints
 	numberOfReorgs   uint64
+	streamServer     *datastreamer.StreamServer
 }
 
 func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
@@ -175,7 +177,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	err = d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
+	l2BlochHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
 	if err != nil {
 		return err
 	}
@@ -183,6 +185,10 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	// Update batch l2 data
 	batch, err := d.state.GetBatchByNumber(ctx, tx.batchNumber, dbTx)
 	if err != nil {
+		err2 := dbTx.Rollback(ctx)
+		if err2 != nil {
+			log.Errorf("failed to rollback dbTx when getting batch that gave err: %v. Rollback err: %v", err2, err)
+		}
 		return err
 	}
 
@@ -196,8 +202,70 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	if !tx.isForcedBatch {
 		err = d.state.UpdateBatchL2Data(ctx, tx.batchNumber, batch.BatchL2Data, dbTx)
 		if err != nil {
+			err2 := dbTx.Rollback(ctx)
+			if err2 != nil {
+				log.Errorf("failed to rollback dbTx when updating batch l2 data that gave err: %v. Rollback err: %v", err2, err)
+			}
 			return err
 		}
+	}
+
+	// Send tx data to data stream server
+	var streamServerErr error
+	if d.streamServer != nil {
+		l2Block := DSL2Block{
+			BatchNumber:    tx.batchNumber,
+			L2BlockNumber:  l2BlochHeader.Number.Uint64(),
+			Timestamp:      tx.timestamp,
+			GlobalExitRoot: batch.GlobalExitRoot,
+			Coinbase:       tx.coinbase,
+		}
+
+		l2Transaction := DSL2Transaction{
+			BatchNumber:                 batch.BatchNumber,
+			EffectiveGasPricePercentage: uint8(tx.response.EffectivePercentage),
+			IsValid:                     1,
+			EncodedLength:               uint32(len(txData)),
+			Encoded:                     txData,
+		}
+
+		streamServerErr = d.streamServer.StartAtomicOp()
+		if streamServerErr != nil {
+			log.Errorf("failed to start atomic op: %v", streamServerErr)
+			goto StreamServerEnd
+		}
+
+		_, streamServerErr = d.streamServer.AddStreamEntry(EntryTypeL2Block, l2Block.Encode())
+		if streamServerErr != nil {
+			log.Errorf("failed to add stream entry: %v", streamServerErr)
+			goto StreamServerEnd
+		}
+
+		_, streamServerErr = d.streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transaction.Encode())
+		if err != nil {
+			log.Errorf("failed to add stream entry: %v", streamServerErr)
+			goto StreamServerEnd
+		}
+
+		streamServerErr = d.streamServer.CommitAtomicOp()
+		if streamServerErr != nil {
+			log.Errorf("failed to rollback atomic op: %v", streamServerErr)
+		}
+	}
+
+StreamServerEnd:
+	if d.streamServer != nil && streamServerErr != nil {
+		streamServerErr = d.streamServer.RollbackAtomicOp()
+		if streamServerErr != nil {
+			log.Errorf("failed to rollback atomic op: %v", streamServerErr)
+		}
+
+		err := dbTx.Rollback(ctx)
+		if err != nil {
+			log.Errorf("failed to rollback dbTx when storing tx: %v", err)
+		}
+
+		return streamServerErr
 	}
 
 	err = dbTx.Commit(ctx)

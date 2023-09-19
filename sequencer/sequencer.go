@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -61,7 +63,7 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
 
-	return &Sequencer{
+	sequencer := &Sequencer{
 		cfg:          cfg,
 		pool:         txPool,
 		state:        state,
@@ -69,7 +71,9 @@ func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, man
 		ethTxManager: manager,
 		address:      addr,
 		eventLog:     eventLog,
-	}, nil
+	}
+
+	return sequencer, nil
 }
 
 // Start starts the sequencer
@@ -105,7 +109,39 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	worker := NewWorker(s.state)
+
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, batchConstraints)
+
+	// Start stream server if enabled
+	if s.cfg.StreamServer.Enabled {
+		streamServer, err := datastreamer.New(s.cfg.StreamServer.Port, StreamTypeSequencer, s.cfg.StreamServer.Filename)
+		if err != nil {
+			log.Fatalf("failed to create stream server, err: %v", err)
+		}
+
+		// Set entities definition
+		entriesDefinition := map[datastreamer.EntryType]datastreamer.EntityDefinition{
+			EntryTypeL2Block: {
+				Name:       "L2Block",
+				StreamType: StreamTypeSequencer,
+				Definition: reflect.TypeOf(DSL2Block{}),
+			},
+			EntryTypeL2Tx: {
+				Name:       "L2Transaction",
+				StreamType: StreamTypeSequencer,
+				Definition: reflect.TypeOf(DSL2Transaction{}),
+			},
+		}
+
+		streamServer.SetEntriesDefinition(entriesDefinition)
+
+		dbManager.streamServer = &streamServer
+		err = dbManager.streamServer.Start()
+		if err != nil {
+			log.Fatalf("failed to start stream server, err: %v", err)
+		}
+	}
+
 	go dbManager.Start()
 
 	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, batchConstraints, s.eventLog)

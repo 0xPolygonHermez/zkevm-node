@@ -110,6 +110,10 @@ MaxTxLifetime = "3h"
 		ByteGasCost = 16
 		MarginFactor = 1
 		Enabled = false
+	[Sequencer.StreamServer]
+		Port = 0
+		Filename = ""
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "5s"

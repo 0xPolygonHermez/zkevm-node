@@ -1493,14 +1493,17 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 
 	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.Responses), trustedBatch.Number)
 	if processBatchResp.IsExecutorLevelError {
-		log.Warn("ExecutorLevelError detected. Avoid store txs...")
+		log.Warn("executorLevelError detected. Avoid store txs...")
+		return processBatchResp, nil
+	} else if processBatchResp.IsRomOOCError {
+		log.Warn("romOOCError detected. Avoid store txs...")
 		return processBatchResp, nil
 	}
 	for _, tx := range processBatchResp.Responses {
 		if state.IsStateRootChanged(executor.RomErrorCode(tx.RomError)) {
-			log.Info("TrustedBatch info: %+v", processBatchResp)
-			log.Info("Storing trusted tx %+v", tx)
-			if err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), dbTx); err != nil {
+			log.Infof("TrustedBatch info: %+v", processBatchResp)
+			log.Infof("Storing trusted tx %+v", tx)
+			if _, err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), dbTx); err != nil {
 				log.Errorf("failed to store transactions for batch: %v. Tx: %s", trustedBatch.Number, tx.TxHash.String())
 				return nil, err
 			}

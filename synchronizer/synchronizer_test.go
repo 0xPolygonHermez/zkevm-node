@@ -678,6 +678,7 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 			On("GetBatchByNumber", mock.Anything, uint64(batchInPermissionLess.Number-1), mock.Anything).
 			Return(&stateBatchInPermissionLess, nil).
 			Once()
+
 		m.State.
 			On("GetBatchByNumber", mock.Anything, uint64(batchInPermissionLess.Number), mock.Anything).
 			Return(&stateBatchInPermissionLess, nil).
@@ -719,7 +720,7 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 
 	m.State.
 		On("StoreTransaction", sync.ctx, uint64(stateBatchInTrustedNode.BatchNumber), mock.Anything, stateBatchInTrustedNode.Coinbase, uint64(batchInTrustedNode.Timestamp), m.DbTx).
-		Return(nil).
+		Return(&ethTypes.Header{}, nil).
 		Once()
 
 	m.State.

@@ -1030,6 +1030,7 @@ TrustedSequencerURL=""
 | - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                                                                             |
 | - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                                                                             |
 | - [EffectiveGasPrice](#Sequencer_EffectiveGasPrice )                         | No      | object  | No         | -          | EffectiveGasPrice is the config for the gas price                                                                                                  |
+| - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                                                                                |
 
 ### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
 
@@ -1719,6 +1720,59 @@ This value is assigned from [Pool].DefaultMinGasPriceAllowed
 ```
 [Sequencer.EffectiveGasPrice]
 DefaultMinGasPriceAllowed=0
+```
+
+### <a name="Sequencer_StreamServer"></a>10.19. `[Sequencer.StreamServer]`
+
+**Type:** : `object`
+**Description:** StreamServerCfg is the config for the stream server
+
+| Property                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                     |
+| ----------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------- |
+| - [Port](#Sequencer_StreamServer_Port )         | No      | integer | No         | -          | Port to listen on                                     |
+| - [Filename](#Sequencer_StreamServer_Filename ) | No      | string  | No         | -          | Filename of the binary data file                      |
+| - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
+
+#### <a name="Sequencer_StreamServer_Port"></a>10.19.1. `Sequencer.StreamServer.Port`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Port to listen on
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer]
+Port=0
+```
+
+#### <a name="Sequencer_StreamServer_Filename"></a>10.19.2. `Sequencer.StreamServer.Filename`
+
+**Type:** : `string`
+
+**Default:** `""`
+
+**Description:** Filename of the binary data file
+
+**Example setting the default value** (""):
+```
+[Sequencer.StreamServer]
+Filename=""
+```
+
+#### <a name="Sequencer_StreamServer_Enabled"></a>10.19.3. `Sequencer.StreamServer.Enabled`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** Enabled is a flag to enable/disable the data streamer
+
+**Example setting the default value** (false):
+```
+[Sequencer.StreamServer]
+Enabled=false
 ```
 
 ## <a name="SequenceSender"></a>11. `[SequenceSender]`
