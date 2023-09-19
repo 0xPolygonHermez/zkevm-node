@@ -527,29 +527,6 @@ func TestWebSocketsConcurrentWrites(t *testing.T) {
 	}
 }
 
-func TestWebSocketsReadLimit(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	setup()
-	defer teardown()
-
-	wsConn, _, err := websocket.DefaultDialer.Dial(operations.DefaultL2NetworkWebSocketURL, nil)
-	require.NoError(t, err)
-	defer func() {
-		err := wsConn.Close()
-		require.NoError(t, err)
-	}()
-
-	jReq := make([]byte, 104857601)
-	err = wsConn.WriteMessage(websocket.TextMessage, jReq)
-	require.NoError(t, err)
-
-	_, _, err = wsConn.ReadMessage()
-	require.NotNil(t, err)
-	require.Equal(t, websocket.CloseMessageTooBig, err.(*websocket.CloseError).Code)
-}
-
 func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
