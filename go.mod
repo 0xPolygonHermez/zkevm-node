@@ -3,10 +3,10 @@ module github.com/0xPolygonHermez/zkevm-node
 go 1.19
 
 require (
-	github.com/0xPolygonHermez/zkevm-data-streamer v0.0.1
+	github.com/0xPolygonHermez/zkevm-data-streamer v0.0.2
 	github.com/didip/tollbooth/v6 v6.1.2
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127
-	github.com/ethereum/go-ethereum v1.13.0
+	github.com/ethereum/go-ethereum v1.13.1
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.9.0
 	github.com/gobuffalo/packr/v2 v2.8.3
@@ -26,7 +26,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/umbracle/ethgo v0.1.3
 	github.com/urfave/cli/v2 v2.25.7
-	go.uber.org/zap v1.25.0
+	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.13.0
 	golang.org/x/net v0.15.0
 	golang.org/x/sync v0.3.0
