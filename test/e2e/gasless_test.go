@@ -10,10 +10,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
@@ -53,9 +51,7 @@ func TestEthTransferGasless(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)
 	// Load account with balance on local genesis
-	pk, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(pk, big.NewInt(0).SetUint64(operations.DefaultL2ChainID))
+	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
 	require.NoError(t, err)
 	// Load eth client
 	client, err := ethclient.Dial(operations.DefaultL2NetworkURL)
@@ -77,6 +73,7 @@ func TestEthTransferGasless(t *testing.T) {
 	gasLimit, err := client.EstimateGas(ctx, ethereum.CallMsg{From: auth.From, To: &toAddress, Value: amount})
 	require.NoError(t, err)
 
+	// Force gas price to be 0
 	gasPrice := big.NewInt(0)
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
