@@ -185,8 +185,8 @@ func (m *Manager) SetForkID(forkID uint64) error {
 	}
 
 	// Add initial forkID
-	fID := state.ForkIDInterval {
-		FromBatchNumber: 1, 
+	fID := state.ForkIDInterval{
+		FromBatchNumber: 1,
 		ToBatchNumber:   math.MaxUint64,
 		ForkId:          forkID,
 		Version:         "forkID",
