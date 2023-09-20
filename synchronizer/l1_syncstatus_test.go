@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Given_ObjectWithData_When_Reset_Then_ForgetLastBlockOnL1AndgetNextRangeReturnsNil(t *testing.T) {
+func TestGivenObjectWithDataWhenResetThenForgetLastBlockOnL1AndgetNextRangeReturnsNil(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
 	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
@@ -18,7 +18,7 @@ func Test_Given_ObjectWithData_When_Reset_Then_ForgetLastBlockOnL1AndgetNextRang
 	require.Nil(t, br)
 }
 
-func Test_Given_ObjectWithData_When_ResetAndSetLastBlockOnL1_Then_GetNextRangeReturnsNextRange(t *testing.T) {
+func TestGivenObjectWithDataWhenResetAndSetLastBlockOnL1ThenGetNextRangeReturnsNextRange(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
 	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
@@ -30,7 +30,7 @@ func Test_Given_ObjectWithData_When_ResetAndSetLastBlockOnL1_Then_GetNextRangeRe
 	require.Equal(t, *br, blockRange{fromBlock: 1235, toBlock: 1245})
 }
 
-func Test_FirstRunWithPendingBlocksToRetrieve(t *testing.T) {
+func TestFirstRunWithPendingBlocksToRetrieve(t *testing.T) {
 	tcs := []struct {
 		description           string
 		lastStoredBlock       uint64
@@ -57,7 +57,7 @@ func Test_FirstRunWithPendingBlocksToRetrieve(t *testing.T) {
 	}
 }
 
-func Test_When_ReceiveAndNoStartedBlockRange_Then_Ignore(t *testing.T) {
+func TestWhenReceiveAndNoStartedBlockRangeThenIgnore(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
 	s.onFinishWorker(blockRange{fromBlock: 1618, toBlock: 1628}, true)
@@ -65,7 +65,7 @@ func Test_When_ReceiveAndNoStartedBlockRange_Then_Ignore(t *testing.T) {
 	require.Equal(t, blockRange{fromBlock: 1618, toBlock: 1628}, *br)
 }
 
-func Test_When_AllRequestAreSend_Then_getNextRangeReturnsNil(t *testing.T) {
+func TestWhenAllRequestAreSendThenGetNextRangeReturnsNil(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
 	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
@@ -74,7 +74,7 @@ func Test_When_AllRequestAreSend_Then_getNextRangeReturnsNil(t *testing.T) {
 	require.Nil(t, br)
 }
 
-func Test_SecondRunWithPendingBlocksToRetrieve(t *testing.T) {
+func TestSecondRunWithPendingBlocksToRetrieve(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(150)
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
@@ -83,7 +83,7 @@ func Test_SecondRunWithPendingBlocksToRetrieve(t *testing.T) {
 	require.Equal(t, *br, blockRange{fromBlock: 112, toBlock: 122})
 }
 
-func Test_generateNextRangeWithPreviousResult(t *testing.T) {
+func TestGenerateNextRangeWithPreviousResult(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(150)
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
@@ -93,7 +93,7 @@ func Test_generateNextRangeWithPreviousResult(t *testing.T) {
 	require.Equal(t, s.processingRanges.len(), 1)
 }
 
-func Test_generateNextRangeWithProcessedResult(t *testing.T) {
+func TestGenerateNextRangeWithProcessedResult(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(150)
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
@@ -104,7 +104,7 @@ func Test_generateNextRangeWithProcessedResult(t *testing.T) {
 	require.Equal(t, s.processingRanges.len(), 0)
 }
 
-func Test_Given_MultiplesWorkers_When_BrInMiddleFinish_Then_DontChangeLastBlock(t *testing.T) {
+func TestGivenMultiplesWorkersWhenBrInMiddleFinishThenDontChangeLastBlock(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(150)
 	previousValue := s.lastBlockStoreOnStateDB
@@ -119,7 +119,7 @@ func Test_Given_MultiplesWorkers_When_BrInMiddleFinish_Then_DontChangeLastBlock(
 	require.Equal(t, *br, blockRange{fromBlock: 134, toBlock: 144})
 }
 
-func Test_Given_MultiplesWorkers_When_FirstFinish_Then_ChangeLastBlock(t *testing.T) {
+func TestGivenMultiplesWorkersWhenFirstFinishThenChangeLastBlock(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(150)
 
@@ -134,7 +134,7 @@ func Test_Given_MultiplesWorkers_When_FirstFinish_Then_ChangeLastBlock(t *testin
 	require.Equal(t, *br, blockRange{fromBlock: 134, toBlock: 144})
 }
 
-func Test_Given_MultiplesWorkers_When_LastFinish_Then_DontChangeLastBlock(t *testing.T) {
+func TestGivenMultiplesWorkersWhenLastFinishThenDontChangeLastBlock(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(150)
 	previousValue := s.lastBlockStoreOnStateDB
@@ -149,7 +149,7 @@ func Test_Given_MultiplesWorkers_When_LastFinish_Then_DontChangeLastBlock(t *tes
 	require.Equal(t, *br, blockRange{fromBlock: 134, toBlock: 144})
 }
 
-func Test_Given_MultiplesWorkers_When_LastFinishAndFinishAlsoNextOne_Then_DontChangeLastBlock(t *testing.T) {
+func TestGivenMultiplesWorkersWhenLastFinishAndFinishAlsoNextOneThenDontChangeLastBlock(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(200)
 	previousValue := s.lastBlockStoreOnStateDB
@@ -165,7 +165,7 @@ func Test_Given_MultiplesWorkers_When_LastFinishAndFinishAlsoNextOne_Then_DontCh
 	require.Equal(t, *br, blockRange{fromBlock: 145, toBlock: 155})
 }
 
-func Test_Given_MultiplesWorkers_When_NextRange_Then_TheRangeIsCappedToLastBlockOnL1(t *testing.T) {
+func TestGivenMultiplesWorkersWhenNextRangeThenTheRangeIsCappedToLastBlockOnL1(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(105)
 
@@ -174,7 +174,7 @@ func Test_Given_MultiplesWorkers_When_NextRange_Then_TheRangeIsCappedToLastBlock
 	require.Equal(t, *br, blockRange{fromBlock: 101, toBlock: 105})
 }
 
-func Test_When_AllRequestAreSend_Then_getNextRangeReturnsNil2(t *testing.T) {
+func TestWhenAllRequestAreSendThenGetNextRangeReturnsNil2(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
 	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
