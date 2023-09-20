@@ -35,7 +35,7 @@ func (s *Storage) NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string
 	shouldFilterByBlockHash := filter.BlockHash != nil
 	shouldFilterByBlockRange := filter.FromBlock != nil || filter.ToBlock != nil
 
-	if !shouldFilterByBlockHash && !shouldFilterByBlockRange {
+	if shouldFilterByBlockHash && shouldFilterByBlockRange {
 		return "", ErrFilterInvalidPayload
 	}
 
