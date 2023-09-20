@@ -18,7 +18,7 @@ var (
 // worker: is the expected functions of a worker
 type worker interface {
 	String() string
-	asyncRequestRollupInfoByBlockRange(ctx context.Context, cancelCtx context.CancelFunc, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange) error
+	asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange) error
 	requestLastBlock(ctx context.Context) responseL1LastBlock
 	isIdle() bool
 }
@@ -28,9 +28,8 @@ type workersConfig struct {
 }
 
 type workerData struct {
-	worker    worker
-	ctx       context.Context
-	cancelCtx context.CancelFunc
+	worker worker
+	ctx    contextWithCancel
 }
 
 func (w *workerData) String() string {
@@ -82,8 +81,8 @@ func (w *workers) stop() {
 	log.Debugf("workers: stopping workers %s", w.toString())
 	for i := range w.workers {
 		wd := &w.workers[i]
-		if !wd.worker.isIdle() && wd.cancelCtx != nil {
-			w.workers[i].cancelCtx()
+		if !wd.worker.isIdle() {
+			w.workers[i].ctx.cancel()
 		}
 	}
 	for i := 0; i < len(w.waitGroups); i++ {
@@ -97,8 +96,8 @@ func (w *workers) getResponseChannelForRollupInfo() chan responseRollupInfoByBlo
 
 func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan responseRollupInfoByBlockRange, error) {
 	requestStrForDebug := fmt.Sprintf("GetRollupInfoByBlockRange(%s)", blockRange.String())
-	f := func(worker worker, ctx context.Context, cancelCtx context.CancelFunc, wg *sync.WaitGroup) error {
-		res := worker.asyncRequestRollupInfoByBlockRange(ctx, cancelCtx, w.getResponseChannelForRollupInfo(), wg, blockRange)
+	f := func(worker worker, ctx contextWithCancel, wg *sync.WaitGroup) error {
+		res := worker.asyncRequestRollupInfoByBlockRange(ctx, w.getResponseChannelForRollupInfo(), wg, blockRange)
 		return res
 	}
 	res := w.asyncGenericRequest(ctx, typeRequestRollupInfo, requestStrForDebug, f)
@@ -123,8 +122,8 @@ func (w *workers) requestLastBlockWithRetries(ctx context.Context, timeout time.
 }
 
 func (w *workers) requestLastBlock(ctx context.Context, timeout time.Duration) responseL1LastBlock {
-	ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	ctxTimeout := NewContextWithTimeout(ctx, timeout)
+	defer ctxTimeout.cancel()
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	workerIndex, worker := w.getIdleWorkerUnsafe()
@@ -133,16 +132,15 @@ func (w *workers) requestLastBlock(ctx context.Context, timeout time.Duration) r
 		return newResponseL1LastBlock(errAllWorkersBusy, time.Duration(0), typeRequestLastBlock, nil)
 	}
 	w.workers[workerIndex].ctx = ctxTimeout
-	w.workers[workerIndex].cancelCtx = cancel
 
 	log.Debugf("workers: worker[%d] : launching requestLatBlock (timeout=%s)", workerIndex, timeout.String())
-	result := worker.requestLastBlock(ctxTimeout)
+	result := worker.requestLastBlock(ctxTimeout.ctx)
 	return result
 }
 
 // asyncGenericRequest launches a generic request to the workers
 func (w *workers) asyncGenericRequest(ctx context.Context, requestType typeOfRequest, requestStrForDebug string,
-	funcRequest func(worker worker, ctx context.Context, cancelCtx context.CancelFunc, wg *sync.WaitGroup) error) error {
+	funcRequest func(worker worker, ctx contextWithCancel, wg *sync.WaitGroup) error) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
@@ -151,14 +149,13 @@ func (w *workers) asyncGenericRequest(ctx context.Context, requestType typeOfReq
 		log.Debugf("workers: call:[%s] failed err:%s", requestStrForDebug, errAllWorkersBusy)
 		return errAllWorkersBusy
 	}
-	ctxTimeout, cancel := context.WithTimeout(ctx, w.cfg.timeoutRollupInfo)
-	w.workers[workerIndex].ctx = ctxTimeout
-	w.workers[workerIndex].cancelCtx = cancel
-	w.launchGoroutineForRoutingResponse(ctxTimeout, workerIndex)
+	ctxWithCancel := NewContextWithTimeout(ctx, w.cfg.timeoutRollupInfo)
+	w.workers[workerIndex].ctx = ctxWithCancel
+	w.launchGoroutineForRoutingResponse(ctxWithCancel.ctx, workerIndex)
 	wg := &w.waitGroups[requestType]
 	wg.Add(1)
 
-	err := funcRequest(worker, ctxTimeout, cancel, wg)
+	err := funcRequest(worker, ctxWithCancel, wg)
 	if err == nil {
 		log.Debugf("workers: worker[%d] started call:[%s]", workerIndex, requestStrForDebug)
 	} else {

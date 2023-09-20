@@ -36,7 +36,7 @@ func TestExploratoryWorker(t *testing.T) {
 		fromBlock: 100,
 		toBlock:   20000,
 	}
-	err = worker.asyncRequestRollupInfoByBlockRange(context.Background(), nil, ch, nil, blockRange)
+	err = worker.asyncRequestRollupInfoByBlockRange(NewContextWithNone(context.Background()), ch, nil, blockRange)
 	require.NoError(t, err)
 	result := <-ch
 	require.Equal(t, result.generic.err.Error(), "not found")
@@ -48,11 +48,11 @@ func TestIfRollupRequestReturnsErrorDontRequestEthBlockByNumber(t *testing.T) {
 		fromBlock: 100,
 		toBlock:   20000,
 	}
-	ctx, cancelCtx := context.WithTimeout(context.Background(), time.Second)
+	ctx := NewContextWithTimeout(context.Background(), time.Second)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	expectedCallsForEmptyRollupInfo(mockEtherman, blockRange, errors.New("error"), nil)
-	err := sut.asyncRequestRollupInfoByBlockRange(ctx, cancelCtx, ch, &wg, blockRange)
+	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, &wg, blockRange)
 	require.NoError(t, err)
 	wg.Wait()
 }
@@ -63,11 +63,11 @@ func TestIfWorkerIsBusyReturnsAnErrorUpdateWaitGroupAndCancelContext(t *testing.
 		fromBlock: 100,
 		toBlock:   20000,
 	}
-	ctx, cancelCtx := context.WithTimeout(context.Background(), time.Second)
+	ctx := NewContextWithTimeout(context.Background(), time.Second)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	sut.setStatus(ethermanWorking)
-	err := sut.asyncRequestRollupInfoByBlockRange(ctx, cancelCtx, ch, &wg, blockRange)
+	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, &wg, blockRange)
 	require.Error(t, err)
 	wg.Wait()
 	select {
@@ -86,9 +86,9 @@ func TestGivenOkRequestWhenFinishThenCancelTheContext(t *testing.T) {
 		fromBlock: 100,
 		toBlock:   20000,
 	}
-	ctx, cancelCtx := context.WithTimeout(context.Background(), time.Second)
+	ctx := NewContextWithTimeout(context.Background(), time.Second)
 	expectedCallsForEmptyRollupInfo(mockEtherman, blockRange, nil, nil)
-	err := sut.asyncRequestRollupInfoByBlockRange(ctx, cancelCtx, ch, nil, blockRange)
+	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, nil, blockRange)
 	require.NoError(t, err)
 	result := <-ch
 	require.NoError(t, result.generic.err)

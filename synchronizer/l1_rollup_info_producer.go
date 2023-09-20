@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -116,8 +115,7 @@ func (cfg *configProducer) normalize() {
 type l1RollupInfoProducer struct {
 	mutex             sync.Mutex
 	ctxParent         context.Context
-	ctx               context.Context
-	cancelCtx         context.CancelFunc
+	ctxWithCancel     contextWithCancel
 	workers           workersInterface
 	syncStatus        syncStatusInterface
 	outgoingChannel   chan l1SyncMessage
@@ -154,21 +152,6 @@ func newL1DataRetriever(cfg configProducer, ethermans []EthermanInterface, outgo
 	return &result
 }
 
-// TDOO: There is no min/max function in golang??
-func min[T constraints.Ordered](a, b T) T {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max[T constraints.Ordered](a, b T) T {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // ResetAndStop: reset the object and stop the current process. Set first block to be retrieved
 func (l *l1RollupInfoProducer) ResetAndStop(startingBlockNumber uint64) {
 	log.Infof("producer: Reset L1 sync process to blockNumber %d st=%s", startingBlockNumber, l.toStringBrief())
@@ -198,7 +181,7 @@ func (l *l1RollupInfoProducer) Stop() {
 func (l *l1RollupInfoProducer) stopUnsafe() {
 	if l.status != producerIdle {
 		log.Infof("producer: stopping producer")
-		l.cancelCtx()
+		l.ctxWithCancel.cancel()
 		l.status = producerIdle
 	}
 	log.Debugf("producer: stopUnsafe: stop workers (%s)", l.workers.toString())
@@ -223,10 +206,10 @@ func (l *l1RollupInfoProducer) initialize(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if l.ctxParent != ctx || l.ctx != nil || l.cancelCtx == nil || (l.cancelCtx != nil && l.ctx.Err() != nil) {
+	if l.ctxParent != ctx || l.ctxWithCancel.isInvalid() {
 		log.Debug("producer: start called and need to create a new context")
 		l.ctxParent = ctx
-		l.ctx, l.cancelCtx = context.WithCancel(l.ctxParent)
+		l.ctxWithCancel.createWithCancel(l.ctxParent)
 	}
 	err = l.workers.initialize()
 	if err != nil {
@@ -236,7 +219,7 @@ func (l *l1RollupInfoProducer) initialize(ctx context.Context) error {
 		log.Infof("producer: Need a initial value for Last Block On L1, doing the request (maxRetries:%v, timeRequest:%v)",
 			l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1, l.cfg.timeoutForRequestLastBlockOnL1)
 		//result := l.retrieveInitialValueOfLastBlock(maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
-		result := l.workers.requestLastBlockWithRetries(l.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
+		result := l.workers.requestLastBlockWithRetries(l.ctxWithCancel.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
 		if result.generic.err != nil {
 			log.Error(result.generic.err)
 			return result.generic.err
@@ -279,7 +262,7 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 
 func (l *l1RollupInfoProducer) stepInner(waitDuration *time.Duration) bool {
 	select {
-	case <-l.ctx.Done():
+	case <-l.ctxWithCancel.Done():
 		log.Debugf("producer: context canceled")
 		return false
 	// That timeout is not need, but just in case that stop launching request
@@ -358,7 +341,7 @@ func (l *l1RollupInfoProducer) launchWork() int {
 			accDebugStr += "[NoNextRange] "
 			break
 		}
-		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctx, *br)
+		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, *br)
 		if err != nil {
 			thereAreAnError = true
 			accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
@@ -388,7 +371,7 @@ func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
 	l.mutex.Unlock()
 	if elapsed > ttl || forced {
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request")
-		result := l.workers.requestLastBlockWithRetries(l.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
+		result := l.workers.requestLastBlockWithRetries(l.ctxWithCancel.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request old_block:%v -> new block:%v", oldBlock, result.result.block)
 		if result.generic.err != nil {
 			log.Error(result.generic.err)
