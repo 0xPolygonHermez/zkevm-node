@@ -801,4 +801,5 @@ func TestGetLogs(t *testing.T) {
 			assert.Equal(t, testCase.expectedError, err)
 		})
 	}
+	require.NoError(t, dbTx.Commit(ctx))
 }
