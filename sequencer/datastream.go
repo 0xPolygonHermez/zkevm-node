@@ -1,8 +1,7 @@
 package sequencer
 
 import (
-	"time"
-	"unsafe"
+	"encoding/binary"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/ethereum/go-ethereum/common"
@@ -21,15 +20,20 @@ const (
 type DSL2Block struct {
 	BatchNumber    uint64
 	L2BlockNumber  uint64
-	Timestamp      time.Time
+	Timestamp      uint64
 	GlobalExitRoot common.Hash
 	Coinbase       common.Address
 }
 
 // Encode returns the encoded L2Block as a byte slice
 func (b DSL2Block) Encode() []byte {
-	const size = int(unsafe.Sizeof(DSL2Block{}))
-	return (*(*[size]byte)(unsafe.Pointer(&b)))[:]
+	bytes := make([]byte, 0)
+	bytes = binary.LittleEndian.AppendUint64(bytes, b.BatchNumber)
+	bytes = binary.LittleEndian.AppendUint64(bytes, b.L2BlockNumber)
+	bytes = binary.LittleEndian.AppendUint64(bytes, uint64(b.Timestamp))
+	bytes = append(bytes, b.GlobalExitRoot.Bytes()...)
+	bytes = append(bytes, b.Coinbase.Bytes()...)
+	return bytes
 }
 
 // DSL2Transaction represents a data stream L2 transaction
@@ -43,6 +47,11 @@ type DSL2Transaction struct {
 
 // Encode returns the encoded L2Transaction as a byte slice
 func (l DSL2Transaction) Encode() []byte {
-	const size = int(unsafe.Sizeof(DSL2Transaction{}))
-	return (*(*[size]byte)(unsafe.Pointer(&l)))[:]
+	bytes := make([]byte, 0)
+	bytes = binary.LittleEndian.AppendUint64(bytes, l.BatchNumber)
+	bytes = append(bytes, byte(l.EffectiveGasPricePercentage))
+	bytes = append(bytes, byte(l.IsValid))
+	bytes = binary.LittleEndian.AppendUint32(bytes, l.EncodedLength)
+	bytes = append(bytes, l.Encoded...)
+	return bytes
 }
