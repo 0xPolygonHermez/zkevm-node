@@ -3684,7 +3684,7 @@ func TestNewFilter(t *testing.T) {
 				ToBlock:   &blockNumber10011,
 			},
 			ExpectedResult: "",
-			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "logs are limited to a 10000 blocks range"),
+			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "logs are limited to a 10000 block range"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -4078,6 +4078,64 @@ func TestGetLogs(t *testing.T) {
 				m.State.
 					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number from state")).
+					Once()
+			},
+		},
+		{
+			Name: "Get logs fails due to max block range limit exceeded",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					FromBlock: big.NewInt(1), ToBlock: big.NewInt(10002),
+					Addresses: []common.Address{common.HexToAddress("0x111")},
+					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
+				}
+				tc.ExpectedResult = nil
+				tc.ExpectedError = types.NewRPCError(types.InvalidParamsErrorCode, "logs are limited to a 10000 block range")
+			},
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				var since *time.Time
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLogs", context.Background(), tc.Filter.FromBlock.Uint64(), tc.Filter.ToBlock.Uint64(), tc.Filter.Addresses, tc.Filter.Topics, tc.Filter.BlockHash, since, m.DbTx).
+					Return(nil, state.ErrMaxLogsBlockRangeLimitExceeded).
+					Once()
+			},
+		},
+		{
+			Name: "Get logs fails due to max log count limit exceeded",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					FromBlock: big.NewInt(1), ToBlock: big.NewInt(10002),
+					Addresses: []common.Address{common.HexToAddress("0x111")},
+					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
+				}
+				tc.ExpectedResult = nil
+				tc.ExpectedError = types.NewRPCError(types.InvalidParamsErrorCode, "query returned more than 10000 results")
+			},
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				var since *time.Time
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLogs", context.Background(), tc.Filter.FromBlock.Uint64(), tc.Filter.ToBlock.Uint64(), tc.Filter.Addresses, tc.Filter.Topics, tc.Filter.BlockHash, since, m.DbTx).
+					Return(nil, state.ErrMaxLogsCountLimitExceeded).
 					Once()
 			},
 		},

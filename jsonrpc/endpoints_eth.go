@@ -502,7 +502,13 @@ func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter 
 	}
 
 	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash, filter.Since, dbTx)
-	if err != nil {
+	if errors.Is(err, state.ErrMaxLogsCountLimitExceeded) {
+		errMsg := fmt.Sprintf(state.ErrMaxLogsCountLimitExceeded.Error(), e.cfg.MaxLogsCount)
+		return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
+	} else if errors.Is(err, state.ErrMaxLogsBlockRangeLimitExceeded) {
+		errMsg := fmt.Sprintf(state.ErrMaxLogsBlockRangeLimitExceeded.Error(), e.cfg.MaxLogsBlockRange)
+		return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
+	} else if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to get logs from state", err, true)
 	}
 
