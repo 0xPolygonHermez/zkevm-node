@@ -292,9 +292,9 @@ stop-db: ## Stops the node database
 
 .PHONY: run-node
 run-node: ## Runs the node
-	$(RUNETHTXMANAGER)
 	$(RUNSYNC)
-	sleep 2
+	sleep 4
+	$(RUNETHTXMANAGER)
 	$(RUNSEQUENCER)
 	$(RUNSEQUENCESENDER)
 	$(RUNL2GASPRICER)
@@ -463,7 +463,7 @@ run: ## Runs a full node
 	$(RUNAPPROVE)
 	sleep 3
 	$(RUNSYNC)
-	sleep 2
+	sleep 4
 	$(RUNETHTXMANAGER)
 	$(RUNSEQUENCER)
 	$(RUNSEQUENCESENDER)
