@@ -373,6 +373,16 @@
 					"maxItems": 20,
 					"minItems": 20,
 					"description": "L2Coinbase defines which address is going to receive the fees"
+				},
+				"MaxLogsCount": {
+					"type": "integer",
+					"description": "MaxLogsCount is a configuration to set the max number of logs that can be returned\nin a single call to the state, if zero it means no limit",
+					"default": 10000
+				},
+				"MaxLogsBlockRange": {
+					"type": "integer",
+					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
+					"default": 10000
 				}
 			},
 			"additionalProperties": false,
@@ -1396,6 +1406,16 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "Configuration for the batch constraints"
+				},
+				"MaxLogsCount": {
+					"type": "integer",
+					"description": "MaxLogsCount is a configuration to set the max number of logs that can be returned\nin a single call to the state, if zero it means no limit",
+					"default": 0
+				},
+				"MaxLogsBlockRange": {
+					"type": "integer",
+					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
