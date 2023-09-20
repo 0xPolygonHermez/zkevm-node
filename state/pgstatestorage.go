@@ -1958,13 +1958,11 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 	const queryToCountLogsByBlockHash = "" +
 		queryCount +
 		queryBody +
-		queryFilterByBlockHash +
-		queryOrder
+		queryFilterByBlockHash
 	const queryToCountLogsByBlockNumbers = "" +
 		queryCount +
 		queryBody +
-		queryFilterByBlockNumbers +
-		queryOrder
+		queryFilterByBlockNumbers
 
 	// select queries
 	const queryToSelectLogsByBlockHash = "" +

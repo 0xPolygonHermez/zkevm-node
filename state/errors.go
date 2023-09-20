@@ -65,7 +65,7 @@ var (
 	ErrMaxLogsCountLimitExceeded = errors.New("query returned more than %v results")
 	// ErrMaxLogsCountLimitExceeded returned when the range between block numbers to filter logs
 	// is bigger than the configured limit
-	ErrMaxLogsBlockRangeLimitExceeded = errors.New("logs are limited to a %v blocks range")
+	ErrMaxLogsBlockRangeLimitExceeded = errors.New("logs are limited to a %v block range")
 
 	zkCounterErrPrefix = "ZKCounter: "
 )
