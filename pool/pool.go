@@ -75,6 +75,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		chainID:                 chainID,
 		blockedAddresses:        sync.Map{},
 		minSuggestedGasPriceMux: new(sync.RWMutex),
+		minSuggestedGasPrice:    big.NewInt(int64(cfg.DefaultMinGasPriceAllowed)),
 		eventLog:                eventLog,
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),

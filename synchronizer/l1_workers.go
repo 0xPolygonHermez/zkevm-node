@@ -10,53 +10,61 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
-const (
-	noLimitLiveRequests = 0
+var (
+	errAllWorkersBusy   = errors.New("all workers are busy")
+	errRequiredEtherman = errors.New("required etherman")
 )
 
-var (
-	errAllWorkersBusy                     = errors.New("all workers are busy")
-	errRequiredEtherman                   = errors.New("required etherman")
-	errReachMaximumLiveRequestsOfThisType = errors.New("reach maximum live requests of this type")
-)
+// worker: is the expected functions of a worker
+type worker interface {
+	String() string
+	asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange) error
+	requestLastBlock(ctx context.Context) responseL1LastBlock
+	isIdle() bool
+}
+
+type workersConfig struct {
+	timeoutRollupInfo time.Duration
+}
+
+type workerData struct {
+	worker worker
+	ctx    contextWithCancel
+}
+
+func (w *workerData) String() string {
+	return fmt.Sprintf("worker:%s ctx:%v", w.worker.String(), w.ctx)
+}
 
 type workers struct {
-	ctx     context.Context
 	mutex   sync.Mutex
-	workers []*worker
-	// Channel to send to outside the responses from worker
+	workers []workerData
+	// Channel to send to outside the responses from worker | workers --> client
 	chOutgoingRollupInfo chan responseRollupInfoByBlockRange
 
-	// Channel that receive the responses from worker
+	// Channel that receive the responses from worker  | worker --> workers
 	chIncommingRollupInfo chan responseRollupInfoByBlockRange
 
-	// It need a goroutine that listen in chIncomming and send to chOutgoing
-	launchedGoRoutineToRouteResponses bool
+	waitGroups [typeRequestEOF]sync.WaitGroup
 
-	waitGroups        [typeRequestEOF]sync.WaitGroup
-	limitLiveRequests [typeRequestEOF]uint64
+	cfg workersConfig
 }
 
 func (w *workers) toString() string {
-	result := fmt.Sprintf("workers: limitLiveRequests: %v  ch_out:%d ch_in_worker:%d ", w.limitLiveRequests, len(w.chOutgoingRollupInfo), len(w.chIncommingRollupInfo))
+	result := fmt.Sprintf("workers: num:%d ch_out:%d ch_in_worker:%d ", len(w.workers), len(w.chOutgoingRollupInfo), len(w.chIncommingRollupInfo))
 	for i := range w.workers {
 		result += fmt.Sprintf(" worker[%d]: %s", i, w.workers[i].String())
 	}
 	return result
 }
 
-func newWorkers(ctx context.Context, ethermans []EthermanInterface) *workers {
-	result := workers{ctx: ctx,
-		chIncommingRollupInfo:             make(chan responseRollupInfoByBlockRange, len(ethermans)+1),
-		launchedGoRoutineToRouteResponses: false,
-	}
+func newWorkers(ethermans []EthermanInterface, cfg workersConfig) *workers {
+	result := workers{chIncommingRollupInfo: make(chan responseRollupInfoByBlockRange, len(ethermans)+1),
+		cfg: cfg}
 
-	result.limitLiveRequests[typeRequestRollupInfo] = noLimitLiveRequests
-	result.limitLiveRequests[typeRequestLastBlock] = 1
-
-	result.workers = make([]*worker, len(ethermans))
+	result.workers = make([]workerData, len(ethermans))
 	for i, etherman := range ethermans {
-		result.workers[i] = newWorker(etherman)
+		result.workers[i].worker = newWorker(etherman)
 	}
 	result.chOutgoingRollupInfo = make(chan responseRollupInfoByBlockRange, len(ethermans)+1)
 	return &result
@@ -70,7 +78,13 @@ func (w *workers) initialize() error {
 }
 
 func (w *workers) stop() {
-	// TODO: ctx cancel
+	log.Debugf("workers: stopping workers %s", w.toString())
+	for i := range w.workers {
+		wd := &w.workers[i]
+		if !wd.worker.isIdle() {
+			w.workers[i].ctx.cancel()
+		}
+	}
 	for i := 0; i < len(w.waitGroups); i++ {
 		w.waitGroups[i].Wait()
 	}
@@ -82,7 +96,7 @@ func (w *workers) getResponseChannelForRollupInfo() chan responseRollupInfoByBlo
 
 func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan responseRollupInfoByBlockRange, error) {
 	requestStrForDebug := fmt.Sprintf("GetRollupInfoByBlockRange(%s)", blockRange.String())
-	f := func(worker *worker, ctx context.Context, wg *sync.WaitGroup) error {
+	f := func(worker worker, ctx contextWithCancel, wg *sync.WaitGroup) error {
 		res := worker.asyncRequestRollupInfoByBlockRange(ctx, w.getResponseChannelForRollupInfo(), wg, blockRange)
 		return res
 	}
@@ -108,63 +122,60 @@ func (w *workers) requestLastBlockWithRetries(ctx context.Context, timeout time.
 }
 
 func (w *workers) requestLastBlock(ctx context.Context, timeout time.Duration) responseL1LastBlock {
-	ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	ctxTimeout := newContextWithTimeout(ctx, timeout)
+	defer ctxTimeout.cancel()
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	worker := w.getIdleWorkerUnsafe()
+	workerIndex, worker := w.getIdleWorkerUnsafe()
 	if worker == nil {
 		log.Debugf("workers: call:[%s] failed err:%s", "requestLastBlock", errAllWorkersBusy)
 		return newResponseL1LastBlock(errAllWorkersBusy, time.Duration(0), typeRequestLastBlock, nil)
 	}
-	result := worker.requestLastBlock(ctxTimeout)
+	w.workers[workerIndex].ctx = ctxTimeout
+
+	log.Debugf("workers: worker[%d] : launching requestLatBlock (timeout=%s)", workerIndex, timeout.String())
+	result := worker.requestLastBlock(ctxTimeout.ctx)
 	return result
 }
 
 // asyncGenericRequest launches a generic request to the workers
 func (w *workers) asyncGenericRequest(ctx context.Context, requestType typeOfRequest, requestStrForDebug string,
-	funcRequest func(worker *worker, ctx context.Context, wg *sync.WaitGroup) error) error {
+	funcRequest func(worker worker, ctx contextWithCancel, wg *sync.WaitGroup) error) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	if w.checkReachedLimitLiveRequestUnsafe(requestType) {
-		log.Debugf("workers: call:[%s] failed err:%s", requestStrForDebug, errReachMaximumLiveRequestsOfThisType)
-		return errReachMaximumLiveRequestsOfThisType
-	}
-	worker := w.getIdleWorkerUnsafe()
+
+	workerIndex, worker := w.getIdleWorkerUnsafe()
 	if worker == nil {
 		log.Debugf("workers: call:[%s] failed err:%s", requestStrForDebug, errAllWorkersBusy)
 		return errAllWorkersBusy
 	}
-	w.launchGoroutineForRoutingResponsesIfNeedUnsafe()
+	ctxWithCancel := newContextWithTimeout(ctx, w.cfg.timeoutRollupInfo)
+	w.workers[workerIndex].ctx = ctxWithCancel
+	w.launchGoroutineForRoutingResponse(ctxWithCancel.ctx, workerIndex)
 	wg := &w.waitGroups[requestType]
 	wg.Add(1)
 
-	err := funcRequest(worker, ctx, wg)
+	err := funcRequest(worker, ctxWithCancel, wg)
 	if err == nil {
-		log.Debugf("workers: worker started call:[%s]", requestStrForDebug)
+		log.Debugf("workers: worker[%d] started call:[%s]", workerIndex, requestStrForDebug)
 	} else {
-		log.Debugf("workers: worker started failed! call:[%s] failed err:[%s]", requestStrForDebug, err.Error())
+		log.Debugf("workers: worker[%d] started failed! call:[%s] failed err:[%s]", workerIndex, requestStrForDebug, err.Error())
 	}
 	return err
 }
 
-func (w *workers) launchGoroutineForRoutingResponsesIfNeedUnsafe() {
-	if w.launchedGoRoutineToRouteResponses {
-		return
-	}
-	log.Infof("workers: launching goroutine to route responses")
+func (w *workers) launchGoroutineForRoutingResponse(ctx context.Context, workerIndex int) {
+	log.Debugf("workers: launching goroutine to route response for worker[%d]", workerIndex)
 	go func() {
 		for {
 			select {
-			case <-w.ctx.Done():
+			case <-ctx.Done():
 				return
 			case resultRollupInfo := <-w.chIncommingRollupInfo:
 				w.onResponseRollupInfo(resultRollupInfo)
 			}
 		}
 	}()
-
-	w.launchedGoRoutineToRouteResponses = true
 }
 
 func (w *workers) onResponseRollupInfo(v responseRollupInfoByBlockRange) {
@@ -180,34 +191,11 @@ func (w *workers) waitFinishAllWorkers() {
 	}
 }
 
-func (w *workers) getIdleWorkerUnsafe() *worker {
-	for _, worker := range w.workers {
-		if worker.isIdle() {
-			return worker
+func (w *workers) getIdleWorkerUnsafe() (int, worker) {
+	for idx, worker := range w.workers {
+		if worker.worker.isIdle() {
+			return idx, worker.worker
 		}
 	}
-	return nil
-}
-
-func (w *workers) checkReachedLimitLiveRequestUnsafe(typeOfRequest typeOfRequest) bool {
-	if w.limitLiveRequests[typeOfRequest] == noLimitLiveRequests {
-		return false
-	}
-	numberOfWorkers := w.countLiveRequestOfTypeUnsafe(typeOfRequest)
-	maximumLiveRequests := w.limitLiveRequests[typeOfRequest]
-	reachedLimit := numberOfWorkers >= maximumLiveRequests
-	if reachedLimit {
-		log.Debugf("workers: reached limit live request of type [%d] currentWorkes:%d >= maxPermitted:%d", typeOfRequest, numberOfWorkers, maximumLiveRequests)
-	}
-	return reachedLimit
-}
-
-func (w *workers) countLiveRequestOfTypeUnsafe(typeOfRequest typeOfRequest) uint64 {
-	var n uint64 = 0
-	for _, worker := range w.workers {
-		if worker.typeOfCurrentRequest == typeOfRequest {
-			n++
-		}
-	}
-	return n
+	return -1, nil
 }
