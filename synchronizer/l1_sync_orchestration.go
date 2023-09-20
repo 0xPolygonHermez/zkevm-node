@@ -164,15 +164,15 @@ func (l *l1SyncOrchestration) orchestrate(ctx context.Context, wg *sync.WaitGrou
 
 	if err == nil {
 		if ok {
-			log.Infof("orchestration: finished L1 sync orchestration. Last block synced: %d err:%s", retBlock.BlockNumber, err)
+			log.Infof("orchestration: finished L1 sync orchestration With LastBlock. Last block synced: %d err:nil", retBlock.BlockNumber)
 			return &retBlock, nil
 		} else {
 			err := errors.New(errMissingLastEthBlockSynced)
-			log.Warnf("orchestration: finished L1 sync orchestration. Last block synced: %s err:%s", "<no previous block>", err)
+			log.Warnf("orchestration: finished L1 sync orchestration No LastBlock. Last block synced: %s err:%s", "<no previous block>", err)
 			return nil, err
 		}
 	} else {
-		log.Warnf("orchestration: finished L1 sync orchestration. Last block synced: %s err:%s", "IGNORED (nil)", err)
+		log.Warnf("orchestration: finished L1 sync orchestration With Error. Last block synced: %s err:%s", "IGNORED (nil)", err)
 		return nil, err
 	}
 }

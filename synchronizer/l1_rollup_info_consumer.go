@@ -92,15 +92,16 @@ func (l *l1RollupInfoConsumer) step() error {
 		}
 		if rollupInfo.ctrlIsValid {
 			err = l.processIncommingRollupControlData(rollupInfo.ctrl)
-			if err != nil {
+			if err != nil && !errors.Is(err, errConsumerStoppedBecauseIsSynchronized) {
 				log.Error("consumer: error processing package.ControlData. Error: ", err)
 			}
+			log.Infof("consumer: processed ControlData[%s]. Result: %s", rollupInfo.ctrl.String(), err)
 		}
 	}
 	return err
 }
 func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1ConsumerControl) error {
-	log.Infof("consumer: processing controlPackage: %s", control.String())
+	log.Debugf("consumer: processing controlPackage: %s", control.String())
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	if control.event == eventStop {
@@ -113,7 +114,7 @@ func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1Consu
 			log.Infof("consumer: received a fullSync and nothing pending in channel to process, so stopping consumer")
 			return errConsumerStoppedBecauseIsSynchronized
 		} else {
-			log.Warnf("consumer: received a fullSync but still have %d items in channel to process, so not stopping consumer", itemsInChannel)
+			log.Infof("consumer: received a fullSync but still have %d items in channel to process, so not stopping consumer", itemsInChannel)
 		}
 	}
 	return nil
