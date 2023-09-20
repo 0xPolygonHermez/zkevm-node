@@ -857,7 +857,8 @@ func (e *EthEndpoints) newFilter(ctx context.Context, wsConn *websocket.Conn, fi
 
 		blockRange := toBlockNumber - fromBlockNumber
 		if e.cfg.MaxLogsBlockRange > 0 && blockRange > e.cfg.MaxLogsBlockRange {
-			return RPCErrorResponse(types.InvalidParamsErrorCode, state.ErrMaxLogsBlockRangeLimitExceeded.Error(), nil, false)
+			errMsg := fmt.Sprintf(state.ErrMaxLogsBlockRangeLimitExceeded.Error(), e.cfg.MaxLogsBlockRange)
+			return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
 		}
 	}
 

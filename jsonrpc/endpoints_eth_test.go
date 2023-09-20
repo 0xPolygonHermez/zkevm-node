@@ -3604,16 +3604,29 @@ func TestNewFilter(t *testing.T) {
 	}
 
 	hash := common.HexToHash("0x42")
-	blockNumber := "8"
+	blockNumber10 := "10"
+	blockNumber10010 := "10010"
+	blockNumber10011 := "10011"
 	testCases := []testCase{
 		{
-			Name: "New filter created successfully",
+			Name: "New filter by block range created successfully",
 			Request: types.LogFilterRequest{
-				ToBlock: &blockNumber,
+				FromBlock: &blockNumber10,
+				ToBlock:   &blockNumber10010,
 			},
 			ExpectedResult: "1",
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.Storage.
 					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
@@ -3621,32 +3634,89 @@ func TestNewFilter(t *testing.T) {
 			},
 		},
 		{
-			Name: "failed to create new filter",
+			Name: "New filter by block hash created successfully",
+			Request: types.LogFilterRequest{
+				BlockHash: &hash,
+			},
+			ExpectedResult: "1",
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.Storage.
+					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					Return("1", nil).
+					Once()
+			},
+		},
+		{
+			Name: "New filter not created due to from block greater than to block",
+			Request: types.LogFilterRequest{
+				FromBlock: &blockNumber10010,
+				ToBlock:   &blockNumber10,
+			},
+			ExpectedResult: "",
+			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "invalid block range"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+			},
+		},
+		{
+			Name: "New filter not created due to block range bigger than allowed",
+			Request: types.LogFilterRequest{
+				FromBlock: &blockNumber10,
+				ToBlock:   &blockNumber10011,
+			},
+			ExpectedResult: "",
+			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "logs are limited to a 10000 blocks range"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+			},
+		},
+		{
+			Name: "failed to create new filter due to error to store",
 			Request: types.LogFilterRequest{
 				BlockHash: &hash,
 			},
 			ExpectedResult: "",
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new log filter"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
 				m.Storage.
 					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
 					Return("", errors.New("failed to add new filter")).
-					Once()
-			},
-		},
-		{
-			Name: "failed to create new filter because BlockHash and ToBlock are present",
-			Request: types.LogFilterRequest{
-				BlockHash: &hash,
-				ToBlock:   &blockNumber,
-			},
-			ExpectedResult: "",
-			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other"),
-			SetupMocks: func(m *mocksWrapper, tc testCase) {
-				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
-					Once().
-					Return("", ErrFilterInvalidPayload).
 					Once()
 			},
 		},
