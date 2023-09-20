@@ -108,32 +108,41 @@ type retrieveL1LastBlockResult struct {
 	block uint64
 }
 
-type worker struct {
+type workerEtherman struct {
 	mutex                sync.Mutex
 	etherman             EthermanInterface
 	status               ethermanStatusEnum
 	typeOfCurrentRequest typeOfRequest
 }
 
-func (w *worker) String() string {
+func (w *workerEtherman) String() string {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	return fmt.Sprintf("status:%s req:%s", w.status.String(), w.typeOfCurrentRequest.String())
 }
 
-func newWorker(etherman EthermanInterface) *worker {
-	return &worker{etherman: etherman, status: ethermanIdle}
+func newWorker(etherman EthermanInterface) *workerEtherman {
+	return &workerEtherman{etherman: etherman, status: ethermanIdle}
 }
 
-func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange) error {
+func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx context.Context, cancelCtx context.CancelFunc, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	if w.isBusyUnsafe() {
+		if cancelCtx != nil {
+			cancelCtx()
+		}
+		if wg != nil {
+			wg.Done()
+		}
 		return errors.New(errWorkerBusy)
 	}
 	w.status = ethermanWorking
 	w.typeOfCurrentRequest = typeRequestRollupInfo
 	launch := func() {
+		if cancelCtx != nil {
+			defer cancelCtx()
+		}
 		if wg != nil {
 			defer wg.Done()
 		}
@@ -154,7 +163,7 @@ func (w *worker) asyncRequestRollupInfoByBlockRange(ctx context.Context, ch chan
 	go launch()
 	return nil
 }
-func (w *worker) requestLastBlock(ctx context.Context) responseL1LastBlock {
+func (w *workerEtherman) requestLastBlock(ctx context.Context) responseL1LastBlock {
 	w.mutex.Lock()
 	if w.isBusyUnsafe() {
 		w.mutex.Unlock()
@@ -176,20 +185,20 @@ func (w *worker) requestLastBlock(ctx context.Context) responseL1LastBlock {
 	return result
 }
 
-func (w *worker) setStatus(status ethermanStatusEnum) {
+func (w *workerEtherman) setStatus(status ethermanStatusEnum) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	w.status = status
 	w.typeOfCurrentRequest = typeRequestNone
 }
 
-func (w *worker) isIdle() bool {
+func (w *workerEtherman) isIdle() bool {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	return w.status == ethermanIdle
 }
 
-func (w *worker) isBusyUnsafe() bool {
+func (w *workerEtherman) isBusyUnsafe() bool {
 	return w.status != ethermanIdle
 }
 
