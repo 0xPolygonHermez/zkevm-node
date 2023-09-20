@@ -216,7 +216,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		l2Block := DSL2Block{
 			BatchNumber:    tx.batchNumber,
 			L2BlockNumber:  l2BlochHeader.Number.Uint64(),
-			Timestamp:      tx.timestamp,
+			Timestamp:      uint64(tx.timestamp.Unix()),
 			GlobalExitRoot: batch.GlobalExitRoot,
 			Coinbase:       tx.coinbase,
 		}
