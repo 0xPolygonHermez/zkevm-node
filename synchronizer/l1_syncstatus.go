@@ -151,7 +151,7 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 	// also move the s.lastBlockStoreOnStateDB to the end of the range if needed
 	err := s.processingRanges.removeBlockRange(br)
 	if err != nil {
-		log.Warnf("finished a unknownblock range %s, ignoring it: %s", br.String(), err)
+		log.Infof("Unexpected finished block_range %s, ignoring it: %s", br.String(), err)
 		return
 	}
 

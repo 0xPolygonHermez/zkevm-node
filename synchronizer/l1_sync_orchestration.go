@@ -152,10 +152,10 @@ func (l *l1SyncOrchestration) orchestrate(ctx context.Context, wg *sync.WaitGrou
 			time.Sleep(time.Second)
 			l.launchProducer(ctx, chProducer, wg)
 		case err = <-chConsumer:
-			if err != nil {
+			if err != nil && err != errAllWorkersBusy {
 				log.Warnf("orchestration: consumer have finished with Error: %s", err)
 			} else {
-				log.Info("orchestration: consumer has processed everything and is synced")
+				log.Info("orchestration: consumer has finished. No error")
 			}
 			done = true
 		}

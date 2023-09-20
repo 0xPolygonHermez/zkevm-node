@@ -129,7 +129,7 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 	l.lastEthBlockSynced, err = l.processUnsafe(rollupInfo)
 	l.statistics.onFinishProcessIncommingRollupInfoData(rollupInfo, time.Since(timeProcessingStart), err)
 	if err != nil {
-		log.Error("consumer: error processing rollupInfo. Error: ", err)
+		log.Info("consumer: error processing rollupInfo. Error: ", err)
 		return err
 	}
 	l.statistics.numProcessedBlocks += uint64(len(rollupInfo.blocks))
@@ -162,7 +162,7 @@ func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeRe
 	var lastEthBlockSynced *state.Block
 	err := l.synchronizer.processBlockRange(blocks, order)
 	if err != nil {
-		log.Error("consumer: Error processing block range: ", rollupInfo.blockRange, " err:", err)
+		log.Info("consumer: Error processing block range: ", rollupInfo.blockRange, " err:", err)
 		return nil, err
 	}
 	if len(blocks) > 0 {

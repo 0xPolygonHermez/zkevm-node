@@ -16,12 +16,12 @@ type mocksOrgertration struct {
 }
 
 func TestGivenOrquestrationWhenHappyPathThenReturnsBlockAndNoErrorAndProducerIsRunning(t *testing.T) {
-	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	sut, mocks := setupOrchestrationTest(t, ctxTimeout)
 	mocks.producer.On("ResetAndStop", mock.Anything).Return()
 	mocks.producer.On("Start", mock.Anything).Return(func(context.Context) error {
-		time.Sleep(time.Second)
+		time.Sleep(time.Second * 2)
 		return nil
 	})
 	block := state.Block{}

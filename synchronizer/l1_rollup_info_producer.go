@@ -14,6 +14,7 @@ package synchronizer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -344,23 +345,29 @@ func (l *l1RollupInfoProducer) launchWork() int {
 		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, *br)
 		if err != nil {
 			thereAreAnError = true
-			accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
+			if errors.Is(err, errAllWorkersBusy) {
+				accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
+			}
 			break
 		} else {
 			accDebugStr += fmt.Sprintf(" segment %s -> [LAUNCHED] ", br.String())
 		}
 		launchedWorker++
-		log.Debugf("producer: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.String(), launchedWorker)
+		log.Debugf("producer: launch_worker: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.String(), launchedWorker)
 		l.syncStatus.onStartedNewWorker(*br)
 	}
 	if launchedWorker == 0 {
-		log.Debugf("producer: No workers launched because: %s", accDebugStr)
+		log.Debugf("producer: launch_worker:  No workers launched because: %s. status_comm:%s", accDebugStr, l.outgoingPackageStatusDebugString())
 	}
 	if thereAreAnError || launchedWorker > 0 {
-		log.Infof("producer: launched workers: %d  result: %s", launchedWorker, accDebugStr)
+		log.Infof("producer: launch_worker:  num of launched workers: %d  result: %s status_comm:%s", launchedWorker, accDebugStr, l.outgoingPackageStatusDebugString())
 	}
 
 	return launchedWorker
+}
+
+func (l *l1RollupInfoProducer) outgoingPackageStatusDebugString() string {
+	return fmt.Sprintf("outgoint_channel[%d/%d], filter:%s", len(l.outgoingChannel), cap(l.outgoingChannel), l.filterToSendOrdererResultsToConsumer.ToStringBrief())
 }
 
 func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
@@ -390,13 +397,17 @@ func (l *l1RollupInfoProducer) onResponseRollupInfo(result responseRollupInfoByB
 		outgoingPackages := l.filterToSendOrdererResultsToConsumer.Filter(*newL1SyncMessageData(result.result))
 		l.sendPackages(outgoingPackages)
 	} else {
-		log.Warnf("producer: Error while trying to get rollup info by block range: %v", result.generic.err)
+		if errors.Is(result.generic.err, context.Canceled) {
+			log.Infof("producer: Error while trying to get rollup info by block range: %v", result.generic.err)
+		} else {
+			log.Warnf("producer: Error while trying to get rollup info by block range: %v", result.generic.err)
+		}
 	}
 }
 
 func (l *l1RollupInfoProducer) sendPackages(outgoingPackages []l1SyncMessage) {
 	for _, pkg := range outgoingPackages {
-		log.Infof("producer: Sending results [data] to consumer:%s:  channel status [%d/%d]", pkg.toStringBrief(), len(l.outgoingChannel), cap(l.outgoingChannel))
+		log.Infof("producer: Sending results [data] to consumer:%s:  status_comm:%s", pkg.toStringBrief(), l.outgoingPackageStatusDebugString())
 		l.outgoingChannel <- pkg
 	}
 }

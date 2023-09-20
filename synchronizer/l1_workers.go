@@ -51,7 +51,7 @@ type workers struct {
 }
 
 func (w *workers) toString() string {
-	result := fmt.Sprintf("workers: ch_out:%d ch_in_worker:%d ", len(w.chOutgoingRollupInfo), len(w.chIncommingRollupInfo))
+	result := fmt.Sprintf("workers: num:%d ch_out:%d ch_in_worker:%d ", len(w.workers), len(w.chOutgoingRollupInfo), len(w.chIncommingRollupInfo))
 	for i := range w.workers {
 		result += fmt.Sprintf(" worker[%d]: %s", i, w.workers[i].String())
 	}
