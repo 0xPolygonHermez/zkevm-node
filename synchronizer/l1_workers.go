@@ -122,7 +122,7 @@ func (w *workers) requestLastBlockWithRetries(ctx context.Context, timeout time.
 }
 
 func (w *workers) requestLastBlock(ctx context.Context, timeout time.Duration) responseL1LastBlock {
-	ctxTimeout := NewContextWithTimeout(ctx, timeout)
+	ctxTimeout := newContextWithTimeout(ctx, timeout)
 	defer ctxTimeout.cancel()
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
@@ -149,7 +149,7 @@ func (w *workers) asyncGenericRequest(ctx context.Context, requestType typeOfReq
 		log.Debugf("workers: call:[%s] failed err:%s", requestStrForDebug, errAllWorkersBusy)
 		return errAllWorkersBusy
 	}
-	ctxWithCancel := NewContextWithTimeout(ctx, w.cfg.timeoutRollupInfo)
+	ctxWithCancel := newContextWithTimeout(ctx, w.cfg.timeoutRollupInfo)
 	w.workers[workerIndex].ctx = ctxWithCancel
 	w.launchGoroutineForRoutingResponse(ctxWithCancel.ctx, workerIndex)
 	wg := &w.waitGroups[requestType]

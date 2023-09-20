@@ -49,19 +49,13 @@ func (c *contextWithCancel) cancel() {
 	}
 }
 
-func NewContextWithCancel(ctxParent context.Context) contextWithCancel {
-	ctx := contextWithCancel{}
-	ctx.createWithCancel(ctxParent)
-	return ctx
-}
-
-func NewContextWithTimeout(ctxParent context.Context, timeout time.Duration) contextWithCancel {
+func newContextWithTimeout(ctxParent context.Context, timeout time.Duration) contextWithCancel {
 	ctx := contextWithCancel{}
 	ctx.createWithTimeout(ctxParent, timeout)
 	return ctx
 }
 
-func NewContextWithNone(ctxParent context.Context) contextWithCancel {
+func newContextWithNone(ctxParent context.Context) contextWithCancel {
 	ctx := contextWithCancel{ctx: ctxParent}
 	return ctx
 }
