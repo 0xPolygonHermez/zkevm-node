@@ -1,8 +1,12 @@
 package synchronizer
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -11,17 +15,31 @@ type mocksOrgertration struct {
 	consumer *l1RollupConsumerInterfaceMock
 }
 
-func TestOrquestrationTodo(t *testing.T) {
-	t.Skip("TODO")
-	sut, _ := setupOrchestrationTest(t)
-	_, err := sut.start(123)
+func TestGivenOrquestrationWhenHappyPathThenReturnsBlockAndNoErrorAndProducerIsRunning(t *testing.T) {
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	sut, mocks := setupOrchestrationTest(t, ctxTimeout)
+	mocks.producer.On("ResetAndStop", mock.Anything).Return()
+	mocks.producer.On("Start", mock.Anything).Return(func(context.Context) error {
+		time.Sleep(time.Second * 2)
+		return nil
+	})
+	block := state.Block{}
+	mocks.consumer.On("GetLastEthBlockSynced").Return(block, true)
+	mocks.consumer.On("Start", mock.Anything).Return(nil)
+	sut.reset(123)
+	returnedBlock, err := sut.start()
 	require.NoError(t, err)
+	require.Equal(t, block, *returnedBlock)
+	require.Equal(t, true, sut.producerStarted)
+	require.Equal(t, false, sut.consumerStarted)
 }
 
-func setupOrchestrationTest(t *testing.T) (*l1SyncOrchestration, mocksOrgertration) {
+func setupOrchestrationTest(t *testing.T, ctx context.Context) (*l1SyncOrchestration, mocksOrgertration) {
 	producer := newL1RollupProducerInterfaceMock(t)
 	consumer := newL1RollupConsumerInterfaceMock(t)
-	return newL1SyncOrchestration(producer, consumer), mocksOrgertration{
+
+	return newL1SyncOrchestration(ctx, producer, consumer), mocksOrgertration{
 		producer: producer,
 		consumer: consumer,
 	}

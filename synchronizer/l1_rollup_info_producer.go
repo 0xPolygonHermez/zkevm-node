@@ -14,12 +14,12 @@ package synchronizer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -90,6 +90,11 @@ type configProducer struct {
 	timeForShowUpStatisticsLog time.Duration
 }
 
+func (cfg *configProducer) String() string {
+	return fmt.Sprintf("syncChunkSize:%d ttlOfLastBlockOnL1:%s timeoutForRequestLastBlockOnL1:%s numOfAllowedRetriesForRequestLastBlockOnL1:%d timeOutMainLoop:%s timeForShowUpStatisticsLog:%s",
+		cfg.syncChunkSize, cfg.ttlOfLastBlockOnL1, cfg.timeoutForRequestLastBlockOnL1, cfg.numOfAllowedRetriesForRequestLastBlockOnL1, cfg.timeOutMainLoop, cfg.timeForShowUpStatisticsLog)
+}
+
 func (cfg *configProducer) normalize() {
 	if cfg.syncChunkSize == 0 {
 		log.Fatalf("producer:config: SyncChunkSize must be greater than 0")
@@ -111,8 +116,7 @@ func (cfg *configProducer) normalize() {
 type l1RollupInfoProducer struct {
 	mutex             sync.Mutex
 	ctxParent         context.Context
-	ctx               context.Context
-	cancelCtx         context.CancelFunc
+	ctxWithCancel     contextWithCancel
 	workers           workersInterface
 	syncStatus        syncStatusInterface
 	outgoingChannel   chan l1SyncMessage
@@ -124,64 +128,66 @@ type l1RollupInfoProducer struct {
 	cfg                                  configProducer
 }
 
+func (l *l1RollupInfoProducer) toStringBrief() string {
+	return fmt.Sprintf("status:%s syncStatus:[%s] workers:[%s] filter:[%s] cfg:[%s]", l.status, l.syncStatus.toStringBrief(), l.workers.toString(), l.filterToSendOrdererResultsToConsumer.ToStringBrief(), l.cfg.String())
+}
+
 // l1DataRetrieverStatistics : create an instance of l1RollupInfoProducer
-func newL1DataRetriever(ctx context.Context, cfg configProducer, ethermans []EthermanInterface,
-	startingBlockNumber uint64, outgoingChannel chan l1SyncMessage) *l1RollupInfoProducer {
+func newL1DataRetriever(cfg configProducer, ethermans []EthermanInterface, outgoingChannel chan l1SyncMessage) *l1RollupInfoProducer {
 	if cap(outgoingChannel) < len(ethermans) {
 		log.Warnf("producer: outgoingChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(outgoingChannel), len(ethermans))
 	}
-	newCtx, cancel := context.WithCancel(ctx)
 	cfg.normalize()
 
+	workersConfig := workersConfig{timeoutRollupInfo: cfg.timeOutMainLoop}
+
 	result := l1RollupInfoProducer{
-		ctxParent:                            ctx,
-		ctx:                                  newCtx,
-		cancelCtx:                            cancel,
-		syncStatus:                           newSyncStatus(startingBlockNumber, cfg.syncChunkSize),
-		workers:                              newWorkers(ctx, ethermans),
-		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(startingBlockNumber),
+		syncStatus:                           newSyncStatus(invalidBlockNumber, cfg.syncChunkSize),
+		workers:                              newWorkers(ethermans, workersConfig),
+		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(invalidBlockNumber),
 		outgoingChannel:                      outgoingChannel,
-		statistics:                           newRollupInfoProducerStatistics(startingBlockNumber),
+		statistics:                           newRollupInfoProducerStatistics(invalidBlockNumber),
 		status:                               producerIdle,
 		cfg:                                  cfg,
 	}
 	return &result
 }
 
-// TDOO: There is no min/max function in golang??
-func min[T constraints.Ordered](a, b T) T {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max[T constraints.Ordered](a, b T) T {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func (l *l1RollupInfoProducer) reset(startingBlockNumber uint64) {
-	log.Infof("producer: Reset L1 sync process to blockNumber %d", startingBlockNumber)
+// ResetAndStop: reset the object and stop the current process. Set first block to be retrieved
+func (l *l1RollupInfoProducer) ResetAndStop(startingBlockNumber uint64) {
+	log.Infof("producer: Reset L1 sync process to blockNumber %d st=%s", startingBlockNumber, l.toStringBrief())
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	log.Debugf("producer: Reset(%d): context cancel", startingBlockNumber)
-	l.cancelCtx()
-	l.ctx, l.cancelCtx = context.WithCancel(l.ctxParent)
+	log.Debugf("producer: Reset(%d): stop previous run (state=%s)", startingBlockNumber, l.status.String())
+	l.stopUnsafe()
 	log.Debugf("producer: Reset(%d): syncStatus.reset", startingBlockNumber)
 	l.syncStatus.reset(startingBlockNumber)
 	l.statistics.reset(startingBlockNumber)
-	log.Debugf("producer: Reset(%d): stop workers (%s)", startingBlockNumber, l.workers.toString())
-	l.workers.stop()
 	// Empty pending rollupinfos
 	log.Debugf("producer: Reset(%d): emptyChannel", startingBlockNumber)
 	l.emptyChannel()
 	log.Debugf("producer: Reset(%d): reset Filter", startingBlockNumber)
 	l.filterToSendOrdererResultsToConsumer.Reset(startingBlockNumber)
-	l.status = producerIdle
 	log.Debugf("producer: Reset(%d): reset done!", startingBlockNumber)
+}
+
+func (l *l1RollupInfoProducer) Stop() {
+	log.Debugf("producer: stop() called st=%s", l.toStringBrief())
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	l.stopUnsafe()
+}
+
+// stopUnsafe: stop the object without locking the mutex (need to be locked before call it!)
+func (l *l1RollupInfoProducer) stopUnsafe() {
+	if l.status != producerIdle {
+		log.Infof("producer: stopping producer")
+		l.ctxWithCancel.cancel()
+		l.status = producerIdle
+	}
+	log.Debugf("producer: stopUnsafe: stop workers (%s)", l.workers.toString())
+	l.workers.stop()
+	l.workers.waitFinishAllWorkers()
 }
 
 func (l *l1RollupInfoProducer) emptyChannel() {
@@ -195,10 +201,16 @@ func (l *l1RollupInfoProducer) verify() error {
 	return l.syncStatus.verify()
 }
 
-func (l *l1RollupInfoProducer) initialize() error {
+func (l *l1RollupInfoProducer) initialize(ctx context.Context) error {
+	log.Debug("producer: initialize")
 	err := l.verify()
 	if err != nil {
 		return err
+	}
+	if l.ctxParent != ctx || l.ctxWithCancel.isInvalid() {
+		log.Debug("producer: start called and need to create a new context")
+		l.ctxParent = ctx
+		l.ctxWithCancel.createWithCancel(l.ctxParent)
 	}
 	err = l.workers.initialize()
 	if err != nil {
@@ -208,7 +220,7 @@ func (l *l1RollupInfoProducer) initialize() error {
 		log.Infof("producer: Need a initial value for Last Block On L1, doing the request (maxRetries:%v, timeRequest:%v)",
 			l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1, l.cfg.timeoutForRequestLastBlockOnL1)
 		//result := l.retrieveInitialValueOfLastBlock(maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
-		result := l.workers.requestLastBlockWithRetries(l.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
+		result := l.workers.requestLastBlockWithRetries(l.ctxWithCancel.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
 		if result.generic.err != nil {
 			log.Error(result.generic.err)
 			return result.generic.err
@@ -219,19 +231,15 @@ func (l *l1RollupInfoProducer) initialize() error {
 	return nil
 }
 
-// If startingBlockNumber is invalidBlockNumber it will use the last block on stateDB
-func (l *l1RollupInfoProducer) start(startingBlockNumber uint64) error {
-	if startingBlockNumber != invalidBlockNumber {
-		log.Infof("producer: starting L1 sync from %v, previous status:%s", startingBlockNumber, l.syncStatus.toStringBrief())
-		l.reset(startingBlockNumber)
-	} else {
-		log.Infof("producer: starting L1 sync with no changed status:%s (startingBlock:%v)", l.syncStatus.toStringBrief(), l.syncStatus.getLastBlockOnL1())
-	}
-	log.Debugf("producer:  starting configuration", l.cfg)
-	err := l.initialize()
+// Before calling Start you must set lastBlockOnDB calling ResetAndStop
+func (l *l1RollupInfoProducer) Start(ctx context.Context) error {
+	log.Infof("producer: starting L1 sync from:%s", l.syncStatus.toStringBrief())
+	err := l.initialize(ctx)
 	if err != nil {
+		log.Infof("producer:  can't start because: %s", err.Error())
 		return err
 	}
+	log.Debugf("producer:  starting configuration: %s", l.cfg.String())
 	var waitDuration = time.Duration(0)
 	for l.step(&waitDuration) {
 	}
@@ -255,12 +263,12 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 
 func (l *l1RollupInfoProducer) stepInner(waitDuration *time.Duration) bool {
 	select {
-	case <-l.ctx.Done():
+	case <-l.ctxWithCancel.Done():
 		log.Debugf("producer: context canceled")
 		return false
 	// That timeout is not need, but just in case that stop launching request
 	case <-time.After(*waitDuration):
-		log.Debugf("producer: step reach periodic timeout of [%s]", *waitDuration)
+		log.Debugf("producer: reach timeout of step loop it was of %s", *waitDuration)
 	case resultRollupInfo := <-l.workers.getResponseChannelForRollupInfo():
 		l.onResponseRollupInfo(resultRollupInfo)
 	}
@@ -334,26 +342,32 @@ func (l *l1RollupInfoProducer) launchWork() int {
 			accDebugStr += "[NoNextRange] "
 			break
 		}
-		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctx, *br)
+		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, *br)
 		if err != nil {
 			thereAreAnError = true
-			accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
+			if errors.Is(err, errAllWorkersBusy) {
+				accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
+			}
 			break
 		} else {
 			accDebugStr += fmt.Sprintf(" segment %s -> [LAUNCHED] ", br.String())
 		}
 		launchedWorker++
-		log.Debugf("producer: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.String(), launchedWorker)
+		log.Debugf("producer: launch_worker: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.String(), launchedWorker)
 		l.syncStatus.onStartedNewWorker(*br)
 	}
 	if launchedWorker == 0 {
-		log.Debugf("producer: No workers launched because: %s", accDebugStr)
+		log.Debugf("producer: launch_worker:  No workers launched because: %s. status_comm:%s", accDebugStr, l.outgoingPackageStatusDebugString())
 	}
 	if thereAreAnError || launchedWorker > 0 {
-		log.Infof("producer: launched workers: %d  result: %s", launchedWorker, accDebugStr)
+		log.Infof("producer: launch_worker:  num of launched workers: %d  result: %s status_comm:%s", launchedWorker, accDebugStr, l.outgoingPackageStatusDebugString())
 	}
 
 	return launchedWorker
+}
+
+func (l *l1RollupInfoProducer) outgoingPackageStatusDebugString() string {
+	return fmt.Sprintf("outgoint_channel[%d/%d], filter:%s", len(l.outgoingChannel), cap(l.outgoingChannel), l.filterToSendOrdererResultsToConsumer.ToStringBrief())
 }
 
 func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
@@ -364,7 +378,7 @@ func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
 	l.mutex.Unlock()
 	if elapsed > ttl || forced {
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request")
-		result := l.workers.requestLastBlockWithRetries(l.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
+		result := l.workers.requestLastBlockWithRetries(l.ctxWithCancel.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request old_block:%v -> new block:%v", oldBlock, result.result.block)
 		if result.generic.err != nil {
 			log.Error(result.generic.err)
@@ -375,6 +389,7 @@ func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
 }
 
 func (l *l1RollupInfoProducer) onResponseRollupInfo(result responseRollupInfoByBlockRange) {
+	log.Infof("producer: Received responseRollupInfoByBlockRange: %s", result.toStringBrief())
 	l.statistics.onResponseRollupInfo(result)
 	isOk := (result.generic.err == nil)
 	l.syncStatus.onFinishWorker(result.result.blockRange, isOk)
@@ -382,17 +397,17 @@ func (l *l1RollupInfoProducer) onResponseRollupInfo(result responseRollupInfoByB
 		outgoingPackages := l.filterToSendOrdererResultsToConsumer.Filter(*newL1SyncMessageData(result.result))
 		l.sendPackages(outgoingPackages)
 	} else {
-		log.Warnf("producer: Error while trying to get rollup info by block range: %v", result.generic.err)
+		if errors.Is(result.generic.err, context.Canceled) {
+			log.Infof("producer: Error while trying to get rollup info by block range: %v", result.generic.err)
+		} else {
+			log.Warnf("producer: Error while trying to get rollup info by block range: %v", result.generic.err)
+		}
 	}
-}
-
-func (l *l1RollupInfoProducer) stop() {
-	l.cancelCtx()
 }
 
 func (l *l1RollupInfoProducer) sendPackages(outgoingPackages []l1SyncMessage) {
 	for _, pkg := range outgoingPackages {
-		log.Infof("producer: Sending results [data] to consumer:%s:  channel status [%d/%d]", pkg.toStringBrief(), len(l.outgoingChannel), cap(l.outgoingChannel))
+		log.Infof("producer: Sending results [data] to consumer:%s:  status_comm:%s", pkg.toStringBrief(), l.outgoingPackageStatusDebugString())
 		l.outgoingChannel <- pkg
 	}
 }

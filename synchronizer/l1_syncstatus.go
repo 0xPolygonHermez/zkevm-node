@@ -1,6 +1,7 @@
 package synchronizer
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -9,6 +10,11 @@ import (
 
 const (
 	invalidLastBlock = 0
+)
+
+var (
+	errSyncChunkSizeMustBeGreaterThanZero = errors.New("SyncChunkSize must be greater than 0")
+	errStartingBlockNumberMustBeDefined   = errors.New("startingBlockNumber must be defined, call producer ResetAndStop() to set a new starting point")
 )
 
 type syncStatus struct {
@@ -145,7 +151,7 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 	// also move the s.lastBlockStoreOnStateDB to the end of the range if needed
 	err := s.processingRanges.removeBlockRange(br)
 	if err != nil {
-		log.Warnf("finished a unknownblock range %s, ignoring it: %s", br.String(), err)
+		log.Infof("Unexpected finished block_range %s, ignoring it: %s", br.String(), err)
 		return
 	}
 
@@ -253,10 +259,10 @@ func (s *syncStatus) isSetLastBlockOnL1Value() bool {
 
 func (s *syncStatus) verify() error {
 	if s.amountOfBlocksInEachRange == 0 {
-		return fmt.Errorf("SyncChunkSize must be greater than 0")
+		return errSyncChunkSizeMustBeGreaterThanZero
 	}
-	if s.lastBlockStoreOnStateDB == 0 {
-		return fmt.Errorf("startingBlockNumber must be greater than 0")
+	if s.lastBlockStoreOnStateDB == invalidBlockNumber {
+		return errStartingBlockNumberMustBeDefined
 	}
 	return nil
 }

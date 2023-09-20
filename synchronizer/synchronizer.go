@@ -114,7 +114,7 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []Etherman
 		numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData: cfg.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo,
 		acceptableTimeWaitingForNewRollupInfoData:                       cfg.L1ParallelSynchronization.PerformanceCheck.AcceptableTimeWaitingForNewRollupInfo.Duration,
 	}
-	L1DataProcessor := newL1RollupInfoConsumer(ctx, cfgConsumer, sync, chIncommingRollupInfo)
+	L1DataProcessor := newL1RollupInfoConsumer(cfgConsumer, sync, chIncommingRollupInfo)
 
 	cfgProducer := configProducer{
 		syncChunkSize:                              cfg.SyncChunkSize,
@@ -124,8 +124,8 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []Etherman
 		timeForShowUpStatisticsLog:                 cfg.L1ParallelSynchronization.TimeForShowUpStatisticsLog.Duration,
 		timeOutMainLoop:                            cfg.L1ParallelSynchronization.TimeOutMainLoop.Duration,
 	}
-	l1DataRetriever := newL1DataRetriever(ctx, cfgProducer, etherManForL1, invalidBlockNumber, chIncommingRollupInfo)
-	l1SyncOrchestration := newL1SyncOrchestration(l1DataRetriever, L1DataProcessor)
+	l1DataRetriever := newL1DataRetriever(cfgProducer, etherManForL1, chIncommingRollupInfo)
+	l1SyncOrchestration := newL1SyncOrchestration(ctx, l1DataRetriever, L1DataProcessor)
 	return l1SyncOrchestration, nil
 }
 
@@ -343,7 +343,11 @@ func (s *ClientSynchronizer) syncBlocksParallel(lastEthBlockSynced *state.Block)
 		}
 		return block, nil
 	}
-	return s.l1SyncOrchestration.start(lastEthBlockSynced.BlockNumber)
+	if !s.l1SyncOrchestration.isProducerRunning() {
+		log.Infof("producer is not running. Resetting the state to start from  block %v (last on DB)", lastEthBlockSynced.BlockNumber)
+		s.l1SyncOrchestration.producer.ResetAndStop(lastEthBlockSynced.BlockNumber)
+	}
+	return s.l1SyncOrchestration.start()
 }
 
 // This function syncs the node from a specific block to the latest
