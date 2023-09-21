@@ -264,6 +264,7 @@ func (s *ClientSynchronizer) Sync() error {
 				continue
 			}
 			latestSyncedBatch, err := s.state.GetLastBatchNumber(s.ctx, nil)
+			metrics.LastSyncedBatchNumber(float64(latestSyncedBatch))
 			if err != nil {
 				log.Warn("error getting latest batch synced in the db. Error: ", err)
 				continue
