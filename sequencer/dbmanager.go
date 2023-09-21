@@ -14,6 +14,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const (
+	datastreamChannelMultiplier = 2
+)
+
 // Pool Loader and DB Updater
 type dbManager struct {
 	cfg              DBManagerCfg
@@ -50,7 +54,10 @@ func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state
 		log.Error("failed to get number of reorgs: %v", err)
 	}
 
-	return &dbManager{ctx: ctx, cfg: config, txPool: txPool, state: state, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh, batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs}
+	return &dbManager{ctx: ctx, cfg: config, txPool: txPool,
+		state: state, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh,
+		batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs,
+		dataToStream: make(chan DSL2FullBlock, batchConstraints.MaxTxsPerBatch*datastreamChannelMultiplier)}
 }
 
 // Start stars the dbManager routines
