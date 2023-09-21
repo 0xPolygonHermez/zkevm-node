@@ -107,6 +107,7 @@ func (d *dbManager) checkIfReorg() {
 	numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)
+		return
 	}
 
 	if numberOfReorgs != d.numberOfReorgs {
