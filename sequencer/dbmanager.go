@@ -142,7 +142,18 @@ func (d *dbManager) loadFromPool() {
 
 // sendDataToStreamer sends data to the data stream server
 func (d *dbManager) sendDataToStreamer() {
+	var err error
 	for {
+		// Read error from previous iteration
+		if err != nil {
+			err = d.streamServer.RollbackAtomicOp()
+			if err != nil {
+				log.Errorf("failed to rollback atomic op: %v", err)
+			}
+			err = nil
+		}
+
+		// Read data from channel
 		fullL2Block := <-d.dataToStream
 
 		l2Block := fullL2Block.L2Block
@@ -153,12 +164,14 @@ func (d *dbManager) sendDataToStreamer() {
 			if err != nil {
 				log.Errorf("failed to start atomic op: %v", err)
 				d.streamServer = nil
+				continue
 			}
 
 			_, err = d.streamServer.AddStreamEntry(EntryTypeL2Block, l2Block.Encode())
 			if err != nil {
 				log.Errorf("failed to add stream entry: %v", err)
 				d.streamServer = nil
+				continue
 			}
 
 			for _, l2Transaction := range l2Transactions {
@@ -166,6 +179,7 @@ func (d *dbManager) sendDataToStreamer() {
 				if err != nil {
 					log.Errorf("failed to add stream entry: %v", err)
 					d.streamServer = nil
+					continue
 				}
 			}
 
@@ -173,6 +187,7 @@ func (d *dbManager) sendDataToStreamer() {
 			if err != nil {
 				log.Errorf("failed to rollback atomic op: %v", err)
 				d.streamServer = nil
+				continue
 			}
 		}
 	}
