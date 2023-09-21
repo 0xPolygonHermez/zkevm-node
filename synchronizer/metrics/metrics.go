@@ -93,6 +93,7 @@ func Register() {
 	metrics.RegisterHistograms(histograms...)
 }
 
+// LastSyncedBatchNumber observes latest synced batch number
 func LastSyncedBatchNumber(batchNum float64) {
 	metrics.GaugeSet(LastSyncedBatchNumberName, batchNum)
 }
