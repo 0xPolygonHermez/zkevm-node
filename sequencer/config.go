@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 )
 
@@ -74,6 +75,8 @@ type StreamServerCfg struct {
 	Filename string `mapstructure:"Filename"`
 	// Enabled is a flag to enable/disable the data streamer
 	Enabled bool `mapstructure:"Enabled"`
+	// Log is the log configuration
+	Log log.Config `mapstructure:"Log"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
