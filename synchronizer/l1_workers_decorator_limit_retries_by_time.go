@@ -13,7 +13,8 @@ const (
 )
 
 type controlWorkerFlux struct {
-	time time.Time
+	time    time.Time
+	retries int
 }
 
 type workerDecoratorLimitRetriesByTime struct {
@@ -36,16 +37,21 @@ func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(c
 		lastCallElapsedTime := time.Since(ctrl.time)
 		if lastCallElapsedTime < w.minTimeBetweenCalls {
 			sleepTime := w.minTimeBetweenCalls - lastCallElapsedTime
-			log.Debugf("workerDecoratorLimitRetriesByTime: last call elapsed time %s < %s, sleeping %s", lastCallElapsedTime, w.minTimeBetweenCalls, sleepTime)
+			log.Infof("workerDecoratorLimitRetriesByTime: br:%s retries:%d last call elapsed time %s < %s, sleeping %s", blockRange.String(), ctrl.retries, lastCallElapsedTime, w.minTimeBetweenCalls, sleepTime)
 			time.Sleep(sleepTime)
 		}
+		err = w.processingRanges.setTagByBlockRange(blockRange, controlWorkerFlux{time: time.Now(), retries: ctrl.retries + 1})
+		if err != nil {
+			log.Warnf("workerDecoratorLimitRetriesByTime: error setting tag %s for blockRange %s", ctrl, blockRange)
+		}
 	} else {
-		ctrl = controlWorkerFlux{time: time.Now()}
+		ctrl = controlWorkerFlux{time: time.Now(), retries: 0}
 		err = w.processingRanges.addBlockRangeWithTag(blockRange, ctrl)
 		if err != nil {
 			log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s with tag %s", blockRange, ctrl)
 		}
 	}
+
 	res, err := w.workers.asyncRequestRollupInfoByBlockRange(ctx, blockRange)
 	w.cleanUpOlderThan(cleanUpOlderThan)
 	return res, err

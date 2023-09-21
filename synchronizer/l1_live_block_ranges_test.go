@@ -126,3 +126,38 @@ func TestFilterTagByBlockRangeThatDontExists(t *testing.T) {
 	require.Equal(t, len(res), 2)
 	require.Equal(t, []blockRange{brForTag1, brForTag2}, res)
 }
+
+func TestSetTagByBlockRangeThatExists(t *testing.T) {
+	sut := newLiveBlockRangesWithTag[string]()
+	err := sut.addBlockRangeWithTag(blockRange{fromBlock: 1, toBlock: 10}, "a")
+	require.NoError(t, err)
+	brForTagB := blockRange{fromBlock: 11, toBlock: 20}
+	err = sut.addBlockRangeWithTag(brForTagB, "b")
+	require.NoError(t, err)
+	err = sut.addBlockRangeWithTag(blockRange{fromBlock: 21, toBlock: 109}, "c")
+	require.NoError(t, err)
+	err = sut.addBlockRangeWithTag(blockRange{fromBlock: 110, toBlock: 200}, "d")
+	require.NoError(t, err)
+
+	err = sut.setTagByBlockRange(brForTagB, "e")
+	require.NoError(t, err)
+	tag, err := sut.getTagByBlockRange(brForTagB)
+	require.NoError(t, err)
+	require.Equal(t, "e", tag)
+}
+
+func TestSetTagByBlockRangeThatDontExists(t *testing.T) {
+	sut := newLiveBlockRangesWithTag[string]()
+	err := sut.addBlockRangeWithTag(blockRange{fromBlock: 1, toBlock: 10}, "a")
+	require.NoError(t, err)
+	brForTagB := blockRange{fromBlock: 11, toBlock: 20}
+	err = sut.addBlockRangeWithTag(brForTagB, "b")
+	require.NoError(t, err)
+	err = sut.addBlockRangeWithTag(blockRange{fromBlock: 21, toBlock: 109}, "c")
+	require.NoError(t, err)
+	err = sut.addBlockRangeWithTag(blockRange{fromBlock: 110, toBlock: 200}, "d")
+	require.NoError(t, err)
+
+	err = sut.setTagByBlockRange(blockRange{fromBlock: 12210, toBlock: 22200}, "e")
+	require.Error(t, err)
+}

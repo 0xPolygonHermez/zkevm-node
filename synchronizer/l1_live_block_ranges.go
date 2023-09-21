@@ -82,6 +82,16 @@ func (l *liveBlockRangesGeneric[T]) addBlockRangeWithTag(br blockRange, tag T) e
 	return nil
 }
 
+func (l *liveBlockRangesGeneric[T]) setTagByBlockRange(br blockRange, tag T) error {
+	for i, r := range l.ranges {
+		if r.blockRange == br {
+			l.ranges[i].tag = tag
+			return nil
+		}
+	}
+	return errBlockRangeNotFound
+}
+
 func (l *liveBlockRangesGeneric[T]) filterBlockRangesByTag(filter func(blockRange, T) bool) []blockRange {
 	result := make([]blockRange, 0)
 	for _, r := range l.ranges {
