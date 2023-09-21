@@ -146,7 +146,7 @@ func (d *dbManager) sendDataToStreamer() {
 		fullL2Block := <-d.dataToStream
 
 		l2Block := fullL2Block.L2Block
-		l2Transaction := fullL2Block.Txs[0]
+		l2Transactions := fullL2Block.Txs
 
 		if d.streamServer != nil {
 			err := d.streamServer.StartAtomicOp()
@@ -161,10 +161,12 @@ func (d *dbManager) sendDataToStreamer() {
 				d.streamServer = nil
 			}
 
-			_, err = d.streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transaction.Encode())
-			if err != nil {
-				log.Errorf("failed to add stream entry: %v", err)
-				d.streamServer = nil
+			for _, l2Transaction := range l2Transactions {
+				_, err = d.streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transaction.Encode())
+				if err != nil {
+					log.Errorf("failed to add stream entry: %v", err)
+					d.streamServer = nil
+				}
 			}
 
 			err = d.streamServer.CommitAtomicOp()
