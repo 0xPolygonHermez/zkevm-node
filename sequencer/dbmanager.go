@@ -160,7 +160,7 @@ func (d *dbManager) sendDataToStreamer() {
 		l2Transactions := fullL2Block.Txs
 
 		if d.streamServer != nil {
-			err := d.streamServer.StartAtomicOp()
+			err = d.streamServer.StartAtomicOp()
 			if err != nil {
 				log.Errorf("failed to start atomic op: %v", err)
 				d.streamServer = nil
