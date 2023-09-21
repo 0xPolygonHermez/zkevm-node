@@ -95,6 +95,10 @@ func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
 func (s *syncStatus) getNextRangeOnlyRetries() *blockRange {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	return s.getNextRangeOnlyRetriesUnsafe()
+}
+
+func (s *syncStatus) getNextRangeOnlyRetriesUnsafe() *blockRange {
 	// Check if there are any range that need to be retried
 	blockRangeToRetry, err := s.errorRanges.getFirstBlockRange()
 	if err == nil {
@@ -110,9 +114,9 @@ func (s *syncStatus) getNextRange() *blockRange {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	// Check if there are any range that need to be retried
-	blockRangeToRetry, err := s.errorRanges.getFirstBlockRange()
-	if err == nil {
-		return &blockRangeToRetry
+	blockRangeToRetry := s.getNextRangeOnlyRetriesUnsafe()
+	if blockRangeToRetry != nil {
+		return blockRangeToRetry
 	}
 
 	brs := &blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: s.highestBlockRequested} //s.processingRanges.GetSuperBlockRange()
@@ -127,7 +131,7 @@ func (s *syncStatus) getNextRange() *blockRange {
 	}
 
 	br := getNextBlockRangeFromUnsafe(brs.toBlock, s.lastBlockOnL1, s.amountOfBlocksInEachRange)
-	err = br.isValid()
+	err := br.isValid()
 	if err != nil {
 		log.Error(s.toString())
 		log.Fatal(err)

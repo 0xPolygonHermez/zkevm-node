@@ -37,7 +37,7 @@ func (l *l1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(r
 		log.Warnf("consumer:: Too much wasted time (waiting to receive a new data):%s", msg)
 	}
 	l.numProcessedRollupInfo++
-	msg := fmt.Sprintf("wasted_time_waiting_for_data [%s] last_process_time [%s] block_per_second [%f]", waitingTimeForData, l.timePreviousProcessingDuration, blocksPerSecond)
+	msg := fmt.Sprintf("wasted_time_waiting_for_data [%s] last_process_time [%s] block_per_second [%f]", waitingTimeForData.Round(time.Second).String(), l.timePreviousProcessingDuration, blocksPerSecond)
 	return msg
 }
 
