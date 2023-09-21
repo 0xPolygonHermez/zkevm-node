@@ -50,10 +50,12 @@ type workers struct {
 	cfg workersConfig
 }
 
-func (w *workers) toString() string {
-	result := fmt.Sprintf("workers: num:%d ch_out:%d ch_in_worker:%d ", len(w.workers), len(w.chOutgoingRollupInfo), len(w.chIncommingRollupInfo))
+func (w *workers) String() string {
+	result := fmt.Sprintf("num_workers:%d ch[%d,%d] ", len(w.workers), len(w.chOutgoingRollupInfo), len(w.chIncommingRollupInfo))
 	for i := range w.workers {
-		result += fmt.Sprintf(" worker[%d]: %s", i, w.workers[i].String())
+		if !w.workers[i].worker.isIdle() {
+			result += fmt.Sprintf(" worker[%d]: %s", i, w.workers[i].worker.String())
+		}
 	}
 	return result
 }
@@ -78,7 +80,7 @@ func (w *workers) initialize() error {
 }
 
 func (w *workers) stop() {
-	log.Debugf("workers: stopping workers %s", w.toString())
+	log.Debugf("workers: stopping workers %s", w.String())
 	for i := range w.workers {
 		wd := &w.workers[i]
 		if !wd.worker.isIdle() {
