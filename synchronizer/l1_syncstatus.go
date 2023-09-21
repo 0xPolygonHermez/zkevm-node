@@ -92,6 +92,17 @@ func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
 	return false
 }
 
+func (s *syncStatus) getNextRangeOnlyRetries() *blockRange {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// Check if there are any range that need to be retried
+	blockRangeToRetry, err := s.errorRanges.getFirstBlockRange()
+	if err == nil {
+		return &blockRangeToRetry
+	}
+	return nil
+}
+
 // getNextRange: if there are pending work it returns the next block to ask for
 //
 //	it could be a retry from a previous error or a new range

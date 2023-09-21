@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -35,6 +36,7 @@ type filter interface {
 	ToStringBrief() string
 	Filter(data l1SyncMessage) []l1SyncMessage
 	Reset(lastBlockOnSynchronizer uint64)
+	numItemBlockedInQueue() int
 }
 
 type syncStatusInterface interface {
@@ -42,6 +44,7 @@ type syncStatusInterface interface {
 	reset(lastBlockStoreOnStateDB uint64)
 	toStringBrief() string
 	getNextRange() *blockRange
+	getNextRangeOnlyRetries() *blockRange
 	isNodeFullySynchronizedWithL1() bool
 	haveRequiredAllBlocksToBeSynchronized() bool
 	isSetLastBlockOnL1Value() bool
@@ -62,7 +65,7 @@ type workersInterface interface {
 	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan responseRollupInfoByBlockRange, error)
 	requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) responseL1LastBlock
 	getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange
-	toString() string
+	String() string
 }
 
 type producerStatusEnum int8
@@ -129,7 +132,7 @@ type l1RollupInfoProducer struct {
 }
 
 func (l *l1RollupInfoProducer) toStringBrief() string {
-	return fmt.Sprintf("status:%s syncStatus:[%s] workers:[%s] filter:[%s] cfg:[%s]", l.status, l.syncStatus.toStringBrief(), l.workers.toString(), l.filterToSendOrdererResultsToConsumer.ToStringBrief(), l.cfg.String())
+	return fmt.Sprintf("status:%s syncStatus:[%s] workers:[%s] filter:[%s] cfg:[%s]", l.status, l.syncStatus.toStringBrief(), l.workers.String(), l.filterToSendOrdererResultsToConsumer.ToStringBrief(), l.cfg.String())
 }
 
 // l1DataRetrieverStatistics : create an instance of l1RollupInfoProducer
@@ -138,8 +141,9 @@ func newL1DataRetriever(cfg configProducer, ethermans []EthermanInterface, outgo
 		log.Warnf("producer: outgoingChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(outgoingChannel), len(ethermans))
 	}
 	cfg.normalize()
-
-	workersConfig := workersConfig{timeoutRollupInfo: cfg.timeOutMainLoop}
+	// The timeout for clients are set to infinite because the time to process a rollup segment is not known
+	// TODO: move this to config file
+	workersConfig := workersConfig{timeoutRollupInfo: time.Duration(math.MaxInt64)}
 
 	result := l1RollupInfoProducer{
 		syncStatus:                           newSyncStatus(invalidBlockNumber, cfg.syncChunkSize),
@@ -185,7 +189,7 @@ func (l *l1RollupInfoProducer) stopUnsafe() {
 		l.ctxWithCancel.cancel()
 		l.status = producerIdle
 	}
-	log.Debugf("producer: stopUnsafe: stop workers (%s)", l.workers.toString())
+	log.Debugf("producer: stopUnsafe: stop workers (%s)", l.workers.String())
 	l.workers.stop()
 	l.workers.waitFinishAllWorkers()
 }
@@ -327,16 +331,34 @@ func (l *l1RollupInfoProducer) onNewLastBlock(lastBlock uint64, launchWork bool)
 	return resp
 }
 
+func (l *l1RollupInfoProducer) canISendNewRequestsUnsafe() (bool, string) {
+	queued := l.filterToSendOrdererResultsToConsumer.numItemBlockedInQueue()
+	inChannel := len(l.outgoingChannel)
+	maximum := cap(l.outgoingChannel)
+	msg := fmt.Sprintf("inFilter:%d + inChannel:%d > maximum:%d?", queued, inChannel, maximum)
+	if queued+inChannel > maximum {
+		msg = msg + " ==> only allow retries"
+		return false, msg
+	}
+	msg = msg + " ==> allow new req"
+	return true, msg
+}
+
 // launchWork: launch new workers if possible and returns new channels created
 // returns the number of workers launched
 func (l *l1RollupInfoProducer) launchWork() int {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	launchedWorker := 0
-	accDebugStr := ""
-	thereAreAnError := false
+	allowNewRequests, allowNewRequestMsg := l.canISendNewRequestsUnsafe()
+	accDebugStr := "[" + allowNewRequestMsg + "] "
 	for {
-		br := l.syncStatus.getNextRange()
+		var br *blockRange
+		if allowNewRequests {
+			br = l.syncStatus.getNextRange()
+		} else {
+			br = l.syncStatus.getNextRangeOnlyRetries()
+		}
 		if br == nil {
 			// No more work to do
 			accDebugStr += "[NoNextRange] "
@@ -344,7 +366,6 @@ func (l *l1RollupInfoProducer) launchWork() int {
 		}
 		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, *br)
 		if err != nil {
-			thereAreAnError = true
 			if errors.Is(err, errAllWorkersBusy) {
 				accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
 			}
@@ -356,18 +377,13 @@ func (l *l1RollupInfoProducer) launchWork() int {
 		log.Debugf("producer: launch_worker: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.String(), launchedWorker)
 		l.syncStatus.onStartedNewWorker(*br)
 	}
-	if launchedWorker == 0 {
-		log.Debugf("producer: launch_worker:  No workers launched because: %s. status_comm:%s", accDebugStr, l.outgoingPackageStatusDebugString())
-	}
-	if thereAreAnError || launchedWorker > 0 {
-		log.Infof("producer: launch_worker:  num of launched workers: %d  result: %s status_comm:%s", launchedWorker, accDebugStr, l.outgoingPackageStatusDebugString())
-	}
+	log.Infof("producer: launch_worker:  num of launched workers: %d  result: %s status_comm:%s", launchedWorker, accDebugStr, l.outgoingPackageStatusDebugString())
 
 	return launchedWorker
 }
 
 func (l *l1RollupInfoProducer) outgoingPackageStatusDebugString() string {
-	return fmt.Sprintf("outgoint_channel[%d/%d], filter:%s", len(l.outgoingChannel), cap(l.outgoingChannel), l.filterToSendOrdererResultsToConsumer.ToStringBrief())
+	return fmt.Sprintf("outgoint_channel[%d/%d], filter:%s workers:%s", len(l.outgoingChannel), cap(l.outgoingChannel), l.filterToSendOrdererResultsToConsumer.ToStringBrief(), l.workers.String())
 }
 
 func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {

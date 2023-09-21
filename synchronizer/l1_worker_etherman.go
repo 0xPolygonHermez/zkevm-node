@@ -113,12 +113,18 @@ type workerEtherman struct {
 	etherman             EthermanInterface
 	status               ethermanStatusEnum
 	typeOfCurrentRequest typeOfRequest
+	blockRange           blockRange
+	startTime            time.Time
 }
 
 func (w *workerEtherman) String() string {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	return fmt.Sprintf("status:%s req:%s", w.status.String(), w.typeOfCurrentRequest.String())
+	timeSince := time.Since(w.startTime)
+	if w.isBusyUnsafe() {
+		return fmt.Sprintf("status:%s br:%s time:%s", w.status.String(), w.blockRange.String(), timeSince.Round(time.Second).String())
+	}
+	return fmt.Sprintf("status:%s", w.status.String())
 }
 
 func newWorker(etherman EthermanInterface) *workerEtherman {
@@ -137,6 +143,8 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 	}
 	w.status = ethermanWorking
 	w.typeOfCurrentRequest = typeRequestRollupInfo
+	w.blockRange = blockRange
+	w.startTime = time.Now()
 	launch := func() {
 		defer ctx.cancel()
 		if wg != nil {
