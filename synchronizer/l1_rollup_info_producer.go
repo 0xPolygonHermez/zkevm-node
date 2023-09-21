@@ -90,7 +90,8 @@ type configProducer struct {
 	//timeout for main loop if no is synchronized yet, this time is a safeguard because is not needed
 	timeOutMainLoop time.Duration
 	//how ofter we show a log with statistics, 0 means disabled
-	timeForShowUpStatisticsLog time.Duration
+	timeForShowUpStatisticsLog         time.Duration
+	minTimeBetweenRetriesForRollupInfo time.Duration
 }
 
 func (cfg *configProducer) String() string {
@@ -113,6 +114,9 @@ func (cfg *configProducer) normalize() {
 	}
 	if cfg.timeOutMainLoop < minTimeOutMainLoop {
 		log.Warnf("producer:config: timeOutMainLoop is too low (%s) minimum recomender value %s", cfg.timeOutMainLoop, minTimeOutMainLoop)
+	}
+	if cfg.minTimeBetweenRetriesForRollupInfo <= 0 {
+		log.Warnf("producer:config: minTimeBetweenRetriesForRollup is too low (%s)", cfg.minTimeBetweenRetriesForRollupInfo)
 	}
 }
 
@@ -147,7 +151,7 @@ func newL1DataRetriever(cfg configProducer, ethermans []EthermanInterface, outgo
 
 	result := l1RollupInfoProducer{
 		syncStatus:                           newSyncStatus(invalidBlockNumber, cfg.syncChunkSize),
-		workers:                              newWorkers(ethermans, workersConfig),
+		workers:                              newWorkerDecoratorLimitRetriesByTime(newWorkers(ethermans, workersConfig), cfg.minTimeBetweenRetriesForRollupInfo),
 		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(invalidBlockNumber),
 		outgoingChannel:                      outgoingChannel,
 		statistics:                           newRollupInfoProducerStatistics(invalidBlockNumber),
