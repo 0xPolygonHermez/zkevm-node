@@ -1088,6 +1088,7 @@ UseParallelModeForL1Synchronization=true
 | - [MaxNumberOfRetriesForRequestLastBlockOnL1](#Synchronizer_L1ParallelSynchronization_MaxNumberOfRetriesForRequestLastBlockOnL1 ) | No      | integer | No         | -          | MaxNumberOfRetriesForRequestLastBlockOnL1 Max number of retries to request LastBlock On L1                                                                                                                                                                  |
 | - [TimeForShowUpStatisticsLog](#Synchronizer_L1ParallelSynchronization_TimeForShowUpStatisticsLog )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
 | - [TimeOutMainLoop](#Synchronizer_L1ParallelSynchronization_TimeOutMainLoop )                                                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+| - [MinTimeBetweenRetriesForRollupInfo](#Synchronizer_L1ParallelSynchronization_MinTimeBetweenRetriesForRollupInfo )               | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
 
 #### <a name="Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients"></a>9.5.1. `Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients`
 
@@ -1292,6 +1293,32 @@ TimeForShowUpStatisticsLog="5m0s"
 ```
 [Synchronizer.L1ParallelSynchronization]
 TimeOutMainLoop="5m0s"
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_MinTimeBetweenRetriesForRollupInfo"></a>9.5.9. `Synchronizer.L1ParallelSynchronization.MinTimeBetweenRetriesForRollupInfo`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5s"`
+
+**Description:** MinTimeBetweenRetriesForRollupInfo is the minimum time between retries to request rollup info (it will sleep for fulfill this time) to avoid spamming L1
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5s"):
+```
+[Synchronizer.L1ParallelSynchronization]
+MinTimeBetweenRetriesForRollupInfo="5s"
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`

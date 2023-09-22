@@ -97,6 +97,7 @@ UseParallelModeForL1Synchronization = true
 		MaxNumberOfRetriesForRequestLastBlockOnL1 = 3
 		TimeForShowUpStatisticsLog = "5m"
 		TimeOutMainLoop = "5m"
+		MinTimeBetweenRetriesForRollupInfo = "5s"
 		[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
 			AcceptableTimeWaitingForNewRollupInfo = "5s"
 			NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo = 10
