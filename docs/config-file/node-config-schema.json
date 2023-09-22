@@ -722,6 +722,40 @@
 							"type": "boolean",
 							"description": "Enabled is a flag to enable/disable the data streamer",
 							"default": false
+						},
+						"Log": {
+							"properties": {
+								"Environment": {
+									"type": "string",
+									"enum": [
+										"production",
+										"development"
+									],
+									"default": ""
+								},
+								"Level": {
+									"type": "string",
+									"enum": [
+										"debug",
+										"info",
+										"warn",
+										"error",
+										"dpanic",
+										"panic",
+										"fatal"
+									],
+									"default": ""
+								},
+								"Outputs": {
+									"items": {
+										"type": "string"
+									},
+									"type": "array"
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Log is the log configuration"
 						}
 					},
 					"additionalProperties": false,

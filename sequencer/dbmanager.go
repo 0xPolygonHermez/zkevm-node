@@ -14,6 +14,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const (
+	datastreamChannelMultiplier = 2
+)
+
 // Pool Loader and DB Updater
 type dbManager struct {
 	cfg              DBManagerCfg
@@ -25,6 +29,7 @@ type dbManager struct {
 	batchConstraints state.BatchConstraintsCfg
 	numberOfReorgs   uint64
 	streamServer     *datastreamer.StreamServer
+	dataToStream     chan DSL2FullBlock
 }
 
 func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
@@ -49,7 +54,10 @@ func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state
 		log.Error("failed to get number of reorgs: %v", err)
 	}
 
-	return &dbManager{ctx: ctx, cfg: config, txPool: txPool, state: state, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh, batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs}
+	return &dbManager{ctx: ctx, cfg: config, txPool: txPool,
+		state: state, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh,
+		batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs,
+		dataToStream: make(chan DSL2FullBlock, batchConstraints.MaxTxsPerBatch*datastreamChannelMultiplier)}
 }
 
 // Start stars the dbManager routines
@@ -61,6 +69,9 @@ func (d *dbManager) Start() {
 			d.checkIfReorg()
 		}
 	}()
+	if d.streamServer != nil {
+		go d.sendDataToStreamer()
+	}
 }
 
 // GetLastBatchNumber get the latest batch number from state
@@ -136,6 +147,55 @@ func (d *dbManager) loadFromPool() {
 	}
 }
 
+// sendDataToStreamer sends data to the data stream server
+func (d *dbManager) sendDataToStreamer() {
+	var err error
+	for {
+		// Read error from previous iteration
+		if err != nil {
+			err = d.streamServer.RollbackAtomicOp()
+			if err != nil {
+				log.Errorf("failed to rollback atomic op: %v", err)
+			}
+			d.streamServer = nil
+		}
+
+		// Read data from channel
+		fullL2Block := <-d.dataToStream
+
+		l2Block := fullL2Block.L2Block
+		l2Transactions := fullL2Block.Txs
+
+		if d.streamServer != nil {
+			err = d.streamServer.StartAtomicOp()
+			if err != nil {
+				log.Errorf("failed to start atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
+				continue
+			}
+
+			_, err = d.streamServer.AddStreamEntry(EntryTypeL2Block, l2Block.Encode())
+			if err != nil {
+				log.Errorf("failed to add stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
+				continue
+			}
+
+			for _, l2Transaction := range l2Transactions {
+				_, err = d.streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transaction.Encode())
+				if err != nil {
+					log.Errorf("failed to add l2tx stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
+					continue
+				}
+			}
+
+			err = d.streamServer.CommitAtomicOp()
+			if err != nil {
+				log.Errorf("failed to commit atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
+				continue
+			}
+		}
+	}
+}
+
 func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
 	txTracker, err := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP)
 	if err != nil {
@@ -177,7 +237,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	l2BlochHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
+	l2BlockHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
 	if err != nil {
 		return err
 	}
@@ -210,12 +270,24 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		}
 	}
 
-	// Send tx data to data stream server
-	var streamServerErr error
+	err = dbTx.Commit(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Change Tx status to selected
+	err = d.txPool.UpdateTxStatus(ctx, tx.response.TxHash, pool.TxStatusSelected, false, nil)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", tx.response.TxHash.String(), tx.batchNumber)
+
+	// Send data to streamer
 	if d.streamServer != nil {
 		l2Block := DSL2Block{
 			BatchNumber:    tx.batchNumber,
-			L2BlockNumber:  l2BlochHeader.Number.Uint64(),
+			L2BlockNumber:  l2BlockHeader.Number.Uint64(),
 			Timestamp:      uint64(tx.timestamp.Unix()),
 			GlobalExitRoot: batch.GlobalExitRoot,
 			Coinbase:       tx.coinbase,
@@ -229,57 +301,12 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 			Encoded:                     txData,
 		}
 
-		streamServerErr = d.streamServer.StartAtomicOp()
-		if streamServerErr != nil {
-			log.Errorf("failed to start atomic op: %v", streamServerErr)
-			goto StreamServerEnd
-		}
-
-		_, streamServerErr = d.streamServer.AddStreamEntry(EntryTypeL2Block, l2Block.Encode())
-		if streamServerErr != nil {
-			log.Errorf("failed to add stream entry: %v", streamServerErr)
-			goto StreamServerEnd
-		}
-
-		_, streamServerErr = d.streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transaction.Encode())
-		if err != nil {
-			log.Errorf("failed to add stream entry: %v", streamServerErr)
-			goto StreamServerEnd
-		}
-
-		streamServerErr = d.streamServer.CommitAtomicOp()
-		if streamServerErr != nil {
-			log.Errorf("failed to rollback atomic op: %v", streamServerErr)
+		d.dataToStream <- DSL2FullBlock{
+			L2Block: l2Block,
+			Txs:     []DSL2Transaction{l2Transaction},
 		}
 	}
 
-StreamServerEnd:
-	if d.streamServer != nil && streamServerErr != nil {
-		streamServerErr = d.streamServer.RollbackAtomicOp()
-		if streamServerErr != nil {
-			log.Errorf("failed to rollback atomic op: %v", streamServerErr)
-		}
-
-		err := dbTx.Rollback(ctx)
-		if err != nil {
-			log.Errorf("failed to rollback dbTx when storing tx: %v", err)
-		}
-
-		return streamServerErr
-	}
-
-	err = dbTx.Commit(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Change Tx status to selected
-	err = d.txPool.UpdateTxStatus(ctx, tx.response.TxHash, pool.TxStatusSelected, false, nil)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", tx.response.TxHash.String(), tx.batchNumber)
 	return nil
 }
 
