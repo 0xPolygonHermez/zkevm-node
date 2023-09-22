@@ -189,7 +189,7 @@ func (d *dbManager) sendDataToStreamer() {
 
 			err = d.streamServer.CommitAtomicOp()
 			if err != nil {
-				log.Errorf("failed to rollback atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
+				log.Errorf("failed to commit atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
 				continue
 			}
 		}
