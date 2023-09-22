@@ -3,6 +3,7 @@ module github.com/0xPolygonHermez/zkevm-node
 go 1.19
 
 require (
+	github.com/0xPolygonHermez/zkevm-data-streamer v0.0.6
 	github.com/didip/tollbooth/v6 v6.1.2
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127
 	github.com/ethereum/go-ethereum v1.13.1
@@ -155,5 +156,6 @@ require (
 require (
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.16.0
-	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
 )
+
+require golang.org/x/exp v0.0.0-20230810033253-352e893a4cad

@@ -133,6 +133,18 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
+			path:          "Sequencer.StreamServer.Port",
+			expectedValue: uint16(0),
+		},
+		{
+			path:          "Sequencer.StreamServer.Filename",
+			expectedValue: "",
+		},
+		{
+			path:          "Sequencer.StreamServer.Enabled",
+			expectedValue: false,
+		},
+		{
 			path:          "SequenceSender.WaitPeriodSendSequence",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},

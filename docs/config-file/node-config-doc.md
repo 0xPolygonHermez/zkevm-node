@@ -1336,6 +1336,7 @@ MinTimeBetweenRetriesForRollupInfo="5s"
 | - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                       |
 | - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                       |
 | - [EffectiveGasPrice](#Sequencer_EffectiveGasPrice )                         | No      | object  | No         | -          | EffectiveGasPrice is the config for the gas price                                            |
+| - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                          |
 
 ### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
 
@@ -1885,6 +1886,112 @@ This value is assigned from [Pool].DefaultMinGasPriceAllowed
 [Sequencer.EffectiveGasPrice]
 DefaultMinGasPriceAllowed=0
 ```
+
+### <a name="Sequencer_StreamServer"></a>10.9. `[Sequencer.StreamServer]`
+
+**Type:** : `object`
+**Description:** StreamServerCfg is the config for the stream server
+
+| Property                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                     |
+| ----------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------- |
+| - [Port](#Sequencer_StreamServer_Port )         | No      | integer | No         | -          | Port to listen on                                     |
+| - [Filename](#Sequencer_StreamServer_Filename ) | No      | string  | No         | -          | Filename of the binary data file                      |
+| - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
+| - [Log](#Sequencer_StreamServer_Log )           | No      | object  | No         | -          | Log is the log configuration                          |
+
+#### <a name="Sequencer_StreamServer_Port"></a>10.9.1. `Sequencer.StreamServer.Port`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Port to listen on
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer]
+Port=0
+```
+
+#### <a name="Sequencer_StreamServer_Filename"></a>10.9.2. `Sequencer.StreamServer.Filename`
+
+**Type:** : `string`
+
+**Default:** `""`
+
+**Description:** Filename of the binary data file
+
+**Example setting the default value** (""):
+```
+[Sequencer.StreamServer]
+Filename=""
+```
+
+#### <a name="Sequencer_StreamServer_Enabled"></a>10.9.3. `Sequencer.StreamServer.Enabled`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** Enabled is a flag to enable/disable the data streamer
+
+**Example setting the default value** (false):
+```
+[Sequencer.StreamServer]
+Enabled=false
+```
+
+#### <a name="Sequencer_StreamServer_Log"></a>10.9.4. `[Sequencer.StreamServer.Log]`
+
+**Type:** : `object`
+**Description:** Log is the log configuration
+
+| Property                                                  | Pattern | Type             | Deprecated | Definition | Title/Description |
+| --------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
+| - [Environment](#Sequencer_StreamServer_Log_Environment ) | No      | enum (of string) | No         | -          | -                 |
+| - [Level](#Sequencer_StreamServer_Log_Level )             | No      | enum (of string) | No         | -          | -                 |
+| - [Outputs](#Sequencer_StreamServer_Log_Outputs )         | No      | array of string  | No         | -          | -                 |
+
+##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.9.4.1. `Sequencer.StreamServer.Log.Environment`
+
+**Type:** : `enum (of string)`
+
+**Default:** `""`
+
+**Example setting the default value** (""):
+```
+[Sequencer.StreamServer.Log]
+Environment=""
+```
+
+Must be one of:
+* "production"
+* "development"
+
+##### <a name="Sequencer_StreamServer_Log_Level"></a>10.9.4.2. `Sequencer.StreamServer.Log.Level`
+
+**Type:** : `enum (of string)`
+
+**Default:** `""`
+
+**Example setting the default value** (""):
+```
+[Sequencer.StreamServer.Log]
+Level=""
+```
+
+Must be one of:
+* "debug"
+* "info"
+* "warn"
+* "error"
+* "dpanic"
+* "panic"
+* "fatal"
+
+##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.9.4.3. `Sequencer.StreamServer.Log.Outputs`
+
+**Type:** : `array of string`
 
 ## <a name="SequenceSender"></a>11. `[SequenceSender]`
 

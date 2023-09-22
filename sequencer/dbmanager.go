@@ -5,12 +5,17 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
+)
+
+const (
+	datastreamChannelMultiplier = 2
 )
 
 // Pool Loader and DB Updater
@@ -23,6 +28,8 @@ type dbManager struct {
 	ctx              context.Context
 	batchConstraints state.BatchConstraintsCfg
 	numberOfReorgs   uint64
+	streamServer     *datastreamer.StreamServer
+	dataToStream     chan DSL2FullBlock
 }
 
 func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
@@ -47,7 +54,10 @@ func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state
 		log.Error("failed to get number of reorgs: %v", err)
 	}
 
-	return &dbManager{ctx: ctx, cfg: config, txPool: txPool, state: state, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh, batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs}
+	return &dbManager{ctx: ctx, cfg: config, txPool: txPool,
+		state: state, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh,
+		batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs,
+		dataToStream: make(chan DSL2FullBlock, batchConstraints.MaxTxsPerBatch*datastreamChannelMultiplier)}
 }
 
 // Start stars the dbManager routines
@@ -59,6 +69,9 @@ func (d *dbManager) Start() {
 			d.checkIfReorg()
 		}
 	}()
+	if d.streamServer != nil {
+		go d.sendDataToStreamer()
+	}
 }
 
 // GetLastBatchNumber get the latest batch number from state
@@ -135,6 +148,55 @@ func (d *dbManager) loadFromPool() {
 	}
 }
 
+// sendDataToStreamer sends data to the data stream server
+func (d *dbManager) sendDataToStreamer() {
+	var err error
+	for {
+		// Read error from previous iteration
+		if err != nil {
+			err = d.streamServer.RollbackAtomicOp()
+			if err != nil {
+				log.Errorf("failed to rollback atomic op: %v", err)
+			}
+			d.streamServer = nil
+		}
+
+		// Read data from channel
+		fullL2Block := <-d.dataToStream
+
+		l2Block := fullL2Block.L2Block
+		l2Transactions := fullL2Block.Txs
+
+		if d.streamServer != nil {
+			err = d.streamServer.StartAtomicOp()
+			if err != nil {
+				log.Errorf("failed to start atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
+				continue
+			}
+
+			_, err = d.streamServer.AddStreamEntry(EntryTypeL2Block, l2Block.Encode())
+			if err != nil {
+				log.Errorf("failed to add stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
+				continue
+			}
+
+			for _, l2Transaction := range l2Transactions {
+				_, err = d.streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transaction.Encode())
+				if err != nil {
+					log.Errorf("failed to add l2tx stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
+					continue
+				}
+			}
+
+			err = d.streamServer.CommitAtomicOp()
+			if err != nil {
+				log.Errorf("failed to commit atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
+				continue
+			}
+		}
+	}
+}
+
 func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
 	txTracker, err := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP)
 	if err != nil {
@@ -176,7 +238,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	err = d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
+	l2BlockHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
 	if err != nil {
 		return err
 	}
@@ -184,6 +246,10 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	// Update batch l2 data
 	batch, err := d.state.GetBatchByNumber(ctx, tx.batchNumber, dbTx)
 	if err != nil {
+		err2 := dbTx.Rollback(ctx)
+		if err2 != nil {
+			log.Errorf("failed to rollback dbTx when getting batch that gave err: %v. Rollback err: %v", err2, err)
+		}
 		return err
 	}
 
@@ -197,6 +263,10 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	if !tx.isForcedBatch {
 		err = d.state.UpdateBatchL2Data(ctx, tx.batchNumber, batch.BatchL2Data, dbTx)
 		if err != nil {
+			err2 := dbTx.Rollback(ctx)
+			if err2 != nil {
+				log.Errorf("failed to rollback dbTx when updating batch l2 data that gave err: %v. Rollback err: %v", err2, err)
+			}
 			return err
 		}
 	}
@@ -213,6 +283,31 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	}
 
 	log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", tx.response.TxHash.String(), tx.batchNumber)
+
+	// Send data to streamer
+	if d.streamServer != nil {
+		l2Block := DSL2Block{
+			BatchNumber:    tx.batchNumber,
+			L2BlockNumber:  l2BlockHeader.Number.Uint64(),
+			Timestamp:      uint64(tx.timestamp.Unix()),
+			GlobalExitRoot: batch.GlobalExitRoot,
+			Coinbase:       tx.coinbase,
+		}
+
+		l2Transaction := DSL2Transaction{
+			BatchNumber:                 batch.BatchNumber,
+			EffectiveGasPricePercentage: uint8(tx.response.EffectivePercentage),
+			IsValid:                     1,
+			EncodedLength:               uint32(len(txData)),
+			Encoded:                     txData,
+		}
+
+		d.dataToStream <- DSL2FullBlock{
+			L2Block: l2Block,
+			Txs:     []DSL2Transaction{l2Transaction},
+		}
+	}
+
 	return nil
 }
 
