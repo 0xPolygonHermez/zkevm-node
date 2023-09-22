@@ -16,6 +16,12 @@ const (
 	EntryTypeL2Tx datastreamer.EntryType = 2
 )
 
+// DSL2FullBlock represents a data stream L2 full block and its transactions
+type DSL2FullBlock struct {
+	L2Block DSL2Block
+	Txs     []DSL2Transaction
+}
+
 // DSL2Block represents a data stream L2 block
 type DSL2Block struct {
 	BatchNumber    uint64
