@@ -131,7 +131,7 @@ func newWorker(etherman EthermanInterface) *workerEtherman {
 	return &workerEtherman{etherman: etherman, status: ethermanIdle}
 }
 
-func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange) error {
+func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange, sleepBefore time.Duration) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	if w.isBusyUnsafe() {
@@ -150,13 +150,17 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 		if wg != nil {
 			defer wg.Done()
 		}
+		if sleepBefore > 0 {
+			log.Debugf("worker: RollUpInfo(%s) sleeping %s before executing...", blockRange.String(), sleepBefore)
+			time.Sleep(sleepBefore)
+		}
 		now := time.Now()
 		fromBlock := blockRange.fromBlock
 		toBlock := blockRange.toBlock
 		blocks, order, err := w.etherman.GetRollupInfoByBlockRange(ctx.ctx, fromBlock, &toBlock)
 		var lastBlock *types.Block = nil
 		if err == nil && len(blocks) == 0 {
-			log.Debugf("worker: calling EthBlockByNumber(%v)", toBlock)
+			log.Debugf("worker: RollUpInfo(%s) calling EthBlockByNumber(%d)", blockRange.String(), toBlock)
 			lastBlock, err = w.etherman.EthBlockByNumber(ctx.ctx, toBlock)
 		}
 		duration := time.Since(now)

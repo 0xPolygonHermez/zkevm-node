@@ -10,6 +10,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
+const (
+	noSleepTime = time.Duration(0)
+)
+
 var (
 	errAllWorkersBusy   = errors.New("all workers are busy")
 	errRequiredEtherman = errors.New("required etherman")
@@ -18,7 +22,7 @@ var (
 // worker: is the expected functions of a worker
 type worker interface {
 	String() string
-	asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange) error
+	asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange, sleepBefore time.Duration) error
 	requestLastBlock(ctx context.Context) responseL1LastBlock
 	isIdle() bool
 }
@@ -96,10 +100,10 @@ func (w *workers) getResponseChannelForRollupInfo() chan responseRollupInfoByBlo
 	return w.chOutgoingRollupInfo
 }
 
-func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan responseRollupInfoByBlockRange, error) {
-	requestStrForDebug := fmt.Sprintf("GetRollupInfoByBlockRange(%s)", blockRange.String())
+func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange, sleepBefore time.Duration) (chan responseRollupInfoByBlockRange, error) {
+	requestStrForDebug := fmt.Sprintf("GetRollupInfoByBlockRange(%s, sleep=%s)", blockRange.String(), sleepBefore.String())
 	f := func(worker worker, ctx contextWithCancel, wg *sync.WaitGroup) error {
-		res := worker.asyncRequestRollupInfoByBlockRange(ctx, w.getResponseChannelForRollupInfo(), wg, blockRange)
+		res := worker.asyncRequestRollupInfoByBlockRange(ctx, w.getResponseChannelForRollupInfo(), wg, blockRange, sleepBefore)
 		return res
 	}
 	res := w.asyncGenericRequest(ctx, typeRequestRollupInfo, requestStrForDebug, f)

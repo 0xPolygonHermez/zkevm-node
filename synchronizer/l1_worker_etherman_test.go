@@ -36,7 +36,7 @@ func TestExploratoryWorker(t *testing.T) {
 		fromBlock: 100,
 		toBlock:   20000,
 	}
-	err = worker.asyncRequestRollupInfoByBlockRange(newContextWithNone(context.Background()), ch, nil, blockRange)
+	err = worker.asyncRequestRollupInfoByBlockRange(newContextWithNone(context.Background()), ch, nil, blockRange, noSleepTime)
 	require.NoError(t, err)
 	result := <-ch
 	require.Equal(t, result.generic.err.Error(), "not found")
@@ -52,7 +52,7 @@ func TestIfRollupRequestReturnsErrorDontRequestEthBlockByNumber(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	expectedCallsForEmptyRollupInfo(mockEtherman, blockRange, errors.New("error"), nil)
-	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, &wg, blockRange)
+	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, &wg, blockRange, noSleepTime)
 	require.NoError(t, err)
 	wg.Wait()
 }
@@ -67,7 +67,7 @@ func TestIfWorkerIsBusyReturnsAnErrorUpdateWaitGroupAndCancelContext(t *testing.
 	var wg sync.WaitGroup
 	wg.Add(1)
 	sut.setStatus(ethermanWorking)
-	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, &wg, blockRange)
+	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, &wg, blockRange, noSleepTime)
 	require.Error(t, err)
 	wg.Wait()
 	select {
@@ -88,7 +88,7 @@ func TestGivenOkRequestWhenFinishThenCancelTheContext(t *testing.T) {
 	}
 	ctx := newContextWithTimeout(context.Background(), time.Second)
 	expectedCallsForEmptyRollupInfo(mockEtherman, blockRange, nil, nil)
-	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, nil, blockRange)
+	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, nil, blockRange, noSleepTime)
 	require.NoError(t, err)
 	result := <-ch
 	require.NoError(t, result.generic.err)
@@ -97,6 +97,22 @@ func TestGivenOkRequestWhenFinishThenCancelTheContext(t *testing.T) {
 	default:
 		require.Fail(t, "The context should be cancelled")
 	}
+}
+
+func TestGivenOkRequestWithSleepWhenFinishThenMustExuctedTheSleep(t *testing.T) {
+	sut, mockEtherman, ch := setupWorkerEthermanTest(t)
+	blockRange := blockRange{
+		fromBlock: 100,
+		toBlock:   20000,
+	}
+	ctx := newContextWithTimeout(context.Background(), time.Second)
+	expectedCallsForEmptyRollupInfo(mockEtherman, blockRange, nil, nil)
+	startTime := time.Now()
+	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, nil, blockRange, time.Millisecond*500)
+	require.NoError(t, err)
+	result := <-ch
+	require.NoError(t, result.generic.err)
+	require.GreaterOrEqual(t, time.Since(startTime).Milliseconds(), int64(500))
 }
 
 func TestCheckIsIdleFunction(t *testing.T) {

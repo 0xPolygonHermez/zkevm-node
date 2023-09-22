@@ -62,7 +62,7 @@ type workersInterface interface {
 	stop()
 	// waits until all workers have finish the current task
 	waitFinishAllWorkers()
-	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan responseRollupInfoByBlockRange, error)
+	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange, sleepBefore time.Duration) (chan responseRollupInfoByBlockRange, error)
 	requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) responseL1LastBlock
 	getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange
 	String() string
@@ -368,7 +368,7 @@ func (l *l1RollupInfoProducer) launchWork() int {
 			accDebugStr += "[NoNextRange] "
 			break
 		}
-		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, *br)
+		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, *br, noSleepTime)
 		if err != nil {
 			if errors.Is(err, errAllWorkersBusy) {
 				accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())

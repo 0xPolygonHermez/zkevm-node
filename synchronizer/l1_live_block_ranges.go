@@ -7,7 +7,8 @@ import (
 
 type liveBlockRangeItem[T any] struct {
 	blockRange blockRange
-	tag        T
+	// Tag is a generic field to store any kind of data as extra information, you can use to store related information
+	tag T
 }
 
 type liveBlockRangesGeneric[T any] struct {
