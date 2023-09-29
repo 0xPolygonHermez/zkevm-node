@@ -152,7 +152,14 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 		}
 		if sleepBefore > 0 {
 			log.Debugf("worker: RollUpInfo(%s) sleeping %s before executing...", blockRange.String(), sleepBefore)
-			time.Sleep(sleepBefore)
+			select {
+			case <-ctx.ctx.Done():
+				log.Debugf("worker: RollUpInfo(%s) cancelled in sleep", blockRange.String())
+				w.setStatus(ethermanIdle)
+				ch <- newResponseRollupInfo(context.Canceled, 0, typeRequestRollupInfo, &rollupInfoByBlockRangeResult{blockRange: blockRange})
+				return
+			case <-time.After(sleepBefore):
+			}
 		}
 		now := time.Now()
 		fromBlock := blockRange.fromBlock
@@ -166,6 +173,10 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 		duration := time.Since(now)
 		result := newResponseRollupInfo(err, duration, typeRequestRollupInfo, &rollupInfoByBlockRangeResult{blockRange, blocks, order, lastBlock})
 		w.setStatus(ethermanIdle)
+		if !errors.Is(err, context.Canceled) {
+			log.Debugf("worker: RollUpInfo(%s) cancelled result err=%s", blockRange.String(), err)
+
+		}
 		ch <- result
 	}
 	go launch()

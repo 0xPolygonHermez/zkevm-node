@@ -127,6 +127,8 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []Etherman
 	}
 	l1DataRetriever := newL1DataRetriever(cfgProducer, etherManForL1, chIncommingRollupInfo)
 	l1SyncOrchestration := newL1SyncOrchestration(ctx, l1DataRetriever, L1DataProcessor)
+	externalControl := newExternalControl(l1DataRetriever, l1SyncOrchestration)
+	externalControl.start()
 	return l1SyncOrchestration, nil
 }
 

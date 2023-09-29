@@ -31,8 +31,8 @@ func TestGivenOrquestrationWhenHappyPathThenReturnsBlockAndNoErrorAndProducerIsR
 	returnedBlock, err := sut.start()
 	require.NoError(t, err)
 	require.Equal(t, block, *returnedBlock)
-	require.Equal(t, true, sut.producerStarted)
-	require.Equal(t, false, sut.consumerStarted)
+	require.Equal(t, true, sut.producerRunning)
+	require.Equal(t, false, sut.consumerRunning)
 }
 
 func setupOrchestrationTest(t *testing.T, ctx context.Context) (*l1SyncOrchestration, mocksOrgertration) {
