@@ -1287,7 +1287,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 
 		// Find txs to be processed and included in the trusted state
 		if *s.trustedState.lastStateRoot == batches[1].StateRoot {
-			prevBatch := uint64(trustedBatch.Number)-1
+			prevBatch := uint64(trustedBatch.Number) - 1
 			log.Info("Cleaning state until batch: ", prevBatch)
 			// Delete txs that were stored before restart. We need to reprocess all txs because the intermediary stateRoot is only stored in memory
 			err := s.state.ResetTrustedState(s.ctx, prevBatch, dbTx)
