@@ -17,6 +17,12 @@ const (
 	sleepTimeToReadFile     = 500 * time.Millisecond
 )
 
+// This is a local end-point in filesystem to send commands to a running synchronizer
+// this is used for debugging purposes, to provide a way to reproduce some situations that are difficult
+// to reproduce in a real test.
+// It accept next commands:
+// l1_producer_stop: stop producer
+// l1_orchestrator_reset: reset orchestrator to a given block number
 type externalControl struct {
 	producer     *l1RollupInfoProducer
 	orquestrator *l1SyncOrchestration
