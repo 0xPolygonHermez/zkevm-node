@@ -931,7 +931,8 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				return err
 			}
 
-			// Clean trustedState sync variables
+			// Clean trustedState sync variables to avoid sync the trusted state from the wrong starting point.
+			// This wrong starting point would force the trusted sync to clean the virtualization of the batch reaching an inconsistency.
 			s.trustedState.lastTrustedBatches = nil
 			s.trustedState.lastStateRoot = nil
 
@@ -1016,7 +1017,8 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 		log.Errorf("error getting lastVirtualBatchNumber. BlockNumber: %d, error: %v", block.BlockNumber, err)
 		return err
 	}
-	// Clean trustedState sync variables
+	// Clean trustedState sync variables to avoid sync the trusted state from the wrong starting point.
+	// This wrong starting point would force the trusted sync to clean the virtualization of the batch reaching an inconsistency.
 	s.trustedState.lastTrustedBatches = nil
 	s.trustedState.lastStateRoot = nil
 
