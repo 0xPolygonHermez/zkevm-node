@@ -1005,10 +1005,15 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				return err
 			}
 
+			// Clean trustedState sync variables to avoid sync the trusted state from the wrong starting point.
+			// This wrong starting point would force the trusted sync to clean the virtualization of the batch reaching an inconsistency.
+			s.trustedState.lastTrustedBatches = nil
+			s.trustedState.lastStateRoot = nil
+
 			// Reset trusted state
 			previousBatchNumber := batch.BatchNumber - 1
 			if tBatch.StateRoot == (common.Hash{}) {
-				log.Warn("cleaning state before inserting batch from L1. Clean until batch: %d", previousBatchNumber)
+				log.Warnf("cleaning state before inserting batch from L1. Clean until batch: %d", previousBatchNumber)
 			} else {
 				log.Warnf("missmatch in trusted state detected, discarding batches until batchNum %d", previousBatchNumber)
 			}
@@ -1086,7 +1091,12 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 		log.Errorf("error getting lastVirtualBatchNumber. BlockNumber: %d, error: %v", block.BlockNumber, err)
 		return err
 	}
-	// Second, reset trusted state
+	// Clean trustedState sync variables to avoid sync the trusted state from the wrong starting point.
+	// This wrong starting point would force the trusted sync to clean the virtualization of the batch reaching an inconsistency.
+	s.trustedState.lastTrustedBatches = nil
+	s.trustedState.lastStateRoot = nil
+
+	// Reset trusted state
 	err = s.state.ResetTrustedState(s.ctx, lastVirtualizedBatchNumber, dbTx) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
 	if err != nil {
 		log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", lastVirtualizedBatchNumber, block.BlockNumber, err)
@@ -1354,8 +1364,10 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 
 		// Find txs to be processed and included in the trusted state
 		if *s.trustedState.lastStateRoot == batches[1].StateRoot {
+			prevBatch := uint64(trustedBatch.Number) - 1
+			log.Info("Cleaning state until batch: ", prevBatch)
 			// Delete txs that were stored before restart. We need to reprocess all txs because the intermediary stateRoot is only stored in memory
-			err := s.state.ResetTrustedState(s.ctx, uint64(trustedBatch.Number)-1, dbTx)
+			err := s.state.ResetTrustedState(s.ctx, prevBatch, dbTx)
 			if err != nil {
 				log.Error("error resetting trusted state. Error: ", err)
 				return nil, nil, err
@@ -1382,6 +1394,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				if forkID >= forkID5 {
 					syncedEfficiencyPercentages = syncedEfficiencyPercentages[len(storedTxs):]
 				}
+				log.Infof("Processing %d new txs with forkID: %d", len(txsToBeAdded), forkID)
 
 				request.Transactions, err = state.EncodeTransactions(txsToBeAdded, syncedEfficiencyPercentages, forkID)
 				if err != nil {
