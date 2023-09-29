@@ -75,7 +75,8 @@ func NewSynchronizer(
 	zkEVMClient zkEVMClientInterface,
 	eventLog *event.EventLog,
 	genesis state.Genesis,
-	cfg Config) (Synchronizer, error) {
+	cfg Config,
+	runInDevelopmentMode bool) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
 
@@ -98,7 +99,7 @@ func NewSynchronizer(
 	}
 	if cfg.UseParallelModeForL1Synchronization {
 		var err error
-		res.l1SyncOrchestration, err = newL1SyncParallel(ctx, cfg, etherManForL1, res)
+		res.l1SyncOrchestration, err = newL1SyncParallel(ctx, cfg, etherManForL1, res, runInDevelopmentMode)
 		if err != nil {
 			log.Fatalf("Can't initialize L1SyncParallel. Error: %s", err)
 		}
@@ -108,7 +109,7 @@ func NewSynchronizer(
 
 var waitDuration = time.Duration(0)
 
-func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer) (*l1SyncOrchestration, error) {
+func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) (*l1SyncOrchestration, error) {
 	chIncommingRollupInfo := make(chan l1SyncMessage, cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
 	cfgConsumer := configConsumer{
 		numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData: cfg.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo,
@@ -127,8 +128,11 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []Etherman
 	}
 	l1DataRetriever := newL1DataRetriever(cfgProducer, etherManForL1, chIncommingRollupInfo)
 	l1SyncOrchestration := newL1SyncOrchestration(ctx, l1DataRetriever, L1DataProcessor)
-	externalControl := newExternalControl(l1DataRetriever, l1SyncOrchestration)
-	externalControl.start()
+	if runExternalControl {
+		log.Infof("Starting external control")
+		externalControl := newExternalControl(l1DataRetriever, l1SyncOrchestration)
+		externalControl.start()
+	}
 	return l1SyncOrchestration, nil
 }
 

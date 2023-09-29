@@ -146,14 +146,6 @@ func (l *l1SyncOrchestration) orchestrate(ctx context.Context, wg *sync.WaitGrou
 			// Producer has finished
 			log.Infof("orchestration: producer has finished. Error: %s, stopping consumer", err)
 			l.consumer.StopAfterProcessChannelQueue()
-			// if l.isStarted {
-			// 	log.Warnf("orchestration: consumer have finished! respawn. Error:%s", err)
-			// 	// to avoid respawn too fast it sleeps a bit
-			// 	time.Sleep(time.Second)
-			// 	l.launchProducer(ctx, chProducer, wg)
-			// } else {
-			// 	log.Infof("orchestration: consumer has finished. Error: %s", err)
-			// }
 		case err = <-chConsumer:
 			if err != nil && err != errAllWorkersBusy {
 				log.Warnf("orchestration: consumer have finished with Error: %s", err)
