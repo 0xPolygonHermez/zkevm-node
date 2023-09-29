@@ -32,8 +32,10 @@ jobs:
       env:
         GOARCH: ${{ matrix.goarch }}
 
-    - uses: actions/setup-python@v1
-    - uses: BSFishy/pip-action@v1
+    - uses: actions/setup-python@v2
+      with:
+        python-version: 3.10
+    - uses: BSFishy/pip-action@v2
       with:
         packages: |
           json-schema-for-humans
