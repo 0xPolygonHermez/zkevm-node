@@ -9,19 +9,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
-type l1OchestrationActionEnum int8
-
-const (
-	// Start producer and consumer
-	l1OrchestrationActionRun     l1OchestrationActionEnum = 0
-	// Stop producer and consumer, reset producer and run producer
-	l1OrchestrationActionReset  l1OchestrationActionEnum = 1
-	// Stop producer, wait to stop consumer 
-	l1OrchestrationActionStop   l1OchestrationActionEnum = 2
-	// Stop everything inmediately
-	l1OrchestrationActionForceStop   l1OchestrationActionEnum = 3
-)
-
 /*
 This object is used to coordinate the producer and the consumer process.
 */
@@ -78,7 +65,6 @@ func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
 	}
 	l.producer.ResetAndStop(startingBlockNumber)
 	// If orchestrator is running then producer is going to be started by orchestrate() select  function when detects that producer has finished
-
 }
 
 func (l *l1SyncOrchestration) start() (*state.Block, error) {
@@ -93,8 +79,6 @@ func (l *l1SyncOrchestration) isProducerRunning() bool {
 	defer l.mutex.Unlock()
 	return l.producerRunning
 }
-
-
 
 func (l *l1SyncOrchestration) launchProducer(ctx context.Context, chProducer chan error, wg *sync.WaitGroup) {
 	l.mutex.Lock()
@@ -147,39 +131,6 @@ func (l *l1SyncOrchestration) launchConsumer(ctx context.Context, chConsumer cha
 		log.Infof("orchestration: consumer finished")
 		chConsumer <- err
 	}()
-}
-
-
-// USE CASES:
-// CASE 001: initial run
-//    - 001.1: launch producer
-//    - 001.2: launch consumer
-//    - 001.3: wait for producer to finish
-// CASE 002: relaunch continue sync process with no errors
-//    - 002.1: be sure that producer is running
-//    - 002.2: launch consumer
-// CASE 0003: reset sync process
-// 	  - 003.1: stop producer
-//    - 003.2: stop consumer
-// 	  - 003.3: reset producer
-// 	  - 003.4: discard all messages in consumer queue
-//    - 003.5: launch producer
-//    - 003.6: launch consumer
-// CASE 0004: normal stop 
-//    - 004.1: stop producer
-//    - 004.2: stop consumer
-//    - 004.3: wait for producer to finish
-//    - 004.4: wait for consumer to finish
-func (l *l1SyncOrchestration) controlRoutine(ctx context.Context) {
-	for !done {
-		select {
-		case <-ctx.Done():
-			log.Warnf("orchestration: context cancelled")
-			done = true
-		case err = <-chProducer:
-
-		}
-		
 }
 
 func (l *l1SyncOrchestration) orchestrate(ctx context.Context, wg *sync.WaitGroup, chProducer chan error, chConsumer chan error) (*state.Block, error) {

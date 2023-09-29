@@ -13,6 +13,8 @@ import (
 
 const (
 	externalControlFilename = "/tmp/synchronizer_in"
+	filePermissions         = 0644
+	sleepTimeToReadFile     = 500 * time.Millisecond
 )
 
 type externalControl struct {
@@ -26,7 +28,7 @@ func newExternalControl(producer *l1RollupInfoProducer, orquestrator *l1SyncOrch
 
 func (e *externalControl) start() {
 	log.Infof("EXT:start: starting external control opening %s", externalControlFilename)
-	file, err := os.OpenFile(externalControlFilename, os.O_APPEND|os.O_CREATE|os.O_RDONLY, 0644)
+	file, err := os.OpenFile(externalControlFilename, os.O_APPEND|os.O_CREATE|os.O_RDONLY, filePermissions)
 	if err != nil {
 		log.Warnf("EXT:start:error opening file %s: %v", externalControlFilename, err)
 		return
@@ -49,7 +51,7 @@ func (e *externalControl) readFile(file *os.File) {
 			if err != nil {
 				if err == io.EOF {
 					// without this sleep you would hogg the CPU
-					time.Sleep(500 * time.Millisecond)
+					time.Sleep(sleepTimeToReadFile)
 					continue
 				}
 
@@ -57,7 +59,6 @@ func (e *externalControl) readFile(file *os.File) {
 			}
 			log.Infof("EXT:readFile: new command: %s", line)
 			e.process(line)
-
 		}
 	}
 }
@@ -102,5 +103,4 @@ func (e *externalControl) cmdL1ProducerStop(args []string) {
 	log.Infof("EXT:cmdL1Stop: calling producer stop")
 	e.producer.Stop()
 	log.Infof("EXT:cmdL1Stop: calling producer stop returned")
-
 }

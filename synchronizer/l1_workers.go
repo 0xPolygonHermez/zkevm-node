@@ -91,7 +91,6 @@ func (w *workers) stop() {
 			log.Debugf("workers: stopping worker[%d] %s", i, wd.String())
 		}
 		wd.ctx.cancel()
-
 	}
 	w.waitFinishAllWorkers()
 }
