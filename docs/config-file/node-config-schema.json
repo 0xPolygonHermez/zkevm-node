@@ -350,11 +350,6 @@
 					"description": "EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.",
 					"default": true
 				},
-				"TraceBatchUseHTTPS": {
-					"type": "boolean",
-					"description": "TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)\nto do the parallel requests to RPC.debug_traceTransaction endpoint",
-					"default": true
-				},
 				"BatchRequestsEnabled": {
 					"type": "boolean",
 					"description": "BatchRequestsEnabled defines if the Batch requests are enabled or disabled",
