@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData = 5
+	minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData = 5
 	minAcceptableTimeWaitingForNewRollupInfoData                       = 1 * time.Second
 )
 
