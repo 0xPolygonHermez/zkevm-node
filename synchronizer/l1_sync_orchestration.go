@@ -35,7 +35,7 @@ type l1SyncOrchestration struct {
 	producerRunning bool
 	consumerRunning bool
 	// The orchestrator is running?
-	isStarted  bool
+	isRunning  bool
 	wg         sync.WaitGroup
 	chProducer chan error
 	chConsumer chan error
@@ -60,7 +60,7 @@ func newL1SyncOrchestration(ctx context.Context, producer l1RollupProducerInterf
 
 func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
 	log.Warnf("Reset L1 sync process to blockNumber %d", startingBlockNumber)
-	if l.isStarted {
+	if l.isRunning {
 		log.Infof("orchestration: reset(%d) is going to stop producer", startingBlockNumber)
 	}
 	l.producer.ResetAndStop(startingBlockNumber)
@@ -68,7 +68,7 @@ func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
 }
 
 func (l *l1SyncOrchestration) start() (*state.Block, error) {
-	l.isStarted = true
+	l.isRunning = true
 	l.launchProducer(l.ctxParent, l.chProducer, &l.wg)
 	l.launchConsumer(l.ctxParent, l.chConsumer, &l.wg)
 	return l.orchestrate(l.ctxParent, &l.wg, l.chProducer, l.chConsumer)
@@ -155,7 +155,7 @@ func (l *l1SyncOrchestration) orchestrate(ctx context.Context, wg *sync.WaitGrou
 			done = true
 		}
 	}
-	l.isStarted = false
+	l.isRunning = false
 	retBlock, ok := l.consumer.GetLastEthBlockSynced()
 
 	if err == nil {

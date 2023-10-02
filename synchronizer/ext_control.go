@@ -23,6 +23,10 @@ const (
 // It accept next commands:
 // l1_producer_stop: stop producer
 // l1_orchestrator_reset: reset orchestrator to a given block number
+//
+// example of usage (first you need to run the service):
+// echo "l1_producer_stop" >> /tmp/synchronizer_in
+// echo "l1_orchestrator_reset|8577060" >> /tmp/synchronizer_in
 type externalControl struct {
 	producer     *l1RollupInfoProducer
 	orquestrator *l1SyncOrchestration
