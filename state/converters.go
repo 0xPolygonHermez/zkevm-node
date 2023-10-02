@@ -126,11 +126,6 @@ func convertToReadWriteAddresses(addresses map[string]*executor.InfoReadWrite) (
 func (s *State) convertToProcessTransactionResponse(responses []*executor.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for _, response := range responses {
-		trace, err := convertToStructLogArray(response.ExecutionTrace)
-		if err != nil {
-			return nil, err
-		}
-
 		result := new(ProcessTransactionResponse)
 		result.TxHash = common.BytesToHash(response.TxHash)
 		result.Type = response.Type
@@ -143,8 +138,7 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
 		result.ChangesStateRoot = IsStateRootChanged(response.Error)
-		result.ExecutionTrace = *trace
-		callTrace, err := convertToExecutorTrace(response.CallTrace)
+		callTrace, err := convertToCallTrace(response.CallTrace)
 		if err != nil {
 			return nil, err
 		}
@@ -227,34 +221,6 @@ func convertToTopics(responses [][]byte) []common.Hash {
 	return results
 }
 
-func convertToStructLogArray(responses []*executor.ExecutionTraceStep) (*[]instrumentation.StructLog, error) {
-	results := make([]instrumentation.StructLog, 0, len(responses))
-
-	for _, response := range responses {
-		convertedStack, err := convertToBigIntArray(response.Stack)
-		if err != nil {
-			return nil, err
-		}
-		result := new(instrumentation.StructLog)
-		result.Pc = response.Pc
-		result.Op = response.Op
-		result.Gas = response.RemainingGas
-		result.GasCost = response.GasCost
-		result.Memory = response.Memory
-		result.MemorySize = int(response.MemorySize)
-		result.MemoryOffset = int(response.MemoryOffset)
-		result.Stack = convertedStack
-		result.ReturnData = response.ReturnData
-		result.Storage = convertToProperMap(response.Storage)
-		result.Depth = int(response.Depth)
-		result.RefundCounter = response.GasRefund
-		result.Err = executor.RomErr(response.Error)
-
-		results = append(results, *result)
-	}
-	return &results, nil
-}
-
 func convertToBigIntArray(responses []string) ([]*big.Int, error) {
 	results := make([]*big.Int, 0, len(responses))
 
@@ -280,8 +246,8 @@ func convertToProperMap(responses map[string]string) map[common.Hash]common.Hash
 	return results
 }
 
-func convertToExecutorTrace(callTrace *executor.CallTrace) (*instrumentation.ExecutorTrace, error) {
-	trace := new(instrumentation.ExecutorTrace)
+func convertToCallTrace(callTrace *executor.CallTrace) (*instrumentation.CallTrace, error) {
+	trace := new(instrumentation.CallTrace)
 	if callTrace != nil {
 		trace.Context = convertToContext(callTrace.Context)
 		steps, err := convertToInstrumentationSteps(callTrace.Steps)
