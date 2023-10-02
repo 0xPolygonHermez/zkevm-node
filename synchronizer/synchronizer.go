@@ -112,7 +112,7 @@ var waitDuration = time.Duration(0)
 func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) (*l1SyncOrchestration, error) {
 	chIncommingRollupInfo := make(chan l1SyncMessage, cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
 	cfgConsumer := configConsumer{
-		numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData: cfg.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo,
+		numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData: cfg.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo,
 		acceptableTimeWaitingForNewRollupInfoData:                       cfg.L1ParallelSynchronization.PerformanceCheck.AcceptableTimeWaitingForNewRollupInfo.Duration,
 	}
 	L1DataProcessor := newL1RollupInfoConsumer(cfgConsumer, sync, chIncommingRollupInfo)

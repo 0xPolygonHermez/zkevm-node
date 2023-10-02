@@ -26,7 +26,7 @@ var (
 )
 
 type configConsumer struct {
-	numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData int
+	numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData int
 	acceptableTimeWaitingForNewRollupInfoData                       time.Duration
 }
 
@@ -51,8 +51,8 @@ func newL1RollupInfoConsumer(cfg configConsumer,
 	if cfg.acceptableTimeWaitingForNewRollupInfoData < minAcceptableTimeWaitingForNewRollupInfoData {
 		log.Warnf("consumer: the acceptableTimeWaitingForNewRollupInfoData is too low (%s) minimum recommended %s", cfg.acceptableTimeWaitingForNewRollupInfoData, minAcceptableTimeWaitingForNewRollupInfoData)
 	}
-	if cfg.numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData < minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData {
-		log.Warnf("consumer: the numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData is too low (%d) minimum recommended  %d", cfg.numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData, minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData)
+	if cfg.numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData < minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData {
+		log.Warnf("consumer: the numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData is too low (%d) minimum recommended  %d", cfg.numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData, minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData)
 	}
 
 	return &l1RollupInfoConsumer{
