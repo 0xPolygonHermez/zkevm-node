@@ -164,13 +164,14 @@ func newL1DataRetriever(cfg configProducer, ethermans []EthermanInterface, outgo
 // ResetAndStop: reset the object and stop the current process. Set first block to be retrieved
 func (l *l1RollupInfoProducer) ResetAndStop(startingBlockNumber uint64) {
 	log.Infof("producer: Reset L1 sync process to blockNumber %d st=%s", startingBlockNumber, l.toStringBrief())
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
 	log.Debugf("producer: Reset(%d): stop previous run (state=%s)", startingBlockNumber, l.status.String())
-	l.stopUnsafe()
+	l.Stop()
+
+	l.mutex.Lock()
 	log.Debugf("producer: Reset(%d): syncStatus.reset", startingBlockNumber)
 	l.syncStatus.reset(startingBlockNumber)
 	l.statistics.reset(startingBlockNumber)
+	l.mutex.Unlock()
 	// Empty pending rollupinfos
 	log.Debugf("producer: Reset(%d): emptyChannel", startingBlockNumber)
 	l.emptyChannel()
@@ -181,21 +182,17 @@ func (l *l1RollupInfoProducer) ResetAndStop(startingBlockNumber uint64) {
 
 func (l *l1RollupInfoProducer) Stop() {
 	log.Debugf("producer: stop() called st=%s", l.toStringBrief())
+
+	if l.status != producerIdle {
+		log.Infof("producer:Stop:was running -> stopping producer")
+	}
+	l.ctxWithCancel.cancel()
+	l.status = producerIdle
+
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	l.stopUnsafe()
-}
-
-// stopUnsafe: stop the object without locking the mutex (need to be locked before call it!)
-func (l *l1RollupInfoProducer) stopUnsafe() {
-	if l.status != producerIdle {
-		log.Infof("producer: stopping producer")
-		l.ctxWithCancel.cancel()
-		l.status = producerIdle
-	}
-	log.Debugf("producer: stopUnsafe: stop workers (%s)", l.workers.String())
+	log.Debugf("producer:Stop: stop workers and wait for finish (%s)", l.workers.String())
 	l.workers.stop()
-	l.workers.waitFinishAllWorkers()
 }
 
 func (l *l1RollupInfoProducer) emptyChannel() {

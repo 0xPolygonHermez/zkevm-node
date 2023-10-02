@@ -88,12 +88,11 @@ func (w *workers) stop() {
 	for i := range w.workers {
 		wd := &w.workers[i]
 		if !wd.worker.isIdle() {
-			w.workers[i].ctx.cancel()
+			log.Debugf("workers: stopping worker[%d] %s", i, wd.String())
 		}
+		wd.ctx.cancel()
 	}
-	for i := 0; i < len(w.waitGroups); i++ {
-		w.waitGroups[i].Wait()
-	}
+	w.waitFinishAllWorkers()
 }
 
 func (w *workers) getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange {
@@ -191,9 +190,9 @@ func (w *workers) onResponseRollupInfo(v responseRollupInfoByBlockRange) {
 }
 
 func (w *workers) waitFinishAllWorkers() {
-	for i := range w.waitGroups {
-		wg := &w.waitGroups[i]
-		wg.Wait()
+	for i := 0; i < len(w.waitGroups); i++ {
+		log.Debugf("workers: waiting for waitGroup[%d]", i)
+		w.waitGroups[i].Wait()
 	}
 }
 
