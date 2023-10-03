@@ -201,37 +201,35 @@ func fillDefaultValuesPartial(schema *jsonschema.Schema, default_config interfac
 	if schema.Properties == nil {
 		return
 	}
-	for _, key := range schema.Properties.Keys() {
+	for pair := schema.Properties.Oldest(); pair != nil; pair = pair.Next() {
+		key := pair.Key
+		value_schema := pair.Value
 		log.Debugf("fillDefaultValuesPartial: key: %s", key)
-		value, ok := schema.Properties.Get(key)
-		if ok {
-			value_schema, _ := value.(*jsonschema.Schema)
-			default_value := getValueFromStruct(default_config, key)
-			if default_value.IsValid() && variantFieldIsSet(&value_schema.Default) {
-				switch value_schema.Type {
-				case "array":
-					if default_value.Kind() == reflect.ValueOf(common.Address{}).Kind() {
-						if !default_value.IsZero() {
-							def_value := default_value.Interface()
-							value_schema.Default = def_value
-						}
-					} else {
-						if !default_value.IsZero() && !default_value.IsNil() {
-							def_value := default_value.Interface()
-							value_schema.Default = def_value
-						}
+		default_value := getValueFromStruct(default_config, key)
+		if default_value.IsValid() && variantFieldIsSet(&value_schema.Default) {
+			switch value_schema.Type {
+			case "array":
+				if default_value.Kind() == reflect.ValueOf(common.Address{}).Kind() {
+					if !default_value.IsZero() {
+						def_value := default_value.Interface()
+						value_schema.Default = def_value
 					}
-				case "object":
-					fillDefaultValuesPartial(value_schema, default_value.Interface())
-				default: // string, number, integer, boolean
-					if default_value.Type() == reflect.TypeOf(types.Duration{}) {
-						duration, ok := default_value.Interface().(types.Duration)
-						if ok {
-							value_schema.Default = duration.String()
-						}
-					} else {
-						value_schema.Default = default_value.Interface()
+				} else {
+					if !default_value.IsZero() && !default_value.IsNil() {
+						def_value := default_value.Interface()
+						value_schema.Default = def_value
 					}
+				}
+			case "object":
+				fillDefaultValuesPartial(value_schema, default_value.Interface())
+			default: // string, number, integer, boolean
+				if default_value.Type() == reflect.TypeOf(types.Duration{}) {
+					duration, ok := default_value.Interface().(types.Duration)
+					if ok {
+						value_schema.Default = duration.String()
+					}
+				} else {
+					value_schema.Default = default_value.Interface()
 				}
 			}
 		}
@@ -243,17 +241,14 @@ func cleanRequiredFields(schema *jsonschema.Schema) {
 	if schema.Properties == nil {
 		return
 	}
-	for _, key := range schema.Properties.Keys() {
-		value, ok := schema.Properties.Get(key)
-		if ok {
-			value_schema, _ := value.(*jsonschema.Schema)
-			value_schema.Required = []string{}
-			switch value_schema.Type {
-			case "object":
-				cleanRequiredFields(value_schema)
-			case "array":
-				cleanRequiredFields(value_schema.Items)
-			}
+	for pair := schema.Properties.Oldest(); pair != nil; pair = pair.Next() {
+		value_schema := pair.Value
+		value_schema.Required = []string{}
+		switch value_schema.Type {
+		case "object":
+			cleanRequiredFields(value_schema)
+		case "array":
+			cleanRequiredFields(value_schema.Items)
 		}
 	}
 }
