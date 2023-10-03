@@ -42,10 +42,8 @@ cloud.google.com/go/storage v1.14.0/go.mod h1:GrKmX003DSIwi9o29oFT7YDnHYwZoctc3f
 dario.cat/mergo v1.0.0 h1:AGCNq9Evsj31mOgNPcLyXc+4PNABt905YmuqPYYpBWk=
 dario.cat/mergo v1.0.0/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
-github.com/0xPolygon/cdk-data-availability v0.0.0-20230922164150-b8759d349fe3 h1:M6Xd7f28+YQ/ZLsVndgbfy8dM/RYZlzzl2kHm+HsSP8=
-github.com/0xPolygon/cdk-data-availability v0.0.0-20230922164150-b8759d349fe3/go.mod h1:VXN+G2NHHlHMqH2NK7OOT7rk35+RI8WGsbNPdzFmCkY=
-github.com/0xPolygon/cdk-validium-node v0.0.1 h1:d6N5vwiRHwLzMlSJBiosyCyza4iMcmi9Q13gB3vrhi0=
-github.com/0xPolygon/cdk-validium-node v0.0.1/go.mod h1:fRivadZM1gxM3n00U1jIt/udwYaN/ktap0GRGiwLBug=
+github.com/0xPolygon/cdk-data-availability v0.0.0-20231003102140-28071e44d96b h1:N0uFUJlvoOE09WYP9mkhuEjnRK1VB0kgjGtukQTOriU=
+github.com/0xPolygon/cdk-data-availability v0.0.0-20231003102140-28071e44d96b/go.mod h1:IDdj1rFjg6BkgrcAV5xKpMoXQV40vJFk0iTp3ziENZA=
 github.com/0xPolygonHermez/zkevm-data-streamer v0.0.6 h1:jdK1BMWftw0vHFlxFc+pi202rH+3av1x/bQ20NXFINk=
 github.com/0xPolygonHermez/zkevm-data-streamer v0.0.6/go.mod h1:PNLzimb4objx43SXmVlzEjp2lUFxeeq+WpQumm1PUY0=
 github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9/go.mod h1:bOvUY6CB00SOBii9/FifXqc0awNKxLFCL/+pkDPuyl8=

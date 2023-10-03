@@ -38,7 +38,6 @@ require (
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
-	github.com/0xPolygon/cdk-validium-node v0.0.1 // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
@@ -161,6 +160,6 @@ require (
 )
 
 require (
-	github.com/0xPolygon/cdk-data-availability v0.0.0-20230922164150-b8759d349fe3
+	github.com/0xPolygon/cdk-data-availability v0.0.0-20231003102140-28071e44d96b
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
 )

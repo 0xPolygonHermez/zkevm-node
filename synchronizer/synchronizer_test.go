@@ -33,6 +33,7 @@ type mocks struct {
 	DbTx         *dbTxMock
 	ZKEVMClient  *zkEVMClientMock
 	//EventLog     *eventLogMock
+	DataCommitteeClientFactory *dataCommitteeClientFactoryMock
 }
 
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
@@ -92,6 +93,7 @@ func TestForcedBatch(t *testing.T) {
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
+		IsRollup:                            true,
 		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
 		SyncChunkSize:                       10,
 		UseParallelModeForL1Synchronization: false,
@@ -177,16 +179,14 @@ func TestForcedBatch(t *testing.T) {
 
 			t := time.Now()
 			sequencedBatch := etherman.SequencedBatch{
-				BatchNumber:   uint64(2),
-				Coinbase:      common.HexToAddress("0x222"),
-				SequencerAddr: common.HexToAddress("0x00"),
-				TxHash:        common.HexToHash("0x333"),
-				PolygonZkEVMBatchData: polygonzkevmrollup.PolygonZkEVMBatchData{
-					Transactions:       []byte{},
-					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-					Timestamp:          uint64(t.Unix()),
-					MinForcedTimestamp: 1000, //ForcedBatch
-				},
+				BatchNumber:        uint64(2),
+				Coinbase:           common.HexToAddress("0x222"),
+				SequencerAddr:      common.HexToAddress("0x00"),
+				TxHash:             common.HexToHash("0x333"),
+				Transactions:       []byte{},
+				GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+				Timestamp:          uint64(t.Unix()),
+				MinForcedTimestamp: 1000, //ForcedBatch
 			}
 
 			forceb := []etherman.ForcedBatch{{
@@ -343,6 +343,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
+		IsRollup:                            true,
 		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
 		SyncChunkSize:                       10,
 		UseParallelModeForL1Synchronization: false,
@@ -579,6 +580,7 @@ func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
+		IsRollup:      true,
 		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
 		SyncChunkSize: 10,
 	}

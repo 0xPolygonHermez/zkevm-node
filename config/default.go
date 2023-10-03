@@ -54,6 +54,7 @@ GlobalQueue = 1024
 	MaxConns = 200
 
 [Etherman]
+IsRollup = true
 URL = "http://localhost:8545"
 ForkIDChunkSize = 20000
 MultiGasProvider = false
@@ -85,6 +86,7 @@ BatchRequestsLimit = 20
 		ReadLimit = 104857600
 
 [Synchronizer]
+IsRollup = true
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
@@ -136,6 +138,7 @@ MaxTxLifetime = "3h"
 		Enabled = false
 
 [SequenceSender]
+IsRollup = true
 WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 MaxTxSizeForL1 = 131072

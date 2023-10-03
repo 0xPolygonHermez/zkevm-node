@@ -31,12 +31,12 @@ func (_m *workerMock) String() string {
 }
 
 // asyncRequestRollupInfoByBlockRange provides a mock function with given fields: ctx, ch, wg, blockRange, sleepBefore
-func (_m *workerMock) asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange, sleepBefore time.Duration) error {
-	ret := _m.Called(ctx, ch, wg, blockRange, sleepBefore)
+func (_m *workerMock) asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, br blockRange, sleepBefore time.Duration) error {
+	ret := _m.Called(ctx, ch, wg, br, sleepBefore)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(contextWithCancel, chan responseRollupInfoByBlockRange, *sync.WaitGroup, blockRange, time.Duration) error); ok {
-		r0 = rf(ctx, ch, wg, blockRange, sleepBefore)
+		r0 = rf(ctx, ch, wg, br, sleepBefore)
 	} else {
 		r0 = ret.Error(0)
 	}

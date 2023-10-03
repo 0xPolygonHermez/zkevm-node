@@ -821,7 +821,12 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	if err != nil {
 		return err
 	}
-	sequences, err := decodeSequences(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce)
+	var sequences []SequencedBatch
+	if etherMan.cfg.IsRollup {
+		sequences, err = decodeSequencesRollup(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce)
+	} else {
+		sequences, err = decodeSequencesValidium(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce)
+	}
 	if err != nil {
 		return fmt.Errorf("error decoding the sequences: %v", err)
 	}
@@ -848,7 +853,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	return nil
 }
 
-func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64) ([]SequencedBatch, error) {
+func decodeSequencesRollup(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	abi, err := abi.JSON(strings.NewReader(polygonzkevmrollup.PolygonzkevmrollupABI))
@@ -881,12 +886,63 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	for i, seq := range sequences {
 		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
 		sequencedBatches[i] = SequencedBatch{
-			BatchNumber:           bn,
-			SequencerAddr:         sequencer,
-			TxHash:                txHash,
-			Nonce:                 nonce,
-			Coinbase:              coinbase,
-			PolygonZkEVMBatchData: seq,
+			BatchNumber:        bn,
+			SequencerAddr:      sequencer,
+			TxHash:             txHash,
+			Nonce:              nonce,
+			Coinbase:           coinbase,
+			Transactions:       seq.Transactions,
+			GlobalExitRoot:     seq.GlobalExitRoot,
+			Timestamp:          seq.Timestamp,
+			MinForcedTimestamp: seq.MinForcedTimestamp,
+		}
+	}
+
+	return sequencedBatches, nil
+}
+
+func decodeSequencesValidium(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64) ([]SequencedBatch, error) {
+	// Extract coded txs.
+	// Load contract ABI
+	abi, err := abi.JSON(strings.NewReader(polygonzkevmvalidium.PolygonzkevmvalidiumABI))
+	if err != nil {
+		return nil, err
+	}
+
+	// Recover Method from signature and ABI
+	method, err := abi.MethodById(txData[:4])
+	if err != nil {
+		return nil, err
+	}
+
+	// Unpack method inputs
+	data, err := method.Inputs.Unpack(txData[4:])
+	if err != nil {
+		return nil, err
+	}
+	var sequences []polygonzkevmvalidium.CDKValidiumBatchData
+	bytedata, err := json.Marshal(data[0])
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(bytedata, &sequences)
+	if err != nil {
+		return nil, err
+	}
+	coinbase := (data[1]).(common.Address)
+	sequencedBatches := make([]SequencedBatch, len(sequences))
+	for i, seq := range sequences {
+		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
+		sequencedBatches[i] = SequencedBatch{
+			BatchNumber:        bn,
+			SequencerAddr:      sequencer,
+			TxHash:             txHash,
+			Nonce:              nonce,
+			Coinbase:           coinbase,
+			TransactionsHash:   seq.TransactionsHash,
+			GlobalExitRoot:     seq.GlobalExitRoot,
+			Timestamp:          seq.Timestamp,
+			MinForcedTimestamp: seq.MinForcedTimestamp,
 		}
 	}
 

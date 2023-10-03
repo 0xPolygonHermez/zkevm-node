@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
@@ -40,8 +41,11 @@ type SequenceSender struct {
 	privKey      *ecdsa.PrivateKey
 }
 
-// New inits sequence sender
+// New inits sequence sender. privKey can be nil in case of rollup concensus
 func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, privKey *ecdsa.PrivateKey) (*SequenceSender, error) {
+	if !cfg.IsRollup && privKey == nil {
+		return nil, fmt.Errorf("private key must not be nil in case of Validium concensus")
+	}
 	return &SequenceSender{
 		cfg:          cfg,
 		state:        state,
@@ -110,10 +114,27 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// add sequence to be monitored
-	to, data, err := s.etherman.BuildSequenceBatchesRollupTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
-	if err != nil {
-		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
-		return
+	var (
+		to   *common.Address
+		data []byte
+	)
+	if s.cfg.IsRollup {
+		to, data, err = s.etherman.BuildSequenceBatchesRollupTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+		if err != nil {
+			log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
+			return
+		}
+	} else {
+		signaturesAndAddrs, err := s.getSignaturesAndAddrsFromDataCommittee(ctx, sequences)
+		if err != nil {
+			log.Error("error getting signatures and addresses from the data committee: ", err)
+			return
+		}
+		to, data, err = s.etherman.BuildSequenceBatchesValidiumTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase, signaturesAndAddrs)
+		if err != nil {
+			log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
+			return
+		}
 	}
 	firstSequence := sequences[0]
 	lastSequence := sequences[len(sequences)-1]
@@ -180,23 +201,31 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 
 		sequences = append(sequences, seq)
 		// Check if can be send
-		tx, err = s.etherman.EstimateGasSequenceBatchesRollup(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
-		if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
-			metrics.SequencesOvesizedDataError()
-			log.Infof("oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
-			err = ErrOversizedData
-		}
-		if err != nil {
-			log.Infof("Handling estimage gas send sequence error: %v", err)
-			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
-			if sequences != nil {
-				// Handling the error gracefully, re-processing the sequence as a sanity check
-				_, err = s.etherman.EstimateGasSequenceBatchesRollup(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+		if s.cfg.IsRollup {
+			tx, err = s.etherman.EstimateGasSequenceBatchesRollup(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+			if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
+				metrics.SequencesOvesizedDataError()
+				log.Infof("oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
+				err = ErrOversizedData
+			}
+			if err != nil {
+				log.Infof("Handling estimage gas send sequence error: %v", err)
+				sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
+				if sequences != nil {
+					// Handling the error gracefully, re-processing the sequence as a sanity check
+					_, err = s.etherman.EstimateGasSequenceBatchesRollup(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+					return sequences, err
+				}
 				return sequences, err
 			}
-			return sequences, err
 		}
-		// estimatedGas = tx.Gas()
+		if len(sequences) == int(s.cfg.MaxBatchesForL1) {
+			log.Info(
+				"sequence should be sent to L1, because MaxBatchesForL1 (%d) has been reached",
+				s.cfg.MaxBatchesForL1,
+			)
+			return sequences, nil
+		}
 
 		//Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
 		if (s.cfg.ForkUpgradeBatchNumber != 0) && (currentBatchNumToSequence == (s.cfg.ForkUpgradeBatchNumber)) {

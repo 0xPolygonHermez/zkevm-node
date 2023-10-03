@@ -55,7 +55,7 @@ func newTestingEnv() (
 	if err != nil {
 		log.Fatal(err)
 	}
-	ethman, ethBackend, maticAddr, br, da, err = NewSimulatedEtherman(Config{ForkIDChunkSize: 10}, auth)
+	ethman, ethBackend, maticAddr, br, da, err = NewSimulatedEtherman(Config{ForkIDChunkSize: 10, IsRollup: true}, auth)
 	if err != nil {
 		log.Fatal(err)
 	}

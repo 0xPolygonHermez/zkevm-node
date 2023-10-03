@@ -61,8 +61,11 @@ type ClientSynchronizer struct {
 	// later the value is checked to be the same (in function checkFlushID)
 	proverID string
 	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
-	previousExecutorFlushID uint64
-	l1SyncOrchestration     *l1SyncOrchestration
+	previousExecutorFlushID    uint64
+	l1SyncOrchestration        *l1SyncOrchestration
+	committeeMembers           []etherman.DataCommitteeMember
+	selectedCommitteeMember    int
+	dataCommitteeClientFactory client.ClientFactoryInterface
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -107,7 +110,11 @@ func NewSynchronizer(
 			log.Fatalf("Can't initialize L1SyncParallel. Error: %s", err)
 		}
 	}
-	return res, nil
+	var err error
+	if !cfg.IsRollup {
+		err = res.loadCommittee()
+	}
+	return res, err
 }
 
 var waitDuration = time.Duration(0)
@@ -874,6 +881,14 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		return nil
 	}
 	for _, sbatch := range sequencedBatches {
+		if !s.cfg.IsRollup {
+			// Recover data that is not on-chain for Validiums
+			batchL2Data, err := s.getBatchL2Data(sbatch.BatchNumber, sbatch.TransactionsHash)
+			if err != nil {
+				return err
+			}
+			sbatch.Transactions = batchL2Data
+		}
 		virtualBatch := state.VirtualBatch{
 			BatchNumber:   sbatch.BatchNumber,
 			TxHash:        sbatch.TxHash,
