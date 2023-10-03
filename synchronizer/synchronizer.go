@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygon/cdk-data-availability/client"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -76,7 +77,9 @@ func NewSynchronizer(
 	eventLog *event.EventLog,
 	genesis state.Genesis,
 	cfg Config,
-	runInDevelopmentMode bool) (Synchronizer, error) {
+	runInDevelopmentMode bool,
+	clientFactory client.ClientFactoryInterface,
+) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
 

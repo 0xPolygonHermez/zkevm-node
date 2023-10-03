@@ -180,7 +180,7 @@ func sendBatches(cliCtx *cli.Context) error {
 		}
 
 		// send to L1
-		to, data, err := ethMan.BuildSequenceBatchesTxData(auth.From, seqs, auth.From)
+		to, data, err := ethMan.BuildSequenceBatchesRollupTxData(auth.From, seqs, auth.From)
 		if err != nil {
 			return err
 		}
@@ -286,7 +286,7 @@ func sendBatches(cliCtx *cli.Context) error {
 						switch vLog.Topics[0] {
 						case etherman.SequencedBatchesSigHash():
 							if vLog.TxHash == tx.Hash() { // ignore other txs happening on L1
-								sb, err := ethMan.ZkEVM.ParseSequenceBatches(vLog)
+								sb, err := ethMan.ZkEVMRollup.ParseSequenceBatches(vLog)
 								if err != nil {
 									return err
 								}
@@ -299,7 +299,7 @@ func sendBatches(cliCtx *cli.Context) error {
 								}
 							}
 						case etherman.TrustedVerifyBatchesSigHash():
-							vb, err := ethMan.ZkEVM.ParseVerifyBatchesTrustedAggregator(vLog)
+							vb, err := ethMan.ZkEVMRollup.ParseVerifyBatchesTrustedAggregator(vLog)
 							if err != nil {
 								return err
 							}

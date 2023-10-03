@@ -73,4 +73,13 @@ var (
 
 	// ErrOutOfCounters is returned if the pool is out of counters.
 	ErrOutOfCounters = errors.New("out of counters")
+
+	// ErrSenderDisallowedSendTx is returned when transactions by sender are is disallowed by policy
+	ErrSenderDisallowedSendTx = errors.New("sender disallowed send_tx by policy")
+
+	// ErrContractDisallowedSendTx is returned when transactions to contract are is disallowed by policy
+	ErrContractDisallowedSendTx = errors.New("contract disallowed send_tx by policy")
+
+	// ErrSenderDisallowedDeploy is returned when deploy transactions are disallowed by policy
+	ErrSenderDisallowedDeploy = errors.New("sender disallowed deploy by policy")
 )

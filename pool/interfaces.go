@@ -36,6 +36,17 @@ type storage interface {
 	MarkWIPTxsAsPending(ctx context.Context) error
 	GetAllAddressesBlocked(ctx context.Context) ([]common.Address, error)
 	MinL2GasPriceSince(ctx context.Context, timestamp time.Time) (uint64, error)
+	policy
+}
+
+type policy interface {
+	CheckPolicy(ctx context.Context, policy PolicyName, address common.Address) (bool, error)
+	AddAddressesToPolicy(ctx context.Context, policy PolicyName, addresses []common.Address) error
+	RemoveAddressesFromPolicy(ctx context.Context, policy PolicyName, addresses []common.Address) error
+	ClearPolicy(ctx context.Context, policy PolicyName) error
+	DescribePolicies(ctx context.Context) ([]Policy, error)
+	DescribePolicy(ctx context.Context, name PolicyName) (Policy, error)
+	ListAcl(ctx context.Context, policy PolicyName, query []common.Address) ([]common.Address, error)
 }
 
 type stateInterface interface {

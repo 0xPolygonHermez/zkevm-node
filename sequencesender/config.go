@@ -17,6 +17,8 @@ type Config struct {
 	// more expensive to propagate; larger transactions also take more resources
 	// to validate whether they fit into the pool or not.
 	MaxTxSizeForL1 uint64 `mapstructure:"MaxTxSizeForL1"`
+	// MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
+	MaxBatchesForL1 uint64 `mapstructure:"MaxBatchesForL1"`
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
 	SenderAddress common.Address

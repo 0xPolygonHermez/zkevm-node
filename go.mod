@@ -24,7 +24,7 @@ require (
 	github.com/spf13/afero v1.10.0
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
-	github.com/umbracle/ethgo v0.1.3
+	github.com/umbracle/ethgo v0.1.4-0.20230712173909-df37dddf16f0
 	github.com/urfave/cli/v2 v2.25.7
 	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.13.0
@@ -38,6 +38,7 @@ require (
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
+	github.com/0xPolygon/cdk-validium-node v0.0.1 // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
@@ -107,6 +108,7 @@ require (
 	github.com/markbates/safe v1.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
+	github.com/miguelmota/go-solidity-sha3 v0.1.1 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
@@ -158,4 +160,7 @@ require (
 	github.com/prometheus/client_golang v1.17.0
 )
 
-require golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
+require (
+	github.com/0xPolygon/cdk-data-availability v0.0.0-20230922164150-b8759d349fe3
+	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
+)

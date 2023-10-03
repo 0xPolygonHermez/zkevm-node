@@ -1869,6 +1869,68 @@ func Test_AddTx_IPValidation(t *testing.T) {
 	}
 }
 
+func Test_PolicyAcl(t *testing.T) {
+	initOrResetDB(t)
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	require.NoError(t, err)
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+	ctx := context.Background()
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	require.NoError(t, err)
+	p := pool.NewPool(cfg, bc, s, nil, uint64(1), nil)
+	randAddr := func() common.Address {
+		buf := make([]byte, 20)
+		_, err = rand.Read(buf)
+		require.NoError(t, err)
+		return common.BytesToAddress(buf)
+	}
+
+	// Policies start out as deny lists, since there are no addresses on the
+	// lists, random addresses will always be allowed
+	for _, policy := range []pool.PolicyName{pool.SendTx, pool.Deploy} {
+		allow, err := p.CheckPolicy(ctx, policy, randAddr())
+		require.NoError(t, err)
+		require.True(t, allow)
+	}
+	addr := randAddr()
+
+	// put addr on lists
+	for _, policy := range []pool.PolicyName{pool.SendTx, pool.Deploy} {
+		ctag, err := poolSqlDB.Exec(ctx, "INSERT INTO pool.acl (policy, address) VALUES ($1,$2)", policy, addr.Hex())
+		require.NoError(t, err)
+		require.Equal(t, int64(1), ctag.RowsAffected())
+	}
+
+	// addr should not be denied by policy
+	for _, policy := range []pool.PolicyName{pool.SendTx, pool.Deploy} {
+		allow, err := p.CheckPolicy(ctx, policy, addr)
+		require.NoError(t, err)
+		require.False(t, allow)
+	}
+
+	// change policies to allow by acl
+	ctag, err := poolSqlDB.Exec(ctx, "UPDATE pool.policy SET allow = true")
+	require.NoError(t, err)
+	require.Equal(t, int64(2), ctag.RowsAffected())
+
+	// addr is now allowed
+	for _, policy := range []pool.PolicyName{pool.SendTx, pool.Deploy} {
+		allow, err := p.CheckPolicy(ctx, policy, addr)
+		require.NoError(t, err)
+		require.True(t, allow)
+	}
+
+	// random addrs are now denied
+	for _, policy := range []pool.PolicyName{pool.SendTx, pool.Deploy} {
+		for _, a := range []common.Address{randAddr(), randAddr()} {
+			allow, err := s.CheckPolicy(ctx, policy, a)
+			require.NoError(t, err)
+			require.False(t, allow)
+		}
+
+	}
+}
+
 func setupPool(t *testing.T, cfg pool.Config, constraintsCfg state.BatchConstraintsCfg, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {
 	p := pool.NewPool(cfg, constraintsCfg, s, st, chainID, eventLog)
 

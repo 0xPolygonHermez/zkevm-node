@@ -157,6 +157,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(131072),
 		},
 		{
+			path:          "SequenceSender.MaxBatchesForL1",
+			expectedValue: uint64(1000),
+		},
+		{
 			path:          "Etherman.URL",
 			expectedValue: "http://localhost:8545",
 		},
@@ -175,6 +179,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "NetworkConfig.L1Config.GlobalExitRootManagerAddr",
 			expectedValue: common.HexToAddress("0x4d9427DCA0406358445bC0a8F88C26b704004f74"),
+		},
+		{
+			path:          "NetworkConfig.L1Config.DataCommitteeAddr",
+			expectedValue: common.HexToAddress(""),
 		},
 		{
 			path:          "Etherman.MultiGasProvider",

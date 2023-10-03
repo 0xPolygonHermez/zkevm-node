@@ -20,8 +20,8 @@ type EthermanMock struct {
 	mock.Mock
 }
 
-// BuildSequenceBatchesTxData provides a mock function with given fields: sender, sequences, l2CoinBase
-func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequences []types.Sequence, l2CoinBase common.Address) (*common.Address, []byte, error) {
+// BuildSequenceBatchesRollupTxData provides a mock function with given fields: sender, sequences, l2CoinBase
+func (_m *EthermanMock) BuildSequenceBatchesRollupTxData(sender common.Address, sequences []types.Sequence, l2CoinBase common.Address) (*common.Address, []byte, error) {
 	ret := _m.Called(sender, sequences, l2CoinBase)
 
 	var r0 *common.Address
@@ -55,8 +55,8 @@ func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequen
 	return r0, r1, r2
 }
 
-// EstimateGasSequenceBatches provides a mock function with given fields: sender, sequences, l2CoinBase
-func (_m *EthermanMock) EstimateGasSequenceBatches(sender common.Address, sequences []types.Sequence, l2CoinBase common.Address) (*coretypes.Transaction, error) {
+// EstimateGasSequenceBatchesRollup provides a mock function with given fields: sender, sequences, l2CoinBase
+func (_m *EthermanMock) EstimateGasSequenceBatchesRollup(sender common.Address, sequences []types.Sequence, l2CoinBase common.Address) (*coretypes.Transaction, error) {
 	ret := _m.Called(sender, sequences, l2CoinBase)
 
 	var r0 *coretypes.Transaction

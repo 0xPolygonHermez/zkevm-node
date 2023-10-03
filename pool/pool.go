@@ -81,6 +81,14 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		gasPricesMux:            new(sync.RWMutex),
 	}
 
+	p.refreshBlockedAddresses()
+	go func(cfg *Config, p *Pool) {
+		for {
+			time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
+			p.refreshBlockedAddresses()
+		}
+	}(&cfg, p)
+
 	go func(cfg *Config, p *Pool) {
 		for {
 			p.refreshGasPrices()
@@ -316,6 +324,11 @@ func (p *Pool) CountPendingTransactions(ctx context.Context) (uint64, error) {
 // IsTxPending check if tx is still pending
 func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) {
 	return p.storage.IsTxPending(ctx, hash)
+}
+
+// CheckPolicy checks if an address is allowed by policy name
+func (p *Pool) CheckPolicy(ctx context.Context, policy PolicyName, address common.Address) (bool, error) {
+	return p.storage.CheckPolicy(ctx, policy, address)
 }
 
 func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
