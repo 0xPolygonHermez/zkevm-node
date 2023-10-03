@@ -232,7 +232,6 @@ func fillDefaultValuesPartial(schema *jsonschema.Schema, default_config interfac
 					value_schema.Default = default_value.Interface()
 				}
 			}
-
 		}
 	}
 }
@@ -251,6 +250,5 @@ func cleanRequiredFields(schema *jsonschema.Schema) {
 		case "array":
 			cleanRequiredFields(value_schema.Items)
 		}
-
 	}
 }
