@@ -33,14 +33,16 @@ const (
 
 // Public shared
 const (
-	DefaultSequencerAddress             = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	DefaultSequencerPrivateKey          = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	DefaultSequencerBalance             = 400000
-	DefaultMaxCumulativeGasUsed         = 800000
-	DefaultL1ZkEVMSmartContract         = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
-	DefaultL1NetworkURL                 = "http://localhost:8545"
-	DefaultL1NetworkWebSocketURL        = "ws://localhost:8546"
-	DefaultL1ChainID             uint64 = 1337
+	DefaultSequencerAddress                    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	DefaultSequencerPrivateKey                 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	DefaultSequencerBalance                    = 400000
+	DefaultMaxCumulativeGasUsed                = 800000
+	DefaultL1ZkEVMRollupSmartContract          = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
+	DefaultL1ZkEVMValidiumSmartContract        = "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82"
+	DefaultL1DataCommitteeContract             = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+	DefaultL1NetworkURL                        = "http://localhost:8545"
+	DefaultL1NetworkWebSocketURL               = "ws://localhost:8546"
+	DefaultL1ChainID                    uint64 = 1337
 
 	DefaultL2NetworkURL                 = "http://localhost:8123"
 	PermissionlessL2NetworkURL          = "http://localhost:8125"

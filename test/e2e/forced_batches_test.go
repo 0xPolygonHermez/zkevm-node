@@ -120,7 +120,7 @@ func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*sta
 	require.NoError(t, err)
 
 	// Create smc client
-	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMSmartContract)
+	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMRollupSmartContract)
 	zkEvm, err := polygonzkevmrollup.NewPolygonzkevmrollup(zkEvmAddr, ethClient)
 	require.NoError(t, err)
 

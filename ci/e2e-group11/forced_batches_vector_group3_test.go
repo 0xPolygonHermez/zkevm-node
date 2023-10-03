@@ -144,7 +144,7 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 	require.NoError(t, err)
 
 	// Create smc client
-	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMSmartContract)
+	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMRollupSmartContract)
 	zkEvm, err := polygonzkevmrollup.NewPolygonzkevmrollup(zkEvmAddr, ethClient)
 	require.NoError(t, err)
 
