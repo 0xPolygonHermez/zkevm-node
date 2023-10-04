@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -484,7 +485,8 @@ func TestMaxRequestPerIPPerSec(t *testing.T) {
 	m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(uint64(1), nil).Times(times)
 
 	// prepare the workers to process the requests as long as a job is available
-	jobs := make(chan int)
+	requestsLimitedCount := uint64(0)
+	jobs := make(chan int, numberOfRequests)
 	// put each worker to work
 	for i := 0; i < workers; i++ {
 		// each worker works in a go routine to be able to have many
@@ -498,9 +500,14 @@ func TestMaxRequestPerIPPerSec(t *testing.T) {
 				_, err := s.JSONRPCCall("eth_blockNumber")
 				// if the request works well or gets rejected due to max requests per sec, it's ok
 				// otherwise we stop the test and log the error.
-				if err != nil && err.Error() != "429 - You have reached maximum request limit." {
-					require.NoError(t, err)
+				if err != nil {
+					if err.Error() == "429 - You have reached maximum request limit." {
+						atomic.AddUint64(&requestsLimitedCount, 1)
+					} else {
+						require.NoError(t, err)
+					}
 				}
+
 				// registers in the wait group a request was executed and has returned
 				wg.Done()
 			}
@@ -515,6 +522,9 @@ func TestMaxRequestPerIPPerSec(t *testing.T) {
 
 	// wait for all the requests to return
 	wg.Wait()
+
+	// checks if all the exceeded requests were limited
+	assert.Equal(t, uint64(numberOfRequests-maxRequestsPerIPAndSecond), requestsLimitedCount)
 
 	// wait the server to process the last requests without breaking the
 	// connection abruptly
