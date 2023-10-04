@@ -59,7 +59,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 
 	var newL2BlockEventHandler state.NewL2BlockEventHandler = func(e state.NewL2BlockEvent) {}
 	st.On("RegisterNewL2BlockEventHandler", mock.IsType(newL2BlockEventHandler)).Once()
-	st.On("PrepareWebSocket").Once()
+	st.On("StartToMonitorNewL2Blocks").Once()
 
 	services := []Service{}
 	if _, ok := apis[APIEth]; ok {

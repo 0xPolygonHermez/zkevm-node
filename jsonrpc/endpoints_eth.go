@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
@@ -1048,6 +1049,8 @@ func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *websocket.Conn) error {
 
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
+	log.Debugf("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
+	start := time.Now()
 	blockFilters, err := e.storage.GetAllBlockFiltersWithWSConn()
 	if err != nil {
 		log.Errorf("failed to get all block filters with web sockets connections: %v", err)
@@ -1061,7 +1064,9 @@ func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 			}
 		}
 	}
+	log.Debugf("[onNewL2Block] new l2 block event for block %v took %vms to send all the messages for block filters", event.Block.NumberU64(), time.Since(start).Milliseconds())
 
+	start = time.Now()
 	logFilters, err := e.storage.GetAllLogFiltersWithWSConn()
 	if err != nil {
 		log.Errorf("failed to get all log filters with web sockets connections: %v", err)
@@ -1081,6 +1086,7 @@ func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 			}
 		}
 	}
+	log.Debugf("[onNewL2Block] new l2 block event for block %v took %vms to send all the messages for log filters", event.Block.NumberU64(), time.Since(start).Milliseconds())
 }
 
 func (e *EthEndpoints) sendSubscriptionResponse(filter *Filter, data interface{}) {

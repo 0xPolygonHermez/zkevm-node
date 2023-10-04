@@ -75,7 +75,10 @@ func NewServer(
 	storage storageInterface,
 	services []Service,
 ) *Server {
-	s.PrepareWebSocket()
+	if cfg.WebSockets.Enabled {
+		s.StartToMonitorNewL2Blocks()
+	}
+
 	handler := newJSONRpcHandler()
 
 	for _, service := range services {
