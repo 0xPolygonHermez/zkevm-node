@@ -332,6 +332,7 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 		// Is ready to start working?
 		if l.syncStatus.verify() == nil {
 			l.setStatus(producerWorking)
+			// This is for wakeup the step again to launch a new work
 			l.channelCmds <- producerCmd{cmd: producerNop}
 		}
 	case producerWorking:

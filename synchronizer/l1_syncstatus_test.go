@@ -60,7 +60,8 @@ func TestFirstRunWithPendingBlocksToRetrieve(t *testing.T) {
 func TestWhenReceiveAndNoStartedBlockRangeThenIgnore(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
-	s.onFinishWorker(blockRange{fromBlock: 1618, toBlock: 1628}, true)
+	res := s.onFinishWorker(blockRange{fromBlock: 1618, toBlock: 1628}, true)
+	require.False(t, res)
 	br := s.getNextRange()
 	require.Equal(t, blockRange{fromBlock: 1618, toBlock: 1628}, *br)
 }
@@ -97,7 +98,8 @@ func TestGenerateNextRangeWithProcessedResult(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(150)
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
-	s.onFinishWorker(blockRange{fromBlock: 101, toBlock: 111}, true)
+	res := s.onFinishWorker(blockRange{fromBlock: 101, toBlock: 111}, true)
+	require.True(t, res)
 	br := s.getNextRange()
 	require.NotNil(t, br)
 	require.Equal(t, *br, blockRange{fromBlock: 112, toBlock: 122})
@@ -111,7 +113,8 @@ func TestGivenMultiplesWorkersWhenBrInMiddleFinishThenDontChangeLastBlock(t *tes
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
 	s.onStartedNewWorker(blockRange{fromBlock: 112, toBlock: 122})
 	s.onStartedNewWorker(blockRange{fromBlock: 123, toBlock: 133})
-	s.onFinishWorker(blockRange{fromBlock: 112, toBlock: 122}, true)
+	res := s.onFinishWorker(blockRange{fromBlock: 112, toBlock: 122}, true)
+	require.True(t, res)
 	require.Equal(t, previousValue, s.lastBlockStoreOnStateDB)
 
 	br := s.getNextRange()
@@ -122,11 +125,11 @@ func TestGivenMultiplesWorkersWhenBrInMiddleFinishThenDontChangeLastBlock(t *tes
 func TestGivenMultiplesWorkersWhenFirstFinishThenChangeLastBlock(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(150)
-
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
 	s.onStartedNewWorker(blockRange{fromBlock: 112, toBlock: 122})
 	s.onStartedNewWorker(blockRange{fromBlock: 123, toBlock: 133})
-	s.onFinishWorker(blockRange{fromBlock: 101, toBlock: 111}, true)
+	res := s.onFinishWorker(blockRange{fromBlock: 101, toBlock: 111}, true)
+	require.True(t, res)
 	require.Equal(t, uint64(111), s.lastBlockStoreOnStateDB)
 
 	br := s.getNextRange()
@@ -141,7 +144,8 @@ func TestGivenMultiplesWorkersWhenLastFinishThenDontChangeLastBlock(t *testing.T
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
 	s.onStartedNewWorker(blockRange{fromBlock: 112, toBlock: 122})
 	s.onStartedNewWorker(blockRange{fromBlock: 123, toBlock: 133})
-	s.onFinishWorker(blockRange{fromBlock: 123, toBlock: 133}, true)
+	res := s.onFinishWorker(blockRange{fromBlock: 123, toBlock: 133}, true)
+	require.True(t, res)
 	require.Equal(t, previousValue, s.lastBlockStoreOnStateDB)
 
 	br := s.getNextRange()
@@ -156,7 +160,8 @@ func TestGivenMultiplesWorkersWhenLastFinishAndFinishAlsoNextOneThenDontChangeLa
 	s.onStartedNewWorker(blockRange{fromBlock: 101, toBlock: 111})
 	s.onStartedNewWorker(blockRange{fromBlock: 112, toBlock: 122})
 	s.onStartedNewWorker(blockRange{fromBlock: 123, toBlock: 133})
-	s.onFinishWorker(blockRange{fromBlock: 123, toBlock: 133}, true)
+	res := s.onFinishWorker(blockRange{fromBlock: 123, toBlock: 133}, true)
+	require.True(t, res)
 	s.onStartedNewWorker(blockRange{fromBlock: 134, toBlock: 144})
 	require.Equal(t, previousValue, s.lastBlockStoreOnStateDB)
 
