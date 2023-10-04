@@ -75,7 +75,6 @@ WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 500
 SequencerNodeURI = ""
 EnableL2SuggestedGasPricePolling = true
-TraceBatchUseHTTPS = true
 BatchRequestsEnabled = false
 BatchRequestsLimit = 20
 MaxLogsCount = 10000
@@ -99,6 +98,7 @@ UseParallelModeForL1Synchronization = true
 		MaxNumberOfRetriesForRequestLastBlockOnL1 = 3
 		TimeForShowUpStatisticsLog = "5m"
 		TimeOutMainLoop = "5m"
+		MinTimeBetweenRetriesForRollupInfo = "5s"
 		[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
 			AcceptableTimeWaitingForNewRollupInfo = "5s"
 			NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo = 10
@@ -130,6 +130,10 @@ MaxTxLifetime = "3h"
 		L1GasPriceFactor = 0.25
 		ByteGasCost = 16
 		MarginFactor = 1
+		Enabled = false
+	[Sequencer.StreamServer]
+		Port = 0
+		Filename = ""
 		Enabled = false
 
 [SequenceSender]

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -29,15 +28,18 @@ type l1RollupConsumerInterface interface {
 }
 
 type l1SyncOrchestration struct {
-	mutex           sync.Mutex
-	producer        l1RollupProducerInterface
-	consumer        l1RollupConsumerInterface
-	producerStarted bool
-	consumerStarted bool
-	wg              sync.WaitGroup
-	chProducer      chan error
-	chConsumer      chan error
-	ctxParent       context.Context
+	mutex    sync.Mutex
+	producer l1RollupProducerInterface
+	consumer l1RollupConsumerInterface
+	// Producer is running?
+	producerRunning bool
+	consumerRunning bool
+	// The orchestrator is running?
+	isRunning  bool
+	wg         sync.WaitGroup
+	chProducer chan error
+	chConsumer chan error
+	ctxParent  context.Context
 }
 
 const (
@@ -48,8 +50,8 @@ func newL1SyncOrchestration(ctx context.Context, producer l1RollupProducerInterf
 	return &l1SyncOrchestration{
 		producer:        producer,
 		consumer:        consumer,
-		producerStarted: false,
-		consumerStarted: false,
+		producerRunning: false,
+		consumerRunning: false,
 		chProducer:      make(chan error, 1),
 		chConsumer:      make(chan error, 1),
 		ctxParent:       ctx,
@@ -58,20 +60,15 @@ func newL1SyncOrchestration(ctx context.Context, producer l1RollupProducerInterf
 
 func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
 	log.Warnf("Reset L1 sync process to blockNumber %d", startingBlockNumber)
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-	comuserWasRunning := l.consumerStarted
-	if comuserWasRunning {
+	if l.isRunning {
 		log.Infof("orchestration: reset(%d) is going to stop producer", startingBlockNumber)
 	}
 	l.producer.ResetAndStop(startingBlockNumber)
-	if comuserWasRunning {
-		log.Infof("orchestration: reset(%d) relaunching producer", startingBlockNumber)
-		l.launchProducer(l.ctxParent, l.chProducer, &l.wg)
-	}
+	// If orchestrator is running then producer is going to be started by orchestrate() select  function when detects that producer has finished
 }
 
 func (l *l1SyncOrchestration) start() (*state.Block, error) {
+	l.isRunning = true
 	l.launchProducer(l.ctxParent, l.chProducer, &l.wg)
 	l.launchConsumer(l.ctxParent, l.chConsumer, &l.wg)
 	return l.orchestrate(l.ctxParent, &l.wg, l.chProducer, l.chConsumer)
@@ -80,18 +77,18 @@ func (l *l1SyncOrchestration) start() (*state.Block, error) {
 func (l *l1SyncOrchestration) isProducerRunning() bool {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	return l.producerStarted
+	return l.producerRunning
 }
 
 func (l *l1SyncOrchestration) launchProducer(ctx context.Context, chProducer chan error, wg *sync.WaitGroup) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	if !l.producerStarted {
+	if !l.producerRunning {
 		if wg != nil {
 			wg.Add(1)
 		}
 		// Start producer: L1DataRetriever from L1
-		l.producerStarted = true
+		l.producerRunning = true
 
 		go func() {
 			if wg != nil {
@@ -103,7 +100,7 @@ func (l *l1SyncOrchestration) launchProducer(ctx context.Context, chProducer cha
 				log.Warnf("orchestration: producer error . Error: %s", err)
 			}
 			l.mutex.Lock()
-			l.producerStarted = false
+			l.producerRunning = false
 			l.mutex.Unlock()
 			log.Infof("orchestration: producer finished")
 			chProducer <- err
@@ -113,11 +110,11 @@ func (l *l1SyncOrchestration) launchProducer(ctx context.Context, chProducer cha
 
 func (l *l1SyncOrchestration) launchConsumer(ctx context.Context, chConsumer chan error, wg *sync.WaitGroup) {
 	l.mutex.Lock()
-	if l.consumerStarted {
+	if l.consumerRunning {
 		l.mutex.Unlock()
 		return
 	}
-	l.consumerStarted = true
+	l.consumerRunning = true
 	l.mutex.Unlock()
 
 	wg.Add(1)
@@ -126,7 +123,7 @@ func (l *l1SyncOrchestration) launchConsumer(ctx context.Context, chConsumer cha
 		log.Infof("orchestration: starting consumer")
 		err := l.consumer.Start(ctx)
 		l.mutex.Lock()
-		l.consumerStarted = false
+		l.consumerRunning = false
 		l.mutex.Unlock()
 		if err != nil {
 			log.Warnf("orchestration: consumer error. Error: %s", err)
@@ -147,10 +144,8 @@ func (l *l1SyncOrchestration) orchestrate(ctx context.Context, wg *sync.WaitGrou
 			done = true
 		case err = <-chProducer:
 			// Producer has finished
-			log.Warnf("orchestration: consumer have finished! this situation shouldn't happen, respawn. Error:%s", err)
-			// to avoid respawn too fast it sleeps a bit
-			time.Sleep(time.Second)
-			l.launchProducer(ctx, chProducer, wg)
+			log.Infof("orchestration: producer has finished. Error: %s, stopping consumer", err)
+			l.consumer.StopAfterProcessChannelQueue()
 		case err = <-chConsumer:
 			if err != nil && err != errAllWorkersBusy {
 				log.Warnf("orchestration: consumer have finished with Error: %s", err)
@@ -160,6 +155,7 @@ func (l *l1SyncOrchestration) orchestrate(ctx context.Context, wg *sync.WaitGrou
 			done = true
 		}
 	}
+	l.isRunning = false
 	retBlock, ok := l.consumer.GetLastEthBlockSynced()
 
 	if err == nil {

@@ -26,6 +26,11 @@ func (s *filterToSendOrdererResultsToConsumer) ToStringBrief() string {
 		s.lastBlockOnSynchronizer, len(s.pendingResults))
 }
 
+func (s *filterToSendOrdererResultsToConsumer) numItemBlockedInQueue() int {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return len(s.pendingResults)
+}
 func (s *filterToSendOrdererResultsToConsumer) Reset(lastBlockOnSynchronizer uint64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

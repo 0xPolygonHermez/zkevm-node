@@ -10,6 +10,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
+const (
+	noSleepTime = time.Duration(0)
+)
+
 var (
 	errAllWorkersBusy   = errors.New("all workers are busy")
 	errRequiredEtherman = errors.New("required etherman")
@@ -18,7 +22,7 @@ var (
 // worker: is the expected functions of a worker
 type worker interface {
 	String() string
-	asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange) error
+	asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange, sleepBefore time.Duration) error
 	requestLastBlock(ctx context.Context) responseL1LastBlock
 	isIdle() bool
 }
@@ -50,10 +54,12 @@ type workers struct {
 	cfg workersConfig
 }
 
-func (w *workers) toString() string {
-	result := fmt.Sprintf("workers: num:%d ch_out:%d ch_in_worker:%d ", len(w.workers), len(w.chOutgoingRollupInfo), len(w.chIncommingRollupInfo))
+func (w *workers) String() string {
+	result := fmt.Sprintf("num_workers:%d ch[%d,%d] ", len(w.workers), len(w.chOutgoingRollupInfo), len(w.chIncommingRollupInfo))
 	for i := range w.workers {
-		result += fmt.Sprintf(" worker[%d]: %s", i, w.workers[i].String())
+		if !w.workers[i].worker.isIdle() {
+			result += fmt.Sprintf(" worker[%d]: %s", i, w.workers[i].worker.String())
+		}
 	}
 	return result
 }
@@ -78,26 +84,25 @@ func (w *workers) initialize() error {
 }
 
 func (w *workers) stop() {
-	log.Debugf("workers: stopping workers %s", w.toString())
+	log.Debugf("workers: stopping workers %s", w.String())
 	for i := range w.workers {
 		wd := &w.workers[i]
 		if !wd.worker.isIdle() {
-			w.workers[i].ctx.cancel()
+			log.Debugf("workers: stopping worker[%d] %s", i, wd.String())
 		}
+		wd.ctx.cancel()
 	}
-	for i := 0; i < len(w.waitGroups); i++ {
-		w.waitGroups[i].Wait()
-	}
+	w.waitFinishAllWorkers()
 }
 
 func (w *workers) getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange {
 	return w.chOutgoingRollupInfo
 }
 
-func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange) (chan responseRollupInfoByBlockRange, error) {
-	requestStrForDebug := fmt.Sprintf("GetRollupInfoByBlockRange(%s)", blockRange.String())
+func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange, sleepBefore time.Duration) (chan responseRollupInfoByBlockRange, error) {
+	requestStrForDebug := fmt.Sprintf("GetRollupInfoByBlockRange(%s, sleep=%s)", blockRange.String(), sleepBefore.String())
 	f := func(worker worker, ctx contextWithCancel, wg *sync.WaitGroup) error {
-		res := worker.asyncRequestRollupInfoByBlockRange(ctx, w.getResponseChannelForRollupInfo(), wg, blockRange)
+		res := worker.asyncRequestRollupInfoByBlockRange(ctx, w.getResponseChannelForRollupInfo(), wg, blockRange, sleepBefore)
 		return res
 	}
 	res := w.asyncGenericRequest(ctx, typeRequestRollupInfo, requestStrForDebug, f)
@@ -185,9 +190,9 @@ func (w *workers) onResponseRollupInfo(v responseRollupInfoByBlockRange) {
 }
 
 func (w *workers) waitFinishAllWorkers() {
-	for i := range w.waitGroups {
-		wg := &w.waitGroups[i]
-		wg.Wait()
+	for i := 0; i < len(w.waitGroups); i++ {
+		log.Debugf("workers: waiting for waitGroup[%d]", i)
+		w.waitGroups[i].Wait()
 	}
 }
 

@@ -243,10 +243,19 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
+	var txHashToGenerateCallTrace []byte
+	var txHashToGenerateExecuteTrace []byte
+
+	if traceConfig.IsDefaultTracer() {
+		txHashToGenerateExecuteTrace = transactionHash.Bytes()
+	} else {
+		txHashToGenerateCallTrace = transactionHash.Bytes()
+	}
+
 	// Create Batch
 	traceConfigRequest := &executor.TraceConfig{
-		TxHashToGenerateCallTrace:    transactionHash.Bytes(),
-		TxHashToGenerateExecuteTrace: transactionHash.Bytes(),
+		TxHashToGenerateCallTrace:    txHashToGenerateCallTrace,
+		TxHashToGenerateExecuteTrace: txHashToGenerateExecuteTrace,
 		// set the defaults to the maximum information we can have.
 		// this is needed to process custom tracers later
 		DisableStorage:   cFalse,
@@ -264,11 +273,11 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		if traceConfig.DisableStack {
 			traceConfigRequest.DisableStack = cTrue
 		}
-		if traceConfig.EnableMemory {
-			traceConfigRequest.EnableMemory = cTrue
+		if !traceConfig.EnableMemory {
+			traceConfigRequest.EnableMemory = cFalse
 		}
-		if traceConfig.EnableReturnData {
-			traceConfigRequest.EnableReturnData = cTrue
+		if !traceConfig.EnableReturnData {
+			traceConfigRequest.EnableReturnData = cFalse
 		}
 	}
 
@@ -900,20 +909,20 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 }
 
 // StoreTransaction is used by the sequencer and trusted state synchronizer to add process a transaction.
-func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error {
+func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) (*types.Header, error) {
 	if dbTx == nil {
-		return ErrDBTxNil
+		return nil, ErrDBTxNil
 	}
 
 	// if the transaction has an intrinsic invalid tx error it means
 	// the transaction has not changed the state, so we don't store it
 	if executor.IsIntrinsicError(executor.RomErrorCode(processedTx.RomError)) {
-		return nil
+		return nil, nil
 	}
 
 	lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	header := &types.Header{
@@ -938,10 +947,10 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 
 	// Store L2 block and its transaction
 	if err := s.AddL2Block(ctx, batchNumber, block, receipts, uint8(processedTx.EffectivePercentage), dbTx); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return block.Header(), nil
 }
 
 // CheckSupersetBatchTransactions verifies that processedTransactions is a
