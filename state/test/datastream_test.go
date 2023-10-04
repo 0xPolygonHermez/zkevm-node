@@ -1,4 +1,4 @@
-package state_test
+package test
 
 import (
 	"testing"
@@ -47,7 +47,9 @@ func TestL2BlockEndEncode(t *testing.T) {
 	}
 
 	encoded := l2BlockEnd.Encode()
-	expected := []byte{1, 0, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 0}
+	expected := []byte{1, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3}
 
 	assert.Equal(t, expected, encoded)
 }
