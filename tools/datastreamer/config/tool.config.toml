@@ -1,0 +1,17 @@
+
+[StreamServer]
+Port = 6900
+Filename = "streamfile.bin"
+    [StreamServer.Log]
+    Environment = "development"
+    Level = "debug"
+    Outputs = ["stdout"]
+
+[StateDB]
+User = "state_user"
+Password = "state_password"
+Name = "state_db"
+Host = "localhost"
+Port = "5432"
+EnableLog = false	
+MaxConns = 200
