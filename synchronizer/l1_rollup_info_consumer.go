@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData = 20
+	minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData = 5
 	minAcceptableTimeWaitingForNewRollupInfoData                       = 1 * time.Second
 )
 
@@ -26,7 +26,7 @@ var (
 )
 
 type configConsumer struct {
-	numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData int
+	numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData int
 	acceptableTimeWaitingForNewRollupInfoData                       time.Duration
 }
 
@@ -51,8 +51,8 @@ func newL1RollupInfoConsumer(cfg configConsumer,
 	if cfg.acceptableTimeWaitingForNewRollupInfoData < minAcceptableTimeWaitingForNewRollupInfoData {
 		log.Warnf("consumer: the acceptableTimeWaitingForNewRollupInfoData is too low (%s) minimum recommended %s", cfg.acceptableTimeWaitingForNewRollupInfoData, minAcceptableTimeWaitingForNewRollupInfoData)
 	}
-	if cfg.numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData < minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData {
-		log.Warnf("consumer: the numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData is too low (%d) minimum recommended  %d", cfg.numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData, minNumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData)
+	if cfg.numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData < minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData {
+		log.Warnf("consumer: the numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData is too low (%d) minimum recommended  %d", cfg.numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData, minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData)
 	}
 
 	return &l1RollupInfoConsumer{
@@ -92,7 +92,7 @@ func (l *l1RollupInfoConsumer) step() error {
 		}
 		if rollupInfo.ctrlIsValid {
 			err = l.processIncommingRollupControlData(rollupInfo.ctrl)
-			if err != nil && !errors.Is(err, errConsumerStoppedBecauseIsSynchronized) {
+			if err != nil && !errors.Is(err, errConsumerStoppedBecauseIsSynchronized) && !errors.Is(err, errConsumerStopped) {
 				log.Error("consumer: error processing package.ControlData. Error: ", err)
 			}
 			log.Infof("consumer: processed ControlData[%s]. Result: %s", rollupInfo.ctrl.String(), err)

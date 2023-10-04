@@ -377,16 +377,10 @@ func getValueFromSchema(schema *jsonschema.Schema, keys []string) (*jsonschema.S
 
 	for _, key := range keys {
 		v, exist := subschema.Properties.Get(key)
-
 		if !exist {
 			return nil, errors.New("key " + key + " doesnt exist in schema")
 		}
-
-		new_schema, ok := v.(*jsonschema.Schema)
-		if !ok {
-			return nil, errors.New("fails conversion for key " + key + " doesnt exist in schema")
-		}
-		subschema = new_schema
+		subschema = v
 	}
 	return subschema, nil
 }

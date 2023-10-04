@@ -2,16 +2,23 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/metrics"
+)
+
+const (
+	maxRetryAttempts = 5
+	retryDelay       = 1 * time.Second
 )
 
 func main() {
@@ -55,7 +62,7 @@ func main() {
 	fmt.Println("---------------------------------")
 	// Check environment variables
 	checkEnvVar("BASTION_HOST")
-	checkEnvVar("POOLDB_LOCALPORT")
+	checkEnvVar("POOLDB_PORT")
 	checkEnvVar("POOLDB_EP")
 	checkEnvVar("RPC_URL")
 	checkEnvVar("CHAIN_ID")
@@ -66,7 +73,7 @@ func main() {
 	fmt.Println("Forwarding BASTION ports...")
 	fmt.Println("---------------------------")
 	sshArgs := []string{"-fN",
-		"-L", os.Getenv("POOLDB_LOCALPORT") + ":" + os.Getenv("POOLDB_EP") + ":5432",
+		"-L", os.Getenv("POOLDB_PORT") + ":" + os.Getenv("POOLDB_EP") + ":5432",
 		"ubuntu@" + os.Getenv("BASTION_HOST")}
 	_, err = runCmd("ssh", sshArgs...)
 	if err != nil {
@@ -78,10 +85,23 @@ func main() {
 	sequencerIP := os.Getenv("SEQUENCER_IP")
 	fmt.Println("Fetching start metrics...")
 	fmt.Println("--------------------------")
-	output, err := runCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9091/metrics")
+
+	output, err := retryCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9091/metrics")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to collect start metrics from BASTION HOST: %v", err))
 	}
+	retryTimes := 0
+	if err != nil {
+		fmt.Println(fmt.Sprintf("Failed to collect start metrics from BASTION HOST: %v", err))
+		fmt.Println("Retrying...")
+		time.Sleep(1 * time.Second)
+		output, err = runCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9091/metrics")
+		retryTimes++
+		if retryTimes == 5 {
+			panic(fmt.Sprintf("Failed to collect start metrics from BASTION HOST: %v", err))
+		}
+	}
+
 	err = os.WriteFile("start-metrics.txt", []byte(output), 0644)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to write start metrics to file: %v", err))
@@ -121,7 +141,7 @@ func main() {
 	// Execute wget to get metrics from the BASTION HOST
 	fmt.Println("Fetching end metrics...")
 	fmt.Println("------------------------")
-	output, err = runCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9091/metrics")
+	output, err = retryCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9091/metrics")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to collect end metrics from BASTION HOST: %v", err))
 	}
@@ -148,6 +168,43 @@ func runCmd(command string, args ...string) (string, error) {
 	cmd := exec.Command(command, args...)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
+}
+
+// runCmdWithRetry executes the specified command with arguments and returns the combined output.
+// It includes a retryCmd mechanism controlled by the enableRetry flag.
+func runCmdWithRetry(enableRetry bool, command string, args ...string) (string, error) {
+	var output string
+	var err error
+
+	if enableRetry {
+		for attempt := 1; attempt <= maxRetryAttempts; attempt++ {
+			cmd := exec.Command(command, args...)
+			cmd.Stderr = os.Stderr
+			result, runErr := cmd.CombinedOutput()
+			output = string(result)
+			err = runErr
+
+			if err == nil {
+				// Command succeeded, no need to retryCmd.
+				break
+			}
+
+			fmt.Printf("Attempt %d: Command failed: %v\n", attempt, err)
+
+			if attempt < maxRetryAttempts {
+				fmt.Println("Retrying...")
+				time.Sleep(time.Second) // Add a delay between retries (you can adjust the duration).
+			}
+		}
+	} else {
+		cmd := exec.Command(command, args...)
+		cmd.Stderr = os.Stderr
+		result, runErr := cmd.CombinedOutput()
+		output = string(result)
+		err = runErr
+	}
+
+	return output, err
 }
 
 func runCmdRealTime(command string, args ...string) (string, error) {
@@ -194,7 +251,7 @@ func checkEnvVar(varName string) {
 
 func killSSHProcess(err error) {
 	fmt.Println("Killing SSH process...")
-	_, err = runCmd("pkill", "-f", "ssh -fN -L "+os.Getenv("POOLDB_LOCALPORT"))
+	_, err = runCmd("pkill", "-f", "ssh -fN -L "+os.Getenv("POOLDB_PORT"))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to kill the SSH process: %v", err))
 	}
@@ -271,4 +328,21 @@ func parseFile(filename string) map[string]timeData {
 	}
 
 	return result
+}
+
+func retryCmd(command string, args ...string) (string, error) {
+
+	for i := 0; i < maxRetryAttempts; i++ {
+		result, err := runCmd(command, args...)
+		if err == nil {
+			return result, nil // If the function succeeded, return its result.
+		}
+
+		// If it failed and it's not the last attempt, wait for the specified delay before retrying.
+		if i < maxRetryAttempts-1 {
+			time.Sleep(retryDelay)
+		}
+	}
+
+	return "", errors.New("maximum retryCmd attempts reached")
 }

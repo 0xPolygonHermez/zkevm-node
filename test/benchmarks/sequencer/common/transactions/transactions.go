@@ -2,6 +2,7 @@ package transactions
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -109,4 +110,8 @@ func WaitStatusSelected(countByStatusFunc func(ctx context.Context, status ...po
 	})
 
 	return err
+}
+
+func ShouldRetryError(err error) bool {
+	return errors.Is(err, state.ErrStateNotSynchronized) || errors.Is(err, state.ErrInsufficientFunds) || errors.Is(err, pool.ErrNonceTooHigh)
 }
