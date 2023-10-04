@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGivenObjectWithDataWhenResetThenForgetLastBlockOnL1AndgetNextRangeReturnsNil(t *testing.T) {
+func TestGivenObjectWithDataWhenResetThenDontForgetLastBlockOnL1AndgetNextRangeReturnsNil(t *testing.T) {
 	s := newSyncStatus(1617, 10)
 	s.setLastBlockOnL1(1982)
 	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
@@ -15,7 +15,7 @@ func TestGivenObjectWithDataWhenResetThenForgetLastBlockOnL1AndgetNextRangeRetur
 
 	// lose lastBlockOnL1 so it returns a nil
 	br := s.getNextRange()
-	require.Nil(t, br)
+	require.Equal(t, *br, blockRange{fromBlock: 1235, toBlock: 1245})
 }
 
 func TestGivenObjectWithDataWhenResetAndSetLastBlockOnL1ThenGetNextRangeReturnsNextRange(t *testing.T) {

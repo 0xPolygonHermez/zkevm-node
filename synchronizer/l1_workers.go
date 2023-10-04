@@ -84,7 +84,7 @@ func (w *workers) initialize() error {
 }
 
 func (w *workers) stop() {
-	log.Debugf("workers: stopping workers %s", w.String())
+	log.Infof("workers: stopping workers %s", w.String())
 	for i := range w.workers {
 		wd := &w.workers[i]
 		if !wd.worker.isIdle() {
@@ -92,7 +92,7 @@ func (w *workers) stop() {
 		}
 		wd.ctx.cancel()
 	}
-	w.waitFinishAllWorkers()
+	//w.waitFinishAllWorkers()
 }
 
 func (w *workers) getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange {

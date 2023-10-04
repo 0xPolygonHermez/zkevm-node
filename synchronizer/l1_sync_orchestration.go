@@ -18,7 +18,7 @@ type l1RollupProducerInterface interface {
 	// Stop cancel current process
 	Stop()
 	// ResetAndStop set a new starting point and cancel current process if any
-	ResetAndStop(startingBlockNumber uint64)
+	Reset(startingBlockNumber uint64)
 }
 
 type l1RollupConsumerInterface interface {
@@ -59,11 +59,11 @@ func newL1SyncOrchestration(ctx context.Context, producer l1RollupProducerInterf
 }
 
 func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
-	log.Warnf("Reset L1 sync process to blockNumber %d", startingBlockNumber)
+	log.Warnf("orchestration: Reset L1 sync process to blockNumber %d", startingBlockNumber)
 	if l.isRunning {
-		log.Infof("orchestration: reset(%d) is going to stop producer", startingBlockNumber)
+		log.Infof("orchestration: reset(%d) is going to reset producer", startingBlockNumber)
 	}
-	l.producer.ResetAndStop(startingBlockNumber)
+	l.producer.Reset(startingBlockNumber)
 	// If orchestrator is running then producer is going to be started by orchestrate() select  function when detects that producer has finished
 }
 

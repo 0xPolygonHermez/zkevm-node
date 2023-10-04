@@ -173,8 +173,8 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 		duration := time.Since(now)
 		result := newResponseRollupInfo(err, duration, typeRequestRollupInfo, &rollupInfoByBlockRangeResult{blockRange, blocks, order, lastBlock})
 		w.setStatus(ethermanIdle)
-		if !errors.Is(err, context.Canceled) {
-			log.Debugf("worker: RollUpInfo(%s) cancelled result err=%s", blockRange.String(), err)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			log.Debugf("worker: RollUpInfo(%s) cancelled result err=%s", blockRange.String(), err.Error())
 		}
 		ch <- result
 	}

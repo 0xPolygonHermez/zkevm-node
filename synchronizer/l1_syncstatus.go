@@ -60,7 +60,7 @@ func (s *syncStatus) reset(lastBlockStoreOnStateDB uint64) {
 	s.lastBlockStoreOnStateDB = lastBlockStoreOnStateDB
 	s.highestBlockRequested = lastBlockStoreOnStateDB
 	s.processingRanges = newLiveBlockRanges()
-	s.lastBlockOnL1 = invalidLastBlock
+	//s.lastBlockOnL1 = invalidLastBlock
 }
 
 func (s *syncStatus) getLastBlockOnL1() uint64 {
@@ -158,7 +158,8 @@ func (s *syncStatus) onStartedNewWorker(br blockRange) {
 	}
 }
 
-func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
+// return true is a valid blockRange
+func (s *syncStatus) onFinishWorker(br blockRange, successful bool) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	log.Debugf("onFinishWorker(br=%s, successful=%v) initial_status: %s", br.String(), successful, s.toStringBrief())
@@ -167,7 +168,7 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 	err := s.processingRanges.removeBlockRange(br)
 	if err != nil {
 		log.Infof("Unexpected finished block_range %s, ignoring it: %s", br.String(), err)
-		return
+		return false
 	}
 
 	if successful {
@@ -190,6 +191,7 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) {
 		}
 	}
 	log.Debugf("onFinishWorker final_status: %s", s.toStringBrief())
+	return true
 }
 
 func getNextBlockRangeFromUnsafe(lastBlockInState uint64, lastBlockInL1 uint64, amountOfBlocksInEachRange uint64) *blockRange {
