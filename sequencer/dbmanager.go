@@ -20,16 +20,16 @@ const (
 
 // Pool Loader and DB Updater
 type dbManager struct {
-	cfg              DBManagerCfg
-	txPool           txPool
-	state            stateInterface
-	worker           workerInterface
-	l2ReorgCh        chan L2ReorgEvent
-	ctx              context.Context
-	batchConstraints state.BatchConstraintsCfg
-	numberOfReorgs   uint64
-	streamServer     *datastreamer.StreamServer
-	dataToStream     chan state.DSL2FullBlock
+	cfg                          DBManagerCfg
+	txPool                       txPool
+	state                        stateInterface
+	worker                       workerInterface
+	l2ReorgCh                    chan L2ReorgEvent
+	ctx                          context.Context
+	batchConstraints             state.BatchConstraintsCfg
+	numberOfStateInconsistencies uint64
+	streamServer                 *datastreamer.StreamServer
+	dataToStream                 chan state.DSL2FullBlock
 }
 
 func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
@@ -56,7 +56,7 @@ func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state
 
 	return &dbManager{ctx: ctx, cfg: config, txPool: txPool,
 		state: stateInterface, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh,
-		batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs,
+		batchConstraints: batchConstraints, numberOfStateInconsistencies: numberOfReorgs,
 		dataToStream: make(chan state.DSL2FullBlock, batchConstraints.MaxTxsPerBatch*datastreamChannelMultiplier)}
 }
 
@@ -66,7 +66,7 @@ func (d *dbManager) Start() {
 	go func() {
 		for {
 			time.Sleep(d.cfg.L2ReorgRetrievalInterval.Duration)
-			d.checkIfReorg()
+			d.checkStateInconsistency()
 		}
 	}()
 	if d.streamServer != nil {
@@ -115,16 +115,16 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 	return processingCtx
 }
 
-// checkIfReorg checks if a reorg has happened
-func (d *dbManager) checkIfReorg() {
-	numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
+// checkStateInconsistency checks if state inconsistency happened
+func (d *dbManager) checkStateInconsistency() {
+	stateInconsistenciesDetected, err := d.state.CountReorgs(d.ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)
 		return
 	}
 
-	if numberOfReorgs != d.numberOfReorgs {
-		log.Warnf("New L2 reorg detected")
+	if stateInconsistenciesDetected != d.numberOfStateInconsistencies {
+		log.Warnf("New State Inconsistency detected")
 		d.l2ReorgCh <- L2ReorgEvent{}
 	}
 }
@@ -250,7 +250,7 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 
 // StoreProcessedTxAndDeleteFromPool stores a tx into the state and changes it status in the pool
 func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error {
-	d.checkIfReorg()
+	d.checkStateInconsistency()
 
 	log.Debugf("Storing tx %v", tx.response.TxHash)
 	dbTx, err := d.BeginStateTransaction(ctx)
