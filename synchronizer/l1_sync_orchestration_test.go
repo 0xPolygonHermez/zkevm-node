@@ -19,14 +19,17 @@ func TestGivenOrquestrationWhenHappyPathThenReturnsBlockAndNoErrorAndProducerIsR
 	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	sut, mocks := setupOrchestrationTest(t, ctxTimeout)
-	mocks.producer.On("ResetAndStop", mock.Anything).Return()
+	mocks.producer.On("Reset", mock.Anything).Return()
 	mocks.producer.On("Start", mock.Anything).Return(func(context.Context) error {
 		time.Sleep(time.Second * 2)
 		return nil
 	})
 	block := state.Block{}
 	mocks.consumer.On("GetLastEthBlockSynced").Return(block, true)
-	mocks.consumer.On("Start", mock.Anything).Return(nil)
+	mocks.consumer.On("Start", mock.Anything).Return(func(context.Context) error {
+		time.Sleep(time.Millisecond * 100)
+		return nil
+	})
 	sut.reset(123)
 	returnedBlock, err := sut.start()
 	require.NoError(t, err)
