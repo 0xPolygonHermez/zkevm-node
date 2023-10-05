@@ -169,6 +169,10 @@ test-e2e-group-10: setup-e2e ## Runs group 10 e2e tests checking race conditions
 test-e2e-group-11: setup-e2e ## Runs group 11 e2e tests checking race conditions
 	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group11/...)
 
+.PHONY: test-e2e-group-12
+test-e2e-group-12: setup-e2e ## Runs group 12 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group12/...)
+
 .PHONY: benchmark-sequencer-eth-transfers
 benchmark-sequencer-eth-transfers: stop
 	$(RUNL1NETWORK)
