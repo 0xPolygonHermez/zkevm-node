@@ -69,10 +69,11 @@ func (s *syncStatus) getLastBlockOnL1() uint64 {
 	return s.lastBlockOnL1
 }
 
+// All pending blocks have been requested or are currently being requested
 func (s *syncStatus) haveRequiredAllBlocksToBeSynchronized() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	return s.lastBlockOnL1 <= s.highestBlockRequested && s.errorRanges.len() == 0
+	return s.lastBlockOnL1 <= s.highestBlockRequested
 }
 
 // isNodeFullySynchronizedWithL1 returns true if the node is fully synchronized with L1
@@ -272,6 +273,12 @@ func (s *syncStatus) isSetLastBlockOnL1Value() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.lastBlockOnL1 == invalidLastBlock
+}
+
+func (s *syncStatus) doesItHaveAllTheNeedDataToWork() bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.lastBlockOnL1 != invalidLastBlock && s.lastBlockStoreOnStateDB != invalidBlockNumber
 }
 
 func (s *syncStatus) verify() error {

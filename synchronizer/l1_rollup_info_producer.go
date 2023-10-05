@@ -50,6 +50,7 @@ type syncStatusInterface interface {
 	isNodeFullySynchronizedWithL1() bool
 	haveRequiredAllBlocksToBeSynchronized() bool
 	isSetLastBlockOnL1Value() bool
+	doesItHaveAllTheNeedDataToWork() bool
 	getLastBlockOnL1() uint64
 
 	onStartedNewWorker(br blockRange)
@@ -209,6 +210,7 @@ func (l *l1RollupInfoProducer) resetUnsafe(startingBlockNumber uint64) {
 	l.emptyChannel()
 	log.Debugf("producer: Reset(%d): reset Filter", startingBlockNumber)
 	l.filterToSendOrdererResultsToConsumer.Reset(startingBlockNumber)
+	l.setStatus(producerIdle)
 	log.Infof("producer: Reset(%d): reset done!", startingBlockNumber)
 }
 
@@ -271,18 +273,6 @@ func (l *l1RollupInfoProducer) initialize(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if l.syncStatus.isSetLastBlockOnL1Value() {
-		log.Infof("producer: Need a initial value for Last Block On L1, doing the request (maxRetries:%v, timeRequest:%v)",
-			l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1, l.cfg.timeoutForRequestLastBlockOnL1)
-		//result := l.retrieveInitialValueOfLastBlock(maxRetriesForRequestnitialValueOfLastBlock, timeRequestInitialValueOfLastBlock)
-		result := l.workers.requestLastBlockWithRetries(l.ctxWithCancel.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
-		if result.generic.err != nil {
-			log.Error(result.generic.err)
-			return result.generic.err
-		}
-		l.onNewLastBlock(result.result.block)
-	}
-
 	return nil
 }
 
@@ -330,24 +320,32 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 	switch l.status {
 	case producerIdle:
 		// Is ready to start working?
-		if l.syncStatus.verify() == nil {
+		l.renewLastBlockOnL1IfNeeded(false)
+		if l.syncStatus.doesItHaveAllTheNeedDataToWork() {
+			log.Infof("producer: producerIdle: have all the data to work, moving to working status.  status:%s", l.syncStatus.toStringBrief())
 			l.setStatus(producerWorking)
 			// This is for wakeup the step again to launch a new work
 			l.channelCmds <- producerCmd{cmd: producerNop}
+		} else {
+			log.Infof("producer: producerIdle: still dont have all the data to work status:%s", l.syncStatus.toStringBrief())
 		}
 	case producerWorking:
 		// launch new Work
 		l.launchWork()
+		// If I'm have required all blocks to L1?
+		if l.syncStatus.haveRequiredAllBlocksToBeSynchronized() {
+			log.Debugf("producer: producerWorking: haveRequiredAllBlocksToBeSynchronized -> renewLastBlockOnL1IfNeeded")
+			l.renewLastBlockOnL1IfNeeded(false)
+		}
+		// If after asking for a new lastBlockOnL1 we are still synchronized then we are synchronized
 		if l.syncStatus.isNodeFullySynchronizedWithL1() {
 			l.setStatus(producerSynchronized)
 		}
 	case producerSynchronized:
 		// renew last block on L1 if needed
-		if l.syncStatus.haveRequiredAllBlocksToBeSynchronized() {
-			// Try to nenew last block on L1 if needed
-			log.Debugf("producer: we have required (maybe not responsed yet) all blocks, so  getting last block on L1")
-			l.renewLastBlockOnL1IfNeeded(false)
-		}
+		log.Debugf("producer: producerSynchronized")
+		l.renewLastBlockOnL1IfNeeded(false)
+
 		if l.launchWork() > 0 {
 			l.setStatus(producerWorking)
 		}
@@ -376,7 +374,7 @@ func (l *l1RollupInfoProducer) executeCmd(cmd producerCmd) bool {
 	return true
 }
 
-func (l *l1RollupInfoProducer) ttlOfLastBlockOnL1Unsafe() time.Duration {
+func (l *l1RollupInfoProducer) ttlOfLastBlockOnL1() time.Duration {
 	return l.cfg.ttlOfLastBlockOnL1
 }
 
@@ -388,7 +386,7 @@ func (l *l1RollupInfoProducer) getNextTimeout() time.Duration {
 	case producerWorking:
 		return timeOutMainLoop
 	case producerSynchronized:
-		nextRenewLastBlock := time.Since(l.timeLastBLockOnL1) + l.ttlOfLastBlockOnL1Unsafe()
+		nextRenewLastBlock := time.Since(l.timeLastBLockOnL1) + l.ttlOfLastBlockOnL1()
 		return max(nextRenewLastBlock, time.Second)
 	case producerNoRunning:
 		return timeOutMainLoop
@@ -464,7 +462,7 @@ func (l *l1RollupInfoProducer) outgoingPackageStatusDebugString() string {
 
 func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
 	elapsed := time.Since(l.timeLastBLockOnL1)
-	ttl := l.ttlOfLastBlockOnL1Unsafe()
+	ttl := l.ttlOfLastBlockOnL1()
 	oldBlock := l.syncStatus.getLastBlockOnL1()
 	if elapsed > ttl || forced {
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request")

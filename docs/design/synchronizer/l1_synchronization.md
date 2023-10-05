@@ -1,23 +1,10 @@
 
 This is a refactor of L1 synchronization to improve speed.
-- It ask data in parallel  to L1 meanwhile another goroutine is execution the rollup info.
-- It makes that executor be ocupied 100% of time.
+- It ask data in parallel  to L1 meanwhile another goroutine is executing the rollup info.
+- It makes that the executor be occupied 100% of the time.
 
-## Pending to do
-
-  - All the stuff related to updating last block on L1 could be moved to another class
-  - Check context usage:
-    It need a context to cancel itself and create another context to cancel workers?
-  - Emit metrics
-  - if nothing to update reduce  code to be executed (not sure, because functionality  to keep update beyond last block on L1)
-  - Improve the unittest of all objects
-  - Check all log.fatals to remove it or add a status before the panic
-  - Missing **feature update beyond last block on L1**: Old syncBlocks method try to ask for blocks over last L1 block, I suppose that is to keep   synchronizing even a long the synchronization have new blocks. This is not implemented here
-    This is the behaviour of ethman in that situation:
-           - GetRollupInfoByBlockRange returns no errors, zero blocks...
-           - EthBlockByNumber returns error:  "not found"
+## Pending to do  
 - Some test on ` synchronizer/synchronizer_test.go` are based on this feature, so are running against legacy code
-- Move to configuration file some 'hardcoded' values
 
 ## Configuration
 This feature is experimental for that reason you can configure to use old sequential one: 

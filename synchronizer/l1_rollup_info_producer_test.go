@@ -29,14 +29,14 @@ func TestExploratoryL1Get(t *testing.T) {
 
 func TestGivenNeedSyncWhenStartThenAskForRollupInfo(t *testing.T) {
 	sut, ethermans, _ := setup(t)
-	etherman := ethermans[0]
-	expectedForGettingL1LastBlock(t, etherman, 150)
-	expectedRollupInfoCalls(t, etherman, 1)
+	expectedForGettingL1LastBlock(t, ethermans[0], 150)
+	expectedRollupInfoCalls(t, ethermans[1], 1)
 	err := sut.initialize(context.Background())
 	require.NoError(t, err)
 	sut.launchWork()
 	var waitDuration = time.Duration(0)
 
+	sut.step(&waitDuration)
 	sut.step(&waitDuration)
 	sut.workers.waitFinishAllWorkers()
 }
@@ -66,11 +66,10 @@ func TestGivenNoNeedSyncWhenStartsSendAndEventOfSynchronized(t *testing.T) {
 // Then:  Ask for rollupinfo
 func TestGivenNeedSyncWhenReachLastBlockThenSendAndEventOfSynchronized(t *testing.T) {
 	sut, ethermans, ch := setup(t)
-	etherman := ethermans[0]
 	// Our last block is 100 in DB and it returns 101 as last block on L1
 	// so it need to retrieve 1 rollupinfo
-	expectedForGettingL1LastBlock(t, etherman, 101)
-	expectedRollupInfoCalls(t, etherman, 1)
+	expectedForGettingL1LastBlock(t, ethermans[0], 101)
+	expectedRollupInfoCalls(t, ethermans[1], 1)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	defer cancel()
@@ -103,9 +102,8 @@ func setup(t *testing.T) (*l1RollupInfoProducer, []*ethermanMock, chan l1SyncMes
 }
 
 func setupNoResetCall(t *testing.T) (*l1RollupInfoProducer, []*ethermanMock, chan l1SyncMessage) {
-	etherman := newEthermanMock(t)
-	ethermansMock := []*ethermanMock{etherman}
-	ethermans := []EthermanInterface{etherman}
+	ethermansMock := []*ethermanMock{newEthermanMock(t), newEthermanMock(t)}
+	ethermans := []EthermanInterface{ethermansMock[0], ethermansMock[1]}
 	resultChannel := make(chan l1SyncMessage, 100)
 	cfg := configProducer{
 		syncChunkSize:      100,

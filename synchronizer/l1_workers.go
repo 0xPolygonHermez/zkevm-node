@@ -41,8 +41,10 @@ func (w *workerData) String() string {
 }
 
 type workers struct {
-	mutex   sync.Mutex
-	workers []workerData
+	mutex sync.Mutex
+	// worker for asking lastBlock on L1 (to avoid that all of them are busy)
+	workerForLastBlock workerData
+	workers            []workerData
 	// Channel to send to outside the responses from worker | workers --> client
 	chOutgoingRollupInfo chan responseRollupInfoByBlockRange
 
@@ -67,11 +69,15 @@ func (w *workers) String() string {
 func newWorkers(ethermans []EthermanInterface, cfg workersConfig) *workers {
 	result := workers{chIncommingRollupInfo: make(chan responseRollupInfoByBlockRange, len(ethermans)+1),
 		cfg: cfg}
-
-	result.workers = make([]workerData, len(ethermans))
-	for i, etherman := range ethermans {
-		result.workers[i].worker = newWorker(etherman)
+	if (len(ethermans)) < 2 {
+		log.Fatalf("workers: at least 2 ethermans are required, got %d", len(ethermans))
 	}
+	workers := make([]workerData, len(ethermans))
+	for i, etherman := range ethermans {
+		workers[i].worker = newWorker(etherman)
+	}
+	result.workers = workers[1:]
+	result.workerForLastBlock = workers[0]
 	result.chOutgoingRollupInfo = make(chan responseRollupInfoByBlockRange, len(ethermans)+1)
 	return &result
 }
@@ -131,15 +137,16 @@ func (w *workers) requestLastBlock(ctx context.Context, timeout time.Duration) r
 	defer ctxTimeout.cancel()
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	workerIndex, worker := w.getIdleWorkerUnsafe()
+	//workerIndex, worker := w.getIdleWorkerUnsafe()
+	worker := &w.workerForLastBlock
 	if worker == nil {
 		log.Debugf("workers: call:[%s] failed err:%s", "requestLastBlock", errAllWorkersBusy)
 		return newResponseL1LastBlock(errAllWorkersBusy, time.Duration(0), typeRequestLastBlock, nil)
 	}
-	w.workers[workerIndex].ctx = ctxTimeout
+	worker.ctx = ctxTimeout
 
-	log.Debugf("workers: worker[%d] : launching requestLatBlock (timeout=%s)", workerIndex, timeout.String())
-	result := worker.requestLastBlock(ctxTimeout.ctx)
+	log.Debugf("workers: worker : launching requestLatBlock (timeout=%s)", timeout.String())
+	result := worker.worker.requestLastBlock(ctxTimeout.ctx)
 	return result
 }
 
