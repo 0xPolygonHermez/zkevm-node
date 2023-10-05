@@ -33,7 +33,7 @@ import (
 )
 
 func TestDataCommittee(t *testing.T) {
-	// os.Setenv(operations.TestConcensusENV, operations.Validium)
+	os.Setenv(operations.TestConcensusENV, operations.Validium)
 	if testing.Short() || !operations.IsValidium() {
 		t.Skip()
 	}
@@ -90,7 +90,7 @@ func TestDataCommittee(t *testing.T) {
 		membs = append(membs, member{
 			addr: crypto.PubkeyToAddress(pk.PublicKey),
 			pk:   pk,
-			url:  fmt.Sprintf("http://cdk-data-availability-%d:420%d", i, i),
+			url:  fmt.Sprintf("http://cdk-dac-node-%d:420%d", i, i),
 			i:    i,
 		})
 	}
@@ -127,7 +127,7 @@ func TestDataCommittee(t *testing.T) {
 			Name:      "committee_db",
 			User:      "committee_user",
 			Password:  "committee_password",
-			Host:      "cdk-data-node-db",
+			Host:      "cdk-dac-node-db",
 			Port:      "5432",
 			EnableLog: false,
 			MaxConns:  10,
@@ -152,10 +152,10 @@ func TestDataCommittee(t *testing.T) {
 		// Stop DAC nodes
 		for i := 0; i < mMembers; i++ {
 			assert.NoError(t, exec.Command(
-				"docker", "kill", "cdk-data-availability-"+strconv.Itoa(i),
+				"docker", "kill", "cdk-dac-node-"+strconv.Itoa(i),
 			).Run())
 			assert.NoError(t, exec.Command(
-				"docker", "rm", "cdk-data-availability-"+strconv.Itoa(i),
+				"docker", "rm", "cdk-dac-node-"+strconv.Itoa(i),
 			).Run())
 		}
 		// Stop permissionless node
@@ -179,10 +179,10 @@ func TestDataCommittee(t *testing.T) {
 		// Run DAC node
 		cmd := exec.Command(
 			"docker", "run", "-d",
-			"--name", "cdk-data-availability-"+strconv.Itoa(m.i),
+			"--name", "cdk-dac-node-"+strconv.Itoa(m.i),
 			"-v", cfgFile+":/app/config.json",
 			"-v", ksFile+":"+ksFile,
-			"--network", "cdk-validium",
+			"--network", "zkevm",
 			dacNodeContainer,
 			"/bin/sh", "-c",
 			"/app/cdk-data-availability run --cfg /app/config.json",

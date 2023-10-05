@@ -87,21 +87,22 @@ func NewSynchronizer(
 	metrics.Register()
 
 	res := &ClientSynchronizer{
-		isTrustedSequencer:      isTrustedSequencer,
-		state:                   st,
-		etherMan:                ethMan,
-		etherManForL1:           etherManForL1,
-		pool:                    pool,
-		ctx:                     ctx,
-		cancelCtx:               cancel,
-		ethTxManager:            ethTxManager,
-		zkEVMClient:             zkEVMClient,
-		eventLog:                eventLog,
-		genesis:                 genesis,
-		cfg:                     cfg,
-		proverID:                "",
-		previousExecutorFlushID: 0,
-		l1SyncOrchestration:     nil,
+		isTrustedSequencer:         isTrustedSequencer,
+		state:                      st,
+		etherMan:                   ethMan,
+		etherManForL1:              etherManForL1,
+		pool:                       pool,
+		ctx:                        ctx,
+		cancelCtx:                  cancel,
+		ethTxManager:               ethTxManager,
+		zkEVMClient:                zkEVMClient,
+		eventLog:                   eventLog,
+		genesis:                    genesis,
+		cfg:                        cfg,
+		proverID:                   "",
+		previousExecutorFlushID:    0,
+		l1SyncOrchestration:        nil,
+		dataCommitteeClientFactory: clientFactory,
 	}
 	if cfg.UseParallelModeForL1Synchronization {
 		var err error

@@ -481,7 +481,7 @@ services:
 
   zkevm-permissionless-node-forced-DAC:
     container_name: zkevm-permissionless-node-forced-DAC
-    image: cdk-validium-node
+    image: zkevm-node
     ports:
       - 8125:8125
     environment:
