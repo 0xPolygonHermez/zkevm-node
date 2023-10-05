@@ -13,8 +13,8 @@ type l1RollupProducerInterfaceMock struct {
 	mock.Mock
 }
 
-// ResetAndStop provides a mock function with given fields: startingBlockNumber
-func (_m *l1RollupProducerInterfaceMock) ResetAndStop(startingBlockNumber uint64) {
+// Reset provides a mock function with given fields: startingBlockNumber
+func (_m *l1RollupProducerInterfaceMock) Reset(startingBlockNumber uint64) {
 	_m.Called(startingBlockNumber)
 }
 

@@ -31,6 +31,7 @@ message ProcessBatchRequest {
     map<string, string> db = 13;
     map<string, string> contracts_bytecode = 14; // For debug/testing purpposes only. Don't fill this on production
     TraceConfig trace_config = 15;
+    string context_id = 16;
 }
 
 message ProcessBatchResponse {

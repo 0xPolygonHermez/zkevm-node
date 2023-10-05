@@ -20,16 +20,16 @@ const (
 
 // Pool Loader and DB Updater
 type dbManager struct {
-	cfg              DBManagerCfg
-	txPool           txPool
-	state            stateInterface
-	worker           workerInterface
-	l2ReorgCh        chan L2ReorgEvent
-	ctx              context.Context
-	batchConstraints state.BatchConstraintsCfg
-	numberOfReorgs   uint64
-	streamServer     *datastreamer.StreamServer
-	dataToStream     chan DSL2FullBlock
+	cfg                          DBManagerCfg
+	txPool                       txPool
+	state                        stateInterface
+	worker                       workerInterface
+	l2ReorgCh                    chan L2ReorgEvent
+	ctx                          context.Context
+	batchConstraints             state.BatchConstraintsCfg
+	numberOfStateInconsistencies uint64
+	streamServer                 *datastreamer.StreamServer
+	dataToStream                 chan state.DSL2FullBlock
 }
 
 func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
@@ -48,16 +48,16 @@ type ClosingBatchParameters struct {
 	EffectivePercentages []uint8
 }
 
-func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, batchConstraints state.BatchConstraintsCfg) *dbManager {
-	numberOfReorgs, err := state.CountReorgs(ctx, nil)
+func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, stateInterface stateInterface, worker *Worker, closingSignalCh ClosingSignalCh, batchConstraints state.BatchConstraintsCfg) *dbManager {
+	numberOfReorgs, err := stateInterface.CountReorgs(ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)
 	}
 
 	return &dbManager{ctx: ctx, cfg: config, txPool: txPool,
-		state: state, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh,
-		batchConstraints: batchConstraints, numberOfReorgs: numberOfReorgs,
-		dataToStream: make(chan DSL2FullBlock, batchConstraints.MaxTxsPerBatch*datastreamChannelMultiplier)}
+		state: stateInterface, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh,
+		batchConstraints: batchConstraints, numberOfStateInconsistencies: numberOfReorgs,
+		dataToStream: make(chan state.DSL2FullBlock, batchConstraints.MaxTxsPerBatch*datastreamChannelMultiplier)}
 }
 
 // Start stars the dbManager routines
@@ -66,7 +66,7 @@ func (d *dbManager) Start() {
 	go func() {
 		for {
 			time.Sleep(d.cfg.L2ReorgRetrievalInterval.Duration)
-			d.checkIfReorg()
+			d.checkStateInconsistency()
 		}
 	}()
 	if d.streamServer != nil {
@@ -115,16 +115,16 @@ func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress commo
 	return processingCtx
 }
 
-// checkIfReorg checks if a reorg has happened
-func (d *dbManager) checkIfReorg() {
-	numberOfReorgs, err := d.state.CountReorgs(d.ctx, nil)
+// checkStateInconsistency checks if state inconsistency happened
+func (d *dbManager) checkStateInconsistency() {
+	stateInconsistenciesDetected, err := d.state.CountReorgs(d.ctx, nil)
 	if err != nil {
 		log.Error("failed to get number of reorgs: %v", err)
 		return
 	}
 
-	if numberOfReorgs != d.numberOfReorgs {
-		log.Warnf("New L2 reorg detected")
+	if stateInconsistenciesDetected != d.numberOfStateInconsistencies {
+		log.Warnf("New State Inconsistency detected")
 		d.l2ReorgCh <- L2ReorgEvent{}
 	}
 }
@@ -174,18 +174,38 @@ func (d *dbManager) sendDataToStreamer() {
 				continue
 			}
 
-			_, err = d.streamServer.AddStreamEntry(EntryTypeL2Block, l2Block.Encode())
+			blockStart := state.DSL2BlockStart{
+				BatchNumber:    l2Block.BatchNumber,
+				L2BlockNumber:  l2Block.L2BlockNumber,
+				Timestamp:      l2Block.Timestamp,
+				GlobalExitRoot: l2Block.GlobalExitRoot,
+				Coinbase:       l2Block.Coinbase,
+				ForkID:         l2Block.ForkID,
+			}
+
+			_, err = d.streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
 			if err != nil {
 				log.Errorf("failed to add stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
 				continue
 			}
 
 			for _, l2Transaction := range l2Transactions {
-				_, err = d.streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transaction.Encode())
+				_, err = d.streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transaction.Encode())
 				if err != nil {
 					log.Errorf("failed to add l2tx stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
 					continue
 				}
+			}
+
+			blockEnd := state.DSL2BlockEnd{
+				L2BlockNumber: l2Block.L2BlockNumber,
+				BlockHash:     l2Block.BlockHash,
+				StateRoot:     l2Block.StateRoot,
+			}
+
+			_, err = d.streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, blockEnd.Encode())
+			if err != nil {
+				log.Fatal(err)
 			}
 
 			err = d.streamServer.CommitAtomicOp()
@@ -230,7 +250,7 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 
 // StoreProcessedTxAndDeleteFromPool stores a tx into the state and changes it status in the pool
 func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error {
-	d.checkIfReorg()
+	d.checkStateInconsistency()
 
 	log.Debugf("Storing tx %v", tx.response.TxHash)
 	dbTx, err := d.BeginStateTransaction(ctx)
@@ -286,25 +306,29 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 
 	// Send data to streamer
 	if d.streamServer != nil {
-		l2Block := DSL2Block{
+		forkID := d.state.GetForkIDByBatchNumber(tx.batchNumber)
+
+		l2Block := state.DSL2Block{
 			BatchNumber:    tx.batchNumber,
 			L2BlockNumber:  l2BlockHeader.Number.Uint64(),
-			Timestamp:      uint64(tx.timestamp.Unix()),
+			Timestamp:      tx.timestamp.Unix(),
 			GlobalExitRoot: batch.GlobalExitRoot,
 			Coinbase:       tx.coinbase,
+			ForkID:         uint16(forkID),
+			BlockHash:      l2BlockHeader.Hash(),
+			StateRoot:      l2BlockHeader.Root,
 		}
 
-		l2Transaction := DSL2Transaction{
-			BatchNumber:                 batch.BatchNumber,
+		l2Transaction := state.DSL2Transaction{
 			EffectiveGasPricePercentage: uint8(tx.response.EffectivePercentage),
 			IsValid:                     1,
 			EncodedLength:               uint32(len(txData)),
 			Encoded:                     txData,
 		}
 
-		d.dataToStream <- DSL2FullBlock{
+		d.dataToStream <- state.DSL2FullBlock{
 			L2Block: l2Block,
-			Txs:     []DSL2Transaction{l2Transaction},
+			Txs:     []state.DSL2Transaction{l2Transaction},
 		}
 	}
 

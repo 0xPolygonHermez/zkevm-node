@@ -111,7 +111,7 @@ func (d *DebugEndpoints) TraceBlockByNumber(number types.BlockNumber, cfg *trace
 		}
 
 		traces, rpcErr := d.buildTraceBlock(ctx, block.Transactions(), cfg, dbTx)
-		if err != nil {
+		if rpcErr != nil {
 			return nil, rpcErr
 		}
 
@@ -131,7 +131,7 @@ func (d *DebugEndpoints) TraceBlockByHash(hash types.ArgHash, cfg *traceConfig) 
 		}
 
 		traces, rpcErr := d.buildTraceBlock(ctx, block.Transactions(), cfg, dbTx)
-		if err != nil {
+		if rpcErr != nil {
 			return nil, rpcErr
 		}
 
@@ -283,7 +283,7 @@ func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*ethTypes.Tr
 	for _, tx := range txs {
 		traceTransaction, err := d.buildTraceTransaction(ctx, tx.Hash(), cfg, dbTx)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to get trace for transaction %v", tx.Hash().String())
+			errMsg := fmt.Sprintf("failed to get trace for transaction %v: %v", tx.Hash().String(), err.Error())
 			return RPCErrorResponse(types.DefaultErrorCode, errMsg, err, true)
 		}
 		traceBlockTransaction := traceBlockTransactionResponse{
@@ -318,8 +318,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 	if errors.Is(err, state.ErrNotFound) {
 		return RPCErrorResponse(types.DefaultErrorCode, "transaction not found", nil, false)
 	} else if err != nil {
-		const errorMessage = "failed to get trace"
-		log.Errorf("%v: %v", errorMessage, err)
+		errorMessage := fmt.Sprintf("failed to get trace: %v", err.Error())
 		return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
 	}
 

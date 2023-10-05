@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -182,6 +183,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
+		ContextId:        uuid.NewString(),
 	}
 	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, request.Caller)
 	if err != nil {
@@ -233,6 +235,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkId,
+		ContextId:        uuid.NewString(),
 	}
 
 	// Send Batch to the Executor
@@ -247,6 +250,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 	log.Debugf("ExecuteBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 	log.Debugf("ExecuteBatch[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	log.Debugf("ExecuteBatch[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
+	log.Debugf("ExecuteBatch[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
 
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
@@ -314,6 +318,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
+		ContextId:        uuid.NewString(),
 	}
 
 	return s.sendBatchRequestToExecutor(ctx, processBatchRequest, caller)
@@ -336,6 +341,7 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 		log.Debugf("processBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 		log.Debugf("processBatch[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 		log.Debugf("processBatch[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
+		log.Debugf("processBatch[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
 	}
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
