@@ -320,7 +320,7 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 	switch l.status {
 	case producerIdle:
 		// Is ready to start working?
-		l.renewLastBlockOnL1IfNeeded(false)
+		l.renewLastBlockOnL1IfNeeded()
 		if l.syncStatus.doesItHaveAllTheNeedDataToWork() {
 			log.Infof("producer: producerIdle: have all the data to work, moving to working status.  status:%s", l.syncStatus.toStringBrief())
 			l.setStatus(producerWorking)
@@ -335,7 +335,7 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 		// If I'm have required all blocks to L1?
 		if l.syncStatus.haveRequiredAllBlocksToBeSynchronized() {
 			log.Debugf("producer: producerWorking: haveRequiredAllBlocksToBeSynchronized -> renewLastBlockOnL1IfNeeded")
-			l.renewLastBlockOnL1IfNeeded(false)
+			l.renewLastBlockOnL1IfNeeded()
 		}
 		// If after asking for a new lastBlockOnL1 we are still synchronized then we are synchronized
 		if l.syncStatus.isNodeFullySynchronizedWithL1() {
@@ -344,7 +344,7 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 	case producerSynchronized:
 		// renew last block on L1 if needed
 		log.Debugf("producer: producerSynchronized")
-		l.renewLastBlockOnL1IfNeeded(false)
+		l.renewLastBlockOnL1IfNeeded()
 
 		if l.launchWork() > 0 {
 			l.setStatus(producerWorking)
@@ -460,11 +460,11 @@ func (l *l1RollupInfoProducer) outgoingPackageStatusDebugString() string {
 	return fmt.Sprintf("outgoint_channel[%d/%d], filter:%s workers:%s", len(l.outgoingChannel), cap(l.outgoingChannel), l.filterToSendOrdererResultsToConsumer.ToStringBrief(), l.workers.String())
 }
 
-func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(forced bool) {
+func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded() {
 	elapsed := time.Since(l.timeLastBLockOnL1)
 	ttl := l.ttlOfLastBlockOnL1()
 	oldBlock := l.syncStatus.getLastBlockOnL1()
-	if elapsed > ttl || forced {
+	if elapsed > ttl {
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request")
 		result := l.workers.requestLastBlockWithRetries(l.ctxWithCancel.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request old_block:%v -> new block:%v", oldBlock, result.result.block)
