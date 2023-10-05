@@ -78,6 +78,8 @@ SequencerNodeURI = ""
 EnableL2SuggestedGasPricePolling = true
 BatchRequestsEnabled = false
 BatchRequestsLimit = 20
+MaxLogsCount = 10000
+MaxLogsBlockRange = 10000
 	[RPC.WebSockets]
 		Enabled = true
 		Host = "0.0.0.0"

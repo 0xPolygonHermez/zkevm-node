@@ -27,7 +27,11 @@ var (
 )
 
 func setup() {
-	pgStateStorage = state.NewPostgresStorage(stateDb)
+	cfg := state.Config{
+		MaxLogsCount:      10000,
+		MaxLogsBlockRange: 10000,
+	}
+	pgStateStorage = state.NewPostgresStorage(cfg, stateDb)
 }
 
 func TestGetBatchByL2BlockNumber(t *testing.T) {
@@ -702,4 +706,127 @@ func TestGetBatchL2DataByNumber(t *testing.T) {
 	actualData, err := testState.GetBatchL2DataByNumber(ctx, batchNum, tx)
 	require.NoError(t, err)
 	assert.Equal(t, expectedData, actualData)
+}
+
+func TestGetLogs(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+
+	cfg := state.Config{
+		MaxLogsCount:      8,
+		MaxLogsBlockRange: 10,
+	}
+	pgStateStorage = state.NewPostgresStorage(cfg, stateDb)
+	testState.PostgresStorage = pgStateStorage
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = testState.AddBlock(ctx, block, dbTx)
+	assert.NoError(t, err)
+
+	batchNumber := uint64(1)
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+	assert.NoError(t, err)
+
+	time := time.Now()
+	blockNumber := big.NewInt(1)
+
+	for i := 0; i < 3; i++ {
+		tx := types.NewTx(&types.LegacyTx{
+			Nonce:    uint64(i),
+			To:       nil,
+			Value:    new(big.Int),
+			Gas:      0,
+			GasPrice: big.NewInt(0),
+		})
+
+		logs := []*types.Log{}
+		for j := 0; j < 4; j++ {
+			logs = append(logs, &types.Log{TxHash: tx.Hash(), Index: uint(j)})
+		}
+
+		receipt := &types.Receipt{
+			Type:              uint8(tx.Type()),
+			PostState:         state.ZeroHash.Bytes(),
+			CumulativeGasUsed: 0,
+			EffectiveGasPrice: big.NewInt(0),
+			BlockNumber:       blockNumber,
+			GasUsed:           tx.Gas(),
+			TxHash:            tx.Hash(),
+			TransactionIndex:  0,
+			Status:            types.ReceiptStatusSuccessful,
+			Logs:              logs,
+		}
+
+		transactions := []*types.Transaction{tx}
+		receipts := []*types.Receipt{receipt}
+
+		header := &types.Header{
+			Number:     big.NewInt(int64(i) + 1),
+			ParentHash: state.ZeroHash,
+			Coinbase:   state.ZeroAddress,
+			Root:       state.ZeroHash,
+			GasUsed:    1,
+			GasLimit:   10,
+			Time:       uint64(time.Unix()),
+		}
+
+		l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+		for _, receipt := range receipts {
+			receipt.BlockHash = l2Block.Hash()
+		}
+
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+		require.NoError(t, err)
+	}
+
+	type testCase struct {
+		name          string
+		from          uint64
+		to            uint64
+		logCount      int
+		expectedError error
+	}
+
+	testCases := []testCase{
+		{
+			name:          "invalid block range",
+			from:          2,
+			to:            1,
+			logCount:      0,
+			expectedError: state.ErrInvalidBlockRange,
+		},
+		{
+			name:          "block range bigger than allowed",
+			from:          1,
+			to:            12,
+			logCount:      0,
+			expectedError: state.ErrMaxLogsBlockRangeLimitExceeded,
+		},
+		{
+			name:          "log count bigger than allowed",
+			from:          1,
+			to:            3,
+			logCount:      0,
+			expectedError: state.ErrMaxLogsCountLimitExceeded,
+		},
+		{
+			name:          "logs returned successfully",
+			from:          1,
+			to:            2,
+			logCount:      8,
+			expectedError: nil,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			logs, err := testState.GetLogs(ctx, testCase.from, testCase.to, []common.Address{}, [][]common.Hash{}, nil, nil, dbTx)
+
+			assert.Equal(t, testCase.logCount, len(logs))
+			assert.Equal(t, testCase.expectedError, err)
+		})
+	}
+	require.NoError(t, dbTx.Commit(ctx))
 }

@@ -152,6 +152,8 @@ func getSequencerDefaultConfig() Config {
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
 		MaxCumulativeGasUsed:      300000,
 		BatchRequestsEnabled:      true,
+		MaxLogsCount:              10000,
+		MaxLogsBlockRange:         10000,
 	}
 	return cfg
 }

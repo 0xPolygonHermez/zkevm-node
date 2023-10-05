@@ -32,7 +32,10 @@ func NewStorage() *Storage {
 
 // NewLogFilter persists a new log filter
 func (s *Storage) NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string, error) {
-	if filter.BlockHash != nil && (filter.FromBlock != nil || filter.ToBlock != nil) {
+	shouldFilterByBlockHash := filter.BlockHash != nil
+	shouldFilterByBlockRange := filter.FromBlock != nil || filter.ToBlock != nil
+
+	if shouldFilterByBlockHash && shouldFilterByBlockRange {
 		return "", ErrFilterInvalidPayload
 	}
 
