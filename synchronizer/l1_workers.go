@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	noSleepTime = time.Duration(0)
+	noSleepTime              = time.Duration(0)
+	minimumNumberOfEthermans = 2
 )
 
 var (
@@ -69,8 +70,8 @@ func (w *workers) String() string {
 func newWorkers(ethermans []EthermanInterface, cfg workersConfig) *workers {
 	result := workers{chIncommingRollupInfo: make(chan responseRollupInfoByBlockRange, len(ethermans)+1),
 		cfg: cfg}
-	if (len(ethermans)) < 2 {
-		log.Fatalf("workers: at least 2 ethermans are required, got %d", len(ethermans))
+	if (len(ethermans)) < minimumNumberOfEthermans {
+		log.Fatalf("workers: at least %d ethermans are required, got %d", minimumNumberOfEthermans, len(ethermans))
 	}
 	workers := make([]workerData, len(ethermans))
 	for i, etherman := range ethermans {

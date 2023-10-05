@@ -360,6 +360,7 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 	return true
 }
 
+// return if the producer must keep running (false -> stop)
 func (l *l1RollupInfoProducer) executeCmd(cmd producerCmd) bool {
 	switch cmd.cmd {
 	case producerStop:
