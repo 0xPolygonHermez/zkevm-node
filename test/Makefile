@@ -90,6 +90,12 @@ STOPMETRICS := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEMETRICS) && $(DOCKERCOMPOSE)
 
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
+DOCKERCOMPOSEPERMISSIONLESSNODEDAC := zkevm-permissionless-node-forced-DAC
+RUNPERMISSIONLESSNODEDAC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSNODEDAC)
+STOPPERMISSIONLESSNODEDAC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSNODEDAC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSNODEDAC)
+RUNDACDB := docker-compose up -d cdk-dac-node-db
+STOPDACDB := docker-compose stop cdk-dac-node-db && docker-compose rm -f cdk-dac-node-db
+
 .PHONY: test-full-non-e2e
 test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNSTATEDB)
@@ -425,6 +431,27 @@ run: ## Runs a full node
 .PHONY: stop
 stop: ## Stops all services
 	$(STOP)
+
+.PHONY: run-permissionless-dac
+run-permissionless-dac: ## Runs a permissionless node that is forced to sync through DAC
+	$(RUNPERMISSIONLESSDB)
+	sleep 1
+	$(RUNPERMISSIONLESSZKPROVER)
+	$(RUNPERMISSIONLESSNODEDAC)
+
+.PHONY: stop-permissionless-dac
+stop-permissionless-dac: ## Stops the permissionless node that is forced to sync through DAC
+	$(STOPPERMISSIONLESSNODEDAC)
+	$(STOPPERMISSIONLESSZKPROVER)
+	$(STOPPERMISSIONLESSDB)
+
+.PHONY: run-dac-db
+run-dac-db: ## Suns the DAC DB
+	$(RUNDACDB)
+
+.PHONY: stop-dac-db
+stop-dac-db: ## Stops the DAC DB
+	$(STOPDACDB)
 
 .PHONY: ship
 ship: ## Builds docker images and run them

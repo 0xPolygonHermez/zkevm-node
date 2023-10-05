@@ -87,12 +87,13 @@
 **Type:** : `object`
 **Description:** L1: configuration of the network
 
-| Property                                                                            | Pattern | Type             | Deprecated | Definition | Title/Description                                |
-| ----------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------ |
-| - [chainId](#L1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                       |
-| - [polygonZkEVMAddress](#L1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | Address of the L1 contract                       |
-| - [maticTokenAddress](#L1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | Address of the L1 Matic token Contract           |
-| - [polygonZkEVMGlobalExitRootAddress](#L1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | Address of the L1 GlobalExitRootManager contract |
+| Property                                                                            | Pattern | Type             | Deprecated | Definition | Title/Description                                                                    |
+| ----------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------------------------------------------ |
+| - [chainId](#L1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                                                           |
+| - [polygonZkEVMAddress](#L1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | Address of the L1 contract                                                           |
+| - [maticTokenAddress](#L1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | Address of the L1 Matic token Contract                                               |
+| - [polygonZkEVMGlobalExitRootAddress](#L1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | Address of the L1 GlobalExitRootManager contract                                     |
+| - [cdkDataCommitteeAddress](#L1Config_cdkDataCommitteeAddress )                     | No      | array of integer | No         | -          | Address of the data availability committee contract. Only needed when using Validium |
 
 ### <a name="L1Config_chainId"></a>4.1. `L1Config.chainId`
 
@@ -113,6 +114,11 @@
 
 **Type:** : `array of integer`
 **Description:** Address of the L1 GlobalExitRootManager contract
+
+### <a name="L1Config_cdkDataCommitteeAddress"></a>4.5. `L1Config.cdkDataCommitteeAddress`
+
+**Type:** : `array of integer`
+**Description:** Address of the data availability committee contract. Only needed when using Validium
 
 ----------------------------------------------------------------------------------------------------------------------------
 Generated using [json-schema-for-humans](https://github.com/coveooss/json-schema-for-humans)

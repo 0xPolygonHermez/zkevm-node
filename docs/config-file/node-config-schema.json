@@ -59,6 +59,11 @@
 		},
 		"Etherman": {
 			"properties": {
+				"IsRollup": {
+					"type": "boolean",
+					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)",
+					"default": true
+				},
 				"URL": {
 					"type": "string",
 					"description": "URL is the URL of the Ethereum node for L1",
@@ -376,6 +381,11 @@
 		},
 		"Synchronizer": {
 			"properties": {
+				"IsRollup": {
+					"type": "boolean",
+					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)",
+					"default": true
+				},
 				"SyncInterval": {
 					"type": "string",
 					"title": "Duration",
@@ -774,6 +784,11 @@
 		},
 		"SequenceSender": {
 			"properties": {
+				"IsRollup": {
+					"type": "boolean",
+					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)",
+					"default": true
+				},
 				"WaitPeriodSendSequence": {
 					"type": "string",
 					"title": "Duration",
@@ -798,6 +813,11 @@
 					"type": "integer",
 					"description": "MaxTxSizeForL1 is the maximum size a single transaction can have. This field has\nnon-trivial consequences: larger transactions than 128KB are significantly harder and\nmore expensive to propagate; larger transactions also take more resources\nto validate whether they fit into the pool or not.",
 					"default": 131072
+				},
+				"MaxBatchesForL1": {
+					"type": "integer",
+					"description": "MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx",
+					"default": 1000
 				},
 				"SenderAddress": {
 					"items": {
@@ -978,6 +998,15 @@
 							"maxItems": 20,
 							"minItems": 20,
 							"description": "Address of the L1 GlobalExitRootManager contract"
+						},
+						"cdkDataCommitteeAddress": {
+							"items": {
+								"type": "integer"
+							},
+							"type": "array",
+							"maxItems": 20,
+							"minItems": 20,
+							"description": "Address of the data availability committee contract. Only needed when using Validium"
 						}
 					},
 					"additionalProperties": false,

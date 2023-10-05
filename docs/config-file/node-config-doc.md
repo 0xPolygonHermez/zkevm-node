@@ -147,14 +147,29 @@ Outputs=["stderr"]
 **Type:** : `object`
 **Description:** Configuration of the etherman (client for access L1)
 
-| Property                                          | Pattern | Type    | Deprecated | Definition | Title/Description                                                                       |
-| ------------------------------------------------- | ------- | ------- | ---------- | ---------- | --------------------------------------------------------------------------------------- |
-| - [URL](#Etherman_URL )                           | No      | string  | No         | -          | URL is the URL of the Ethereum node for L1                                              |
-| - [ForkIDChunkSize](#Etherman_ForkIDChunkSize )   | No      | integer | No         | -          | ForkIDChunkSize is the max interval for each call to L1 provider to get the forkIDs     |
-| - [MultiGasProvider](#Etherman_MultiGasProvider ) | No      | boolean | No         | -          | allow that L1 gas price calculation use multiples sources                               |
-| - [Etherscan](#Etherman_Etherscan )               | No      | object  | No         | -          | Configuration for use Etherscan as used as gas provider, basically it needs the API-KEY |
+| Property                                          | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                             |
+| ------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------- |
+| - [IsRollup](#Etherman_IsRollup )                 | No      | boolean | No         | -          | IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium) |
+| - [URL](#Etherman_URL )                           | No      | string  | No         | -          | URL is the URL of the Ethereum node for L1                                                                    |
+| - [ForkIDChunkSize](#Etherman_ForkIDChunkSize )   | No      | integer | No         | -          | ForkIDChunkSize is the max interval for each call to L1 provider to get the forkIDs                           |
+| - [MultiGasProvider](#Etherman_MultiGasProvider ) | No      | boolean | No         | -          | allow that L1 gas price calculation use multiples sources                                                     |
+| - [Etherscan](#Etherman_Etherscan )               | No      | object  | No         | -          | Configuration for use Etherscan as used as gas provider, basically it needs the API-KEY                       |
 
-### <a name="Etherman_URL"></a>5.1. `Etherman.URL`
+### <a name="Etherman_IsRollup"></a>5.1. `Etherman.IsRollup`
+
+**Type:** : `boolean`
+
+**Default:** `true`
+
+**Description:** IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)
+
+**Example setting the default value** (true):
+```
+[Etherman]
+IsRollup=true
+```
+
+### <a name="Etherman_URL"></a>5.2. `Etherman.URL`
 
 **Type:** : `string`
 
@@ -168,7 +183,7 @@ Outputs=["stderr"]
 URL="http://localhost:8545"
 ```
 
-### <a name="Etherman_ForkIDChunkSize"></a>5.2. `Etherman.ForkIDChunkSize`
+### <a name="Etherman_ForkIDChunkSize"></a>5.3. `Etherman.ForkIDChunkSize`
 
 **Type:** : `integer`
 
@@ -182,7 +197,7 @@ URL="http://localhost:8545"
 ForkIDChunkSize=20000
 ```
 
-### <a name="Etherman_MultiGasProvider"></a>5.3. `Etherman.MultiGasProvider`
+### <a name="Etherman_MultiGasProvider"></a>5.4. `Etherman.MultiGasProvider`
 
 **Type:** : `boolean`
 
@@ -196,7 +211,7 @@ ForkIDChunkSize=20000
 MultiGasProvider=false
 ```
 
-### <a name="Etherman_Etherscan"></a>5.4. `[Etherman.Etherscan]`
+### <a name="Etherman_Etherscan"></a>5.5. `[Etherman.Etherscan]`
 
 **Type:** : `object`
 **Description:** Configuration for use Etherscan as used as gas provider, basically it needs the API-KEY
@@ -206,7 +221,7 @@ MultiGasProvider=false
 | - [ApiKey](#Etherman_Etherscan_ApiKey ) | No      | string | No         | -          | Need API key to use etherscan, if it's empty etherscan is not used                                                                    |
 | - [Url](#Etherman_Etherscan_Url )       | No      | string | No         | -          | URL of the etherscan API. Overwritten with a hardcoded URL: "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=" |
 
-#### <a name="Etherman_Etherscan_ApiKey"></a>5.4.1. `Etherman.Etherscan.ApiKey`
+#### <a name="Etherman_Etherscan_ApiKey"></a>5.5.1. `Etherman.Etherscan.ApiKey`
 
 **Type:** : `string`
 
@@ -220,7 +235,7 @@ MultiGasProvider=false
 ApiKey=""
 ```
 
-#### <a name="Etherman_Etherscan_Url"></a>5.4.2. `Etherman.Etherscan.Url`
+#### <a name="Etherman_Etherscan_Url"></a>5.5.2. `Etherman.Etherscan.Url`
 
 **Type:** : `string`
 
@@ -982,13 +997,28 @@ because depending of this values is going to ask to a trusted node for trusted t
 
 | Property                                                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                        |
 | ------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [IsRollup](#Synchronizer_IsRollup )                                                       | No      | boolean | No         | -          | IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)                                            |
 | - [SyncInterval](#Synchronizer_SyncInterval )                                               | No      | string  | No         | -          | Duration                                                                                                                                                 |
 | - [SyncChunkSize](#Synchronizer_SyncChunkSize )                                             | No      | integer | No         | -          | SyncChunkSize is the number of blocks to sync on each chunk                                                                                              |
 | - [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL )                                 | No      | string  | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state                                                                                 |
 | - [UseParallelModeForL1Synchronization](#Synchronizer_UseParallelModeForL1Synchronization ) | No      | boolean | No         | -          | L1ParallelSynchronization Use new L1 synchronization that do in parallel request to L1 and process the data<br />If false use the legacy sequential mode |
 | - [L1ParallelSynchronization](#Synchronizer_L1ParallelSynchronization )                     | No      | object  | No         | -          | L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)                                               |
 
-### <a name="Synchronizer_SyncInterval"></a>9.1. `Synchronizer.SyncInterval`
+### <a name="Synchronizer_IsRollup"></a>9.1. `Synchronizer.IsRollup`
+
+**Type:** : `boolean`
+
+**Default:** `true`
+
+**Description:** IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)
+
+**Example setting the default value** (true):
+```
+[Synchronizer]
+IsRollup=true
+```
+
+### <a name="Synchronizer_SyncInterval"></a>9.2. `Synchronizer.SyncInterval`
 
 **Title:** Duration
 
@@ -1014,7 +1044,7 @@ because depending of this values is going to ask to a trusted node for trusted t
 SyncInterval="1s"
 ```
 
-### <a name="Synchronizer_SyncChunkSize"></a>9.2. `Synchronizer.SyncChunkSize`
+### <a name="Synchronizer_SyncChunkSize"></a>9.3. `Synchronizer.SyncChunkSize`
 
 **Type:** : `integer`
 
@@ -1028,7 +1058,7 @@ SyncInterval="1s"
 SyncChunkSize=100
 ```
 
-### <a name="Synchronizer_TrustedSequencerURL"></a>9.3. `Synchronizer.TrustedSequencerURL`
+### <a name="Synchronizer_TrustedSequencerURL"></a>9.4. `Synchronizer.TrustedSequencerURL`
 
 **Type:** : `string`
 
@@ -1042,7 +1072,7 @@ SyncChunkSize=100
 TrustedSequencerURL=""
 ```
 
-### <a name="Synchronizer_UseParallelModeForL1Synchronization"></a>9.4. `Synchronizer.UseParallelModeForL1Synchronization`
+### <a name="Synchronizer_UseParallelModeForL1Synchronization"></a>9.5. `Synchronizer.UseParallelModeForL1Synchronization`
 
 **Type:** : `boolean`
 
@@ -1057,7 +1087,7 @@ If false use the legacy sequential mode
 UseParallelModeForL1Synchronization=true
 ```
 
-### <a name="Synchronizer_L1ParallelSynchronization"></a>9.5. `[Synchronizer.L1ParallelSynchronization]`
+### <a name="Synchronizer_L1ParallelSynchronization"></a>9.6. `[Synchronizer.L1ParallelSynchronization]`
 
 **Type:** : `object`
 **Description:** L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)
@@ -1074,7 +1104,7 @@ UseParallelModeForL1Synchronization=true
 | - [TimeOutMainLoop](#Synchronizer_L1ParallelSynchronization_TimeOutMainLoop )                                                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
 | - [MinTimeBetweenRetriesForRollupInfo](#Synchronizer_L1ParallelSynchronization_MinTimeBetweenRetriesForRollupInfo )               | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
 
-#### <a name="Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients"></a>9.5.1. `Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients`
+#### <a name="Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients"></a>9.6.1. `Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients`
 
 **Type:** : `integer`
 
@@ -1089,7 +1119,7 @@ UseParallelModeForL1Synchronization=true
 NumberOfParallelOfEthereumClients=2
 ```
 
-#### <a name="Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1"></a>9.5.2. `Synchronizer.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1`
+#### <a name="Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1"></a>9.6.2. `Synchronizer.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1`
 
 **Type:** : `integer`
 
@@ -1105,7 +1135,7 @@ sugested twice of NumberOfParallelOfEthereumClients
 CapacityOfBufferingRollupInfoFromL1=10
 ```
 
-#### <a name="Synchronizer_L1ParallelSynchronization_TimeForCheckLastBlockOnL1Time"></a>9.5.3. `Synchronizer.L1ParallelSynchronization.TimeForCheckLastBlockOnL1Time`
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeForCheckLastBlockOnL1Time"></a>9.6.3. `Synchronizer.L1ParallelSynchronization.TimeForCheckLastBlockOnL1Time`
 
 **Title:** Duration
 
@@ -1133,7 +1163,7 @@ This value only apply when the system is synchronized
 TimeForCheckLastBlockOnL1Time="5s"
 ```
 
-#### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck"></a>9.5.4. `[Synchronizer.L1ParallelSynchronization.PerformanceCheck]`
+#### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck"></a>9.6.4. `[Synchronizer.L1ParallelSynchronization.PerformanceCheck]`
 
 **Type:** : `object`
 **Description:** Consumer Configuration for the consumer of rollup information from L1
@@ -1143,7 +1173,7 @@ TimeForCheckLastBlockOnL1Time="5s"
 | - [AcceptableTimeWaitingForNewRollupInfo](#Synchronizer_L1ParallelSynchronization_PerformanceCheck_AcceptableTimeWaitingForNewRollupInfo )                                             | No      | string  | No         | -          | Duration                                                                                                                                                 |
 | - [NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo](#Synchronizer_L1ParallelSynchronization_PerformanceCheck_NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo ) | No      | integer | No         | -          | NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo is the number of iterations to<br />start checking the time waiting for new rollup info data |
 
-##### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck_AcceptableTimeWaitingForNewRollupInfo"></a>9.5.4.1. `Synchronizer.L1ParallelSynchronization.PerformanceCheck.AcceptableTimeWaitingForNewRollupInfo`
+##### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck_AcceptableTimeWaitingForNewRollupInfo"></a>9.6.4.1. `Synchronizer.L1ParallelSynchronization.PerformanceCheck.AcceptableTimeWaitingForNewRollupInfo`
 
 **Title:** Duration
 
@@ -1172,7 +1202,7 @@ fast enought then you could increse the number of parallel clients to sync with 
 AcceptableTimeWaitingForNewRollupInfo="5s"
 ```
 
-##### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck_NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo"></a>9.5.4.2. `Synchronizer.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo`
+##### <a name="Synchronizer_L1ParallelSynchronization_PerformanceCheck_NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo"></a>9.6.4.2. `Synchronizer.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo`
 
 **Type:** : `integer`
 
@@ -1187,7 +1217,7 @@ start checking the time waiting for new rollup info data
 NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo=10
 ```
 
-#### <a name="Synchronizer_L1ParallelSynchronization_TimeoutForRequestLastBlockOnL1"></a>9.5.5. `Synchronizer.L1ParallelSynchronization.TimeoutForRequestLastBlockOnL1`
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeoutForRequestLastBlockOnL1"></a>9.6.5. `Synchronizer.L1ParallelSynchronization.TimeoutForRequestLastBlockOnL1`
 
 **Title:** Duration
 
@@ -1213,7 +1243,7 @@ NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo=10
 TimeoutForRequestLastBlockOnL1="5s"
 ```
 
-#### <a name="Synchronizer_L1ParallelSynchronization_MaxNumberOfRetriesForRequestLastBlockOnL1"></a>9.5.6. `Synchronizer.L1ParallelSynchronization.MaxNumberOfRetriesForRequestLastBlockOnL1`
+#### <a name="Synchronizer_L1ParallelSynchronization_MaxNumberOfRetriesForRequestLastBlockOnL1"></a>9.6.6. `Synchronizer.L1ParallelSynchronization.MaxNumberOfRetriesForRequestLastBlockOnL1`
 
 **Type:** : `integer`
 
@@ -1227,7 +1257,7 @@ TimeoutForRequestLastBlockOnL1="5s"
 MaxNumberOfRetriesForRequestLastBlockOnL1=3
 ```
 
-#### <a name="Synchronizer_L1ParallelSynchronization_TimeForShowUpStatisticsLog"></a>9.5.7. `Synchronizer.L1ParallelSynchronization.TimeForShowUpStatisticsLog`
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeForShowUpStatisticsLog"></a>9.6.7. `Synchronizer.L1ParallelSynchronization.TimeForShowUpStatisticsLog`
 
 **Title:** Duration
 
@@ -1253,7 +1283,7 @@ MaxNumberOfRetriesForRequestLastBlockOnL1=3
 TimeForShowUpStatisticsLog="5m0s"
 ```
 
-#### <a name="Synchronizer_L1ParallelSynchronization_TimeOutMainLoop"></a>9.5.8. `Synchronizer.L1ParallelSynchronization.TimeOutMainLoop`
+#### <a name="Synchronizer_L1ParallelSynchronization_TimeOutMainLoop"></a>9.6.8. `Synchronizer.L1ParallelSynchronization.TimeOutMainLoop`
 
 **Title:** Duration
 
@@ -1279,7 +1309,7 @@ TimeForShowUpStatisticsLog="5m0s"
 TimeOutMainLoop="5m0s"
 ```
 
-#### <a name="Synchronizer_L1ParallelSynchronization_MinTimeBetweenRetriesForRollupInfo"></a>9.5.9. `Synchronizer.L1ParallelSynchronization.MinTimeBetweenRetriesForRollupInfo`
+#### <a name="Synchronizer_L1ParallelSynchronization_MinTimeBetweenRetriesForRollupInfo"></a>9.6.9. `Synchronizer.L1ParallelSynchronization.MinTimeBetweenRetriesForRollupInfo`
 
 **Title:** Duration
 
@@ -1984,15 +2014,31 @@ Must be one of:
 
 | Property                                                                                                | Pattern | Type             | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| - [IsRollup](#SequenceSender_IsRollup )                                                                 | No      | boolean          | No         | -          | IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)                                                                                                                                                                                                      |
 | - [WaitPeriodSendSequence](#SequenceSender_WaitPeriodSendSequence )                                     | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
 | - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
 | - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer          | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not. |
+| - [MaxBatchesForL1](#SequenceSender_MaxBatchesForL1 )                                                   | No      | integer          | No         | -          | MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx                                                                                                                                                                                                                                 |
 | - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | array of integer | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                    |
 | - [L2Coinbase](#SequenceSender_L2Coinbase )                                                             | No      | array of integer | No         | -          | L2Coinbase defines which address is going to receive the fees                                                                                                                                                                                                                                                      |
 | - [PrivateKey](#SequenceSender_PrivateKey )                                                             | No      | object           | No         | -          | PrivateKey defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                  |
 | - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer          | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                         |
 
-### <a name="SequenceSender_WaitPeriodSendSequence"></a>11.1. `SequenceSender.WaitPeriodSendSequence`
+### <a name="SequenceSender_IsRollup"></a>11.1. `SequenceSender.IsRollup`
+
+**Type:** : `boolean`
+
+**Default:** `true`
+
+**Description:** IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)
+
+**Example setting the default value** (true):
+```
+[SequenceSender]
+IsRollup=true
+```
+
+### <a name="SequenceSender_WaitPeriodSendSequence"></a>11.2. `SequenceSender.WaitPeriodSendSequence`
 
 **Title:** Duration
 
@@ -2019,7 +2065,7 @@ trying to send a sequence to L1
 WaitPeriodSendSequence="5s"
 ```
 
-### <a name="SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod"></a>11.2. `SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod`
+### <a name="SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod"></a>11.3. `SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod`
 
 **Title:** Duration
 
@@ -2045,7 +2091,7 @@ WaitPeriodSendSequence="5s"
 LastBatchVirtualizationTimeMaxWaitPeriod="5s"
 ```
 
-### <a name="SequenceSender_MaxTxSizeForL1"></a>11.3. `SequenceSender.MaxTxSizeForL1`
+### <a name="SequenceSender_MaxTxSizeForL1"></a>11.4. `SequenceSender.MaxTxSizeForL1`
 
 **Type:** : `integer`
 
@@ -2062,13 +2108,27 @@ to validate whether they fit into the pool or not.
 MaxTxSizeForL1=131072
 ```
 
-### <a name="SequenceSender_SenderAddress"></a>11.4. `SequenceSender.SenderAddress`
+### <a name="SequenceSender_MaxBatchesForL1"></a>11.5. `SequenceSender.MaxBatchesForL1`
+
+**Type:** : `integer`
+
+**Default:** `1000`
+
+**Description:** MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
+
+**Example setting the default value** (1000):
+```
+[SequenceSender]
+MaxBatchesForL1=1000
+```
+
+### <a name="SequenceSender_SenderAddress"></a>11.6. `SequenceSender.SenderAddress`
 
 **Type:** : `array of integer`
 **Description:** SenderAddress defines which private key the eth tx manager needs to use
 to sign the L1 txs
 
-### <a name="SequenceSender_L2Coinbase"></a>11.5. `SequenceSender.L2Coinbase`
+### <a name="SequenceSender_L2Coinbase"></a>11.7. `SequenceSender.L2Coinbase`
 
 **Type:** : `array of integer`
 
@@ -2082,7 +2142,7 @@ to sign the L1 txs
 L2Coinbase="0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 ```
 
-### <a name="SequenceSender_PrivateKey"></a>11.6. `[SequenceSender.PrivateKey]`
+### <a name="SequenceSender_PrivateKey"></a>11.8. `[SequenceSender.PrivateKey]`
 
 **Type:** : `object`
 **Description:** PrivateKey defines all the key store files that are going
@@ -2093,7 +2153,7 @@ to be read in order to provide the private keys to sign the L1 txs
 | - [Path](#SequenceSender_PrivateKey_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
 | - [Password](#SequenceSender_PrivateKey_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
-#### <a name="SequenceSender_PrivateKey_Path"></a>11.6.1. `SequenceSender.PrivateKey.Path`
+#### <a name="SequenceSender_PrivateKey_Path"></a>11.8.1. `SequenceSender.PrivateKey.Path`
 
 **Type:** : `string`
 
@@ -2107,7 +2167,7 @@ to be read in order to provide the private keys to sign the L1 txs
 Path="/pk/sequencer.keystore"
 ```
 
-#### <a name="SequenceSender_PrivateKey_Password"></a>11.6.2. `SequenceSender.PrivateKey.Password`
+#### <a name="SequenceSender_PrivateKey_Password"></a>11.8.2. `SequenceSender.PrivateKey.Password`
 
 **Type:** : `string`
 
@@ -2121,7 +2181,7 @@ Path="/pk/sequencer.keystore"
 Password="testonly"
 ```
 
-### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.7. `SequenceSender.ForkUpgradeBatchNumber`
+### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.9. `SequenceSender.ForkUpgradeBatchNumber`
 
 **Type:** : `integer`
 
@@ -2412,12 +2472,13 @@ GeneratingProofCleanupThreshold="10m"
 **Type:** : `object`
 **Description:** L1: Configuration related to L1
 
-| Property                                                                                          | Pattern | Type             | Deprecated | Definition | Title/Description                                |
-| ------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------ |
-| - [chainId](#NetworkConfig_l1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                       |
-| - [polygonZkEVMAddress](#NetworkConfig_l1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | Address of the L1 contract                       |
-| - [maticTokenAddress](#NetworkConfig_l1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | Address of the L1 Matic token Contract           |
-| - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | Address of the L1 GlobalExitRootManager contract |
+| Property                                                                                          | Pattern | Type             | Deprecated | Definition | Title/Description                                                                    |
+| ------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------------------------------------------ |
+| - [chainId](#NetworkConfig_l1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                                                           |
+| - [polygonZkEVMAddress](#NetworkConfig_l1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | Address of the L1 contract                                                           |
+| - [maticTokenAddress](#NetworkConfig_l1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | Address of the L1 Matic token Contract                                               |
+| - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | Address of the L1 GlobalExitRootManager contract                                     |
+| - [cdkDataCommitteeAddress](#NetworkConfig_l1Config_cdkDataCommitteeAddress )                     | No      | array of integer | No         | -          | Address of the data availability committee contract. Only needed when using Validium |
 
 #### <a name="NetworkConfig_l1Config_chainId"></a>13.1.1. `NetworkConfig.l1Config.chainId`
 
@@ -2447,6 +2508,11 @@ chainId=0
 
 **Type:** : `array of integer`
 **Description:** Address of the L1 GlobalExitRootManager contract
+
+#### <a name="NetworkConfig_l1Config_cdkDataCommitteeAddress"></a>13.1.5. `NetworkConfig.l1Config.cdkDataCommitteeAddress`
+
+**Type:** : `array of integer`
+**Description:** Address of the data availability committee contract. Only needed when using Validium
 
 ### <a name="NetworkConfig_L2GlobalExitRootManagerAddr"></a>13.2. `NetworkConfig.L2GlobalExitRootManagerAddr`
 

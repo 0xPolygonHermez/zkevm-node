@@ -677,3 +677,23 @@ func initOrResetDB() {
 		panic(err)
 	}
 }
+
+// StartDACDB starts the data availability node DB
+func (m *Manager) StartDACDB() error {
+	return StartComponent("dac-db", func() (bool, error) { return true, nil })
+}
+
+// StopDACDB stops the data availability node DB
+func (m *Manager) StopDACDB() error {
+	return StopComponent("dac-db")
+}
+
+// StartPermissionlessNodeForcedToSyncThroughDAC starts a permissionless node that is froced to sync through the DAC
+func (m *Manager) StartPermissionlessNodeForcedToSyncThroughDAC() error {
+	return StartComponent("permissionless-dac", func() (bool, error) { return true, nil })
+}
+
+// StopPermissionlessNodeForcedToSyncThroughDAC stops the permissionless node that is froced to sync through the DAC
+func (m *Manager) StopPermissionlessNodeForcedToSyncThroughDAC() error {
+	return StopComponent("permissionless-dac")
+}
