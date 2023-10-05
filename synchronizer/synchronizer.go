@@ -352,8 +352,9 @@ func (s *ClientSynchronizer) syncBlocksParallel(lastEthBlockSynced *state.Block)
 	}
 	if !s.l1SyncOrchestration.isProducerRunning() {
 		log.Infof("producer is not running. Resetting the state to start from  block %v (last on DB)", lastEthBlockSynced.BlockNumber)
-		s.l1SyncOrchestration.producer.ResetAndStop(lastEthBlockSynced.BlockNumber)
+		s.l1SyncOrchestration.producer.Reset(lastEthBlockSynced.BlockNumber)
 	}
+	log.Infof("Starting L1 sync orchestrator in parallel")
 	return s.l1SyncOrchestration.start()
 }
 

@@ -18,6 +18,10 @@ type controlWorkerFlux struct {
 	retries int
 }
 
+func (c *controlWorkerFlux) String() string {
+	return fmt.Sprintf("time:%s retries:%d", c.time, c.retries)
+}
+
 type workerDecoratorLimitRetriesByTime struct {
 	mutex sync.Mutex
 	workersInterface
@@ -31,6 +35,12 @@ func newWorkerDecoratorLimitRetriesByTime(workers workersInterface, minTimeBetwe
 
 func (w *workerDecoratorLimitRetriesByTime) String() string {
 	return fmt.Sprintf("[FILTERED_LRBT Active/%s]", w.minTimeBetweenCalls) + w.workersInterface.String()
+}
+
+func (w *workerDecoratorLimitRetriesByTime) stop() {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	w.processingRanges = newLiveBlockRangesWithTag[controlWorkerFlux]()
 }
 
 func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange, sleepBefore time.Duration) (chan responseRollupInfoByBlockRange, error) {
@@ -52,7 +62,7 @@ func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(c
 		ctrl = controlWorkerFlux{time: time.Now(), retries: 0}
 		err = w.processingRanges.addBlockRangeWithTag(blockRange, ctrl)
 		if err != nil {
-			log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s with tag %s", blockRange, ctrl)
+			log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s err:%s", blockRange.String(), err.Error())
 		}
 	}
 

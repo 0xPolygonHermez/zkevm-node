@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"unicode"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -73,23 +73,18 @@ func newJSONRpcHandler() *Handler {
 	return handler
 }
 
-var connectionCounter = 0
-var connectionCounterMutex sync.Mutex
+var connectionCounter int64 = 0
 
 // Handle is the function that knows which and how a function should
 // be executed when a JSON RPC request is received
 func (h *Handler) Handle(req handleRequest) types.Response {
 	log := log.WithFields("method", req.Method, "requestId", req.ID)
-	connectionCounterMutex.Lock()
-	connectionCounter++
-	connectionCounterMutex.Unlock()
+	atomic.AddInt64(&connectionCounter, 1)
 	defer func() {
-		connectionCounterMutex.Lock()
-		connectionCounter--
-		connectionCounterMutex.Unlock()
-		log.Debugf("Current open connections %d", connectionCounter)
+		atomic.AddInt64(&connectionCounter, -1)
+		log.Debugf("Current open connections %d", atomic.LoadInt64(&connectionCounter))
 	}()
-	log.Debugf("Current open connections %d", connectionCounter)
+	log.Debugf("Current open connections %d", atomic.LoadInt64(&connectionCounter))
 	log.Debugf("request params %v", string(req.Params))
 
 	service, fd, err := h.getFnHandler(req.Request)
