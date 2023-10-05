@@ -1927,7 +1927,6 @@ func Test_PolicyAcl(t *testing.T) {
 			require.NoError(t, err)
 			require.False(t, allow)
 		}
-
 	}
 }
 

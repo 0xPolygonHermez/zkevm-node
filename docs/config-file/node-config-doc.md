@@ -149,7 +149,7 @@ Outputs=["stderr"]
 
 | Property                                          | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                             |
 | ------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------- |
-| - [IsRollup](#Etherman_IsRollup )                 | No      | boolean | No         | -          | IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium) |
+| - [IsRollup](#Etherman_IsRollup )                 | No      | boolean | No         | -          | IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium) |
 | - [URL](#Etherman_URL )                           | No      | string  | No         | -          | URL is the URL of the Ethereum node for L1                                                                    |
 | - [ForkIDChunkSize](#Etherman_ForkIDChunkSize )   | No      | integer | No         | -          | ForkIDChunkSize is the max interval for each call to L1 provider to get the forkIDs                           |
 | - [MultiGasProvider](#Etherman_MultiGasProvider ) | No      | boolean | No         | -          | allow that L1 gas price calculation use multiples sources                                                     |
@@ -161,7 +161,7 @@ Outputs=["stderr"]
 
 **Default:** `true`
 
-**Description:** IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)
+**Description:** IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)
 
 **Example setting the default value** (true):
 ```
@@ -997,7 +997,7 @@ because depending of this values is going to ask to a trusted node for trusted t
 
 | Property                                                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                        |
 | ------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [IsRollup](#Synchronizer_IsRollup )                                                       | No      | boolean | No         | -          | IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)                                            |
+| - [IsRollup](#Synchronizer_IsRollup )                                                       | No      | boolean | No         | -          | IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)                                            |
 | - [SyncInterval](#Synchronizer_SyncInterval )                                               | No      | string  | No         | -          | Duration                                                                                                                                                 |
 | - [SyncChunkSize](#Synchronizer_SyncChunkSize )                                             | No      | integer | No         | -          | SyncChunkSize is the number of blocks to sync on each chunk                                                                                              |
 | - [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL )                                 | No      | string  | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state                                                                                 |
@@ -1010,7 +1010,7 @@ because depending of this values is going to ask to a trusted node for trusted t
 
 **Default:** `true`
 
-**Description:** IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)
+**Description:** IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)
 
 **Example setting the default value** (true):
 ```
@@ -2014,7 +2014,7 @@ Must be one of:
 
 | Property                                                                                                | Pattern | Type             | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| - [IsRollup](#SequenceSender_IsRollup )                                                                 | No      | boolean          | No         | -          | IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)                                                                                                                                                                                                      |
+| - [IsRollup](#SequenceSender_IsRollup )                                                                 | No      | boolean          | No         | -          | IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)                                                                                                                                                                                                      |
 | - [WaitPeriodSendSequence](#SequenceSender_WaitPeriodSendSequence )                                     | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
 | - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                           |
 | - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer          | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not. |
@@ -2030,7 +2030,7 @@ Must be one of:
 
 **Default:** `true`
 
-**Description:** IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)
+**Description:** IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)
 
 **Example setting the default value** (true):
 ```

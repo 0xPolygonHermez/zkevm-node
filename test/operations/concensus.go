@@ -12,18 +12,18 @@ const (
 
 // IsConcensusRelevant returns true if the test is supposed to run in Validium / Rollup mode, false if it's irrelevant
 func IsConcensusRelevant() bool {
-	concensus := os.Getenv(TestConcensusENV)
-	return concensus == Rollup || concensus == Validium
+	consensus := os.Getenv(TestConcensusENV)
+	return consensus == Rollup || consensus == Validium
 }
 
 // IsRollup returns true if the test is supposed to run in Rollup mode
 func IsRollup() bool {
-	concensus := os.Getenv(TestConcensusENV)
-	return concensus == Rollup
+	consensus := os.Getenv(TestConcensusENV)
+	return consensus == Rollup
 }
 
 // IsValidium returns true if the test is supposed to run in Validium mode
 func IsValidium() bool {
-	concensus := os.Getenv(TestConcensusENV)
-	return concensus == Validium
+	consensus := os.Getenv(TestConcensusENV)
+	return consensus == Validium
 }

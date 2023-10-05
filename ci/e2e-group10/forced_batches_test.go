@@ -84,10 +84,10 @@ func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
 	if operations.IsRollup() {
-		log.Info("Running test with rollup concensus")
+		log.Info("Running test with rollup consensus")
 		err = opsman.SetupRollup()
 	} else {
-		log.Info("Running test with validium concensus")
+		log.Info("Running test with validium consensus")
 		err = opsman.SetupValidium()
 	}
 	require.NoError(t, err)

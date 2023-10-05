@@ -41,10 +41,10 @@ type SequenceSender struct {
 	privKey      *ecdsa.PrivateKey
 }
 
-// New inits sequence sender. privKey can be nil in case of rollup concensus
+// New inits sequence sender. privKey can be nil in case of rollup consensus
 func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, privKey *ecdsa.PrivateKey) (*SequenceSender, error) {
 	if !cfg.IsRollup && privKey == nil {
-		return nil, fmt.Errorf("private key must not be nil in case of Validium concensus")
+		return nil, fmt.Errorf("private key must not be nil in case of Validium consensus")
 	}
 	return &SequenceSender{
 		cfg:          cfg,

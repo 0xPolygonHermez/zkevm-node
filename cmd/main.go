@@ -186,6 +186,7 @@ func main() {
 			Action:  restore,
 			Flags:   restoreFlags,
 		},
+		&policyCommands,
 	}
 
 	err := app.Run(os.Args)

@@ -35,10 +35,10 @@ func TestPermissionlessJRPC(t *testing.T) {
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
 	if operations.IsRollup() {
-		log.Info("Running test with rollup concensus")
+		log.Info("Running test with rollup consensus")
 		err = opsman.SetupWithPermissionlessRollup()
 	} else {
-		log.Info("Running test with validium concensus")
+		log.Info("Running test with validium consensus")
 		err = opsman.SetupWithPermissionlessValidium()
 	}
 	require.NoError(t, err)

@@ -65,10 +65,10 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
 				require.NoError(t, opsman.SetGenesis(genesisActions))
 				if operations.IsRollup() {
-					log.Info("Running test with rollup concensus")
+					log.Info("Running test with rollup consensus")
 					err = opsman.SetupRollup()
 				} else {
-					log.Info("Running test with validium concensus")
+					log.Info("Running test with validium consensus")
 					err = opsman.SetupValidium()
 				}
 				require.NoError(t, err)

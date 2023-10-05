@@ -7,7 +7,7 @@ import (
 
 // Config represents the configuration of a sequence sender
 type Config struct {
-	// IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)
+	// IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)
 	IsRollup bool `mapstructure:"IsRollup"`
 	// WaitPeriodSendSequence is the time the sequencer waits until
 	// trying to send a sequence to L1

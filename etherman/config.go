@@ -4,7 +4,7 @@ import "github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 
 // Config represents the configuration of the etherman
 type Config struct {
-	// IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)
+	// IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)
 	IsRollup bool `mapstructure:"IsRollup"`
 	// URL is the URL of the Ethereum node for L1
 	URL string `mapstructure:"URL"`

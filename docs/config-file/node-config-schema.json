@@ -61,7 +61,7 @@
 			"properties": {
 				"IsRollup": {
 					"type": "boolean",
-					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)",
+					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)",
 					"default": true
 				},
 				"URL": {
@@ -383,7 +383,7 @@
 			"properties": {
 				"IsRollup": {
 					"type": "boolean",
-					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)",
+					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)",
 					"default": true
 				},
 				"SyncInterval": {
@@ -786,7 +786,7 @@
 			"properties": {
 				"IsRollup": {
 					"type": "boolean",
-					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup concensus (if false it asumes validium)",
+					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)",
 					"default": true
 				},
 				"WaitPeriodSendSequence": {
