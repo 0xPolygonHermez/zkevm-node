@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
@@ -19,7 +20,8 @@ import (
 
 // TestStateTransition tests state transitions using the vector
 func TestStateTransition(t *testing.T) {
-	if testing.Short() {
+	// os.Setenv(operations.TestConcensusENV, operations.Rollup)
+	if testing.Short() || !operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -59,7 +61,14 @@ func TestStateTransition(t *testing.T) {
 			// Check initial root
 			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedOldRoot))
 
-			require.NoError(t, opsman.Setup())
+			if operations.IsRollup() {
+				log.Info("Running test with rollup concensus")
+				err = opsman.SetupRollup()
+			} else {
+				log.Info("Running test with validium concensus")
+				err = opsman.SetupValidium()
+			}
+			require.NoError(t, err)
 
 			// convert vector txs
 			txs := make([]*types.Transaction, 0, len(testCase.Txs))

@@ -350,9 +350,10 @@ func MustGetAuth(privateKeyStr string, chainID uint64) *bind.TransactOpts {
 	return auth
 }
 
-// Setup creates all the required components and initializes them according to
+// SetupRollup creates all the required components and initializes them according to
 // the manager config.
-func (m *Manager) Setup() error {
+func (m *Manager) SetupRollup() error {
+	os.Setenv(DockerConcensusENV, Rollup)
 	// Run network container
 	err := m.StartNetwork()
 	if err != nil {
@@ -374,9 +375,35 @@ func (m *Manager) Setup() error {
 	return nil
 }
 
-// SetupWithPermissionless creates all the required components for both trusted and permissionless nodes
+// SetupRollup creates all the required components and initializes them according to
+// the manager config.
+func (m *Manager) SetupValidium() error {
+	os.Setenv(DockerConcensusENV, Validium)
+	// Run network container
+	err := m.StartNetworkValidium()
+	if err != nil {
+		return err
+	}
+
+	// Approve matic
+	err = ApproveMatic()
+	if err != nil {
+		return err
+	}
+
+	// Run node container
+	err = m.StartNode()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetupWithPermissionlessRollup creates all the required components for both trusted and permissionless nodes
 // and initializes them according to the manager config.
-func (m *Manager) SetupWithPermissionless() error {
+func (m *Manager) SetupWithPermissionlessRollup() error {
+	os.Setenv(DockerConcensusENV, Rollup)
 	// Run network container
 	err := m.StartNetwork()
 	if err != nil {
@@ -389,13 +416,26 @@ func (m *Manager) SetupWithPermissionless() error {
 		return err
 	}
 
-	err = m.StartTrustedAndPermissionlessNode()
+	return m.StartTrustedAndPermissionlessNode()
+}
+
+// SetupWithPermissionlessValidium creates all the required components for both trusted and permissionless nodes
+// and initializes them according to the manager config.
+func (m *Manager) SetupWithPermissionlessValidium() error {
+	os.Setenv(DockerConcensusENV, Validium)
+	// Run network container
+	err := m.StartNetworkValidium()
 	if err != nil {
 		return err
 	}
 
-	// Run node container
-	return nil
+	// Approve matic
+	err = ApproveMatic()
+	if err != nil {
+		return err
+	}
+
+	return m.StartTrustedAndPermissionlessNode()
 }
 
 // StartEthTxSender stops the eth tx sender service
@@ -489,6 +529,11 @@ func (m *Manager) StartNetwork() error {
 	return StartComponent("network", networkUpCondition)
 }
 
+// StartNetwork starts the L1 network container
+func (m *Manager) StartNetworkValidium() error {
+	return StartComponent("network-validium", networkUpCondition)
+}
+
 // InitNetwork Initializes the L2 network registering the sequencer and adding funds via the bridge
 func (m *Manager) InitNetwork() error {
 	if err := RunMakeTarget("init-network"); err != nil {
@@ -509,6 +554,9 @@ func (m *Manager) DeployUniswap() error {
 }
 
 func stopNetwork() error {
+	if err := StopComponent("network-validium"); err != nil {
+		return err
+	}
 	return StopComponent("network")
 }
 

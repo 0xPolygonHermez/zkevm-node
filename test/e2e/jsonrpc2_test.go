@@ -29,7 +29,7 @@ import (
 )
 
 func Test_Misc(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	ctx := context.Background()
@@ -101,7 +101,7 @@ func Test_Misc(t *testing.T) {
 }
 
 func Test_WebSocketsRequest(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	ctx := context.Background()
@@ -167,7 +167,7 @@ func Test_WebSocketsRequest(t *testing.T) {
 }
 
 func Test_WebSocketsSubscription(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	setup()
@@ -256,7 +256,7 @@ func Test_WebSocketsSubscription(t *testing.T) {
 }
 
 func Test_RevertOnConstructorTransaction(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	setup()
@@ -311,7 +311,7 @@ func Test_RevertOnConstructorTransaction(t *testing.T) {
 }
 
 func Test_RevertOnSCCallTransaction(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	setup()
@@ -372,7 +372,7 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 }
 
 func Test_RevertOnSCCallGasEstimation(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	setup()
@@ -433,7 +433,7 @@ func Test_RevertOnSCCallGasEstimation(t *testing.T) {
 }
 
 func TestCallMissingParameters(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	setup()
@@ -474,7 +474,7 @@ func TestCallMissingParameters(t *testing.T) {
 }
 
 func TestWebSocketsConcurrentWrites(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	setup()
@@ -528,7 +528,7 @@ func TestWebSocketsConcurrentWrites(t *testing.T) {
 }
 
 func TestWebSocketsReadLimit(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	setup()
@@ -551,7 +551,7 @@ func TestWebSocketsReadLimit(t *testing.T) {
 }
 
 func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	setup()

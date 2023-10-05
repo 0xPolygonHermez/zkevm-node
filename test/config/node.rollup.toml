@@ -47,6 +47,7 @@ PollMinAllowedGasPriceInterval = "15s"
 	MaxConns = 200
 
 [Etherman]
+IsRollup = true
 URL = "http://zkevm-mock-l1-network:8545"
 ForkIDChunkSize = 20000
 MultiGasProvider = false
@@ -66,6 +67,7 @@ EnableL2SuggestedGasPricePolling = true
 		Port = 8133
 
 [Synchronizer]
+IsRollup = true
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc.
@@ -116,9 +118,11 @@ MaxTxLifetime = "3h"
 		Enabled = true
 
 [SequenceSender]
+IsRollup = true
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 MaxTxSizeForL1 = 131072
+MaxBatchesForL1 = 1000
 L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 

@@ -22,7 +22,7 @@ import (
 )
 
 func TestDebugTraceTransactionCallTracer(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -42,7 +42,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
@@ -267,7 +267,7 @@ func compareCallFrame(t *testing.T, referenceValueMap, resultMap map[string]inte
 }
 
 func TestDebugTraceBlockCallTracer(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -287,7 +287,7 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })

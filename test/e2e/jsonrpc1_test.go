@@ -27,7 +27,7 @@ import (
 
 // TestJSONRPC tests JSON RPC methods on a running environment.
 func TestJSONRPC(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	setup()
@@ -65,7 +65,7 @@ func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, er
 }
 
 func Test_Filters(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	ctx := context.Background()
@@ -263,7 +263,7 @@ func Test_Filters(t *testing.T) {
 }
 
 func Test_Gas(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	setup()
@@ -302,7 +302,7 @@ func Test_Gas(t *testing.T) {
 }
 
 func Test_Block(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	ctx := context.Background()
@@ -430,7 +430,7 @@ func Test_Block(t *testing.T) {
 }
 
 func Test_Transactions(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	ctx := context.Background()

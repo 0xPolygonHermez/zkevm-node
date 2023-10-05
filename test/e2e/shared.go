@@ -62,7 +62,7 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	if err != nil {
 		panic(err)
 	}

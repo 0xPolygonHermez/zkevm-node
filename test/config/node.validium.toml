@@ -1,0 +1,187 @@
+IsTrustedSequencer = true
+
+[Log]
+Environment = "development" # "production" or "development"
+Level = "debug"
+Outputs = ["stderr"]
+
+[State]
+AccountQueue = 64
+	[State.DB]
+	User = "state_user"
+	Password = "state_password"
+	Name = "state_db"
+	Host = "zkevm-state-db"
+	Port = "5432"
+	EnableLog = false	
+	MaxConns = 200
+	[State.Batch]
+		[State.Batch.Constraints]
+		MaxTxsPerBatch = 300
+		MaxBatchBytesSize = 120000
+		MaxCumulativeGasUsed = 30000000
+		MaxKeccakHashes = 2145
+		MaxPoseidonHashes = 252357
+		MaxPoseidonPaddings = 135191
+		MaxMemAligns = 236585
+		MaxArithmetics = 236585
+		MaxBinaries = 473170
+		MaxSteps = 7570538
+
+[Pool]
+FreeClaimGasLimit = 1500000
+IntervalToRefreshBlockedAddresses = "5m"
+IntervalToRefreshGasPrices = "5s"
+MaxTxBytesSize=100132
+MaxTxDataBytesSize=100000
+DefaultMinGasPriceAllowed = 1000000000
+MinAllowedGasPriceInterval = "5m"
+PollMinAllowedGasPriceInterval = "15s"
+	[Pool.DB]
+	User = "pool_user"
+	Password = "pool_password"
+	Name = "pool_db"
+	Host = "zkevm-pool-db"
+	Port = "5432"
+	EnableLog = false
+	MaxConns = 200
+
+[Etherman]
+IsRollup = false
+URL = "http://zkevm-mock-l1-network-validium:8545"
+ForkIDChunkSize = 20000
+MultiGasProvider = false
+	[Etherscan]
+		ApiKey = ""
+
+[RPC]
+Host = "0.0.0.0"
+Port = 8123
+ReadTimeout = "60s"
+WriteTimeout = "60s"
+MaxRequestsPerIPAndSecond = 5000
+SequencerNodeURI = ""
+EnableL2SuggestedGasPricePolling = true
+	[RPC.WebSockets]
+		Enabled = true
+		Port = 8133
+
+[Synchronizer]
+IsRollup = false
+SyncInterval = "1s"
+SyncChunkSize = 100
+TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc.
+UseParallelModeForL1Synchronization = true
+	[Synchronizer.L1ParallelSynchronization]
+		NumberOfParallelOfEthereumClients = 5
+		CapacityOfBufferingRollupInfoFromL1 = 10
+		TimeForCheckLastBlockOnL1Time = "5s"
+		TimeoutForRequestLastBlockOnL1 = "60s"
+		MaxNumberOfRetriesForRequestLastBlockOnL1 = 3
+		TimeForShowUpStatisticsLog = "1m"
+		TimeOutMainLoop = "5m"
+		[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
+			AcceptableTimeWaitingForNewRollupInfo = "5s"
+			NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo = 10
+
+[Sequencer]
+WaitPeriodPoolIsEmpty = "1s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
+BlocksAmountForTxsToBeDeleted = 100
+FrequencyToCheckTxsForDelete = "12h"
+TxLifetimeCheckTimeout = "10m"
+MaxTxLifetime = "3h"
+	[Sequencer.Finalizer]
+		GERDeadlineTimeout = "2s"
+		ForcedBatchDeadlineTimeout = "5s"
+		SleepDuration = "100ms"
+		ResourcePercentageToCloseBatch = 10
+		GERFinalityNumberOfBlocks = 0
+		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
+		ClosingSignalsManagerWaitForCheckingGER = "10s"
+		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
+		ForcedBatchesFinalityNumberOfBlocks = 0
+		TimestampResolution = "10s"
+		StopSequencerOnBatchNum = 0
+	[Sequencer.DBManager]
+		PoolRetrievalInterval = "500ms"
+		L2ReorgRetrievalInterval = "5s"
+	[Sequencer.EffectiveGasPrice]
+		MaxBreakEvenGasPriceDeviationPercentage = 10
+		L1GasPriceFactor = 0.25
+		ByteGasCost = 16
+		MarginFactor = 1
+		Enabled = false
+	[Sequencer.StreamServer]
+		Port = 6900
+		Filename = "/datastreamer/datastream.bin"
+		Enabled = true
+
+[SequenceSender]
+IsRollup = false
+WaitPeriodSendSequence = "15s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
+MaxTxSizeForL1 = 131072
+MaxBatchesForL1 = 1000
+L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+
+[Aggregator]
+Host = "0.0.0.0"
+Port = 50081
+RetryTime = "5s"
+VerifyProofInterval = "10s"
+TxProfitabilityCheckerType = "acceptall"
+TxProfitabilityMinReward = "1.1"
+ProofStatePollingInterval = "5s"
+SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+CleanupLockedProofsInterval = "2m"
+GeneratingProofCleanupThreshold = "10m"
+
+[EthTxManager]
+ForcedGas = 0
+PrivateKeys = [
+	{Path = "/pk/sequencer.keystore", Password = "testonly"},
+	{Path = "/pk/aggregator.keystore", Password = "testonly"}
+]
+
+[L2GasPriceSuggester]
+Type = "default"
+UpdatePeriod = "10s"
+Factor = 0.5
+DefaultGasPriceWei = 1000000000
+MaxGasPriceWei = 0
+
+[MTClient]
+URI  = "zkevm-prover:50061"
+
+[Executor]
+URI = "zkevm-prover:50071"
+MaxGRPCMessageSize = 100000000
+
+[Metrics]
+Host = "0.0.0.0"
+Port = 9091
+Enabled = true
+ProfilingHost = "0.0.0.0"
+ProfilingPort = 6060
+ProfilingEnabled = true
+
+[EventLog]
+	[EventLog.DB]
+	User = "event_user"
+	Password = "event_password"
+	Name = "event_db"
+	Host = "zkevm-event-db"
+	Port = "5432"
+	EnableLog = false
+	MaxConns = 200
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200

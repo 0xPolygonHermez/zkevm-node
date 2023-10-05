@@ -21,7 +21,9 @@ func TestPermissionlessJRPC(t *testing.T) {
 	// Initial setup:
 	// - permissionless RPC + Sync
 	// - trusted node with everything minus EthTxMan (to prevent the trusted state from being virtualized)
-	if testing.Short() {
+
+	// os.Setenv(operations.TestConcensusENV, operations.Rollup)
+	if testing.Short() || !operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	ctx := context.Background()
@@ -32,7 +34,14 @@ func TestPermissionlessJRPC(t *testing.T) {
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	require.NoError(t, opsman.SetupWithPermissionless())
+	if operations.IsRollup() {
+		log.Info("Running test with rollup concensus")
+		err = opsman.SetupWithPermissionlessRollup()
+	} else {
+		log.Info("Running test with validium concensus")
+		err = opsman.SetupWithPermissionlessValidium()
+	}
+	require.NoError(t, err)
 	require.NoError(t, opsman.StopEthTxSender())
 	time.Sleep(5 * time.Second)
 

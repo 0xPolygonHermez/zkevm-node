@@ -19,7 +19,7 @@ import (
 )
 
 func TestPreEIP155Tx(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -35,7 +35,7 @@ func TestPreEIP155Tx(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	for _, network := range networks {
@@ -92,7 +92,7 @@ func TestPreEIP155Tx(t *testing.T) {
 }
 
 func TestFakeEIP155With_V_As35(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -108,7 +108,7 @@ func TestFakeEIP155With_V_As35(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	for _, network := range networks {

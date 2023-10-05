@@ -1,3 +1,7 @@
+ROLLUP := rollup
+VALIDIUM := validium
+IRRELEVANT := irrelevant
+
 DOCKERCOMPOSE := docker-compose -f docker-compose.yml
 DOCKERCOMPOSEAPPSEQ := zkevm-sequencer
 DOCKERCOMPOSEAPPSEQSENDER := zkevm-sequence-sender
@@ -10,6 +14,7 @@ DOCKERCOMPOSESTATEDB := zkevm-state-db
 DOCKERCOMPOSEPOOLDB := zkevm-pool-db
 DOCKERCOMPOSEEVENTDB := zkevm-event-db
 DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
+DOCKERCOMPOSENETWORKVALIDIUM := zkevm-mock-l1-network-validium
 DOCKERCOMPOSEEXPLORERL1 := zkevm-explorer-l1
 DOCKERCOMPOSEEXPLORERL1DB := zkevm-explorer-l1-db
 DOCKERCOMPOSEEXPLORERL2 := zkevm-explorer-l2
@@ -36,6 +41,7 @@ RUNETHTXMANAGER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPETHTXMANAGER)
 RUNGRAFANA := DOCKERGID=`stat -c '%g' /var/run/docker.sock` $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEGRAFANA)
 
 RUNL1NETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
+RUNL1NETWORKVALIDIUM := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORKVALIDIUM)
 RUNEXPLORERL1 := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL1)
 RUNEXPLORERL1DB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL1DB)
 RUNEXPLORERL2 := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL2)
@@ -66,6 +72,7 @@ STOPETHTXMANAGER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPETHTXMANAGER) && $(D
 STOPGRAFANA := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEGRAFANA) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEGRAFANA)
 
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
+STOPNETWORKVALIDIUM := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORKVALIDIUM) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORKVALIDIUM)
 STOPEXPLORERL1 := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL1) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL1)
 STOPEXPLORERL1DB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL1DB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL1DB)
 STOPEXPLORERL2 := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL2) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL2)
@@ -96,8 +103,8 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -timeout 60s ../...
 
-.PHONY: test-e2e-group-1
-test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
+.PHONY: setup-e2e
+setup-e2e: stop ## Perform common steps before running an E2E test
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
@@ -105,120 +112,56 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
+
+define run_e2e_test
+	MallocNanoZone=0 ZKEVM_TEST_CONCENSUS=$(VALIDIUM) $(1)
+	MallocNanoZone=0 ZKEVM_TEST_CONCENSUS=$(ROLLUP) $(1)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 ZKEVM_TEST_CONCENSUS=$(IRRELEVANT) $(1)
+endef
+
+.PHONY: test-e2e-group-1
+test-e2e-group-1:  setup-e2e ## Runs group 1 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group1/...)
 
 .PHONY: test-e2e-group-2
-test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNEVENTDB)
-	sleep 5
-	$(RUNZKPROVER)
-	docker ps -a
-	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
+test-e2e-group-2: setup-e2e ## Runs group 2 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group2/...)
 
 .PHONY: test-e2e-group-3
-test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNEVENTDB)
-	sleep 5
-	$(RUNZKPROVER)
-	docker ps -a
-	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
+test-e2e-group-3: setup-e2e ## Runs group 3 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group3/...)
 
 .PHONY: test-e2e-group-4
-test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNEVENTDB)
-	sleep 5
-	$(RUNZKPROVER)
-	docker ps -a
-	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
+test-e2e-group-4: setup-e2e ## Runs group 4 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group4/...)
 
 .PHONY: test-e2e-group-5
-test-e2e-group-5: stop ## Runs group 5 e2e tests checking race conditions
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNEVENTDB)
-	sleep 5
-	$(RUNZKPROVER)
-	docker ps -a
-	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 1200s ../ci/e2e-group5/...
+test-e2e-group-5: setup-e2e ## Runs group 5 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 1200s ../ci/e2e-group5/...)
 
 .PHONY: test-e2e-group-6
-test-e2e-group-6: stop ## Runs group 6 e2e tests checking race conditions
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNEVENTDB)
-	sleep 5
-	$(RUNZKPROVER)
-	docker ps -a
-	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group6/...
+test-e2e-group-6: setup-e2e ## Runs group 6 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group6/...)
 
 .PHONY: test-e2e-group-7
-test-e2e-group-7: stop ## Runs group 7 e2e tests checking race conditions
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNEVENTDB)
-	sleep 5
-	$(RUNZKPROVER)
-	docker ps -a
-	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group7/...
+test-e2e-group-7: setup-e2e ## Runs group 7 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group7/...)
 
 .PHONY: test-e2e-group-8
-test-e2e-group-8: stop ## Runs group 8 e2e tests checking race conditions
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNEVENTDB)
-	sleep 5
-	$(RUNZKPROVER)
-	docker ps -a
-	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 1200s ../ci/e2e-group8/...
-
+test-e2e-group-8: setup-e2e ## Runs group 8 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 1200s ../ci/e2e-group8/...)
 
 .PHONY: test-e2e-group-9
-test-e2e-group-9: stop ## Runs group 9 e2e tests checking race conditions
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNEVENTDB)
-	sleep 5
-	$(RUNZKPROVER)
-	docker ps -a
-	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group9/...
-
+test-e2e-group-9: setup-e2e ## Runs group 9 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group9/...)
 
 .PHONY: test-e2e-group-10
-test-e2e-group-10: stop ## Runs group 10 e2e tests checking race conditions
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNEVENTDB)
-	sleep 5
-	$(RUNZKPROVER)
-	docker ps -a
-	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group10/...
-
+test-e2e-group-10: setup-e2e ## Runs group 10 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group10/...)
 
 .PHONY: test-e2e-group-11
-test-e2e-group-11: stop ## Runs group 11 e2e tests checking race conditions
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNEVENTDB)
-	sleep 5
-	$(RUNZKPROVER)
-	docker ps -a
-	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group11/...
+test-e2e-group-11: setup-e2e ## Runs group 11 e2e tests checking race conditions
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group11/...)
 
 .PHONY: benchmark-sequencer-eth-transfers
 benchmark-sequencer-eth-transfers: stop
@@ -312,12 +255,20 @@ stop-node: ## Stops the node
 	$(STOPETHTXMANAGER)
 
 .PHONY: run-network
-run-network: ## Runs the l1 network
+run-network: ## Runs the l1 network (rollup)
 	$(RUNL1NETWORK)
 
 .PHONY: stop-network
-stop-network: ## Stops the l1 network
+stop-network: ## Stops the l1 network (rollup)
 	$(STOPNETWORK)
+
+.PHONY: run-network-validium
+run-network-validium: ## Runs the l1 network (validium)
+	$(RUNL1NETWORKVALIDIUM)
+
+.PHONY: stop-network-validium
+stop-network-validium: ## Stops the l1 network (validium)
+	$(STOPNETWORKVALIDIUM)
 
 .PHONY: run-zkprover
 run-zkprover: ## Runs zkprover

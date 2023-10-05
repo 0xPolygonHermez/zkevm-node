@@ -21,3 +21,4 @@ cmd/__debug_bin
 .venv
 
 *metrics.txt
+*datastream.bin

@@ -24,8 +24,8 @@ import (
 )
 
 func TestForcedBatchesVectorFiles(t *testing.T) {
-
-	if testing.Short() {
+	// os.Setenv(operations.TestConcensusENV, operations.Rollup)
+	if testing.Short() || !operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	vectorFilesDir := "./../vectors/src/state-transition/forced-tx/group2"
@@ -60,7 +60,14 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 				log.Info("###################")
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
 				require.NoError(t, opsman.SetGenesis(genesisActions))
-				require.NoError(t, opsman.Setup())
+				if operations.IsRollup() {
+					log.Info("Running test with rollup concensus")
+					err = opsman.SetupRollup()
+				} else {
+					log.Info("Running test with validium concensus")
+					err = opsman.SetupValidium()
+				}
+				require.NoError(t, err)
 
 				// Check initial root
 				log.Info("################################")
@@ -140,7 +147,12 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 	require.NoError(t, err)
 
 	// Create smc client
-	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMRollupSmartContract)
+	var zkEvmAddr common.Address
+	if operations.IsRollup() {
+		zkEvmAddr = common.HexToAddress(operations.DefaultL1ZkEVMRollupSmartContract)
+	} else {
+		zkEvmAddr = common.HexToAddress(operations.DefaultL1ZkEVMValidiumSmartContract)
+	}
 	zkEvm, err := polygonzkevmrollup.NewPolygonzkevmrollup(zkEvmAddr, ethClient)
 	require.NoError(t, err)
 

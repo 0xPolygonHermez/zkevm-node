@@ -14,7 +14,7 @@ import (
 )
 
 func TestRepeatedNonce(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -28,7 +28,7 @@ func TestRepeatedNonce(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	receiverAddr := common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -75,7 +75,7 @@ func TestRepeatedNonce(t *testing.T) {
 }
 
 func TestRepeatedTx(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -89,7 +89,7 @@ func TestRepeatedTx(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	receiverAddr := common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -132,7 +132,7 @@ func TestRepeatedTx(t *testing.T) {
 }
 
 func TestPendingNonce(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -146,7 +146,7 @@ func TestPendingNonce(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	receiverAddr := common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")

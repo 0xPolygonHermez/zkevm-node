@@ -128,7 +128,7 @@ type L1Config struct {
 	// Address of the L1 GlobalExitRootManager contract
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
 	// Address of the data availability committee contract. Only needed when using Validium
-	DataCommitteeAddr common.Address `json:"cdkDataCommitteeContract"`
+	DataCommitteeAddr common.Address `json:"cdkDataCommitteeAddress"`
 }
 
 type externalGasProviders struct {

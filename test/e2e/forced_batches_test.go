@@ -22,7 +22,8 @@ import (
 )
 
 func TestForcedBatches(t *testing.T) {
-	if testing.Short() {
+	// os.Setenv(operations.TestConcensusENV, operations.Rollup)
+	if testing.Short() || !operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -77,7 +78,13 @@ func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsman.Setup()
+	if operations.IsRollup() {
+		log.Info("Running test with rollup concensus")
+		err = opsman.SetupRollup()
+	} else {
+		log.Info("Running test with validium concensus")
+		err = opsman.SetupValidium()
+	}
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)
 	// Load account with balance on local genesis
@@ -120,7 +127,12 @@ func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*sta
 	require.NoError(t, err)
 
 	// Create smc client
-	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMRollupSmartContract)
+	var zkEvmAddr common.Address
+	if operations.IsRollup() {
+		zkEvmAddr = common.HexToAddress(operations.DefaultL1ZkEVMRollupSmartContract)
+	} else {
+		zkEvmAddr = common.HexToAddress(operations.DefaultL1ZkEVMValidiumSmartContract)
+	}
 	zkEvm, err := polygonzkevmrollup.NewPolygonzkevmrollup(zkEvmAddr, ethClient)
 	require.NoError(t, err)
 

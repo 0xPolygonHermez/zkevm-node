@@ -23,7 +23,7 @@ import (
 )
 
 func TestDebugTraceTransactionNotFoundTx(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -43,7 +43,7 @@ func TestDebugTraceTransactionNotFoundTx(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
@@ -90,7 +90,7 @@ func TestDebugTraceTransactionNotFoundTx(t *testing.T) {
 }
 
 func TestDebugTraceBlockByNumberNotFoundTx(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -110,7 +110,7 @@ func TestDebugTraceBlockByNumberNotFoundTx(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
@@ -154,7 +154,7 @@ func TestDebugTraceBlockByNumberNotFoundTx(t *testing.T) {
 }
 
 func TestDebugTraceBlockByHashNotFoundTx(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -174,7 +174,7 @@ func TestDebugTraceBlockByHashNotFoundTx(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
@@ -218,7 +218,7 @@ func TestDebugTraceBlockByHashNotFoundTx(t *testing.T) {
 }
 
 func TestDebugTraceTransaction(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -238,7 +238,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
@@ -470,7 +470,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 }
 
 func TestDebugTraceBlock(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -490,7 +490,7 @@ func TestDebugTraceBlock(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })

@@ -17,11 +17,17 @@ import (
 )
 
 func TestEthTransferGasless(t *testing.T) {
-	if testing.Short() {
+	// os.Setenv(operations.TestConcensusENV, operations.Rollup)
+	if testing.Short() || !operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 	// Edit config
-	const path = "../../test/config/test.node.config.toml"
+	var path string
+	if operations.IsRollup() {
+		path = "../../test/config/node.rollup.toml"
+	} else {
+		path = "../../test/config/node.validium.toml"
+	}
 	require.NoError(t,
 		exec.Command("sed", "-i", "s/DefaultMinGasPriceAllowed = 1000000000/DefaultMinGasPriceAllowed = 0/g", path).Run(),
 	)
@@ -47,7 +53,7 @@ func TestEthTransferGasless(t *testing.T) {
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsman.Setup()
+	err = opsman.SetupRollup()
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)
 	// Load account with balance on local genesis

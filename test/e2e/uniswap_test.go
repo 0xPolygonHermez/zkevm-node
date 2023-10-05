@@ -18,7 +18,7 @@ import (
 
 // TestUniswap tests uniswap contracts deployment and functionality on the node.
 func TestUniswap(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 

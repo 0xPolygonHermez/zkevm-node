@@ -21,7 +21,7 @@ import (
 )
 
 func TestCounter(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -35,7 +35,7 @@ func TestCounter(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	for _, network := range networks {
@@ -69,7 +69,7 @@ func TestCounter(t *testing.T) {
 }
 
 func TestEmitLog2(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -83,7 +83,7 @@ func TestEmitLog2(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	type testCase struct {
@@ -339,7 +339,7 @@ func getLogByIndex(index int, logs []types.Log) types.Log {
 }
 
 func TestFailureTest(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -353,7 +353,7 @@ func TestFailureTest(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	for _, network := range networks {
@@ -384,7 +384,7 @@ func TestFailureTest(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -398,7 +398,7 @@ func TestRead(t *testing.T) {
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsMan.Setup()
+	err = opsMan.SetupRollup()
 	require.NoError(t, err)
 
 	for _, network := range networks {

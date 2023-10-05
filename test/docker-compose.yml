@@ -57,8 +57,8 @@ services:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
     volumes:
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
       - ./:/datastreamer
     command:
       - "/bin/sh"
@@ -74,8 +74,8 @@ services:
       - ZKEVM_NODE_SEQUENCER_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
     volumes:
       - ./sequencer.keystore:/pk/sequencer.keystore
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -92,8 +92,8 @@ services:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
     volumes:
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -109,8 +109,8 @@ services:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_AGGREGATOR_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
     volumes:
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -124,8 +124,8 @@ services:
     environment:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
     volumes:
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -141,8 +141,8 @@ services:
     volumes:
       - ./sequencer.keystore:/pk/sequencer.keystore
       - ./aggregator.keystore:/pk/aggregator.keystore
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -155,8 +155,8 @@ services:
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
     volumes:
       - ./test.keystore:/pk/keystore
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -292,8 +292,8 @@ services:
       - ZKEVM_NODE_RPC_PORT=8124
       - ZKEVM_NODE_RPC_WEBSOCKETS_PORT=8134
     volumes:
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -338,6 +338,34 @@ services:
       - "full"
       - "--rpc.allow-unprotected-txs"
 
+  zkevm-mock-l1-network-validium:
+    container_name: zkevm-mock-l1-network-validium
+    image: hermeznetwork/geth-cdk-validium-contracts:v0.0.1
+    ports:
+      - 8545:8545
+      - 8546:8546
+    command:
+      - "--http"
+      - "--http.api"
+      - "admin,eth,debug,miner,net,txpool,personal,web3"
+      - "--http.addr"
+      - "0.0.0.0"
+      - "--http.corsdomain"
+      - "*"
+      - "--http.vhosts"
+      - "*"
+      - "--ws"
+      - "--ws.origins"
+      - "*"
+      - "--ws.addr"
+      - "0.0.0.0"
+      - "--dev"
+      - "--datadir"
+      - "/geth_data"
+      - "--syncmode"
+      - "full"
+      - "--rpc.allow-unprotected-txs"
+
   zkevm-prover:
     container_name: zkevm-prover
     image: hermeznetwork/zkevm-prover:v2.2.3
@@ -345,7 +373,7 @@ services:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      - ./config/test.prover.config.json:/usr/src/app/config.json
+      - ./config/prover.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
 
@@ -356,8 +384,8 @@ services:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
     volumes:
       - ./sequencer.keystore:/pk/keystore
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -405,8 +433,8 @@ services:
       - ZKEVM_NODE_MTCLIENT_URI=zkevm-permissionless-prover:50061
       - ZKEVM_NODE_EXECUTOR_URI=zkevm-permissionless-prover:50071
     volumes:
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -421,7 +449,7 @@ services:
       - 50068:50061 # MT
       - 50078:50071 # Executor
     volumes:
-      - ./config/test.permissionless.prover.config.json:/usr/src/app/config.json
+      - ./config/prover.permissionless.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
 
@@ -446,7 +474,7 @@ services:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
     volumes:
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
+      - ./config/node.${ZKEVM_CONCENSUS:-rollup}.toml:/app/config.toml
+      - ./config/genesis.${ZKEVM_CONCENSUS:-rollup}.json:/app/genesis.json
     command:
       - "/bin/sh"

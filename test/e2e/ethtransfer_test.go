@@ -16,7 +16,8 @@ import (
 )
 
 func TestEthTransfer(t *testing.T) {
-	if testing.Short() {
+	// os.Setenv(operations.TestConcensusENV, operations.Rollup)
+	if testing.Short() || !operations.IsConcensusRelevant() {
 		t.Skip()
 	}
 
@@ -29,7 +30,13 @@ func TestEthTransfer(t *testing.T) {
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsman.Setup()
+	if operations.IsRollup() {
+		log.Info("Running test with rollup concensus")
+		err = opsman.SetupRollup()
+	} else {
+		log.Info("Running test with validium concensus")
+		err = opsman.SetupValidium()
+	}
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)
 	// Load account with balance on local genesis
