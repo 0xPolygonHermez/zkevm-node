@@ -14,7 +14,7 @@ require (
 	github.com/habx/pg-commands v0.6.1
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/iden3/go-iden3-crypto v0.0.15
-	github.com/invopop/jsonschema v0.11.0
+	github.com/invopop/jsonschema v0.12.0
 	github.com/jackc/pgconn v1.14.1
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/mitchellh/mapstructure v1.5.0
