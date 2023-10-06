@@ -25,6 +25,17 @@ func (m migrationTest0010) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 		assert.NoError(t, row.Scan(&result))
 		assert.Equal(t, 1, result)
 	}
+
+	constraints := []string{"sequences_pkey", "trusted_reorg_pkey", "sync_info_pkey"}
+	// Check constraint adding
+	for _, idx := range constraints {
+		// getConstraint
+		const getConstraint = `	SELECT count(*) FROM pg_constraint c WHERE c.conname = $1;`
+		row := db.QueryRow(getConstraint, idx)
+		var result int
+		assert.NoError(t, row.Scan(&result))
+		assert.Equal(t, 1, result)
+	}
 }
 
 func (m migrationTest0010) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
@@ -34,6 +45,17 @@ func (m migrationTest0010) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 		// getIndex
 		const getIndex = `SELECT count(*) FROM pg_indexes WHERE indexname = $1;`
 		row := db.QueryRow(getIndex, idx)
+		var result int
+		assert.NoError(t, row.Scan(&result))
+		assert.Equal(t, 0, result)
+	}
+
+	constraints := []string{"sequences_pkey", "trusted_reorg_pkey", "sync_info_pkey"}
+	// Check constraint adding
+	for _, idx := range constraints {
+		// getConstraint
+		const getConstraint = `	SELECT count(*) FROM pg_constraint c WHERE c.conname = $1;`
+		row := db.QueryRow(getConstraint, idx)
 		var result int
 		assert.NoError(t, row.Scan(&result))
 		assert.Equal(t, 0, result)
