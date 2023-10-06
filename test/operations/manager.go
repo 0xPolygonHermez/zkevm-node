@@ -54,6 +54,9 @@ const (
 	DefaultWaitPeriodSendSequence                          = "15s"
 	DefaultLastBatchVirtualizationTimeMaxWaitPeriod        = "10s"
 	DefaultMaxTxSizeForL1                           uint64 = 131072
+
+	GenesisBlockRollup   uint64 = 102
+	GenesisBlockValidium uint64 = 75
 )
 
 var (
@@ -156,9 +159,9 @@ func (m *Manager) SetGenesisAccountsBalance(genesisAccounts map[string]big.Int) 
 func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
 	var blockNum uint64
 	if IsRollup() {
-		blockNum = 102
+		blockNum = GenesisBlockRollup
 	} else {
-		blockNum = 75
+		blockNum = GenesisBlockValidium
 	}
 	genesisBlock := state.Block{
 		BlockNumber: blockNum,
@@ -193,12 +196,18 @@ func (m *Manager) SetForkID(forkID uint64) error {
 	}
 
 	// Add initial forkID
+	var blockNum uint64
+	if IsRollup() {
+		blockNum = GenesisBlockRollup
+	} else {
+		blockNum = GenesisBlockValidium
+	}
 	fID := state.ForkIDInterval{
 		FromBatchNumber: 1,
 		ToBatchNumber:   math.MaxUint64,
 		ForkId:          forkID,
 		Version:         "forkID",
-		BlockNumber:     102,
+		BlockNumber:     blockNum,
 	}
 	err = m.st.AddForkIDInterval(m.ctx, fID, dbTx)
 
