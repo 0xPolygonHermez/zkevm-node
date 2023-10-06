@@ -120,8 +120,8 @@ setup-e2e: stop ## Perform common steps before running an E2E test
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 
 define run_e2e_test
-	MallocNanoZone=0 ZKEVM_TEST_CONCENSUS=$(VALIDIUM) $(1)
 	MallocNanoZone=0 ZKEVM_TEST_CONCENSUS=$(ROLLUP) $(1)
+	MallocNanoZone=0 ZKEVM_TEST_CONCENSUS=$(VALIDIUM) $(1)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 ZKEVM_TEST_CONCENSUS=$(IRRELEVANT) $(1)
 endef
 
@@ -171,7 +171,7 @@ test-e2e-group-11: setup-e2e ## Runs group 11 e2e tests checking race conditions
 
 .PHONY: test-e2e-group-12
 test-e2e-group-12: setup-e2e ## Runs group 12 e2e tests checking race conditions
-	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group12/...)
+	@$(call run_e2e_test,go test -count=1 -race -v -p 1 -timeout 600s ../ci/e2e-group12/...)
 
 .PHONY: benchmark-sequencer-eth-transfers
 benchmark-sequencer-eth-transfers: stop
