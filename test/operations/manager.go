@@ -154,8 +154,14 @@ func (m *Manager) SetGenesisAccountsBalance(genesisAccounts map[string]big.Int) 
 }
 
 func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
+	var blockNum uint64
+	if IsRollup() {
+		blockNum = 102
+	} else {
+		blockNum = 75
+	}
 	genesisBlock := state.Block{
-		BlockNumber: 102,
+		BlockNumber: blockNum,
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
