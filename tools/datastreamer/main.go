@@ -8,8 +8,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/config"
 	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/db"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/urfave/cli/v2"
 )
 
@@ -34,10 +36,17 @@ func main() {
 
 	app.Commands = []*cli.Command{
 		{
-			Name:    "run",
+			Name:    "generate",
 			Aliases: []string{},
-			Usage:   "Run the tool",
-			Action:  start,
+			Usage:   "Generate stream file form scratch",
+			Action:  generate,
+			Flags:   flags,
+		},
+		{
+			Name:    "rebuild",
+			Aliases: []string{},
+			Usage:   "Rebuild state roots from a block",
+			Action:  rebuild,
 			Flags:   flags,
 		},
 	}
@@ -49,13 +58,7 @@ func main() {
 	}
 }
 
-func start(cliCtx *cli.Context) error {
-	c, err := config.Load(cliCtx)
-	if err != nil {
-		return err
-	}
-	log.Infof("Loaded configuration: %+v", c)
-
+func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error) {
 	// Init logger
 	log.Init(c.StreamServer.Log)
 	log.Info("Starting tool")
@@ -63,7 +66,7 @@ func start(cliCtx *cli.Context) error {
 	// Create a stream server
 	streamServer, err := datastreamer.New(c.StreamServer.Port, state.StreamTypeSequencer, c.StreamServer.Filename, &c.StreamServer.Log)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	// Set entities definition
@@ -87,6 +90,22 @@ func start(cliCtx *cli.Context) error {
 
 	streamServer.SetEntriesDef(entriesDefinition)
 	err = streamServer.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	return &streamServer, nil
+}
+
+func generate(cliCtx *cli.Context) error {
+	c, err := config.Load(cliCtx)
+	if err != nil {
+		log.Fatal(err)
+
+	}
+	log.Infof("Loaded configuration: %+v", c)
+
+	streamServer, err := initializeStreamServer(c)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -183,9 +202,6 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	log.Infof("Current transaction index: %d", currentTxIndex)
-	if currentTxIndex == 0 {
-		currentL2Block++
-	}
 	log.Infof("Current L2 block number: %d", currentL2Block)
 
 	var limit uint64 = 1000
@@ -263,6 +279,148 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	log.Info("Finished tool")
+
+	return nil
+}
+
+func rebuild(cliCtx *cli.Context) error {
+	c, err := config.Load(cliCtx)
+	if err != nil {
+		log.Fatal(err)
+
+	}
+	log.Infof("Loaded configuration: %+v", c)
+
+	ctx := cliCtx.Context
+
+	streamServer, err := initializeStreamServer(c)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	oldEndEntry, err := streamServer.GetEntry(1)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("oldEndEntry: %+v", oldEndEntry)
+
+	startEntry, err := streamServer.GetEntry(2)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("startEntry: %+v", startEntry)
+	log.Infof("Length of data in startEntry: %d", len(startEntry.Data))
+
+	txEntry, err := streamServer.GetEntry(3)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("txEntry: %+v", txEntry)
+
+	endEntry, err := streamServer.GetEntry(4)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("endEntry: %+v", endEntry)
+
+	tx, err := state.DecodeTx(string(txEntry.Data[6:]))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	/*
+		log.Infof("tx nonce: %+v", tx.Nonce())
+
+		sender, err := state.GetSender(*tx)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Infof("tx sender: %+v", sender)
+	*/
+
+	// RLP encode the transaction using the proper fork id
+	batchL2Data, err := state.EncodeTransaction(*tx, 255, uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78])))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	processBatchRequest := &executor.ProcessBatchRequest{
+		OldBatchNum:      uint64(startEntry.Data[0]) - 1,
+		Coinbase:         common.Bytes2Hex(startEntry.Data[56:76]),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     oldEndEntry.Data[40:72],
+		GlobalExitRoot:   startEntry.Data[23:55],
+		OldAccInputHash:  []byte{},
+		EthTimestamp:     binary.LittleEndian.Uint64(startEntry.Data[16:24]),
+		UpdateMerkleTree: uint32(0),
+		ChainId:          1001,
+		ForkId:           uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78])),
+	}
+
+	log.Infof("ProcessBatchRequest: %+v", processBatchRequest)
+
+	log.Infof("Old state root:    %s", common.Bytes2Hex(processBatchRequest.OldStateRoot))
+	log.Infof("Expected new root: %s", common.Bytes2Hex(endEntry.Data[40:72]))
+	log.Infof("Batch L2 data:     %s", common.Bytes2Hex(processBatchRequest.BatchL2Data))
+	log.Infof("Coinbase:          %s", processBatchRequest.Coinbase)
+	log.Infof("Timestamp:         %d", processBatchRequest.EthTimestamp)
+	log.Infof("Fork id:           %d", processBatchRequest.ForkId)
+
+	/*
+		if processBatchRequest.ForkId >= 5 {
+			processBatchRequest.BatchL2Data = append(processBatchRequest.BatchL2Data, byte(255))
+		}
+	*/
+
+	// Connect to the executor
+	executorClient, executorClientConn, executorCancel := executor.NewExecutorClient(ctx, c.Executor)
+	s := executorClientConn.GetState()
+	log.Infof("executorClientConn state: %s", s.String())
+	defer func() {
+		executorCancel()
+		executorClientConn.Close()
+	}()
+
+	/*
+		mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", "toni-prover")}
+		var mtDBCancel context.CancelFunc
+		mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+		s = mtDBClientConn.GetState()
+		log.Infof("stateDbClientConn state: %s", s.String())
+		defer func() {
+			mtDBCancel()
+			mtDBClientConn.Close()
+		}()
+
+		stateTree := merkletree.NewStateTree(mtDBServiceClient)
+
+		// Connect to MT
+		nonce, err := stateTree.GetNonce(ctx, sender, processBatchRequest.OldStateRoot)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Infof("Nonce in MT: %d", nonce)
+	*/
+
+	// Process batch
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+		log.Fatal(processBatchResponse.Error)
+	}
+
+	log.Infof("ProcessBatchResponse: %+v", processBatchResponse)
+
+	log.Infof("New root: %s", common.Bytes2Hex(processBatchResponse.NewStateRoot))
 
 	return nil
 }

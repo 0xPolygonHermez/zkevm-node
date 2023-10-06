@@ -1,6 +1,6 @@
 
 [StreamServer]
-Port = 6900
+Port = 6901
 Filename = "streamfile.bin"
     [StreamServer.Log]
     Environment = "development"
@@ -15,3 +15,7 @@ Host = "localhost"
 Port = "5432"
 EnableLog = false	
 MaxConns = 200
+
+[Executor]
+URI = "toni-prover:50071"
+MaxGRPCMessageSize = 100000000
