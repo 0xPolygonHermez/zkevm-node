@@ -53,7 +53,13 @@ func TestEthTransferGasless(t *testing.T) {
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	err = opsman.SetupRollup()
+	if operations.IsRollup() {
+		log.Info("Running test with rollup consensus")
+		err = opsman.SetupRollup()
+	} else {
+		log.Info("Running test with validium consensus")
+		err = opsman.SetupValidium()
+	}
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)
 	// Load account with balance on local genesis
