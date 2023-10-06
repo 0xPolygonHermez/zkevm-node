@@ -121,7 +121,9 @@ setup-e2e: stop ## Perform common steps before running an E2E test
 
 define run_e2e_test
 	MallocNanoZone=0 ZKEVM_TEST_CONCENSUS=$(ROLLUP) $(1)
+	setup-e2e
 	MallocNanoZone=0 ZKEVM_TEST_CONCENSUS=$(VALIDIUM) $(1)
+	setup-e2e
 	trap '$(STOP)' EXIT; MallocNanoZone=0 ZKEVM_TEST_CONCENSUS=$(IRRELEVANT) $(1)
 endef
 
