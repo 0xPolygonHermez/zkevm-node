@@ -1,7 +1,7 @@
 
 [StreamServer]
 Port = 6901
-Filename = "streamfile.bin"
+Filename = "datastream.bin"
     [StreamServer.Log]
     Environment = "development"
     Level = "info"
@@ -17,5 +17,5 @@ EnableLog = false
 MaxConns = 200
 
 [Executor]
-URI = "toni-prover:50071"
+URI = "zkevm-prover:50071"
 MaxGRPCMessageSize = 100000000

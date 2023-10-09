@@ -7,6 +7,8 @@ check-go:
 # Targets that require the checks
 generate-file: check-go
 
+arguments := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+
 .PHONY: generate-file
 generate-file: ## Runs the tool to populate the binary file
 	go run main.go generate -cfg config/tool.config.toml
@@ -14,8 +16,8 @@ generate-file: ## Runs the tool to populate the binary file
 rebuild: ## Runs the tool to rebuild state roots from a given block
 	go run main.go rebuild -cfg config/tool.config.toml
 
-decode-entry: ## Runs the tool to decode a given entry
-	go run main.go decode -cfg config/tool.config.toml -entry 1234
+decode-entry: ## Runs the tool to decode a given entry number
+	go run main.go decode -cfg config/tool.config.toml -entry $(arguments)
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted

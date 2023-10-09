@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"os"
 	"reflect"
-	"strconv"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
@@ -442,13 +441,6 @@ func rebuild(cliCtx *cli.Context) error {
 }
 
 func decode(cliCtx *cli.Context) error {
-	entryNumberStr := cliCtx.Args().Get(0)
-	entryNumber, err := strconv.ParseUint(entryNumberStr, 10, 64)
-	if err != nil {
-		log.Fatal(err)
-
-	}
-
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		log.Fatal(err)
@@ -461,7 +453,7 @@ func decode(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	entry, err := streamServer.GetEntry(entryNumber)
+	entry, err := streamServer.GetEntry(cliCtx.Uint64("entry"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -471,6 +463,8 @@ func decode(cliCtx *cli.Context) error {
 	switch entry.EntryType {
 	case state.EntryTypeL2BlockStart:
 		log.Info("Entry type is L2BlockStart")
+		batchNumber := binary.LittleEndian.Uint64(entry.Data[0:8])
+		log.Infof("Batch number: %d", batchNumber)
 		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[8:16])
 		log.Infof("L2 block number: %d", l2BlockNumber)
 	case state.EntryTypeL2Tx:
@@ -483,6 +477,9 @@ func decode(cliCtx *cli.Context) error {
 		log.Infof("Transaction: %+v", tx)
 	case state.EntryTypeL2BlockEnd:
 		log.Info("Entry type is L2BlockEnd")
+		log.Infof("L2 Block Number: %d", binary.LittleEndian.Uint64(entry.Data[0:8]))
+		log.Infof("Block Hash: %s", "0x"+common.Bytes2Hex(entry.Data[8:40]))
+		log.Infof("State root: %s", "0x"+common.Bytes2Hex(entry.Data[40:72]))
 	}
 
 	return nil
