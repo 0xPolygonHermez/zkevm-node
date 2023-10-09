@@ -154,6 +154,12 @@ func getSequencerDefaultConfig() Config {
 		BatchRequestsEnabled:      true,
 		MaxLogsCount:              10000,
 		MaxLogsBlockRange:         10000,
+		WebSockets: WebSocketsConfig{
+			Enabled:   true,
+			Host:      "0.0.0.0",
+			Port:      9133,
+			ReadLimit: 0,
+		},
 	}
 	return cfg
 }
