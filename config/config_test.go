@@ -105,26 +105,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
-			expectedValue: uint64(10),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.L1GasPriceFactor",
-			expectedValue: float64(0.25),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.ByteGasCost",
-			expectedValue: uint64(16),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.MarginFactor",
-			expectedValue: float64(1),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.Enabled",
-			expectedValue: false,
-		},
-		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
@@ -276,6 +256,34 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.GlobalQueue",
 			expectedValue: uint64(1024),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.Enabled",
+			expectedValue: false,
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.L1GasPriceFactor",
+			expectedValue: float64(0.25),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.ByteGasCost",
+			expectedValue: uint64(16),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.ZeroByteGasCost",
+			expectedValue: uint64(4),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.NetProfit",
+			expectedValue: float64(1),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.MarginBreakEven",
+			expectedValue: uint64(10),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.FinalDeviation",
+			expectedValue: uint64(10),
 		},
 		{
 			path:          "Pool.DB.User",

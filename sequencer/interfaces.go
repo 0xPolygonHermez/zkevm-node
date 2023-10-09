@@ -29,7 +29,7 @@ type txPool interface {
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetDefaultMinGasPriceAllowed() uint64
-	GetL1GasPrice() uint64
+	GetL1AndL2GasPrice() (uint64, uint64)
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -130,7 +130,7 @@ type dbManagerInterface interface {
 	FlushMerkleTree(ctx context.Context) error
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetDefaultMinGasPriceAllowed() uint64
-	GetL1GasPrice() uint64
+	GetL1AndL2GasPrice() (uint64, uint64)
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)

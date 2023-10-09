@@ -36,12 +36,12 @@ var (
 // finalizer represents the finalizer component of the sequencer.
 type finalizer struct {
 	cfg                     FinalizerCfg
-	effectiveGasPriceCfg    EffectiveGasPriceCfg
 	closingSignalCh         ClosingSignalCh
 	isSynced                func(ctx context.Context) bool
 	sequencerAddress        common.Address
 	worker                  workerInterface
 	dbManager               dbManagerInterface
+	pool                    txPool
 	executor                stateInterface
 	batch                   *WipBatch
 	batchConstraints        state.BatchConstraintsCfg
@@ -60,8 +60,7 @@ type finalizer struct {
 	// event log
 	eventLog *event.EventLog
 	// effective gas price calculation
-	maxBreakEvenGasPriceDeviationPercentage *big.Int
-	defaultMinGasPriceAllowed               uint64
+	effectiveGasPrice *pool.EffectiveGasPrice
 	// Processed txs
 	pendingTransactionsToStore   chan transactionToStore
 	pendingTransactionsToStoreWG *sync.WaitGroup
@@ -106,8 +105,7 @@ func (w *WipBatch) isEmpty() bool {
 // newFinalizer returns a new instance of Finalizer.
 func newFinalizer(
 	cfg FinalizerCfg,
-	effectiveGasPriceCfg EffectiveGasPriceCfg,
-
+	poolCfg pool.Config,
 	worker workerInterface,
 	dbManager dbManagerInterface,
 	executor stateInterface,
@@ -118,19 +116,18 @@ func newFinalizer(
 	eventLog *event.EventLog,
 ) *finalizer {
 	f := finalizer{
-		cfg:                  cfg,
-		effectiveGasPriceCfg: effectiveGasPriceCfg,
-		closingSignalCh:      closingSignalCh,
-		isSynced:             isSynced,
-		sequencerAddress:     sequencerAddr,
-		worker:               worker,
-		dbManager:            dbManager,
-		executor:             executor,
-		batch:                new(WipBatch),
-		batchConstraints:     batchConstraints,
-		processRequest:       state.ProcessRequest{},
-		sharedResourcesMux:   new(sync.RWMutex),
-		lastGERHash:          state.ZeroHash,
+		cfg:                cfg,
+		closingSignalCh:    closingSignalCh,
+		isSynced:           isSynced,
+		sequencerAddress:   sequencerAddr,
+		worker:             worker,
+		dbManager:          dbManager,
+		executor:           executor,
+		batch:              new(WipBatch),
+		batchConstraints:   batchConstraints,
+		processRequest:     state.ProcessRequest{},
+		sharedResourcesMux: new(sync.RWMutex),
+		lastGERHash:        state.ZeroHash,
 		// closing signals
 		nextGER:                 common.Hash{},
 		nextGERDeadline:         0,
@@ -140,11 +137,12 @@ func newFinalizer(
 		nextForcedBatchesMux:    new(sync.RWMutex),
 		handlingL2Reorg:         false,
 		// event log
-		eventLog:                                eventLog,
-		maxBreakEvenGasPriceDeviationPercentage: new(big.Int).SetUint64(effectiveGasPriceCfg.MaxBreakEvenGasPriceDeviationPercentage),
-		pendingTransactionsToStore:              make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
-		pendingTransactionsToStoreWG:            new(sync.WaitGroup),
-		storedFlushID:                           0,
+		eventLog: eventLog,
+		// effective gas price calculation instance
+		effectiveGasPrice:            pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
+		pendingTransactionsToStore:   make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
+		pendingTransactionsToStoreWG: new(sync.WaitGroup),
+		storedFlushID:                0,
 		// Mutex is unlocked when the condition is broadcasted
 		storedFlushIDCond:  sync.NewCond(&sync.Mutex{}),
 		proverID:           "",
@@ -159,8 +157,6 @@ func newFinalizer(
 
 // Start starts the finalizer.
 func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *state.ProcessRequest) {
-	f.defaultMinGasPriceAllowed = f.dbManager.GetDefaultMinGasPriceAllowed()
-
 	var err error
 	if batch != nil {
 		f.batch = batch
@@ -575,12 +571,11 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 		// If it is the first time we process this tx then we calculate the BreakEvenGasPrice
 		if tx.EffectiveGasPriceProcessCount == 0 {
 			// Get L1 gas price and store in txTracker to make it consistent during the lifespan of the transaction
-			tx.L1GasPrice = f.dbManager.GetL1GasPrice()
-			log.Infof("tx.L1GasPrice=%d", tx.L1GasPrice)
+			tx.L1GasPrice, tx.L2GasPrice = f.dbManager.GetL1AndL2GasPrice()
 			// Calculate the new breakEvenPrice
-			tx.BreakEvenGasPrice, err = f.CalculateTxBreakEvenGasPrice(tx, tx.BatchResources.ZKCounters.CumulativeGasUsed)
+			tx.EffectiveGasPriceFinal, err = f.effectiveGasPrice.CalculateEffectiveGasPriceFinal(tx.RawTx, tx.GasPrice, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPrice, tx.L2GasPrice)
 			if err != nil {
-				if f.effectiveGasPriceCfg.Enabled {
+				if f.effectiveGasPrice.IsEffectiveGasPriceEnabled() {
 					return nil, err
 				} else {
 					log.Warnf("EffectiveGasPrice is disabled, but failed to calculate BreakEvenGasPrice: %s", err)
@@ -590,22 +585,24 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 
 		effectivePercentage := state.MaxEffectivePercentage
 
-		if tx.BreakEvenGasPrice != nil && tx.BreakEvenGasPrice.Uint64() != 0 {
-			// If the tx gas price is lower than the break even gas price, we process the tx with the user gas price (100%)
-			if tx.GasPrice.Cmp(tx.BreakEvenGasPrice) <= 0 {
-				tx.IsEffectiveGasPriceFinalExecution = true
-			} else {
-				effectivePercentage, err = CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.BreakEvenGasPrice)
+		if tx.EffectiveGasPriceFinal != nil && tx.EffectiveGasPriceFinal.Uint64() != 0 {
+			// If EffectiveGasPriceFinal is lower than the tx.GasPrice , we process the tx with EffectiveGasPriceFinal percentage
+			if tx.EffectiveGasPriceFinal.Cmp(tx.GasPrice) < 0 {
+				effectivePercentage, err = f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.EffectiveGasPriceFinal)
 				if err != nil {
-					log.Errorf("failed to calculate effective percentage: %s", err)
+					log.Errorf("failed to calculate effective gas price percentage: %s", err)
 					return nil, err
 				}
+			} else {
+				// EffectiveGasPriceFinal >= tx.GasPrice we process the tx with the signed gasPrice (255%)
+				// TODO: Warning message indicating we loss fee for thix tx
+				tx.IsEffectiveGasPriceFinalExecution = true
 			}
 		}
-		log.Infof("calculated breakEvenGasPrice: %d, gasPrice: %d, effectivePercentage: %d for tx: %s", tx.BreakEvenGasPrice, tx.GasPrice, effectivePercentage, tx.HashStr)
+		log.Infof("calculated breakEvenGasPrice: %d, gasPrice: %d, effectivePercentage: %d for tx: %s", tx.EffectiveGasPriceFinal, tx.GasPrice, effectivePercentage, tx.HashStr)
 
 		// If EGP is disabled we use tx GasPrice (MaxEffectivePercentage=255)
-		if !f.effectiveGasPriceCfg.Enabled {
+		if !f.effectiveGasPrice.IsEffectiveGasPriceEnabled() {
 			effectivePercentage = state.MaxEffectivePercentage
 		}
 
@@ -673,33 +670,44 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		return errWg, result.Responses[0].RomError
 	}
 
+	//TODO: Log has_gasprice_opcode && has_balance_opcode. Log before or after RomError check??
+
 	// Check remaining resources
 	err = f.checkRemainingResources(result, tx)
 	if err != nil {
 		return nil, err
 	}
 
-	if f.effectiveGasPriceCfg.Enabled && !tx.IsEffectiveGasPriceFinalExecution {
-		err := f.CompareTxBreakEvenGasPrice(ctx, tx, result.Responses[0].GasUsed)
+	if f.effectiveGasPrice.IsEffectiveGasPriceEnabled() && !tx.IsEffectiveGasPriceFinalExecution {
+		// Increase nunber of executions related to gas price
+		tx.EffectiveGasPriceProcessCount++
+
+		newEffectiveGasPriceFinal, err := f.effectiveGasPrice.CalculateEffectiveGasPriceFinal(tx.RawTx, tx.GasPrice, result.Responses[0].GasUsed, tx.L1GasPrice, tx.L2GasPrice)
+		if err != nil {
+			log.Errorf("failed to calculate EffectiveGasPriceFinal with new gasUsed for tx %s, error: %s", tx.HashStr, err.Error())
+			return nil, err
+		}
+
+		err = f.CompareTxEffectiveGasPriceFinal(ctx, tx, newEffectiveGasPriceFinal)
 		if err != nil {
 			return nil, err
 		}
-	} else if !f.effectiveGasPriceCfg.Enabled {
+	} else if !f.effectiveGasPrice.IsEffectiveGasPriceEnabled() {
 		reprocessNeeded := false
-		newBreakEvenGasPrice, err := f.CalculateTxBreakEvenGasPrice(tx, result.Responses[0].GasUsed)
+		newBreakEvenGasPrice, err := f.effectiveGasPrice.CalculateBreakEvenGasPrice(tx.RawTx, tx.GasPrice, result.Responses[0].GasUsed, tx.L1GasPrice)
 		if err != nil {
 			log.Warnf("EffectiveGasPrice is disabled, but failed to calculate BreakEvenGasPrice: %s", err)
 		} else {
 			// Compute the absolute difference between tx.BreakEvenGasPrice - newBreakEvenGasPrice
-			diff := new(big.Int).Abs(new(big.Int).Sub(tx.BreakEvenGasPrice, newBreakEvenGasPrice))
+			diff := new(big.Int).Abs(new(big.Int).Sub(tx.EffectiveGasPriceFinal, newBreakEvenGasPrice))
 			// Compute max difference allowed of breakEvenGasPrice
-			maxDiff := new(big.Int).Div(new(big.Int).Mul(tx.BreakEvenGasPrice, f.maxBreakEvenGasPriceDeviationPercentage), big.NewInt(100)) //nolint:gomnd
+			maxDiff := new(big.Int).Div(new(big.Int).Mul(tx.EffectiveGasPriceFinal, new(big.Int).SetUint64(f.effectiveGasPrice.GetFinalDeviation())), big.NewInt(100)) //nolint:gomnd
 
 			// if diff is greater than the maxDiff allowed
 			if diff.Cmp(maxDiff) == 1 {
 				reprocessNeeded = true
 			}
-			log.Infof("calculated newBreakEvenGasPrice: %d, tx.BreakEvenGasPrice: %d for tx: %s", newBreakEvenGasPrice, tx.BreakEvenGasPrice, tx.HashStr)
+			log.Infof("calculated newBreakEvenGasPrice: %d, tx.BreakEvenGasPrice: %d for tx: %s", newBreakEvenGasPrice, tx.EffectiveGasPriceFinal, tx.HashStr)
 			log.Infof("Would need reprocess: %t, diff: %d, maxDiff: %d", reprocessNeeded, diff, maxDiff)
 		}
 	}
@@ -771,6 +779,39 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			f.updateWorkerAfterSuccessfulProcessing(ctx, txResp.TxHash, from, true, result)
 		}
 	}
+}
+
+// CompareTxEffectiveGasPriceFinal compares newEffectiveGasPriceFinal with tx.EffectiveGasPriceFinal.
+// It returns ErrEffectiveGasPriceReprocess if the tx needs to be reprocessed with
+// the tx.EffectiveGasPriceFinal updated, otherwise it returns nil
+func (f *finalizer) CompareTxEffectiveGasPriceFinal(ctx context.Context, tx *TxTracker, newEffectiveGasPriceFinal *big.Int) error {
+	tx.IsEffectiveGasPriceFinalExecution = true
+
+	//TODO: Store tx execution count
+
+	// Compute the absolute difference between tx.EffectiveGasPriceFinal - newEffectiveGasPriceFinal
+	diff := new(big.Int).Abs(new(big.Int).Sub(tx.EffectiveGasPriceFinal, newEffectiveGasPriceFinal))
+	// Compute max difference allowed of newEffectiveGasPriceFinal
+	finalDeviation := new(big.Int).Div(new(big.Int).Mul(tx.EffectiveGasPriceFinal, new(big.Int).SetUint64(f.effectiveGasPrice.GetFinalDeviation())), big.NewInt(100)) //nolint:gomnd
+
+	// if (diff > finalDeviation)
+	if diff.Cmp(finalDeviation) == 1 {
+		if newEffectiveGasPriceFinal.Cmp(tx.GasPrice) < 0 {
+			has_gasprice_opcode := false //TODO: Get has_gasprice_opcode
+			has_balance_opcode := false  //TODO: Get has_balance_opcode
+			if has_gasprice_opcode || has_balance_opcode {
+				tx.EffectiveGasPriceFinal = tx.GasPrice
+			} else {
+				tx.EffectiveGasPriceFinal = newEffectiveGasPriceFinal
+			}
+		} else {
+			//TODO: Warning log loss
+			tx.EffectiveGasPriceFinal = tx.GasPrice
+		}
+		return ErrEffectiveGasPriceReprocess
+	} // else (diff <= finalDeviation) it is ok, no reprocess of the tx is needed
+
+	return nil
 }
 
 // storeProcessedTx stores the processed transaction in the database.

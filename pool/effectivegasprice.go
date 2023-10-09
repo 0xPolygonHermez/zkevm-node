@@ -1,0 +1,129 @@
+package pool
+
+import (
+	"bytes"
+	"errors"
+	"math/big"
+
+	"github.com/0xPolygonHermez/zkevm-node/state"
+)
+
+var (
+	// ErrBreakEvenGasPriceEmpty happens when the breakEven or gasPrice is nil or zero
+	ErrBreakEvenGasPriceEmpty = errors.New("breakEven and gasPrice cannot be nil or zero")
+)
+
+// EffectiveGasPrice implements the effective gas prices calculations and checks
+type EffectiveGasPrice struct {
+	cfg                EffectiveGasPriceCfg
+	minGasPriceAllowed uint64
+}
+
+// NewEffectiveGasPrice creates and initializes an instance of EffectiveGasPrice
+func NewEffectiveGasPrice(cfg EffectiveGasPriceCfg, minGasPriceAllowed uint64) *EffectiveGasPrice {
+	return &EffectiveGasPrice{
+		cfg:                cfg,
+		minGasPriceAllowed: minGasPriceAllowed,
+	}
+}
+
+// IsEffectiveGasPriceEnabled return if effectiveGasPrice calculation is enabled
+func (e *EffectiveGasPrice) IsEffectiveGasPriceEnabled() bool {
+	return e.cfg.Enabled
+}
+
+// GetFinalDeviation return the value for the config parameter FinalDeviation
+func (e *EffectiveGasPrice) GetFinalDeviation() uint64 {
+	return e.cfg.FinalDeviation
+}
+
+// GetMarginBreakEven return the value for the config parameter MarginBreakEven
+func (e *EffectiveGasPrice) GetMarginBreakEven() uint64 {
+	return e.cfg.MarginBreakEven
+}
+
+// CalculateBreakEvenGasPrice calculates the break even gas price for a transaction
+func (e *EffectiveGasPrice) CalculateBreakEvenGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
+	const (
+		// constants used in calculation of BreakEvenGasPrice
+		signatureBytesLength           = 65
+		effectivePercentageBytesLength = 1
+		constBytesTx                   = signatureBytesLength + effectivePercentageBytesLength
+	)
+
+	if l1GasPrice == 0 {
+		return nil, ErrZeroL1GasPrice
+	}
+
+	if txGasUsed == 0 {
+		// Returns tx.GasPrice as the breakEvenGasPrice
+		return txGasPrice, nil
+	}
+
+	// Get L2 Min Gas Price
+	l2MinGasPrice := uint64(float64(l1GasPrice) * e.cfg.L1GasPriceFactor)
+	if l2MinGasPrice < e.minGasPriceAllowed {
+		l2MinGasPrice = e.minGasPriceAllowed
+	}
+
+	txZeroBytes := uint64(bytes.Count(rawTx, []byte{0}))
+	txNonZeroBytes := uint64(len(rawTx)) - txZeroBytes
+
+	// Calculate BreakEvenGasPrice
+	totalTxPrice := (txGasUsed * l2MinGasPrice) +
+		((constBytesTx+txNonZeroBytes)*e.cfg.ByteGasCost+txZeroBytes*e.cfg.ZeroByteGasCost)*l1GasPrice
+	breakEvenGasPrice := big.NewInt(0).SetUint64(uint64(float64(totalTxPrice/txGasUsed) * e.cfg.NetProfit))
+
+	return breakEvenGasPrice, nil
+}
+
+// CalculateEffectiveGasPriceFinal calculates the final effective gas price for a tx
+func (e *EffectiveGasPrice) CalculateEffectiveGasPriceFinal(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error) {
+	breakEvenGasPrice, err := e.CalculateBreakEvenGasPrice(rawTx, txGasPrice, txGasUsed, l1GasPrice)
+
+	if err != nil {
+		return nil, err
+	}
+
+	bfL2GasPrice := new(big.Float).SetUint64(l2GasPrice)
+	bfTxGasPrice := new(big.Float).SetInt(txGasPrice)
+
+	ratioPriority := new(big.Float).SetFloat64(1.0)
+
+	if bfTxGasPrice.Cmp(bfL2GasPrice) == 1 {
+		//ratioPriority := (txGasPrice / l2GasPrice)
+		ratioPriority = new(big.Float).Quo(bfTxGasPrice, bfL2GasPrice)
+	}
+
+	bfEffectiveGasPriceFinal := new(big.Float).Mul(new(big.Float).SetInt(breakEvenGasPrice), ratioPriority)
+
+	effectiveGasPriceFinal := new(big.Int)
+	bfEffectiveGasPriceFinal.Int(effectiveGasPriceFinal)
+
+	return effectiveGasPriceFinal, nil
+}
+
+// CalculateEffectiveGasPricePercentage calculates the gas price's effective percentage
+func (e *EffectiveGasPrice) CalculateEffectiveGasPricePercentage(gasPrice *big.Int, breakEven *big.Int) (uint8, error) {
+	const bits = 256
+	var bitsBigInt = big.NewInt(bits)
+
+	if breakEven == nil || gasPrice == nil ||
+		gasPrice.Cmp(big.NewInt(0)) == 0 || breakEven.Cmp(big.NewInt(0)) == 0 {
+		return 0, ErrBreakEvenGasPriceEmpty
+	}
+
+	if gasPrice.Cmp(breakEven) <= 0 {
+		return state.MaxEffectivePercentage, nil
+	}
+
+	// Simulate Ceil with integer division
+	b := new(big.Int).Mul(breakEven, bitsBigInt)
+	b = b.Add(b, gasPrice)
+	b = b.Sub(b, big.NewInt(1)) //nolint:gomnd
+	b = b.Div(b, gasPrice)
+	// At this point we have a percentage between 1-256, we need to sub 1 to have it between 0-255 (byte)
+	b = b.Sub(b, big.NewInt(1)) //nolint:gomnd
+
+	return uint8(b.Uint64()), nil
+}

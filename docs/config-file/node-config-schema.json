@@ -265,6 +265,48 @@
 					"type": "integer",
 					"description": "GlobalQueue represents the maximum number of non-executable transaction slots for all accounts",
 					"default": 1024
+				},
+				"EffectiveGasPrice": {
+					"properties": {
+						"Enabled": {
+							"type": "boolean",
+							"description": "Enabled is a flag to enable/disable the effective gas price",
+							"default": false
+						},
+						"L1GasPriceFactor": {
+							"type": "number",
+							"description": "L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price",
+							"default": 0.25
+						},
+						"ByteGasCost": {
+							"type": "integer",
+							"description": "ByteGasCost is the gas cost per byte that is not 0",
+							"default": 16
+						},
+						"ZeroByteGasCost": {
+							"type": "integer",
+							"description": "ZeroByteGasCost is the gas cost per byte that is 0",
+							"default": 0
+						},
+						"NetProfit": {
+							"type": "number",
+							"description": "NetProfit is the profit margin to apply to the calculated breakEvenGasPrice",
+							"default": 1
+						},
+						"MarginBreakEven": {
+							"type": "integer",
+							"description": "MarginBreakEven is the max allowed margin percentage between the breakevenGasPrice and gasPriceSigned of a tx",
+							"default": 10
+						},
+						"FinalDeviation": {
+							"type": "integer",
+							"description": "FinalDeviation is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
+							"default": 10
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "EffectiveGasPrice is the config for the effective gas price calculation"
 				}
 			},
 			"additionalProperties": false,
@@ -683,43 +725,6 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "DBManager's specific config properties"
-				},
-				"EffectiveGasPrice": {
-					"properties": {
-						"MaxBreakEvenGasPriceDeviationPercentage": {
-							"type": "integer",
-							"description": "MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
-							"default": 10
-						},
-						"L1GasPriceFactor": {
-							"type": "number",
-							"description": "L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price",
-							"default": 0.25
-						},
-						"ByteGasCost": {
-							"type": "integer",
-							"description": "ByteGasCost is the gas cost per byte",
-							"default": 16
-						},
-						"MarginFactor": {
-							"type": "number",
-							"description": "MarginFactor is the margin factor percentage to be added to the L2 min gas price",
-							"default": 1
-						},
-						"Enabled": {
-							"type": "boolean",
-							"description": "Enabled is a flag to enable/disable the effective gas price",
-							"default": false
-						},
-						"DefaultMinGasPriceAllowed": {
-							"type": "integer",
-							"description": "DefaultMinGasPriceAllowed is the default min gas price to suggest\nThis value is assigned from [Pool].DefaultMinGasPriceAllowed",
-							"default": 0
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "EffectiveGasPrice is the config for the gas price"
 				},
 				"StreamServer": {
 					"properties": {

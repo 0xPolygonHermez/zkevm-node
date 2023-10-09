@@ -44,7 +44,15 @@ MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
 AccountQueue = 64
 GlobalQueue = 1024
-	[Pool.DB]
+    [Pool.EffectiveGasPrice]
+	Enabled = false
+	L1GasPriceFactor = 0.25
+	ByteGasCost = 16
+	ZeroByteGasCost = 4
+	NetProfit = 1
+	MarginBreakEven = 10	
+	FinalDeviation = 10
+    [Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
 	Name = "pool_db"
@@ -125,12 +133,6 @@ MaxTxLifetime = "3h"
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
-	[Sequencer.EffectiveGasPrice]
-		MaxBreakEvenGasPriceDeviationPercentage = 10
-		L1GasPriceFactor = 0.25
-		ByteGasCost = 16
-		MarginFactor = 1
-		Enabled = false
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""

@@ -22,6 +22,7 @@ import (
 type Sequencer struct {
 	cfg      Config
 	batchCfg state.BatchConfig
+	poolCfg  pool.Config
 
 	pool         txPool
 	state        stateInterface
@@ -45,7 +46,7 @@ type ClosingSignalCh struct {
 }
 
 // New init sequencer
-func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
+func New(cfg Config, batchCfg state.BatchConfig, poolCfg pool.Config, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
@@ -54,6 +55,7 @@ func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInter
 	sequencer := &Sequencer{
 		cfg:          cfg,
 		batchCfg:     batchCfg,
+		poolCfg:      poolCfg,
 		pool:         txPool,
 		state:        state,
 		etherman:     etherman,
@@ -126,7 +128,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog)
+	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog)
 
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)

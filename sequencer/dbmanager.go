@@ -688,8 +688,8 @@ func (d *dbManager) GetDefaultMinGasPriceAllowed() uint64 {
 	return d.txPool.GetDefaultMinGasPriceAllowed()
 }
 
-func (d *dbManager) GetL1GasPrice() uint64 {
-	return d.txPool.GetL1GasPrice()
+func (d *dbManager) GetL1AndL2GasPrice() (uint64, uint64) {
+	return d.txPool.GetL1AndL2GasPrice()
 }
 
 // GetStoredFlushID returns the stored flush ID and prover ID

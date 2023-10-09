@@ -46,6 +46,7 @@ type Pool struct {
 	startTimestamp          time.Time
 	gasPrices               GasPrices
 	gasPricesMux            *sync.RWMutex
+	effectiveGasPrice       *EffectiveGasPrice
 }
 
 type preExecutionResponse struct {
@@ -79,6 +80,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		eventLog:                eventLog,
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),
+		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice, cfg.DefaultMinGasPriceAllowed),
 	}
 
 	go func(cfg *Config, p *Pool) {
@@ -563,13 +565,13 @@ func (p *Pool) GetDefaultMinGasPriceAllowed() uint64 {
 	return p.cfg.DefaultMinGasPriceAllowed
 }
 
-// GetL1GasPrice returns the L1 gas price
-func (p *Pool) GetL1GasPrice() uint64 {
+// GetL1AndL2GasPrice returns the L1 and L2 gas price from memory struct
+func (p *Pool) GetL1AndL2GasPrice() (uint64, uint64) {
 	p.gasPricesMux.RLock()
 	gasPrices := p.gasPrices
 	p.gasPricesMux.RUnlock()
 
-	return gasPrices.L1GasPrice
+	return gasPrices.L1GasPrice, gasPrices.L2GasPrice
 }
 
 const (

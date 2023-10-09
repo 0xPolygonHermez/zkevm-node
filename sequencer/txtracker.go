@@ -25,11 +25,12 @@ type TxTracker struct {
 	ReceivedAt                        time.Time // To check if it has been in the txSortedList for too long
 	IP                                string    // IP of the tx sender
 	FailedReason                      *string   // FailedReason is the reason why the tx failed, if it failed
-	BreakEvenGasPrice                 *big.Int
-	GasPriceEffectivePercentage       uint8
+	EffectiveGasPriceFinal            *big.Int
+	EffectiveGasPricePercentage       uint8
 	EffectiveGasPriceProcessCount     uint8
 	IsEffectiveGasPriceFinalExecution bool
 	L1GasPrice                        uint64
+	L2GasPrice                        uint64
 }
 
 // newTxTracker creates and inti a TxTracker
@@ -60,7 +61,7 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*
 		RawTx:                             rawTx,
 		ReceivedAt:                        time.Now(),
 		IP:                                ip,
-		BreakEvenGasPrice:                 new(big.Int).SetUint64(0),
+		EffectiveGasPriceFinal:            new(big.Int).SetUint64(0),
 		EffectiveGasPriceProcessCount:     0,
 		IsEffectiveGasPriceFinalExecution: false,
 	}
