@@ -1084,9 +1084,13 @@ func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *websocket.Conn) error {
 func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 	log.Debugf("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+
+	wg.Add(1)
 	go e.notifyNewHeads(&wg, event)
+
+	wg.Add(1)
 	go e.notifyNewLogs(&wg, event)
+
 	wg.Wait()
 }
 
