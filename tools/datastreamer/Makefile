@@ -14,6 +14,9 @@ generate-file: ## Runs the tool to populate the binary file
 rebuild: ## Runs the tool to rebuild state roots from a given block
 	go run main.go rebuild -cfg config/tool.config.toml
 
+decode-entry: ## Runs the tool to decode a given entry
+	go run main.go decode -cfg config/tool.config.toml -entry 1234
+
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
 ## display with the commands and their usage information.

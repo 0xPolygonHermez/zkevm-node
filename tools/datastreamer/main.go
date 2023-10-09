@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"os"
 	"reflect"
+	"strconv"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
@@ -24,6 +25,13 @@ var (
 		Usage:    "Configuration `FILE`",
 		Required: false,
 	}
+
+	entryFlag = cli.Uint64Flag{
+		Name:     "entry",
+		Aliases:  []string{"e"},
+		Usage:    "Entry `NUMBER`",
+		Required: false,
+	}
 )
 
 func main() {
@@ -32,6 +40,7 @@ func main() {
 
 	flags := []cli.Flag{
 		&configFileFlag,
+		&entryFlag,
 	}
 
 	app.Commands = []*cli.Command{
@@ -47,6 +56,13 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Rebuild state roots from a block",
 			Action:  rebuild,
+			Flags:   flags,
+		},
+		{
+			Name:    "decode",
+			Aliases: []string{},
+			Usage:   "Decodes an entry",
+			Action:  decode,
 			Flags:   flags,
 		},
 	}
@@ -421,6 +437,53 @@ func rebuild(cliCtx *cli.Context) error {
 	log.Infof("ProcessBatchResponse: %+v", processBatchResponse)
 
 	log.Infof("New root: %s", common.Bytes2Hex(processBatchResponse.NewStateRoot))
+
+	return nil
+}
+
+func decode(cliCtx *cli.Context) error {
+	entryNumberStr := cliCtx.Args().Get(0)
+	entryNumber, err := strconv.ParseUint(entryNumberStr, 10, 64)
+	if err != nil {
+		log.Fatal(err)
+
+	}
+
+	c, err := config.Load(cliCtx)
+	if err != nil {
+		log.Fatal(err)
+
+	}
+	log.Infof("Loaded configuration: %+v", c)
+
+	streamServer, err := initializeStreamServer(c)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	entry, err := streamServer.GetEntry(entryNumber)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Infof("Selected entry: %+v", entry)
+
+	switch entry.EntryType {
+	case state.EntryTypeL2BlockStart:
+		log.Info("Entry type is L2BlockStart")
+		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[8:16])
+		log.Infof("L2 block number: %d", l2BlockNumber)
+	case state.EntryTypeL2Tx:
+		log.Info("Entry type is L2Tx")
+		log.Infof("Data: %s", string(entry.Data[6:]))
+		tx, err := state.DecodeTx(string(entry.Data[6:]))
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Infof("Transaction: %+v", tx)
+	case state.EntryTypeL2BlockEnd:
+		log.Info("Entry type is L2BlockEnd")
+	}
 
 	return nil
 }
