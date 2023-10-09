@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const newL2BlockEventBufferSize = 1000
+const newL2BlockEventBufferSize = 500
 
 var (
 	// ZeroHash is the hash 0x0000000000000000000000000000000000000000000000000000000000000000
@@ -51,7 +51,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient executor.Exec
 		executorClient:          executorClient,
 		tree:                    stateTree,
 		eventLog:                eventLog,
-		newL2BlockEvents:        make(chan NewL2BlockEvent),
+		newL2BlockEvents:        make(chan NewL2BlockEvent, newL2BlockEventBufferSize),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 	}
 
