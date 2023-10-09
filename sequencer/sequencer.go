@@ -265,9 +265,6 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 	}
 
 	log.Infof("Current transaction index: %d", currentTxIndex)
-	if currentTxIndex == 0 {
-		currentL2Block++
-	}
 	log.Infof("Current L2 block number: %d", currentL2Block)
 
 	var limit uint64 = 1000
