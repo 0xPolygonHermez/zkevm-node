@@ -27,6 +27,8 @@ jobs:
       - name: Show Outputs (Optional)
         run: terraform output
 
+      - name: Sleep for 2 Hours
+        run: sleep 2h
+
       - name: Cleanup
         run: terraform destroy -auto-approve
-        if: false 
