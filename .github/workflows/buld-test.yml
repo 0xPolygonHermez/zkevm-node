@@ -1,0 +1,26 @@
+name: CI Build
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'CI:TriggerBuild')
+    runs-on: ubuntu-latest
+
+steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Login to Docker Registry
+        run: echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin your-registry-url
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t dido21/zkevm-node .
+          docker push dido21/zkevm-node
+
+
+
