@@ -319,11 +319,16 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 			StateRoot:      l2BlockHeader.Root,
 		}
 
+		binaryTxData, err := tx.response.Tx.MarshalBinary()
+		if err != nil {
+			return err
+		}
+
 		l2Transaction := state.DSL2Transaction{
 			EffectiveGasPricePercentage: uint8(tx.response.EffectivePercentage),
 			IsValid:                     1,
-			EncodedLength:               uint32(len(txData)),
-			Encoded:                     txData,
+			EncodedLength:               uint32(len(binaryTxData)),
+			Encoded:                     binaryTxData,
 		}
 
 		d.dataToStream <- state.DSL2FullBlock{
