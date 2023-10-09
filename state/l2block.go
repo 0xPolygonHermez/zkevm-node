@@ -33,7 +33,7 @@ func (s *State) StartToMonitorNewL2Blocks() {
 	} else if err != nil {
 		log.Fatalf("failed to load the last l2 block: %v", err)
 	}
-	s.lastL2BlockSeen = *lastL2Block
+	s.lastL2BlockSeen.Store(lastL2Block)
 	go s.monitorNewL2Blocks()
 	go s.handleEvents()
 }
@@ -93,13 +93,15 @@ func (s *State) monitorNewL2Blocks() {
 			continue
 		}
 
+		lastL2BlockSeen := s.lastL2BlockSeen.Load()
+
 		// not updates until now
-		if lastL2Block == nil || s.lastL2BlockSeen.NumberU64() >= lastL2Block.NumberU64() {
+		if lastL2Block == nil || lastL2BlockSeen.NumberU64() >= lastL2Block.NumberU64() {
 			waitNextCycle()
 			continue
 		}
 
-		fromBlockNumber := s.lastL2BlockSeen.NumberU64() + uint64(1)
+		fromBlockNumber := lastL2BlockSeen.NumberU64() + uint64(1)
 		toBlockNumber := lastL2Block.NumberU64()
 		log.Debugf("[monitorNewL2Blocks] new l2 block detected from block %v to %v", fromBlockNumber, toBlockNumber)
 
@@ -109,7 +111,6 @@ func (s *State) monitorNewL2Blocks() {
 				log.Errorf("failed to get l2 block while monitoring new blocks: %v", err)
 				break
 			}
-
 			log.Debugf("[monitorNewL2Blocks] sending NewL2BlockEvent for block %v", block.NumberU64())
 			start := time.Now()
 			s.newL2BlockEvents <- NewL2BlockEvent{
@@ -117,7 +118,7 @@ func (s *State) monitorNewL2Blocks() {
 			}
 			log.Debugf("[monitorNewL2Blocks] NewL2BlockEvent for block %v took %vms to be sent", block.NumberU64(), time.Since(start).Milliseconds())
 			log.Infof("new l2 block detected: number %v, hash %v", block.NumberU64(), block.Hash().String())
-			s.lastL2BlockSeen = *block
+			s.lastL2BlockSeen.Store(block)
 		}
 
 		// interval to check for new l2 blocks

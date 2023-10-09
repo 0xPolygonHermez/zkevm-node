@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -905,7 +906,6 @@ func (e *EthEndpoints) tryToAddTxToPool(input, ip string) (interface{}, types.Er
 	if err != nil {
 		return RPCErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err, false)
 	}
-
 	log.Infof("adding TX to the pool: %v", tx.Hash().Hex())
 	if err := e.pool.AddTx(context.Background(), *tx, ip); err != nil {
 		// it's not needed to log the error here, because we check and log if needed
@@ -1050,68 +1050,134 @@ func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *websocket.Conn) error {
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 	log.Debugf("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go e.notifyNewHeads(&wg, event)
+	go e.notifyNewLogs(&wg, event)
+	wg.Wait()
+}
+
+func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
+	defer wg.Done()
 	start := time.Now()
 	blockFilters, err := e.storage.GetAllBlockFiltersWithWSConn()
 	if err != nil {
 		log.Errorf("failed to get all block filters with web sockets connections: %v", err)
 	} else {
+		b, err := types.NewBlock(&event.Block, nil, false, false)
+		if err != nil {
+			log.Errorf("failed to build block response to subscription: %v", err)
+			return
+		}
+		data, err := json.Marshal(b)
+		if err != nil {
+			log.Errorf("failed to marshal block response to subscription: %v", err)
+		}
 		for _, filter := range blockFilters {
-			b, err := types.NewBlock(&event.Block, nil, false, false)
-			if err != nil {
-				log.Errorf("failed to build block response to subscription: %v", err)
-			} else {
-				e.sendSubscriptionResponse(filter, b)
-			}
+			e.sendSubscriptionResponse(filter, data)
 		}
 	}
-	log.Debugf("[onNewL2Block] new l2 block event for block %v took %vms to send all the messages for block filters", event.Block.NumberU64(), time.Since(start).Milliseconds())
+	log.Debugf("[notifyNewHeads] new l2 block event for block %v took %vms to send all the messages for block filters", event.Block.NumberU64(), time.Since(start).Milliseconds())
+}
 
-	start = time.Now()
+func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
+	defer wg.Done()
+	start := time.Now()
 	logFilters, err := e.storage.GetAllLogFiltersWithWSConn()
 	if err != nil {
 		log.Errorf("failed to get all log filters with web sockets connections: %v", err)
 	} else {
 		for _, filter := range logFilters {
-			changes, err := e.GetFilterChanges(filter.ID)
+			filterParameters := filter.Parameters.(LogFilter)
+			bn := types.BlockNumber(event.Block.NumberU64())
+
+			// if from and to blocks are new, set it to the current block to make
+			// the query faster
+			if filterParameters.FromBlock == nil && filterParameters.ToBlock == nil {
+				filterParameters.FromBlock = &bn
+				filterParameters.ToBlock = &bn
+			} else {
+				// if the filter has a fromBlock value set
+				// and the event block number is smaller than the
+				// from block, skip this filter
+				if filterParameters.FromBlock != nil {
+					fromBlock, rpcErr := filterParameters.FromBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
+					if rpcErr != nil {
+						log.Errorf(rpcErr.Error(), filter.ID, err)
+						continue
+					}
+					if fromBlock > event.Block.NumberU64() {
+						continue
+					}
+					// otherwise set the from block to a fixed number
+					// to avoid querying it again in the next step
+					fixedFromBlock := types.BlockNumber(fromBlock)
+					filterParameters.FromBlock = &fixedFromBlock
+				}
+
+				// if the filter has a toBlock value set
+				// and the event block number is greater than the
+				// to block, skip this filter
+				if filterParameters.ToBlock != nil {
+					toBlock, rpcErr := filterParameters.ToBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
+					if rpcErr != nil {
+						log.Errorf(rpcErr.Error(), filter.ID, err)
+						continue
+					}
+					if toBlock > event.Block.NumberU64() {
+						continue
+					}
+					// otherwise set the to block to a fixed number
+					// to avoid querying it again in the next step
+					fixedToBlock := types.BlockNumber(toBlock)
+					filterParameters.ToBlock = &fixedToBlock
+				}
+			}
+
+			// get new logs for this specific filter
+			changes, err := e.internalGetLogs(context.Background(), nil, filterParameters)
 			if err != nil {
 				log.Errorf("failed to get filters changes for filter %v with web sockets connections: %v", filter.ID, err)
 				continue
 			}
 
+			// if there are new logs for the filter, send it
 			if changes != nil {
 				ethLogs := changes.([]types.Log)
 				for _, ethLog := range ethLogs {
-					e.sendSubscriptionResponse(filter, ethLog)
+					data, err := json.Marshal(ethLog)
+					if err != nil {
+						log.Errorf("failed to marshal ethLog response to subscription: %v", err)
+					}
+					e.sendSubscriptionResponse(filter, data)
 				}
 			}
 		}
 	}
-	log.Debugf("[onNewL2Block] new l2 block event for block %v took %vms to send all the messages for log filters", event.Block.NumberU64(), time.Since(start).Milliseconds())
+	log.Debugf("[notifyNewLogs] new l2 block event for block %v took %vms to send all the messages for log filters", event.Block.NumberU64(), time.Since(start).Milliseconds())
 }
 
-func (e *EthEndpoints) sendSubscriptionResponse(filter *Filter, data interface{}) {
+func (e *EthEndpoints) sendSubscriptionResponse(filter *Filter, data []byte) {
 	const errMessage = "Unable to write WS message to filter %v, %s"
-	result, err := json.Marshal(data)
-	if err != nil {
-		log.Errorf(fmt.Sprintf(errMessage, filter.ID, err.Error()))
-	}
 
 	res := types.SubscriptionResponse{
 		JSONRPC: "2.0",
 		Method:  "eth_subscription",
 		Params: types.SubscriptionResponseParams{
 			Subscription: filter.ID,
-			Result:       result,
+			Result:       data,
 		},
 	}
 	message, err := json.Marshal(res)
 	if err != nil {
 		log.Errorf(fmt.Sprintf(errMessage, filter.ID, err.Error()))
+		return
 	}
 
 	err = filter.WsConn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
 		log.Errorf(fmt.Sprintf(errMessage, filter.ID, err.Error()))
+		return
 	}
 	log.Debugf("WS message sent: %v", string(message))
 }

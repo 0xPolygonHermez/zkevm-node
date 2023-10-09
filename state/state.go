@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"sync"
+	"sync/atomic"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -32,7 +33,7 @@ type State struct {
 	tree           *merkletree.StateTree
 	eventLog       *event.EventLog
 
-	lastL2BlockSeen         types.Block
+	lastL2BlockSeen         atomic.Pointer[types.Block]
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
@@ -50,7 +51,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient executor.Exec
 		executorClient:          executorClient,
 		tree:                    stateTree,
 		eventLog:                eventLog,
-		newL2BlockEvents:        make(chan NewL2BlockEvent, newL2BlockEventBufferSize),
+		newL2BlockEvents:        make(chan NewL2BlockEvent),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 	}
 
