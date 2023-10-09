@@ -501,7 +501,13 @@ func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter 
 	}
 
 	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash, filter.Since, dbTx)
-	if err != nil {
+	if errors.Is(err, state.ErrMaxLogsCountLimitExceeded) {
+		errMsg := fmt.Sprintf(state.ErrMaxLogsCountLimitExceeded.Error(), e.cfg.MaxLogsCount)
+		return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
+	} else if errors.Is(err, state.ErrMaxLogsBlockRangeLimitExceeded) {
+		errMsg := fmt.Sprintf(state.ErrMaxLogsBlockRangeLimitExceeded.Error(), e.cfg.MaxLogsBlockRange)
+		return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
+	} else if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to get logs from state", err, true)
 	}
 
@@ -831,11 +837,36 @@ func (e *EthEndpoints) newBlockFilter(wsConn *websocket.Conn) (interface{}, type
 // to notify when the state changes (logs). To check if the state
 // has changed, call eth_getFilterChanges.
 func (e *EthEndpoints) NewFilter(filter LogFilter) (interface{}, types.Error) {
-	return e.newFilter(nil, filter)
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		return e.newFilter(ctx, nil, filter, dbTx)
+	})
 }
 
 // internal
-func (e *EthEndpoints) newFilter(wsConn *websocket.Conn, filter LogFilter) (interface{}, types.Error) {
+func (e *EthEndpoints) newFilter(ctx context.Context, wsConn *websocket.Conn, filter LogFilter, dbTx pgx.Tx) (interface{}, types.Error) {
+	shouldFilterByBlockRange := filter.FromBlock != nil || filter.ToBlock != nil
+
+	if shouldFilterByBlockRange {
+		toBlockNumber, rpcErr := filter.ToBlock.GetNumericBlockNumber(ctx, e.state, e.etherman, dbTx)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		fromBlockNumber, rpcErr := filter.FromBlock.GetNumericBlockNumber(ctx, e.state, e.etherman, dbTx)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+
+		if toBlockNumber < fromBlockNumber {
+			return RPCErrorResponse(types.InvalidParamsErrorCode, state.ErrInvalidBlockRange.Error(), nil, false)
+		}
+
+		blockRange := toBlockNumber - fromBlockNumber
+		if e.cfg.MaxLogsBlockRange > 0 && blockRange > e.cfg.MaxLogsBlockRange {
+			errMsg := fmt.Sprintf(state.ErrMaxLogsBlockRangeLimitExceeded.Error(), e.cfg.MaxLogsBlockRange)
+			return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
+		}
+	}
+
 	id, err := e.storage.NewLogFilter(wsConn, filter)
 	if errors.Is(err, ErrFilterInvalidPayload) {
 		return RPCErrorResponse(types.InvalidParamsErrorCode, err.Error(), nil, false)
@@ -1022,11 +1053,13 @@ func (e *EthEndpoints) Subscribe(wsConn *websocket.Conn, name string, logFilter 
 	case "newHeads":
 		return e.newBlockFilter(wsConn)
 	case "logs":
-		var lf LogFilter
-		if logFilter != nil {
-			lf = *logFilter
-		}
-		return e.newFilter(wsConn, lf)
+		return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+			var lf LogFilter
+			if logFilter != nil {
+				lf = *logFilter
+			}
+			return e.newFilter(ctx, wsConn, lf, dbTx)
+		})
 	case "pendingTransactions", "newPendingTransactions":
 		return e.newPendingTransactionFilter(wsConn)
 	case "syncing":
@@ -1136,7 +1169,16 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 
 			// get new logs for this specific filter
 			changes, err := e.internalGetLogs(context.Background(), nil, filterParameters)
-			if err != nil {
+			if errors.Is(err, state.ErrMaxLogsCountLimitExceeded) {
+				log.Infof("failed to get filters changes for filter %v, the filter seems to be returning more results than allowed and was removed: %v", filter.ID, err)
+				err := e.storage.UninstallFilter(filter.ID)
+				if !errors.Is(err, ErrNotFound) && err != nil {
+					log.Errorf("failed to automatically uninstall filter %v: %v", filter.ID, err)
+				} else {
+					log.Infof("Filter %v automatically uninstalled", filter.ID)
+				}
+				continue
+			} else if err != nil {
 				log.Errorf("failed to get filters changes for filter %v with web sockets connections: %v", filter.ID, err)
 				continue
 			}

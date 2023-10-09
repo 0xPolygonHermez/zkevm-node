@@ -113,7 +113,7 @@ func dumpState(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	stateDB := state.NewPostgresStorage(stateSqlDB)
+	stateDB := state.NewPostgresStorage(state.Config{}, stateSqlDB)
 
 	dump := dumpedState{
 		Description: description,
