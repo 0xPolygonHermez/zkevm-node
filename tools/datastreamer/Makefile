@@ -5,11 +5,19 @@ check-go:
 	@which go > /dev/null || (echo "Error: Go is not installed" && exit 1)
 
 # Targets that require the checks
-run-tool: check-go
+generate-file: check-go
 
-.PHONY: run-tool
-run-tool: ## Runs the tool to populate the binary file
-	go run main.go run -cfg config/tool.config.toml
+arguments := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+
+.PHONY: generate-file
+generate-file: ## Runs the tool to populate the binary file
+	go run main.go generate -cfg config/tool.config.toml
+
+rebuild: ## Runs the tool to rebuild state roots from a given block
+	go run main.go rebuild -cfg config/tool.config.toml
+
+decode-entry: ## Runs the tool to decode a given entry number
+	go run main.go decode -cfg config/tool.config.toml -entry $(arguments)
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
