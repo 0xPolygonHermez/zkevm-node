@@ -31,9 +31,10 @@ const (
 )
 
 type mockedServer struct {
-	Config    Config
-	Server    *Server
-	ServerURL string
+	Config              Config
+	Server              *Server
+	ServerURL           string
+	ServerWebSocketsURL string
 }
 
 type mocksWrapper struct {
@@ -128,10 +129,13 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	ethClient, err := ethclient.Dial(serverURL)
 	require.NoError(t, err)
 
+	serverWebSocketsURL := fmt.Sprintf("ws://%s:%d", cfg.WebSockets.Host, cfg.WebSockets.Port)
+
 	msv := &mockedServer{
-		Config:    cfg,
-		Server:    server,
-		ServerURL: serverURL,
+		Config:              cfg,
+		Server:              server,
+		ServerURL:           serverURL,
+		ServerWebSocketsURL: serverWebSocketsURL,
 	}
 
 	mks := &mocksWrapper{
@@ -183,6 +187,15 @@ func newMockedServerWithCustomConfig(t *testing.T, cfg Config) (*mockedServer, *
 func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mockedServer, *mocksWrapper, *ethclient.Client) {
 	cfg := getNonSequencerDefaultConfig(sequencerNodeURI)
 	return newMockedServer(t, cfg)
+}
+
+func (s *mockedServer) GetWSClient() *ethclient.Client {
+	ethClient, err := ethclient.Dial(s.ServerWebSocketsURL)
+	if err != nil {
+		panic(err)
+	}
+
+	return ethClient
 }
 
 func (s *mockedServer) Stop() {

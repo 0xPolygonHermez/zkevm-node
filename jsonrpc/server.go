@@ -10,7 +10,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -379,28 +379,29 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 	s.wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
 	// Upgrade the connection to a WS one
-	wsConn, err := s.wsUpgrader.Upgrade(w, req, nil)
+	innerWsConn, err := s.wsUpgrader.Upgrade(w, req, nil)
 	if err != nil {
 		log.Error(fmt.Sprintf("Unable to upgrade to a WS connection, %s", err.Error()))
 
 		return
 	}
+	wsConn := new(atomic.Pointer[websocket.Conn])
+	wsConn.Store(innerWsConn)
 
 	// Set read limit
-	wsConn.SetReadLimit(s.config.WebSockets.ReadLimit)
+	wsConn.Load().SetReadLimit(s.config.WebSockets.ReadLimit)
 
 	// Defer WS closure
-	defer func(ws *websocket.Conn) {
-		err = ws.Close()
+	defer func(wsConn *atomic.Pointer[websocket.Conn]) {
+		err = wsConn.Load().Close()
 		if err != nil {
 			log.Error(fmt.Sprintf("Unable to gracefully close WS connection, %s", err.Error()))
 		}
 	}(wsConn)
 
 	log.Info("Websocket connection established")
-	var mu sync.Mutex
 	for {
-		msgType, message, err := wsConn.ReadMessage()
+		msgType, message, err := wsConn.Load().ReadMessage()
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
 				log.Info("Closing WS connection gracefully")
@@ -417,17 +418,13 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 		}
 
 		if msgType == websocket.TextMessage || msgType == websocket.BinaryMessage {
-			go func() {
-				mu.Lock()
-				defer mu.Unlock()
-				resp, err := s.handler.HandleWs(message, wsConn, req)
-				if err != nil {
-					log.Error(fmt.Sprintf("Unable to handle WS request, %s", err.Error()))
-					_ = wsConn.WriteMessage(msgType, []byte(fmt.Sprintf("WS Handle error: %s", err.Error())))
-				} else {
-					_ = wsConn.WriteMessage(msgType, resp)
-				}
-			}()
+			resp, err := s.handler.HandleWs(message, wsConn, req)
+			if err != nil {
+				log.Error(fmt.Sprintf("Unable to handle WS request, %s", err.Error()))
+				_ = wsConn.Load().WriteMessage(msgType, []byte(fmt.Sprintf("WS Handle error: %s", err.Error())))
+			} else {
+				_ = wsConn.Load().WriteMessage(msgType, resp)
+			}
 		}
 	}
 }

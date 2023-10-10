@@ -36,7 +36,7 @@ func (f *funcData) numParams() int {
 
 type handleRequest struct {
 	types.Request
-	wsConn      *websocket.Conn
+	wsConn      *atomic.Pointer[websocket.Conn]
 	HttpRequest *http.Request
 }
 
@@ -101,7 +101,7 @@ func (h *Handler) Handle(req handleRequest) types.Response {
 	firstFuncParamIsWebSocketConn := false
 	firstFuncParamIsHttpRequest := false
 	if funcHasMoreThanOneInputParams {
-		firstFuncParamIsWebSocketConn = fd.reqt[1].AssignableTo(reflect.TypeOf(&websocket.Conn{}))
+		firstFuncParamIsWebSocketConn = fd.reqt[1].AssignableTo(reflect.TypeOf(&atomic.Pointer[websocket.Conn]{}))
 		firstFuncParamIsHttpRequest = fd.reqt[1].AssignableTo(reflect.TypeOf(&http.Request{}))
 	}
 	if requestHasWebSocketConn && firstFuncParamIsWebSocketConn {
@@ -151,7 +151,7 @@ func (h *Handler) Handle(req handleRequest) types.Response {
 }
 
 // HandleWs handle websocket requests
-func (h *Handler) HandleWs(reqBody []byte, wsConn *websocket.Conn, httpReq *http.Request) ([]byte, error) {
+func (h *Handler) HandleWs(reqBody []byte, wsConn *atomic.Pointer[websocket.Conn], httpReq *http.Request) ([]byte, error) {
 	log.Debugf("WS message received: %v", string(reqBody))
 	var req types.Request
 	if err := json.Unmarshal(reqBody, &req); err != nil {
@@ -168,7 +168,7 @@ func (h *Handler) HandleWs(reqBody []byte, wsConn *websocket.Conn, httpReq *http
 }
 
 // RemoveFilterByWsConn uninstalls the filter attached to this websocket connection
-func (h *Handler) RemoveFilterByWsConn(wsConn *websocket.Conn) {
+func (h *Handler) RemoveFilterByWsConn(wsConn *atomic.Pointer[websocket.Conn]) {
 	service, ok := h.serviceMap[APIEth]
 	if !ok {
 		return
