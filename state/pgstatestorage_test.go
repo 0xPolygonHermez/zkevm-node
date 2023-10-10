@@ -27,7 +27,11 @@ var (
 )
 
 func setup() {
-	pgStateStorage = state.NewPostgresStorage(stateDb)
+	cfg := state.Config{
+		MaxLogsCount:      10000,
+		MaxLogsBlockRange: 10000,
+	}
+	pgStateStorage = state.NewPostgresStorage(cfg, stateDb)
 }
 
 func TestGetBatchByL2BlockNumber(t *testing.T) {
@@ -141,8 +145,13 @@ func TestAddAndGetSequences(t *testing.T) {
 
 	sequence3 := state.Sequence{
 		FromBatchNumber: 7,
-		ToBatchNumber:   8,
+		ToBatchNumber:   7,
 	}
+	err = testState.AddSequence(ctx, sequence3, dbTx)
+	require.NoError(t, err)
+
+	// Insert it again to test on conflict
+	sequence3.ToBatchNumber = 8
 	err = testState.AddSequence(ctx, sequence3, dbTx)
 	require.NoError(t, err)
 
@@ -436,5 +445,392 @@ func TestVirtualBatch(t *testing.T) {
 	actualVirtualBatch, err := testState.GetVirtualBatch(ctx, 1, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, virtualBatch, *actualVirtualBatch)
+	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func TestForkIDs(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	block1 := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f0"),
+		ReceivedAt:  time.Now(),
+	}
+	block2 := &state.Block{
+		BlockNumber: 2,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block1, dbTx)
+	assert.NoError(t, err)
+	err = testState.AddBlock(ctx, block2, dbTx)
+	assert.NoError(t, err)
+
+	forkID1 := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   10,
+		ForkId:          1,
+		Version:         "version 1",
+		BlockNumber:     1,
+	}
+	forkID2 := state.ForkIDInterval{
+		FromBatchNumber: 11,
+		ToBatchNumber:   20,
+		ForkId:          2,
+		Version:         "version 2",
+		BlockNumber:     1,
+	}
+	forkID3 := state.ForkIDInterval{
+		FromBatchNumber: 21,
+		ToBatchNumber:   100,
+		ForkId:          3,
+		Version:         "version 3",
+		BlockNumber:     2,
+	}
+	forks := []state.ForkIDInterval{forkID1, forkID2, forkID3}
+	for _, fork := range forks {
+		err = testState.AddForkID(ctx, fork, dbTx)
+		require.NoError(t, err)
+		// Insert twice to test on conflict do nothing
+		err = testState.AddForkID(ctx, fork, dbTx)
+		require.NoError(t, err)
+	}
+
+	forkIDs, err := testState.GetForkIDs(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(forkIDs))
+	for i, forkId := range forkIDs {
+		require.Equal(t, forks[i].BlockNumber, forkId.BlockNumber)
+		require.Equal(t, forks[i].ForkId, forkId.ForkId)
+		require.Equal(t, forks[i].FromBatchNumber, forkId.FromBatchNumber)
+		require.Equal(t, forks[i].ToBatchNumber, forkId.ToBatchNumber)
+		require.Equal(t, forks[i].Version, forkId.Version)
+	}
+	forkID3.ToBatchNumber = 18446744073709551615
+	err = testState.UpdateForkID(ctx, forkID3, dbTx)
+	require.NoError(t, err)
+
+	forkIDs, err = testState.GetForkIDs(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(forkIDs))
+	require.Equal(t, forkID3.ToBatchNumber, forkIDs[len(forkIDs)-1].ToBatchNumber)
+	require.Equal(t, forkID3.ForkId, forkIDs[len(forkIDs)-1].ForkId)
+
+	forkID3.BlockNumber = 101
+	err = testState.AddForkID(ctx, forkID3, dbTx)
+	require.NoError(t, err)
+	forkIDs, err = testState.GetForkIDs(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(forkIDs))
+	require.Equal(t, forkID3.ToBatchNumber, forkIDs[len(forkIDs)-1].ToBatchNumber)
+	require.Equal(t, forkID3.ForkId, forkIDs[len(forkIDs)-1].ForkId)
+	require.Equal(t, forkID3.BlockNumber, forkIDs[len(forkIDs)-1].BlockNumber)
+
+	forkID3.BlockNumber = 2
+	err = testState.AddForkID(ctx, forkID3, dbTx)
+	require.NoError(t, err)
+	forkIDs, err = testState.GetForkIDs(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(forkIDs))
+	require.Equal(t, forkID3.ToBatchNumber, forkIDs[len(forkIDs)-1].ToBatchNumber)
+	require.Equal(t, forkID3.ForkId, forkIDs[len(forkIDs)-1].ForkId)
+	require.Equal(t, forkID3.BlockNumber, forkIDs[len(forkIDs)-1].BlockNumber)
+
+	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func TestGetSafeL2BlockNumber(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
+
+	// prepare data
+	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	hash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
+	for i := 1; i <= 10; i++ {
+		// add l1 block
+		err = testState.AddBlock(ctx, state.NewBlock(uint64(i)), dbTx)
+		require.NoError(t, err)
+
+		// add batch
+		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", i)
+		require.NoError(t, err)
+
+		// add l2 block
+		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(int64(i + 10))})
+		err = testState.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, uint8(0), dbTx)
+		require.NoError(t, err)
+
+		// virtualize batch
+		if i <= 6 {
+			b := state.VirtualBatch{BlockNumber: uint64(i), BatchNumber: uint64(i), Coinbase: addr, SequencerAddr: addr, TxHash: hash}
+			err = testState.AddVirtualBatch(ctx, &b, dbTx)
+			require.NoError(t, err)
+		}
+	}
+
+	type testCase struct {
+		name                      string
+		l1SafeBlockNumber         uint64
+		expectedL2SafeBlockNumber uint64
+	}
+
+	testCases := []testCase{
+		{name: "l1 safe block number smaller than block number for the last virtualized batch", l1SafeBlockNumber: 2, expectedL2SafeBlockNumber: 12},
+		{name: "l1 safe block number equal to block number for the last virtualized batch", l1SafeBlockNumber: 6, expectedL2SafeBlockNumber: 16},
+		{name: "l1 safe block number bigger than number for the last virtualized batch", l1SafeBlockNumber: 8, expectedL2SafeBlockNumber: 16},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			l2SafeBlockNumber, err := testState.GetSafeL2BlockNumber(ctx, uint64(tc.l1SafeBlockNumber), dbTx)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedL2SafeBlockNumber, l2SafeBlockNumber)
+		})
+	}
+}
+
+func TestGetFinalizedL2BlockNumber(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
+
+	// prepare data
+	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	hash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
+	for i := 1; i <= 10; i++ {
+		// add l1 block
+		err = testState.AddBlock(ctx, state.NewBlock(uint64(i)), dbTx)
+		require.NoError(t, err)
+
+		// add batch
+		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", i)
+		require.NoError(t, err)
+
+		// add l2 block
+		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(int64(i + 10))})
+		err = testState.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, uint8(0), dbTx)
+		require.NoError(t, err)
+
+		// virtualize batch
+		if i <= 6 {
+			b := state.VirtualBatch{BlockNumber: uint64(i), BatchNumber: uint64(i), Coinbase: addr, SequencerAddr: addr, TxHash: hash}
+			err = testState.AddVirtualBatch(ctx, &b, dbTx)
+			require.NoError(t, err)
+		}
+
+		// verify batch
+		if i <= 3 {
+			b := state.VerifiedBatch{BlockNumber: uint64(i), BatchNumber: uint64(i), TxHash: hash}
+			err = testState.AddVerifiedBatch(ctx, &b, dbTx)
+			require.NoError(t, err)
+		}
+	}
+
+	type testCase struct {
+		name                           string
+		l1FinalizedBlockNumber         uint64
+		expectedL2FinalizedBlockNumber uint64
+	}
+
+	testCases := []testCase{
+		{name: "l1 finalized block number smaller than block number for the last verified batch", l1FinalizedBlockNumber: 1, expectedL2FinalizedBlockNumber: 11},
+		{name: "l1 finalized block number equal to block number for the last verified batch", l1FinalizedBlockNumber: 3, expectedL2FinalizedBlockNumber: 13},
+		{name: "l1 finalized block number bigger than number for the last verified batch", l1FinalizedBlockNumber: 5, expectedL2FinalizedBlockNumber: 13},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			l2FinalizedBlockNumber, err := testState.GetFinalizedL2BlockNumber(ctx, uint64(tc.l1FinalizedBlockNumber), dbTx)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedL2FinalizedBlockNumber, l2FinalizedBlockNumber)
+		})
+	}
+}
+
+func TestSyncInfo(t *testing.T) {
+	// Init database instance
+	initOrResetDB()
+
+	ctx := context.Background()
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	// Test update on conflict
+	err = testState.SetInitSyncBatch(ctx, 1, tx)
+	require.NoError(t, err)
+	err = testState.SetInitSyncBatch(ctx, 1, tx)
+	require.NoError(t, err)
+	err = testState.SetLastBatchInfoSeenOnEthereum(ctx, 10, 8, tx)
+	require.NoError(t, err)
+	err = testState.SetInitSyncBatch(ctx, 1, tx)
+	require.NoError(t, err)
+	err = testState.SetLastBatchInfoSeenOnEthereum(ctx, 10, 8, tx)
+	require.NoError(t, err)
+	err = testState.SetLastBatchInfoSeenOnEthereum(ctx, 10, 8, tx)
+	require.NoError(t, err)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+}
+
+func TestGetBatchByNumber(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	_, err = testState.PostgresStorage.Exec(ctx, `INSERT INTO state.batch
+	(batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data)
+	VALUES(1, '0x0000000000000000000000000000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000000000000000000000000000', '0xbf34f9a52a63229e90d1016011655bc12140bba5b771817b88cbf340d08dcbde', '2022-12-19 08:17:45.000', '0x0000000000000000000000000000000000000000', NULL);
+	`)
+	require.NoError(t, err)
+
+	batchNum := uint64(1)
+	b, err := testState.GetBatchByNumber(ctx, batchNum, dbTx)
+	require.NoError(t, err)
+	assert.Equal(t, b.BatchNumber, batchNum)
+
+	batchNum = uint64(2)
+	b, err = testState.GetBatchByNumber(ctx, batchNum, dbTx)
+	require.Error(t, state.ErrNotFound, err)
+	assert.Nil(t, b)
+
+	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func TestGetLogs(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+
+	cfg := state.Config{
+		MaxLogsCount:      8,
+		MaxLogsBlockRange: 10,
+	}
+	pgStateStorage = state.NewPostgresStorage(cfg, stateDb)
+	testState.PostgresStorage = pgStateStorage
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = testState.AddBlock(ctx, block, dbTx)
+	assert.NoError(t, err)
+
+	batchNumber := uint64(1)
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+	assert.NoError(t, err)
+
+	time := time.Now()
+	blockNumber := big.NewInt(1)
+
+	for i := 0; i < 3; i++ {
+		tx := types.NewTx(&types.LegacyTx{
+			Nonce:    uint64(i),
+			To:       nil,
+			Value:    new(big.Int),
+			Gas:      0,
+			GasPrice: big.NewInt(0),
+		})
+
+		logs := []*types.Log{}
+		for j := 0; j < 4; j++ {
+			logs = append(logs, &types.Log{TxHash: tx.Hash(), Index: uint(j)})
+		}
+
+		receipt := &types.Receipt{
+			Type:              uint8(tx.Type()),
+			PostState:         state.ZeroHash.Bytes(),
+			CumulativeGasUsed: 0,
+			EffectiveGasPrice: big.NewInt(0),
+			BlockNumber:       blockNumber,
+			GasUsed:           tx.Gas(),
+			TxHash:            tx.Hash(),
+			TransactionIndex:  0,
+			Status:            types.ReceiptStatusSuccessful,
+			Logs:              logs,
+		}
+
+		transactions := []*types.Transaction{tx}
+		receipts := []*types.Receipt{receipt}
+
+		header := &types.Header{
+			Number:     big.NewInt(int64(i) + 1),
+			ParentHash: state.ZeroHash,
+			Coinbase:   state.ZeroAddress,
+			Root:       state.ZeroHash,
+			GasUsed:    1,
+			GasLimit:   10,
+			Time:       uint64(time.Unix()),
+		}
+
+		l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+		for _, receipt := range receipts {
+			receipt.BlockHash = l2Block.Hash()
+		}
+
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+		require.NoError(t, err)
+	}
+
+	type testCase struct {
+		name          string
+		from          uint64
+		to            uint64
+		logCount      int
+		expectedError error
+	}
+
+	testCases := []testCase{
+		{
+			name:          "invalid block range",
+			from:          2,
+			to:            1,
+			logCount:      0,
+			expectedError: state.ErrInvalidBlockRange,
+		},
+		{
+			name:          "block range bigger than allowed",
+			from:          1,
+			to:            12,
+			logCount:      0,
+			expectedError: state.ErrMaxLogsBlockRangeLimitExceeded,
+		},
+		{
+			name:          "log count bigger than allowed",
+			from:          1,
+			to:            3,
+			logCount:      0,
+			expectedError: state.ErrMaxLogsCountLimitExceeded,
+		},
+		{
+			name:          "logs returned successfully",
+			from:          1,
+			to:            2,
+			logCount:      8,
+			expectedError: nil,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			logs, err := testState.GetLogs(ctx, testCase.from, testCase.to, []common.Address{}, [][]common.Hash{}, nil, nil, dbTx)
+
+			assert.Equal(t, testCase.logCount, len(logs))
+			assert.Equal(t, testCase.expectedError, err)
+		})
+	}
 	require.NoError(t, dbTx.Commit(ctx))
 }

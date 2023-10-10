@@ -2,10 +2,13 @@ package sequencer
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -17,7 +20,8 @@ import (
 
 // Sequencer represents a sequencer
 type Sequencer struct {
-	cfg Config
+	cfg      Config
+	batchCfg state.BatchConfig
 
 	pool         txPool
 	state        stateInterface
@@ -26,33 +30,6 @@ type Sequencer struct {
 	etherman     etherman
 
 	address common.Address
-}
-
-// batchConstraints represents the constraints for a batch
-type batchConstraints struct {
-	MaxTxsPerBatch       uint64
-	MaxBatchBytesSize    uint64
-	MaxCumulativeGasUsed uint64
-	MaxKeccakHashes      uint32
-	MaxPoseidonHashes    uint32
-	MaxPoseidonPaddings  uint32
-	MaxMemAligns         uint32
-	MaxArithmetics       uint32
-	MaxBinaries          uint32
-	MaxSteps             uint32
-}
-
-// TODO: Add tests to config_test.go
-type batchResourceWeights struct {
-	WeightBatchBytesSize    int
-	WeightCumulativeGasUsed int
-	WeightKeccakHashes      int
-	WeightPoseidonHashes    int
-	WeightPoseidonPaddings  int
-	WeightMemAligns         int
-	WeightArithmetics       int
-	WeightBinaries          int
-	WeightSteps             int
 }
 
 // L2ReorgEvent is the event that is triggered when a reorg happens in the L2
@@ -68,21 +45,24 @@ type ClosingSignalCh struct {
 }
 
 // New init sequencer
-func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
+func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
 
-	return &Sequencer{
+	sequencer := &Sequencer{
 		cfg:          cfg,
+		batchCfg:     batchCfg,
 		pool:         txPool,
 		state:        state,
 		etherman:     etherman,
 		ethTxManager: manager,
 		address:      addr,
 		eventLog:     eventLog,
-	}, nil
+	}
+
+	return sequencer, nil
 }
 
 // Start starts the sequencer
@@ -99,47 +79,62 @@ func (s *Sequencer) Start(ctx context.Context) {
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
 
-	batchConstraints := batchConstraints{
-		MaxTxsPerBatch:       s.cfg.MaxTxsPerBatch,
-		MaxBatchBytesSize:    s.cfg.MaxBatchBytesSize,
-		MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed,
-		MaxKeccakHashes:      s.cfg.MaxKeccakHashes,
-		MaxPoseidonHashes:    s.cfg.MaxPoseidonHashes,
-		MaxPoseidonPaddings:  s.cfg.MaxPoseidonPaddings,
-		MaxMemAligns:         s.cfg.MaxMemAligns,
-		MaxArithmetics:       s.cfg.MaxArithmetics,
-		MaxBinaries:          s.cfg.MaxBinaries,
-		MaxSteps:             s.cfg.MaxSteps,
-	}
-	batchResourceWeights := batchResourceWeights{
-		WeightBatchBytesSize:    s.cfg.WeightBatchBytesSize,
-		WeightCumulativeGasUsed: s.cfg.WeightCumulativeGasUsed,
-		WeightKeccakHashes:      s.cfg.WeightKeccakHashes,
-		WeightPoseidonHashes:    s.cfg.WeightPoseidonHashes,
-		WeightPoseidonPaddings:  s.cfg.WeightPoseidonPaddings,
-		WeightMemAligns:         s.cfg.WeightMemAligns,
-		WeightArithmetics:       s.cfg.WeightArithmetics,
-		WeightBinaries:          s.cfg.WeightBinaries,
-		WeightSteps:             s.cfg.WeightSteps,
-	}
-
 	err := s.pool.MarkWIPTxsAsPending(ctx)
 	if err != nil {
 		log.Fatalf("failed to mark WIP txs as pending, err: %v", err)
 	}
 
-	worker := NewWorker(s.cfg.Worker, s.state, batchConstraints, batchResourceWeights)
-	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, batchConstraints)
+	worker := NewWorker(s.state, s.batchCfg.Constraints)
+	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, s.batchCfg.Constraints)
+
+	// Start stream server if enabled
+	if s.cfg.StreamServer.Enabled {
+		streamServer, err := datastreamer.New(s.cfg.StreamServer.Port, state.StreamTypeSequencer, s.cfg.StreamServer.Filename, &s.cfg.StreamServer.Log)
+		if err != nil {
+			log.Fatalf("failed to create stream server, err: %v", err)
+		}
+
+		// Set entities definition
+		entriesDefinition := map[datastreamer.EntryType]datastreamer.EntityDefinition{
+			state.EntryTypeL2BlockStart: {
+				Name:       "L2BlockStart",
+				StreamType: state.StreamTypeSequencer,
+				Definition: reflect.TypeOf(state.DSL2BlockStart{}),
+			},
+			state.EntryTypeL2Tx: {
+				Name:       "L2Transaction",
+				StreamType: state.StreamTypeSequencer,
+				Definition: reflect.TypeOf(state.DSL2Transaction{}),
+			},
+			state.EntryTypeL2BlockEnd: {
+				Name:       "L2BlockEnd",
+				StreamType: state.StreamTypeSequencer,
+				Definition: reflect.TypeOf(state.DSL2BlockEnd{}),
+			},
+		}
+
+		streamServer.SetEntriesDef(entriesDefinition)
+
+		s.updateDataStreamerFile(ctx, &streamServer)
+
+		dbManager.streamServer = &streamServer
+		err = dbManager.streamServer.Start()
+		if err != nil {
+			log.Fatalf("failed to start stream server, err: %v", err)
+		}
+	}
+
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, batchConstraints, s.eventLog)
+	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog)
+
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 
 	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg, s.etherman)
 	go closingSignalsManager.Start()
 
-	go s.trackOldTxs(ctx)
+	go s.purgeOldPoolTxs(ctx)
 	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	defer tickerProcessTxs.Stop()
 
@@ -161,6 +156,163 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	// Wait until context is done
 	<-ctx.Done()
+}
+
+func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer) {
+	var currentL2Block uint64
+	var currentTxIndex uint64
+	var err error
+
+	header := streamServer.GetHeader()
+
+	if header.TotalEntries == 0 {
+		// Get Genesis block
+		genesisL2Block, err := s.state.GetDSGenesisBlock(ctx, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = streamServer.StartAtomicOp()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		genesisBlock := state.DSL2BlockStart{
+			BatchNumber:    genesisL2Block.BatchNumber,
+			L2BlockNumber:  genesisL2Block.L2BlockNumber,
+			Timestamp:      genesisL2Block.Timestamp,
+			GlobalExitRoot: genesisL2Block.GlobalExitRoot,
+			Coinbase:       genesisL2Block.Coinbase,
+			ForkID:         genesisL2Block.ForkID,
+		}
+
+		log.Infof("Genesis block: %+v", genesisBlock)
+
+		_, err = streamServer.AddStreamEntry(1, genesisBlock.Encode())
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		genesisBlockEnd := state.DSL2BlockEnd{
+			L2BlockNumber: genesisL2Block.L2BlockNumber,
+			BlockHash:     genesisL2Block.BlockHash,
+			StateRoot:     genesisL2Block.StateRoot,
+		}
+
+		_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, genesisBlockEnd.Encode())
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = streamServer.CommitAtomicOp()
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		latestEntry, err := streamServer.GetEntry(header.TotalEntries - 1)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Infof("Latest entry: %+v", latestEntry)
+
+		switch latestEntry.EntryType {
+		case state.EntryTypeL2BlockStart:
+			log.Info("Latest entry type is L2BlockStart")
+			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
+		case state.EntryTypeL2Tx:
+			log.Info("Latest entry type is L2Tx")
+			for latestEntry.EntryType == state.EntryTypeL2Tx {
+				currentTxIndex++
+				latestEntry, err = streamServer.GetEntry(header.TotalEntries - currentTxIndex)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+			if latestEntry.EntryType != state.EntryTypeL2BlockStart {
+				log.Fatal("Latest entry is not a L2BlockStart")
+			}
+			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
+		case state.EntryTypeL2BlockEnd:
+			log.Info("Latest entry type is L2BlockEnd")
+			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[0:8])
+		}
+	}
+
+	log.Infof("Current transaction index: %d", currentTxIndex)
+	log.Infof("Current L2 block number: %d", currentL2Block)
+
+	var limit uint64 = 1000
+	var offset uint64 = currentL2Block
+	var entry uint64 = header.TotalEntries
+	var l2blocks []*state.DSL2Block
+
+	if entry > 0 {
+		entry--
+	}
+
+	for err == nil {
+		log.Infof("Current entry number: %d", entry)
+
+		l2blocks, err = s.state.GetDSL2Blocks(ctx, limit, offset, nil)
+		offset += limit
+		if len(l2blocks) == 0 {
+			break
+		}
+		// Get transactions for all the retrieved l2 blocks
+		l2Transactions, err := s.state.GetDSL2Transactions(ctx, l2blocks[0].L2BlockNumber, l2blocks[len(l2blocks)-1].L2BlockNumber, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = streamServer.StartAtomicOp()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for x, l2block := range l2blocks {
+			if currentTxIndex > 0 {
+				x += int(currentTxIndex)
+				currentTxIndex = 0
+			}
+
+			blockStart := state.DSL2BlockStart{
+				BatchNumber:    l2block.BatchNumber,
+				L2BlockNumber:  l2block.L2BlockNumber,
+				Timestamp:      l2block.Timestamp,
+				GlobalExitRoot: l2block.GlobalExitRoot,
+				Coinbase:       l2block.Coinbase,
+				ForkID:         l2block.ForkID,
+			}
+
+			_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			entry, err = streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transactions[x].Encode())
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			blockEnd := state.DSL2BlockEnd{
+				L2BlockNumber: l2block.L2BlockNumber,
+				BlockHash:     l2block.BlockHash,
+				StateRoot:     l2block.StateRoot,
+			}
+
+			_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, blockEnd.Encode())
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		err = streamServer.CommitAtomicOp()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	log.Info("Data streamer file updated")
 }
 
 func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) (*WipBatch, *state.ProcessRequest) {
@@ -218,7 +370,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 	return currBatch, processRequest
 }
 
-func (s *Sequencer) trackOldTxs(ctx context.Context) {
+func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.FrequencyToCheckTxsForDelete.Duration)
 	for {
 		waitTick(ctx, ticker)
@@ -274,7 +426,7 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	return true
 }
 
-func getMaxRemainingResources(constraints batchConstraints) state.BatchResources {
+func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
 			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed,

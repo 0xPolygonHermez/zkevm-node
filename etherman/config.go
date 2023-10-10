@@ -7,8 +7,8 @@ type Config struct {
 	// URL is the URL of the Ethereum node for L1
 	URL string `mapstructure:"URL"`
 
-	//PrivateKeyPath     string `mapstructure:"PrivateKeyPath"`
-	//PrivateKeyPassword string `mapstructure:"PrivateKeyPassword"`
+	// ForkIDChunkSize is the max interval for each call to L1 provider to get the forkIDs
+	ForkIDChunkSize uint64 `mapstructure:"ForkIDChunkSize"`
 
 	// allow that L1 gas price calculation use multiples sources
 	MultiGasProvider bool `mapstructure:"MultiGasProvider"`

@@ -38,6 +38,7 @@ type Pool struct {
 	state                   stateInterface
 	chainID                 uint64
 	cfg                     Config
+	batchConstraintsCfg     state.BatchConstraintsCfg
 	blockedAddresses        sync.Map
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
@@ -63,28 +64,22 @@ type GasPrices struct {
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
+func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
 	startTimestamp := time.Now()
 	p := &Pool{
 		cfg:                     cfg,
+		batchConstraintsCfg:     batchConstraintsCfg,
 		startTimestamp:          startTimestamp,
 		storage:                 s,
 		state:                   st,
 		chainID:                 chainID,
 		blockedAddresses:        sync.Map{},
 		minSuggestedGasPriceMux: new(sync.RWMutex),
+		minSuggestedGasPrice:    big.NewInt(int64(cfg.DefaultMinGasPriceAllowed)),
 		eventLog:                eventLog,
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),
 	}
-
-	p.refreshBlockedAddresses()
-	go func(cfg *Config, p *Pool) {
-		for {
-			time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
-			p.refreshBlockedAddresses()
-		}
-	}(&cfg, p)
 
 	go func(cfg *Config, p *Pool) {
 		for {
@@ -107,6 +102,19 @@ func (p *Pool) refreshGasPrices() {
 	p.gasPricesMux.Lock()
 	p.gasPrices = gasPrices
 	p.gasPricesMux.Unlock()
+}
+
+// StartRefreshingBlockedAddressesPeriodically will make this instance of the pool
+// to check periodically(accordingly to the configuration) for updates regarding
+// the blocked address and update the in memory blocked addresses
+func (p *Pool) StartRefreshingBlockedAddressesPeriodically() {
+	p.refreshBlockedAddresses()
+	go func(p *Pool) {
+		for {
+			time.Sleep(p.cfg.IntervalToRefreshBlockedAddresses.Duration)
+			p.refreshBlockedAddresses()
+		}
+	}(p)
 }
 
 // refreshBlockedAddresses refreshes the list of blocked addresses for the provided instance of pool
@@ -195,7 +203,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			log.Errorf("error adding event: %v", err)
 		}
 		// Do not add tx to the pool
-		return fmt.Errorf("out of counters")
+		return ErrOutOfCounters
 	} else if preExecutionResponse.isOOG {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
@@ -239,10 +247,18 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 
 	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
 		errorToCheck := processBatchResponse.Responses[0].RomError
-		response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
 		response.isExecutorLevelError = processBatchResponse.IsExecutorLevelError
-		response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
-		response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+		if errorToCheck != nil {
+			response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
+			response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
+			response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+		} else {
+			if !p.batchConstraintsCfg.IsWithinConstraints(processBatchResponse.UsedZkCounters) {
+				response.isOOC = true
+				log.Errorf("OutOfCounters Error (Node level)  for tx: %s", tx.Hash().String())
+			}
+		}
+
 		response.usedZkCounters = processBatchResponse.UsedZkCounters
 		response.txResponse = processBatchResponse.Responses[0]
 	}
@@ -311,6 +327,11 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 }
 
 func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
+	// Make sure the IP is valid.
+	if poolTx.IP != "" && !IsValidIP(poolTx.IP) {
+		return ErrInvalidIP
+	}
+
 	// Make sure the transaction is signed properly.
 	if err := state.CheckSignature(poolTx.Transaction); err != nil {
 		return ErrInvalidSender
@@ -325,6 +346,11 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// Accept only legacy transactions until EIP-2718/2930 activates.
 	if poolTx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported
+	}
+
+	// check Pre EIP155 txs signature
+	if txChainID == 0 && !state.IsPreEIP155Tx(poolTx.Transaction) {
+		return ErrInvalidSender
 	}
 
 	// gets tx sender for validations
@@ -354,11 +380,13 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 
 	lastL2Block, err := p.state.GetLastL2Block(ctx, nil)
 	if err != nil {
+		log.Errorf("failed to load last l2 block while adding tx to the pool", err)
 		return err
 	}
 
 	currentNonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
 	if err != nil {
+		log.Errorf("failed to get nonce while adding tx to the pool", err)
 		return err
 	}
 	// Ensure the transaction adheres to nonce ordering
@@ -387,6 +415,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	if p.cfg.GlobalQueue > 0 {
 		txCount, err := p.storage.CountTransactionsByStatus(ctx, TxStatusPending)
 		if err != nil {
+			log.Errorf("failed to count pool txs by status pending while adding tx to the pool", err)
 			return err
 		}
 		if txCount >= p.cfg.GlobalQueue {
@@ -406,6 +435,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// cost == V + GP * GL
 	balance, err := p.state.GetBalance(ctx, from, lastL2Block.Root())
 	if err != nil {
+		log.Errorf("failed to get balance for account %v while adding tx to the pool", from.String(), err)
 		return err
 	}
 
@@ -426,6 +456,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// if the new one has a price bump
 	oldTxs, err := p.storage.GetTxsByFromAndNonce(ctx, from, poolTx.Nonce())
 	if err != nil {
+		log.Errorf("failed to txs for the same account and nonce while adding tx to the pool", err)
 		return err
 	}
 

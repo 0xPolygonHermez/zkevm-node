@@ -21,7 +21,7 @@
     "runStarkTest": false,
 
     "executeInParallel" : false,
-    "useMainExecGenerated" : false,
+    "useMainExecGenerated" : true,
 
     "proverServerPort": 50051,
     "proverServerMockPort": 50052,

@@ -9,8 +9,8 @@ To configure a node you need 3 files:
 This file is a [TOML](https://en.wikipedia.org/wiki/TOML#) formatted file. 
 You could find some examples here: 
  - `config/environments/local/local.node.config.toml`: running a permisionless node
-  - `config/environments/mainnet/public.node.config.toml`
-  - `config/environments/public/public.node.config.toml`
+  - `config/environments/mainnet/node.config.toml`
+  - `config/environments/public/node.config.toml`
   - `test/config/test.node.config.toml`: configuration for a trusted node used in CI
 
   For details about the contents you can read specifications [here](config-file/node-config-doc.md)
@@ -21,7 +21,7 @@ This file is used for trusted and for permisionless nodes. In the case of permis
 `ZKEVM_NODE_`[<section in uppercase\>`_`]*<var in uppercase\>`
 
 For example:
-`ZKEVM_NODE_STATEDB_HOST="localhost"` override value of section `[StateDB]` key `Host`
+`ZKEVM_NODE_STATE_DB_HOST="localhost"` override value of section `[StateDB]` key `Host`
 
 ### Network Genesis Config
 This file is a [JSON](https://en.wikipedia.org/wiki/JSON) formatted file. 
@@ -38,5 +38,5 @@ For details about the contents you can read specifications [here](config-file/cu
 Please check [prover repository](https://github.com/0xPolygonHermez/zkevm-prover)  for further information
 
 Examples: 
- - `config/environments/mainnet/public.prover.config.json`
- - `config/environments/testnet/testnet.prover.config.json`
+ - `config/environments/mainnet/prover.config.json`
+ - `config/environments/testnet/prover.config.json`

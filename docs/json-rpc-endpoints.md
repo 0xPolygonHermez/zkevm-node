@@ -4,15 +4,16 @@ Here you will find the list of all supported JSON RPC endpoints and any differen
 
 If the endpoint is not in the list below, it means this specific endpoint is not supported yet, feel free to open an issue requesting it to be added and please explain the reason why you need it. 
 
-<!-- DEBUG -->
 > Warning: debug endpoints are considered experimental as they have not been deeply tested yet
+<!-- DEBUG -->
 - `debug_traceBlockByHash`
 - `debug_traceBlockByNumber`
 - `debug_traceTransaction`
+- `debug_traceBatchByNumber`
 
 <!-- ETH -->
 - `eth_blockNumber`
-- `eth_call` 
+- `eth_call`
   - _doesn't support state override at the moment and pending block. Will be implemented [#1990](https://github.com/0xPolygonHermez/zkevm-node/issues/1990)_ 
   - _doesn't support `from` values that are smart contract addresses. Will be implemented [#2017](https://github.com/0xPolygonHermez/zkevm-node/issues/2017)_  
 - `eth_chainId`
@@ -62,6 +63,8 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 - `zkevm_batchNumberByBlockNumber`
 - `zkevm_consolidatedBlockNumber`
 - `zkevm_getBatchByNumber`
+- `zkevm_getFullBlockByHash`
+- `zkevm_getFullBlockByNumber`
 - `zkevm_isBlockConsolidated`
 - `zkevm_isBlockVirtualized`
 - `zkevm_verifiedBatchNumber`

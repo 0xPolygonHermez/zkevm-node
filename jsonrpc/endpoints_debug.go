@@ -7,13 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -34,16 +32,18 @@ var defaultTraceConfig = &traceConfig{
 
 // DebugEndpoints is the debug jsonrpc endpoint
 type DebugEndpoints struct {
-	cfg   Config
-	state types.StateInterface
-	txMan DBTxManager
+	cfg      Config
+	state    types.StateInterface
+	etherman types.EthermanInterface
+	txMan    DBTxManager
 }
 
 // NewDebugEndpoints returns DebugEndpoints
-func NewDebugEndpoints(cfg Config, state types.StateInterface) *DebugEndpoints {
+func NewDebugEndpoints(cfg Config, state types.StateInterface, etherman types.EthermanInterface) *DebugEndpoints {
 	return &DebugEndpoints{
-		cfg:   cfg,
-		state: state,
+		cfg:      cfg,
+		state:    state,
+		etherman: etherman,
 	}
 }
 
@@ -98,7 +98,7 @@ func (d *DebugEndpoints) TraceTransaction(hash types.ArgHash, cfg *traceConfig) 
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugtraceblockbynumber
 func (d *DebugEndpoints) TraceBlockByNumber(number types.BlockNumber, cfg *traceConfig) (interface{}, types.Error) {
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, d.state, dbTx)
+		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, d.state, d.etherman, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
@@ -107,11 +107,11 @@ func (d *DebugEndpoints) TraceBlockByNumber(number types.BlockNumber, cfg *trace
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("block #%d not found", blockNumber))
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by number", err)
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by number", err, true)
 		}
 
 		traces, rpcErr := d.buildTraceBlock(ctx, block.Transactions(), cfg, dbTx)
-		if err != nil {
+		if rpcErr != nil {
 			return nil, rpcErr
 		}
 
@@ -127,11 +127,11 @@ func (d *DebugEndpoints) TraceBlockByHash(hash types.ArgHash, cfg *traceConfig) 
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("block %s not found", hash.Hash().String()))
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash", err)
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash", err, true)
 		}
 
 		traces, rpcErr := d.buildTraceBlock(ctx, block.Transactions(), cfg, dbTx)
-		if err != nil {
+		if rpcErr != nil {
 			return nil, rpcErr
 		}
 
@@ -169,24 +169,6 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 	// how many txs it will process in parallel.
 	const bufferSize = 10
 
-	// checks and load the request scheme to build the url for the remote requests
-	// scheme, err := getHttpScheme(httpRequest)
-	// if err != nil {
-	// 	return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil)
-	// }
-
-	// builds the url of the remote jRPC server
-	scheme := "http"
-	if d.cfg.TraceBatchUseHTTPS {
-		scheme = "https"
-	}
-	u := url.URL{
-		Scheme: scheme,
-		Host:   httpRequest.Host,
-		Path:   httpRequest.URL.Path,
-	}
-	rpcURL := u.String()
-
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		batchNumber, rpcErr := number.GetNumericBatchNumber(ctx, d.state, dbTx)
 		if rpcErr != nil {
@@ -194,27 +176,27 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 		}
 
 		batch, err := d.state.GetBatchByNumber(ctx, batchNumber, dbTx)
-		if errors.Is(err, state.ErrStateNotSynchronized) {
+		if errors.Is(err, state.ErrNotFound) {
 			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("batch #%d not found", batchNumber))
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to get batch by number", err)
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get batch by number", err, true)
 		}
 
 		txs, _, err := d.state.GetTransactionsByBatchNumber(ctx, batch.BatchNumber, dbTx)
 		if !errors.Is(err, state.ErrNotFound) && err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v to create the traces", batchNumber), err)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v to create the traces", batchNumber), err, true)
 		}
 
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := d.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
 			if err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v to get trace", tx.Hash().String()), err)
+				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load receipt for tx %v to get trace", tx.Hash().String()), err, true)
 			}
 			receipts = append(receipts, *receipt)
 		}
 
-		buffer := make(chan byte, bufferSize)
+		requests := make(chan (ethTypes.Receipt), bufferSize)
 
 		mu := sync.Mutex{}
 		wg := sync.WaitGroup{}
@@ -222,30 +204,21 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 		responses := make([]traceResponse, 0, len(receipts))
 
 		// gets the trace from the jRPC and adds it to the responses
-		loadTraceByTxHash := func(receipt ethTypes.Receipt) {
-			defer func() {
-				<-buffer // make buffer slot free
-				wg.Done()
-			}()
-			buffer <- 1 // use buffer free slot or wait for a free slot
-
+		loadTraceByTxHash := func(d *DebugEndpoints, receipt ethTypes.Receipt, cfg *traceConfig) {
 			response := traceResponse{
 				blockNumber: receipt.BlockNumber.Uint64(),
 				txIndex:     uint64(receipt.TransactionIndex),
 				txHash:      receipt.TxHash,
 			}
 
-			res, err := client.JSONRPCCall(rpcURL, "debug_traceTransaction", receipt.TxHash.String(), cfg)
+			defer wg.Done()
+			trace, err := d.TraceTransaction(types.ArgHash(receipt.TxHash), cfg)
 			if err != nil {
-				err := fmt.Errorf("failed to get tx trace from remote jRPC server %v for tx %v, err: %w", rpcURL, receipt.TxHash.String(), err)
-				log.Errorf(err.Error())
-				response.err = err
-			} else if res.Error != nil {
-				err := fmt.Errorf("tx trace error returned from remote jRPC server %v for tx %v, err: %v - %v", rpcURL, receipt.TxHash.String(), res.Error.Code, res.Error.Message)
+				err := fmt.Errorf("failed to get tx trace for tx %v, err: %w", receipt.TxHash.String(), err)
 				log.Errorf(err.Error())
 				response.err = err
 			} else {
-				response.trace = res.Result
+				response.trace = trace
 			}
 
 			// add to the responses
@@ -254,15 +227,28 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 			responses = append(responses, response)
 		}
 
-		// load traces for each transaction
+		// goes through the buffer and loads the trace
+		// by all the transactions added in the buffer
+		// then add the results to the responses map
+		go func() {
+			index := uint(0)
+			for req := range requests {
+				go loadTraceByTxHash(d, req, cfg)
+				index++
+			}
+		}()
+
+		// add receipts to the buffer
 		for _, receipt := range receipts {
-			go loadTraceByTxHash(receipt)
+			requests <- receipt
 		}
 
 		// wait the traces to be loaded
 		if waitTimeout(&wg, d.cfg.ReadTimeout.Duration) {
-			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to get traces for batch %v: timeout reached", batchNumber), nil)
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to get traces for batch %v: timeout reached", batchNumber), nil, true)
 		}
+
+		close(requests)
 
 		// since the txs are attached to a L2 Block and the L2 Block is
 		// the struct attached to the Batch, in order to always respond
@@ -280,7 +266,7 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 		traces := make([]traceBatchTransactionResponse, 0, len(receipts))
 		for _, response := range responses {
 			if response.err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to get traces for batch %v: failed to get trace for tx: %v, err: %v", batchNumber, response.txHash.String(), response.err.Error()), nil)
+				return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("failed to get traces for batch %v: failed to get trace for tx: %v, err: %v", batchNumber, response.txHash.String(), response.err.Error()), nil, true)
 			}
 
 			traces = append(traces, traceBatchTransactionResponse{
@@ -297,8 +283,8 @@ func (d *DebugEndpoints) buildTraceBlock(ctx context.Context, txs []*ethTypes.Tr
 	for _, tx := range txs {
 		traceTransaction, err := d.buildTraceTransaction(ctx, tx.Hash(), cfg, dbTx)
 		if err != nil {
-			errMsg := fmt.Sprintf("failed to get trace for transaction %v", tx.Hash().String())
-			return RPCErrorResponse(types.DefaultErrorCode, errMsg, err)
+			errMsg := fmt.Sprintf("failed to get trace for transaction %v: %v", tx.Hash().String(), err.Error())
+			return RPCErrorResponse(types.DefaultErrorCode, errMsg, err, true)
 		}
 		traceBlockTransaction := traceBlockTransactionResponse{
 			Result: traceTransaction,
@@ -317,7 +303,7 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 
 	// check tracer
 	if traceCfg.Tracer != nil && *traceCfg.Tracer != "" && !isBuiltInTracer(*traceCfg.Tracer) && !isJSCustomTracer(*traceCfg.Tracer) {
-		return RPCErrorResponse(types.DefaultErrorCode, "invalid tracer", nil)
+		return RPCErrorResponse(types.DefaultErrorCode, "invalid tracer", nil, false)
 	}
 
 	stateTraceConfig := state.TraceConfig{
@@ -330,10 +316,9 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 	}
 	result, err := d.state.DebugTransaction(ctx, hash, stateTraceConfig, dbTx)
 	if errors.Is(err, state.ErrNotFound) {
-		return RPCErrorResponse(types.DefaultErrorCode, "transaction not found", nil)
+		return RPCErrorResponse(types.DefaultErrorCode, "transaction not found", nil, false)
 	} else if err != nil {
-		const errorMessage = "failed to get trace"
-		log.Errorf("%v: %v", errorMessage, err)
+		errorMessage := fmt.Sprintf("failed to get trace: %v", err.Error())
 		return nil, types.NewRPCError(types.DefaultErrorCode, errorMessage)
 	}
 
@@ -466,40 +451,6 @@ func isBuiltInTracer(tracer string) bool {
 func isJSCustomTracer(tracer string) bool {
 	return strings.Contains(tracer, "result") && strings.Contains(tracer, "fault")
 }
-
-// // getHttpScheme tries to get the scheme from the http request in different ways
-// func getHttpScheme(r *http.Request) (string, error) {
-// 	// scheme headers
-// 	headers := []string{"X-Forwarded-Proto", "X-Forwarded-Protocol", "X-Url-Scheme"}
-// 	for _, header := range headers {
-// 		value := r.Header.Get(header)
-// 		if value == "http" || value == "https" {
-// 			return value, nil
-// 		} else if value != "" {
-// 			return "", fmt.Errorf("header %v must be set to HTTP or HTTPS, value found: %s", header, value)
-// 		}
-// 	}
-
-// 	// https on/off headers
-// 	headers = []string{"X-Forwarded-Ssl", "Front-End-Https"}
-// 	for _, header := range headers {
-// 		value := r.Header.Get(header)
-// 		if value == "on" {
-// 			return "https", nil
-// 		} else if value == "off" {
-// 			return "http", nil
-// 		} else if value != "" {
-// 			return "", fmt.Errorf("header %v must be set to ON or OFF, value found: %s", header, value)
-// 		}
-// 	}
-
-// 	// httpRequest TLS check
-// 	scheme := "http"
-// 	if r.TLS != nil {
-// 		scheme = "https"
-// 	}
-// 	return scheme, nil
-// }
 
 // waitTimeout waits for the waitGroup for the specified max timeout.
 // Returns true if waiting timed out.

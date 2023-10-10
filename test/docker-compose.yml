@@ -38,7 +38,7 @@ services:
 
   grafana-db:
     container_name: grafana-db
-    image: postgres
+    image: postgres:15
     expose:
       - 5432
     environment:
@@ -52,12 +52,14 @@ services:
     ports:
       - 9092:9091 # needed if metrics enabled
       - 6060:6060
+      - 6900:6900 # Data stream server
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
+      - ./:/datastreamer
     command:
       - "/bin/sh"
       - "-c"
@@ -67,7 +69,7 @@ services:
     container_name: zkevm-sequence-sender
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
       - ZKEVM_NODE_SEQUENCER_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
     volumes:
@@ -87,7 +89,7 @@ services:
       - 8133:8133 # needed if WebSockets enabled
       - 9091:9091 # needed if metrics enabled
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
@@ -104,7 +106,7 @@ services:
       - 50081:50081
       - 9093:9091 # needed if metrics enabled
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_AGGREGATOR_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
@@ -120,7 +122,7 @@ services:
     ports:
       - 9095:9091 # needed if metrics enabled
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
@@ -135,7 +137,7 @@ services:
     ports:
       - 9094:9091 # needed if metrics enabled
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
     volumes:
       - ./sequencer.keystore:/pk/sequencer.keystore
       - ./aggregator.keystore:/pk/aggregator.keystore
@@ -162,7 +164,7 @@ services:
 
   zkevm-state-db:
     container_name: zkevm-state-db
-    image: postgres
+    image: postgres:15
     deploy:
       resources:
         limits:
@@ -184,7 +186,7 @@ services:
 
   zkevm-pool-db:
     container_name: zkevm-pool-db
-    image: postgres
+    image: postgres:15
     deploy:
       resources:
         limits:
@@ -204,7 +206,7 @@ services:
 
   zkevm-event-db:
     container_name: zkevm-event-db
-    image: postgres
+    image: postgres:15
     deploy:
       resources:
         limits:
@@ -245,7 +247,7 @@ services:
 
   zkevm-explorer-l1-db:
     container_name: zkevm-explorer-l1-db
-    image: postgres
+    image: postgres:15
     ports:
       - 5436:5432
     environment:
@@ -285,7 +287,7 @@ services:
       - 8124:8124
       - 8134:8134 # needed if WebSockets enabled
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_PORT=8124
       - ZKEVM_NODE_RPC_WEBSOCKETS_PORT=8134
@@ -299,7 +301,7 @@ services:
 
   zkevm-explorer-l2-db:
     container_name: zkevm-explorer-l2-db
-    image: postgres
+    image: postgres:15
     ports:
       - 5437:5432
     environment:
@@ -338,10 +340,8 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:v2.0.1
+    image: hermeznetwork/zkevm-prover:v2.2.3
     ports:
-      # - 50051:50051 # Prover
-      - 50052:50052 # Mock prover
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
@@ -353,7 +353,7 @@ services:
     container_name: zkevm-approve
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
     volumes:
       - ./sequencer.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
@@ -365,7 +365,7 @@ services:
 
   zkevm-permissionless-db:
     container_name: zkevm-permissionless-db
-    image: postgres
+    image: postgres:15
     deploy:
       resources:
         limits:
@@ -392,10 +392,10 @@ services:
       - 8125:8125
     environment:
       - ZKEVM_NODE_ISTRUSTEDSEQUENCER=false
-      - ZKEVM_NODE_STATEDB_USER=test_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=test_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-permissionless-db
+      - ZKEVM_NODE_STATE_DB_USER=test_user
+      - ZKEVM_NODE_STATE_DB_PASSWORD=test_password
+      - ZKEVM_NODE_STATE_DB_NAME=state_db
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-permissionless-db
       - ZKEVM_NODE_POOL_DB_USER=test_user
       - ZKEVM_NODE_POOL_DB_PASSWORD=test_password
       - ZKEVM_NODE_POOL_DB_NAME=pool_db
@@ -414,7 +414,7 @@ services:
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
-    image: hermeznetwork/zkevm-prover:v2.0.1
+    image: hermeznetwork/zkevm-prover:v2.2.3
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover
@@ -443,7 +443,7 @@ services:
     stdin_open: true 
     tty: true
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
     volumes:
       - ./config/test.node.config.toml:/app/config.toml

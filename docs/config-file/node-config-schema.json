@@ -64,6 +64,11 @@
 					"description": "URL is the URL of the Ethereum node for L1",
 					"default": "http://localhost:8545"
 				},
+				"ForkIDChunkSize": {
+					"type": "integer",
+					"description": "ForkIDChunkSize is the max interval for each call to L1 provider to get the forkIDs",
+					"default": 20000
+				},
 				"MultiGasProvider": {
 					"type": "boolean",
 					"description": "allow that L1 gas price calculation use multiples sources",
@@ -135,6 +140,16 @@
 				"ForcedGas": {
 					"type": "integer",
 					"description": "ForcedGas is the amount of gas to be forced in case of gas estimation error",
+					"default": 0
+				},
+				"GasPriceMarginFactor": {
+					"type": "number",
+					"description": "GasPriceMarginFactor is used to multiply the suggested gas price provided by the network\nin order to allow a different gas price to be set for all the transactions and making it\neasier to have the txs prioritized in the pool, default value is 1.\n\nex:\nsuggested gas price: 100\nGasPriceMarginFactor: 1\ngas price = 100\n\nsuggested gas price: 100\nGasPriceMarginFactor: 1.1\ngas price = 110",
+					"default": 1
+				},
+				"MaxGasPriceLimit": {
+					"type": "integer",
+					"description": "MaxGasPriceLimit helps avoiding transactions to be sent over an specified\ngas price amount, default value is 0, which means no limit.\nIf the gas price provided by the network and adjusted by the GasPriceMarginFactor\nis greater than this configuration, transaction will have its gas price set to\nthe value configured in this config as the limit.\n\nex:\n\nsuggested gas price: 100\ngas price margin factor: 20%\nmax gas price limit: 150\ntx gas price = 120\n\nsuggested gas price: 100\ngas price margin factor: 20%\nmax gas price limit: 110\ntx gas price = 110",
 					"default": 0
 				}
 			},
@@ -319,6 +334,11 @@
 							"type": "integer",
 							"description": "Port defines the port to serve the endpoints via WS",
 							"default": 8546
+						},
+						"ReadLimit": {
+							"type": "integer",
+							"description": "ReadLimit defines the maximum size of a message read from the client (in bytes)",
+							"default": 104857600
 						}
 					},
 					"additionalProperties": false,
@@ -330,10 +350,34 @@
 					"description": "EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.",
 					"default": true
 				},
-				"TraceBatchUseHTTPS": {
+				"BatchRequestsEnabled": {
 					"type": "boolean",
-					"description": "TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)\nto do the parallel requests to RPC.debug_traceTransaction endpoint",
-					"default": true
+					"description": "BatchRequestsEnabled defines if the Batch requests are enabled or disabled",
+					"default": false
+				},
+				"BatchRequestsLimit": {
+					"type": "integer",
+					"description": "BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request",
+					"default": 20
+				},
+				"L2Coinbase": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "L2Coinbase defines which address is going to receive the fees"
+				},
+				"MaxLogsCount": {
+					"type": "integer",
+					"description": "MaxLogsCount is a configuration to set the max number of logs that can be returned\nin a single call to the state, if zero it means no limit",
+					"default": 10000
+				},
+				"MaxLogsBlockRange": {
+					"type": "integer",
+					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
+					"default": 10000
 				}
 			},
 			"additionalProperties": false,
@@ -361,6 +405,105 @@
 					"type": "string",
 					"description": "TrustedSequencerURL is the rpc url to connect and sync the trusted state",
 					"default": ""
+				},
+				"UseParallelModeForL1Synchronization": {
+					"type": "boolean",
+					"description": "L1ParallelSynchronization Use new L1 synchronization that do in parallel request to L1 and process the data\nIf false use the legacy sequential mode",
+					"default": true
+				},
+				"L1ParallelSynchronization": {
+					"properties": {
+						"NumberOfParallelOfEthereumClients": {
+							"type": "integer",
+							"description": "NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1\n(if UseParallelModeForL1Synchronization is true)",
+							"default": 2
+						},
+						"CapacityOfBufferingRollupInfoFromL1": {
+							"type": "integer",
+							"description": "CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsugested twice of NumberOfParallelOfEthereumClients\n(if UseParallelModeForL1Synchronization is true)",
+							"default": 10
+						},
+						"TimeForCheckLastBlockOnL1Time": {
+							"type": "string",
+							"title": "Duration",
+							"description": "TimeForCheckLastBlockOnL1Time is the time to wait to request the\nlast block to L1 to known if we need to retrieve more data.\nThis value only apply when the system is synchronized",
+							"default": "5s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"PerformanceCheck": {
+							"properties": {
+								"AcceptableTimeWaitingForNewRollupInfo": {
+									"type": "string",
+									"title": "Duration",
+									"description": "AcceptableTimeWaitingForNewRollupInfo is the expected maximum time that the consumer\ncould wait until new data is produced. If the time is greater it emmit a log to warn about\nthat. The idea is keep working the consumer as much as possible, so if the producer is not\nfast enought then you could increse the number of parallel clients to sync with L1",
+									"default": "5s",
+									"examples": [
+										"1m",
+										"300ms"
+									]
+								},
+								"NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo": {
+									"type": "integer",
+									"description": "NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo is the number of iterations to\nstart checking the time waiting for new rollup info data",
+									"default": 10
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Consumer Configuration for the consumer of rollup information from L1"
+						},
+						"TimeoutForRequestLastBlockOnL1": {
+							"type": "string",
+							"title": "Duration",
+							"description": "TimeoutForRequestLastBlockOnL1 Timeout for request LastBlock On L1",
+							"default": "5s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"MaxNumberOfRetriesForRequestLastBlockOnL1": {
+							"type": "integer",
+							"description": "MaxNumberOfRetriesForRequestLastBlockOnL1 Max number of retries to request LastBlock On L1",
+							"default": 3
+						},
+						"TimeForShowUpStatisticsLog": {
+							"type": "string",
+							"title": "Duration",
+							"description": "TimeForShowUpStatisticsLog how ofter show a log with statistics (0 is disabled)",
+							"default": "5m0s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"TimeOutMainLoop": {
+							"type": "string",
+							"title": "Duration",
+							"description": "TimeOutMainLoop is the timeout for the main loop of the L1 synchronizer when is not updated",
+							"default": "5m0s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"MinTimeBetweenRetriesForRollupInfo": {
+							"type": "string",
+							"title": "Duration",
+							"description": "MinTimeBetweenRetriesForRollupInfo is the minimum time between retries to request rollup info (it will sleep for fulfill this time) to avoid spamming L1",
+							"default": "5s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)"
 				}
 			},
 			"additionalProperties": false,
@@ -394,101 +537,6 @@
 						"300ms"
 					]
 				},
-				"MaxTxsPerBatch": {
-					"type": "integer",
-					"description": "MaxTxsPerBatch is the maximum amount of transactions in the batch",
-					"default": 300
-				},
-				"MaxBatchBytesSize": {
-					"type": "integer",
-					"description": "MaxBatchBytesSize is the maximum batch size in bytes\n(subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)",
-					"default": 120000
-				},
-				"MaxCumulativeGasUsed": {
-					"type": "integer",
-					"description": "MaxCumulativeGasUsed is max gas amount used by batch",
-					"default": 30000000
-				},
-				"MaxKeccakHashes": {
-					"type": "integer",
-					"description": "MaxKeccakHashes is max keccak hashes used by batch",
-					"default": 2145
-				},
-				"MaxPoseidonHashes": {
-					"type": "integer",
-					"description": "MaxPoseidonHashes is max poseidon hashes batch can handle",
-					"default": 252357
-				},
-				"MaxPoseidonPaddings": {
-					"type": "integer",
-					"description": "MaxPoseidonPaddings is max poseidon paddings batch can handle",
-					"default": 135191
-				},
-				"MaxMemAligns": {
-					"type": "integer",
-					"description": "MaxMemAligns is max mem aligns batch can handle",
-					"default": 236585
-				},
-				"MaxArithmetics": {
-					"type": "integer",
-					"description": "MaxArithmetics is max arithmetics batch can handle",
-					"default": 236585
-				},
-				"MaxBinaries": {
-					"type": "integer",
-					"description": "MaxBinaries is max binaries batch can handle",
-					"default": 473170
-				},
-				"MaxSteps": {
-					"type": "integer",
-					"description": "MaxSteps is max steps batch can handle",
-					"default": 7570538
-				},
-				"WeightBatchBytesSize": {
-					"type": "integer",
-					"description": "WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource",
-					"default": 1
-				},
-				"WeightCumulativeGasUsed": {
-					"type": "integer",
-					"description": "WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource",
-					"default": 1
-				},
-				"WeightKeccakHashes": {
-					"type": "integer",
-					"description": "WeightKeccakHashes is the cost weight for the KeccakHashes batch resource",
-					"default": 1
-				},
-				"WeightPoseidonHashes": {
-					"type": "integer",
-					"description": "WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource",
-					"default": 1
-				},
-				"WeightPoseidonPaddings": {
-					"type": "integer",
-					"description": "WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource",
-					"default": 1
-				},
-				"WeightMemAligns": {
-					"type": "integer",
-					"description": "WeightMemAligns is the cost weight for the MemAligns batch resource",
-					"default": 1
-				},
-				"WeightArithmetics": {
-					"type": "integer",
-					"description": "WeightArithmetics is the cost weight for the Arithmetics batch resource",
-					"default": 1
-				},
-				"WeightBinaries": {
-					"type": "integer",
-					"description": "WeightBinaries is the cost weight for the Binaries batch resource",
-					"default": 1
-				},
-				"WeightSteps": {
-					"type": "integer",
-					"description": "WeightSteps is the cost weight for the Steps batch resource",
-					"default": 1
-				},
 				"TxLifetimeCheckTimeout": {
 					"type": "string",
 					"title": "Duration",
@@ -502,7 +550,7 @@
 				"MaxTxLifetime": {
 					"type": "string",
 					"title": "Duration",
-					"description": "MaxTxLifetime is the time a tx can be in the sequencer memory",
+					"description": "MaxTxLifetime is the time a tx can be in the sequencer/worker memory",
 					"default": "3h0m0s",
 					"examples": [
 						"1m",
@@ -600,6 +648,11 @@
 							"type": "integer",
 							"description": "StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number",
 							"default": 0
+						},
+						"SequentialReprocessFullBatch": {
+							"type": "boolean",
+							"description": "SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
@@ -630,18 +683,6 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "DBManager's specific config properties"
-				},
-				"Worker": {
-					"properties": {
-						"ResourceCostMultiplier": {
-							"type": "number",
-							"description": "ResourceCostMultiplier is the multiplier for the resource cost",
-							"default": 1000
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "Worker's specific config properties"
 				},
 				"EffectiveGasPrice": {
 					"properties": {
@@ -679,6 +720,62 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "EffectiveGasPrice is the config for the gas price"
+				},
+				"StreamServer": {
+					"properties": {
+						"Port": {
+							"type": "integer",
+							"description": "Port to listen on",
+							"default": 0
+						},
+						"Filename": {
+							"type": "string",
+							"description": "Filename of the binary data file",
+							"default": ""
+						},
+						"Enabled": {
+							"type": "boolean",
+							"description": "Enabled is a flag to enable/disable the data streamer",
+							"default": false
+						},
+						"Log": {
+							"properties": {
+								"Environment": {
+									"type": "string",
+									"enum": [
+										"production",
+										"development"
+									],
+									"default": ""
+								},
+								"Level": {
+									"type": "string",
+									"enum": [
+										"debug",
+										"info",
+										"warn",
+										"error",
+										"dpanic",
+										"panic",
+										"fatal"
+									],
+									"default": ""
+								},
+								"Outputs": {
+									"items": {
+										"type": "string"
+									},
+									"type": "array"
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Log is the log configuration"
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "StreamServerCfg is the config for the stream server"
 				}
 			},
 			"additionalProperties": false,
@@ -713,34 +810,40 @@
 					"default": 131072
 				},
 				"SenderAddress": {
-					"type": "string",
-					"description": "SenderAddress defines which private key the eth tx manager needs to use\nto sign the L1 txs",
-					"default": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-				},
-				"PrivateKeys": {
 					"items": {
-						"properties": {
-							"Path": {
-								"type": "string",
-								"description": "Path is the file path for the key store file"
-							},
-							"Password": {
-								"type": "string",
-								"description": "Password is the password to decrypt the key store file"
-							}
-						},
-						"additionalProperties": false,
-						"type": "object",
-						"description": "KeystoreFileConfig has all the information needed to load a private key from a key store file"
+						"type": "integer"
 					},
 					"type": "array",
-					"description": "PrivateKeys defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs",
-					"default": [
-						{
-							"Path": "/pk/sequencer.keystore",
-							"Password": "testonly"
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "SenderAddress defines which private key the eth tx manager needs to use\nto sign the L1 txs"
+				},
+				"L2Coinbase": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "L2Coinbase defines which address is going to receive the fees",
+					"default": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+				},
+				"PrivateKey": {
+					"properties": {
+						"Path": {
+							"type": "string",
+							"description": "Path is the file path for the key store file",
+							"default": "/pk/sequencer.keystore"
+						},
+						"Password": {
+							"type": "string",
+							"description": "Password is the password to decrypt the key store file",
+							"default": "testonly"
 						}
-					]
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "PrivateKey defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs"
 				},
 				"ForkUpgradeBatchNumber": {
 					"type": "integer",
@@ -1079,48 +1182,6 @@
 			"type": "object",
 			"description": "Configuration of the merkle tree client service. Not use in the node, only for testing"
 		},
-		"StateDB": {
-			"properties": {
-				"Name": {
-					"type": "string",
-					"description": "Database name",
-					"default": "state_db"
-				},
-				"User": {
-					"type": "string",
-					"description": "Database User name",
-					"default": "state_user"
-				},
-				"Password": {
-					"type": "string",
-					"description": "Database Password of the user",
-					"default": "state_password"
-				},
-				"Host": {
-					"type": "string",
-					"description": "Host address of database",
-					"default": "zkevm-state-db"
-				},
-				"Port": {
-					"type": "string",
-					"description": "Port Number of database",
-					"default": "5432"
-				},
-				"EnableLog": {
-					"type": "boolean",
-					"description": "EnableLog",
-					"default": false
-				},
-				"MaxConns": {
-					"type": "integer",
-					"description": "MaxConns is the maximum number of connections in the pool.",
-					"default": 200
-				}
-			},
-			"additionalProperties": false,
-			"type": "object",
-			"description": "Configuration of the state database connection"
-		},
 		"Metrics": {
 			"properties": {
 				"Host": {
@@ -1248,6 +1309,179 @@
 			"additionalProperties": false,
 			"type": "object",
 			"description": "Configuration of the hash database connection"
+		},
+		"State": {
+			"properties": {
+				"MaxCumulativeGasUsed": {
+					"type": "integer",
+					"description": "MaxCumulativeGasUsed is the max gas allowed per batch",
+					"default": 0
+				},
+				"ChainID": {
+					"type": "integer",
+					"description": "ChainID is the L2 ChainID provided by the Network Config",
+					"default": 0
+				},
+				"ForkIDIntervals": {
+					"items": {
+						"properties": {
+							"FromBatchNumber": {
+								"type": "integer"
+							},
+							"ToBatchNumber": {
+								"type": "integer"
+							},
+							"ForkId": {
+								"type": "integer"
+							},
+							"Version": {
+								"type": "string"
+							},
+							"BlockNumber": {
+								"type": "integer"
+							}
+						},
+						"additionalProperties": false,
+						"type": "object",
+						"description": "ForkIDInterval is a fork id interval"
+					},
+					"type": "array",
+					"description": "ForkIdIntervals is the list of fork id intervals"
+				},
+				"MaxResourceExhaustedAttempts": {
+					"type": "integer",
+					"description": "MaxResourceExhaustedAttempts is the max number of attempts to make a transaction succeed because of resource exhaustion",
+					"default": 0
+				},
+				"WaitOnResourceExhaustion": {
+					"type": "string",
+					"title": "Duration",
+					"description": "WaitOnResourceExhaustion is the time to wait before retrying a transaction because of resource exhaustion",
+					"default": "0s",
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"ForkUpgradeBatchNumber": {
+					"type": "integer",
+					"description": "Batch number from which there is a forkid change (fork upgrade)",
+					"default": 0
+				},
+				"ForkUpgradeNewForkId": {
+					"type": "integer",
+					"description": "New fork id to be used for batches greaters than ForkUpgradeBatchNumber (fork upgrade)",
+					"default": 0
+				},
+				"DB": {
+					"properties": {
+						"Name": {
+							"type": "string",
+							"description": "Database name",
+							"default": "state_db"
+						},
+						"User": {
+							"type": "string",
+							"description": "Database User name",
+							"default": "state_user"
+						},
+						"Password": {
+							"type": "string",
+							"description": "Database Password of the user",
+							"default": "state_password"
+						},
+						"Host": {
+							"type": "string",
+							"description": "Host address of database",
+							"default": "zkevm-state-db"
+						},
+						"Port": {
+							"type": "string",
+							"description": "Port Number of database",
+							"default": "5432"
+						},
+						"EnableLog": {
+							"type": "boolean",
+							"description": "EnableLog",
+							"default": false
+						},
+						"MaxConns": {
+							"type": "integer",
+							"description": "MaxConns is the maximum number of connections in the pool.",
+							"default": 200
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "DB is the database configuration"
+				},
+				"Batch": {
+					"properties": {
+						"Constraints": {
+							"properties": {
+								"MaxTxsPerBatch": {
+									"type": "integer",
+									"default": 300
+								},
+								"MaxBatchBytesSize": {
+									"type": "integer",
+									"default": 120000
+								},
+								"MaxCumulativeGasUsed": {
+									"type": "integer",
+									"default": 30000000
+								},
+								"MaxKeccakHashes": {
+									"type": "integer",
+									"default": 2145
+								},
+								"MaxPoseidonHashes": {
+									"type": "integer",
+									"default": 252357
+								},
+								"MaxPoseidonPaddings": {
+									"type": "integer",
+									"default": 135191
+								},
+								"MaxMemAligns": {
+									"type": "integer",
+									"default": 236585
+								},
+								"MaxArithmetics": {
+									"type": "integer",
+									"default": 236585
+								},
+								"MaxBinaries": {
+									"type": "integer",
+									"default": 473170
+								},
+								"MaxSteps": {
+									"type": "integer",
+									"default": 7570538
+								}
+							},
+							"additionalProperties": false,
+							"type": "object"
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "Configuration for the batch constraints"
+				},
+				"MaxLogsCount": {
+					"type": "integer",
+					"description": "MaxLogsCount is a configuration to set the max number of logs that can be returned\nin a single call to the state, if zero it means no limit",
+					"default": 0
+				},
+				"MaxLogsBlockRange": {
+					"type": "integer",
+					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
+					"default": 0
+				}
+			},
+			"additionalProperties": false,
+			"type": "object",
+			"description": "State service configuration"
 		}
 	},
 	"additionalProperties": false,

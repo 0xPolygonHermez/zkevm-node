@@ -11,7 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
-	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -30,7 +30,7 @@ var (
 	localTestDbManager                           *dbManager
 	localCtx                                     context.Context
 	localMtDBCancel, localExecutorCancel         context.CancelFunc
-	localMtDBServiceClient                       mtDBclientpb.HashDBServiceClient
+	localMtDBServiceClient                       hashdb.HashDBServiceClient
 	localMtDBClientConn, localExecutorClientConn *grpc.ClientConn
 	localState                                   *state.State
 	localExecutorClient                          executor.ExecutorServiceClient
@@ -72,9 +72,9 @@ func setupTest(t *testing.T) {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	localStateTree := merkletree.NewStateTree(localMtDBServiceClient)
-	localState = state.NewState(stateCfg, state.NewPostgresStorage(localStateDb), localExecutorClient, localStateTree, eventLog)
+	localState = state.NewState(stateCfg, state.NewPostgresStorage(state.Config{}, localStateDb), localExecutorClient, localStateTree, eventLog)
 
-	batchConstraints := batchConstraints{
+	batchConstraints := state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,

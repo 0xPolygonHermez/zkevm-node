@@ -23,19 +23,19 @@ func (f *DBTxManager) NewDbTxScope(db DBTxer, scopedFn DBTxScopedFn) (interface{
 	ctx := context.Background()
 	dbTx, err := db.BeginStateTransaction(ctx)
 	if err != nil {
-		return RPCErrorResponse(types.DefaultErrorCode, "failed to connect to the state", err)
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to connect to the state", err, true)
 	}
 
 	v, rpcErr := scopedFn(ctx, dbTx)
 	if rpcErr != nil {
 		if txErr := dbTx.Rollback(context.Background()); txErr != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to rollback db transaction", txErr)
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to rollback db transaction", txErr, true)
 		}
 		return v, rpcErr
 	}
 
 	if txErr := dbTx.Commit(context.Background()); txErr != nil {
-		return RPCErrorResponse(types.DefaultErrorCode, "failed to commit db transaction", txErr)
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to commit db transaction", txErr, true)
 	}
 	return v, rpcErr
 }

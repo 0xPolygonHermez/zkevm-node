@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -44,6 +45,7 @@ type ProcessingContext struct {
 	Timestamp      time.Time
 	GlobalExitRoot common.Hash
 	ForcedBatchNum *uint64
+	BatchL2Data    *[]byte
 }
 
 // ClosingReason represents the reason why a batch is closed.
@@ -148,17 +150,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 		return nil, err
 	}
 
-	txs := []types.Transaction{}
-	forkID := s.GetForkIDByBatchNumber(batchNumber)
-
-	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
-		txs, _, _, err = DecodeTxs(batchL2Data, forkID)
-		if err != nil && !errors.Is(err, ErrInvalidData) {
-			return nil, err
-		}
-	}
-
-	result, err := s.convertToProcessBatchResponse(txs, processBatchResponse)
+	result, err := s.convertToProcessBatchResponse(processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -191,20 +183,15 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
+		ContextId:        uuid.NewString(),
 	}
 	res, err := s.sendBatchRequestToExecutor(ctx, processBatchRequest, request.Caller)
 	if err != nil {
 		return nil, err
 	}
 
-	txs, _, effP, err := DecodeTxs(request.Transactions, forkID)
-	if err != nil && !errors.Is(err, ErrInvalidData) {
-		return nil, err
-	}
-	log.Infof("ProcessBatch: %d txs, %#v effP", len(txs), effP)
-
 	var result *ProcessBatchResponse
-	result, err = s.convertToProcessBatchResponse(txs, res)
+	result, err = s.convertToProcessBatchResponse(res)
 	if err != nil {
 		return nil, err
 	}
@@ -248,6 +235,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkId,
+		ContextId:        uuid.NewString(),
 	}
 
 	// Send Batch to the Executor
@@ -262,6 +250,7 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 	log.Debugf("ExecuteBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 	log.Debugf("ExecuteBatch[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	log.Debugf("ExecuteBatch[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
+	log.Debugf("ExecuteBatch[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
 
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
@@ -329,6 +318,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
+		ContextId:        uuid.NewString(),
 	}
 
 	return s.sendBatchRequestToExecutor(ctx, processBatchRequest, caller)
@@ -351,6 +341,7 @@ func (s *State) sendBatchRequestToExecutor(ctx context.Context, processBatchRequ
 		log.Debugf("processBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 		log.Debugf("processBatch[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 		log.Debugf("processBatch[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
+		log.Debugf("processBatch[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
 	}
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -410,9 +401,15 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 // the flushID (incremental value returned by executor),
 // the ProverID (executor running ID) the result of closing the batch.
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
+	BatchL2Data := processingCtx.BatchL2Data
+	if BatchL2Data == nil {
+		log.Warnf("Batch %v: ProcessAndStoreClosedBatch: processingCtx.BatchL2Data is nil, assuming is empty", processingCtx.BatchNumber)
+		var BatchL2DataEmpty []byte
+		BatchL2Data = &BatchL2DataEmpty
+	}
 	// Decode transactions
 	forkID := s.GetForkIDByBatchNumber(processingCtx.BatchNumber)
-	decodedTransactions, _, _, err := DecodeTxs(encodedTxs, forkID)
+	decodedTransactions, _, _, err := DecodeTxs(*BatchL2Data, forkID)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		log.Debugf("error decoding transactions: %v", err)
 		return common.Hash{}, noFlushID, noProverID, err
@@ -422,10 +419,12 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if dbTx == nil {
 		return common.Hash{}, noFlushID, noProverID, ErrDBTxNil
 	}
+	// Avoid writing twice to the DB the BatchL2Data that is going to be written also in the call closeBatch
+	processingCtx.BatchL2Data = nil
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
 		return common.Hash{}, noFlushID, noProverID, err
 	}
-	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, caller, dbTx)
+	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, *BatchL2Data, caller, dbTx)
 	if err != nil {
 		return common.Hash{}, noFlushID, noProverID, err
 	}
@@ -447,16 +446,14 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
-				decodedTransactions = decodedTransactions[:i]
 			} else {
 				processed.Responses = append(processed.Responses[:i], processed.Responses[i+1:]...)
-				decodedTransactions = append(decodedTransactions[:i], decodedTransactions[i+1:]...)
 			}
 			i--
 		}
 	}
 
-	processedBatch, err := s.convertToProcessBatchResponse(decodedTransactions, processed)
+	processedBatch, err := s.convertToProcessBatchResponse(processed)
 	if err != nil {
 		return common.Hash{}, noFlushID, noProverID, err
 	}
@@ -475,7 +472,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
 		AccInputHash:  processedBatch.NewAccInputHash,
-		BatchL2Data:   encodedTxs,
+		BatchL2Data:   *BatchL2Data,
 	}, dbTx)
 }
 

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
@@ -29,11 +28,11 @@ type Prover struct {
 	id                        string
 	address                   net.Addr
 	proofStatePollingInterval types.Duration
-	stream                    pb.AggregatorService_ChannelServer
+	stream                    AggregatorService_ChannelServer
 }
 
 // New returns a new Prover instance.
-func New(stream pb.AggregatorService_ChannelServer, addr net.Addr, proofStatePollingInterval types.Duration) (*Prover, error) {
+func New(stream AggregatorService_ChannelServer, addr net.Addr, proofStatePollingInterval types.Duration) (*Prover, error) {
 	p := &Prover{
 		stream:                    stream,
 		address:                   addr,
@@ -63,20 +62,20 @@ func (p *Prover) Addr() string {
 }
 
 // Status gets the prover status.
-func (p *Prover) Status() (*pb.GetStatusResponse, error) {
-	req := &pb.AggregatorMessage{
-		Request: &pb.AggregatorMessage_GetStatusRequest{
-			GetStatusRequest: &pb.GetStatusRequest{},
+func (p *Prover) Status() (*GetStatusResponse, error) {
+	req := &AggregatorMessage{
+		Request: &AggregatorMessage_GetStatusRequest{
+			GetStatusRequest: &GetStatusRequest{},
 		},
 	}
 	res, err := p.call(req)
 	if err != nil {
 		return nil, err
 	}
-	if msg, ok := res.Response.(*pb.ProverMessage_GetStatusResponse); ok {
+	if msg, ok := res.Response.(*ProverMessage_GetStatusResponse); ok {
 		return msg.GetStatusResponse, nil
 	}
-	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_GetStatusResponse{}, res.Response)
+	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_GetStatusResponse{}, res.Response)
 }
 
 // IsIdle returns true if the prover is idling.
@@ -85,7 +84,7 @@ func (p *Prover) IsIdle() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return status.Status == pb.GetStatusResponse_STATUS_IDLE, nil
+	return status.Status == GetStatusResponse_STATUS_IDLE, nil
 }
 
 // SupportsForkID returns true if the prover supports the given fork id.
@@ -103,12 +102,12 @@ func (p *Prover) SupportsForkID(forkID uint64) bool {
 
 // BatchProof instructs the prover to generate a batch proof for the provided
 // input. It returns the ID of the proof being computed.
-func (p *Prover) BatchProof(input *pb.InputProver) (*string, error) {
+func (p *Prover) BatchProof(input *InputProver) (*string, error) {
 	metrics.WorkingProver()
 
-	req := &pb.AggregatorMessage{
-		Request: &pb.AggregatorMessage_GenBatchProofRequest{
-			GenBatchProofRequest: &pb.GenBatchProofRequest{Input: input},
+	req := &AggregatorMessage{
+		Request: &AggregatorMessage_GenBatchProofRequest{
+			GenBatchProofRequest: &GenBatchProofRequest{Input: input},
 		},
 	}
 	res, err := p.call(req)
@@ -116,22 +115,22 @@ func (p *Prover) BatchProof(input *pb.InputProver) (*string, error) {
 		return nil, err
 	}
 
-	if msg, ok := res.Response.(*pb.ProverMessage_GenBatchProofResponse); ok {
+	if msg, ok := res.Response.(*ProverMessage_GenBatchProofResponse); ok {
 		switch msg.GenBatchProofResponse.Result {
-		case pb.Result_RESULT_UNSPECIFIED:
+		case Result_RESULT_UNSPECIFIED:
 			return nil, fmt.Errorf("failed to generate proof %s, %w, input %v", msg.GenBatchProofResponse.String(), ErrUnspecified, input)
-		case pb.Result_RESULT_OK:
+		case Result_RESULT_OK:
 			return &msg.GenBatchProofResponse.Id, nil
-		case pb.Result_RESULT_ERROR:
+		case Result_RESULT_ERROR:
 			return nil, fmt.Errorf("failed to generate proof %s, %w, input %v", msg.GenBatchProofResponse.String(), ErrBadRequest, input)
-		case pb.Result_RESULT_INTERNAL_ERROR:
+		case Result_RESULT_INTERNAL_ERROR:
 			return nil, fmt.Errorf("failed to generate proof %s, %w, input %v", msg.GenBatchProofResponse.String(), ErrProverInternalError, input)
 		default:
 			return nil, fmt.Errorf("failed to generate proof %s, %w,input %v", msg.GenBatchProofResponse.String(), ErrUnknown, input)
 		}
 	}
 
-	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_GenBatchProofResponse{}, res.Response)
+	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_GenBatchProofResponse{}, res.Response)
 }
 
 // AggregatedProof instructs the prover to generate an aggregated proof from
@@ -139,9 +138,9 @@ func (p *Prover) BatchProof(input *pb.InputProver) (*string, error) {
 func (p *Prover) AggregatedProof(inputProof1, inputProof2 string) (*string, error) {
 	metrics.WorkingProver()
 
-	req := &pb.AggregatorMessage{
-		Request: &pb.AggregatorMessage_GenAggregatedProofRequest{
-			GenAggregatedProofRequest: &pb.GenAggregatedProofRequest{
+	req := &AggregatorMessage{
+		Request: &AggregatorMessage_GenAggregatedProofRequest{
+			GenAggregatedProofRequest: &GenAggregatedProofRequest{
 				RecursiveProof_1: inputProof1,
 				RecursiveProof_2: inputProof2,
 			},
@@ -152,17 +151,17 @@ func (p *Prover) AggregatedProof(inputProof1, inputProof2 string) (*string, erro
 		return nil, err
 	}
 
-	if msg, ok := res.Response.(*pb.ProverMessage_GenAggregatedProofResponse); ok {
+	if msg, ok := res.Response.(*ProverMessage_GenAggregatedProofResponse); ok {
 		switch msg.GenAggregatedProofResponse.Result {
-		case pb.Result_RESULT_UNSPECIFIED:
+		case Result_RESULT_UNSPECIFIED:
 			return nil, fmt.Errorf("failed to aggregate proofs %s, %w, input 1 %s, input 2 %s",
 				msg.GenAggregatedProofResponse.String(), ErrUnspecified, inputProof1, inputProof2)
-		case pb.Result_RESULT_OK:
+		case Result_RESULT_OK:
 			return &msg.GenAggregatedProofResponse.Id, nil
-		case pb.Result_RESULT_ERROR:
+		case Result_RESULT_ERROR:
 			return nil, fmt.Errorf("failed to aggregate proofs %s, %w, input 1 %s, input 2 %s",
 				msg.GenAggregatedProofResponse.String(), ErrBadRequest, inputProof1, inputProof2)
-		case pb.Result_RESULT_INTERNAL_ERROR:
+		case Result_RESULT_INTERNAL_ERROR:
 			return nil, fmt.Errorf("failed to aggregate proofs %s, %w, input 1 %s, input 2 %s",
 				msg.GenAggregatedProofResponse.String(), ErrProverInternalError, inputProof1, inputProof2)
 		default:
@@ -171,7 +170,7 @@ func (p *Prover) AggregatedProof(inputProof1, inputProof2 string) (*string, erro
 		}
 	}
 
-	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_GenAggregatedProofResponse{}, res.Response)
+	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_GenAggregatedProofResponse{}, res.Response)
 }
 
 // FinalProof instructs the prover to generate a final proof for the given
@@ -179,9 +178,9 @@ func (p *Prover) AggregatedProof(inputProof1, inputProof2 string) (*string, erro
 func (p *Prover) FinalProof(inputProof string, aggregatorAddr string) (*string, error) {
 	metrics.WorkingProver()
 
-	req := &pb.AggregatorMessage{
-		Request: &pb.AggregatorMessage_GenFinalProofRequest{
-			GenFinalProofRequest: &pb.GenFinalProofRequest{
+	req := &AggregatorMessage{
+		Request: &AggregatorMessage_GenFinalProofRequest{
+			GenFinalProofRequest: &GenFinalProofRequest{
 				RecursiveProof: inputProof,
 				AggregatorAddr: aggregatorAddr,
 			},
@@ -192,17 +191,17 @@ func (p *Prover) FinalProof(inputProof string, aggregatorAddr string) (*string, 
 		return nil, err
 	}
 
-	if msg, ok := res.Response.(*pb.ProverMessage_GenFinalProofResponse); ok {
+	if msg, ok := res.Response.(*ProverMessage_GenFinalProofResponse); ok {
 		switch msg.GenFinalProofResponse.Result {
-		case pb.Result_RESULT_UNSPECIFIED:
+		case Result_RESULT_UNSPECIFIED:
 			return nil, fmt.Errorf("failed to generate final proof %s, %w, input %s",
 				msg.GenFinalProofResponse.String(), ErrUnspecified, inputProof)
-		case pb.Result_RESULT_OK:
+		case Result_RESULT_OK:
 			return &msg.GenFinalProofResponse.Id, nil
-		case pb.Result_RESULT_ERROR:
+		case Result_RESULT_ERROR:
 			return nil, fmt.Errorf("failed to generate final proof %s, %w, input %s",
 				msg.GenFinalProofResponse.String(), ErrBadRequest, inputProof)
-		case pb.Result_RESULT_INTERNAL_ERROR:
+		case Result_RESULT_INTERNAL_ERROR:
 			return nil, fmt.Errorf("failed to generate final proof %s, %w, input %s",
 				msg.GenFinalProofResponse.String(), ErrProverInternalError, inputProof)
 		default:
@@ -210,32 +209,32 @@ func (p *Prover) FinalProof(inputProof string, aggregatorAddr string) (*string, 
 				msg.GenFinalProofResponse.String(), ErrUnknown, inputProof)
 		}
 	}
-	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_GenFinalProofResponse{}, res.Response)
+	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_GenFinalProofResponse{}, res.Response)
 }
 
 // CancelProofRequest asks the prover to stop the generation of the proof
 // matching the provided proofID.
 func (p *Prover) CancelProofRequest(proofID string) error {
-	req := &pb.AggregatorMessage{
-		Request: &pb.AggregatorMessage_CancelRequest{
-			CancelRequest: &pb.CancelRequest{Id: proofID},
+	req := &AggregatorMessage{
+		Request: &AggregatorMessage_CancelRequest{
+			CancelRequest: &CancelRequest{Id: proofID},
 		},
 	}
 	res, err := p.call(req)
 	if err != nil {
 		return err
 	}
-	if msg, ok := res.Response.(*pb.ProverMessage_CancelResponse); ok {
+	if msg, ok := res.Response.(*ProverMessage_CancelResponse); ok {
 		switch msg.CancelResponse.Result {
-		case pb.Result_RESULT_UNSPECIFIED:
+		case Result_RESULT_UNSPECIFIED:
 			return fmt.Errorf("failed to cancel proof id [%s], %w, %s",
 				proofID, ErrUnspecified, msg.CancelResponse.String())
-		case pb.Result_RESULT_OK:
+		case Result_RESULT_OK:
 			return nil
-		case pb.Result_RESULT_ERROR:
+		case Result_RESULT_ERROR:
 			return fmt.Errorf("failed to cancel proof id [%s], %w, %s",
 				proofID, ErrBadRequest, msg.CancelResponse.String())
-		case pb.Result_RESULT_INTERNAL_ERROR:
+		case Result_RESULT_INTERNAL_ERROR:
 			return fmt.Errorf("failed to cancel proof id [%s], %w, %s",
 				proofID, ErrProverInternalError, msg.CancelResponse.String())
 		default:
@@ -243,7 +242,7 @@ func (p *Prover) CancelProofRequest(proofID string) error {
 				proofID, ErrUnknown, msg.CancelResponse.String())
 		}
 	}
-	return fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_CancelResponse{}, res.Response)
+	return fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_CancelResponse{}, res.Response)
 }
 
 // WaitRecursiveProof waits for a recursive proof to be generated by the prover
@@ -253,29 +252,29 @@ func (p *Prover) WaitRecursiveProof(ctx context.Context, proofID string) (string
 	if err != nil {
 		return "", err
 	}
-	resProof := res.Proof.(*pb.GetProofResponse_RecursiveProof)
+	resProof := res.Proof.(*GetProofResponse_RecursiveProof)
 	return resProof.RecursiveProof, nil
 }
 
 // WaitFinalProof waits for the final proof to be generated by the prover and
 // returns it.
-func (p *Prover) WaitFinalProof(ctx context.Context, proofID string) (*pb.FinalProof, error) {
+func (p *Prover) WaitFinalProof(ctx context.Context, proofID string) (*FinalProof, error) {
 	res, err := p.waitProof(ctx, proofID)
 	if err != nil {
 		return nil, err
 	}
-	resProof := res.Proof.(*pb.GetProofResponse_FinalProof)
+	resProof := res.Proof.(*GetProofResponse_FinalProof)
 	return resProof.FinalProof, nil
 }
 
 // waitProof waits for a proof to be generated by the prover and returns the
 // prover response.
-func (p *Prover) waitProof(ctx context.Context, proofID string) (*pb.GetProofResponse, error) {
+func (p *Prover) waitProof(ctx context.Context, proofID string) (*GetProofResponse, error) {
 	defer metrics.IdlingProver()
 
-	req := &pb.AggregatorMessage{
-		Request: &pb.AggregatorMessage_GetProofRequest{
-			GetProofRequest: &pb.GetProofRequest{
+	req := &AggregatorMessage{
+		Request: &AggregatorMessage_GetProofRequest{
+			GetProofRequest: &GetProofRequest{
 				// TODO(pg): set Timeout field?
 				Id: proofID,
 			},
@@ -291,26 +290,26 @@ func (p *Prover) waitProof(ctx context.Context, proofID string) (*pb.GetProofRes
 			if err != nil {
 				return nil, err
 			}
-			if msg, ok := res.Response.(*pb.ProverMessage_GetProofResponse); ok {
+			if msg, ok := res.Response.(*ProverMessage_GetProofResponse); ok {
 				switch msg.GetProofResponse.Result {
-				case pb.GetProofResponse_RESULT_PENDING:
+				case GetProofResponse_RESULT_PENDING:
 					time.Sleep(p.proofStatePollingInterval.Duration)
 					continue
-				case pb.GetProofResponse_RESULT_UNSPECIFIED:
+				case GetProofResponse_RESULT_UNSPECIFIED:
 					return nil, fmt.Errorf("failed to get proof ID: %s, %w, prover response: %s",
 						proofID, ErrUnspecified, msg.GetProofResponse.String())
-				case pb.GetProofResponse_RESULT_COMPLETED_OK:
+				case GetProofResponse_RESULT_COMPLETED_OK:
 					return msg.GetProofResponse, nil
-				case pb.GetProofResponse_RESULT_ERROR:
+				case GetProofResponse_RESULT_ERROR:
 					return nil, fmt.Errorf("failed to get proof with ID %s, %w, prover response: %s",
 						proofID, ErrBadRequest, msg.GetProofResponse.String())
-				case pb.GetProofResponse_RESULT_COMPLETED_ERROR:
+				case GetProofResponse_RESULT_COMPLETED_ERROR:
 					return nil, fmt.Errorf("failed to get proof with ID %s, %w, prover response: %s",
 						proofID, ErrProverCompletedError, msg.GetProofResponse.String())
-				case pb.GetProofResponse_RESULT_INTERNAL_ERROR:
+				case GetProofResponse_RESULT_INTERNAL_ERROR:
 					return nil, fmt.Errorf("failed to get proof ID: %s, %w, prover response: %s",
 						proofID, ErrProverInternalError, msg.GetProofResponse.String())
-				case pb.GetProofResponse_RESULT_CANCEL:
+				case GetProofResponse_RESULT_CANCEL:
 					return nil, fmt.Errorf("proof generation was cancelled for proof ID %s, %w, prover response: %s",
 						proofID, ErrProofCanceled, msg.GetProofResponse.String())
 				default:
@@ -318,14 +317,14 @@ func (p *Prover) waitProof(ctx context.Context, proofID string) (*pb.GetProofRes
 						proofID, ErrUnknown, msg.GetProofResponse.String())
 				}
 			}
-			return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_GetProofResponse{}, res.Response)
+			return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_GetProofResponse{}, res.Response)
 		}
 	}
 }
 
 // call sends a message to the prover and waits to receive the response over
 // the connection stream.
-func (p *Prover) call(req *pb.AggregatorMessage) (*pb.ProverMessage, error) {
+func (p *Prover) call(req *AggregatorMessage) (*ProverMessage, error) {
 	if err := p.stream.Send(req); err != nil {
 		return nil, err
 	}
