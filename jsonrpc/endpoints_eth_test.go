@@ -3630,7 +3630,7 @@ func TestNewFilter(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3654,7 +3654,7 @@ func TestNewFilter(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3717,7 +3717,7 @@ func TestNewFilter(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
 					Return("", errors.New("failed to add new filter")).
 					Once()
 			},
@@ -3768,7 +3768,7 @@ func TestNewBlockFilter(t *testing.T) {
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&websocket.Conn{})).
+					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3779,7 +3779,7 @@ func TestNewBlockFilter(t *testing.T) {
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new block filter"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&websocket.Conn{})).
+					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
 					Return("", errors.New("failed to add new block filter")).
 					Once()
 			},
@@ -3830,7 +3830,7 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// 	ExpectedError:  nil,
 		// 	SetupMocks: func(m *mocks, tc testCase) {
 		// 		m.Storage.
-		// 			On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
+		// 			On("NewPendingTransactionFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
 		// 			Return("1", nil).
 		// 			Once()
 		// 	},
@@ -3841,7 +3841,7 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// 	ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new pending transaction filter"),
 		// 	SetupMocks: func(m *mocks, tc testCase) {
 		// 		m.Storage.
-		// 			On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
+		// 			On("NewPendingTransactionFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
 		// 			Return("", errors.New("failed to add new pending transaction filter")).
 		// 			Once()
 		// 	},
