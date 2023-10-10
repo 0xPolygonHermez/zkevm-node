@@ -116,7 +116,6 @@ func generate(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		log.Fatal(err)
-
 	}
 	log.Infof("Loaded configuration: %+v", c)
 
@@ -302,7 +301,6 @@ func rebuild(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		log.Fatal(err)
-
 	}
 	log.Infof("Loaded configuration: %+v", c)
 
@@ -320,7 +318,7 @@ func rebuild(cliCtx *cli.Context) error {
 
 	log.Infof("oldEndEntry: %+v", oldEndEntry)
 
-	startEntry, err := streamServer.GetEntry(2)
+	startEntry, err := streamServer.GetEntry(2) //nolint:gomnd
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -328,14 +326,14 @@ func rebuild(cliCtx *cli.Context) error {
 	log.Infof("startEntry: %+v", startEntry)
 	log.Infof("Length of data in startEntry: %d", len(startEntry.Data))
 
-	txEntry, err := streamServer.GetEntry(3)
+	txEntry, err := streamServer.GetEntry(3) //nolint:gomnd
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	log.Infof("txEntry: %+v", txEntry)
 
-	endEntry, err := streamServer.GetEntry(4)
+	endEntry, err := streamServer.GetEntry(4) //nolint:gomnd
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -359,7 +357,7 @@ func rebuild(cliCtx *cli.Context) error {
 	*/
 
 	// RLP encode the transaction using the proper fork id
-	batchL2Data, err := state.EncodeTransaction(*tx, 255, uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78])))
+	batchL2Data, err := state.EncodeTransaction(*tx, 255, uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78]))) //nolint:gomnd
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -373,7 +371,7 @@ func rebuild(cliCtx *cli.Context) error {
 		OldAccInputHash:  []byte{},
 		EthTimestamp:     binary.LittleEndian.Uint64(startEntry.Data[16:24]),
 		UpdateMerkleTree: uint32(0),
-		ChainId:          1001,
+		ChainId:          1001, //nolint:gomnd
 		ForkId:           uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78])),
 	}
 
@@ -444,7 +442,6 @@ func decode(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		log.Fatal(err)
-
 	}
 	log.Infof("Loaded configuration: %+v", c)
 
