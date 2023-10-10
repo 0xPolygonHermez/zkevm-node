@@ -7,6 +7,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/db"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -22,6 +23,7 @@ const (
 type Config struct {
 	StreamServer datastreamer.Config `mapstructure:"StreamServer"`
 	StateDB      db.Config           `mapstructure:"StateDB"`
+	Executor     executor.Config     `mapstructure:"Executor"`
 }
 
 // Default parses the default configuration values.

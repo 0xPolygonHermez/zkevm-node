@@ -18,4 +18,8 @@ Host = "localhost"
 Port = "5432"
 EnableLog = false	
 MaxConns = 200
+
+[Executor]
+URI = "zkevm-prover:50071"
+MaxGRPCMessageSize = 100000000
 `
