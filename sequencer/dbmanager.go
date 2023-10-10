@@ -182,7 +182,8 @@ func (d *dbManager) sendDataToStreamer() {
 
 			_, err = d.streamServer.AddStreamBookmark(bookMark.Encode())
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("failed to add stream bookmark for l2block %v: %v", l2Block.L2BlockNumber, err)
+				continue
 			}
 
 			blockStart := state.DSL2BlockStart{
