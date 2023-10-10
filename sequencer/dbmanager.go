@@ -175,6 +175,16 @@ func (d *dbManager) sendDataToStreamer() {
 				continue
 			}
 
+			bookMark := state.DSBookMark{
+				Type:          state.BookMarkTypeL2Block,
+				L2BlockNumber: l2Block.L2BlockNumber,
+			}
+
+			_, err = d.streamServer.AddStreamBookmark(bookMark.Encode())
+			if err != nil {
+				log.Fatal(err)
+			}
+
 			blockStart := state.DSL2BlockStart{
 				BatchNumber:    l2Block.BatchNumber,
 				L2BlockNumber:  l2Block.L2BlockNumber,

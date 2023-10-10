@@ -11,7 +11,9 @@
 /test/contracts/bin/**/*.abi
 
 /tools/datastreamer/*.bin
+/test/datastreamer/*.db/*
 /test/datastream.bin
+/test/*.db/**/*
 
 **/.DS_Store
 .vscode
