@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -51,6 +52,10 @@ type Server struct {
 	srv        *http.Server
 	wsSrv      *http.Server
 	wsUpgrader websocket.Upgrader
+
+	connCounterMutex sync.Mutex
+	httpConnCounter  int64
+	wsConnCounter    int64
 }
 
 // Service defines a struct that will provide public methods to be exposed
@@ -240,6 +245,9 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	s.increaseHttpConnCounter()
+	defer s.decreaseHttpConnCounter()
+
 	start := time.Now()
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -382,9 +390,9 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 	innerWsConn, err := s.wsUpgrader.Upgrade(w, req, nil)
 	if err != nil {
 		log.Error(fmt.Sprintf("Unable to upgrade to a WS connection, %s", err.Error()))
-
 		return
 	}
+
 	wsConn := new(atomic.Pointer[websocket.Conn])
 	wsConn.Store(innerWsConn)
 
@@ -399,6 +407,15 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 		}
 	}(wsConn)
 
+	s.increaseWsConnCounter()
+	defer s.decreaseWsConnCounter()
+
+	// recover
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error(err)
+		}
+	}()
 	log.Info("Websocket connection established")
 	for {
 		msgType, message, err := wsConn.Load().ReadMessage()
@@ -427,6 +444,41 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
+}
+
+func (s *Server) increaseHttpConnCounter() {
+	s.connCounterMutex.Lock()
+	atomic.AddInt64(&s.httpConnCounter, 1)
+	s.logConnCounters()
+	s.connCounterMutex.Unlock()
+}
+
+func (s *Server) decreaseHttpConnCounter() {
+	s.connCounterMutex.Lock()
+	atomic.AddInt64(&s.httpConnCounter, -1)
+	s.logConnCounters()
+	s.connCounterMutex.Unlock()
+}
+
+func (s *Server) increaseWsConnCounter() {
+	s.connCounterMutex.Lock()
+	atomic.AddInt64(&s.wsConnCounter, 1)
+	s.logConnCounters()
+	s.connCounterMutex.Unlock()
+}
+
+func (s *Server) decreaseWsConnCounter() {
+	s.connCounterMutex.Lock()
+	atomic.AddInt64(&s.wsConnCounter, -1)
+	s.logConnCounters()
+	s.connCounterMutex.Unlock()
+}
+
+func (s *Server) logConnCounters() {
+	httpConnCounter := atomic.LoadInt64(&s.httpConnCounter)
+	wsConnCounter := atomic.LoadInt64(&s.wsConnCounter)
+	totalConnCounter := httpConnCounter + wsConnCounter
+	log.Debugf("[ HTTP conns: %v | WS conns: %v | Total conns: %v ]", httpConnCounter, wsConnCounter, totalConnCounter)
 }
 
 func handleInvalidRequest(w http.ResponseWriter, err error, code int) {

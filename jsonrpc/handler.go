@@ -73,18 +73,10 @@ func newJSONRpcHandler() *Handler {
 	return handler
 }
 
-var connectionCounter int64 = 0
-
 // Handle is the function that knows which and how a function should
 // be executed when a JSON RPC request is received
 func (h *Handler) Handle(req handleRequest) types.Response {
 	log := log.WithFields("method", req.Method, "requestId", req.ID)
-	atomic.AddInt64(&connectionCounter, 1)
-	defer func() {
-		atomic.AddInt64(&connectionCounter, -1)
-		log.Debugf("Current open connections %d", atomic.LoadInt64(&connectionCounter))
-	}()
-	log.Debugf("Current open connections %d", atomic.LoadInt64(&connectionCounter))
 	log.Debugf("request params %v", string(req.Params))
 
 	service, fd, err := h.getFnHandler(req.Request)
