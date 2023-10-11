@@ -13,7 +13,7 @@ Password = "state_password"
 Name = "state_db"
 Host = "localhost"
 Port = "5432"
-EnableLog = false	
+EnableLog = false
 MaxConns = 200
 
 [Executor]

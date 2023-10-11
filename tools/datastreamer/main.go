@@ -31,6 +31,13 @@ var (
 		Usage:    "Entry `NUMBER`",
 		Required: false,
 	}
+
+	l2blockFlag = cli.Uint64Flag{
+		Name:     "l2block",
+		Aliases:  []string{"b"},
+		Usage:    "L2Block `NUMBER`",
+		Required: false,
+	}
 )
 
 func main() {
@@ -40,6 +47,7 @@ func main() {
 	flags := []cli.Flag{
 		&configFileFlag,
 		&entryFlag,
+		&l2blockFlag,
 	}
 
 	app.Commands = []*cli.Command{
@@ -58,10 +66,17 @@ func main() {
 			Flags:   flags,
 		},
 		{
-			Name:    "decode",
+			Name:    "decode-entry",
 			Aliases: []string{},
 			Usage:   "Decodes an entry",
-			Action:  decode,
+			Action:  decodeEntry,
+			Flags:   flags,
+		},
+		{
+			Name:    "decode-l2block",
+			Aliases: []string{},
+			Usage:   "Decodes a l2 block",
+			Action:  decodeL2Block,
 			Flags:   flags,
 		},
 	}
@@ -104,11 +119,6 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 	}
 
 	streamServer.SetEntriesDef(entriesDefinition)
-	err = streamServer.Start()
-	if err != nil {
-		return nil, err
-	}
-
 	return &streamServer, nil
 }
 
@@ -146,6 +156,16 @@ func generate(cliCtx *cli.Context) error {
 		}
 
 		err = streamServer.StartAtomicOp()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		bookMark := state.DSBookMark{
+			Type:          state.BookMarkTypeL2Block,
+			L2BlockNumber: genesisL2Block.L2BlockNumber,
+		}
+
+		_, err = streamServer.AddStreamBookmark(bookMark.Encode())
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -189,14 +209,14 @@ func generate(cliCtx *cli.Context) error {
 
 		log.Infof("Latest entry: %+v", latestEntry)
 
-		switch latestEntry.EntryType {
+		switch latestEntry.Type {
 		case state.EntryTypeL2BlockStart:
 			log.Info("Latest entry type is L2BlockStart")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
 		case state.EntryTypeL2Tx:
 			log.Info("Latest entry type is L2Tx")
 
-			for latestEntry.EntryType == state.EntryTypeL2Tx {
+			for latestEntry.Type == state.EntryTypeL2Tx {
 				currentTxIndex++
 				latestEntry, err = streamServer.GetEntry(header.TotalEntries - currentTxIndex)
 				if err != nil {
@@ -204,7 +224,7 @@ func generate(cliCtx *cli.Context) error {
 				}
 			}
 
-			if latestEntry.EntryType != state.EntryTypeL2BlockStart {
+			if latestEntry.Type != state.EntryTypeL2BlockStart {
 				log.Fatal("Latest entry is not a L2BlockStart")
 			}
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
@@ -259,6 +279,16 @@ func generate(cliCtx *cli.Context) error {
 				GlobalExitRoot: l2block.GlobalExitRoot,
 				Coinbase:       l2block.Coinbase,
 				ForkID:         l2block.ForkID,
+			}
+
+			bookMark := state.DSBookMark{
+				Type:          state.BookMarkTypeL2Block,
+				L2BlockNumber: blockStart.L2BlockNumber,
+			}
+
+			_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+			if err != nil {
+				log.Fatal(err)
 			}
 
 			_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
@@ -438,7 +468,7 @@ func rebuild(cliCtx *cli.Context) error {
 	return nil
 }
 
-func decode(cliCtx *cli.Context) error {
+func decodeEntry(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		log.Fatal(err)
@@ -457,27 +487,92 @@ func decode(cliCtx *cli.Context) error {
 
 	log.Infof("Selected entry: %+v", entry)
 
-	switch entry.EntryType {
+	printEntry(entry)
+
+	return nil
+}
+
+func decodeL2Block(cliCtx *cli.Context) error {
+	c, err := config.Load(cliCtx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Infof("Loaded configuration: %+v", c)
+
+	streamServer, err := initializeStreamServer(c)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	l2BlockNumber := cliCtx.Uint64("l2block")
+
+	bookMark := state.DSBookMark{
+		Type:          state.BookMarkTypeL2Block,
+		L2BlockNumber: l2BlockNumber,
+	}
+
+	firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
+	if err != nil {
+		log.Fatal(err)
+	}
+	printEntry(firstEntry)
+
+	secondEntry, err := streamServer.GetEntry(firstEntry.Number + 1)
+	if err != nil {
+		log.Fatal(err)
+	}
+	printEntry(secondEntry)
+
+	if l2BlockNumber != 0 {
+		thirdEntry, err := streamServer.GetEntry(firstEntry.Number + 2) //nolint:gomnd
+		if err != nil {
+			log.Fatal(err)
+		}
+		printEntry(thirdEntry)
+	}
+
+	return nil
+}
+
+func printEntry(entry datastreamer.FileEntry) {
+	switch entry.Type {
+	case state.EntryTypeBookMark:
+		log.Infof("Entry %d: BookMark", entry.Number)
+		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[1:9])
+		log.Infof("L2 block number: %d", l2BlockNumber)
 	case state.EntryTypeL2BlockStart:
-		log.Info("Entry type is L2BlockStart")
+		log.Infof("Entry %d: L2BlockStart", entry.Number)
 		batchNumber := binary.LittleEndian.Uint64(entry.Data[0:8])
 		log.Infof("Batch number: %d", batchNumber)
 		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[8:16])
 		log.Infof("L2 block number: %d", l2BlockNumber)
+		timestamp := binary.LittleEndian.Uint64(entry.Data[16:24])
+		log.Infof("Timestamp: %d", timestamp)
+		globalExitRoot := "0x" + common.Bytes2Hex(entry.Data[24:56])
+		log.Infof("Global exit root: %s", globalExitRoot)
+		coinbase := "0x" + common.Bytes2Hex(entry.Data[56:76])
+		log.Infof("Coinbase: %s", coinbase)
+		forkID := binary.LittleEndian.Uint16(entry.Data[76:78])
+		log.Infof("Fork ID: %d", forkID)
 	case state.EntryTypeL2Tx:
-		log.Info("Entry type is L2Tx")
-		log.Infof("Data: %s", string(entry.Data[6:]))
-		tx, err := state.DecodeTx(string(entry.Data[6:]))
+		log.Infof("Entry %d: L2Tx", entry.Number)
+		effectiveGasPricePercentage := entry.Data[0]
+		log.Infof("Effective gas price percentage: %d", effectiveGasPricePercentage)
+		isValid := entry.Data[1] == 1
+		log.Infof("Is valid: %t", isValid)
+		encodeLength := binary.LittleEndian.Uint16(entry.Data[2:6])
+		log.Infof("Encode length: %d", encodeLength)
+		encode := entry.Data[6:]
+		log.Infof("Encode: %s", "0x"+common.Bytes2Hex(encode))
+		tx, err := state.DecodeTx(common.Bytes2Hex(encode))
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Infof("Transaction: %+v", tx)
+		log.Infof("Decoded: %+v", tx)
 	case state.EntryTypeL2BlockEnd:
-		log.Info("Entry type is L2BlockEnd")
+		log.Infof("Entry %d: L2BlockEnd", entry.Number)
 		log.Infof("L2 Block Number: %d", binary.LittleEndian.Uint64(entry.Data[0:8]))
 		log.Infof("Block Hash: %s", "0x"+common.Bytes2Hex(entry.Data[8:40]))
 		log.Infof("State root: %s", "0x"+common.Bytes2Hex(entry.Data[40:72]))
 	}
-
-	return nil
 }
