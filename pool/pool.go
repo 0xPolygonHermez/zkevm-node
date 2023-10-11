@@ -250,16 +250,14 @@ func (p *Pool) ValidateEffectiveGasPrice(ctx context.Context, tx types.Transacti
 		log.Errorf("error calculating break even gas price: %v", err)
 		return err
 	}
-	margin := big.NewInt(0)
-	margin.SetUint64(p.cfg.EffectiveGasPrice.MarginBreakEven)
+	margin := big.NewInt(0).SetUint64(p.cfg.EffectiveGasPrice.MarginBreakEven)
 	breakEvenGasPricePercentApplied := big.NewInt(0).Mul(breakEvenGasPrice, margin)
 	breakEvenGasPricePercentApplied = breakEvenGasPricePercentApplied.Div(breakEvenGasPricePercentApplied, big.NewInt(percentFactor))
-	log.Debugf("EGP breakEvenGasPrice: %v margin:%d breakEvenGasPricePercentApplied:%v L1GasPrice:%d tx.GasPrice():%v", breakEvenGasPrice,
-		p.cfg.EffectiveGasPrice.MarginBreakEven, breakEvenGasPricePercentApplied, gasPrices.L1GasPrice, tx.GasPrice())
+	log.Debugf("EGP breakEvenGasPrice: %v margin:%d breakEvenGasPricePercentApplied:%v L1GasPrice:%d L2GasPrice:%d tx.GasPrice():%v", breakEvenGasPrice,
+		p.cfg.EffectiveGasPrice.MarginBreakEven, breakEvenGasPricePercentApplied, gasPrices.L1GasPrice, gasPrices.L2GasPrice, tx.GasPrice())
 	if breakEvenGasPricePercentApplied.Cmp(tx.GasPrice()) == 1 { // breakEvenGasPricePercentApplied > tx.GasPrice()
 		// check against gasPrice now
-		L2GasPrice := big.NewInt(0)
-		L2GasPrice.SetUint64(gasPrices.L2GasPrice)
+		L2GasPrice := big.NewInt(0).SetUint64(gasPrices.L2GasPrice)
 		if tx.GasPrice().Cmp(L2GasPrice) == -1 { // tx.GasPrice() < gasPrices.L2GasPrice
 			// Reject transaction if EffetiveGasPrice is enabled
 			if p.cfg.EffectiveGasPrice.Enabled {
