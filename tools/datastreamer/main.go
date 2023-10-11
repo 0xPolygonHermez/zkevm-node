@@ -119,6 +119,12 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 	}
 
 	streamServer.SetEntriesDef(entriesDefinition)
+
+	err = streamServer.Start()
+	if err != nil {
+		return nil, err
+	}
+
 	return &streamServer, nil
 }
 
@@ -238,7 +244,7 @@ func generate(cliCtx *cli.Context) error {
 	log.Infof("Current transaction index: %d", currentTxIndex)
 	log.Infof("Current L2 block number: %d", currentL2Block)
 
-	var limit uint64 = 1000
+	var limit uint64 = 5000
 	var offset uint64 = currentL2Block
 	var entry uint64 = header.TotalEntries
 	var l2blocks []*state.DSL2Block
