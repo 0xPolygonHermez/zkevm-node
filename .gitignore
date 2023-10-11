@@ -12,8 +12,8 @@
 
 /tools/datastreamer/*.bin
 /test/datastreamer/*.db/*
-/test/datastream.bin
-/test/*.db/**/*
+/test/*.bin
+/test/*.db/*
 
 **/.DS_Store
 .vscode
