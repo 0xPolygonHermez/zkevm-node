@@ -1110,6 +1110,7 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 		data, err := json.Marshal(b)
 		if err != nil {
 			log.Errorf("failed to marshal block response to subscription: %v", err)
+			return
 		}
 		for _, filter := range blockFilters {
 			e.sendSubscriptionResponse(filter, data)
