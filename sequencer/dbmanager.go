@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
-	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -175,6 +174,17 @@ func (d *dbManager) sendDataToStreamer() {
 				continue
 			}
 
+			bookMark := state.DSBookMark{
+				Type:          state.BookMarkTypeL2Block,
+				L2BlockNumber: l2Block.L2BlockNumber,
+			}
+
+			_, err = d.streamServer.AddStreamBookmark(bookMark.Encode())
+			if err != nil {
+				log.Errorf("failed to add stream bookmark for l2block %v: %v", l2Block.L2BlockNumber, err)
+				continue
+			}
+
 			blockStart := state.DSL2BlockStart{
 				BatchNumber:    l2Block.BatchNumber,
 				L2BlockNumber:  l2Block.L2BlockNumber,
@@ -324,13 +334,12 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		if err != nil {
 			return err
 		}
-		encoded := hex.EncodeToHex(binaryTxData)
 
 		l2Transaction := state.DSL2Transaction{
 			EffectiveGasPricePercentage: uint8(tx.response.EffectivePercentage),
 			IsValid:                     1,
 			EncodedLength:               uint32(len(binaryTxData)),
-			Encoded:                     []byte(encoded),
+			Encoded:                     binaryTxData,
 		}
 
 		d.dataToStream <- state.DSL2FullBlock{

@@ -4,7 +4,7 @@ Port = 6901
 Filename = "datastream.bin"
     [StreamServer.Log]
     Environment = "development"
-    Level = "info"
+    Level = "debug"
     Outputs = ["stdout"]
 
 [StateDB]
@@ -13,7 +13,7 @@ Password = "state_password"
 Name = "state_db"
 Host = "localhost"
 Port = "5432"
-EnableLog = false	
+EnableLog = false
 MaxConns = 200
 
 [Executor]

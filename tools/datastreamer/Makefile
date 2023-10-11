@@ -6,6 +6,9 @@ check-go:
 
 # Targets that require the checks
 generate-file: check-go
+rebuild: check-go
+decode-entry: check-go
+adecode-l2block: check-go
 
 arguments := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 
@@ -13,11 +16,18 @@ arguments := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 generate-file: ## Runs the tool to populate the binary file
 	go run main.go generate -cfg config/tool.config.toml
 
-rebuild: ## Runs the tool to rebuild state roots from a given block
-	go run main.go rebuild -cfg config/tool.config.toml
+.PHONY: decode-l2block
+decode-l2block: ## Runs the tool to decode a given l2 block number
+	go run main.go decode-l2block -cfg config/tool.config.toml -l2block $(arguments)
 
+.PHONY: decode-entry
 decode-entry: ## Runs the tool to decode a given entry number
-	go run main.go decode -cfg config/tool.config.toml -entry $(arguments)
+	go run main.go decode-entry -cfg config/tool.config.toml -entry $(arguments)
+
+.PHONY: rebuild
+rebuild: ## Runs the tool to rebuild state roots from a given block
+	go run main.go rebuild -cfg config/tool.config.toml -l2block $(arguments)
+
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
