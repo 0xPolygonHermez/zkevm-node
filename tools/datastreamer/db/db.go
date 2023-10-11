@@ -149,7 +149,17 @@ func scanL2Transaction(row pgx.Row) (*state.DSL2Transaction, error) {
 	); err != nil {
 		return nil, err
 	}
-	l2Transaction.Encoded = common.Hex2Bytes(string(encoded))
+	tx, err := state.DecodeTx(string(encoded))
+	if err != nil {
+		return nil, err
+	}
+
+	binaryTxData, err := tx.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	l2Transaction.Encoded = binaryTxData
 	l2Transaction.EncodedLength = uint32(len(l2Transaction.Encoded))
 	l2Transaction.IsValid = 1
 	return &l2Transaction, nil
