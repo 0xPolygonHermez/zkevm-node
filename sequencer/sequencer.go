@@ -241,20 +241,20 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 
 		log.Infof("Latest entry: %+v", latestEntry)
 
-		switch latestEntry.EntryType {
+		switch latestEntry.Type {
 		case state.EntryTypeL2BlockStart:
 			log.Info("Latest entry type is L2BlockStart")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
 		case state.EntryTypeL2Tx:
 			log.Info("Latest entry type is L2Tx")
-			for latestEntry.EntryType == state.EntryTypeL2Tx {
+			for latestEntry.Type == state.EntryTypeL2Tx {
 				currentTxIndex++
 				latestEntry, err = streamServer.GetEntry(header.TotalEntries - currentTxIndex)
 				if err != nil {
 					log.Fatal(err)
 				}
 			}
-			if latestEntry.EntryType != state.EntryTypeL2BlockStart {
+			if latestEntry.Type != state.EntryTypeL2BlockStart {
 				log.Fatal("Latest entry is not a L2BlockStart")
 			}
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])

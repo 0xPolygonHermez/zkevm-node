@@ -214,14 +214,14 @@ func generate(cliCtx *cli.Context) error {
 
 		log.Infof("Latest entry: %+v", latestEntry)
 
-		switch latestEntry.EntryType {
+		switch latestEntry.Type {
 		case state.EntryTypeL2BlockStart:
 			log.Info("Latest entry type is L2BlockStart")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
 		case state.EntryTypeL2Tx:
 			log.Info("Latest entry type is L2Tx")
 
-			for latestEntry.EntryType == state.EntryTypeL2Tx {
+			for latestEntry.Type == state.EntryTypeL2Tx {
 				currentTxIndex++
 				latestEntry, err = streamServer.GetEntry(header.TotalEntries - currentTxIndex)
 				if err != nil {
@@ -229,7 +229,7 @@ func generate(cliCtx *cli.Context) error {
 				}
 			}
 
-			if latestEntry.EntryType != state.EntryTypeL2BlockStart {
+			if latestEntry.Type != state.EntryTypeL2BlockStart {
 				log.Fatal("Latest entry is not a L2BlockStart")
 			}
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
@@ -519,12 +519,12 @@ func decodeL2Block(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	txEntry, err := streamServer.GetEntry(startEntry.EntryNum + 1)
+	txEntry, err := streamServer.GetEntry(startEntry.Number + 1)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	endEntry, err := streamServer.GetEntry(startEntry.EntryNum + 2)
+	endEntry, err := streamServer.GetEntry(startEntry.Number + 2) //nolint:gomnd
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -537,9 +537,9 @@ func decodeL2Block(cliCtx *cli.Context) error {
 }
 
 func printEntry(entry datastreamer.FileEntry) {
-	switch entry.EntryType {
+	switch entry.Type {
 	case state.EntryTypeL2BlockStart:
-		log.Infof("Entry %d: L2BlockStart", entry.EntryNum)
+		log.Infof("Entry %d: L2BlockStart", entry.Number)
 		batchNumber := binary.LittleEndian.Uint64(entry.Data[0:8])
 		log.Infof("Batch number: %d", batchNumber)
 		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[8:16])
@@ -553,7 +553,7 @@ func printEntry(entry datastreamer.FileEntry) {
 		forkID := binary.LittleEndian.Uint16(entry.Data[76:78])
 		log.Infof("Fork ID: %d", forkID)
 	case state.EntryTypeL2Tx:
-		log.Infof("Entry %d: L2Tx", entry.EntryNum)
+		log.Infof("Entry %d: L2Tx", entry.Number)
 		effectiveGasPricePercentage := entry.Data[0]
 		log.Infof("Effective gas price percentage: %d", effectiveGasPricePercentage)
 		isValid := entry.Data[1] == 1
@@ -568,7 +568,7 @@ func printEntry(entry datastreamer.FileEntry) {
 		}
 		log.Infof("Decoded: %+v", tx)
 	case state.EntryTypeL2BlockEnd:
-		log.Infof("Entry %d: L2BlockEnd", entry.EntryNum)
+		log.Infof("Entry %d: L2BlockEnd", entry.Number)
 		log.Infof("L2 Block Number: %d", binary.LittleEndian.Uint64(entry.Data[0:8]))
 		log.Infof("Block Hash: %s", "0x"+common.Bytes2Hex(entry.Data[8:40]))
 		log.Infof("State root: %s", "0x"+common.Bytes2Hex(entry.Data[40:72]))
