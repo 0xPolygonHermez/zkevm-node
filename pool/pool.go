@@ -253,8 +253,10 @@ func (p *Pool) ValidateEffectiveGasPrice(ctx context.Context, tx types.Transacti
 	margin := big.NewInt(0).SetUint64(p.cfg.EffectiveGasPrice.MarginBreakEven)
 	breakEvenGasPricePercentApplied := big.NewInt(0).Mul(breakEvenGasPrice, margin)
 	breakEvenGasPricePercentApplied = breakEvenGasPricePercentApplied.Div(breakEvenGasPricePercentApplied, big.NewInt(percentFactor))
-	log.Debugf("EGP breakEvenGasPrice: %v margin:%d breakEvenGasPricePercentApplied:%v L1GasPrice:%d L2GasPrice:%d tx.GasPrice():%v", breakEvenGasPrice,
-		p.cfg.EffectiveGasPrice.MarginBreakEven, breakEvenGasPricePercentApplied, gasPrices.L1GasPrice, gasPrices.L2GasPrice, tx.GasPrice())
+	log.Infof("EGP breakEvenGasPrice: tx:%s breakEvenGasPrice:%v margin:%d breakEvenGasPricePercentApplied:%v L1GasPrice:%d L2GasPrice:%d tx.GasPrice():%v EGPenabled:%t",
+		tx.Hash().String(), breakEvenGasPrice,
+		p.cfg.EffectiveGasPrice.MarginBreakEven, breakEvenGasPricePercentApplied, gasPrices.L1GasPrice, gasPrices.L2GasPrice, tx.GasPrice(),
+		p.cfg.EffectiveGasPrice.Enabled)
 	if breakEvenGasPricePercentApplied.Cmp(tx.GasPrice()) == 1 { // breakEvenGasPricePercentApplied > tx.GasPrice()
 		// check against gasPrice now
 		L2GasPrice := big.NewInt(0).SetUint64(gasPrices.L2GasPrice)
@@ -262,17 +264,17 @@ func (p *Pool) ValidateEffectiveGasPrice(ctx context.Context, tx types.Transacti
 			// Reject transaction if EffetiveGasPrice is enabled
 			if p.cfg.EffectiveGasPrice.Enabled {
 				// reject
-				log.Debug("EGP Reject tx with gasPrice lower than L2GasPrice")
+				log.Debugf("EGP tx:%s Reject tx with gasPrice lower than L2GasPrice", tx.Hash().String())
 				return ErrEffectiveGasPriceGasPriceTooLow
 			}
-			log.Debug("EGP Accepted tx with gasPrice lower than L2GasPrice but EGP is disabled")
+			log.Debug("EGP tx:%s Accepted tx with gasPrice lower than L2GasPrice but EGP is disabled", tx.Hash().String())
 		} else {
 			// accept
-			log.Debugf("EGP Accepted tx with loss because gasPrice in tx (%v) >= current L2GasPrice (%v)", tx.GasPrice(), L2GasPrice)
+			log.Debugf("EGP tx:%s Accepted tx with loss because gasPrice in tx (%v) >= current L2GasPrice (%v)", tx.Hash().String(), tx.GasPrice(), L2GasPrice)
 		}
 		loss := big.NewInt(0).Set(breakEvenGasPrice)
 		loss = loss.Sub(loss, tx.GasPrice())
-		log.Warnf("EGP Accepted tx with loss of  %s (breakEven=%s - txGas=%s)", loss.String(), breakEvenGasPrice.String(), tx.GasPrice().String())
+		log.Warnf("EGP tx:%s Accepted tx with loss of  %s (breakEven=%s - txGas=%s)", tx.Hash().String(), loss.String(), breakEvenGasPrice.String(), tx.GasPrice().String())
 	}
 	return nil
 }
