@@ -116,7 +116,7 @@ func scanL2Block(row pgx.Row) (*state.DSL2Block, error) {
 
 // GetL2Transactions returns the L2 transactions
 func (db *StateDB) GetL2Transactions(ctx context.Context, minL2Block, maxL2Block uint64) ([]*state.DSL2Transaction, error) {
-	const l2TxSQL = `SELECT t.effective_percentage, LENGTH(t.encoded), t.encoded
+	const l2TxSQL = `SELECT t.effective_percentage, t.encoded
 					 FROM state.transaction t
 					 WHERE l2_block_num BETWEEN $1 AND $2
 					 ORDER BY t.l2_block_num ASC`
@@ -142,13 +142,15 @@ func (db *StateDB) GetL2Transactions(ctx context.Context, minL2Block, maxL2Block
 
 func scanL2Transaction(row pgx.Row) (*state.DSL2Transaction, error) {
 	l2Transaction := state.DSL2Transaction{}
+	encoded := []byte{}
 	if err := row.Scan(
 		&l2Transaction.EffectiveGasPricePercentage,
-		&l2Transaction.EncodedLength,
-		&l2Transaction.Encoded,
+		&encoded,
 	); err != nil {
-		return &l2Transaction, err
+		return nil, err
 	}
+	l2Transaction.Encoded = common.Hex2Bytes(string(encoded))
+	l2Transaction.EncodedLength = uint32(len(l2Transaction.Encoded))
 	l2Transaction.IsValid = 1
 	return &l2Transaction, nil
 }

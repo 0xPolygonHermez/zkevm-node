@@ -202,6 +202,16 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 			log.Fatal(err)
 		}
 
+		bookMark := state.DSBookMark{
+			Type:          state.BookMarkTypeL2Block,
+			L2BlockNumber: genesisL2Block.L2BlockNumber,
+		}
+
+		_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		genesisBlock := state.DSL2BlockStart{
 			BatchNumber:    genesisL2Block.BatchNumber,
 			L2BlockNumber:  genesisL2Block.L2BlockNumber,
@@ -241,20 +251,20 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 
 		log.Infof("Latest entry: %+v", latestEntry)
 
-		switch latestEntry.EntryType {
+		switch latestEntry.Type {
 		case state.EntryTypeL2BlockStart:
 			log.Info("Latest entry type is L2BlockStart")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
 		case state.EntryTypeL2Tx:
 			log.Info("Latest entry type is L2Tx")
-			for latestEntry.EntryType == state.EntryTypeL2Tx {
+			for latestEntry.Type == state.EntryTypeL2Tx {
 				currentTxIndex++
 				latestEntry, err = streamServer.GetEntry(header.TotalEntries - currentTxIndex)
 				if err != nil {
 					log.Fatal(err)
 				}
 			}
-			if latestEntry.EntryType != state.EntryTypeL2BlockStart {
+			if latestEntry.Type != state.EntryTypeL2BlockStart {
 				log.Fatal("Latest entry is not a L2BlockStart")
 			}
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
@@ -299,6 +309,16 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 			if currentTxIndex > 0 {
 				x += int(currentTxIndex)
 				currentTxIndex = 0
+			}
+
+			bookMark := state.DSBookMark{
+				Type:          state.BookMarkTypeL2Block,
+				L2BlockNumber: l2block.L2BlockNumber,
+			}
+
+			_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+			if err != nil {
+				log.Fatal(err)
 			}
 
 			blockStart := state.DSL2BlockStart{
