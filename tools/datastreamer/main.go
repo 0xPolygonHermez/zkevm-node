@@ -487,8 +487,6 @@ func decodeEntry(cliCtx *cli.Context) error {
 
 	log.Infof("Selected entry: %+v", entry)
 
-	streamServer.BookmarkPrintDump()
-
 	printEntry(entry)
 
 	return nil

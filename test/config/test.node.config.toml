@@ -133,10 +133,10 @@ DefaultGasPriceWei = 1000000000
 MaxGasPriceWei = 0
 
 [MTClient]
-URI  = "toni-prover:50061"
+URI  = "zkevm-prover:50061"
 
 [Executor]
-URI = "toni-prover:50071"
+URI = "zkevm-prover:50071"
 MaxGRPCMessageSize = 100000000
 
 [Metrics]
