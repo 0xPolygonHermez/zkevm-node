@@ -136,35 +136,50 @@ func Test_AddTxEGPAceptedBecauseGasPriceIsTheSuggested(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_EGPRejectTransactionIfBelowBreakEvenAndBelowCurrentEstimatedL2GasPirce(t *testing.T) {
-	data := prepareToExecuteTx(t, chainID.Uint64())
-	dataLen := cfg.MaxTxDataBytesSize - 20
-	gasPriceTx := big.NewInt(1000000000)
-	signedTx := createSignedTx(t, dataLen, gasPriceTx, uint64(21000)+uint64(16)*uint64(dataLen))
-
-	preExecutionGasUsed := uint64(21000) * 2000
-	gp := pool.GasPrices{
-		L1GasPrice: uint64(1000000000000),
-		L2GasPrice: uint64(1000000000 + 1),
+func Test_EGPValidateEffectiveGasPrice(t *testing.T) {
+	tests := []struct {
+		name                string
+		egpEnabled          bool
+		gasPriceTx          *big.Int
+		preExecutionGasUsed uint64
+		gasPrices           pool.GasPrices
+		expectedError       error
+	}{
+		{
+			name:                "Reject transaction if below break-even and below current estimated L2 gas price",
+			egpEnabled:          true,
+			gasPriceTx:          big.NewInt(1000000000),
+			preExecutionGasUsed: uint64(21000) * 2000,
+			gasPrices: pool.GasPrices{
+				L1GasPrice: uint64(1000000000000),
+				L2GasPrice: uint64(1000000000 + 1),
+			},
+			expectedError: pool.ErrEffectiveGasPriceGasPriceTooLow,
+		},
+		{
+			name:                "Accept transaction if below break-even and below current estimated L2 gas price if EGP is disabled",
+			egpEnabled:          false,
+			gasPriceTx:          big.NewInt(1000000000),
+			preExecutionGasUsed: uint64(21000) * 2000,
+			gasPrices: pool.GasPrices{
+				L1GasPrice: uint64(1000000000000),
+				L2GasPrice: uint64(1000000000 + 1),
+			},
+			expectedError: nil,
+		},
 	}
-	err := data.pool.ValidateEffectiveGasPrice(context.Background(), *signedTx, preExecutionGasUsed, gp)
-	require.ErrorIs(t, err, pool.ErrEffectiveGasPriceGasPriceTooLow)
-}
 
-func Test_EGPAcceptTransactionIfBelowBreakEvenAndBelowCurrentEstimatedL2GasPirceIfEGPIsDisabled(t *testing.T) {
-	cfg.EffectiveGasPrice.Enabled = false
-	data := prepareToExecuteTx(t, chainID.Uint64())
-	dataLen := cfg.MaxTxDataBytesSize - 20
-	gasPriceTx := big.NewInt(1000000000)
-	signedTx := createSignedTx(t, dataLen, gasPriceTx, uint64(21000)+uint64(16)*uint64(dataLen))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg.EffectiveGasPrice.Enabled = tt.egpEnabled
+			data := prepareToExecuteTx(t, chainID.Uint64())
+			dataLen := cfg.MaxTxDataBytesSize - 20
+			signedTx := createSignedTx(t, dataLen, tt.gasPriceTx, uint64(21000)+uint64(16)*uint64(dataLen))
 
-	preExecutionGasUsed := uint64(21000) * 2000
-	gp := pool.GasPrices{
-		L1GasPrice: uint64(1000000000000),
-		L2GasPrice: uint64(1000000000 + 1),
+			err := data.pool.ValidateEffectiveGasPrice(context.Background(), *signedTx, tt.preExecutionGasUsed, tt.gasPrices)
+			require.ErrorIs(t, err, tt.expectedError)
+		})
 	}
-	err := data.pool.ValidateEffectiveGasPrice(context.Background(), *signedTx, preExecutionGasUsed, gp)
-	require.NoError(t, err)
 }
 
 func Test_AddTx(t *testing.T) {
