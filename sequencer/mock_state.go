@@ -926,25 +926,25 @@ func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint
 	return r0, r1
 }
 
-// StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, dbTx
-func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) (*types.Header, error) {
-	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+// StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx
+func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*types.Header, error) {
+	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 
 	var r0 *types.Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) (*types.Header, error)); ok {
-		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) (*types.Header, error)); ok {
+		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) *types.Header); ok {
-		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) *types.Header); ok {
+		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*types.Header)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

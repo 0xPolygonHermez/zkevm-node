@@ -460,7 +460,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 
 	if len(processedBatch.Responses) > 0 {
 		// Store processed txs into the batch
-		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
+		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, nil, dbTx)
 		if err != nil {
 			return common.Hash{}, noFlushID, noProverID, err
 		}

@@ -113,7 +113,7 @@ var (
 	decodedBatchL2Data      []byte
 	done                    chan bool
 	gasPrice                = big.NewInt(1000000)
-	breakEvenGasPrice       = big.NewInt(1000000)
+	effectiveGasPrice       = big.NewInt(1000000)
 	l1GasPrice              = uint64(1000000)
 )
 
@@ -146,12 +146,12 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 	f = setupFinalizer(true)
 	ctx = context.Background()
 	txTracker := &TxTracker{
-		Hash:                   txHash,
-		From:                   senderAddr,
-		Nonce:                  1,
-		GasPrice:               gasPrice,
-		EffectiveGasPriceFinal: breakEvenGasPrice,
-		L1GasPrice:             l1GasPrice,
+		Hash:              txHash,
+		From:              senderAddr,
+		Nonce:             1,
+		GasPrice:          gasPrice,
+		EffectiveGasPrice: effectiveGasPrice,
+		L1GasPrice:        l1GasPrice,
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
 			ZKCounters: state.ZKCounters{
@@ -337,7 +337,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				<-done                              // wait for the goroutine to finish
 				f.pendingTransactionsToStoreWG.Wait()
 				require.Len(t, storedTxs, 1)
-				actualTx := storedTxs[0]
+				actualTx := storedTxs[0] //nolint:gosec
 				assertEqualTransactionToStore(t, tc.expectedStoredTx, actualTx)
 			} else {
 				require.Empty(t, storedTxs)
@@ -1455,12 +1455,12 @@ func Test_processTransaction(t *testing.T) {
 	f = setupFinalizer(true)
 	gasUsed := uint64(100000)
 	txTracker := &TxTracker{
-		Hash:                   txHash,
-		From:                   senderAddr,
-		Nonce:                  nonce1,
-		EffectiveGasPriceFinal: breakEvenGasPrice,
-		GasPrice:               breakEvenGasPrice,
-		L1GasPrice:             l1GasPrice,
+		Hash:              txHash,
+		From:              senderAddr,
+		Nonce:             nonce1,
+		GasPrice:          effectiveGasPrice,
+		EffectiveGasPrice: effectiveGasPrice,
+		L1GasPrice:        l1GasPrice,
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
 			ZKCounters: state.ZKCounters{
@@ -1578,7 +1578,7 @@ func Test_processTransaction(t *testing.T) {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
 			}
 
-			errWg, err := f.processTransaction(tc.ctx, tc.tx)
+			errWg, err := f.processTransaction(tc.ctx, tc.tx, false)
 
 			if tc.expectedStoredTx.batchResponse != nil {
 				close(f.pendingTransactionsToStore) // ensure the channel is closed

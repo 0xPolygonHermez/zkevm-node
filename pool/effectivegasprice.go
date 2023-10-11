@@ -77,8 +77,8 @@ func (e *EffectiveGasPrice) CalculateBreakEvenGasPrice(rawTx []byte, txGasPrice 
 	return breakEvenGasPrice, nil
 }
 
-// CalculateEffectiveGasPriceFinal calculates the final effective gas price for a tx
-func (e *EffectiveGasPrice) CalculateEffectiveGasPriceFinal(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error) {
+// CalculateEffectiveGasPrice calculates the final effective gas price for a tx
+func (e *EffectiveGasPrice) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error) {
 	breakEvenGasPrice, err := e.CalculateBreakEvenGasPrice(rawTx, txGasPrice, txGasUsed, l1GasPrice)
 
 	if err != nil {
@@ -95,12 +95,12 @@ func (e *EffectiveGasPrice) CalculateEffectiveGasPriceFinal(rawTx []byte, txGasP
 		ratioPriority = new(big.Float).Quo(bfTxGasPrice, bfL2GasPrice)
 	}
 
-	bfEffectiveGasPriceFinal := new(big.Float).Mul(new(big.Float).SetInt(breakEvenGasPrice), ratioPriority)
+	bfEffectiveGasPrice := new(big.Float).Mul(new(big.Float).SetInt(breakEvenGasPrice), ratioPriority)
 
-	effectiveGasPriceFinal := new(big.Int)
-	bfEffectiveGasPriceFinal.Int(effectiveGasPriceFinal)
+	effectiveGasPrice := new(big.Int)
+	bfEffectiveGasPrice.Int(effectiveGasPrice)
 
-	return effectiveGasPriceFinal, nil
+	return effectiveGasPrice, nil
 }
 
 // CalculateEffectiveGasPricePercentage calculates the gas price's effective percentage

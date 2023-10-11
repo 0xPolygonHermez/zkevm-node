@@ -248,7 +248,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	require.NoError(t, err)
 	receipt1.BatchL2Data = data
 
-	err = testState.StoreTransactions(ctx, 1, txsBatch1, dbTx)
+	err = testState.StoreTransactions(ctx, 1, txsBatch1, nil, dbTx)
 	require.NoError(t, err)
 	// Close batch #1
 	err = testState.CloseBatch(ctx, receipt1, dbTx)
@@ -641,7 +641,7 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 			Tx:     tx2,
 		},
 	}
-	err = testState.StoreTransactions(ctx, 1, txsBatch1, dbTx)
+	err = testState.StoreTransactions(ctx, 1, txsBatch1, nil, dbTx)
 	require.NoError(t, err)
 
 	txs, err := testState.GetTxsHashesByBatchNumber(ctx, 1, dbTx)
@@ -889,7 +889,12 @@ func TestExecutorRevert(t *testing.T) {
 
 	receipt.BlockHash = l2Block.Hash()
 
-	err = testState.AddL2Block(ctx, 0, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+	storeTxsEGPData := []state.StoreTxEGPData{}
+	for range transactions {
+		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+	}
+
+	err = testState.AddL2Block(ctx, 0, l2Block, receipts, storeTxsEGPData, dbTx)
 	require.NoError(t, err)
 	l2Block, err = testState.GetL2BlockByHash(ctx, l2Block.Hash(), dbTx)
 	require.NoError(t, err)
@@ -1641,7 +1646,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
 
 	// Add txs to DB
-	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, dbTx)
+	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, nil, dbTx)
 	require.NoError(t, err)
 	// Close batch
 	err = testState.CloseBatch(
@@ -1733,7 +1738,12 @@ func TestAddGetL2Block(t *testing.T) {
 
 	receipt.BlockHash = l2Block.Hash()
 
-	err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+	storeTxsEGPData := []state.StoreTxEGPData{}
+	for range transactions {
+		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+	}
+
+	err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 	require.NoError(t, err)
 	result, err := testState.GetL2BlockByHash(ctx, l2Block.Hash(), dbTx)
 	require.NoError(t, err)
@@ -2069,7 +2079,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	err = testState.OpenBatch(ctx, processingContext, dbTx)
 	require.NoError(t, err)
 
-	err = testState.StoreTransactions(ctx, processBatchRequest.OldBatchNum+1, convertedResponse.Responses, dbTx)
+	err = testState.StoreTransactions(ctx, processBatchRequest.OldBatchNum+1, convertedResponse.Responses, nil, dbTx)
 	require.NoError(t, err)
 
 	processingReceipt := state.ProcessingReceipt{
@@ -2446,7 +2456,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	err = testState.OpenBatch(ctx, processingContext, dbTx)
 	require.NoError(t, err)
 
-	err = testState.StoreTransactions(ctx, processBatchRequest.OldBatchNum+1, convertedResponse.Responses, dbTx)
+	err = testState.StoreTransactions(ctx, processBatchRequest.OldBatchNum+1, convertedResponse.Responses, nil, dbTx)
 	require.NoError(t, err)
 
 	processingReceipt := state.ProcessingReceipt{
@@ -2700,7 +2710,7 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	assert.Nil(t, processBatchResponse.Responses[3].RomError)
 
 	// Add txs to DB
-	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, dbTx)
+	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, nil, dbTx)
 	require.NoError(t, err)
 	// Close batch
 	err = testState.CloseBatch(

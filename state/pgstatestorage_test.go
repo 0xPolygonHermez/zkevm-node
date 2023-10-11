@@ -86,7 +86,12 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
 	receipt.BlockHash = l2Block.Hash()
 
-	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+	storeTxsEGPData := []state.StoreTxEGPData{}
+	for range transactions {
+		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+	}
+
+	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 	require.NoError(t, err)
 	result, err := pgStateStorage.BatchNumberByL2BlockNumber(ctx, l2Block.Number().Uint64(), dbTx)
 	require.NoError(t, err)
@@ -566,7 +571,13 @@ func TestGetSafeL2BlockNumber(t *testing.T) {
 
 		// add l2 block
 		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(int64(i + 10))})
-		err = testState.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, uint8(0), dbTx)
+
+		storeTxsEGPData := []state.StoreTxEGPData{}
+		for range l2Block.Transactions() {
+			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(0)})
+		}
+
+		err = testState.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 
 		// virtualize batch
@@ -620,7 +631,13 @@ func TestGetFinalizedL2BlockNumber(t *testing.T) {
 
 		// add l2 block
 		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(int64(i + 10))})
-		err = testState.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, uint8(0), dbTx)
+
+		storeTxsEGPData := []state.StoreTxEGPData{}
+		for range l2Block.Transactions() {
+			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(0)})
+		}
+
+		err = testState.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 
 		// virtualize batch
@@ -781,7 +798,12 @@ func TestGetLogs(t *testing.T) {
 			receipt.BlockHash = l2Block.Hash()
 		}
 
-		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+		storeTxsEGPData := []state.StoreTxEGPData{}
+		for range transactions {
+			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+		}
+
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 	}
 

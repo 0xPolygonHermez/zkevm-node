@@ -80,6 +80,27 @@ type ProcessTransactionResponse struct {
 	EffectivePercentage uint32
 }
 
+// EffectiveGasPriceLog contains all the data needed to calculate the effective gas price for logging purposes
+type EffectiveGasPriceLog struct {
+	FinalValue     *big.Int
+	FirstValue     *big.Int
+	SecondValue    *big.Int
+	GasUsedInitial uint64
+	GasUsedFinal   uint64
+	GasPrice       *big.Int
+	Reprocess      bool
+	GasOpCode      bool
+	BalanceOpCode  bool
+	L1GasPrice     uint64
+	L2GasPrice     uint64
+}
+
+// StoreTxEGPData contains the data related to the effective gas price that needs to be stored when storing a tx
+type StoreTxEGPData struct {
+	EGPLog              *EffectiveGasPriceLog
+	EffectivePercentage uint8
+}
+
 // ZKCounters counters for the tx
 type ZKCounters struct {
 	CumulativeGasUsed    uint64
