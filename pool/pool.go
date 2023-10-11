@@ -18,6 +18,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+const percentFactor = 100
+
 var (
 	// ErrNotFound indicates an object has not been found for the search criteria used
 	ErrNotFound = errors.New("object not found")
@@ -29,6 +31,9 @@ var (
 	// ErrReplaceUnderpriced is returned if a transaction is attempted to be replaced
 	// with a different one without the required price bump.
 	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
+
+	// ErrEffectiveGasPriceGasPriceTooLow the tx gas price is lower than breakEvenGasPrice and lower than L2GasPrice
+	ErrEffectiveGasPriceGasPriceTooLow = errors.New("effective gas price: gas price too low")
 )
 
 // Pool is an implementation of the Pool interface
@@ -223,10 +228,55 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		}
 	}
 
+	gasPrices, err := p.GetGasPrices(ctx)
+	if err != nil {
+		log.Error("failed to load gas prices")
+	}
+	err = p.ValidateEffectiveGasPrice(ctx, tx, preExecutionResponse.txResponse.GasUsed, gasPrices)
+	if err != nil {
+		return err
+	}
+
 	poolTx := NewTransaction(tx, ip, isWIP)
 	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, *poolTx)
+}
+
+// ValidateEffectiveGasPrice validates the effective gas price
+func (p *Pool) ValidateEffectiveGasPrice(ctx context.Context, tx types.Transaction, preExecutionGasUsed uint64, gasPrices GasPrices) error {
+	breakEvenGasPrice, err := p.effectiveGasPrice.CalculateBreakEvenGasPrice(tx.Data(), tx.GasPrice(), preExecutionGasUsed, gasPrices.L1GasPrice)
+	if err != nil {
+		log.Errorf("error calculating break even gas price: %v", err)
+		return err
+	}
+	margin := big.NewInt(0)
+	margin.SetUint64(p.cfg.EffectiveGasPrice.MarginBreakEven)
+	breakEvenGasPricePercentApplied := big.NewInt(0).Mul(breakEvenGasPrice, margin)
+	breakEvenGasPricePercentApplied = breakEvenGasPricePercentApplied.Div(breakEvenGasPricePercentApplied, big.NewInt(percentFactor))
+	log.Debugf("EGP breakEvenGasPrice: %v margin:%d breakEvenGasPricePercentApplied:%v L1GasPrice:%d tx.GasPrice():%v", breakEvenGasPrice,
+		p.cfg.EffectiveGasPrice.MarginBreakEven, breakEvenGasPricePercentApplied, gasPrices.L1GasPrice, tx.GasPrice())
+	if breakEvenGasPricePercentApplied.Cmp(tx.GasPrice()) == 1 { // breakEvenGasPricePercentApplied > tx.GasPrice()
+		// check against gasPrice now
+		L2GasPrice := big.NewInt(0)
+		L2GasPrice.SetUint64(gasPrices.L2GasPrice)
+		if tx.GasPrice().Cmp(L2GasPrice) == -1 { // tx.GasPrice() < gasPrices.L2GasPrice
+			// Reject transaction if EffetiveGasPrice is enabled
+			if p.cfg.EffectiveGasPrice.Enabled {
+				// reject
+				log.Debug("EGP Reject tx with gasPrice lower than L2GasPrice")
+				return ErrEffectiveGasPriceGasPriceTooLow
+			}
+			log.Debug("EGP Accepted tx with gasPrice lower than L2GasPrice but EGP is disabled")
+		} else {
+			// accept
+			log.Debugf("EGP Accepted tx with loss because gasPrice in tx (%v) >= current L2GasPrice (%v)", tx.GasPrice(), L2GasPrice)
+		}
+		loss := big.NewInt(0).Set(breakEvenGasPrice)
+		loss = loss.Sub(loss, tx.GasPrice())
+		log.Warnf("EGP Accepted tx with loss of  %s (breakEven=%s - txGas=%s)", loss.String(), breakEvenGasPrice.String(), tx.GasPrice().String())
+	}
+	return nil
 }
 
 // preExecuteTx executes a transaction to calculate its zkCounters
@@ -420,6 +470,9 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// Reject transactions with a gas price lower than the minimum gas price
 	p.minSuggestedGasPriceMux.RLock()
 	gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
+	if gasPriceCmp == -1 {
+		log.Debugf("low gas price: minSuggestedGasPrice %v got %v", p.minSuggestedGasPrice, poolTx.GasPrice())
+	}
 	p.minSuggestedGasPriceMux.RUnlock()
 	if gasPriceCmp == -1 {
 		return ErrGasPrice

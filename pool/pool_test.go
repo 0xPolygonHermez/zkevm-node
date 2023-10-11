@@ -65,8 +65,17 @@ var (
 		IntervalToRefreshGasPrices:        cfgTypes.NewDuration(5 * time.Second),
 		AccountQueue:                      15,
 		GlobalQueue:                       20,
+		EffectiveGasPrice: pool.EffectiveGasPriceCfg{
+			Enabled:          true,
+			L1GasPriceFactor: 0.25,
+			ByteGasCost:      16,
+			ZeroByteGasCost:  4,
+			NetProfit:        1,
+			MarginBreakEven:  10,
+			FinalDeviation:   10,
+		},
 	}
-	gasPrice   = big.NewInt(1000000000)
+	gasPrice   = big.NewInt(1000000000 - 1)
 	l1GasPrice = big.NewInt(1000000000000)
 	gasLimit   = uint64(21000)
 	chainID    = big.NewInt(1337)
@@ -93,6 +102,69 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 	os.Exit(code)
+}
+
+type testData struct {
+	pool *pool.Pool
+	st   *state.State
+
+	stateSqlDB *pgxpool.Pool
+	poolSqlDB  *pgxpool.Pool
+}
+
+func Test_AddTxEGPAceptedBecauseGasPriceIsTheSuggested(t *testing.T) {
+	ctx := context.Background()
+
+	gasPrice = big.NewInt(1234)
+	data := prepareToExecuteTx(t, chainID.Uint64())
+	defer data.stateSqlDB.Close() //nolint:gosec,errcheck
+	defer data.poolSqlDB.Close()  //nolint:gosec,errcheck
+
+	b := make([]byte, cfg.MaxTxDataBytesSize-20)
+	to := common.HexToAddress(senderAddress)
+	gasPrice := big.NewInt(1000000000 - 1)
+	gasLimitForThisTx := uint64(21000) + uint64(16)*uint64(len(b))
+	tx := ethTypes.NewTransaction(0, to, big.NewInt(0), gasLimitForThisTx, gasPrice, b)
+
+	// GetAuth configures and returns an auth object.
+	auth, err := operations.GetAuth(senderPrivateKey, chainID.Uint64())
+	require.NoError(t, err)
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = data.pool.AddTx(ctx, *signedTx, ip)
+	require.NoError(t, err)
+}
+
+func Test_EGPRejectTransactionIfBelowBreakEvenAndBelowCurrentEstimatedL2GasPirce(t *testing.T) {
+	data := prepareToExecuteTx(t, chainID.Uint64())
+	dataLen := cfg.MaxTxDataBytesSize - 20
+	gasPriceTx := big.NewInt(1000000000)
+	signedTx := createSignedTx(t, dataLen, gasPriceTx, uint64(21000)+uint64(16)*uint64(dataLen))
+
+	preExecutionGasUsed := uint64(21000) * 2000
+	gp := pool.GasPrices{
+		L1GasPrice: uint64(1000000000000),
+		L2GasPrice: uint64(1000000000 + 1),
+	}
+	err := data.pool.ValidateEffectiveGasPrice(context.Background(), *signedTx, preExecutionGasUsed, gp)
+	require.ErrorIs(t, err, pool.ErrEffectiveGasPriceGasPriceTooLow)
+}
+
+func Test_EGPAcceptTransactionIfBelowBreakEvenAndBelowCurrentEstimatedL2GasPirceIfEGPIsDisabled(t *testing.T) {
+	cfg.EffectiveGasPrice.Enabled = false
+	data := prepareToExecuteTx(t, chainID.Uint64())
+	dataLen := cfg.MaxTxDataBytesSize - 20
+	gasPriceTx := big.NewInt(1000000000)
+	signedTx := createSignedTx(t, dataLen, gasPriceTx, uint64(21000)+uint64(16)*uint64(dataLen))
+
+	preExecutionGasUsed := uint64(21000) * 2000
+	gp := pool.GasPrices{
+		L1GasPrice: uint64(1000000000000),
+		L2GasPrice: uint64(1000000000 + 1),
+	}
+	err := data.pool.ValidateEffectiveGasPrice(context.Background(), *signedTx, preExecutionGasUsed, gp)
+	require.NoError(t, err)
 }
 
 func Test_AddTx(t *testing.T) {
@@ -1876,4 +1948,64 @@ func setupPool(t *testing.T, cfg pool.Config, constraintsCfg state.BatchConstrai
 	require.NoError(t, err)
 	p.StartPollingMinSuggestedGasPrice(ctx)
 	return p
+}
+
+func prepareToExecuteTx(t *testing.T, chainIDToCreate uint64) testData {
+	initOrResetDB(t)
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	require.NoError(t, err)
+	//defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	require.NoError(t, err)
+
+	//defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		stateSqlDB.Close() //nolint:gosec,errcheck
+		poolSqlDB.Close()  //nolint:gosec,errcheck
+		log.Fatal(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	st := newState(stateSqlDB, eventLog)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	require.NoError(t, err)
+
+	p := setupPool(t, cfg, bc, s, st, chainIDToCreate, ctx, eventLog)
+	return testData{
+		pool:       p,
+		st:         st,
+		stateSqlDB: stateSqlDB,
+		poolSqlDB:  poolSqlDB,
+	}
+}
+
+func createSignedTx(t *testing.T, dataLen int, gasPrice *big.Int, gasLimit uint64) *ethTypes.Transaction {
+	b := make([]byte, cfg.MaxTxDataBytesSize-20)
+	to := common.HexToAddress(senderAddress)
+	//gasPrice := big.NewInt(1000000000)
+	//gasLimitForThisTx := uint64(21000) + uint64(16)*uint64(len(b))
+	tx := ethTypes.NewTransaction(0, to, big.NewInt(0), gasLimit, gasPrice, b)
+	auth, err := operations.GetAuth(senderPrivateKey, chainID.Uint64())
+	require.NoError(t, err)
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	return signedTx
 }
