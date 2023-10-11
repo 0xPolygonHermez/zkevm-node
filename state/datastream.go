@@ -10,6 +10,8 @@ import (
 const (
 	// StreamTypeSequencer represents a Sequencer stream
 	StreamTypeSequencer datastreamer.StreamType = 1
+	// EntryTypeBookMark represents a bookmark entry
+	EntryTypeBookMark datastreamer.EntryType = datastreamer.EtBookmark
 	// EntryTypeL2BlockStart represents a L2 block start
 	EntryTypeL2BlockStart datastreamer.EntryType = 1
 	// EntryTypeL2Tx represents a L2 transaction

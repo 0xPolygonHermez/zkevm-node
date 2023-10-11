@@ -119,11 +119,6 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 	}
 
 	streamServer.SetEntriesDef(entriesDefinition)
-	err = streamServer.Start()
-	if err != nil {
-		return nil, err
-	}
-
 	return &streamServer, nil
 }
 
@@ -492,6 +487,8 @@ func decodeEntry(cliCtx *cli.Context) error {
 
 	log.Infof("Selected entry: %+v", entry)
 
+	streamServer.BookmarkPrintDump()
+
 	printEntry(entry)
 
 	return nil
@@ -509,35 +506,42 @@ func decodeL2Block(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
+	l2BlockNumber := cliCtx.Uint64("l2block")
+
 	bookMark := state.DSBookMark{
 		Type:          state.BookMarkTypeL2Block,
-		L2BlockNumber: cliCtx.Uint64("l2block"),
+		L2BlockNumber: l2BlockNumber,
 	}
 
-	startEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
+	firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
 	if err != nil {
 		log.Fatal(err)
 	}
+	printEntry(firstEntry)
 
-	txEntry, err := streamServer.GetEntry(startEntry.Number + 1)
+	secondEntry, err := streamServer.GetEntry(firstEntry.Number + 1)
 	if err != nil {
 		log.Fatal(err)
 	}
+	printEntry(secondEntry)
 
-	endEntry, err := streamServer.GetEntry(startEntry.Number + 2) //nolint:gomnd
-	if err != nil {
-		log.Fatal(err)
+	if l2BlockNumber != 0 {
+		thirdEntry, err := streamServer.GetEntry(firstEntry.Number + 2) //nolint:gomnd
+		if err != nil {
+			log.Fatal(err)
+		}
+		printEntry(thirdEntry)
 	}
-
-	printEntry(startEntry)
-	printEntry(txEntry)
-	printEntry(endEntry)
 
 	return nil
 }
 
 func printEntry(entry datastreamer.FileEntry) {
 	switch entry.Type {
+	case state.EntryTypeBookMark:
+		log.Infof("Entry %d: BookMark", entry.Number)
+		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[1:9])
+		log.Infof("L2 block number: %d", l2BlockNumber)
 	case state.EntryTypeL2BlockStart:
 		log.Infof("Entry %d: L2BlockStart", entry.Number)
 		batchNumber := binary.LittleEndian.Uint64(entry.Data[0:8])
@@ -562,7 +566,7 @@ func printEntry(entry datastreamer.FileEntry) {
 		log.Infof("Encode length: %d", encodeLength)
 		encode := entry.Data[6:]
 		log.Infof("Encode: %s", "0x"+common.Bytes2Hex(encode))
-		tx, err := state.DecodeTx(string(entry.Data[6:]))
+		tx, err := state.DecodeTx(common.Bytes2Hex(encode))
 		if err != nil {
 			log.Fatal(err)
 		}

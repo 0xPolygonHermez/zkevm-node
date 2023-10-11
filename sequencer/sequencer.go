@@ -202,6 +202,16 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 			log.Fatal(err)
 		}
 
+		bookMark := state.DSBookMark{
+			Type:          state.BookMarkTypeL2Block,
+			L2BlockNumber: genesisL2Block.L2BlockNumber,
+		}
+
+		_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		genesisBlock := state.DSL2BlockStart{
 			BatchNumber:    genesisL2Block.BatchNumber,
 			L2BlockNumber:  genesisL2Block.L2BlockNumber,
@@ -299,6 +309,16 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 			if currentTxIndex > 0 {
 				x += int(currentTxIndex)
 				currentTxIndex = 0
+			}
+
+			bookMark := state.DSBookMark{
+				Type:          state.BookMarkTypeL2Block,
+				L2BlockNumber: l2block.L2BlockNumber,
+			}
+
+			_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+			if err != nil {
+				log.Fatal(err)
 			}
 
 			blockStart := state.DSL2BlockStart{

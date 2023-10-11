@@ -1,10 +1,10 @@
 
 [StreamServer]
 Port = 6901
-Filename = "datastream.bin"
+Filename = "/Users/toni/polygon/zkevm-node/test/datastream.bin"
     [StreamServer.Log]
     Environment = "development"
-    Level = "info"
+    Level = "debug"
     Outputs = ["stdout"]
 
 [StateDB]
