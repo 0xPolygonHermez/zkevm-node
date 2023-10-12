@@ -38,6 +38,9 @@ type Config struct {
 	// TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)
 	// to do the parallel requests to RPC.debug_traceTransaction endpoint
 	TraceBatchUseHTTPS bool `mapstructure:"TraceBatchUseHTTPS"`
+
+	// EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction
+	EnablePendingTransactionFilter bool `mapstructure:"EnablePendingTransactionFilter"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support

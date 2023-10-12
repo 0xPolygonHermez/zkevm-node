@@ -830,13 +830,14 @@ func (e *EthEndpoints) NewPendingTransactionFilter() (interface{}, types.Error) 
 
 // internal
 func (e *EthEndpoints) newPendingTransactionFilter(wsConn *websocket.Conn) (interface{}, types.Error) {
-	return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
-	// id, err := e.storage.NewPendingTransactionFilter(wsConn)
-	// if err != nil {
-	// 	return rpcErrorResponse(types.DefaultErrorCode, "failed to create new pending transaction filter", err)
-	// }
-
-	// return id, nil
+	if !e.cfg.EnablePendingTransactionFilter {
+		return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
+	}
+	id, err := e.storage.NewPendingTransactionFilter(wsConn)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to create new pending transaction filter", err)
+	}
+	return id, nil
 }
 
 // SendRawTransaction has two different ways to handle new transactions:
