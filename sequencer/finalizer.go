@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -332,7 +333,10 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
+		metrics.GetLogStatistics().CumulativeTiming(metrics.GetTx, time.Since(start))
+
 		if tx != nil {
+			metrics.GetLogStatistics().CumulativeCounting(metrics.TxCounter)
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
 
 			// reset the count of effective GasPrice process attempts (since the tx may have been tried to be processed before)
@@ -344,20 +348,25 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 				if err != nil {
 					if err == ErrEffectiveGasPriceReprocess {
 						log.Info("reprocessing tx because of effective gas price calculation: %s", tx.Hash.Hex())
+						metrics.GetLogStatistics().CumulativeCounting(metrics.ReprocessingTxCounter)
 						continue
 					} else {
 						log.Errorf("failed to process transaction in finalizeBatches, Err: %v", err)
+						metrics.GetLogStatistics().CumulativeCounting(metrics.FailTxCounter)
 						break
 					}
 				}
+				metrics.GetLogStatistics().CumulativeValue(metrics.BatchGas, int64(tx.Gas))
 				break
 			}
+
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
 			// log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDuration.Duration)
 			if f.cfg.SleepDuration.Duration > 0 {
 				time.Sleep(f.cfg.SleepDuration.Duration)
+				metrics.GetLogStatistics().CumulativeCounting(metrics.GetTxPauseCounter)
 			}
 		}
 
@@ -369,10 +378,18 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 
 		if f.isDeadlineEncountered() {
 			log.Infof("closing batch %d because deadline was encountered.", f.batch.batchNumber)
+			metrics.GetLogStatistics().SetTag(metrics.BatchCloseReason, "deadline")
 			f.finalizeBatch(ctx)
+			log.Infof(metrics.GetLogStatistics().Summary())
+			metrics.GetLogStatistics().ResetStatistics()
+			metrics.GetLogStatistics().UpdateTimestamp(metrics.NewRound, time.Now())
 		} else if f.isBatchFull() || f.isBatchAlmostFull() {
 			log.Infof("closing batch %d because it's almost full.", f.batch.batchNumber)
+			metrics.GetLogStatistics().SetTag(metrics.BatchCloseReason, "full")
 			f.finalizeBatch(ctx)
+			log.Infof(metrics.GetLogStatistics().Summary())
+			metrics.GetLogStatistics().ResetStatistics()
+			metrics.GetLogStatistics().UpdateTimestamp(metrics.NewRound, time.Now())
 		}
 
 		if err := ctx.Err(); err != nil {
@@ -412,8 +429,10 @@ func (f *finalizer) isBatchFull() bool {
 // finalizeBatch retries to until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) finalizeBatch(ctx context.Context) {
 	start := time.Now()
+	metrics.GetLogStatistics().SetTag(metrics.FinalizeBatchNumber, strconv.Itoa(int(f.batch.batchNumber)))
 	defer func() {
 		metrics.ProcessingTime(time.Since(start))
+		metrics.GetLogStatistics().CumulativeTiming(metrics.FinalizeBatchTiming, time.Since(start))
 	}()
 
 	var err error
@@ -495,6 +514,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	}
 
 	// Reprocess full batch as sanity check
+	tsReprocessFullBatch := time.Now()
 	if f.cfg.SequentialReprocessFullBatch {
 		// Do the full batch reprocess now
 		_, err := f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.initialStateRoot, f.batch.stateRoot)
@@ -508,14 +528,18 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 			_, _ = f.reprocessFullBatch(ctx, f.batch.batchNumber, f.batch.initialStateRoot, f.batch.stateRoot)
 		}()
 	}
+	metrics.GetLogStatistics().CumulativeTiming(metrics.FinalizeBatchReprocessFullBatch, time.Since(tsReprocessFullBatch))
 
 	// Close the current batch
+	tsCloseBatch := time.Now()
 	err = f.closeBatch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
+	metrics.GetLogStatistics().CumulativeTiming(metrics.FinalizeBatchCloseBatch, time.Since(tsCloseBatch))
 
 	// Metadata for the next batch
+	tsOpenBatch := time.Now()
 	stateRoot := f.batch.stateRoot
 	lastBatchNumber := f.batch.batchNumber
 
@@ -544,6 +568,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		f.processRequest.GlobalExitRoot = batch.globalExitRoot
 		f.processRequest.Transactions = make([]byte, 0, 1)
 	}
+	metrics.GetLogStatistics().CumulativeTiming(metrics.FinalizeBatchOpenBatch, time.Since(tsOpenBatch))
 
 	return batch, err
 }
@@ -558,6 +583,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 	start := time.Now()
 	defer func() {
 		metrics.ProcessingTime(time.Since(start))
+		if tx != nil {
+			metrics.GetLogStatistics().CumulativeTiming(metrics.ProcessingTxTiming, time.Since(start))
+		}
 	}()
 
 	if f.batch.isEmpty() {
@@ -624,6 +652,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 	}
 
 	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hashStr, f.processRequest.GlobalExitRoot.String())
+	tsCommit := time.Now()
 	processBatchResponse, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
 	if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
 		log.Errorf("failed to process transaction: %s", err)
@@ -643,10 +672,15 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 			log.Errorf("failed to update status to invalid in the pool for tx: %s, err: %s", tx.Hash.String(), err)
 		} else {
 			metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
+			metrics.GetLogStatistics().CumulativeCounting(metrics.ProcessingInvalidTxCounter)
 		}
 		return nil, err
 	}
+	if tx != nil {
+		metrics.GetLogStatistics().CumulativeTiming(metrics.ProcessingTxCommit, time.Since(tsCommit))
+	}
 
+	tsProcessResponse := time.Now()
 	oldStateRoot := f.batch.stateRoot
 	if len(processBatchResponse.Responses) > 0 && tx != nil {
 		errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
@@ -659,6 +693,10 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker) (errW
 	f.batch.stateRoot = processBatchResponse.NewStateRoot
 	f.batch.localExitRoot = processBatchResponse.NewLocalExitRoot
 	log.Infof("processTransaction: data loaded in memory. batch.batchNumber: %d, batchNumber: %d, result.NewStateRoot: %s, result.NewLocalExitRoot: %s, oldStateRoot: %s", f.batch.batchNumber, f.processRequest.BatchNumber, processBatchResponse.NewStateRoot.String(), processBatchResponse.NewLocalExitRoot.String(), oldStateRoot.String())
+
+	if tx != nil {
+		metrics.GetLogStatistics().CumulativeTiming(metrics.ProcessingTxResponse, time.Since(tsProcessResponse))
+	}
 
 	return nil, nil
 }
