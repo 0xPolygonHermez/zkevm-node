@@ -4,13 +4,14 @@ import (
 	"encoding/binary"
 	"os"
 	"reflect"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
+	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/config"
-	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/db"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/urfave/cli/v2"
 )
@@ -146,7 +147,7 @@ func generate(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 	defer stateSqlDB.Close()
-	stateDB := db.NewStateDB(stateSqlDB)
+	stateDB := state.NewPostgresStorage(stateSqlDB)
 	log.Info("Connected to the database")
 
 	header := streamServer.GetHeader()
@@ -156,7 +157,7 @@ func generate(cliCtx *cli.Context) error {
 
 	if header.TotalEntries == 0 {
 		// Get Genesis block
-		genesisL2Block, err := stateDB.GetGenesisBlock(cliCtx.Context)
+		genesisL2Block, err := stateDB.GetDSGenesisBlock(cliCtx.Context, nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -256,13 +257,13 @@ func generate(cliCtx *cli.Context) error {
 	for err == nil {
 		log.Infof("Current entry number: %d", entry)
 
-		l2blocks, err = stateDB.GetL2Blocks(cliCtx.Context, limit, offset)
+		l2blocks, err = stateDB.GetDSL2Blocks(cliCtx.Context, limit, offset, nil)
 		offset += limit
 		if len(l2blocks) == 0 {
 			break
 		}
 		// Get transactions for all the retrieved l2 blocks
-		l2Transactions, err := stateDB.GetL2Transactions(cliCtx.Context, l2blocks[0].L2BlockNumber, l2blocks[len(l2blocks)-1].L2BlockNumber)
+		l2Transactions, err := stateDB.GetDSL2Transactions(cliCtx.Context, l2blocks[0].L2BlockNumber, l2blocks[len(l2blocks)-1].L2BlockNumber, nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -554,6 +555,7 @@ func printEntry(entry datastreamer.FileEntry) {
 		log.Infof("L2 block number: %d", l2BlockNumber)
 		timestamp := binary.LittleEndian.Uint64(entry.Data[16:24])
 		log.Infof("Timestamp: %d", timestamp)
+		log.Infof("Timestamp: %v", time.Unix(int64(timestamp), 0))
 		globalExitRoot := "0x" + common.Bytes2Hex(entry.Data[24:56])
 		log.Infof("Global exit root: %s", globalExitRoot)
 		coinbase := "0x" + common.Bytes2Hex(entry.Data[56:76])
