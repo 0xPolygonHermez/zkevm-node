@@ -9,8 +9,7 @@ jobs:
   build:
     if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'CI:TriggerBuild')
     runs-on: ubuntu-latest
-
-steps:
+    steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
