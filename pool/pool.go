@@ -18,6 +18,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+const (
+	// BridgeClaimMethodSignature for tracking BridgeClaimMethodSignature method
+	BridgeClaimMethodSignature = "0x2cffd02e"
+)
+
 var (
 	// ErrNotFound indicates an object has not been found for the search criteria used
 	ErrNotFound = errors.New("object not found")
@@ -29,6 +34,9 @@ var (
 	// ErrReplaceUnderpriced is returned if a transaction is attempted to be replaced
 	// with a different one without the required price bump.
 	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
+
+	// FreeClaimAddress is the default free gas address
+	FreeClaimAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 )
 
 // Pool is an implementation of the Pool interface
@@ -45,6 +53,7 @@ type Pool struct {
 	startTimestamp          time.Time
 	gasPrices               GasPrices
 	gasPricesMux            *sync.RWMutex
+	l2BridgeAddr            common.Address
 }
 
 type preExecutionResponse struct {
@@ -63,7 +72,7 @@ type GasPrices struct {
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog *event.EventLog) *Pool {
+func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64, eventLog *event.EventLog) *Pool {
 	startTimestamp := time.Now()
 	p := &Pool{
 		cfg:                     cfg,
@@ -76,7 +85,10 @@ func NewPool(cfg Config, s storage, st stateInterface, chainID uint64, eventLog 
 		eventLog:                eventLog,
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),
+		l2BridgeAddr:            l2BridgeAddr,
 	}
+
+	FreeClaimAddress = cfg.FreeGasAddress
 
 	p.refreshBlockedAddresses()
 	go func(cfg *Config, p *Pool) {
@@ -157,7 +169,7 @@ func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
 
 // AddTx adds a transaction to the pool with the pending state
 func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
-	poolTx := NewTransaction(tx, ip, false)
+	poolTx := NewTransaction(tx, ip, false, p)
 	if err := p.validateTx(ctx, *poolTx); err != nil {
 		return err
 	}
@@ -213,7 +225,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		}
 	}
 
-	poolTx := NewTransaction(tx, ip, isWIP)
+	poolTx := NewTransaction(tx, ip, isWIP, p)
 	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, *poolTx)
@@ -387,11 +399,13 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	// Reject transactions with a gas price lower than the minimum gas price
-	p.minSuggestedGasPriceMux.RLock()
-	gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
-	p.minSuggestedGasPriceMux.RUnlock()
-	if gasPriceCmp == -1 {
-		return ErrGasPrice
+	if from != common.HexToAddress(FreeClaimAddress) || !poolTx.IsClaims {
+		p.minSuggestedGasPriceMux.RLock()
+		gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
+		p.minSuggestedGasPriceMux.RUnlock()
+		if gasPriceCmp == -1 {
+			return ErrGasPrice
+		}
 	}
 
 	// Transactor should have enough funds to cover the costs

@@ -4,6 +4,7 @@ package sequencer
 
 import (
 	context "context"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	big "math/big"
 
 	common "github.com/ethereum/go-ethereum/common"
@@ -109,16 +110,16 @@ func (_m *WorkerMock) MoveTxToNotReady(txHash common.Hash, from common.Address, 
 }
 
 // NewTxTracker provides a mock function with given fields: tx, counters, ip
-func (_m *WorkerMock) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
+func (_m *WorkerMock) NewTxTracker(tx pool.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
 	ret := _m.Called(tx, counters, ip)
 
 	var r0 *TxTracker
 	var r1 error
 	if rf, ok := ret.Get(0).(func(types.Transaction, state.ZKCounters, string) (*TxTracker, error)); ok {
-		return rf(tx, counters, ip)
+		return rf(tx.Transaction, counters, ip)
 	}
 	if rf, ok := ret.Get(0).(func(types.Transaction, state.ZKCounters, string) *TxTracker); ok {
-		r0 = rf(tx, counters, ip)
+		r0 = rf(tx.Transaction, counters, ip)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*TxTracker)
@@ -126,7 +127,7 @@ func (_m *WorkerMock) NewTxTracker(tx types.Transaction, counters state.ZKCounte
 	}
 
 	if rf, ok := ret.Get(1).(func(types.Transaction, state.ZKCounters, string) error); ok {
-		r1 = rf(tx, counters, ip)
+		r1 = rf(tx.Transaction, counters, ip)
 	} else {
 		r1 = ret.Error(1)
 	}
