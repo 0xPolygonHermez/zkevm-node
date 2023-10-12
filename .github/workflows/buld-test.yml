@@ -24,8 +24,10 @@ jobs:
         uses: docker/setup-buildx-action@v3
       -
         name: Build and push
+        id: docker_build
         uses: docker/build-push-action@v5
         with:
+          platforms: linux/amd64,linux/arm64
           context: .
           file: ./Dockerfile
           push: true
