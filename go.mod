@@ -103,6 +103,7 @@ require (
 	github.com/miguelmota/go-solidity-sha3 v0.1.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
+	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -147,7 +148,10 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 )
 
-require github.com/prometheus/client_golang v1.16.0
+require (
+	github.com/prometheus/client_golang v1.16.0
+	github.com/segmentio/kafka-go v0.4.43
+)
 
 replace github.com/0xPolygon/cdk-data-availability => github.com/okx/cdk-data-availability v0.0.1-dac.0.20230913020111-2ec48291d6db
 

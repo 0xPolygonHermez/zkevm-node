@@ -127,6 +127,20 @@ Type = "default"
 DefaultGasPriceWei = 1000000000
 MaxGasPriceWei = 0
 
+#Type = "fixed"
+#UpdatePeriod = "10s"
+#DefaultGasPriceWei = 1000000000
+#KafkaURL = "127.0.0.1:9092"
+#Topic    = "middle_coinPrice_push"
+#GroupID  = "web3_okbc_explorerchainprice"
+## just in SASL_SSL mode
+#Username = ""
+#Password = ""
+#RootCAPath = "only-4096-ca-cert"
+#DefaultL2CoinPrice = 40
+#GasPriceUsdt = 0.0001
+#L2CoinId = 7184
+
 [MTClient]
 URI = "zkevm-prover:50061"
 
