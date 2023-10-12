@@ -19,8 +19,8 @@ steps:
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t dido21/zkevm-node .
-          docker push dido21/zkevm-node
+          docker build -t docker:zkevm-node .
+          docker push dido21/docker:zkevm-node
 
 
 
