@@ -320,7 +320,7 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 	if foundAt != -1 {
 		log.Infof("GetBestFittingTx found tx(%s) at index(%d) with gasPrice(%d)", tx.Hash.String(), foundAt, tx.GasPrice)
 	} else {
-		log.Debugf("GetBestFittingTx no tx found")
+		// log.Debugf("GetBestFittingTx no tx found")
 	}
 
 	return tx

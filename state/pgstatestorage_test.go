@@ -627,3 +627,30 @@ func TestGetFinalizedL2BlockNumber(t *testing.T) {
 		})
 	}
 }
+
+func TestGetBatchL2DataByNumber(t *testing.T) {
+	// Init database instance
+	initOrResetDB()
+	ctx := context.Background()
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, tx.Commit(ctx)) }()
+
+	// empty case
+	var batchNum uint64 = 4
+	const openBatchSQL = "INSERT INTO state.batch (batch_num, raw_txs_data) VALUES ($1, $2)"
+	_, err = tx.Exec(ctx, openBatchSQL, batchNum, nil)
+	require.NoError(t, err)
+	data, err := testState.GetBatchL2DataByNumber(ctx, batchNum, tx)
+	require.NoError(t, err)
+	assert.Nil(t, data)
+
+	// not empty case
+	expectedData := []byte("foo bar")
+	batchNum = 5
+	_, err = tx.Exec(ctx, openBatchSQL, batchNum, expectedData)
+	require.NoError(t, err)
+	actualData, err := testState.GetBatchL2DataByNumber(ctx, batchNum, tx)
+	require.NoError(t, err)
+	assert.Equal(t, expectedData, actualData)
+}

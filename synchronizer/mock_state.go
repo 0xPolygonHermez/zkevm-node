@@ -257,6 +257,32 @@ func (_m *stateMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	return r0
 }
 
+// GetBatchL2DataByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) GetBatchL2DataByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]byte, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 []byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) ([]byte, error)); ok {
+		return rf(ctx, batchNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []byte); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetForkIDTrustedReorgCount provides a mock function with given fields: ctx, forkID, version, dbTx
 func (_m *stateMock) GetForkIDTrustedReorgCount(ctx context.Context, forkID uint64, version string, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, forkID, version, dbTx)
