@@ -11,7 +11,7 @@ import (
 // InitOrResetState will initializes the State db running the migrations or
 // will reset all the known data and rerun the migrations
 func InitOrResetState(cfg db.Config) error {
-	return initOrReset(cfg, "zkevm-state-db")
+	return initOrReset(cfg, "xagon-state-db")
 }
 
 // InitOrResetPool will initializes the Pool db running the migrations or

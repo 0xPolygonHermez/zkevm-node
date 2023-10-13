@@ -1,31 +1,31 @@
 # Component: Synchronizer
 
-## ZKEVM Synchronizer:
+## XAGON Synchronizer:
 
-The ZKEVM Synchronizer is the **base** component for which all others will depend on. You can *mix and match* different components to achieve a different outcome, be it sending transactions or computing proofs, but the Sync module will need to be up and running.
+The XAGON Synchronizer is the **base** component for which all others will depend on. You can *mix and match* different components to achieve a different outcome, be it sending transactions or computing proofs, but the Sync module will need to be up and running.
 
-This module syncs data between the Layer 1 Ethereum network and ZKEVM L2 network.
+This module syncs data between the Layer 1 Ethereum network and XAGON L2 network.
 
 ## Running:
 
-The preferred way to run the ZKEVM Synchronizer component is via Docker and Docker Compose.
+The preferred way to run the XAGON Synchronizer component is via Docker and Docker Compose.
 
 ```bash
-docker pull hermeznetwork/zkevm-node
+docker pull hermeznetwork/xagon-node
 ```
 
-To orchestrate multiple deployments of the different ZKEVM Node components, a `docker-compose.yaml` file for Docker Compose can be used:
+To orchestrate multiple deployments of the different XAGON Node components, a `docker-compose.yaml` file for Docker Compose can be used:
 
 **THIS STEP IS MANDATORY ON ALL DEPLOYMENT MODES**
 
 ```yaml
-  zkevm-sync:
-    container_name: zkevm-sync
-    image: zkevm-node
+  xagon-sync:
+    container_name: xagon-sync
+    image: xagon-node
     command:
         - "/bin/sh"
         - "-c"
-        - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components synchronizer"
+        - "/app/xagon-node run --genesis /app/genesis.json --cfg /app/config.toml --components synchronizer"
 ```
 
 The container alone needs some parameters configured, access to certain configuration files and the appropriate ports exposed.

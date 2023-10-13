@@ -1,27 +1,27 @@
 # Component: Sequencer
 
-## ZKEVM Sequencer:
+## Xagon Sequencer:
 
-The ZKEVM Sequencer is an optional but ancillary module that proposes new batches using transactions stored in the Pool Database.
+The Xagon Sequencer is an optional but ancillary module that proposes new batches using transactions stored in the Pool Database.
 
 ## Running:
 
-The preferred way to run the ZKEVM Sequencer component is via Docker and Docker Compose.
+The preferred way to run the Xagon Sequencer component is via Docker and Docker Compose.
 
 ```bash
-docker pull hermeznetwork/zkevm-node
+docker pull okx/xagon-node
 ```
 
-To orchestrate multiple deployments of the different ZKEVM Node components, a `docker-compose.yaml` file for Docker Compose can be used:
+To orchestrate multiple deployments of the different Xagon Node components, a `docker-compose.yaml` file for Docker Compose can be used:
 
 ```yaml
-  zkevm-sequencer:
-    container_name: zkevm-sequencer
-    image: zkevm-node
+  xagon-sequencer:
+    container_name: xagon-sequencer
+    image: xagon-node
     command:
         - "/bin/sh"
         - "-c"
-        - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components sequencer"
+        - "/app/xagon-node run --genesis /app/genesis.json --cfg /app/config.toml --components sequencer"
 ```
 
 The container alone needs some parameters configured, access to certain configuration files and the appropriate ports exposed.

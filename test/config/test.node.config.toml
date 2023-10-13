@@ -9,7 +9,7 @@ Outputs = ["stderr"]
 User = "state_user"
 Password = "state_password"
 Name = "state_db"
-Host = "zkevm-state-db"
+Host = "xagon-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200
@@ -27,13 +27,13 @@ PollMinAllowedGasPriceInterval = "15s"
 	User = "pool_user"
 	Password = "pool_password"
 	Name = "pool_db"
-	Host = "zkevm-pool-db"
+	Host = "xagon-pool-db"
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
 
 [Etherman]
-URL = "http://zkevm-mock-l1-network:8545"
+URL = "http://xagon-mock-l1-network:8545"
 ForkIDChunkSize = 20000
 MultiGasProvider = false
 	[Etherscan]
@@ -129,10 +129,10 @@ DefaultGasPriceWei = 1000000000
 MaxGasPriceWei = 0
 
 [MTClient]
-URI  = "zkevm-prover:50061"
+URI  = "xagon-prover:50061"
 
 [Executor]
-URI = "zkevm-prover:50071"
+URI = "xagon-prover:50071"
 MaxGRPCMessageSize = 100000000
 
 [Metrics]
@@ -148,7 +148,7 @@ ProfilingEnabled = true
 	User = "event_user"
 	Password = "event_password"
 	Name = "event_db"
-	Host = "zkevm-event-db"
+	Host = "xagon-event-db"
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
@@ -157,7 +157,7 @@ ProfilingEnabled = true
 User = "prover_user"
 Password = "prover_pass"
 Name = "prover_db"
-Host = "zkevm-state-db"
+Host = "xagon-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200

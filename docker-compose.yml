@@ -1,19 +1,19 @@
 version: "3.5"
 networks:
   default:
-    name: zkevm
+    name: Xagon
 services:
-  zkevm-rpc:
-    container_name: zkevm-rpc
+  xagon-rpc:
+    container_name: xagon-rpc
     restart: unless-stopped
     depends_on:
-      zkevm-pool-db:
+      xagon-pool-db:
         condition: service_healthy
-      zkevm-state-db:
+      xagon-state-db:
         condition: service_healthy
-      zkevm-sync:
+      xagon-sync:
         condition: service_started
-    image: zkevm-node
+    image: xagon-node
     deploy:
       resources:
         limits:
@@ -30,15 +30,15 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components rpc"
+      - "/app/xagon-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components rpc"
 
-  zkevm-sync:
-    container_name: zkevm-sync
+  xagon-sync:
+    container_name: xagon-sync
     restart: unless-stopped
     depends_on:
-      zkevm-state-db:
+      xagon-state-db:
         condition: service_healthy
-    image: zkevm-node
+    image: xagon-node
     ports:
       - 9092:9091 # needed if metrics enabled
     deploy:
@@ -54,10 +54,10 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components synchronizer"
+      - "/app/xagon-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components synchronizer"
 
-  zkevm-state-db:
-    container_name: zkevm-state-db
+  xagon-state-db:
+    container_name: xagon-state-db
     restart: unless-stopped
     image: postgres:15
     healthcheck:
@@ -82,8 +82,8 @@ services:
       - "-c"
       - "config_file=/etc/postgresql.conf"
 
-  zkevm-pool-db:
-    container_name: zkevm-pool-db
+  xagon-pool-db:
+    container_name: xagon-pool-db
     restart: unless-stopped
     image: postgres:15
     healthcheck:
@@ -104,12 +104,12 @@ services:
       - "-N"
       - "500"
 
-  zkevm-prover:
-    container_name: zkevm-prover
+  xagon-prover:
+    container_name: xagon-prover
     restart: unless-stopped
-    image: hermeznetwork/zkevm-prover:v2.2.0
+    image: hermeznetwork/xagon-prover:v2.2.0
     depends_on:
-      zkevm-state-db:
+      xagon-state-db:
         condition: service_healthy
     ports:
       - 50061:50061 # MT

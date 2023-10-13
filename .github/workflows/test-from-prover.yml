@@ -25,7 +25,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
-        repository: 0xPolygonHermez/zkevm-node
+        repository: okx/xagon-node
 
     - name: Install Go
       uses: actions/setup-go@v3

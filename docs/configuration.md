@@ -35,7 +35,7 @@ For details about the contents you can read specifications [here](config-file/cu
 
 ### Prover Config
 
-Please check [prover repository](https://github.com/0xPolygonHermez/zkevm-prover)  for further information
+Please check [prover repository](https://github.com/okx/xagon-prover)  for further information
 
 Examples: 
  - `config/environments/mainnet/prover.config.json`
