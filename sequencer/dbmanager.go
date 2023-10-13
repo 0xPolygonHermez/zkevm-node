@@ -292,7 +292,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	batch.BatchL2Data = append(batch.BatchL2Data, txData...)
 
 	if !tx.isForcedBatch {
-		err = d.state.UpdateBatchL2Data(ctx, tx.batchNumber, batch.BatchL2Data, dbTx)
+		err = d.state.UpdateBatchL2DataAndLER(ctx, tx.batchNumber, batch.BatchL2Data, tx.batchResponse.NewLocalExitRoot, dbTx)
 		if err != nil {
 			err2 := dbTx.Rollback(ctx)
 			if err2 != nil {

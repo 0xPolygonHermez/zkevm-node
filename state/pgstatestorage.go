@@ -2438,6 +2438,15 @@ func (p *PostgresStorage) UpdateBatchL2Data(ctx context.Context, batchNumber uin
 	return err
 }
 
+// UpdateBatchL2DataAndLER updates data tx data in a batch and the local exit root
+func (p *PostgresStorage) UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
+	const updateL2DataSQL = "UPDATE state.batch SET raw_txs_data = $2, local_exit_root = $3 WHERE batch_num = $1"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, updateL2DataSQL, batchNumber, batchL2Data, localExitRoot.String())
+	return err
+}
+
 // AddAccumulatedInputHash adds the accumulated input hash
 func (p *PostgresStorage) AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error {
 	const addAccInputHashBatchSQL = "UPDATE state.batch SET acc_input_hash = $1 WHERE batch_num = $2"
