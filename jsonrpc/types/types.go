@@ -699,11 +699,11 @@ type StateOverride map[ArgAddress]OverrideAccount
 
 // ToStateOverride converts StateOverride into state.StateOverride
 func (so *StateOverride) ToStateOverride() state.StateOverride {
+	overrides := state.StateOverride{}
 	if so == nil {
-		return nil
+		return overrides
 	}
 
-	overrides := state.StateOverride{}
 	for addr, accOverride := range *so {
 		var nonce *uint64
 		if accOverride.Nonce != nil {

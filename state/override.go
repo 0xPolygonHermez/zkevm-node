@@ -26,11 +26,11 @@ type StateOverride map[common.Address]OverrideAccount
 
 // toExecutorStateOverride
 func (so *StateOverride) toExecutorStateOverride() map[string]*executor.OverrideAccount {
+	overrides := map[string]*executor.OverrideAccount{}
 	if so == nil {
-		return nil
+		return overrides
 	}
 
-	processBatchStateOverride := map[string]*executor.OverrideAccount{}
 	for addr, accOverride := range *so {
 		var nonce uint64 = 0
 		if accOverride.Nonce != nil {
@@ -60,7 +60,7 @@ func (so *StateOverride) toExecutorStateOverride() map[string]*executor.Override
 				stDiff[k.String()] = v.Bytes()
 			}
 		}
-		processBatchStateOverride[addr.String()] = &executor.OverrideAccount{
+		overrides[addr.String()] = &executor.OverrideAccount{
 			Balance:   balance,
 			Nonce:     nonce,
 			Code:      code,
@@ -68,5 +68,5 @@ func (so *StateOverride) toExecutorStateOverride() map[string]*executor.Override
 			StateDiff: stDiff,
 		}
 	}
-	return processBatchStateOverride
+	return overrides
 }
