@@ -154,7 +154,7 @@ func generate(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 	defer stateSqlDB.Close()
-	stateDB := state.NewPostgresStorage(stateSqlDB)
+	stateDB := state.NewPostgresStorage(state.Config{}, stateSqlDB)
 	log.Info("Connected to the database")
 
 	header := streamServer.GetHeader()
