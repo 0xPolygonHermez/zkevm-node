@@ -729,7 +729,7 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 		return nil, err
 	}
 
-	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, nil, false, dbTx)
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, nil, nil, false, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -738,9 +738,9 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, overrides StateOverride, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
-	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, senderAddress, l2BlockNumber, overrides, noZKEVMCounters, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -762,7 +762,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, overrides StateOverride, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	var attempts = 1
 
 	if s.executorClient == nil {
@@ -817,6 +817,8 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
+	processBatchStateOverride := overrides.toExecutorStateOverride()
+
 	// Create Batch
 	processBatchRequest := &executor.ProcessBatchRequest{
 		OldBatchNum:      lastBatch.BatchNumber,
@@ -831,6 +833,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
 		ContextId:        uuid.NewString(),
+		StateOverride:    processBatchStateOverride,
 	}
 
 	if noZKEVMCounters {
@@ -977,7 +980,7 @@ func CheckSupersetBatchTransactions(existingTxHashes []common.Hash, processedTxs
 }
 
 // EstimateGas for a transaction
-func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, []byte, error) {
+func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, overrides StateOverride, dbTx pgx.Tx) (uint64, []byte, error) {
 	const ethTransferGas = 21000
 
 	var lowEnd uint64
@@ -1089,6 +1092,8 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, false, gasUsed, nil, err
 		}
 
+		processBatchStateOverride := overrides.toExecutorStateOverride()
+
 		// Create a batch to be sent to the executor
 		processBatchRequest := &executor.ProcessBatchRequest{
 			OldBatchNum:      lastBatch.BatchNumber,
@@ -1103,6 +1108,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			ChainId:          s.cfg.ChainID,
 			ForkId:           forkID,
 			ContextId:        uuid.NewString(),
+			StateOverride:    processBatchStateOverride,
 		}
 
 		log.Debugf("EstimateGas[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
@@ -1117,6 +1123,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		log.Debugf("EstimateGas[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 		log.Debugf("EstimateGas[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 		log.Debugf("EstimateGas[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
+		log.Debugf("EstimateGas[processBatchRequest.StateOverride]: %v", processBatchRequest.StateOverride)
 
 		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)

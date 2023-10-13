@@ -172,7 +172,7 @@ func TestCall(t *testing.T) {
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumOneUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumOneUint64, mock.IsType(state.StateOverride{}), true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -216,7 +216,7 @@ func TestCall(t *testing.T) {
 				})
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumOneUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumOneUint64, mock.IsType(state.StateOverride{}), true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -258,7 +258,7 @@ func TestCall(t *testing.T) {
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, nilUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, nilUint64, mock.IsType(state.StateOverride{}), true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -300,7 +300,7 @@ func TestCall(t *testing.T) {
 				})
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumTenUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumTenUint64, mock.IsType(state.StateOverride{}), true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -340,7 +340,7 @@ func TestCall(t *testing.T) {
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumTenUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumTenUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, &blockNumTenUint64, mock.IsType(state.StateOverride{}), true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -379,7 +379,7 @@ func TestCall(t *testing.T) {
 				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, mock.IsType(state.StateOverride{}), true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -418,7 +418,7 @@ func TestCall(t *testing.T) {
 				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, mock.IsType(state.StateOverride{}), true, m.DbTx).
 					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}, nil).
 					Once()
 			},
@@ -482,7 +482,7 @@ func TestCall(t *testing.T) {
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, nilUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, nilUint64, mock.IsType(state.StateOverride{}), true, m.DbTx).
 					Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}, nil).
 					Once()
 			},
@@ -524,7 +524,7 @@ func TestCall(t *testing.T) {
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
-					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, nilUint64, true, m.DbTx).
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, *txArgs.From, nilUint64, mock.IsType(state.StateOverride{}), true, m.DbTx).
 					Return(&runtime.ExecutionResult{Err: runtime.ErrExecutionReverted}, nil).
 					Once()
 			},
@@ -686,7 +686,7 @@ func TestEstimateGas(t *testing.T) {
 					Return(nonce, nil).
 					Once()
 				m.State.
-					On("EstimateGas", txMatchBy, *txArgs.From, nilUint64, m.DbTx).
+					On("EstimateGas", txMatchBy, *txArgs.From, nilUint64, mock.IsType(state.StateOverride{}), m.DbTx).
 					Return(*testCase.expectedResult, nil, nil).
 					Once()
 			},
@@ -727,7 +727,7 @@ func TestEstimateGas(t *testing.T) {
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
-					On("EstimateGas", txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, m.DbTx).
+					On("EstimateGas", txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, mock.IsType(state.StateOverride{}), m.DbTx).
 					Return(*testCase.expectedResult, nil, nil).
 					Once()
 			},

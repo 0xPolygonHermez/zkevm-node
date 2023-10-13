@@ -102,32 +102,32 @@ func (_m *StateMock) DebugTransaction(ctx context.Context, transactionHash commo
 	return r0, r1
 }
 
-// EstimateGas provides a mock function with given fields: transaction, senderAddress, l2BlockNumber, dbTx
-func (_m *StateMock) EstimateGas(transaction *coretypes.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, []byte, error) {
-	ret := _m.Called(transaction, senderAddress, l2BlockNumber, dbTx)
+// EstimateGas provides a mock function with given fields: transaction, senderAddress, l2BlockNumber, overrides, dbTx
+func (_m *StateMock) EstimateGas(transaction *coretypes.Transaction, senderAddress common.Address, l2BlockNumber *uint64, overrides state.StateOverride, dbTx pgx.Tx) (uint64, []byte, error) {
+	ret := _m.Called(transaction, senderAddress, l2BlockNumber, overrides, dbTx)
 
 	var r0 uint64
 	var r1 []byte
 	var r2 error
-	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) (uint64, []byte, error)); ok {
-		return rf(transaction, senderAddress, l2BlockNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, *uint64, state.StateOverride, pgx.Tx) (uint64, []byte, error)); ok {
+		return rf(transaction, senderAddress, l2BlockNumber, overrides, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) uint64); ok {
-		r0 = rf(transaction, senderAddress, l2BlockNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(*coretypes.Transaction, common.Address, *uint64, state.StateOverride, pgx.Tx) uint64); ok {
+		r0 = rf(transaction, senderAddress, l2BlockNumber, overrides, dbTx)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	if rf, ok := ret.Get(1).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) []byte); ok {
-		r1 = rf(transaction, senderAddress, l2BlockNumber, dbTx)
+	if rf, ok := ret.Get(1).(func(*coretypes.Transaction, common.Address, *uint64, state.StateOverride, pgx.Tx) []byte); ok {
+		r1 = rf(transaction, senderAddress, l2BlockNumber, overrides, dbTx)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).([]byte)
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(*coretypes.Transaction, common.Address, *uint64, pgx.Tx) error); ok {
-		r2 = rf(transaction, senderAddress, l2BlockNumber, dbTx)
+	if rf, ok := ret.Get(2).(func(*coretypes.Transaction, common.Address, *uint64, state.StateOverride, pgx.Tx) error); ok {
+		r2 = rf(transaction, senderAddress, l2BlockNumber, overrides, dbTx)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -976,25 +976,25 @@ func (_m *StateMock) IsL2BlockVirtualized(ctx context.Context, blockNumber uint6
 	return r0, r1
 }
 
-// ProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx
-func (_m *StateMock) ProcessUnsignedTransaction(ctx context.Context, tx *coretypes.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
-	ret := _m.Called(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
+// ProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, senderAddress, l2BlockNumber, overrides, noZKEVMCounters, dbTx
+func (_m *StateMock) ProcessUnsignedTransaction(ctx context.Context, tx *coretypes.Transaction, senderAddress common.Address, l2BlockNumber *uint64, overrides state.StateOverride, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
+	ret := _m.Called(ctx, tx, senderAddress, l2BlockNumber, overrides, noZKEVMCounters, dbTx)
 
 	var r0 *runtime.ExecutionResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, bool, pgx.Tx) (*runtime.ExecutionResult, error)); ok {
-		return rf(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, state.StateOverride, bool, pgx.Tx) (*runtime.ExecutionResult, error)); ok {
+		return rf(ctx, tx, senderAddress, l2BlockNumber, overrides, noZKEVMCounters, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, bool, pgx.Tx) *runtime.ExecutionResult); ok {
-		r0 = rf(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, state.StateOverride, bool, pgx.Tx) *runtime.ExecutionResult); ok {
+		r0 = rf(ctx, tx, senderAddress, l2BlockNumber, overrides, noZKEVMCounters, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*runtime.ExecutionResult)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, bool, pgx.Tx) error); ok {
-		r1 = rf(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, state.StateOverride, bool, pgx.Tx) error); ok {
+		r1 = rf(ctx, tx, senderAddress, l2BlockNumber, overrides, noZKEVMCounters, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
