@@ -2551,7 +2551,7 @@ func (p *PostgresStorage) UpdateForkID(ctx context.Context, forkID ForkIDInterva
 
 // GetDSGenesisBlock returns the genesis block
 func (p *PostgresStorage) GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*DSL2Block, error) {
-	const genesisL2BlockSQL = `SELECT 0 as batch_num, l2b.block_num, l2b.created_at, '0x0000000000000000000000000000000000000000' as global_exit_root, l2b.header->>'miner' AS coinbase, 0 as fork_id, l2b.block_hash, l2b.state_root
+	const genesisL2BlockSQL = `SELECT 0 as batch_num, l2b.block_num, l2b.received_at, '0x0000000000000000000000000000000000000000' as global_exit_root, l2b.header->>'miner' AS coinbase, 0 as fork_id, l2b.block_hash, l2b.state_root
 							FROM state.l2block l2b
 							WHERE l2b.block_num  = 0`
 
