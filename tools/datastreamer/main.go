@@ -4,13 +4,14 @@ import (
 	"encoding/binary"
 	"os"
 	"reflect"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
+	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/config"
-	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/db"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/urfave/cli/v2"
 )
@@ -56,6 +57,13 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Generate stream file form scratch",
 			Action:  generate,
+			Flags:   flags,
+		},
+		{
+			Name:    "validate",
+			Aliases: []string{},
+			Usage:   "Validate stream file form scratch",
+			Action:  validate,
 			Flags:   flags,
 		},
 		{
@@ -119,6 +127,12 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 	}
 
 	streamServer.SetEntriesDef(entriesDefinition)
+
+	err = streamServer.Start()
+	if err != nil {
+		return nil, err
+	}
+
 	return &streamServer, nil
 }
 
@@ -140,7 +154,7 @@ func generate(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 	defer stateSqlDB.Close()
-	stateDB := db.NewStateDB(stateSqlDB)
+	stateDB := state.NewPostgresStorage(stateSqlDB)
 	log.Info("Connected to the database")
 
 	header := streamServer.GetHeader()
@@ -150,7 +164,7 @@ func generate(cliCtx *cli.Context) error {
 
 	if header.TotalEntries == 0 {
 		// Get Genesis block
-		genesisL2Block, err := stateDB.GetGenesisBlock(cliCtx.Context)
+		genesisL2Block, err := stateDB.GetDSGenesisBlock(cliCtx.Context, nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -238,7 +252,7 @@ func generate(cliCtx *cli.Context) error {
 	log.Infof("Current transaction index: %d", currentTxIndex)
 	log.Infof("Current L2 block number: %d", currentL2Block)
 
-	var limit uint64 = 1000
+	var limit uint64 = c.QuerySize
 	var offset uint64 = currentL2Block
 	var entry uint64 = header.TotalEntries
 	var l2blocks []*state.DSL2Block
@@ -250,13 +264,13 @@ func generate(cliCtx *cli.Context) error {
 	for err == nil {
 		log.Infof("Current entry number: %d", entry)
 
-		l2blocks, err = stateDB.GetL2Blocks(cliCtx.Context, limit, offset)
+		l2blocks, err = stateDB.GetDSL2Blocks(cliCtx.Context, limit, offset, nil)
 		offset += limit
 		if len(l2blocks) == 0 {
 			break
 		}
 		// Get transactions for all the retrieved l2 blocks
-		l2Transactions, err := stateDB.GetL2Transactions(cliCtx.Context, l2blocks[0].L2BlockNumber, l2blocks[len(l2blocks)-1].L2BlockNumber)
+		l2Transactions, err := stateDB.GetDSL2Transactions(cliCtx.Context, l2blocks[0].L2BlockNumber, l2blocks[len(l2blocks)-1].L2BlockNumber, nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -323,6 +337,76 @@ func generate(cliCtx *cli.Context) error {
 	}
 
 	log.Info("Finished tool")
+
+	return nil
+}
+
+func validate(cliCtx *cli.Context) error {
+	c, err := config.Load(cliCtx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Infof("Loaded configuration: %+v", c)
+
+	streamServer, err := initializeStreamServer(c)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	header := streamServer.GetHeader()
+
+	currentEntryNumber := uint64(0)
+	currentBookMarkBlock := uint64(0)
+	currentL2BLockStart := uint64(0)
+	currentL2BlockEnd := uint64(0)
+	previousEntryNumber := uint64(0)
+	previousBookMarkBlock := uint64(0)
+	previousL2BLockStart := uint64(0)
+	previousL2BlockEnd := uint64(0)
+
+	for i := uint64(0); i < header.TotalEntries; i++ {
+		entry, err := streamServer.GetEntry(i)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		currentEntryNumber = entry.Number
+
+		if currentEntryNumber != previousEntryNumber+1 && currentEntryNumber != 0 && previousEntryNumber != 0 {
+			log.Fatalf("Entry number %d does not match previous entry number %d", currentEntryNumber, previousEntryNumber)
+		}
+
+		previousEntryNumber = currentEntryNumber
+
+		switch entry.Type {
+		case state.EntryTypeBookMark:
+			currentBookMarkBlock = binary.LittleEndian.Uint64(entry.Data[1:9])
+			if currentBookMarkBlock != previousBookMarkBlock+1 && currentBookMarkBlock != 0 && previousBookMarkBlock != 0 {
+				log.Fatalf("BookMark block %d does not match previous BookMark block %d for entry %d", currentBookMarkBlock, previousBookMarkBlock, currentEntryNumber)
+			}
+			if currentBookMarkBlock != currentL2BLockStart+1 && currentBookMarkBlock != 0 && currentL2BLockStart != 0 {
+				log.Fatalf("BookMark block %d does not match L2BlockStart block %d for entry %d", currentBookMarkBlock, currentL2BLockStart, currentEntryNumber)
+			}
+			previousBookMarkBlock = currentBookMarkBlock
+		case state.EntryTypeL2BlockStart:
+			currentL2BLockStart = binary.LittleEndian.Uint64(entry.Data[8:16])
+			if currentL2BLockStart != previousL2BLockStart+1 && currentL2BLockStart != 0 && previousL2BLockStart != 0 {
+				log.Fatalf("L2BlockStart block %d does not match previous L2BlockStart block %d for entry %d", currentL2BLockStart, previousL2BLockStart, currentEntryNumber)
+			}
+			previousL2BLockStart = currentL2BLockStart
+		case state.EntryTypeL2BlockEnd:
+			currentL2BlockEnd = binary.LittleEndian.Uint64(entry.Data[0:8])
+			if currentL2BlockEnd != previousL2BlockEnd+1 && currentL2BlockEnd != 0 && previousL2BlockEnd != 0 {
+				log.Fatalf("L2BlockEnd block %d does not match previous L2BlockEnd block %d for entry %d", currentL2BlockEnd, previousL2BlockEnd, currentEntryNumber)
+			}
+			if currentL2BLockStart != currentL2BlockEnd && currentL2BLockStart != 0 && currentL2BlockEnd != 0 {
+				log.Fatalf("L2BlockStart block %d does not match L2BlockEnd block %d for entry %d", currentL2BLockStart, currentL2BlockEnd, currentEntryNumber)
+			}
+			previousL2BlockEnd = currentL2BlockEnd
+		}
+	}
+
+	log.Infof("File looks good")
 
 	return nil
 }
@@ -548,6 +632,7 @@ func printEntry(entry datastreamer.FileEntry) {
 		log.Infof("L2 block number: %d", l2BlockNumber)
 		timestamp := binary.LittleEndian.Uint64(entry.Data[16:24])
 		log.Infof("Timestamp: %d", timestamp)
+		log.Infof("Timestamp: %v", time.Unix(int64(timestamp), 0))
 		globalExitRoot := "0x" + common.Bytes2Hex(entry.Data[24:56])
 		log.Infof("Global exit root: %s", globalExitRoot)
 		coinbase := "0x" + common.Bytes2Hex(entry.Data[56:76])
