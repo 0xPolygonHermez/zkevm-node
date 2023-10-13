@@ -976,11 +976,6 @@ func (_m *StateMock) IsL2BlockVirtualized(ctx context.Context, blockNumber uint6
 	return r0, r1
 }
 
-// PrepareWebSocket provides a mock function with given fields:
-func (_m *StateMock) PrepareWebSocket() {
-	_m.Called()
-}
-
 // ProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx
 func (_m *StateMock) ProcessUnsignedTransaction(ctx context.Context, tx *coretypes.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	ret := _m.Called(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
@@ -1010,6 +1005,11 @@ func (_m *StateMock) ProcessUnsignedTransaction(ctx context.Context, tx *coretyp
 // RegisterNewL2BlockEventHandler provides a mock function with given fields: h
 func (_m *StateMock) RegisterNewL2BlockEventHandler(h state.NewL2BlockEventHandler) {
 	_m.Called(h)
+}
+
+// StartToMonitorNewL2Blocks provides a mock function with given fields:
+func (_m *StateMock) StartToMonitorNewL2Blocks() {
+	_m.Called()
 }
 
 // NewStateMock creates a new instance of StateMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

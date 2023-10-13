@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -31,7 +32,7 @@ func NewStorage() *Storage {
 }
 
 // NewLogFilter persists a new log filter
-func (s *Storage) NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string, error) {
+func (s *Storage) NewLogFilter(wsConn *atomic.Pointer[websocket.Conn], filter LogFilter) (string, error) {
 	shouldFilterByBlockHash := filter.BlockHash != nil
 	shouldFilterByBlockRange := filter.FromBlock != nil || filter.ToBlock != nil
 
@@ -43,17 +44,17 @@ func (s *Storage) NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string
 }
 
 // NewBlockFilter persists a new block log filter
-func (s *Storage) NewBlockFilter(wsConn *websocket.Conn) (string, error) {
+func (s *Storage) NewBlockFilter(wsConn *atomic.Pointer[websocket.Conn]) (string, error) {
 	return s.createFilter(FilterTypeBlock, nil, wsConn)
 }
 
 // NewPendingTransactionFilter persists a new pending transaction filter
-func (s *Storage) NewPendingTransactionFilter(wsConn *websocket.Conn) (string, error) {
+func (s *Storage) NewPendingTransactionFilter(wsConn *atomic.Pointer[websocket.Conn]) (string, error) {
 	return s.createFilter(FilterTypePendingTx, nil, wsConn)
 }
 
 // create persists the filter to the memory and provides the filter id
-func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *websocket.Conn) (string, error) {
+func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *atomic.Pointer[websocket.Conn]) (string, error) {
 	lastPoll := time.Now().UTC()
 	id, err := s.generateFilterID()
 	if err != nil {
@@ -154,7 +155,7 @@ func (s *Storage) UninstallFilter(filterID string) error {
 }
 
 // UninstallFilterByWSConn deletes all filters connected to the provided web socket connection
-func (s *Storage) UninstallFilterByWSConn(wsConn *websocket.Conn) error {
+func (s *Storage) UninstallFilterByWSConn(wsConn *atomic.Pointer[websocket.Conn]) error {
 	filterIDsToDelete := []string{}
 	s.filters.Range(func(key, value any) bool {
 		id := key.(string)

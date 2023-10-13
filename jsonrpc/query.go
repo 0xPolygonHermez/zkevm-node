@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"encoding/json"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -26,7 +27,7 @@ type Filter struct {
 	Type       FilterType
 	Parameters interface{}
 	LastPoll   time.Time
-	WsConn     *websocket.Conn
+	WsConn     *atomic.Pointer[websocket.Conn]
 }
 
 // FilterType express the type of the filter, block, logs, pending transactions
