@@ -32,12 +32,12 @@ func ConvertToCounters(resp *executor.ProcessBatchResponse) ZKCounters {
 }
 
 // TestConvertToProcessBatchResponse for test purposes
-func (s *State) TestConvertToProcessBatchResponse(response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	return s.convertToProcessBatchResponse(response)
+func (s *State) TestConvertToProcessBatchResponse(response *executor.ProcessBatchResponse, forkID uint64) (*ProcessBatchResponse, error) {
+	return s.convertToProcessBatchResponse(response, forkID)
 }
 
-func (s *State) convertToProcessBatchResponse(response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	responses, err := s.convertToProcessTransactionResponse(response.Responses)
+func (s *State) convertToProcessBatchResponse(response *executor.ProcessBatchResponse, forkID uint64) (*ProcessBatchResponse, error) {
+	responses, err := s.convertToProcessTransactionResponse(response.Responses, forkID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func convertToReadWriteAddresses(addresses map[string]*executor.InfoReadWrite) (
 	return results, nil
 }
 
-func (s *State) convertToProcessTransactionResponse(responses []*executor.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
+func (s *State) convertToProcessTransactionResponse(responses []*executor.ProcessTransactionResponse, forkID uint64) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for _, response := range responses {
 		trace, err := convertToStructLogArray(response.ExecutionTrace)
@@ -155,7 +155,7 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 		tx := new(types.Transaction)
 
 		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP && len(response.GetRlpTx()) > 0 {
-			tx, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
+			tx, _, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()), forkID)
 			if err != nil {
 				timestamp := time.Now()
 				log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)

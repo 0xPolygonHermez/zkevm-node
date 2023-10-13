@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -263,17 +264,23 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 }
 
 // DecodeTx decodes a string rlp tx representation into a types.Transaction instance
-func DecodeTx(encodedTx string) (*types.Transaction, error) {
+func DecodeTx(encodedTx string, forkID uint64) (*types.Transaction, byte, error) {
+	effectiveGasPricePercentage := byte(0)
+	if forkID >= forkID5 {
+		effectiveGasPricePercentage = common.Hex2Bytes(encodedTx[len(encodedTx)-2:])[0]
+		encodedTx = encodedTx[:len(encodedTx)-2]
+	}
+
 	b, err := hex.DecodeHex(encodedTx)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	tx := new(types.Transaction)
 	if err := tx.UnmarshalBinary(b); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return tx, nil
+	return tx, effectiveGasPricePercentage, nil
 }
 
 func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse) *types.Receipt {

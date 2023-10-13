@@ -110,7 +110,7 @@ func TestDecodePre155BatchL2DataForkID5(t *testing.T) {
 
 func TestDecodePre155Tx(t *testing.T) {
 	pre155 := "0xf86780843b9aca00826163941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c1ba0b7d2a666860f3c6b8f5ef96f86c7ec5562e97fd04c2e10f3755ff3a0456f9feba0246df95217bf9082f84f9e40adb0049c6664a5bb4c9cbe34ab1a73e77bab26ed"
-	tx, err := state.DecodeTx(pre155)
+	tx, _, err := state.DecodeTx(pre155, forkID)
 	require.NoError(t, err)
 	t.Log("Txs decoded: ", tx)
 	v, r, s := tx.RawSignatureValues()

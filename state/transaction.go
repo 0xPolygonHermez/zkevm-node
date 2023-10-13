@@ -229,7 +229,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	forkId := s.GetForkIDByBatchNumber(batch.BatchNumber)
+	forkID := s.GetForkIDByBatchNumber(batch.BatchNumber)
 
 	// gets batch that including the previous l2 block
 	previousBatch, err := s.GetBatchByL2BlockNumber(ctx, previousBlock.NumberU64(), dbTx)
@@ -238,7 +238,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	// generate batch l2 data for the transaction
-	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx}, []uint8{MaxEffectivePercentage}, forkId)
+	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx}, []uint8{MaxEffectivePercentage}, forkID)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +284,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		Coinbase:         batch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
 		ChainId:          s.cfg.ChainID,
-		ForkId:           forkId,
+		ForkId:           forkID,
 		TraceConfig:      traceConfigRequest,
 	}
 
@@ -302,7 +302,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	// Transactions are decoded only for logging purposes
 	// as they are not longer needed in the convertToProcessBatchResponse function
-	txs, _, _, err := DecodeTxs(batchL2Data, forkId)
+	txs, _, _, err := DecodeTxs(batchL2Data, forkID)
 	if err != nil && !errors.Is(err, ErrInvalidData) {
 		return nil, err
 	}
@@ -311,7 +311,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		log.Debugf(tx.Hash().String())
 	}
 
-	convertedResponse, err := s.convertToProcessBatchResponse(processBatchResponse)
+	convertedResponse, err := s.convertToProcessBatchResponse(processBatchResponse, forkID)
 	if err != nil {
 		return nil, err
 	}
@@ -883,7 +883,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
-	response, err := s.convertToProcessBatchResponse(processBatchResponse)
+	response, err := s.convertToProcessBatchResponse(processBatchResponse, forkID)
 	if err != nil {
 		return nil, err
 	}

@@ -149,7 +149,9 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, b
 		return nil, err
 	}
 
-	result, err := s.convertToProcessBatchResponse(processBatchResponse)
+	forkID := s.GetForkIDByBatchNumber(batchNumber)
+
+	result, err := s.convertToProcessBatchResponse(processBatchResponse, forkID)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +191,7 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 	}
 
 	var result *ProcessBatchResponse
-	result, err = s.convertToProcessBatchResponse(res)
+	result, err = s.convertToProcessBatchResponse(res, processBatchRequest.ForkId)
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +441,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		}
 	}
 
-	processedBatch, err := s.convertToProcessBatchResponse(processed)
+	processedBatch, err := s.convertToProcessBatchResponse(processed, forkID)
 	if err != nil {
 		return common.Hash{}, noFlushID, noProverID, err
 	}

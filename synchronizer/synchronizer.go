@@ -1467,7 +1467,8 @@ func (s *ClientSynchronizer) reorgPool(dbTx pgx.Tx) error {
 	}
 	batchNumber := latestBatchNum + 1
 	// Get transactions that have to be included in the pool again
-	txs, err := s.state.GetReorgedTransactions(s.ctx, batchNumber, dbTx)
+	forkID := s.state.GetForkIDByBatchNumber(batchNumber)
+	txs, err := s.state.GetReorgedTransactions(s.ctx, batchNumber, forkID, dbTx)
 	if err != nil {
 		log.Errorf("error getting txs from trusted state. BatchNumber: %d, error: %v", batchNumber, err)
 		return err

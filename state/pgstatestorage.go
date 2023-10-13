@@ -847,7 +847,7 @@ func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Contex
 }
 
 // GetTransactionsByBatchNumber returns the transactions in the given batch.
-func (p *PostgresStorage) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, effectivePercentages []uint8, err error) {
+func (p *PostgresStorage) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, forkID uint64, dbTx pgx.Tx) (txs []types.Transaction, effectivePercentages []uint8, err error) {
 	var encodedTxs []string
 	encodedTxs, effectivePercentages, err = p.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 	if err != nil {
@@ -855,7 +855,7 @@ func (p *PostgresStorage) GetTransactionsByBatchNumber(ctx context.Context, batc
 	}
 
 	for i := 0; i < len(encodedTxs); i++ {
-		tx, err := DecodeTx(encodedTxs[i])
+		tx, _, err := DecodeTx(encodedTxs[i], forkID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1229,7 +1229,7 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 		return nil, err
 	}
 
-	tx, err := DecodeTx(encoded)
+	tx, _, err := DecodeTx(encoded, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -1327,7 +1327,7 @@ func (p *PostgresStorage) GetTransactionByL2BlockHashAndIndex(ctx context.Contex
 		return nil, err
 	}
 
-	tx, err := DecodeTx(encoded)
+	tx, _, err := DecodeTx(encoded, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -1349,7 +1349,7 @@ func (p *PostgresStorage) GetTransactionByL2BlockNumberAndIndex(ctx context.Cont
 		return nil, err
 	}
 
-	tx, err := DecodeTx(encoded)
+	tx, _, err := DecodeTx(encoded, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -1784,7 +1784,7 @@ func (p *PostgresStorage) GetTxsByBlockNumber(ctx context.Context, blockNumber u
 			return nil, err
 		}
 
-		tx, err := DecodeTx(encoded)
+		tx, _, err := DecodeTx(encoded, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1822,7 +1822,7 @@ func (p *PostgresStorage) GetTxsByBatchNumber(ctx context.Context, batchNumber u
 			return nil, err
 		}
 
-		tx, err := DecodeTx(encoded)
+		tx, _, err := DecodeTx(encoded, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -2438,7 +2438,7 @@ func (p *PostgresStorage) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64,
 }
 
 // GetReorgedTransactions returns the transactions that were reorged
-func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
+func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumber uint64, forkId uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
 	const getReorgedTransactionsSql = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num >= $1 ORDER BY l2_block_num ASC"
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getReorgedTransactionsSql, batchNumber)
@@ -2459,7 +2459,7 @@ func (p *PostgresStorage) GetReorgedTransactions(ctx context.Context, batchNumbe
 			return nil, err
 		}
 
-		tx, err := DecodeTx(encodedTx)
+		tx, _, err := DecodeTx(encodedTx, forkId)
 		if err != nil {
 			return nil, err
 		}
@@ -2625,9 +2625,11 @@ func scanL2Block(row pgx.Row) (*DSL2Block, error) {
 
 // GetDSL2Transactions returns the L2 transactions
 func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, minL2Block, maxL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error) {
-	const l2TxSQL = `SELECT t.effective_percentage, t.encoded
-					 FROM state.transaction t
+	const l2TxSQL = `SELECT t.effective_percentage, t.encoded, f.fork_id
+					 FROM state.transaction t, state.fork_id f, state.l2block l2b
 					 WHERE l2_block_num BETWEEN $1 AND $2
+					 AND l2b.block_num = t.l2_block_num
+					 AND l2b.batch_num BETWEEN f.from_batch_num AND f.to_batch_num
 					 ORDER BY t.l2_block_num ASC`
 
 	e := p.getExecQuerier(dbTx)
@@ -2653,13 +2655,15 @@ func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, minL2Block, m
 func scanL2Transaction(row pgx.Row) (*DSL2Transaction, error) {
 	l2Transaction := DSL2Transaction{}
 	encoded := []byte{}
+	forkID := uint64(0)
 	if err := row.Scan(
 		&l2Transaction.EffectiveGasPricePercentage,
 		&encoded,
+		&forkID,
 	); err != nil {
 		return nil, err
 	}
-	tx, err := DecodeTx(string(encoded))
+	tx, _, err := DecodeTx(string(encoded), forkID)
 	if err != nil {
 		return nil, err
 	}

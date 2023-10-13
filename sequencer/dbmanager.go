@@ -671,8 +671,8 @@ func (d *dbManager) GetBalanceByStateRoot(ctx context.Context, address common.Ad
 	return d.state.GetBalanceByStateRoot(ctx, address, root)
 }
 
-func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) (txs []types.Transaction, effectivePercentages []uint8, err error) {
-	return d.state.GetTransactionsByBatchNumber(ctx, batchNumber, nil)
+func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumber, forkID uint64) (txs []types.Transaction, effectivePercentages []uint8, err error) {
+	return d.state.GetTransactionsByBatchNumber(ctx, batchNumber, forkID, nil)
 }
 
 func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, failedReason *string) error {

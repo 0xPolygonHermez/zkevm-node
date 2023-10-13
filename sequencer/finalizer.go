@@ -1072,7 +1072,8 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 
 // closeBatch closes the current batch in the state
 func (f *finalizer) closeBatch(ctx context.Context) error {
-	transactions, effectivePercentages, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber)
+	forkID := f.dbManager.GetForkIDByBatchNumber(f.batch.batchNumber)
+	transactions, effectivePercentages, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.batch.batchNumber, forkID)
 	if err != nil {
 		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
 	}

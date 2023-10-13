@@ -140,7 +140,9 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err)
 		}
 
-		txs, _, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)
+		forkID := z.state.GetForkIDByBatchNumber(batchNumber)
+
+		txs, _, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, forkID, dbTx)
 		if !errors.Is(err, state.ErrNotFound) && err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v", batchNumber), err)
 		}

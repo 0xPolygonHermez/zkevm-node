@@ -202,7 +202,9 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get batch by number", err)
 		}
 
-		txs, _, err := d.state.GetTransactionsByBatchNumber(ctx, batch.BatchNumber, dbTx)
+		forkID := d.state.GetForkIDByBatchNumber(batch.BatchNumber)
+
+		txs, _, err := d.state.GetTransactionsByBatchNumber(ctx, batch.BatchNumber, forkID, dbTx)
 		if !errors.Is(err, state.ErrNotFound) && err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch txs from state by number %v to create the traces", batchNumber), err)
 		}
