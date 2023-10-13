@@ -2,6 +2,7 @@ package config
 
 // DefaultValues is the default configuration
 const DefaultValues = `
+QuerySize = 1000
 [StreamServer]
 Port = 8080
 Filename = "datastreamer.bin"

@@ -240,14 +240,14 @@ func Warnf(template string, args ...interface{}) {
 // Fatalf calls log.Fatalf on the root Logger.
 func Fatalf(template string, args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	getDefaultLog().Fatalf(template+" %s", args...)
+	getDefaultLog().Fatalf(template, args...)
 }
 
 // Errorf calls log.Errorf on the root logger and stores the error message into
 // the ErrorFile.
 func Errorf(template string, args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	getDefaultLog().Errorf(template+" %s", args...)
+	getDefaultLog().Errorf(template, args...)
 }
 
 // appendStackTraceMaybeKV will append the stacktrace to the KV

@@ -1,3 +1,4 @@
+QuerySize = 1000
 
 [StreamServer]
 Port = 6901

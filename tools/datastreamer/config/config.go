@@ -21,6 +21,7 @@ const (
 
 // Config is the configuration for the tool
 type Config struct {
+	QuerySize    uint64              `mapstructure:"QuerySize"`
 	StreamServer datastreamer.Config `mapstructure:"StreamServer"`
 	StateDB      db.Config           `mapstructure:"StateDB"`
 	Executor     executor.Config     `mapstructure:"Executor"`

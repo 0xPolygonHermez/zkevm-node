@@ -6,6 +6,7 @@ check-go:
 
 # Targets that require the checks
 generate-file: check-go
+validate-file: check-go
 rebuild: check-go
 decode-entry: check-go
 adecode-l2block: check-go
@@ -15,6 +16,10 @@ arguments := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 .PHONY: generate-file
 generate-file: ## Runs the tool to populate the binary file
 	go run main.go generate -cfg config/tool.config.toml
+
+.PHONY: validate-file
+validate-file: ## Runs the tool to validate the binary file
+	go run main.go validate -cfg config/tool.config.toml
 
 .PHONY: decode-l2block
 decode-l2block: ## Runs the tool to decode a given l2 block number
