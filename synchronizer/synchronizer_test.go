@@ -35,9 +35,6 @@ type mocks struct {
 	//EventLog     *eventLogMock
 }
 
-//func Test_Given_StartingSynchronizer_When_CallFirstTimeExecutor_Then_StoreProverID(t *testing.T) {
-//}
-
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
 //
 //	this Check partially point 2: Use previous batch stored in memory to avoid getting from database

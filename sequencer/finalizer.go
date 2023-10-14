@@ -116,8 +116,6 @@ func newFinalizer(
 	closingSignalCh ClosingSignalCh,
 	batchConstraints state.BatchConstraintsCfg,
 	eventLog *event.EventLog,
-	pendingTxsToStoreMux *sync.RWMutex,
-	pendingTxsPerAddressTrackers map[common.Address]*pendingTxPerAddressTracker,
 ) *finalizer {
 	f := finalizer{
 		cfg:                  cfg,
@@ -477,7 +475,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	// Wait until all processed transactions are saved
 	startWait := time.Now()
-	f.pendingTxsToStoreWG.Wait()
+	f.pendingTransactionsToStoreWG.Wait()
 	endWait := time.Now()
 
 	log.Info("waiting for pending transactions to be stored took: ", endWait.Sub(startWait).String())
