@@ -3,14 +3,28 @@ Environment = "development" # "production" or "development"
 Level = "info"
 Outputs = ["stderr"]
 
-[StateDB]
-User = "state_user"
-Password = "state_password"
-Name = "state_db"
-Host = "zkevm-state-db"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
+[State]
+AccountQueue = 64
+	[State.DB]
+	User = "state_user"
+	Password = "state_password"
+	Name = "state_db"
+	Host = "zkevm-state-db"
+	Port = "5432"
+	EnableLog = false	
+	MaxConns = 200
+	[State.Batch]
+		[State.Batch.Constraints]
+		MaxTxsPerBatch = 300
+		MaxBatchBytesSize = 120000
+		MaxCumulativeGasUsed = 30000000
+		MaxKeccakHashes = 2145
+		MaxPoseidonHashes = 252357
+		MaxPoseidonPaddings = 135191
+		MaxMemAligns = 236585
+		MaxArithmetics = 236585
+		MaxBinaries = 473170
+		MaxSteps = 7570538
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
@@ -31,6 +45,7 @@ PollMinAllowedGasPriceInterval = "15s"
 
 [Etherman]
 URL = "http://your.L1node.url"
+ForkIDChunkSize = 20000
 MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""

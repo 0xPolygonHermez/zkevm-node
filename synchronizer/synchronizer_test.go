@@ -41,54 +41,67 @@ type mocks struct {
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
 //
 //	this Check partially point 2: Use previous batch stored in memory to avoid getting from database
-func Test_Given_PermissionlessNode_When_SyncronizeAgainSameBatch_Then_UseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
+func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
-	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg)
+	ethermanForL1 := []EthermanInterface{m.Etherman}
+	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
 	require.NoError(t, err)
-	sync, ok := sync_interface.(*ClientSynchronizer)
+	sync, ok := syncInterface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
 	lastBatchNumber := uint64(10)
-	batch10With1Tx := createBatch(t, lastBatchNumber, 1)
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2)
 	batch10With3Tx := createBatch(t, lastBatchNumber, 3)
+	previousBatch09 := createBatch(t, lastBatchNumber-1, 1)
 
-	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, true)
+	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, true, false)
+	// Is the first time that appears this batch, so it need to OpenBatch
+	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	expectedCallsForsyncTrustedState(t, m, sync, batch10With2Tx, batch10With3Tx, false)
+	expectedCallsForsyncTrustedState(t, m, sync, batch10With2Tx, batch10With3Tx, previousBatch09, true, true)
+	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	require.Equal(t, *sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With3Tx))
+	require.Equal(t, sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With3Tx))
 }
 
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
 //
 //	this Check partially point 2: Store last batch in memory (CurrentTrustedBatch)
-func Test_Given_PermissionlessNode_When_SyncronizeFirstTimeABatch_Then_StoreItInALocalVar(t *testing.T) {
+func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocalVar(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
-	sync_interface, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg)
+	ethermanForL1 := []EthermanInterface{m.Etherman}
+	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
 	require.NoError(t, err)
-	sync, ok := sync_interface.(*ClientSynchronizer)
+	sync, ok := syncInterface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
 	lastBatchNumber := uint64(10)
 	batch10With1Tx := createBatch(t, lastBatchNumber, 1)
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2)
+	previousBatch09 := createBatch(t, lastBatchNumber-1, 1)
 
-	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, true)
+	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, previousBatch09, true, true)
+	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	require.Equal(t, *sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With2Tx))
+	require.Equal(t, sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With2Tx))
 }
 
 // issue #2220
-
+// TODO: this is running against old sequential L1 sync, need to update to parallel L1 sync.
+// but it used a feature that is not implemented in new one that is asking beyond the last block on L1
 func TestForcedBatch(t *testing.T) {
 	genesis := state.Genesis{
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize: 10,
+		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:                       10,
+		UseParallelModeForL1Synchronization: false,
+		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
+			NumberOfParallelOfEthereumClients:   1,
+			CapacityOfBufferingRollupInfoFromL1: 1,
+		},
 	}
 
 	m := mocks{
@@ -98,8 +111,8 @@ func TestForcedBatch(t *testing.T) {
 		DbTx:        newDbTxMock(t),
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
-
-	sync, err := NewSynchronizer(false, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg)
+	ethermanForL1 := []EthermanInterface{m.Etherman}
+	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
 
 	// state preparation
@@ -161,7 +174,7 @@ func TestForcedBatch(t *testing.T) {
 
 			var n *big.Int
 			m.Etherman.
-				On("HeaderByNumber", ctx, n).
+				On("HeaderByNumber", mock.Anything, n).
 				Return(ethHeader, nil).
 				Once()
 
@@ -211,7 +224,7 @@ func TestForcedBatch(t *testing.T) {
 			toBlock := fromBlock + cfg.SyncChunkSize
 
 			m.Etherman.
-				On("GetRollupInfoByBlockRange", ctx, fromBlock, &toBlock).
+				On("GetRollupInfoByBlockRange", mock.Anything, fromBlock, &toBlock).
 				Return(blocks, order, nil).
 				Once()
 
@@ -326,13 +339,20 @@ func TestForcedBatch(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TODO: this is running against old sequential L1 sync, need to update to parallel L1 sync.
+// but it used a feature that is not implemented in new one that is asking beyond the last block on L1
 func TestSequenceForcedBatch(t *testing.T) {
 	genesis := state.Genesis{
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize: 10,
+		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:                       10,
+		UseParallelModeForL1Synchronization: false,
+		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
+			NumberOfParallelOfEthereumClients:   1,
+			CapacityOfBufferingRollupInfoFromL1: 1,
+		},
 	}
 
 	m := mocks{
@@ -342,8 +362,8 @@ func TestSequenceForcedBatch(t *testing.T) {
 		DbTx:        newDbTxMock(t),
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
-
-	sync, err := NewSynchronizer(true, m.Etherman, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg)
+	ethermanForL1 := []EthermanInterface{m.Etherman}
+	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
 
 	// state preparation
@@ -509,6 +529,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Timestamp:      ethBlock.ReceivedAt,
 				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
 				ForcedBatchNum: &f,
+				BatchL2Data:    &sequencedForceBatch.Transactions,
 			}
 
 			m.State.
@@ -639,8 +660,11 @@ func createBatch(t *testing.T, batchNumber uint64, howManyTx int) *types.Batch {
 	return batch
 }
 
-func rpcBatchTostateBatch(rpcBatch *types.Batch) state.Batch {
-	return state.Batch{
+func rpcBatchTostateBatch(rpcBatch *types.Batch) *state.Batch {
+	if rpcBatch == nil {
+		return nil
+	}
+	return &state.Batch{
 		BatchNumber:    uint64(rpcBatch.Number),
 		Coinbase:       rpcBatch.Coinbase,
 		StateRoot:      rpcBatch.StateRoot,
@@ -651,8 +675,16 @@ func rpcBatchTostateBatch(rpcBatch *types.Batch) state.Batch {
 	}
 }
 
+func expectedCallsForOpenBatch(t *testing.T, m *mocks, sync *ClientSynchronizer, batchNumber uint64) {
+	m.State.
+		On("OpenBatch", sync.ctx, mock.Anything, m.DbTx).
+		Return(nil).
+		Once()
+}
+
 func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchronizer,
-	batchInPermissionLess *types.Batch, batchInTrustedNode *types.Batch, needToRetrieveBatchFromDatabase bool) {
+	batchInPermissionLess *types.Batch, batchInTrustedNode *types.Batch, previousBatchInPermissionless *types.Batch,
+	needToRetrieveBatchFromDatabase bool, needUpdateL2Data bool) {
 	batchNumber := uint64(batchInTrustedNode.Number)
 	m.ZKEVMClient.
 		On("BatchNumber", mock.Anything).
@@ -670,44 +702,49 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		Once()
 
 	m.State.
-		On("BeginStateTransaction", sync.ctx).
+		On("BeginStateTransaction", mock.Anything).
 		Return(m.DbTx, nil).
 		Once()
 
 	stateBatchInTrustedNode := rpcBatchTostateBatch(batchInTrustedNode)
 	stateBatchInPermissionLess := rpcBatchTostateBatch(batchInPermissionLess)
+	statePreviousBatchInPermissionless := rpcBatchTostateBatch(previousBatchInPermissionless)
+
 	if needToRetrieveBatchFromDatabase {
+		if statePreviousBatchInPermissionless != nil {
+			m.State.
+				On("GetBatchByNumber", mock.Anything, uint64(batchInTrustedNode.Number-1), mock.Anything).
+				Return(statePreviousBatchInPermissionless, nil).
+				Once()
+		} else {
+			m.State.
+				On("GetBatchByNumber", mock.Anything, uint64(batchInTrustedNode.Number-1), mock.Anything).
+				Return(nil, state.ErrNotFound).
+				Once()
+		}
+		if stateBatchInPermissionLess != nil {
+			m.State.
+				On("GetBatchByNumber", mock.Anything, uint64(batchInTrustedNode.Number), mock.Anything).
+				Return(stateBatchInPermissionLess, nil).
+				Once()
+		} else {
+			m.State.
+				On("GetBatchByNumber", mock.Anything, uint64(batchInTrustedNode.Number), mock.Anything).
+				Return(nil, state.ErrNotFound).
+				Once()
+		}
+	}
+	if needUpdateL2Data {
 		m.State.
-			On("GetBatchByNumber", mock.Anything, uint64(batchInPermissionLess.Number-1), mock.Anything).
-			Return(&stateBatchInPermissionLess, nil).
+			On("ResetTrustedState", sync.ctx, batchNumber-1, mock.Anything).
+			Return(nil).
 			Once()
+
 		m.State.
-			On("GetBatchByNumber", mock.Anything, uint64(batchInPermissionLess.Number), mock.Anything).
-			Return(&stateBatchInPermissionLess, nil).
+			On("UpdateBatchL2Data", mock.Anything, batchNumber, stateBatchInTrustedNode.BatchL2Data, mock.Anything).
+			Return(nil).
 			Once()
 	}
-
-	m.State.
-		On("ResetTrustedState", sync.ctx, batchNumber-1, m.DbTx).
-		Return(nil).
-		Once()
-
-	processCtx := state.ProcessingContext{
-		BatchNumber:    uint64(batchInTrustedNode.Number),
-		Coinbase:       common.HexToAddress(batchInTrustedNode.Coinbase.String()),
-		Timestamp:      time.Unix(int64(batchInTrustedNode.Timestamp), 0),
-		GlobalExitRoot: batchInTrustedNode.GlobalExitRoot,
-	}
-	m.State.
-		On("OpenBatch", sync.ctx, processCtx, m.DbTx).
-		Return(nil).
-		Once()
-
-	m.State.
-		On("UpdateBatchL2Data", sync.ctx, batchNumber, stateBatchInTrustedNode.BatchL2Data, mock.Anything).
-		Return(nil).
-		Once()
-
 	tx1 := state.ProcessTransactionResponse{}
 	processedBatch := state.ProcessBatchResponse{
 		FlushID:   1,
@@ -715,22 +752,22 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		Responses: []*state.ProcessTransactionResponse{&tx1},
 	}
 	m.State.
-		On("ProcessBatch", sync.ctx, mock.Anything, true).
+		On("ProcessBatch", mock.Anything, mock.Anything, true).
 		Return(&processedBatch, nil).
 		Once()
 
 	m.State.
 		On("StoreTransaction", sync.ctx, uint64(stateBatchInTrustedNode.BatchNumber), mock.Anything, stateBatchInTrustedNode.Coinbase, uint64(batchInTrustedNode.Timestamp), m.DbTx).
-		Return(nil).
+		Return(&ethTypes.Header{}, nil).
 		Once()
 
 	m.State.
-		On("GetStoredFlushID", sync.ctx).
+		On("GetStoredFlushID", mock.Anything).
 		Return(uint64(1), cProverIDExecution, nil).
 		Once()
 
 	m.DbTx.
-		On("Commit", sync.ctx).
+		On("Commit", mock.Anything).
 		Return(nil).
 		Once()
 }

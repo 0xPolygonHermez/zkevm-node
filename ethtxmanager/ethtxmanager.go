@@ -114,8 +114,8 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 		return err
 	}
 
-	mTxLogger := createMonitoredTxLogger(mTx)
-	mTxLogger.Infof("created")
+	mTxLog := log.WithFields("monitoredTx", mTx.id, "createdAt", mTx.createdAt)
+	mTxLog.Infof("created")
 
 	return nil
 }

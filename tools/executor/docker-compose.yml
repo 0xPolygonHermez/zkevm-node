@@ -6,7 +6,7 @@ networks:
 services:
   executor-tool-db:
     container_name: executor-tool-db
-    image: postgres
+    image: postgres:15
     ports:
       - 5432:5432
     volumes:

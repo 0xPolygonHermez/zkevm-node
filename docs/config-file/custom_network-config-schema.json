@@ -26,10 +26,8 @@
 						"type": "string"
 					},
 					"storage": {
-						"patternProperties": {
-							".*": {
-								"type": "string"
-							}
+						"additionalProperties": {
+							"type": "string"
 						},
 						"type": "object"
 					},

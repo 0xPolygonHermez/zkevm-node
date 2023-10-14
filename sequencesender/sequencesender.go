@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
@@ -108,8 +107,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// add sequence to be monitored
-	sender := common.HexToAddress(s.cfg.SenderAddress)
-	to, data, err := s.etherman.BuildSequenceBatchesTxData(sender, sequences)
+	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
 		return
@@ -117,7 +115,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	firstSequence := sequences[0]
 	lastSequence := sequences[len(sequences)-1]
 	monitoredTxID := fmt.Sprintf(monitoredIDFormat, firstSequence.BatchNumber, lastSequence.BatchNumber)
-	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
+	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to, nil, data, nil)
 	if err != nil {
 		mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, sender, to)
 		mTxLogger.Errorf("error to add sequences tx to eth tx manager: ", err)
@@ -180,8 +178,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 
 		sequences = append(sequences, seq)
 		// Check if can be send
-		sender := common.HexToAddress(s.cfg.SenderAddress)
-		tx, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
+		tx, err = s.etherman.EstimateGasSequenceBatches(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
 		if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
 			metrics.SequencesOvesizedDataError()
 			log.Infof("oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
@@ -192,7 +189,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
 				// Handling the error gracefully, re-processing the sequence as a sanity check
-				_, err = s.etherman.EstimateGasSequenceBatches(sender, sequences)
+				_, err = s.etherman.EstimateGasSequenceBatches(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
 				return sequences, err
 			}
 			return sequences, err

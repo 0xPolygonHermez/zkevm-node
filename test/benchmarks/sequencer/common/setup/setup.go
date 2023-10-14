@@ -2,6 +2,7 @@ package setup
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -9,9 +10,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -24,6 +25,21 @@ const (
 	minAllowedGasPriceIntervalMinutes     = 5
 	pollMinAllowedGasPriceIntervalSeconds = 15
 	defaultGasPrice                       = 1000000000
+)
+
+var (
+	bc = state.BatchConstraintsCfg{
+		MaxTxsPerBatch:       300,
+		MaxBatchBytesSize:    120000,
+		MaxCumulativeGasUsed: 30000000,
+		MaxKeccakHashes:      2145,
+		MaxPoseidonHashes:    252357,
+		MaxPoseidonPaddings:  135191,
+		MaxMemAligns:         236585,
+		MaxArithmetics:       236585,
+		MaxBinaries:          473170,
+		MaxSteps:             7570538,
+	}
 )
 
 // Environment sets up the environment for the benchmark
@@ -64,7 +80,7 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	require.NoError(b, err)
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	pl := pool.NewPool(config, s, st, params.ChainID, eventLog)
+	pl := pool.NewPool(config, bc, s, st, params.ChainID, eventLog)
 
 	// Print Info before send
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)
@@ -73,10 +89,10 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	require.NoError(b, err)
 
 	// Print Initial Stats
-	log.Infof("Receiver Addr: %v", params.To.String())
-	log.Infof("Sender Addr: %v", auth.From.String())
-	log.Infof("Sender Balance: %v", senderBalance.String())
-	log.Infof("Sender Nonce: %v", senderNonce)
+	fmt.Printf("Receiver Addr: %v\n", params.To.String())
+	fmt.Printf("Sender Addr: %v\n", auth.From.String())
+	fmt.Printf("Sender Balance: %v\n", senderBalance.String())
+	fmt.Printf("Sender Nonce: %v\n", senderNonce)
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(b, err)
@@ -92,7 +108,6 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 		panic(err)
 	}
 	auth.GasPrice = gasPrice
-	auth.Nonce = new(big.Int).SetUint64(senderNonce)
 
 	return opsman, client, pl, auth
 }
@@ -127,8 +142,8 @@ func Components(opsman *operations.Manager) error {
 
 // BootstrapSequencer starts the sequencer and waits for it to be ready
 func BootstrapSequencer(b *testing.B, opsman *operations.Manager) {
-	log.Debug("Starting sequencer ....")
+	fmt.Println("Starting sequencer ....")
 	err := operations.StartComponent("seq")
 	require.NoError(b, err)
-	log.Debug("Sequencer Started!")
+	fmt.Println("Sequencer Started!")
 }

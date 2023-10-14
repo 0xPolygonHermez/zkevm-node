@@ -14,6 +14,7 @@ import (
 
 var snapshotFlags = []cli.Flag{
 	&configFileFlag,
+	&outputFileFlag,
 }
 
 func snapshot(ctx *cli.Context) error {
@@ -25,17 +26,17 @@ func snapshot(ctx *cli.Context) error {
 	}
 	setupLog(c.Log)
 
-	port, err := strconv.Atoi(c.StateDB.Port)
+	port, err := strconv.Atoi(c.State.DB.Port)
 	if err != nil {
 		log.Error("error converting port to int. Error: ", err)
 		return err
 	}
 	dump, err := pg.NewDump(&pg.Postgres{
-		Host:     c.StateDB.Host,
+		Host:     c.State.DB.Host,
 		Port:     port,
-		DB:       c.StateDB.Name,
-		Username: c.StateDB.User,
-		Password: c.StateDB.Password,
+		DB:       c.State.DB.Name,
+		Username: c.State.DB.User,
+		Password: c.State.DB.Password,
 	})
 	if err != nil {
 		log.Error("error: ", err)
@@ -43,6 +44,7 @@ func snapshot(ctx *cli.Context) error {
 	}
 	dump.Options = append(dump.Options, "-Z 9")
 	log.Info("StateDB snapshot is being created...")
+	dump.Path = ctx.String(config.FlagOutputFile)
 	dump.SetFileName(fmt.Sprintf(`%v_%v_%v_%v.sql.tar.gz`, dump.DB, time.Now().Unix(), zkevm.Version, zkevm.GitRev))
 	dumpExec := dump.Exec(pg.ExecOptions{StreamPrint: false})
 	if dumpExec.Error != nil {
@@ -71,6 +73,7 @@ func snapshot(ctx *cli.Context) error {
 	}
 	dump.Options = append(dump.Options, "-Z 9")
 	log.Info("HashDB snapshot is being created...")
+	dump.Path = ctx.String(config.FlagOutputFile)
 	dump.SetFileName(fmt.Sprintf(`%v_%v_%v_%v.sql.tar.gz`, dump.DB, time.Now().Unix(), zkevm.Version, zkevm.GitRev))
 	dumpExec = dump.Exec(pg.ExecOptions{StreamPrint: false})
 	if dumpExec.Error != nil {

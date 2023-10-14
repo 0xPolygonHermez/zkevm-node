@@ -26,7 +26,7 @@ services:
     environment:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/node.config.toml:/app/config.toml
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/${ZKEVM_NETWORK}}/node.config.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -50,7 +50,7 @@ services:
     environment:
       - ZKEVM_NODE_ETHERMAN_URL=${ZKEVM_NODE_ETHERMAN_URL}
     volumes:
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/node.config.toml:/app/config.toml
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/${ZKEVM_NETWORK}}/node.config.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -59,7 +59,7 @@ services:
   zkevm-state-db:
     container_name: zkevm-state-db
     restart: unless-stopped
-    image: postgres
+    image: postgres:15
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
       interval: 10s
@@ -70,7 +70,7 @@ services:
     volumes:
       - ./db/scripts/init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
       - ${ZKEVM_NODE_STATEDB_DATA_DIR}:/var/lib/postgresql/data
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/postgresql.conf:/etc/postgresql.conf
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/${ZKEVM_NETWORK}}/postgresql.conf:/etc/postgresql.conf
     environment:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
@@ -85,7 +85,7 @@ services:
   zkevm-pool-db:
     container_name: zkevm-pool-db
     restart: unless-stopped
-    image: postgres
+    image: postgres:15
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
       interval: 10s
@@ -107,7 +107,7 @@ services:
   zkevm-prover:
     container_name: zkevm-prover
     restart: unless-stopped
-    image: hermeznetwork/zkevm-prover:v2.0.1
+    image: hermeznetwork/zkevm-prover:v2.2.3
     depends_on:
       zkevm-state-db:
         condition: service_healthy
@@ -115,6 +115,6 @@ services:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/testnet}/prover.config.json:/usr/src/app/config.json
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/${ZKEVM_NETWORK}}/prover.config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json

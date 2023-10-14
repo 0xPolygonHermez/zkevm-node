@@ -32,12 +32,12 @@ func ConvertToCounters(resp *executor.ProcessBatchResponse) ZKCounters {
 }
 
 // TestConvertToProcessBatchResponse for test purposes
-func (s *State) TestConvertToProcessBatchResponse(txs []types.Transaction, response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	return s.convertToProcessBatchResponse(txs, response)
+func (s *State) TestConvertToProcessBatchResponse(response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	return s.convertToProcessBatchResponse(response)
 }
 
-func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	responses, err := s.convertToProcessTransactionResponse(txs, response.Responses)
+func (s *State) convertToProcessBatchResponse(response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	responses, err := s.convertToProcessTransactionResponse(response.Responses)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (s *State) convertToProcessBatchResponse(txs []types.Transaction, response 
 
 // IsStateRootChanged returns true if the transaction changes the state root
 func IsStateRootChanged(err executor.RomError) bool {
-	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err)
+	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err) && err != executor.RomError_ROM_ERROR_INVALID_RLP
 }
 
 func convertToReadWriteAddresses(addresses map[string]*executor.InfoReadWrite) (map[common.Address]*InfoReadWrite, error) {
@@ -123,9 +123,9 @@ func convertToReadWriteAddresses(addresses map[string]*executor.InfoReadWrite) (
 	return results, nil
 }
 
-func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, responses []*executor.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
+func (s *State) convertToProcessTransactionResponse(responses []*executor.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
-	for i, response := range responses {
+	for _, response := range responses {
 		trace, err := convertToStructLogArray(response.ExecutionTrace)
 		if err != nil {
 			return nil, err
@@ -151,39 +151,51 @@ func (s *State) convertToProcessTransactionResponse(txs []types.Transaction, res
 		result.CallTrace = *callTrace
 		result.EffectiveGasPrice = response.EffectiveGasPrice
 		result.EffectivePercentage = response.EffectivePercentage
-		result.Tx = txs[i]
 
-		_, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
-		if err != nil {
-			timestamp := time.Now()
-			log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
+		tx := new(types.Transaction)
 
-			event := &event.Event{
-				ReceivedAt: timestamp,
-				Source:     event.Source_Node,
-				Level:      event.Level_Error,
-				EventID:    event.EventID_ExecutorRLPError,
-				Json:       string(response.GetRlpTx()),
-			}
-
-			err = s.eventLog.LogEvent(context.Background(), event)
+		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP && len(response.GetRlpTx()) > 0 {
+			tx, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
 			if err != nil {
-				log.Errorf("error storing payload: %v", err)
+				timestamp := time.Now()
+				log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
+
+				event := &event.Event{
+					ReceivedAt: timestamp,
+					Source:     event.Source_Node,
+					Level:      event.Level_Error,
+					EventID:    event.EventID_ExecutorRLPError,
+					Json:       string(response.GetRlpTx()),
+				}
+
+				eventErr := s.eventLog.LogEvent(context.Background(), event)
+				if eventErr != nil {
+					log.Errorf("error storing payload: %v", err)
+				}
+
+				return nil, err
 			}
+		} else {
+			log.Warnf("ROM_ERROR_INVALID_RLP returned by the executor")
+		}
+
+		if tx != nil {
+			result.Tx = *tx
+			log.Debugf("ProcessTransactionResponse[TxHash]: %v", result.TxHash)
+			if response.Error == executor.RomError_ROM_ERROR_NO_ERROR {
+				log.Debugf("ProcessTransactionResponse[Nonce]: %v", result.Tx.Nonce())
+			}
+			log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
+			log.Debugf("ProcessTransactionResponse[Error]: %v", result.RomError)
+			log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
+			log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
+			log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
+			log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
+			log.Debugf("ProcessTransactionResponse[EffectiveGasPrice]: %v", result.EffectiveGasPrice)
+			log.Debugf("ProcessTransactionResponse[EffectivePercentage]: %v", result.EffectivePercentage)
 		}
 
 		results = append(results, result)
-
-		log.Debugf("ProcessTransactionResponse[TxHash]: %v", result.TxHash)
-		log.Debugf("ProcessTransactionResponse[Nonce]: %v", result.Tx.Nonce())
-		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
-		log.Debugf("ProcessTransactionResponse[Error]: %v", result.RomError)
-		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
-		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
-		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
-		log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
-		log.Debugf("ProcessTransactionResponse[EffectiveGasPrice]: %v", result.EffectiveGasPrice)
-		log.Debugf("ProcessTransactionResponse[EffectivePercentage]: %v", result.EffectivePercentage)
 	}
 
 	return results, nil

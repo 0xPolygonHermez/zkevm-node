@@ -2,6 +2,7 @@ package sequencesender
 
 import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Config represents the configuration of a sequence sender
@@ -18,10 +19,12 @@ type Config struct {
 	MaxTxSizeForL1 uint64 `mapstructure:"MaxTxSizeForL1"`
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
-	SenderAddress string `mapstructure:"SenderAddress"`
-	// PrivateKeys defines all the key store files that are going
+	SenderAddress common.Address
+	// L2Coinbase defines which address is going to receive the fees
+	L2Coinbase common.Address `mapstructure:"L2Coinbase"`
+	// PrivateKey defines all the key store files that are going
 	// to be read in order to provide the private keys to sign the L1 txs
-	PrivateKeys []types.KeystoreFileConfig `mapstructure:"PrivateKeys"`
+	PrivateKey types.KeystoreFileConfig `mapstructure:"PrivateKey"`
 	// Batch number where there is a forkid change (fork upgrade)
 	ForkUpgradeBatchNumber uint64
 }

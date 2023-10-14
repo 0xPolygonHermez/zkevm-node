@@ -18,5 +18,5 @@ Codeowner reviewers:
 
 <!-- Codeowners should review only the part of code that they own, they're added automatically as reviewers and it's good to let them know that they shouldn't do a full review -->
 
-- @Alice
-- @Bob
+- @-Alice
+- @-Bob

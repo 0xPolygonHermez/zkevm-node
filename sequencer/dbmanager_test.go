@@ -12,7 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
-	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -37,7 +37,7 @@ var (
 	}
 	dbManagerCfg      = DBManagerCfg{PoolRetrievalInterval: types.NewDuration(500 * time.Millisecond)}
 	executorClient    executor.ExecutorServiceClient
-	mtDBServiceClient mtDBclientpb.HashDBServiceClient
+	mtDBServiceClient hashdb.HashDBServiceClient
 	mtDBClientConn    *grpc.ClientConn
 	testDbManager     *dbManager
 )
@@ -65,7 +65,7 @@ func setupDBManager() {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	stateTree = merkletree.NewStateTree(mtDBServiceClient)
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree, eventLog)
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(state.Config{}, stateDb), executorClient, stateTree, eventLog)
 
 	// DBManager
 	closingSignalCh := ClosingSignalCh{
@@ -73,7 +73,7 @@ func setupDBManager() {
 		GERCh:         make(chan common.Hash),
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
-	batchConstraints := batchConstraints{
+	batchConstraints := state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,

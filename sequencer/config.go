@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 )
 
@@ -16,68 +17,10 @@ type Config struct {
 	// FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
 	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
 
-	// MaxTxsPerBatch is the maximum amount of transactions in the batch
-	MaxTxsPerBatch uint64 `mapstructure:"MaxTxsPerBatch"`
-
-	// MaxBatchBytesSize is the maximum batch size in bytes
-	// (subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)
-	MaxBatchBytesSize uint64 `mapstructure:"MaxBatchBytesSize"`
-
-	// MaxCumulativeGasUsed is max gas amount used by batch
-	MaxCumulativeGasUsed uint64 `mapstructure:"MaxCumulativeGasUsed"`
-
-	// MaxKeccakHashes is max keccak hashes used by batch
-	MaxKeccakHashes uint32 `mapstructure:"MaxKeccakHashes"`
-
-	// MaxPoseidonHashes is max poseidon hashes batch can handle
-	MaxPoseidonHashes uint32 `mapstructure:"MaxPoseidonHashes"`
-
-	// MaxPoseidonPaddings is max poseidon paddings batch can handle
-	MaxPoseidonPaddings uint32 `mapstructure:"MaxPoseidonPaddings"`
-
-	// MaxMemAligns is max mem aligns batch can handle
-	MaxMemAligns uint32 `mapstructure:"MaxMemAligns"`
-
-	// MaxArithmetics is max arithmetics batch can handle
-	MaxArithmetics uint32 `mapstructure:"MaxArithmetics"`
-
-	// MaxBinaries is max binaries batch can handle
-	MaxBinaries uint32 `mapstructure:"MaxBinaries"`
-
-	// MaxSteps is max steps batch can handle
-	MaxSteps uint32 `mapstructure:"MaxSteps"`
-
-	// WeightBatchBytesSize is the cost weight for the BatchBytesSize batch resource
-	WeightBatchBytesSize int `mapstructure:"WeightBatchBytesSize"`
-
-	// WeightCumulativeGasUsed is the cost weight for the CumulativeGasUsed batch resource
-	WeightCumulativeGasUsed int `mapstructure:"WeightCumulativeGasUsed"`
-
-	// WeightKeccakHashes is the cost weight for the KeccakHashes batch resource
-	WeightKeccakHashes int `mapstructure:"WeightKeccakHashes"`
-
-	// WeightPoseidonHashes is the cost weight for the PoseidonHashes batch resource
-	WeightPoseidonHashes int `mapstructure:"WeightPoseidonHashes"`
-
-	// WeightPoseidonPaddings is the cost weight for the PoseidonPaddings batch resource
-	WeightPoseidonPaddings int `mapstructure:"WeightPoseidonPaddings"`
-
-	// WeightMemAligns is the cost weight for the MemAligns batch resource
-	WeightMemAligns int `mapstructure:"WeightMemAligns"`
-
-	// WeightArithmetics is the cost weight for the Arithmetics batch resource
-	WeightArithmetics int `mapstructure:"WeightArithmetics"`
-
-	// WeightBinaries is the cost weight for the Binaries batch resource
-	WeightBinaries int `mapstructure:"WeightBinaries"`
-
-	// WeightSteps is the cost weight for the Steps batch resource
-	WeightSteps int `mapstructure:"WeightSteps"`
-
 	// TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
 	TxLifetimeCheckTimeout types.Duration `mapstructure:"TxLifetimeCheckTimeout"`
 
-	// MaxTxLifetime is the time a tx can be in the sequencer memory
+	// MaxTxLifetime is the time a tx can be in the sequencer/worker memory
 	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
 
 	// Finalizer's specific config properties
@@ -86,11 +29,23 @@ type Config struct {
 	// DBManager's specific config properties
 	DBManager DBManagerCfg `mapstructure:"DBManager"`
 
-	// Worker's specific config properties
-	Worker WorkerCfg `mapstructure:"Worker"`
-
 	// EffectiveGasPrice is the config for the gas price
 	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
+
+	// StreamServerCfg is the config for the stream server
+	StreamServer StreamServerCfg `mapstructure:"StreamServer"`
+}
+
+// StreamServerCfg contains the data streamer's configuration properties
+type StreamServerCfg struct {
+	// Port to listen on
+	Port uint16 `mapstructure:"Port"`
+	// Filename of the binary data file
+	Filename string `mapstructure:"Filename"`
+	// Enabled is a flag to enable/disable the data streamer
+	Enabled bool `mapstructure:"Enabled"`
+	// Log is the log configuration
+	Log log.Config `mapstructure:"Log"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -127,12 +82,10 @@ type FinalizerCfg struct {
 
 	// StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
 	StopSequencerOnBatchNum uint64 `mapstructure:"StopSequencerOnBatchNum"`
-}
 
-// WorkerCfg contains the Worker's configuration properties
-type WorkerCfg struct {
-	// ResourceCostMultiplier is the multiplier for the resource cost
-	ResourceCostMultiplier float64 `mapstructure:"ResourceCostMultiplier"`
+	// SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
+	// sequential way (instead than in parallel)
+	SequentialReprocessFullBatch bool `mapstructure:"SequentialReprocessFullBatch"`
 }
 
 // DBManagerCfg contains the DBManager's configuration properties

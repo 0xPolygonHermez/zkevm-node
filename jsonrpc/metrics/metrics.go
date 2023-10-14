@@ -23,6 +23,8 @@ type RequestHandledLabel string
 const (
 	// RequestHandledLabelInvalid represents an request of type invalid
 	RequestHandledLabelInvalid RequestHandledLabel = "invalid"
+	// RequestHandledLabelError represents an request of type error
+	RequestHandledLabelError RequestHandledLabel = "error"
 	// RequestHandledLabelSingle represents an request of type single
 	RequestHandledLabelSingle RequestHandledLabel = "single"
 	// RequestHandledLabelBatch represents an request of type batch

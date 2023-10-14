@@ -11,14 +11,28 @@ Environment = "development" # "production" or "development"
 Level = "info"
 Outputs = ["stderr"]
 
-[StateDB]
-User = "state_user"
-Password = "state_password"
-Name = "state_db"
-Host = "zkevm-state-db"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
+[State]
+AccountQueue = 64
+	[State.DB]
+	User = "state_user"
+	Password = "state_password"
+	Name = "state_db"
+	Host = "zkevm-state-db"
+	Port = "5432"
+	EnableLog = false	
+	MaxConns = 200
+	[State.Batch]
+		[State.Batch.Constraints]
+		MaxTxsPerBatch = 300
+		MaxBatchBytesSize = 120000
+		MaxCumulativeGasUsed = 30000000
+		MaxKeccakHashes = 2145
+		MaxPoseidonHashes = 252357
+		MaxPoseidonPaddings = 135191
+		MaxMemAligns = 236585
+		MaxArithmetics = 236585
+		MaxBinaries = 473170
+		MaxSteps = 7570538
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
@@ -41,6 +55,7 @@ GlobalQueue = 1024
 
 [Etherman]
 URL = "http://localhost:8545"
+ForkIDChunkSize = 20000
 MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""
@@ -60,40 +75,38 @@ WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 500
 SequencerNodeURI = ""
 EnableL2SuggestedGasPricePolling = true
-TraceBatchUseHTTPS = true
+BatchRequestsEnabled = false
+BatchRequestsLimit = 20
+MaxLogsCount = 10000
+MaxLogsBlockRange = 10000
 	[RPC.WebSockets]
 		Enabled = true
 		Host = "0.0.0.0"
 		Port = 8546
+		ReadLimit = 104857600
 
 [Synchronizer]
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
+UseParallelModeForL1Synchronization = true
+	[Synchronizer.L1ParallelSynchronization]
+		NumberOfParallelOfEthereumClients = 2
+		CapacityOfBufferingRollupInfoFromL1 = 10
+		TimeForCheckLastBlockOnL1Time = "5s"
+		TimeoutForRequestLastBlockOnL1 = "5s"
+		MaxNumberOfRetriesForRequestLastBlockOnL1 = 3
+		TimeForShowUpStatisticsLog = "5m"
+		TimeOutMainLoop = "5m"
+		MinTimeBetweenRetriesForRollupInfo = "5s"
+		[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
+			AcceptableTimeWaitingForNewRollupInfo = "5s"
+			NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo = 10
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
-MaxTxsPerBatch = 300
-MaxBatchBytesSize = 120000
-MaxCumulativeGasUsed = 30000000
-MaxKeccakHashes = 2145
-MaxPoseidonHashes = 252357
-MaxPoseidonPaddings = 135191
-MaxMemAligns = 236585
-MaxArithmetics = 236585
-MaxBinaries = 473170
-MaxSteps = 7570538
-WeightBatchBytesSize = 1
-WeightCumulativeGasUsed = 1
-WeightKeccakHashes = 1
-WeightPoseidonHashes = 1
-WeightPoseidonPaddings = 1
-WeightMemAligns = 1
-WeightArithmetics = 1
-WeightBinaries = 1
-WeightSteps = 1
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 	[Sequencer.Finalizer]
@@ -108,24 +121,27 @@ MaxTxLifetime = "3h"
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		TimestampResolution = "10s"
 		StopSequencerOnBatchNum = 0
+		SequentialReprocessFullBatch = false
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
-	[Sequencer.Worker]
-		ResourceCostMultiplier = 1000
 	[Sequencer.EffectiveGasPrice]
 		MaxBreakEvenGasPriceDeviationPercentage = 10
 		L1GasPriceFactor = 0.25
 		ByteGasCost = 16
 		MarginFactor = 1
 		Enabled = false
+	[Sequencer.StreamServer]
+		Port = 0
+		Filename = ""
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 MaxTxSizeForL1 = 131072
-SenderAddress = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-PrivateKeys = [{Path = "/pk/sequencer.keystore", Password = "testonly"}]
+L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 
 [Aggregator]
 Host = "0.0.0.0"

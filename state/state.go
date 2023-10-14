@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"sync"
+	"sync/atomic"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -14,6 +15,8 @@ import (
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+const newL2BlockEventBufferSize = 500
 
 var (
 	// ZeroHash is the hash 0x0000000000000000000000000000000000000000000000000000000000000000
@@ -30,7 +33,7 @@ type State struct {
 	tree           *merkletree.StateTree
 	eventLog       *event.EventLog
 
-	lastL2BlockSeen         types.Block
+	lastL2BlockSeen         atomic.Pointer[types.Block]
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
@@ -48,7 +51,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient executor.Exec
 		executorClient:          executorClient,
 		tree:                    stateTree,
 		eventLog:                eventLog,
-		newL2BlockEvents:        make(chan NewL2BlockEvent),
+		newL2BlockEvents:        make(chan NewL2BlockEvent, newL2BlockEventBufferSize),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 	}
 
@@ -139,7 +142,7 @@ func (s *State) FlushMerkleTree(ctx context.Context) error {
 	if s.tree == nil {
 		return ErrStateTreeNil
 	}
-	return s.tree.Flush(ctx)
+	return s.tree.Flush(ctx, "")
 }
 
 // GetStoredFlushID returns the stored flush ID and Prover ID
