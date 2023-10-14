@@ -151,13 +151,14 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 
 func getSequencerDefaultConfig() Config {
 	cfg := Config{
-		Host:                      "0.0.0.0",
-		Port:                      9123,
-		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
-		MaxCumulativeGasUsed:      300000,
-		BatchRequestsEnabled:      true,
-		MaxLogsCount:              10000,
-		MaxLogsBlockRange:         10000,
+		Host:                         "0.0.0.0",
+		Port:                         9123,
+		MaxRequestsPerIPAndSecond:    maxRequestsPerIPAndSecond,
+		MaxCumulativeGasUsed:         300000,
+		BatchRequestsEnabled:         true,
+		MaxLogsCount:                 10000,
+		MaxLogsBlockRange:            10000,
+		MaxNativeBlockHashBlockRange: 60000,
 		WebSockets: WebSocketsConfig{
 			Enabled:   true,
 			Host:      "0.0.0.0",

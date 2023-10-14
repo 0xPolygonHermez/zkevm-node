@@ -79,6 +79,7 @@ BatchRequestsEnabled = false
 BatchRequestsLimit = 20
 MaxLogsCount = 10000
 MaxLogsBlockRange = 10000
+MaxNativeBlockHashBlockRange = 60000
 	[RPC.WebSockets]
 		Enabled = true
 		Host = "0.0.0.0"

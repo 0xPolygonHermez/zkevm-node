@@ -2697,6 +2697,34 @@ func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, minL2Block, m
 	return l2Txs, nil
 }
 
+// GetNativeBlockHashesInRange return the state root for the blocks in range
+func (p *PostgresStorage) GetNativeBlockHashesInRange(ctx context.Context, fromBlock, toBlock uint64, dbTx pgx.Tx) ([]common.Hash, error) {
+	const l2TxSQL = `
+    SELECT l2b.state_root
+      FROM state.l2block l2b
+     WHERE l2_block_num BETWEEN $1 AND $2
+     ORDER BY t.l2_block_num ASC`
+
+	e := p.getExecQuerier(dbTx)
+	rows, err := e.Query(ctx, l2TxSQL, fromBlock, toBlock)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	nativeBlockHashes := []common.Hash{}
+
+	for rows.Next() {
+		var nativeBlockHash string
+		err := rows.Scan(&nativeBlockHash)
+		if err != nil {
+			return nil, err
+		}
+		nativeBlockHashes = append(nativeBlockHashes, common.HexToHash(nativeBlockHash))
+	}
+	return nativeBlockHashes, nil
+}
+
 func scanL2Transaction(row pgx.Row) (*DSL2Transaction, error) {
 	l2Transaction := DSL2Transaction{}
 	if err := row.Scan(
