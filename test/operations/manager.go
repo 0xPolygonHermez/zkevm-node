@@ -357,8 +357,8 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
-	// Approve matic
-	err = ApproveMatic()
+	// Approve pol
+	err = ApprovePol()
 	if err != nil {
 		return err
 	}
@@ -381,8 +381,8 @@ func (m *Manager) SetupWithPermissionless() error {
 		return err
 	}
 
-	// Approve matic
-	err = ApproveMatic()
+	// Approve Pol
+	err = ApprovePol()
 	if err != nil {
 		return err
 	}
@@ -520,9 +520,9 @@ func (m *Manager) StartTrustedAndPermissionlessNode() error {
 	return StartComponent("permissionless", nodeUpCondition)
 }
 
-// ApproveMatic runs the approving matic command
-func ApproveMatic() error {
-	return StartComponent("approve-matic")
+// ApprovePol runs the approving Pol command
+func ApprovePol() error {
+	return StartComponent("approve-pol")
 }
 
 func stopNode() error {

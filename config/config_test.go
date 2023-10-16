@@ -169,7 +169,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: common.HexToAddress("0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"),
 		},
 		{
-			path:          "NetworkConfig.L1Config.MaticAddr",
+			path:          "NetworkConfig.L1Config.PolAddr",
 			expectedValue: common.HexToAddress("0x1319D23c2F7034F52Eb07399702B040bA278Ca49"),
 		},
 		{

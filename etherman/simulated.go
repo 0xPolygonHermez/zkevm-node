@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/mockverifier"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
@@ -19,7 +19,7 @@ import (
 
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth
 // must be 1337. The address that holds the auth will have an initial balance of 10 ETH
-func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client, ethBackend *backends.SimulatedBackend, maticAddr common.Address, br *polygonzkevmbridge.Polygonzkevmbridge, err error) {
+func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client, ethBackend *backends.SimulatedBackend, polAddr common.Address, br *polygonzkevmbridge.Polygonzkevmbridge, err error) {
 	if auth == nil {
 		// read only client
 		return &Client{}, nil, common.Address{}, nil, nil
@@ -36,9 +36,9 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	client := backends.NewSimulatedBackend(genesisAlloc, blockGasLimit)
 
 	// Deploy contracts
-	const maticDecimalPlaces = 18
+	const polDecimalPlaces = 18
 	totalSupply, _ := new(big.Int).SetString("10000000000000000000000000000", 10) //nolint:gomnd
-	maticAddr, _, maticContract, err := matic.DeployMatic(auth, client, "Matic Token", "MATIC", maticDecimalPlaces, totalSupply)
+	polAddr, _, polContract, err := pol.DeployPol(auth, client, "Pol Token", "POL", polDecimalPlaces, totalSupply)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
@@ -63,7 +63,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	poeAddr, _, poe, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, maticAddr, rollupVerifierAddr, bridgeAddr, 1000, 1) //nolint
+	poeAddr, _, poe, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, polAddr, rollupVerifierAddr, bridgeAddr, 1000, 1) //nolint
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
@@ -93,13 +93,13 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 			poeAddr.String(), calculatedPoEAddr.String())
 	}
 
-	// Approve the bridge and poe to spend 10000 matic tokens.
+	// Approve the bridge and poe to spend 10000 pol tokens.
 	approvedAmount, _ := new(big.Int).SetString("10000000000000000000000", 10) //nolint:gomnd
-	_, err = maticContract.Approve(auth, bridgeAddr, approvedAmount)
+	_, err = polContract.Approve(auth, bridgeAddr, approvedAmount)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = maticContract.Approve(auth, poeAddr, approvedAmount)
+	_, err = polContract.Approve(auth, poeAddr, approvedAmount)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
@@ -112,7 +112,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	c := &Client{
 		EthClient:             client,
 		ZkEVM:                 poe,
-		Matic:                 maticContract,
+		Pol:                   polContract,
 		GlobalExitRootManager: globalExitRoot,
 		SCAddresses:           []common.Address{poeAddr, exitManagerAddr},
 		auth:                  map[common.Address]bind.TransactOpts{},
@@ -122,5 +122,5 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	return c, client, maticAddr, br, nil
+	return c, client, polAddr, br, nil
 }

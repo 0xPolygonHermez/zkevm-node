@@ -28,7 +28,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				"l1Config" : {
 					"chainId": 420,
 					"polygonZkEVMAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
-					"maticTokenAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
+					"polTokenAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
 					"polygonZkEVMGlobalExitRootAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
 				},
 				"genesis": [
@@ -75,7 +75,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				L1Config: etherman.L1Config{
 					L1ChainID:                 420,
 					ZkEVMAddr:                 common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
-					MaticAddr:                 common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+					PolAddr:                   common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
 					GlobalExitRootManagerAddr: common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
 				},
 				Genesis: state.Genesis{

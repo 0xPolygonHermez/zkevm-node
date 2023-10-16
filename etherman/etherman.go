@@ -16,7 +16,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -120,8 +120,8 @@ type L1Config struct {
 	L1ChainID uint64 `json:"chainId"`
 	// Address of the L1 contract
 	ZkEVMAddr common.Address `json:"polygonZkEVMAddress"`
-	// Address of the L1 Matic token Contract
-	MaticAddr common.Address `json:"maticTokenAddress"`
+	// Address of the L1 Pol token Contract
+	PolAddr common.Address `json:"PolTokenAddress"`
 	// Address of the L1 GlobalExitRootManager contract
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
 }
@@ -136,7 +136,7 @@ type Client struct {
 	EthClient             ethereumClient
 	ZkEVM                 *polygonzkevm.Polygonzkevm
 	GlobalExitRootManager *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
-	Matic                 *matic.Matic
+	Pol                   *pol.Pol
 	SCAddresses           []common.Address
 
 	GasProviders externalGasProviders
@@ -155,7 +155,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		return nil, err
 	}
 	// Create smc clients
-	poe, err := polygonzkevm.NewPolygonzkevm(l1Config.ZkEVMAddr, ethClient)
+	zkevm, err := polygonzkevm.NewPolygonzkevm(l1Config.ZkEVMAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	matic, err := matic.NewMatic(l1Config.MaticAddr, ethClient)
+	pol, err := pol.NewPol(l1Config.PolAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
@@ -184,8 +184,8 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 
 	return &Client{
 		EthClient:             ethClient,
-		ZkEVM:                 poe,
-		Matic:                 matic,
+		ZkEVM:                 zkevm,
+		Pol:                   pol,
 		GlobalExitRootManager: globalExitRoot,
 		SCAddresses:           scAddresses,
 		GasProviders: externalGasProviders{
@@ -1023,8 +1023,8 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 	return etherMan.EthClient.TransactionReceipt(ctx, txHash)
 }
 
-// ApproveMatic function allow to approve tokens in matic smc
-func (etherMan *Client) ApproveMatic(ctx context.Context, account common.Address, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+// ApprovePol function allow to approve tokens in pol smc
+func (etherMan *Client) ApprovePol(ctx context.Context, account common.Address, polAmount *big.Int, to common.Address) (*types.Transaction, error) {
 	opts, err := etherMan.getAuthByAddress(account)
 	if err == ErrNotFound {
 		return nil, errors.New("can't find account private key to sign tx")
@@ -1032,7 +1032,7 @@ func (etherMan *Client) ApproveMatic(ctx context.Context, account common.Address
 	if etherMan.GasProviders.MultiGasProvider {
 		opts.GasPrice = etherMan.GetL1GasPrice(ctx)
 	}
-	tx, err := etherMan.Matic.Approve(&opts, etherMan.l1Cfg.ZkEVMAddr, maticAmount)
+	tx, err := etherMan.Pol.Approve(&opts, etherMan.l1Cfg.ZkEVMAddr, polAmount)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr

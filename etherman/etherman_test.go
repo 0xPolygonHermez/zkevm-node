@@ -38,7 +38,7 @@ func init() {
 }
 
 // This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, auth *bind.TransactOpts, maticAddr common.Address, br *polygonzkevmbridge.Polygonzkevmbridge) {
+func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, auth *bind.TransactOpts, polAddr common.Address, br *polygonzkevmbridge.Polygonzkevmbridge) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
@@ -47,7 +47,7 @@ func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, aut
 	if err != nil {
 		log.Fatal(err)
 	}
-	ethman, ethBackend, maticAddr, br, err = NewSimulatedEtherman(Config{ForkIDChunkSize: 10}, auth)
+	ethman, ethBackend, polAddr, br, err = NewSimulatedEtherman(Config{ForkIDChunkSize: 10}, auth)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, aut
 	if err != nil {
 		log.Fatal(err)
 	}
-	return ethman, ethBackend, auth, maticAddr, br
+	return ethman, ethBackend, auth, polAddr, br
 }
 
 func TestGEREvent(t *testing.T) {
