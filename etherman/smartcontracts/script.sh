@@ -10,6 +10,7 @@ gen() {
 
 gen polygonzkevm
 gen polygonzkevmbridge
-gen matic
+gen pol
 gen polygonzkevmglobalexitroot
+gen polygonrollupmanager
 gen mockverifier
