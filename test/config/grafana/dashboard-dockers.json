@@ -573,14 +573,14 @@
         "current": {
           "selected": true,
           "text": [
-            "xagon-json-rpc",
-            "xagon-pool-db",
-            "xagon-sequencer"
+            "xgon-json-rpc",
+            "xgon-pool-db",
+            "xgon-sequencer"
           ],
           "value": [
-            "xagon-json-rpc",
-            "xagon-pool-db",
-            "xagon-sequencer"
+            "xgon-json-rpc",
+            "xgon-pool-db",
+            "xgon-sequencer"
           ]
         },
         "datasource": {

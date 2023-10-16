@@ -12,11 +12,11 @@ Note the `environment` values will change per DB.
 
 The StateDB needs to generate some extra databases and tables (`merkletree`) for use with the MerkleTree/Executor service.
 
-This is done via an sql file: [init_prover_db.sql](https://github.com/okx/xagon-node/blob/develop/db/scripts/init_prover_db.sql)
+This is done via an sql file: [init_prover_db.sql](https://github.com/okx/xgon-node/blob/develop/db/scripts/init_prover_db.sql)
 
 ```yaml
-xagon-state-db:
-    container_name: xagon-state-db
+xgon-state-db:
+    container_name: xgon-state-db
     image: postgres:15
     deploy:
       resources:
@@ -38,8 +38,8 @@ xagon-state-db:
 - **Other DBs: Pool/RPC**:
 
 ```yaml
-  xagon-pool-db:
-    container_name: xagon-pool-db
+  xgon-pool-db:
+    container_name: xgon-pool-db
     image: postgres:15
     deploy:
       resources:

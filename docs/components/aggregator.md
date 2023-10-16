@@ -1,8 +1,8 @@
 # Component: Aggregator
 
-## XAGON Aggregator:
+## XGON Aggregator:
 
-The XAGON Aggregator is an optional module responsible for receiving connections from Prover(s) in order to generate the proofs for the batches not proven yet.
+The XGON Aggregator is an optional module responsible for receiving connections from Prover(s) in order to generate the proofs for the batches not proven yet.
 
 ## Hard dependencies:
 
@@ -12,33 +12,33 @@ The XAGON Aggregator is an optional module responsible for receiving connections
 
 ## Running:
 
-The preferred way to run the XAGON Aggregator component is via Docker and Docker Compose.
+The preferred way to run the XGON Aggregator component is via Docker and Docker Compose.
 
 ```bash
-docker pull okx/xagon-node
+docker pull okx/xgon-node
 ```
 
-To orchestrate multiple deployments of the different XAGON Node components, a `docker-compose.yaml` file for Docker Compose can be used:
+To orchestrate multiple deployments of the different XGON Node components, a `docker-compose.yaml` file for Docker Compose can be used:
 
 ```yaml
-  xagon-aggregator:
-    container_name: xagon-aggregator
-    image: xagon-node
+  xgon-aggregator:
+    container_name: xgon-aggregator
+    image: xgon-node
     command:
         - "/bin/sh"
         - "-c"
-        - "/app/xagon-node run --genesis /app/genesis.json --cfg /app/config.toml --components aggregator"
+        - "/app/xgon-node run --genesis /app/genesis.json --cfg /app/config.toml --components aggregator"
 ```
 
 The container alone needs some parameters configured, access to certain configuration files and the appropriate ports exposed.
 
 - volumes:
-    - `your Account Keystore file`: /pk/keystore (note, this `/pk/keystore` value is the default path that's written in the Public Configuration files on this repo, meant to expedite deployments, it can be superseded via an env flag `XAGON_NODE_ETHERMAN_PRIVATEKEYPATH`.)
+    - `your Account Keystore file`: /pk/keystore (note, this `/pk/keystore` value is the default path that's written in the Public Configuration files on this repo, meant to expedite deployments, it can be superseded via an env flag `XGON_NODE_ETHERMAN_PRIVATEKEYPATH`.)
     - `your config.toml file`: /app/config.toml
     - `your genesis.json file`: /app/genesis.json
 
 - environment: Env variables that supersede the config file
-    - `XAGON_NODE_STATEDB_HOST`: Name of StateDB Database Host
+    - `XGON_NODE_STATEDB_HOST`: Name of StateDB Database Host
 
 ### The Account Keystore file:
 

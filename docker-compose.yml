@@ -1,19 +1,19 @@
 version: "3.5"
 networks:
   default:
-    name: Xagon
+    name: Xgon
 services:
-  xagon-rpc:
-    container_name: xagon-rpc
+  xgon-rpc:
+    container_name: xgon-rpc
     restart: unless-stopped
     depends_on:
-      xagon-pool-db:
+      xgon-pool-db:
         condition: service_healthy
-      xagon-state-db:
+      xgon-state-db:
         condition: service_healthy
-      xagon-sync:
+      xgon-sync:
         condition: service_started
-    image: xagon-node
+    image: xgon-node
     deploy:
       resources:
         limits:
@@ -30,15 +30,15 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/xagon-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components rpc"
+      - "/app/xgon-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components rpc"
 
-  xagon-sync:
-    container_name: xagon-sync
+  xgon-sync:
+    container_name: xgon-sync
     restart: unless-stopped
     depends_on:
-      xagon-state-db:
+      xgon-state-db:
         condition: service_healthy
-    image: xagon-node
+    image: xgon-node
     ports:
       - 9092:9091 # needed if metrics enabled
     deploy:
@@ -54,10 +54,10 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/xagon-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components synchronizer"
+      - "/app/xgon-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components synchronizer"
 
-  xagon-state-db:
-    container_name: xagon-state-db
+  xgon-state-db:
+    container_name: xgon-state-db
     restart: unless-stopped
     image: postgres:15
     healthcheck:
@@ -82,8 +82,8 @@ services:
       - "-c"
       - "config_file=/etc/postgresql.conf"
 
-  xagon-pool-db:
-    container_name: xagon-pool-db
+  xgon-pool-db:
+    container_name: xgon-pool-db
     restart: unless-stopped
     image: postgres:15
     healthcheck:
@@ -104,12 +104,12 @@ services:
       - "-N"
       - "500"
 
-  xagon-prover:
-    container_name: xagon-prover
+  xgon-prover:
+    container_name: xgon-prover
     restart: unless-stopped
-    image: hermeznetwork/xagon-prover:v2.2.0
+    image: hermeznetwork/xgon-prover:v2.2.0
     depends_on:
-      xagon-state-db:
+      xgon-state-db:
         condition: service_healthy
     ports:
       - 50061:50061 # MT

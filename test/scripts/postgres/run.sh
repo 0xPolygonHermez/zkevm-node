@@ -17,8 +17,8 @@ main(){
 
         echo "${script_contents}" > "${script_file_path}"
 
-        docker cp "${script_file_path}" xagon-state-db:"${script_file_path}"
-        docker exec xagon-state-db bash -c "chmod a+x ${script_file_path} && psql ${DBNAME} ${DBUSER} -v ON_ERROR_STOP=ON --single-transaction -f ${script_file_path}"
+        docker cp "${script_file_path}" xgon-state-db:"${script_file_path}"
+        docker exec xgon-state-db bash -c "chmod a+x ${script_file_path} && psql ${DBNAME} ${DBUSER} -v ON_ERROR_STOP=ON --single-transaction -f ${script_file_path}"
 
         echo "Done"
     done

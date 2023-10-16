@@ -1,6 +1,6 @@
-# Xagon custom endpoints
+# Xgon custom endpoints
 
-The Xagon Node JSON RPC server works as is when compared to the official Ethereum JSON RPC, but there are some extra information that also needs to be shared when talking about a L2 Networks, in our case we have information about Batches, Proofs, L1 transactions and much more
+The Xgon Node JSON RPC server works as is when compared to the official Ethereum JSON RPC, but there are some extra information that also needs to be shared when talking about a L2 Networks, in our case we have information about Batches, Proofs, L1 transactions and much more
 
 In order to allow users to consume this information, a custom set of endpoints were created to provide this information, they are provided under the prefix `zkevm_`
 
