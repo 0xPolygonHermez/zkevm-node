@@ -128,7 +128,7 @@ func (z *ZKEVMEndpoints) VerifiedBatchNumber() (interface{}, types.Error) {
 func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx bool) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		var err error
-		batchNumber, rpcErr := batchNumber.GetNumericBatchNumber(ctx, z.state, dbTx)
+		batchNumber, rpcErr := batchNumber.GetNumericBatchNumber(ctx, z.state, z.etherman, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}

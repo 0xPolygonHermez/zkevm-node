@@ -1576,7 +1576,7 @@ func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, 
 }
 
 // GetSafeL2BlockNumber gets the last l2 block virtualized that was mined
-// on or after the safe block on L1
+// on or before the safe block on L1
 func (p *PostgresStorage) GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	var l2SafeBlockNumber uint64
 	const query = `
@@ -1600,7 +1600,7 @@ func (p *PostgresStorage) GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockN
 }
 
 // GetFinalizedL2BlockNumber gets the last l2 block verified that was mined
-// on or after the finalized block on L1
+// on or before the finalized block on L1
 func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	var l2FinalizedBlockNumber uint64
 	const query = `
@@ -1621,6 +1621,28 @@ func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1Final
 	}
 
 	return l2FinalizedBlockNumber, nil
+}
+
+// GetLastBatchNumberUntilL1Block gets the last virtualized batch number that was mined
+// on or before the block on L1
+func (p *PostgresStorage) GetLastVirtualizedBatchNumberUntilL1Block(ctx context.Context, l1BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var batchNumber uint64
+	const query = `
+    SELECT vb.batch_num
+      FROM state.virtual_batch vb
+	 WHERE vb.block_num <= $1
+     ORDER BY vb.batch_num DESC LIMIT 1`
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, l1BlockNumber).Scan(&batchNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return batchNumber, nil
 }
 
 // GetLastL2BlockNumber gets the last l2 block number

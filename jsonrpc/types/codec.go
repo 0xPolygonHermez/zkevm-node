@@ -14,21 +14,27 @@ import (
 )
 
 const (
-	// PendingBlockNumber represents the pending block number
-	PendingBlockNumber = BlockNumber(-3)
-	// LatestBlockNumber represents the latest block number
-	LatestBlockNumber = BlockNumber(-2)
 	// EarliestBlockNumber represents the earliest block number
 	EarliestBlockNumber = BlockNumber(-1)
+	// LatestBlockNumber represents the latest block number
+	LatestBlockNumber = BlockNumber(-2)
+	// PendingBlockNumber represents the pending block number
+	PendingBlockNumber = BlockNumber(-3)
 	// SafeBlockNumber represents the last virtualized block number
 	SafeBlockNumber = BlockNumber(-4)
 	// FinalizedBlockNumber represents the last verified block number
 	FinalizedBlockNumber = BlockNumber(-5)
 
-	// LatestBatchNumber represents the latest batch number
-	LatestBatchNumber = BatchNumber(-2)
 	// EarliestBatchNumber represents the earliest batch number
 	EarliestBatchNumber = BatchNumber(-1)
+	// LatestBatchNumber represents the latest batch number
+	LatestBatchNumber = BatchNumber(-2)
+	// PendingBlockNumber represents the pending batch number
+	PendingBatchNumber = BatchNumber(-3)
+	// SafeBatchNumber represents the last batch sequenced in the safe l1 block
+	SafeBatchNumber = BatchNumber(-4)
+	// FinalizedBatchNumber represents the batch sequenced in the finalized l1 block
+	FinalizedBatchNumber = BatchNumber(-5)
 
 	// Earliest contains the string to represent the earliest block known.
 	Earliest = "earliest"
@@ -407,14 +413,17 @@ func (b *BatchNumber) UnmarshalJSON(buffer []byte) error {
 }
 
 // GetNumericBatchNumber returns a numeric batch number based on the BatchNumber instance
-func (b *BatchNumber) GetNumericBatchNumber(ctx context.Context, s StateInterface, dbTx pgx.Tx) (uint64, Error) {
+func (b *BatchNumber) GetNumericBatchNumber(ctx context.Context, s StateInterface, e EthermanInterface, dbTx pgx.Tx) (uint64, Error) {
 	bValue := LatestBatchNumber
 	if b != nil {
 		bValue = *b
 	}
 
 	switch bValue {
-	case LatestBatchNumber:
+	case EarliestBatchNumber:
+		return 0, nil
+
+	case LatestBatchNumber, PendingBatchNumber:
 		lastBatchNumber, err := s.GetLastBatchNumber(ctx, dbTx)
 		if err != nil {
 			return 0, NewRPCError(DefaultErrorCode, "failed to get the last batch number from state")
@@ -422,8 +431,35 @@ func (b *BatchNumber) GetNumericBatchNumber(ctx context.Context, s StateInterfac
 
 		return lastBatchNumber, nil
 
-	case EarliestBatchNumber:
-		return 0, nil
+	case SafeBatchNumber:
+		l1SafeBlockNumber, err := e.GetSafeBlockNumber(ctx)
+		if err != nil {
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the safe batch number from ethereum")
+		}
+
+		lastBatchNumber, err := s.GetLastVirtualizedBatchNumberUntilL1Block(ctx, l1SafeBlockNumber, dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return 0, nil
+		} else if err != nil {
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the safe batch number from state")
+		}
+
+		return lastBatchNumber, nil
+
+	case FinalizedBatchNumber:
+		l1FinalizedBlockNumber, err := e.GetFinalizedBlockNumber(ctx)
+		if err != nil {
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the finalized batch number from ethereum")
+		}
+
+		lastBatchNumber, err := s.GetLastVirtualizedBatchNumberUntilL1Block(ctx, l1FinalizedBlockNumber, dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return 0, nil
+		} else if err != nil {
+			return 0, NewRPCError(DefaultErrorCode, "failed to get the finalized batch number from state")
+		}
+
+		return lastBatchNumber, nil
 
 	default:
 		if bValue < 0 {

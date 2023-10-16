@@ -660,6 +660,56 @@ func TestGetFinalizedL2BlockNumber(t *testing.T) {
 	}
 }
 
+func TestGetLastVirtualizedBatchNumberUntilL1Block(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
+
+	// prepare data
+	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	hash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
+	for i := 1; i <= 10; i++ {
+		blockNumber := uint64(i)
+
+		// add l1 block
+		err = testState.AddBlock(ctx, state.NewBlock(blockNumber), dbTx)
+		require.NoError(t, err)
+
+		batchNumber := uint64(i * 10)
+
+		// add batch
+		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+		require.NoError(t, err)
+
+		b := state.VirtualBatch{BlockNumber: blockNumber, BatchNumber: batchNumber, Coinbase: addr, SequencerAddr: addr, TxHash: hash}
+		err = testState.AddVirtualBatch(ctx, &b, dbTx)
+		require.NoError(t, err)
+	}
+
+	type testCase struct {
+		name                string
+		l1BlockNumber       uint64
+		expectedBatchNumber uint64
+	}
+
+	testCases := []testCase{
+		{name: "l1 block number smaller than block number for the last virtualized batch", l1BlockNumber: 1, expectedBatchNumber: 10},
+		{name: "l1 block number equal to block number for the last virtualized batch", l1BlockNumber: 10, expectedBatchNumber: 100},
+		{name: "l1 block number bigger than number for the last virtualized batch", l1BlockNumber: 20, expectedBatchNumber: 100},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			batchNumber, err := testState.GetLastVirtualizedBatchNumberUntilL1Block(ctx, uint64(tc.l1BlockNumber), dbTx)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedBatchNumber, batchNumber)
+		})
+	}
+}
+
 func TestSyncInfo(t *testing.T) {
 	// Init database instance
 	initOrResetDB()
