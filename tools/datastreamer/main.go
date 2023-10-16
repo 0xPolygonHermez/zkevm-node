@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"fmt"
 	"os"
 	"reflect"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/config"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 )
 
@@ -97,10 +99,6 @@ func main() {
 }
 
 func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error) {
-	// Init logger
-	log.Init(c.StreamServer.Log)
-	log.Info("Starting tool")
-
 	// Create a stream server
 	streamServer, err := datastreamer.New(c.StreamServer.Port, state.StreamTypeSequencer, c.StreamServer.Filename, &c.StreamServer.Log)
 	if err != nil {
@@ -137,11 +135,11 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 }
 
 func generate(cliCtx *cli.Context) error {
+	var skipBookMark, skipL2BlockStart bool
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("Loaded configuration: %+v", c)
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
@@ -155,7 +153,7 @@ func generate(cliCtx *cli.Context) error {
 	}
 	defer stateSqlDB.Close()
 	stateDB := state.NewPostgresStorage(stateSqlDB)
-	log.Info("Connected to the database")
+	log.Debug("Connected to the database")
 
 	header := streamServer.GetHeader()
 
@@ -224,12 +222,19 @@ func generate(cliCtx *cli.Context) error {
 		log.Infof("Latest entry: %+v", latestEntry)
 
 		switch latestEntry.Type {
+		case state.EntryTypeBookMark:
+			log.Info("Latest entry type is BookMark")
+			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[1:9])
+			skipBookMark = true
+			currentL2Block--
 		case state.EntryTypeL2BlockStart:
 			log.Info("Latest entry type is L2BlockStart")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
+			skipBookMark = true
+			skipL2BlockStart = true
+			currentL2Block--
 		case state.EntryTypeL2Tx:
 			log.Info("Latest entry type is L2Tx")
-
 			for latestEntry.Type == state.EntryTypeL2Tx {
 				currentTxIndex++
 				latestEntry, err = streamServer.GetEntry(header.TotalEntries - currentTxIndex)
@@ -237,12 +242,11 @@ func generate(cliCtx *cli.Context) error {
 					log.Fatal(err)
 				}
 			}
-
 			if latestEntry.Type != state.EntryTypeL2BlockStart {
 				log.Fatal("Latest entry is not a L2BlockStart")
 			}
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
-
+			currentL2Block--
 		case state.EntryTypeL2BlockEnd:
 			log.Info("Latest entry type is L2BlockEnd")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[0:8])
@@ -300,14 +304,22 @@ func generate(cliCtx *cli.Context) error {
 				L2BlockNumber: blockStart.L2BlockNumber,
 			}
 
-			_, err = streamServer.AddStreamBookmark(bookMark.Encode())
-			if err != nil {
-				log.Fatal(err)
+			if !skipBookMark {
+				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+				if err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				skipBookMark = false
 			}
 
-			_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
-			if err != nil {
-				log.Fatal(err)
+			if !skipL2BlockStart {
+				_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
+				if err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				skipL2BlockStart = false
 			}
 
 			entry, err = streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transactions[x].Encode())
@@ -346,7 +358,6 @@ func validate(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("Loaded configuration: %+v", c)
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
@@ -416,7 +427,6 @@ func rebuild(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("Loaded configuration: %+v", c)
 
 	ctx := cliCtx.Context
 
@@ -454,24 +464,15 @@ func rebuild(cliCtx *cli.Context) error {
 
 	log.Infof("endEntry: %+v", endEntry)
 
+	forkID := uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78]))
+
 	tx, err := state.DecodeTx(string(txEntry.Data[6:]))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	/*
-		log.Infof("tx nonce: %+v", tx.Nonce())
-
-		sender, err := state.GetSender(*tx)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.Infof("tx sender: %+v", sender)
-	*/
-
 	// RLP encode the transaction using the proper fork id
-	batchL2Data, err := state.EncodeTransaction(*tx, 255, uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78]))) //nolint:gomnd
+	batchL2Data, err := state.EncodeTransaction(*tx, 255, forkID) //nolint:gomnd
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -557,7 +558,6 @@ func decodeEntry(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("Loaded configuration: %+v", c)
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
@@ -569,9 +569,10 @@ func decodeEntry(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	log.Infof("Selected entry: %+v", entry)
+	printColored(color.FgGreen, "Decoding entry..: ")
+	printColored(color.FgHiWhite, fmt.Sprintf("%d\n", entry.Number))
 
-	printEntry(entry)
+	printEntry(entry, streamServer)
 
 	return nil
 }
@@ -581,7 +582,6 @@ func decodeL2Block(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("Loaded configuration: %+v", c)
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
@@ -599,65 +599,99 @@ func decodeL2Block(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	printEntry(firstEntry)
+	printEntry(firstEntry, streamServer)
 
 	secondEntry, err := streamServer.GetEntry(firstEntry.Number + 1)
 	if err != nil {
 		log.Fatal(err)
 	}
-	printEntry(secondEntry)
+	printEntry(secondEntry, streamServer)
 
 	if l2BlockNumber != 0 {
 		thirdEntry, err := streamServer.GetEntry(firstEntry.Number + 2) //nolint:gomnd
 		if err != nil {
 			log.Fatal(err)
 		}
-		printEntry(thirdEntry)
+		printEntry(thirdEntry, streamServer)
 	}
 
 	return nil
 }
 
-func printEntry(entry datastreamer.FileEntry) {
+func printEntry(entry datastreamer.FileEntry, streamServer *datastreamer.StreamServer) {
 	switch entry.Type {
 	case state.EntryTypeBookMark:
-		log.Infof("Entry %d: BookMark", entry.Number)
+		printColored(color.FgGreen, "Entry type......: ")
+		printColored(color.FgHiWhite, "BookMark\n")
+		printColored(color.FgGreen, "L2 Block Number.: ")
 		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[1:9])
-		log.Infof("L2 block number: %d", l2BlockNumber)
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", l2BlockNumber))
 	case state.EntryTypeL2BlockStart:
-		log.Infof("Entry %d: L2BlockStart", entry.Number)
+		printColored(color.FgGreen, "Entry type......: ")
+		printColored(color.FgHiWhite, "L2 Block Start\n")
+		printColored(color.FgGreen, "Batch Number....: ")
 		batchNumber := binary.LittleEndian.Uint64(entry.Data[0:8])
-		log.Infof("Batch number: %d", batchNumber)
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", batchNumber))
+		printColored(color.FgGreen, "L2 Block Number.: ")
 		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[8:16])
-		log.Infof("L2 block number: %d", l2BlockNumber)
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", l2BlockNumber))
 		timestamp := binary.LittleEndian.Uint64(entry.Data[16:24])
-		log.Infof("Timestamp: %d", timestamp)
-		log.Infof("Timestamp: %v", time.Unix(int64(timestamp), 0))
+		printColored(color.FgGreen, "Timestamp.......: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%v (%d)\n", time.Unix(int64(timestamp), 0), timestamp))
 		globalExitRoot := "0x" + common.Bytes2Hex(entry.Data[24:56])
-		log.Infof("Global exit root: %s", globalExitRoot)
+		printColored(color.FgGreen, "Global Exit Root: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", globalExitRoot))
 		coinbase := "0x" + common.Bytes2Hex(entry.Data[56:76])
-		log.Infof("Coinbase: %s", coinbase)
+		printColored(color.FgGreen, "Coinbase........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", coinbase))
 		forkID := binary.LittleEndian.Uint16(entry.Data[76:78])
-		log.Infof("Fork ID: %d", forkID)
+		printColored(color.FgGreen, "Fork ID.........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", forkID))
 	case state.EntryTypeL2Tx:
-		log.Infof("Entry %d: L2Tx", entry.Number)
+		printColored(color.FgGreen, "Entry type......: ")
+		printColored(color.FgHiWhite, "L2 Transaction\n")
+		printColored(color.FgGreen, "Effec. Gas Price: ")
 		effectiveGasPricePercentage := entry.Data[0]
-		log.Infof("Effective gas price percentage: %d", effectiveGasPricePercentage)
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", effectiveGasPricePercentage))
 		isValid := entry.Data[1] == 1
-		log.Infof("Is valid: %t", isValid)
+		printColored(color.FgGreen, "Is Valid........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%t\n", isValid))
 		encodeLength := binary.LittleEndian.Uint16(entry.Data[2:6])
-		log.Infof("Encode length: %d", encodeLength)
+		printColored(color.FgGreen, "Encode Length...: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", encodeLength))
 		encode := entry.Data[6:]
-		log.Infof("Encode: %s", "0x"+common.Bytes2Hex(encode))
+		printColored(color.FgGreen, "Encode..........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", "0x"+common.Bytes2Hex(encode)))
+
 		tx, err := state.DecodeTx(common.Bytes2Hex(encode))
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Infof("Decoded: %+v", tx)
+		printColored(color.FgGreen, "Decoded.........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%+v\n", tx))
+		sender, err := state.GetSender(*tx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		printColored(color.FgGreen, "Sender..........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", sender))
+		nonce := tx.Nonce()
+		printColored(color.FgGreen, "Nonce...........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", nonce))
 	case state.EntryTypeL2BlockEnd:
-		log.Infof("Entry %d: L2BlockEnd", entry.Number)
-		log.Infof("L2 Block Number: %d", binary.LittleEndian.Uint64(entry.Data[0:8]))
-		log.Infof("Block Hash: %s", "0x"+common.Bytes2Hex(entry.Data[8:40]))
-		log.Infof("State root: %s", "0x"+common.Bytes2Hex(entry.Data[40:72]))
+		printColored(color.FgGreen, "Entry type......: ")
+		printColored(color.FgHiWhite, "L2 Block End\n")
+		printColored(color.FgGreen, "L2 Block Number.: ")
+		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[0:8])
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", l2BlockNumber))
+		printColored(color.FgGreen, "L2 Block Hash...: ")
+		printColored(color.FgHiWhite, fmt.Sprint("0x"+common.Bytes2Hex(entry.Data[8:40])+"\n"))
+		printColored(color.FgGreen, "State Root......: ")
+		printColored(color.FgHiWhite, fmt.Sprint("0x"+common.Bytes2Hex(entry.Data[40:72])+"\n"))
 	}
+}
+
+func printColored(color color.Attribute, text string) {
+	colored := fmt.Sprintf("\x1b[%dm%s\x1b[0m", color, text)
+	fmt.Print(colored)
 }
