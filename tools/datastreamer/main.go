@@ -226,14 +226,15 @@ func generate(cliCtx *cli.Context) error {
 			log.Info("Latest entry type is BookMark")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[1:9])
 			skipBookMark = true
+			currentL2Block--
 		case state.EntryTypeL2BlockStart:
 			log.Info("Latest entry type is L2BlockStart")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
 			skipBookMark = true
 			skipL2BlockStart = true
+			currentL2Block--
 		case state.EntryTypeL2Tx:
 			log.Info("Latest entry type is L2Tx")
-
 			for latestEntry.Type == state.EntryTypeL2Tx {
 				currentTxIndex++
 				latestEntry, err = streamServer.GetEntry(header.TotalEntries - currentTxIndex)
@@ -241,12 +242,11 @@ func generate(cliCtx *cli.Context) error {
 					log.Fatal(err)
 				}
 			}
-
 			if latestEntry.Type != state.EntryTypeL2BlockStart {
 				log.Fatal("Latest entry is not a L2BlockStart")
 			}
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
-
+			currentL2Block--
 		case state.EntryTypeL2BlockEnd:
 			log.Info("Latest entry type is L2BlockEnd")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[0:8])
