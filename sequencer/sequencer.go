@@ -184,6 +184,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 }
 
 func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer) {
+	var skipBookMark, skipL2BlockStart bool
 	var currentL2Block uint64
 	var currentTxIndex uint64
 	var err error
@@ -252,9 +253,15 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 		log.Infof("Latest entry: %+v", latestEntry)
 
 		switch latestEntry.Type {
+		case state.EntryTypeBookMark:
+			log.Info("Latest entry type is BookMark")
+			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[1:9])
+			skipBookMark = true
 		case state.EntryTypeL2BlockStart:
 			log.Info("Latest entry type is L2BlockStart")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
+			skipBookMark = true
+			skipL2BlockStart = true
 		case state.EntryTypeL2Tx:
 			log.Info("Latest entry type is L2Tx")
 			for latestEntry.Type == state.EntryTypeL2Tx {
@@ -316,9 +323,13 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 				L2BlockNumber: l2block.L2BlockNumber,
 			}
 
-			_, err = streamServer.AddStreamBookmark(bookMark.Encode())
-			if err != nil {
-				log.Fatal(err)
+			if !skipBookMark {
+				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+				if err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				skipBookMark = false
 			}
 
 			blockStart := state.DSL2BlockStart{
@@ -330,9 +341,13 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 				ForkID:         l2block.ForkID,
 			}
 
-			_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
-			if err != nil {
-				log.Fatal(err)
+			if !skipL2BlockStart {
+				_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
+				if err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				skipL2BlockStart = false
 			}
 
 			entry, err = streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transactions[x].Encode())
