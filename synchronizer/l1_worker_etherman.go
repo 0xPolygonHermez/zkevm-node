@@ -161,9 +161,15 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 			case <-time.After(sleepBefore):
 			}
 		}
+
+		// Uncomment these lines to respond with a nil result to generate fast responses (just for develop!)
+		//w.setStatus(ethermanIdle)
+		//ch <- newResponseRollupInfo(nil, time.Second, typeRequestRollupInfo, &rollupInfoByBlockRangeResult{blockRange, nil, nil, nil})
+
 		now := time.Now()
 		fromBlock := blockRange.fromBlock
 		toBlock := blockRange.toBlock
+
 		blocks, order, err := w.etherman.GetRollupInfoByBlockRange(ctx.ctx, fromBlock, &toBlock)
 		var lastBlock *types.Block = nil
 		if err == nil && len(blocks) == 0 {
@@ -181,6 +187,7 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 	go launch()
 	return nil
 }
+
 func (w *workerEtherman) requestLastBlock(ctx context.Context) responseL1LastBlock {
 	w.mutex.Lock()
 	if w.isBusyUnsafe() {
