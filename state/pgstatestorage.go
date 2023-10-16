@@ -1623,7 +1623,7 @@ func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1Final
 	return l2FinalizedBlockNumber, nil
 }
 
-// GetLastBatchNumberUntilL1Block gets the last virtualized batch number that was mined
+// GetLastVirtualizedBatchNumberUntilL1Block gets the last virtualized batch number that was mined
 // on or before the block on L1
 func (p *PostgresStorage) GetLastVirtualizedBatchNumberUntilL1Block(ctx context.Context, l1BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	var batchNumber uint64

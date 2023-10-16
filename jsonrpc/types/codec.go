@@ -29,7 +29,7 @@ const (
 	EarliestBatchNumber = BatchNumber(-1)
 	// LatestBatchNumber represents the latest batch number
 	LatestBatchNumber = BatchNumber(-2)
-	// PendingBlockNumber represents the pending batch number
+	// PendingBatchNumber represents the pending batch number
 	PendingBatchNumber = BatchNumber(-3)
 	// SafeBatchNumber represents the last batch sequenced in the safe l1 block
 	SafeBatchNumber = BatchNumber(-4)
