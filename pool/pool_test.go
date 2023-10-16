@@ -176,7 +176,7 @@ func Test_EGPValidateEffectiveGasPrice(t *testing.T) {
 			dataLen := cfg.MaxTxDataBytesSize - 20
 			signedTx := createSignedTx(t, dataLen, tt.gasPriceTx, uint64(21000)+uint64(16)*uint64(dataLen))
 
-			err := data.pool.ValidateEffectiveGasPrice(context.Background(), *signedTx, tt.preExecutionGasUsed, tt.gasPrices)
+			err := data.pool.ValidateBreakEvenGasPrice(context.Background(), *signedTx, tt.preExecutionGasUsed, tt.gasPrices)
 			require.ErrorIs(t, err, tt.expectedError)
 		})
 	}
