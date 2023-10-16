@@ -145,8 +145,13 @@ func TestAddAndGetSequences(t *testing.T) {
 
 	sequence3 := state.Sequence{
 		FromBatchNumber: 7,
-		ToBatchNumber:   8,
+		ToBatchNumber:   7,
 	}
+	err = testState.AddSequence(ctx, sequence3, dbTx)
+	require.NoError(t, err)
+
+	// Insert it again to test on conflict
+	sequence3.ToBatchNumber = 8
 	err = testState.AddSequence(ctx, sequence3, dbTx)
 	require.NoError(t, err)
 
@@ -653,6 +658,32 @@ func TestGetFinalizedL2BlockNumber(t *testing.T) {
 			assert.Equal(t, tc.expectedL2FinalizedBlockNumber, l2FinalizedBlockNumber)
 		})
 	}
+}
+
+func TestSyncInfo(t *testing.T) {
+	// Init database instance
+	initOrResetDB()
+
+	ctx := context.Background()
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	// Test update on conflict
+	err = testState.SetInitSyncBatch(ctx, 1, tx)
+	require.NoError(t, err)
+	err = testState.SetInitSyncBatch(ctx, 1, tx)
+	require.NoError(t, err)
+	err = testState.SetLastBatchInfoSeenOnEthereum(ctx, 10, 8, tx)
+	require.NoError(t, err)
+	err = testState.SetInitSyncBatch(ctx, 1, tx)
+	require.NoError(t, err)
+	err = testState.SetLastBatchInfoSeenOnEthereum(ctx, 10, 8, tx)
+	require.NoError(t, err)
+	err = testState.SetLastBatchInfoSeenOnEthereum(ctx, 10, 8, tx)
+	require.NoError(t, err)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
 }
 
 func TestGetBatchByNumber(t *testing.T) {

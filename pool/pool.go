@@ -242,7 +242,15 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 	// TODO: Add effectivePercentage = 0xFF to the request (factor of 1) when gRPC message is updated
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
-		return response, err
+		isOOC := executor.IsROMOutOfCountersError(executor.RomErrorCode(err))
+		isOOG := errors.Is(err, runtime.ErrOutOfGas)
+		if !isOOC && !isOOG {
+			return response, err
+		} else {
+			response.isOOC = isOOC
+			response.isOOG = isOOG
+			return response, nil
+		}
 	}
 
 	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
