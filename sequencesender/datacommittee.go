@@ -9,10 +9,10 @@ import (
 
 	"github.com/0xPolygon/cdk-data-availability/batch"
 	"github.com/0xPolygon/cdk-data-availability/client"
+	"github.com/0xPolygon/cdk-data-availability/rpc"
 	"github.com/0xPolygon/cdk-data-availability/sequence"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
-	jTypes "github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -47,9 +47,9 @@ func (s *SequenceSender) getSignaturesAndAddrsFromDataCommittee(ctx context.Cont
 	}
 	for _, seq := range sequences {
 		sequence.Batches = append(sequence.Batches, batch.Batch{
-			Number:         jTypes.ArgUint64(seq.BatchNumber),
+			Number:         rpc.ArgUint64(seq.BatchNumber),
 			GlobalExitRoot: seq.GlobalExitRoot,
-			Timestamp:      jTypes.ArgUint64(seq.Timestamp),
+			Timestamp:      rpc.ArgUint64(seq.Timestamp),
 			Coinbase:       s.cfg.L2Coinbase,
 			L2Data:         seq.BatchL2Data,
 		})

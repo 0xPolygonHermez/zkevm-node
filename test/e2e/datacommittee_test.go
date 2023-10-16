@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-data-availability/config"
-	cTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
-	"github.com/0xPolygonHermez/zkevm-node/db"
+	cTypes "github.com/0xPolygon/cdk-data-availability/config/types"
+	"github.com/0xPolygon/cdk-data-availability/db"
+	"github.com/0xPolygon/cdk-data-availability/rpc"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/cdkdatacommittee"
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -44,7 +44,7 @@ func TestDataCommittee(t *testing.T) {
 		ksFile           = "/tmp/pkey"
 		cfgFile          = "/tmp/dacnodeconfigfile.json"
 		ksPass           = "pass"
-		dacNodeContainer = "hermeznetwork/cdk-data-availability:v0.0.1"
+		dacNodeContainer = "hermeznetwork/cdk-data-availability:v0.0.2"
 	)
 
 	// Setup
@@ -132,10 +132,9 @@ func TestDataCommittee(t *testing.T) {
 			EnableLog: false,
 			MaxConns:  10,
 		},
-		RPC: jsonrpc.Config{
-			Host:                             "0.0.0.0",
-			EnableL2SuggestedGasPricePolling: false,
-			MaxRequestsPerIPAndSecond:        100,
+		RPC: rpc.Config{
+			Host:                      "0.0.0.0",
+			MaxRequestsPerIPAndSecond: 100,
 		},
 	}
 	defer func() {

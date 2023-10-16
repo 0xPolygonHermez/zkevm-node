@@ -42,8 +42,8 @@ cloud.google.com/go/storage v1.14.0/go.mod h1:GrKmX003DSIwi9o29oFT7YDnHYwZoctc3f
 dario.cat/mergo v1.0.0 h1:AGCNq9Evsj31mOgNPcLyXc+4PNABt905YmuqPYYpBWk=
 dario.cat/mergo v1.0.0/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
-github.com/0xPolygon/cdk-data-availability v0.0.0-20231003102140-28071e44d96b h1:N0uFUJlvoOE09WYP9mkhuEjnRK1VB0kgjGtukQTOriU=
-github.com/0xPolygon/cdk-data-availability v0.0.0-20231003102140-28071e44d96b/go.mod h1:IDdj1rFjg6BkgrcAV5xKpMoXQV40vJFk0iTp3ziENZA=
+github.com/0xPolygon/cdk-data-availability v0.0.2 h1:6NdtSKYRJaF9lZoILbY5j8wV4JCVEVaB067CtpX7bFs=
+github.com/0xPolygon/cdk-data-availability v0.0.2/go.mod h1:bh1URByXoKvX010VQGa0bcrdrEHNxP3XQY2VfbR3R/Y=
 github.com/0xPolygonHermez/zkevm-data-streamer v0.0.8 h1:hOByFEvUC8hJnfbINMFzXxBru07AQLEhN50afow6Eu8=
 github.com/0xPolygonHermez/zkevm-data-streamer v0.0.8/go.mod h1:UqLxA+/R20fm63Mp+J7wYMfh6WoE+6vBj6rOmFGuRm4=
 github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9/go.mod h1:bOvUY6CB00SOBii9/FifXqc0awNKxLFCL/+pkDPuyl8=

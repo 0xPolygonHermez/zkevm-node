@@ -163,6 +163,6 @@ require (
 )
 
 require (
-	github.com/0xPolygon/cdk-data-availability v0.0.0-20231003102140-28071e44d96b
+	github.com/0xPolygon/cdk-data-availability v0.0.2
 	golang.org/x/exp v0.0.0-20230810033253-352e893a4cad
 )
