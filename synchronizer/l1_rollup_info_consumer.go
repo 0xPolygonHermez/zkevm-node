@@ -128,6 +128,7 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 	if (l.lastEthBlockSynced != nil) && (l.lastEthBlockSynced.BlockNumber+1 != rollupInfo.blockRange.fromBlock) {
 		log.Infof("consumer: received a rollupInfo with a wrong block range.  Ignoring it. Last block synced: %d. RollupInfo block range: %s",
 			l.lastEthBlockSynced.BlockNumber, rollupInfo.blockRange.String())
+		return nil
 	}
 	// Uncommented that line to produce a infinite loop of errors, and resets! (just for develop)
 	//return errors.New("forcing an continuous error!")
