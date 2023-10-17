@@ -18,7 +18,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const appName = "zkevm-data-streamer-tool"
+const appName = "zkevm-data-streamer-tool" //nolint:gosec
 
 var (
 	configFileFlag = cli.StringFlag{
