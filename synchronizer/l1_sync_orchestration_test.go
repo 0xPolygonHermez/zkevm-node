@@ -26,12 +26,12 @@ func TestGivenOrquestrationWhenHappyPathThenReturnsBlockAndNoErrorAndProducerIsR
 	})
 	block := state.Block{}
 	mocks.consumer.On("GetLastEthBlockSynced").Return(block, true)
-	mocks.consumer.On("Start", mock.Anything).Return(func(context.Context) error {
+	mocks.consumer.On("Start", mock.Anything, mock.Anything).Return(func(context.Context, *state.Block) error {
 		time.Sleep(time.Millisecond * 100)
 		return nil
 	})
 	sut.reset(123)
-	returnedBlock, err := sut.start()
+	returnedBlock, err := sut.start(&block)
 	require.NoError(t, err)
 	require.Equal(t, block, *returnedBlock)
 	require.Equal(t, true, sut.producerRunning)

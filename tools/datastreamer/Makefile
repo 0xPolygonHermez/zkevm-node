@@ -6,6 +6,7 @@ check-go:
 
 # Targets that require the checks
 generate-file: check-go
+validate-file: check-go
 rebuild: check-go
 decode-entry: check-go
 decode-l2block: check-go

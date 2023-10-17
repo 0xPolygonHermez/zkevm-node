@@ -9,16 +9,16 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
+	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/config"
-	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/db"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 )
 
-const appName = "zkevm-data-streamer-tool"
+const appName = "zkevm-data-streamer-tool" //nolint:gosec
 
 var (
 	configFileFlag = cli.StringFlag{
@@ -125,6 +125,12 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 	}
 
 	streamServer.SetEntriesDef(entriesDefinition)
+
+	err = streamServer.Start()
+	if err != nil {
+		return nil, err
+	}
+
 	return &streamServer, nil
 }
 
@@ -250,7 +256,7 @@ func generate(cliCtx *cli.Context) error {
 	log.Infof("Current transaction index: %d", currentTxIndex)
 	log.Infof("Current L2 block number: %d", currentL2Block)
 
-	var limit uint64 = 1000
+	var limit uint64 = c.QuerySize
 	var offset uint64 = currentL2Block
 	var entry uint64 = header.TotalEntries
 	var l2blocks []*state.DSL2Block
