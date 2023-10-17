@@ -1,6 +1,6 @@
 module github.com/0xPolygonHermez/zkevm-node
 
-go 1.19
+go 1.21
 
 require (
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.0.12
