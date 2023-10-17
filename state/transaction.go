@@ -491,7 +491,8 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, result *runtime.ExecutionResult,
 			fakevm.NewAccount(step.Contract.Caller),
 			fakevm.NewAccount(step.Contract.Address),
 			step.Contract.Value, step.Gas)
-		contract.CodeAddr = &step.Contract.Address //nolint:gosec
+		aux := step.Contract.Address
+		contract.CodeAddr = &aux
 
 		// set Scope
 		scope := &fakevm.ScopeContext{
