@@ -87,7 +87,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		gasPricesMux:            new(sync.RWMutex),
 		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice, cfg.DefaultMinGasPriceAllowed),
 	}
-
+	p.refreshGasPrices()
 	go func(cfg *Config, p *Pool) {
 		for {
 			p.refreshGasPrices()
