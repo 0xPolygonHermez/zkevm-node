@@ -78,21 +78,26 @@ type ProcessTransactionResponse struct {
 	EffectiveGasPrice string
 	//EffectivePercentage effective percentage used for the tx
 	EffectivePercentage uint32
+	//HasGaspriceOpcode flag to indicate if opcode 'GASPRICE' has been called
+	HasGaspriceOpcode bool
+	//HasBalanceOpcode flag to indicate if opcode 'BALANCE' has been called
+	HasBalanceOpcode bool
 }
 
 // EffectiveGasPriceLog contains all the data needed to calculate the effective gas price for logging purposes
 type EffectiveGasPriceLog struct {
-	FinalValue     *big.Int
-	FirstValue     *big.Int
-	SecondValue    *big.Int
-	GasUsedInitial uint64
-	GasUsedFinal   uint64
-	GasPrice       *big.Int
-	Reprocess      bool
-	GasOpCode      bool
-	BalanceOpCode  bool
-	L1GasPrice     uint64
-	L2GasPrice     uint64
+	ValueFinal    *big.Int
+	ValueFirst    *big.Int
+	ValueSecond   *big.Int
+	GasUsedFirst  uint64
+	GasUsedSecond uint64
+	GasPrice      *big.Int
+	Percentage    uint8
+	Reprocess     bool
+	GasPriceOC    bool
+	BalanceOC     bool
+	L1GasPrice    uint64
+	L2GasPrice    uint64
 }
 
 // StoreTxEGPData contains the data related to the effective gas price that needs to be stored when storing a tx

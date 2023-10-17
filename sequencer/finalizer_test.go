@@ -152,6 +152,12 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 		GasPrice:          gasPrice,
 		EffectiveGasPrice: effectiveGasPrice,
 		L1GasPrice:        l1GasPrice,
+		EGPLog: state.EffectiveGasPriceLog{
+			ValueFinal:  new(big.Int).SetUint64(0),
+			ValueFirst:  new(big.Int).SetUint64(0),
+			ValueSecond: new(big.Int).SetUint64(0),
+			GasPrice:    new(big.Int).SetUint64(0),
+		},
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
 			ZKCounters: state.ZKCounters{
@@ -1461,6 +1467,12 @@ func Test_processTransaction(t *testing.T) {
 		GasPrice:          effectiveGasPrice,
 		EffectiveGasPrice: effectiveGasPrice,
 		L1GasPrice:        l1GasPrice,
+		EGPLog: state.EffectiveGasPriceLog{
+			ValueFinal:  new(big.Int).SetUint64(0),
+			ValueFirst:  new(big.Int).SetUint64(0),
+			ValueSecond: new(big.Int).SetUint64(0),
+			GasPrice:    new(big.Int).SetUint64(0),
+		},
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
 			ZKCounters: state.ZKCounters{

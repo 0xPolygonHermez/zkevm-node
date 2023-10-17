@@ -10,7 +10,7 @@ import (
 
 var (
 	// ErrBreakEvenGasPriceEmpty happens when the breakEven or gasPrice is nil or zero
-	ErrBreakEvenGasPriceEmpty = errors.New("breakEven and gasPrice cannot be nil or zero")
+	ErrBreakEvenGasPriceEmpty = errors.New("breakEvenGasPrice or gasPrice cannot be nil or zero")
 )
 
 // EffectiveGasPrice implements the effective gas prices calculations and checks
@@ -104,21 +104,21 @@ func (e *EffectiveGasPrice) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice 
 }
 
 // CalculateEffectiveGasPricePercentage calculates the gas price's effective percentage
-func (e *EffectiveGasPrice) CalculateEffectiveGasPricePercentage(gasPrice *big.Int, breakEven *big.Int) (uint8, error) {
+func (e *EffectiveGasPrice) CalculateEffectiveGasPricePercentage(gasPrice *big.Int, breakEvenGasPrice *big.Int) (uint8, error) {
 	const bits = 256
 	var bitsBigInt = big.NewInt(bits)
 
-	if breakEven == nil || gasPrice == nil ||
-		gasPrice.Cmp(big.NewInt(0)) == 0 || breakEven.Cmp(big.NewInt(0)) == 0 {
+	if breakEvenGasPrice == nil || gasPrice == nil ||
+		gasPrice.Cmp(big.NewInt(0)) == 0 || breakEvenGasPrice.Cmp(big.NewInt(0)) == 0 {
 		return 0, ErrBreakEvenGasPriceEmpty
 	}
 
-	if gasPrice.Cmp(breakEven) <= 0 {
+	if gasPrice.Cmp(breakEvenGasPrice) <= 0 {
 		return state.MaxEffectivePercentage, nil
 	}
 
 	// Simulate Ceil with integer division
-	b := new(big.Int).Mul(breakEven, bitsBigInt)
+	b := new(big.Int).Mul(breakEvenGasPrice, bitsBigInt)
 	b = b.Add(b, gasPrice)
 	b = b.Sub(b, big.NewInt(1)) //nolint:gomnd
 	b = b.Div(b, gasPrice)

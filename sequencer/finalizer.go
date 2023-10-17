@@ -581,9 +581,11 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, repro
 				}
 			}
 			// Save initial values for later logging
-			tx.EGPLog.FirstValue = tx.EffectiveGasPrice
-			tx.EGPLog.GasUsedInitial = tx.BatchResources.ZKCounters.CumulativeGasUsed
-			tx.EGPLog.GasPrice = new(big.Int).Set(tx.GasPrice)
+			tx.EGPLog.ValueFirst.Set(tx.EffectiveGasPrice)
+			tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.CumulativeGasUsed
+			tx.EGPLog.GasPrice.Set(tx.GasPrice)
+			tx.EGPLog.L1GasPrice = tx.L1GasPrice
+			tx.EGPLog.L2GasPrice = tx.L2GasPrice
 		}
 
 		effectivePercentage := state.MaxEffectivePercentage
@@ -593,17 +595,22 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, repro
 			if tx.EffectiveGasPrice.Cmp(tx.GasPrice) < 0 {
 				effectivePercentage, err = f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.EffectiveGasPrice)
 				if err != nil {
-					log.Errorf("failed to calculate effective gas price percentage: %s", err)
+					log.Errorf("failed to calculate EffectiveGasPrice percentage: %s", err)
 					return nil, err
 				}
 			} else {
 				// EffectiveGasPrice >= tx.GasPrice we process the tx with the signed gasPrice (255%)
-				// TODO: Warning message indicating we loss fee for thix tx
+				// Warning message indicating we loss fee for thix tx
+				loss := new(big.Int).Sub(tx.EffectiveGasPrice, tx.GasPrice)
+				log.Warnf("egp-loss: gasPrice: %d, effectiveGasPrice1: %d, loss: %d, txHash: %s",
+					tx.GasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
+
 				tx.IsLastExecution = true
 			}
 		}
 
-		log.Infof("calculated breakEvenGasPrice: %d, gasPrice: %d, effectivePercentage: %d for tx: %s", tx.EffectiveGasPrice, tx.GasPrice, effectivePercentage, tx.HashStr)
+		// Save percentage for later logging
+		tx.EGPLog.Percentage = effectivePercentage
 
 		// If EGP is disabled we use tx GasPrice (MaxEffectivePercentage=255)
 		if !f.effectiveGasPrice.IsEffectiveGasPriceEnabled() {
@@ -693,9 +700,9 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 			}
 		} else {
 			// Save second effective gas price calculation for later logging
-			tx.EGPLog.SecondValue = newEffectiveGasPrice
+			tx.EGPLog.ValueSecond.Set(newEffectiveGasPrice)
 
-			errCompare := f.CompareTxEffectiveGasPrice(ctx, tx, newEffectiveGasPrice)
+			errCompare := f.CompareTxEffectiveGasPrice(ctx, tx, newEffectiveGasPrice, result.Responses[0].HasGaspriceOpcode, result.Responses[0].HasBalanceOpcode)
 
 			tx.IsLastExecution = true
 
@@ -705,7 +712,16 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		}
 	}
 
-	//TODO: Log here the results of EFP calculation. Assign FinalValue, L1GasPrice and L2GasPrice
+	// Save GasPriceOC, BalanceOC and final effective gas price for later logging
+	tx.EGPLog.ValueFinal.Set(tx.EffectiveGasPrice)
+	tx.EGPLog.GasPriceOC = result.Responses[0].HasGaspriceOpcode
+	tx.EGPLog.BalanceOC = result.Responses[0].HasBalanceOpcode
+
+	// Log here the results of EGP calculation
+	deviation := new(big.Int).Sub(tx.EGPLog.ValueFirst, tx.EGPLog.ValueSecond)
+	log.Infof("egp-log: final: %d, first: %d, second: %d, percentage: %d, deviation: %d, gasUsed1: %d, gasUsed2: %d, gasPrice: %d, l1GasPrice: %d, l2GasPrice: %d, reprocess: %t, gasPriceOC: %t, balanceOC: %t, enabled: %t, txSize: %d, txHash: %s",
+		tx.EGPLog.ValueFinal, tx.EGPLog.ValueFirst, tx.EGPLog.ValueSecond, tx.EGPLog.Percentage, deviation, tx.EGPLog.GasUsedFirst, tx.EGPLog.GasUsedSecond,
+		tx.EGPLog.GasPrice, tx.EGPLog.L1GasPrice, tx.EGPLog.L2GasPrice, tx.EGPLog.Reprocess, tx.EGPLog.GasPriceOC, tx.EGPLog.BalanceOC, egpEnabled, len(tx.RawTx), tx.HashStr)
 
 	txToStore := transactionToStore{
 		hash:          tx.Hash,
@@ -780,7 +796,7 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 // CompareTxEffectiveGasPrice compares newEffectiveGasPrice with tx.EffectiveGasPrice.
 // It returns ErrEffectiveGasPriceReprocess if the tx needs to be reprocessed with
 // the tx.EffectiveGasPrice updated, otherwise it returns nil
-func (f *finalizer) CompareTxEffectiveGasPrice(ctx context.Context, tx *TxTracker, newEffectiveGasPrice *big.Int) error {
+func (f *finalizer) CompareTxEffectiveGasPrice(ctx context.Context, tx *TxTracker, newEffectiveGasPrice *big.Int, hasGasPriceOC bool, hasBalanceOC bool) error {
 	// Compute the absolute difference between tx.EffectiveGasPrice - newEffectiveGasPrice
 	diff := new(big.Int).Abs(new(big.Int).Sub(tx.EffectiveGasPrice, newEffectiveGasPrice))
 	// Compute max deviation allowed of newEffectiveGasPrice
@@ -789,24 +805,21 @@ func (f *finalizer) CompareTxEffectiveGasPrice(ctx context.Context, tx *TxTracke
 	// if (diff > finalDeviation)
 	if diff.Cmp(finalDeviation) == 1 {
 		if newEffectiveGasPrice.Cmp(tx.GasPrice) < 0 {
-			has_gasprice_opcode := false //TODO: Get has_gasprice_opcode
-			has_balance_opcode := false  //TODO: Get has_balance_opcode
-
-			// Save opcode for later logging
-			tx.EGPLog.GasOpCode = has_gasprice_opcode
-			tx.EGPLog.BalanceOpCode = has_balance_opcode
-
-			if has_gasprice_opcode || has_balance_opcode {
+			if hasGasPriceOC || hasBalanceOC {
 				tx.EffectiveGasPrice = tx.GasPrice
 			} else {
 				tx.EffectiveGasPrice = newEffectiveGasPrice
 			}
 		} else {
-			//TODO: Warning log loss
+			// Warning message indicating we loss fee for thix tx
+			loss := new(big.Int).Sub(newEffectiveGasPrice, tx.GasPrice)
+			log.Warnf("egp-loss: gasPrice: %d, EffectiveGasPrice2: %d, loss: %d, txHash: %s",
+				tx.GasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
+
 			tx.EffectiveGasPrice = tx.GasPrice
 		}
 
-		// Save reprocess for later logging
+		// Save Reprocess for later logging
 		tx.EGPLog.Reprocess = true
 
 		return ErrEffectiveGasPriceReprocess
