@@ -65,8 +65,9 @@ func newL1RollupInfoConsumer(cfg configConsumer,
 	}
 }
 
-func (l *l1RollupInfoConsumer) Start(ctx context.Context) error {
+func (l *l1RollupInfoConsumer) Start(ctx context.Context, lastEthBlockSynced *state.Block) error {
 	l.ctx = ctx
+	l.lastEthBlockSynced = lastEthBlockSynced
 	l.statistics.onStart()
 	err := l.step()
 	for ; err == nil; err = l.step() {
@@ -124,6 +125,12 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	var err error
+	if (l.lastEthBlockSynced != nil) && (l.lastEthBlockSynced.BlockNumber+1 != rollupInfo.blockRange.fromBlock) {
+		log.Infof("consumer: received a rollupInfo with a wrong block range.  Ignoring it. Last block synced: %d. RollupInfo block range: %s",
+			l.lastEthBlockSynced.BlockNumber, rollupInfo.blockRange.String())
+	}
+	// Uncommented that line to produce a infinite loop of errors, and resets! (just for develop)
+	//return errors.New("forcing an continuous error!")
 	statisticsMsg := l.statistics.onStartProcessIncommingRollupInfoData(rollupInfo)
 	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] statistics:%s", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.String(), len(rollupInfo.blocks), statisticsMsg)
 	timeProcessingStart := time.Now()
