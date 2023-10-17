@@ -23,7 +23,7 @@ func TestGivenConsumerWhenReceiveAFullSyncAndChannelIsEmptyThenStopOk(t *testing
 	data := setupConsumerTest(t)
 	defer cancel()
 	data.ch <- *newL1SyncMessageControl(eventProducerIsFullySynced)
-	err := data.sut.Start(ctxTimeout)
+	err := data.sut.Start(ctxTimeout, nil)
 	require.NoError(t, err)
 }
 func TestGivenConsumerWhenReceiveAFullSyncAndChannelIsNotEmptyThenDontStop(t *testing.T) {
@@ -33,7 +33,7 @@ func TestGivenConsumerWhenReceiveAFullSyncAndChannelIsNotEmptyThenDontStop(t *te
 
 	data.ch <- *newL1SyncMessageControl(eventProducerIsFullySynced)
 	data.ch <- *newL1SyncMessageControl(eventNone)
-	err := data.sut.Start(ctxTimeout)
+	err := data.sut.Start(ctxTimeout, nil)
 	require.Error(t, err)
 	require.Equal(t, errContextCanceled, err)
 }
@@ -57,7 +57,7 @@ func TestGivenConsumerWhenFailsToProcessRollupThenDontKnownLastEthBlock(t *testi
 		Once()
 	data.ch <- *newL1SyncMessageData(&responseRollupInfoByBlockRange)
 	data.ch <- *newL1SyncMessageControl(eventProducerIsFullySynced)
-	err := data.sut.Start(ctxTimeout)
+	err := data.sut.Start(ctxTimeout, nil)
 	require.Error(t, err)
 	_, ok := data.sut.GetLastEthBlockSynced()
 	require.False(t, ok)
