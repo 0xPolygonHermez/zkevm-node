@@ -75,7 +75,7 @@ var (
 			FinalDeviation:   10,
 		},
 	}
-	gasPrice   = big.NewInt(1000000000 - 1)
+	gasPrice   = big.NewInt(1000000000)
 	l1GasPrice = big.NewInt(1000000000000)
 	gasLimit   = uint64(21000)
 	chainID    = big.NewInt(1337)
@@ -115,14 +115,13 @@ type testData struct {
 func Test_AddTxEGPAceptedBecauseGasPriceIsTheSuggested(t *testing.T) {
 	ctx := context.Background()
 
-	gasPrice = big.NewInt(1234)
 	data := prepareToExecuteTx(t, chainID.Uint64())
 	defer data.stateSqlDB.Close() //nolint:gosec,errcheck
 	defer data.poolSqlDB.Close()  //nolint:gosec,errcheck
 
 	b := make([]byte, cfg.MaxTxDataBytesSize-20)
 	to := common.HexToAddress(senderAddress)
-	gasPrice := big.NewInt(1000000000 - 1)
+	gasPrice := big.NewInt(1000000000)
 	gasLimitForThisTx := uint64(21000) + uint64(16)*uint64(len(b))
 	tx := ethTypes.NewTransaction(0, to, big.NewInt(0), gasLimitForThisTx, gasPrice, b)
 
@@ -657,10 +656,10 @@ func Test_UpdateTxsStatus(t *testing.T) {
 
 	var count int
 	rows, err := poolSqlDB.Query(ctx, "SELECT status, failed_reason FROM pool.transaction WHERE hash = ANY($1)", []string{signedTx1.Hash().String(), signedTx2.Hash().String()})
-	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
 	}
+	defer rows.Close() // nolint:staticcheck
 	var state, failedReason string
 	for rows.Next() {
 		count++
@@ -1276,7 +1275,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			name:          "GasPriceTooLowErr",
 			nonce:         0,
 			to:            nil,
-			gasLimit:      gasLimit,
+			gasLimit:      gasLimit, // Is a contract 53000
 			gasPrice:      big.NewInt(0).SetUint64(gasPrice.Uint64() - uint64(1)),
 			data:          []byte{},
 			expectedError: pool.ErrGasPrice,
@@ -1957,10 +1956,9 @@ func Test_AddTx_IPValidation(t *testing.T) {
 }
 
 func setupPool(t *testing.T, cfg pool.Config, constraintsCfg state.BatchConstraintsCfg, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {
-	p := pool.NewPool(cfg, constraintsCfg, s, st, chainID, eventLog)
-
-	err := p.SetGasPrices(ctx, gasPrice.Uint64(), l1GasPrice.Uint64())
+	err := s.SetGasPrices(ctx, gasPrice.Uint64(), l1GasPrice.Uint64())
 	require.NoError(t, err)
+	p := pool.NewPool(cfg, constraintsCfg, s, st, chainID, eventLog)
 	p.StartPollingMinSuggestedGasPrice(ctx)
 	return p
 }
