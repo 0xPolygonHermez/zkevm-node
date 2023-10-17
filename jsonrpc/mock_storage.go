@@ -3,6 +3,8 @@
 package jsonrpc
 
 import (
+	atomic "sync/atomic"
+
 	websocket "github.com/gorilla/websocket"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -91,21 +93,21 @@ func (_m *storageMock) GetFilter(filterID string) (*Filter, error) {
 }
 
 // NewBlockFilter provides a mock function with given fields: wsConn
-func (_m *storageMock) NewBlockFilter(wsConn *websocket.Conn) (string, error) {
+func (_m *storageMock) NewBlockFilter(wsConn *atomic.Pointer[websocket.Conn]) (string, error) {
 	ret := _m.Called(wsConn)
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*websocket.Conn) (string, error)); ok {
+	if rf, ok := ret.Get(0).(func(*atomic.Pointer[websocket.Conn]) (string, error)); ok {
 		return rf(wsConn)
 	}
-	if rf, ok := ret.Get(0).(func(*websocket.Conn) string); ok {
+	if rf, ok := ret.Get(0).(func(*atomic.Pointer[websocket.Conn]) string); ok {
 		r0 = rf(wsConn)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(*websocket.Conn) error); ok {
+	if rf, ok := ret.Get(1).(func(*atomic.Pointer[websocket.Conn]) error); ok {
 		r1 = rf(wsConn)
 	} else {
 		r1 = ret.Error(1)
@@ -115,21 +117,21 @@ func (_m *storageMock) NewBlockFilter(wsConn *websocket.Conn) (string, error) {
 }
 
 // NewLogFilter provides a mock function with given fields: wsConn, filter
-func (_m *storageMock) NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string, error) {
+func (_m *storageMock) NewLogFilter(wsConn *atomic.Pointer[websocket.Conn], filter LogFilter) (string, error) {
 	ret := _m.Called(wsConn, filter)
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*websocket.Conn, LogFilter) (string, error)); ok {
+	if rf, ok := ret.Get(0).(func(*atomic.Pointer[websocket.Conn], LogFilter) (string, error)); ok {
 		return rf(wsConn, filter)
 	}
-	if rf, ok := ret.Get(0).(func(*websocket.Conn, LogFilter) string); ok {
+	if rf, ok := ret.Get(0).(func(*atomic.Pointer[websocket.Conn], LogFilter) string); ok {
 		r0 = rf(wsConn, filter)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(*websocket.Conn, LogFilter) error); ok {
+	if rf, ok := ret.Get(1).(func(*atomic.Pointer[websocket.Conn], LogFilter) error); ok {
 		r1 = rf(wsConn, filter)
 	} else {
 		r1 = ret.Error(1)
@@ -139,21 +141,21 @@ func (_m *storageMock) NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (s
 }
 
 // NewPendingTransactionFilter provides a mock function with given fields: wsConn
-func (_m *storageMock) NewPendingTransactionFilter(wsConn *websocket.Conn) (string, error) {
+func (_m *storageMock) NewPendingTransactionFilter(wsConn *atomic.Pointer[websocket.Conn]) (string, error) {
 	ret := _m.Called(wsConn)
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*websocket.Conn) (string, error)); ok {
+	if rf, ok := ret.Get(0).(func(*atomic.Pointer[websocket.Conn]) (string, error)); ok {
 		return rf(wsConn)
 	}
-	if rf, ok := ret.Get(0).(func(*websocket.Conn) string); ok {
+	if rf, ok := ret.Get(0).(func(*atomic.Pointer[websocket.Conn]) string); ok {
 		r0 = rf(wsConn)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(*websocket.Conn) error); ok {
+	if rf, ok := ret.Get(1).(func(*atomic.Pointer[websocket.Conn]) error); ok {
 		r1 = rf(wsConn)
 	} else {
 		r1 = ret.Error(1)
@@ -177,11 +179,11 @@ func (_m *storageMock) UninstallFilter(filterID string) error {
 }
 
 // UninstallFilterByWSConn provides a mock function with given fields: wsConn
-func (_m *storageMock) UninstallFilterByWSConn(wsConn *websocket.Conn) error {
+func (_m *storageMock) UninstallFilterByWSConn(wsConn *atomic.Pointer[websocket.Conn]) error {
 	ret := _m.Called(wsConn)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*websocket.Conn) error); ok {
+	if rf, ok := ret.Get(0).(func(*atomic.Pointer[websocket.Conn]) error); ok {
 		r0 = rf(wsConn)
 	} else {
 		r0 = ret.Error(0)

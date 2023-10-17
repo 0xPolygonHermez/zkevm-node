@@ -30,7 +30,7 @@ require (
 	golang.org/x/crypto v0.14.0
 	golang.org/x/net v0.17.0
 	golang.org/x/sync v0.4.0
-	google.golang.org/grpc v1.58.2
+	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -107,6 +107,8 @@ require (
 	github.com/markbates/errx v1.1.0 // indirect
 	github.com/markbates/oncer v1.0.0 // indirect
 	github.com/markbates/safe v1.0.1 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
@@ -159,8 +161,8 @@ require (
 )
 
 require (
+	github.com/fatih/color v1.14.1
 	github.com/joho/godotenv v1.5.1
-	github.com/prometheus/client_golang v1.17.0
+	github.com/prometheus/client_golang v1.16.0
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 )
-
-require golang.org/x/exp v0.0.0-20230905200255-921286631fa9

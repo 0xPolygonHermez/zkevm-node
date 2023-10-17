@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -3628,7 +3630,7 @@ func TestNewFilter(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3652,7 +3654,7 @@ func TestNewFilter(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3715,7 +3717,7 @@ func TestNewFilter(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
 					Return("", errors.New("failed to add new filter")).
 					Once()
 			},
@@ -3766,7 +3768,7 @@ func TestNewBlockFilter(t *testing.T) {
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&websocket.Conn{})).
+					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3777,7 +3779,7 @@ func TestNewBlockFilter(t *testing.T) {
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new block filter"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&websocket.Conn{})).
+					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
 					Return("", errors.New("failed to add new block filter")).
 					Once()
 			},
@@ -3828,7 +3830,7 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// 	ExpectedError:  nil,
 		// 	SetupMocks: func(m *mocks, tc testCase) {
 		// 		m.Storage.
-		// 			On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
+		// 			On("NewPendingTransactionFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
 		// 			Return("1", nil).
 		// 			Once()
 		// 	},
@@ -3839,7 +3841,7 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// 	ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new pending transaction filter"),
 		// 	SetupMocks: func(m *mocks, tc testCase) {
 		// 		m.Storage.
-		// 			On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
+		// 			On("NewPendingTransactionFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
 		// 			Return("", errors.New("failed to add new pending transaction filter")).
 		// 			Once()
 		// 	},
@@ -4880,6 +4882,181 @@ func TestGetFilterChanges(t *testing.T) {
 				if res.Error != nil || tc.ExpectedErrors[i] != nil {
 					assert.Equal(t, tc.ExpectedErrors[i].ErrorCode(), res.Error.Code)
 					assert.Equal(t, tc.ExpectedErrors[i].Error(), res.Error.Message)
+				}
+			}
+		})
+	}
+}
+
+func TestSubscribeNewHeads(t *testing.T) {
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name          string
+		Channel       chan *ethTypes.Header
+		ExpectedError interface{}
+		SetupMocks    func(m *mocksWrapper, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Subscribe to new heads Successfully",
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.Storage.
+					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+					Return("0x1", nil).
+					Once()
+			},
+		},
+		{
+			Name:          "Subscribe fails to add filter to storage",
+			ExpectedError: types.NewRPCError(types.DefaultErrorCode, "failed to create new block filter"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.Storage.
+					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+					Return("", fmt.Errorf("failed to add filter to storage")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+
+			c := s.GetWSClient()
+
+			ctx := context.Background()
+			newHeadsChannel := make(chan *ethTypes.Header, 100)
+			sub, err := c.SubscribeNewHead(ctx, newHeadsChannel)
+
+			if sub != nil {
+				assert.NotNil(t, sub)
+			}
+
+			if err != nil || tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
+					rpcErr := err.(rpc.Error)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestSubscribeNewLogs(t *testing.T) {
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name          string
+		Filter        ethereum.FilterQuery
+		Channel       chan *ethTypes.Log
+		ExpectedError interface{}
+		Prepare       func(t *testing.T, tc *testCase)
+		SetupMocks    func(m *mocksWrapper, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Subscribe to new logs by block hash successfully",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					BlockHash: &blockHash,
+				}
+			},
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.Storage.
+					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					Return("0x1", nil).
+					Once()
+			},
+		},
+		{
+			Name:          "Subscribe to new logs fails to add new filter to storage",
+			ExpectedError: types.NewRPCError(types.DefaultErrorCode, "failed to create new log filter"),
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					BlockHash: &blockHash,
+				}
+			},
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.Storage.
+					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					Return("", fmt.Errorf("failed to add filter to storage")).
+					Once()
+			},
+		},
+		{
+			Name:          "Subscribe to new logs fails due to max block range limit exceeded",
+			ExpectedError: types.NewRPCError(types.InvalidParamsErrorCode, "logs are limited to a 10000 block range"),
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					FromBlock: big.NewInt(1), ToBlock: big.NewInt(10002),
+				}
+			},
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.Prepare(t, &tc)
+			tc.SetupMocks(m, tc)
+
+			c := s.GetWSClient()
+
+			ctx := context.Background()
+			newLogs := make(chan ethTypes.Log, 100)
+			sub, err := c.SubscribeFilterLogs(ctx, tc.Filter, newLogs)
+
+			if sub != nil {
+				assert.NotNil(t, sub)
+			}
+
+			if err != nil || tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
+					rpcErr := err.(rpc.Error)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
 				}
 			}
 		})
