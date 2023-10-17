@@ -2702,8 +2702,17 @@ func (p *PostgresStorage) GetNativeBlockHashesInRange(ctx context.Context, fromB
 	const l2TxSQL = `
     SELECT l2b.state_root
       FROM state.l2block l2b
-     WHERE l2_block_num BETWEEN $1 AND $2
-     ORDER BY t.l2_block_num ASC`
+     WHERE block_num BETWEEN $1 AND $2
+     ORDER BY l2b.block_num ASC`
+
+	if toBlock < fromBlock {
+		return nil, ErrInvalidBlockRange
+	}
+
+	blockRange := toBlock - fromBlock
+	if p.cfg.MaxNativeBlockHashBlockRange > 0 && blockRange > p.cfg.MaxNativeBlockHashBlockRange {
+		return nil, ErrMaxNativeBlockHashBlockRangeLimitExceeded
+	}
 
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, l2TxSQL, fromBlock, toBlock)

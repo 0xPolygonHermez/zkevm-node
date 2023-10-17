@@ -278,6 +278,9 @@ func (z *ZKEVMEndpoints) GetNativeBlockHashesInRange(filter NativeBlockHashBlock
 		nativeBlockHashes, err := z.state.GetNativeBlockHashesInRange(ctx, fromBlockNumber, toBlockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
+		} else if errors.Is(err, state.ErrMaxNativeBlockHashBlockRangeLimitExceeded) {
+			errMsg := fmt.Sprintf(state.ErrMaxNativeBlockHashBlockRangeLimitExceeded.Error(), z.cfg.MaxNativeBlockHashBlockRange)
+			return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash from state", err, true)
 		}
