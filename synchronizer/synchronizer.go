@@ -366,7 +366,7 @@ func (s *ClientSynchronizer) syncBlocksParallel(lastEthBlockSynced *state.Block)
 		s.l1SyncOrchestration.producer.Reset(lastEthBlockSynced.BlockNumber)
 	}
 	log.Infof("Starting L1 sync orchestrator in parallel")
-	return s.l1SyncOrchestration.start()
+	return s.l1SyncOrchestration.start(lastEthBlockSynced)
 }
 
 // This function syncs the node from a specific block to the latest

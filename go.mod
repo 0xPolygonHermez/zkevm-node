@@ -1,6 +1,6 @@
 module github.com/0xPolygonHermez/zkevm-node
 
-go 1.19
+go 1.21
 
 require (
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.0.12
@@ -162,9 +162,9 @@ require (
 )
 
 require (
-	github.com/fatih/color v1.14.1
+	github.com/fatih/color v1.15.0
 	github.com/joho/godotenv v1.5.1
-	github.com/prometheus/client_golang v1.16.0
+	github.com/prometheus/client_golang v1.17.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 )
 

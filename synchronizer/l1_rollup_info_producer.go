@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node"
@@ -71,17 +72,19 @@ type workersInterface interface {
 	String() string
 }
 
-type producerStatusEnum int8
+type producerStatusEnum int32
 
 const (
 	producerIdle         producerStatusEnum = 0
 	producerWorking      producerStatusEnum = 1
 	producerSynchronized producerStatusEnum = 2
 	producerNoRunning    producerStatusEnum = 3
+	// producerReseting: is in a reset process, so is going to reject all rollup info
+	producerReseting producerStatusEnum = 4
 )
 
 func (s producerStatusEnum) String() string {
-	return [...]string{"idle", "working", "synchronized", "no_running"}[s]
+	return [...]string{"idle", "working", "synchronized", "no_running", "reseting"}[s]
 }
 
 type configProducer struct {
@@ -164,7 +167,7 @@ func (l *l1RollupInfoProducer) toStringBrief() string {
 }
 
 func (l *l1RollupInfoProducer) toStringBriefUnsafe() string {
-	return fmt.Sprintf("status:%s syncStatus:[%s] workers:[%s] filter:[%s] cfg:[%s]", l.status, l.syncStatus.toStringBrief(), l.workers.String(), l.filterToSendOrdererResultsToConsumer.ToStringBrief(), l.cfg.String())
+	return fmt.Sprintf("status:%s syncStatus:[%s] workers:[%s] filter:[%s] cfg:[%s]", l.getStatus(), l.syncStatus.toStringBrief(), l.workers.String(), l.filterToSendOrdererResultsToConsumer.ToStringBrief(), l.cfg.String())
 }
 
 // l1DataRetrieverStatistics : create an instance of l1RollupInfoProducer
@@ -193,13 +196,16 @@ func newL1DataRetriever(cfg configProducer, ethermans []EthermanInterface, outgo
 // ResetAndStop: reset the object and stop the current process. Set first block to be retrieved
 // This function could be call from outside of main goroutine
 func (l *l1RollupInfoProducer) Reset(startingBlockNumber uint64) {
-	log.Infof("producer: ResetAndStop(%d) queue cmd", startingBlockNumber)
+	log.Infof("producer: Reset(%d) queue cmd and discarding all info in channel", startingBlockNumber)
+	l.setStatusReseting()
+	l.emptyChannel()
 	l.channelCmds <- producerCmd{cmd: producerReset, param1: startingBlockNumber}
 }
 
 func (l *l1RollupInfoProducer) resetUnsafe(startingBlockNumber uint64) {
 	log.Infof("producer: Reset L1 sync process to blockNumber %d st=%s", startingBlockNumber, l.toStringBrief())
-	log.Debugf("producer: Reset(%d): stop previous run (state=%s)", startingBlockNumber, l.status.String())
+	l.setStatusReseting()
+	log.Debugf("producer: Reset(%d): stop previous run (state=%s)", startingBlockNumber, l.getStatus().String())
 	log.Debugf("producer: Reset(%d): syncStatus.reset", startingBlockNumber)
 	l.syncStatus.reset(startingBlockNumber)
 	l.statistics.reset(startingBlockNumber)
@@ -215,11 +221,22 @@ func (l *l1RollupInfoProducer) resetUnsafe(startingBlockNumber uint64) {
 }
 
 func (l *l1RollupInfoProducer) isProducerRunning() bool {
-	return l.status != producerNoRunning
+	return l.getStatus() != producerNoRunning
 }
+
+func (l *l1RollupInfoProducer) setStatusReseting() {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	l.setStatus(producerReseting)
+}
+
+func (l *l1RollupInfoProducer) getStatus() producerStatusEnum {
+	return producerStatusEnum(atomic.LoadInt32((*int32)(&l.status)))
+}
+
 func (l *l1RollupInfoProducer) setStatus(newStatus producerStatusEnum) {
-	previousStatus := l.status
-	l.status = newStatus
+	previousStatus := l.getStatus()
+	atomic.StoreInt32((*int32)(&l.status), int32(newStatus))
 	if previousStatus != newStatus {
 		log.Infof("producer: Status changed from [%s] to [%s]", previousStatus.String(), newStatus.String())
 		if newStatus == producerSynchronized {
@@ -295,11 +312,10 @@ func (l *l1RollupInfoProducer) Start(ctx context.Context) error {
 }
 
 func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
-	if l.status == producerNoRunning {
-		log.Info("producer: step: status is no running, changing to idle")
-		l.setStatus(producerIdle)
+	if atomic.CompareAndSwapInt32((*int32)(&l.status), int32(producerNoRunning), int32(producerIdle)) { // l.getStatus() == producerNoRunning
+		log.Info("producer: step: status is no running, changing to idle  %s", l.getStatus().String())
 	}
-	log.Infof("producer:%s step: status:%s", zkevm.BuildDate, l.toStringBrief())
+	log.Infof("producer: build_time:%s step: status:%s", zkevm.BuildDate, l.toStringBrief())
 	select {
 	case <-l.ctxWithCancel.Done():
 		log.Debugf("producer: context canceled")
@@ -317,7 +333,7 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 	case resultRollupInfo := <-l.workers.getResponseChannelForRollupInfo():
 		l.onResponseRollupInfo(resultRollupInfo)
 	}
-	switch l.status {
+	switch l.getStatus() {
 	case producerIdle:
 		// Is ready to start working?
 		l.renewLastBlockOnL1IfNeeded()
@@ -349,6 +365,8 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 		if l.launchWork() > 0 {
 			l.setStatus(producerWorking)
 		}
+	case producerReseting:
+		log.Infof("producer: producerReseting")
 	}
 
 	if l.cfg.timeForShowUpStatisticsLog != 0 && time.Since(l.statistics.lastShowUpTime) > l.cfg.timeForShowUpStatisticsLog {
@@ -381,7 +399,8 @@ func (l *l1RollupInfoProducer) ttlOfLastBlockOnL1() time.Duration {
 
 func (l *l1RollupInfoProducer) getNextTimeout() time.Duration {
 	timeOutMainLoop := l.cfg.timeOutMainLoop
-	switch l.status {
+	status := l.getStatus()
+	switch status {
 	case producerIdle:
 		return timeOutMainLoop
 	case producerWorking:
@@ -391,8 +410,10 @@ func (l *l1RollupInfoProducer) getNextTimeout() time.Duration {
 		return max(nextRenewLastBlock, time.Second)
 	case producerNoRunning:
 		return timeOutMainLoop
+	case producerReseting:
+		return timeOutMainLoop
 	default:
-		log.Fatalf("producer: Unknown status: %s", l.status.String())
+		log.Fatalf("producer: Unknown status: %s", status.String())
 	}
 	return timeOutMainLoop
 }
@@ -479,6 +500,10 @@ func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded() {
 
 func (l *l1RollupInfoProducer) onResponseRollupInfo(result responseRollupInfoByBlockRange) {
 	log.Infof("producer: Received responseRollupInfoByBlockRange: %s", result.toStringBrief())
+	if l.getStatus() == producerReseting {
+		log.Infof("producer: Ignoring result because is in reseting status: %s", result.toStringBrief())
+		return
+	}
 	l.statistics.onResponseRollupInfo(result)
 	isOk := (result.generic.err == nil)
 	if !l.syncStatus.onFinishWorker(result.result.blockRange, isOk) {
