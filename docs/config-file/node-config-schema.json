@@ -286,7 +286,7 @@
 						"ZeroByteGasCost": {
 							"type": "integer",
 							"description": "ZeroByteGasCost is the gas cost per byte that is 0",
-							"default": 0
+							"default": 4
 						},
 						"NetProfit": {
 							"type": "number",
