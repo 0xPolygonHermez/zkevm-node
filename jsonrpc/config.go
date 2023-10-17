@@ -46,6 +46,14 @@ type Config struct {
 
 	// L2Coinbase defines which address is going to receive the fees
 	L2Coinbase common.Address
+
+	// MaxLogsCount is a configuration to set the max number of logs that can be returned
+	// in a single call to the state, if zero it means no limit
+	MaxLogsCount uint64 `mapstructure:"MaxLogsCount"`
+
+	// MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs
+	// logs in a single call to the state, if zero it means no limit
+	MaxLogsBlockRange uint64 `mapstructure:"MaxLogsBlockRange"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support

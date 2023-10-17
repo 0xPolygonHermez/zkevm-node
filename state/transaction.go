@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/google/uuid"
 	"github.com/holiman/uint256"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/grpc/codes"
@@ -341,6 +342,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkId,
 		TraceConfig:      traceConfigRequest,
+		ContextId:        uuid.NewString(),
 	}
 
 	// Send Batch to the Executor
@@ -398,6 +400,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		ReturnValue:   response.ReturnValue,
 		StateRoot:     response.StateRoot.Bytes(),
 		CallTrace:     response.CallTrace,
+		Err:           response.RomError,
 	}
 
 	senderAddress, err := GetSender(*tx)
@@ -437,7 +440,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
 	evm := fakevm.NewFakeEVM(fakevm.BlockContext{BlockNumber: big.NewInt(1)}, fakevm.TxContext{GasPrice: gasPrice}, fakeDB, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: tracer})
 
-	traceResult, err := s.buildTrace(evm, result.CallTrace, tracer)
+	traceResult, err := s.buildTrace(evm, result, tracer)
 	if err != nil {
 		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
 		return nil, fmt.Errorf("failed parse the trace using the tracer: %v", err)
@@ -449,7 +452,8 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 }
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
-func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.CallTrace, tracer tracers.Tracer) (json.RawMessage, error) {
+func (s *State) buildTrace(evm *fakevm.FakeEVM, result *runtime.ExecutionResult, tracer tracers.Tracer) (json.RawMessage, error) {
+	trace := result.CallTrace
 	tracer.CaptureTxStart(trace.Context.Gas)
 	contextGas := trace.Context.Gas - trace.Context.GasUsed
 	if len(trace.Steps) > 0 {
@@ -485,7 +489,8 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.CallTrace,
 			fakevm.NewAccount(step.Contract.Caller),
 			fakevm.NewAccount(step.Contract.Address),
 			step.Contract.Value, step.Gas)
-		contract.CodeAddr = &step.Contract.Address
+		aux := step.Contract.Address
+		contract.CodeAddr = &aux
 
 		// set Scope
 		scope := &fakevm.ScopeContext{
@@ -584,6 +589,8 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, trace instrumentation.CallTrace,
 	var err error
 	if reverted {
 		err = fakevm.ErrExecutionReverted
+	} else if result.Err != nil {
+		err = result.Err
 	}
 	tracer.CaptureEnd(trace.Context.Output, trace.Context.GasUsed, err)
 	restGas := trace.Context.Gas - trace.Context.GasUsed
@@ -822,6 +829,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		UpdateMerkleTree: cFalse,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
+		ContextId:        uuid.NewString(),
 	}
 
 	if noZKEVMCounters {
@@ -838,6 +846,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
+	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
 
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -1092,6 +1101,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			UpdateMerkleTree: cFalse,
 			ChainId:          s.cfg.ChainID,
 			ForkId:           forkID,
+			ContextId:        uuid.NewString(),
 		}
 
 		log.Debugf("EstimateGas[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
@@ -1105,6 +1115,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		log.Debugf("EstimateGas[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 		log.Debugf("EstimateGas[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 		log.Debugf("EstimateGas[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
+		log.Debugf("EstimateGas[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
 
 		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)

@@ -21,15 +21,19 @@ type NewL2BlockEvent struct {
 	Block types.Block
 }
 
-// PrepareWebSocket allows the RPC to prepare ws
-func (s *State) PrepareWebSocket() {
+// StartToMonitorNewL2Blocks starts 2 go routines that will
+// monitor new blocks and execute handlers registered to be executed
+// when a new l2 block is detected. This is used by the RPC WebSocket
+// filter subscription but can be used by any other component that
+// needs to react to a new L2 block added to the state.
+func (s *State) StartToMonitorNewL2Blocks() {
 	lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
 	if errors.Is(err, ErrStateNotSynchronized) {
 		lastL2Block = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0)})
 	} else if err != nil {
 		log.Fatalf("failed to load the last l2 block: %v", err)
 	}
-	s.lastL2BlockSeen = *lastL2Block
+	s.lastL2BlockSeen.Store(lastL2Block)
 	go s.monitorNewL2Blocks()
 	go s.handleEvents()
 }
@@ -43,6 +47,7 @@ func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
 
 func (s *State) handleEvents() {
 	for newL2BlockEvent := range s.newL2BlockEvents {
+		log.Debugf("[handleEvents] new l2 block event detected for block: %v", newL2BlockEvent.Block.NumberU64())
 		if len(s.newL2BlockEventHandlers) == 0 {
 			continue
 		}
@@ -50,15 +55,18 @@ func (s *State) handleEvents() {
 		wg := sync.WaitGroup{}
 		for _, handler := range s.newL2BlockEventHandlers {
 			wg.Add(1)
-			go func(h NewL2BlockEventHandler) {
+			go func(h NewL2BlockEventHandler, e NewL2BlockEvent) {
 				defer func() {
 					wg.Done()
 					if r := recover(); r != nil {
 						log.Errorf("failed and recovered in NewL2BlockEventHandler: %v", r)
 					}
 				}()
-				h(newL2BlockEvent)
-			}(handler)
+				log.Debugf("[handleEvents] triggering new l2 block event handler for block: %v", e.Block.NumberU64())
+				start := time.Now()
+				h(e)
+				log.Debugf("[handleEvents] new l2 block event handler for block %v took %vms to be executed", e.Block.NumberU64(), time.Since(start).Milliseconds())
+			}(handler, newL2BlockEvent)
 		}
 		wg.Wait()
 	}
@@ -85,24 +93,32 @@ func (s *State) monitorNewL2Blocks() {
 			continue
 		}
 
+		lastL2BlockSeen := s.lastL2BlockSeen.Load()
+
 		// not updates until now
-		if lastL2Block == nil || s.lastL2BlockSeen.NumberU64() >= lastL2Block.NumberU64() {
+		if lastL2Block == nil || lastL2BlockSeen.NumberU64() >= lastL2Block.NumberU64() {
 			waitNextCycle()
 			continue
 		}
 
-		for bn := s.lastL2BlockSeen.NumberU64() + uint64(1); bn <= lastL2Block.NumberU64(); bn++ {
+		fromBlockNumber := lastL2BlockSeen.NumberU64() + uint64(1)
+		toBlockNumber := lastL2Block.NumberU64()
+		log.Debugf("[monitorNewL2Blocks] new l2 block detected from block %v to %v", fromBlockNumber, toBlockNumber)
+
+		for bn := fromBlockNumber; bn <= toBlockNumber; bn++ {
 			block, err := s.GetL2BlockByNumber(context.Background(), bn, nil)
 			if err != nil {
-				log.Errorf("failed to l2 block while monitoring new blocks: %v", err)
+				log.Errorf("failed to get l2 block while monitoring new blocks: %v", err)
 				break
 			}
-
+			log.Debugf("[monitorNewL2Blocks] sending NewL2BlockEvent for block %v", block.NumberU64())
+			start := time.Now()
 			s.newL2BlockEvents <- NewL2BlockEvent{
 				Block: *block,
 			}
-			log.Infof("new l2 blocks detected, Number %v, Hash %v", block.NumberU64(), block.Hash().String())
-			s.lastL2BlockSeen = *block
+			log.Debugf("[monitorNewL2Blocks] NewL2BlockEvent for block %v took %vms to be sent", block.NumberU64(), time.Since(start).Milliseconds())
+			log.Infof("new l2 block detected: number %v, hash %v", block.NumberU64(), block.Hash().String())
+			s.lastL2BlockSeen.Store(block)
 		}
 
 		// interval to check for new l2 blocks
