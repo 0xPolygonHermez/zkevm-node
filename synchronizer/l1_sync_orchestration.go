@@ -22,7 +22,7 @@ type l1RollupProducerInterface interface {
 }
 
 type l1RollupConsumerInterface interface {
-	Start(ctx context.Context) error
+	Start(ctx context.Context, lastEthBlockSynced *state.Block) error
 	StopAfterProcessChannelQueue()
 	GetLastEthBlockSynced() (state.Block, bool)
 }
@@ -67,10 +67,10 @@ func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
 	// If orchestrator is running then producer is going to be started by orchestrate() select  function when detects that producer has finished
 }
 
-func (l *l1SyncOrchestration) start() (*state.Block, error) {
+func (l *l1SyncOrchestration) start(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	l.isRunning = true
 	l.launchProducer(l.ctxParent, l.chProducer, &l.wg)
-	l.launchConsumer(l.ctxParent, l.chConsumer, &l.wg)
+	l.launchConsumer(l.ctxParent, lastEthBlockSynced, l.chConsumer, &l.wg)
 	return l.orchestrate(l.ctxParent, &l.wg, l.chProducer, l.chConsumer)
 }
 
@@ -108,7 +108,7 @@ func (l *l1SyncOrchestration) launchProducer(ctx context.Context, chProducer cha
 	}
 }
 
-func (l *l1SyncOrchestration) launchConsumer(ctx context.Context, chConsumer chan error, wg *sync.WaitGroup) {
+func (l *l1SyncOrchestration) launchConsumer(ctx context.Context, lastEthBlockSynced *state.Block, chConsumer chan error, wg *sync.WaitGroup) {
 	l.mutex.Lock()
 	if l.consumerRunning {
 		l.mutex.Unlock()
@@ -121,7 +121,7 @@ func (l *l1SyncOrchestration) launchConsumer(ctx context.Context, chConsumer cha
 	go func() {
 		defer wg.Done()
 		log.Infof("orchestration: starting consumer")
-		err := l.consumer.Start(ctx)
+		err := l.consumer.Start(ctx, lastEthBlockSynced)
 		l.mutex.Lock()
 		l.consumerRunning = false
 		l.mutex.Unlock()
