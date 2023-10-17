@@ -44,6 +44,7 @@ type l1RollupInfoConsumer struct {
 	ctx                   context.Context
 	statistics            l1RollupInfoConsumerStatistics
 	lastEthBlockSynced    *state.Block
+	highestBlockProcessed uint64
 }
 
 func newL1RollupInfoConsumer(cfg configConsumer,
@@ -62,12 +63,20 @@ func newL1RollupInfoConsumer(cfg configConsumer,
 			startTime: time.Now(),
 			cfg:       cfg,
 		},
+		highestBlockProcessed: 0,
 	}
 }
 
 func (l *l1RollupInfoConsumer) Start(ctx context.Context, lastEthBlockSynced *state.Block) error {
 	l.ctx = ctx
 	l.lastEthBlockSynced = lastEthBlockSynced
+	if l.highestBlockProcessed == 0 && lastEthBlockSynced != nil {
+		l.highestBlockProcessed = lastEthBlockSynced.BlockNumber
+	}
+	if lastEthBlockSynced == nil {
+		log.Infof("consumer: lastEthBlockSynced is nil, so resetting highestBlockProcessed to 0")
+		l.highestBlockProcessed = 0
+	}
 	l.statistics.onStart()
 	err := l.step()
 	for ; err == nil; err = l.step() {
@@ -125,11 +134,12 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	var err error
-	if (l.lastEthBlockSynced != nil) && (l.lastEthBlockSynced.BlockNumber+1 != rollupInfo.blockRange.fromBlock) {
-		log.Infof("consumer: received a rollupInfo with a wrong block range.  Ignoring it. Last block synced: %d. RollupInfo block range: %s",
-			l.lastEthBlockSynced.BlockNumber, rollupInfo.blockRange.String())
+	if (l.highestBlockProcessed > 0) && (l.highestBlockProcessed+1 != rollupInfo.blockRange.fromBlock) {
+		log.Infof("consumer: received a rollupInfo with a wrong block range.  Ignoring it. Highest block synced: %d. RollupInfo block range: %s",
+			l.highestBlockProcessed, rollupInfo.blockRange.String())
 		return nil
 	}
+	l.highestBlockProcessed = rollupInfo.blockRange.toBlock
 	// Uncommented that line to produce a infinite loop of errors, and resets! (just for develop)
 	//return errors.New("forcing an continuous error!")
 	statisticsMsg := l.statistics.onStartProcessIncommingRollupInfoData(rollupInfo)
