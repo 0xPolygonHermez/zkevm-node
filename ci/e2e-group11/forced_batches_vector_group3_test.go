@@ -75,7 +75,7 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 				require.Equal(t, testCase.ExpectedOldStateRoot, actualOldStateRoot.Hex())
 				decodedData, err := hex.DecodeHex(testCase.BatchL2Data)
 				require.NoError(t, err)
-				_, txBytes, _, err := state.DecodeTxs(decodedData, forkID5)
+				_, txBytes, _, err := state.DecodeTxs(decodedData, forkID6)
 				forcedBatch, err := sendForcedBatchForVector(t, txBytes, opsman)
 				require.NoError(t, err)
 				actualNewStateRoot := forcedBatch.StateRoot
