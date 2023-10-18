@@ -1482,6 +1482,11 @@
 					"type": "integer",
 					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
 					"default": 0
+				},
+				"MaxNativeBlockHashBlockRange": {
+					"type": "integer",
+					"description": "MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying\nnative block hashes in a single call to the state, if zero it means no limit",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
