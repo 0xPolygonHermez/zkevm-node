@@ -51,7 +51,7 @@ func TestGivenConsumerWhenFailsToProcessRollupThenDontKnownLastEthBlock(t *testi
 		},
 		blocks:           []etherman.Block{},
 		order:            map[common.Hash][]etherman.Order{},
-		lastBlockOfRange: nil,
+		lastBlockOfRange: types.NewBlock(&types.Header{Number: big.NewInt(123)}, nil, nil, nil, nil),
 	}
 	data.syncMock.
 		On("processBlockRange", mock.Anything, mock.Anything).
