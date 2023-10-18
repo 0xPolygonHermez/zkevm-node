@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	forkID5 uint64 = 5
+	forkID6 uint64 = 6
 )
 
 func TestForcedBatchesVectorFiles(t *testing.T) {
@@ -64,7 +64,7 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 				log.Info("###################")
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
 				require.NoError(t, opsman.SetGenesis(genesisActions))
-				require.NoError(t, opsman.SetForkID(forkID5))
+				require.NoError(t, opsman.SetForkID(forkID6))
 				require.NoError(t, opsman.Setup())
 
 				// Check initial root
