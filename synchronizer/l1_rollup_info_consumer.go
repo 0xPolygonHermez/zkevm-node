@@ -137,6 +137,26 @@ func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1Consu
 	return nil
 }
 
+func checkPreviousBlocks(rollupInfo rollupInfoByBlockRangeResult, cachedBlock *state.Block) error {
+	if cachedBlock == nil {
+		return nil
+	}
+	if rollupInfo.previousBlockOfRange == nil {
+		return nil
+	}
+	if cachedBlock.BlockNumber == rollupInfo.previousBlockOfRange.NumberU64() {
+		if cachedBlock.BlockHash != rollupInfo.previousBlockOfRange.Hash() {
+			log.Fatalf("consumer: Previous block %d hash is not the same", cachedBlock.BlockNumber)
+		}
+		if cachedBlock.ParentHash != rollupInfo.previousBlockOfRange.ParentHash() {
+			log.Fatalf("consumer: Previous block %d parentHash is not the same", cachedBlock.BlockNumber)
+		}
+	} else {
+		log.Fatalf("consumer: Previous block expected:%d != %d is not the same", cachedBlock.BlockNumber, rollupInfo.previousBlockOfRange.NumberU64())
+	}
+	return nil
+}
+
 func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
@@ -146,12 +166,19 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 			l.highestBlockProcessed, rollupInfo.blockRange.String())
 		return nil
 	}
-	l.highestBlockProcessed = rollupInfo.blockRange.toBlock
+	l.highestBlockProcessed = rollupInfo.getHighestBlockNumberInResponse()
 	// Uncommented that line to produce a infinite loop of errors, and resets! (just for develop)
 	//return errors.New("forcing an continuous error!")
 	statisticsMsg := l.statistics.onStartProcessIncommingRollupInfoData(rollupInfo)
 	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] statistics:%s", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.String(), len(rollupInfo.blocks), statisticsMsg)
 	timeProcessingStart := time.Now()
+
+	err = checkPreviousBlocks(rollupInfo, l.lastEthBlockSynced)
+	if err != nil {
+		log.Errorf("consumer: error checking previous blocks: %s", err.Error())
+		return err
+	}
+
 	l.lastEthBlockSynced, err = l.processUnsafe(rollupInfo)
 	l.statistics.onFinishProcessIncommingRollupInfoData(rollupInfo, time.Since(timeProcessingStart), err)
 	if err != nil {

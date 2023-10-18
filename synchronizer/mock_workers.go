@@ -28,25 +28,25 @@ func (_m *workersMock) String() string {
 	return r0
 }
 
-// asyncRequestRollupInfoByBlockRange provides a mock function with given fields: ctx, blockRange1, sleepBefore
-func (_m *workersMock) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange1 blockRange, sleepBefore time.Duration) (chan responseRollupInfoByBlockRange, error) {
-	ret := _m.Called(ctx, blockRange1, sleepBefore)
+// asyncRequestRollupInfoByBlockRange provides a mock function with given fields: ctx, request
+func (_m *workersMock) asyncRequestRollupInfoByBlockRange(ctx context.Context, request requestRollupInfoByBlockRange) (chan responseRollupInfoByBlockRange, error) {
+	ret := _m.Called(ctx, request)
 
 	var r0 chan responseRollupInfoByBlockRange
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, blockRange, time.Duration) (chan responseRollupInfoByBlockRange, error)); ok {
-		return rf(ctx, blockRange1, sleepBefore)
+	if rf, ok := ret.Get(0).(func(context.Context, requestRollupInfoByBlockRange) (chan responseRollupInfoByBlockRange, error)); ok {
+		return rf(ctx, request)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, blockRange, time.Duration) chan responseRollupInfoByBlockRange); ok {
-		r0 = rf(ctx, blockRange1, sleepBefore)
+	if rf, ok := ret.Get(0).(func(context.Context, requestRollupInfoByBlockRange) chan responseRollupInfoByBlockRange); ok {
+		r0 = rf(ctx, request)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(chan responseRollupInfoByBlockRange)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, blockRange, time.Duration) error); ok {
-		r1 = rf(ctx, blockRange1, sleepBefore)
+	if rf, ok := ret.Get(1).(func(context.Context, requestRollupInfoByBlockRange) error); ok {
+		r1 = rf(ctx, request)
 	} else {
 		r1 = ret.Error(1)
 	}

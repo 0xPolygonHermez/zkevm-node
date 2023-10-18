@@ -29,14 +29,7 @@ func (l *liveBlockRangesGeneric[T]) toStringBrief() string {
 	return fmt.Sprintf("len(ranges): %v", len(l.ranges))
 }
 
-const (
-	invalidBlockNumber = uint64(0)
-)
-
 var (
-	errBlockRangeInvalidIsNil   = errors.New("block Range Invalid: block range is nil")
-	errBlockRangeInvalidIsZero  = errors.New("block Range Invalid: Invalid: from or to are 0")
-	errBlockRangeInvalidIsWrong = errors.New("block Range Invalid: fromBlock is greater than toBlock")
 	errBlockRangeInvalidOverlap = errors.New("block Range Invalid: block range overlaps")
 	errBlockRangeNotFound       = errors.New("block Range not found")
 	errBlockRangeIsEmpty        = errors.New("block Range is empty")
@@ -48,23 +41,6 @@ func newLiveBlockRanges() liveBlockRanges {
 
 func newLiveBlockRangesWithTag[T any]() liveBlockRangesGeneric[T] {
 	return liveBlockRangesGeneric[T]{}
-}
-
-func (b *blockRange) isValid() error {
-	if b == nil {
-		return errBlockRangeInvalidIsNil
-	}
-	if b.fromBlock == invalidBlockNumber || b.toBlock == invalidBlockNumber {
-		return errBlockRangeInvalidIsZero
-	}
-	if b.fromBlock > b.toBlock {
-		return errBlockRangeInvalidIsWrong
-	}
-	return nil
-}
-
-func (b *blockRange) overlaps(br blockRange) bool {
-	return b.fromBlock <= br.toBlock && br.fromBlock <= b.toBlock
 }
 
 func (l *liveBlockRangesGeneric[T]) addBlockRange(br blockRange) error {

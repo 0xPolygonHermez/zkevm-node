@@ -55,7 +55,7 @@ type syncStatusInterface interface {
 	getLastBlockOnL1() uint64
 
 	onStartedNewWorker(br blockRange)
-	onFinishWorker(br blockRange, successful bool) bool
+	onFinishWorker(br blockRange, successful bool, highestBlockNumberInResponse uint64) bool
 	onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
 }
 
@@ -66,7 +66,7 @@ type workersInterface interface {
 	stop()
 	// waits until all workers have finish the current task
 	waitFinishAllWorkers()
-	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange, sleepBefore time.Duration) (chan responseRollupInfoByBlockRange, error)
+	asyncRequestRollupInfoByBlockRange(ctx context.Context, request requestRollupInfoByBlockRange) (chan responseRollupInfoByBlockRange, error)
 	requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) responseL1LastBlock
 	getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange
 	String() string
@@ -463,7 +463,8 @@ func (l *l1RollupInfoProducer) launchWork() int {
 			accDebugStr += "[NoNextRange] "
 			break
 		}
-		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, *br, noSleepTime)
+		request := requestRollupInfoByBlockRange{blockRange: *br, sleepBefore: noSleepTime, requestLastBlockIfNoBlocksInAnswer: true, requestPreviousBlock: true}
+		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, request)
 		if err != nil {
 			if errors.Is(err, errAllWorkersBusy) {
 				accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
@@ -509,7 +510,7 @@ func (l *l1RollupInfoProducer) onResponseRollupInfo(result responseRollupInfoByB
 	}
 	l.statistics.onResponseRollupInfo(result)
 	isOk := (result.generic.err == nil)
-	if !l.syncStatus.onFinishWorker(result.result.blockRange, isOk) {
+	if !l.syncStatus.onFinishWorker(result.result.blockRange, isOk, result.getHighestBlockNumberInResponse()) {
 		log.Infof("producer: Ignoring result because the range is not longer valid: %s", result.toStringBrief())
 		return
 	}

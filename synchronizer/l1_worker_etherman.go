@@ -59,6 +59,25 @@ type responseRollupInfoByBlockRange struct {
 	result  *rollupInfoByBlockRangeResult
 }
 
+type requestRollupInfoByBlockRange struct {
+	blockRange                         blockRange
+	sleepBefore                        time.Duration
+	requestLastBlockIfNoBlocksInAnswer bool
+	requestPreviousBlock               bool
+}
+
+func (r *requestRollupInfoByBlockRange) String() string {
+	return fmt.Sprintf("blockRange: %s sleepBefore: %s lastBlock: %t prevBlock:%t",
+		r.blockRange.String(), r.sleepBefore, r.requestLastBlockIfNoBlocksInAnswer, r.requestPreviousBlock)
+}
+
+func (r *responseRollupInfoByBlockRange) getHighestBlockNumberInResponse() uint64 {
+	if r.result == nil {
+		return invalidBlockNumber
+	}
+	return r.result.getHighestBlockNumberInResponse()
+}
+
 func (r *responseRollupInfoByBlockRange) toStringBrief() string {
 	result := fmt.Sprintf(" generic:[%s] ",
 		r.generic.String())
@@ -76,27 +95,29 @@ type rollupInfoByBlockRangeResult struct {
 	order      map[common.Hash][]etherman.Order
 	// If there are no blocks in this range, it gets the last one
 	// so it could be nil if there are no blocks.
-	lastBlockOfRange *types.Block
+	lastBlockOfRange     *types.Block
+	previousBlockOfRange *types.Block
 }
 
 func (r *rollupInfoByBlockRangeResult) toStringBrief() string {
 	isLastBlockOfRangeSet := r.lastBlockOfRange != nil
-	return fmt.Sprintf(" blockRange: %s len_blocks: [%d] len_order:[%d] lastBlockOfRangeSet [%t]",
+	ispreviousBlockOfRange := r.previousBlockOfRange != nil
+	return fmt.Sprintf(" blockRange: %s len_blocks: [%d] len_order:[%d] lastBlockOfRangeSet [%t] previousBlockSet [%t]",
 		r.blockRange.String(),
-		len(r.blocks), len(r.order), isLastBlockOfRangeSet)
+		len(r.blocks), len(r.order), isLastBlockOfRangeSet, ispreviousBlockOfRange)
 }
 
-type blockRange struct {
-	fromBlock uint64
-	toBlock   uint64
-}
-
-func (b *blockRange) String() string {
-	return fmt.Sprintf("[%v, %v]", b.fromBlock, b.toBlock)
-}
-
-func (b *blockRange) len() uint64 {
-	return b.toBlock - b.fromBlock + 1
+func (r *rollupInfoByBlockRangeResult) getHighestBlockNumberInResponse() uint64 {
+	highest := invalidBlockNumber
+	for _, block := range r.blocks {
+		if block.BlockNumber > highest {
+			highest = block.BlockNumber
+		}
+	}
+	if r.lastBlockOfRange != nil && r.lastBlockOfRange.Number().Uint64() > highest {
+		highest = r.lastBlockOfRange.Number().Uint64()
+	}
+	return highest
 }
 
 type responseL1LastBlock struct {
@@ -113,7 +134,7 @@ type workerEtherman struct {
 	etherman             EthermanInterface
 	status               ethermanStatusEnum
 	typeOfCurrentRequest typeOfRequest
-	blockRange           blockRange
+	request              requestRollupInfoByBlockRange
 	startTime            time.Time
 }
 
@@ -122,7 +143,7 @@ func (w *workerEtherman) String() string {
 	defer w.mutex.Unlock()
 	timeSince := time.Since(w.startTime)
 	if w.isBusyUnsafe() {
-		return fmt.Sprintf("status:%s br:%s time:%s", w.status.String(), w.blockRange.String(), timeSince.Round(time.Second).String())
+		return fmt.Sprintf("status:%s br:%s time:%s", w.status.String(), w.request.String(), timeSince.Round(time.Second).String())
 	}
 	return fmt.Sprintf("status:%s", w.status.String())
 }
@@ -131,7 +152,23 @@ func newWorker(etherman EthermanInterface) *workerEtherman {
 	return &workerEtherman{etherman: etherman, status: ethermanIdle}
 }
 
-func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange, sleepBefore time.Duration) error {
+// sleep returns false if must stop execution
+func (w *workerEtherman) sleep(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, request requestRollupInfoByBlockRange) bool {
+	if request.sleepBefore > 0 {
+		log.Debugf("worker: RollUpInfo(%s) sleeping %s before executing...", request.blockRange.String(), request.sleepBefore)
+		select {
+		case <-ctx.ctx.Done():
+			log.Debugf("worker: RollUpInfo(%s) cancelled in sleep", request.blockRange.String())
+			w.setStatus(ethermanIdle)
+			ch <- newResponseRollupInfo(context.Canceled, 0, typeRequestRollupInfo, &rollupInfoByBlockRangeResult{blockRange: request.blockRange})
+			return false
+		case <-time.After(request.sleepBefore):
+		}
+	}
+	return true
+}
+
+func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, request requestRollupInfoByBlockRange) error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	if w.isBusyUnsafe() {
@@ -143,23 +180,15 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 	}
 	w.status = ethermanWorking
 	w.typeOfCurrentRequest = typeRequestRollupInfo
-	w.blockRange = blockRange
+	w.request = request
 	w.startTime = time.Now()
 	launch := func() {
 		defer ctx.cancel()
 		if wg != nil {
 			defer wg.Done()
 		}
-		if sleepBefore > 0 {
-			log.Debugf("worker: RollUpInfo(%s) sleeping %s before executing...", blockRange.String(), sleepBefore)
-			select {
-			case <-ctx.ctx.Done():
-				log.Debugf("worker: RollUpInfo(%s) cancelled in sleep", blockRange.String())
-				w.setStatus(ethermanIdle)
-				ch <- newResponseRollupInfo(context.Canceled, 0, typeRequestRollupInfo, &rollupInfoByBlockRangeResult{blockRange: blockRange})
-				return
-			case <-time.After(sleepBefore):
-			}
+		if !w.sleep(ctx, ch, request) {
+			return
 		}
 
 		// Uncomment these lines to respond with a nil result to generate fast responses (just for develop!)
@@ -167,20 +196,29 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 		//ch <- newResponseRollupInfo(nil, time.Second, typeRequestRollupInfo, &rollupInfoByBlockRangeResult{blockRange, nil, nil, nil})
 
 		now := time.Now()
-		fromBlock := blockRange.fromBlock
-		toBlock := blockRange.toBlock
+		fromBlock := request.blockRange.fromBlock
+		var toBlock *uint64 = nil
+		// If latest we send a nil
+		if request.blockRange.toBlock != latestBlockNumber {
+			toBlock = &request.blockRange.toBlock
+		}
 
-		blocks, order, err := w.etherman.GetRollupInfoByBlockRange(ctx.ctx, fromBlock, &toBlock)
+		blocks, order, err := w.etherman.GetRollupInfoByBlockRange(ctx.ctx, fromBlock, toBlock)
 		var lastBlock *types.Block = nil
-		if err == nil && len(blocks) == 0 {
-			log.Debugf("worker: RollUpInfo(%s) calling EthBlockByNumber(%d)", blockRange.String(), toBlock)
-			lastBlock, err = w.etherman.EthBlockByNumber(ctx.ctx, toBlock)
+		if err == nil && len(blocks) == 0 && request.requestLastBlockIfNoBlocksInAnswer && request.blockRange.toBlock != latestBlockNumber {
+			log.Debugf("worker: RollUpInfo(%s) request lastBlock calling EthBlockByNumber(%d) ", request.blockRange.String(), toBlock)
+			lastBlock, err = w.etherman.EthBlockByNumber(ctx.ctx, request.blockRange.toBlock)
+		}
+		var previousBlock *types.Block = nil
+		if err == nil && request.requestPreviousBlock && fromBlock > 2 {
+			log.Debugf("worker: RollUpInfo(%s) request previousBlock calling EthBlockByNumber(%d)", request.blockRange.String(), fromBlock)
+			previousBlock, err = w.etherman.EthBlockByNumber(ctx.ctx, fromBlock-1)
 		}
 		duration := time.Since(now)
-		result := newResponseRollupInfo(err, duration, typeRequestRollupInfo, &rollupInfoByBlockRangeResult{blockRange, blocks, order, lastBlock})
+		result := newResponseRollupInfo(err, duration, typeRequestRollupInfo, &rollupInfoByBlockRangeResult{request.blockRange, blocks, order, lastBlock, previousBlock})
 		w.setStatus(ethermanIdle)
 		if err != nil && !errors.Is(err, context.Canceled) {
-			log.Debugf("worker: RollUpInfo(%s) cancelled result err=%s", blockRange.String(), err.Error())
+			log.Debugf("worker: RollUpInfo(%s) cancelled result err=%s", request.blockRange.String(), err.Error())
 		}
 		ch <- result
 	}

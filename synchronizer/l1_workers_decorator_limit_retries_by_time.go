@@ -22,9 +22,11 @@ func (c *controlWorkerFlux) String() string {
 	return fmt.Sprintf("time:%s retries:%d", c.time, c.retries)
 }
 
+// TODO: Change processingRanges by a cache that take full requests in consideration (no sleep time!)
 type workerDecoratorLimitRetriesByTime struct {
 	mutex sync.Mutex
 	workersInterface
+
 	processingRanges    liveBlockRangesGeneric[controlWorkerFlux]
 	minTimeBetweenCalls time.Duration
 }
@@ -43,30 +45,30 @@ func (w *workerDecoratorLimitRetriesByTime) stop() {
 	w.processingRanges = newLiveBlockRangesWithTag[controlWorkerFlux]()
 }
 
-func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange, sleepBefore time.Duration) (chan responseRollupInfoByBlockRange, error) {
+func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(ctx context.Context, request requestRollupInfoByBlockRange) (chan responseRollupInfoByBlockRange, error) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	ctrl, err := w.processingRanges.getTagByBlockRange(blockRange)
+	ctrl, err := w.processingRanges.getTagByBlockRange(request.blockRange)
 	if err == nil {
 		lastCallElapsedTime := time.Since(ctrl.time)
 		if lastCallElapsedTime < w.minTimeBetweenCalls {
 			sleepTime := w.minTimeBetweenCalls - lastCallElapsedTime
-			log.Infof("workerDecoratorLimitRetriesByTime: br:%s retries:%d last call elapsed time %s < %s, sleeping %s", blockRange.String(), ctrl.retries, lastCallElapsedTime, w.minTimeBetweenCalls, sleepTime)
-			sleepBefore = sleepTime - sleepBefore
+			log.Infof("workerDecoratorLimitRetriesByTime: br:%s retries:%d last call elapsed time %s < %s, sleeping %s", request.blockRange.String(), ctrl.retries, lastCallElapsedTime, w.minTimeBetweenCalls, sleepTime)
+			request.sleepBefore = sleepTime - request.sleepBefore
 		}
-		err = w.processingRanges.setTagByBlockRange(blockRange, controlWorkerFlux{time: time.Now(), retries: ctrl.retries + 1})
+		err = w.processingRanges.setTagByBlockRange(request.blockRange, controlWorkerFlux{time: time.Now(), retries: ctrl.retries + 1})
 		if err != nil {
-			log.Warnf("workerDecoratorLimitRetriesByTime: error setting tag %s for blockRange %s", ctrl, blockRange)
+			log.Warnf("workerDecoratorLimitRetriesByTime: error setting tag %s for blockRange %s", ctrl, request.blockRange.String())
 		}
 	} else {
 		ctrl = controlWorkerFlux{time: time.Now(), retries: 0}
-		err = w.processingRanges.addBlockRangeWithTag(blockRange, ctrl)
+		err = w.processingRanges.addBlockRangeWithTag(request.blockRange, ctrl)
 		if err != nil {
-			log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s err:%s", blockRange.String(), err.Error())
+			log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s err:%s", request.blockRange.String(), err.Error())
 		}
 	}
 
-	res, err := w.workersInterface.asyncRequestRollupInfoByBlockRange(ctx, blockRange, sleepBefore)
+	res, err := w.workersInterface.asyncRequestRollupInfoByBlockRange(ctx, request)
 	w.cleanUpOlderThanUnsafe(cleanUpOlderThan)
 	return res, err
 }

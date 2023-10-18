@@ -74,7 +74,8 @@ func (s *filterToSendOrdererResultsToConsumer) sendResultIfPossibleUnsafe(previo
 			if s.matchNextBlockUnsafe(&result.data) {
 				send = true
 				result_list_packages = append(result_list_packages, result)
-				s.setLastBlockOnSynchronizerCorrespondingLatBlockRangeSendUnsafe(result.data.blockRange)
+				highestBlockNumber := result.data.getHighestBlockNumberInResponse()
+				s.setLastBlockOnSynchronizerCorrespondingLatBlockRangeSendUnsafe(highestBlockNumber)
 				indexToRemove = append(indexToRemove, i)
 				break
 			}
@@ -83,6 +84,7 @@ func (s *filterToSendOrdererResultsToConsumer) sendResultIfPossibleUnsafe(previo
 			if i == 0 {
 				result_list_packages = append(result_list_packages, result)
 				indexToRemove = append(indexToRemove, i)
+				send = true
 				break
 			}
 		}
@@ -107,9 +109,12 @@ func (s *filterToSendOrdererResultsToConsumer) removeIndexFromPendingResultsUnsa
 	s.pendingResults = newPendingResults
 }
 
-func (s *filterToSendOrdererResultsToConsumer) setLastBlockOnSynchronizerCorrespondingLatBlockRangeSendUnsafe(lastBlock blockRange) {
-	log.Debug("Moving lastBlockSend from ", s.lastBlockOnSynchronizer, " to ", lastBlock.toBlock)
-	s.lastBlockOnSynchronizer = lastBlock.toBlock
+func (s *filterToSendOrdererResultsToConsumer) setLastBlockOnSynchronizerCorrespondingLatBlockRangeSendUnsafe(highestBlockNumber uint64) {
+	if highestBlockNumber == invalidBlockNumber {
+		return
+	}
+	log.Debug("Moving lastBlockSend from ", s.lastBlockOnSynchronizer, " to ", highestBlockNumber)
+	s.lastBlockOnSynchronizer = highestBlockNumber
 }
 
 func (s *filterToSendOrdererResultsToConsumer) matchNextBlockUnsafe(results *rollupInfoByBlockRangeResult) bool {

@@ -30,8 +30,10 @@ type syncStatus struct {
 }
 
 func (s *syncStatus) toStringBrief() string {
-	return fmt.Sprintf(" lastBlockStoreOnStateDB: %v, highestBlockRequested:%v, lastBlockOnL1: %v, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
-		s.lastBlockStoreOnStateDB, s.highestBlockRequested, s.lastBlockOnL1, s.amountOfBlocksInEachRange, s.processingRanges.toStringBrief(), s.errorRanges.toStringBrief())
+	return fmt.Sprintf(" lastBlockStoreOnStateDB: %s, highestBlockRequested:%s, lastBlockOnL1: %s, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
+		blockNumberToString(s.lastBlockStoreOnStateDB),
+		blockNumberToString(s.highestBlockRequested),
+		blockNumberToString(s.lastBlockOnL1), s.amountOfBlocksInEachRange, s.processingRanges.toStringBrief(), s.errorRanges.toStringBrief())
 }
 
 func (s *syncStatus) toString() string {
@@ -108,6 +110,23 @@ func (s *syncStatus) getNextRangeOnlyRetriesUnsafe() *blockRange {
 	return nil
 }
 
+func (s *syncStatus) getHighestBlockRequestedUnsafe() uint64 {
+	res := invalidBlockNumber
+	for _, r := range s.processingRanges.ranges {
+		if r.blockRange.toBlock > res {
+			res = r.blockRange.toBlock
+		}
+	}
+
+	for _, r := range s.errorRanges.ranges {
+		if r.blockRange.toBlock > res {
+			res = r.blockRange.toBlock
+		}
+	}
+
+	return res
+}
+
 // getNextRange: if there are pending work it returns the next block to ask for
 //
 //	it could be a retry from a previous error or a new range
@@ -120,8 +139,6 @@ func (s *syncStatus) getNextRange() *blockRange {
 		return blockRangeToRetry
 	}
 
-	brs := &blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: s.highestBlockRequested} //s.processingRanges.GetSuperBlockRange()
-
 	if s.lastBlockOnL1 == invalidLastBlock {
 		log.Debug("Last block is no valid: ", s.lastBlockOnL1)
 		return nil
@@ -131,7 +148,7 @@ func (s *syncStatus) getNextRange() *blockRange {
 		return nil
 	}
 
-	br := getNextBlockRangeFromUnsafe(brs.toBlock, s.lastBlockOnL1, s.amountOfBlocksInEachRange)
+	br := getNextBlockRangeFromUnsafe(max(s.lastBlockStoreOnStateDB, s.getHighestBlockRequestedUnsafe()), s.lastBlockOnL1, s.amountOfBlocksInEachRange)
 	err := br.isValid()
 	if err != nil {
 		log.Error(s.toString())
@@ -153,14 +170,15 @@ func (s *syncStatus) onStartedNewWorker(br blockRange) {
 		log.Error(s.toString())
 		log.Fatal(err)
 	}
-
-	if br.toBlock > s.highestBlockRequested {
+	if br.toBlock == latestBlockNumber {
+		s.highestBlockRequested = s.lastBlockOnL1
+	} else if br.toBlock > s.highestBlockRequested {
 		s.highestBlockRequested = br.toBlock
 	}
 }
 
 // return true is a valid blockRange
-func (s *syncStatus) onFinishWorker(br blockRange, successful bool) bool {
+func (s *syncStatus) onFinishWorker(br blockRange, successful bool, highestBlockNumberInResponse uint64) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	log.Debugf("onFinishWorker(br=%s, successful=%v) initial_status: %s", br.String(), successful, s.toStringBrief())
@@ -178,8 +196,8 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) bool {
 		// 		 lbs  = 99
 		// 		 pending = [100, 200], [201, 300], [301, 400]
 		// 		 if process the [100,200] -> lbs = 200
-		if s.lastBlockStoreOnStateDB+1 == br.fromBlock {
-			newValue := br.toBlock
+		if highestBlockNumberInResponse != invalidBlockNumber && highestBlockNumberInResponse > s.lastBlockStoreOnStateDB {
+			newValue := highestBlockNumberInResponse
 			log.Debugf("Moving s.lastBlockStoreOnStateDB from %d to %d (diff %d)", s.lastBlockStoreOnStateDB, newValue, newValue-s.lastBlockStoreOnStateDB)
 			s.lastBlockStoreOnStateDB = newValue
 		}
@@ -198,6 +216,9 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) bool {
 func getNextBlockRangeFromUnsafe(lastBlockInState uint64, lastBlockInL1 uint64, amountOfBlocksInEachRange uint64) *blockRange {
 	fromBlock := lastBlockInState + 1
 	toBlock := min(lastBlockInL1, fromBlock+amountOfBlocksInEachRange)
+	if toBlock == lastBlockInL1 {
+		toBlock = latestBlockNumber
+	}
 	return &blockRange{fromBlock: fromBlock, toBlock: toBlock}
 }
 
