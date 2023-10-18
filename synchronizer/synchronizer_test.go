@@ -181,7 +181,7 @@ func TestForcedBatch(t *testing.T) {
 				Coinbase:      common.HexToAddress("0x222"),
 				SequencerAddr: common.HexToAddress("0x00"),
 				TxHash:        common.HexToHash("0x333"),
-				PolygonZkEVMBatchData: polygonzkevm.PolygonZkEVMBatchData{
+				PolygonRollupBaseBatchData: polygonzkevm.PolygonRollupBaseBatchData{
 					Transactions:       []byte{},
 					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 					Timestamp:          uint64(t.Unix()),
@@ -430,7 +430,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 				BatchNumber: uint64(2),
 				Coinbase:    common.HexToAddress("0x222"),
 				TxHash:      common.HexToHash("0x333"),
-				PolygonZkEVMForcedBatchData: polygonzkevm.PolygonZkEVMForcedBatchData{
+				PolygonRollupBaseForcedBatchData: polygonzkevm.PolygonRollupBaseForcedBatchData{
 					Transactions:       []byte{},
 					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 					MinForcedTimestamp: 1000, //ForcedBatch

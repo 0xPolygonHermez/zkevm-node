@@ -130,7 +130,7 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 		log.Error("error decoding txs. Error: ", err)
 		return err
 	}
-	fbData := []polygonzkevm.PolygonZkEVMForcedBatchData{{
+	fbData := []polygonzkevm.PolygonRollupBaseForcedBatchData{{
 		Transactions:       transactions,
 		GlobalExitRoot:     common.HexToHash(cliCtx.String(flagGerName)),
 		MinForcedTimestamp: cliCtx.Uint64(flagTimestampName),

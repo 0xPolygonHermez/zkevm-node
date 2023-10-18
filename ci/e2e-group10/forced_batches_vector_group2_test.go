@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -144,6 +145,10 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 	zkEvm, err := polygonzkevm.NewPolygonzkevm(zkEvmAddr, ethClient)
 	require.NoError(t, err)
 
+	rollupManagerAddr := common.HexToAddress(operations.DefaultL1RollupManagerSmartContract)
+	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(rollupManagerAddr, ethClient)
+	require.NoError(t, err)
+
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
 	require.NoError(t, err)
 
@@ -153,10 +158,10 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 	log.Info("Number of forceBatches in the smc: ", num)
 
 	// Get tip
-	tip, err := zkEvm.GetForcedBatchFee(&bind.CallOpts{Pending: false})
+	tip, err := rollupManager.GetForcedBatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 
-	disallowed, err := zkEvm.IsForcedBatchDisallowed(&bind.CallOpts{Pending: false})
+	disallowed, err := zkEvm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	if disallowed {
 		tx, err := zkEvm.ActivateForceBatches(auth)

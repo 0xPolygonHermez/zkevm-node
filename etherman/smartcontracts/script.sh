@@ -13,4 +13,5 @@ gen polygonzkevmbridge
 gen pol
 gen polygonzkevmglobalexitroot
 gen polygonrollupmanager
+gen mockpolygonrollupmanager
 gen mockverifier

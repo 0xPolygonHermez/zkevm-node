@@ -9,8 +9,11 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/mockverifier"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/mockpolygonrollupmanager"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -40,6 +43,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	totalSupply, _ := new(big.Int).SetString("10000000000000000000000000000", 10) //nolint:gomnd
 	polAddr, _, polContract, err := pol.DeployPol(auth, client, "Pol Token", "POL", polDecimalPlaces, totalSupply)
 	if err != nil {
+		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
 	rollupVerifierAddr, _, _, err := mockverifier.DeployMockverifier(auth, client)
@@ -48,73 +52,129 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	}
 	nonce, err := client.PendingNonceAt(context.TODO(), auth.From)
 	if err != nil {
+		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
 	const posBridge = 1
 	calculatedBridgeAddr := crypto.CreateAddress(auth.From, nonce+posBridge)
-	const posPoE = 2
-	calculatedPoEAddr := crypto.CreateAddress(auth.From, nonce+posPoE)
+	const posZkEvm = 3
+	calculatedZkEvmAddr := crypto.CreateAddress(auth.From, nonce+posZkEvm)
 	genesis := common.HexToHash("0xfd3434cd8f67e59d73488a2b8da242dd1f02849ea5dd99f0ca22c836c3d5b4a9") // Random value. Needs to be different to 0x0
-	exitManagerAddr, _, globalExitRoot, err := polygonzkevmglobalexitroot.DeployPolygonzkevmglobalexitroot(auth, client, calculatedPoEAddr, calculatedBridgeAddr)
+	exitManagerAddr, _, globalExitRoot, err := polygonzkevmglobalexitroot.DeployPolygonzkevmglobalexitroot(auth, client, calculatedZkEvmAddr, calculatedBridgeAddr)
 	if err != nil {
+		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
 	bridgeAddr, _, br, err := polygonzkevmbridge.DeployPolygonzkevmbridge(auth, client)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, err
-	}
-	poeAddr, _, poe, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, polAddr, rollupVerifierAddr, bridgeAddr, 1000, 1) //nolint
-	if err != nil {
-		return nil, nil, common.Address{}, nil, err
-	}
-	_, err = br.Initialize(auth, 0, exitManagerAddr, poeAddr)
-	if err != nil {
+		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
 
-	poeParams := polygonzkevm.PolygonZkEVMInitializePackedParameters{
-		Admin:                    auth.From,
-		TrustedSequencer:         auth.From,
-		PendingStateTimeout:      10000, //nolint:gomnd
-		TrustedAggregator:        auth.From,
-		TrustedAggregatorTimeout: 10000, //nolint:gomnd
-	}
-	_, err = poe.Initialize(auth, poeParams, genesis, "http://localhost", "L2", "v1") //nolint:gomnd
+	mockRollupManagerAddr, _, mockRollupManager, err := mockpolygonrollupmanager.DeployMockpolygonrollupmanager(auth, client, exitManagerAddr, polAddr, bridgeAddr)
 	if err != nil {
+		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
+	initZkevmAddr, _, _, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, polAddr, bridgeAddr, mockRollupManagerAddr)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	_, err = br.Initialize(auth, 0, common.Address{}, 0, exitManagerAddr, mockRollupManagerAddr)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+
+	_, err = mockRollupManager.InitializeMock(auth, auth.From, 10000, 10000, auth.From, auth.From, auth.From) //nolint:gomnd
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	_, err = mockRollupManager.AddNewRollupType(auth, initZkevmAddr, rollupVerifierAddr, 5, 0, genesis, "PolygonZkEvm Rollup")
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	client.Commit()
+
+	rollUpTypeID, err := mockRollupManager.RollupTypeCount(&bind.CallOpts{Pending: false})
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	var zkevmChainID uint64= 100
+	_, err = mockRollupManager.CreateNewRollup(auth, rollUpTypeID, zkevmChainID, auth.From, auth.From, common.Address{}, 0, "http://localhost", "PolygonZkEvm Rollup")
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	client.Commit()
+
+	rollupID, err := mockRollupManager.ChainIDToRollupID(&bind.CallOpts{Pending: false}, zkevmChainID)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	rollupData, err := mockRollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, rollupID)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	zkevmAddr := rollupData.RollupContract
 
 	if calculatedBridgeAddr != bridgeAddr {
 		return nil, nil, common.Address{}, nil, fmt.Errorf("bridgeAddr (%s) is different from the expected contract address (%s)",
 			bridgeAddr.String(), calculatedBridgeAddr.String())
 	}
-	if calculatedPoEAddr != poeAddr {
-		return nil, nil, common.Address{}, nil, fmt.Errorf("poeAddr (%s) is different from the expected contract address (%s)",
-			poeAddr.String(), calculatedPoEAddr.String())
+	// if calculatedZkEvmAddr != zkevmAddr {
+	// 	return nil, nil, common.Address{}, nil, fmt.Errorf("zkevmAddr (%s) is different from the expected contract address (%s)",
+	// 	zkevmAddr.String(), calculatedZkEvmAddr.String())
+	// }
+	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(mockRollupManagerAddr, client)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
 	}
 
-	// Approve the bridge and poe to spend 10000 pol tokens.
+	trueZkevm, err := polygonzkevm.NewPolygonzkevm(zkevmAddr, client) //nolint
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+
+	// Approve the bridge and zkevm to spend 10000 pol tokens.
 	approvedAmount, _ := new(big.Int).SetString("10000000000000000000000", 10) //nolint:gomnd
 	_, err = polContract.Approve(auth, bridgeAddr, approvedAmount)
 	if err != nil {
+		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = polContract.Approve(auth, poeAddr, approvedAmount)
+	_, err = polContract.Approve(auth, zkevmAddr, approvedAmount)
 	if err != nil {
+		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = poe.ActivateForceBatches(auth)
+
+	_, err = trueZkevm.ActivateForceBatches(auth)
 	if err != nil {
+		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
+	client.Commit()
+
+	r, _ := trueZkevm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
+	log.Debug("IsforcedBatch: ", r)
 
 	client.Commit()
 	c := &Client{
 		EthClient:             client,
-		ZkEVM:                 poe,
+		ZkEVM:                 trueZkevm,
+		RollupManager:         rollupManager,
 		Pol:                   polContract,
 		GlobalExitRootManager: globalExitRoot,
-		SCAddresses:           []common.Address{poeAddr, exitManagerAddr},
+		SCAddresses:           []common.Address{zkevmAddr, mockRollupManagerAddr, exitManagerAddr},
 		auth:                  map[common.Address]bind.TransactOpts{},
 		cfg:                   cfg,
 	}

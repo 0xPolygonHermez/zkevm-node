@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -129,6 +130,10 @@ func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*sta
 	zkEvm, err := polygonzkevm.NewPolygonzkevm(zkEvmAddr, ethClient)
 	require.NoError(t, err)
 
+	rollupManagerAddr := common.HexToAddress(operations.DefaultL1RollupManagerSmartContract)
+	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(rollupManagerAddr, ethClient)
+	require.NoError(t, err)
+
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
 	require.NoError(t, err)
 
@@ -140,7 +145,7 @@ func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*sta
 	log.Info("Number of forceBatches in the smc: ", num)
 
 	// Get tip
-	tip, err := zkEvm.GetForcedBatchFee(&bind.CallOpts{Pending: false})
+	tip, err := rollupManager.GetForcedBatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 
 	managerAddress, err := zkEvm.GlobalExitRootManager(&bind.CallOpts{Pending: false})
@@ -153,7 +158,7 @@ func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*sta
 	require.NoError(t, err)
 	rootInContractHash := common.BytesToHash(rootInContract[:])
 
-	disallowed, err := zkEvm.IsForcedBatchDisallowed(&bind.CallOpts{Pending: false})
+	disallowed, err := zkEvm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	if disallowed {
 		tx, err := zkEvm.ActivateForceBatches(auth)
