@@ -20,13 +20,13 @@ type EthTxManager struct {
 	mock.Mock
 }
 
-// Add provides a mock function with given fields: ctx, owner, id, from, to, value, data, dbTx
-func (_m *EthTxManager) Add(ctx context.Context, owner string, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, owner, id, from, to, value, data, dbTx)
+// Add provides a mock function with given fields: ctx, owner, id, from, to, value, data, gasOffset, dbTx
+func (_m *EthTxManager) Add(ctx context.Context, owner string, id string, from common.Address, to *common.Address, value *big.Int, data []byte, gasOffset uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, owner, id, from, to, value, data, gasOffset, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, common.Address, *common.Address, *big.Int, []byte, pgx.Tx) error); ok {
-		r0 = rf(ctx, owner, id, from, to, value, data, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, common.Address, *common.Address, *big.Int, []byte, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, owner, id, from, to, value, data, gasOffset, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -34,12 +34,6 @@ var (
 	// ErrExecutionReverted returned when trying to get the revert message
 	// but the call fails without revealing the revert reason
 	ErrExecutionReverted = errors.New("execution reverted")
-
-	// gasOffsets for aggregator and sequencer
-	gasOffsets = map[string]uint64{
-		"sequencer":  80000, //nolint:gomnd
-		"aggregator": 0,
-	}
 )
 
 // Client for eth tx manager
@@ -66,7 +60,7 @@ func New(cfg Config, ethMan ethermanInterface, storage storageInterface, state s
 }
 
 // Add a transaction to be sent and monitored
-func (c *Client) Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error {
+func (c *Client) Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, gasOffset uint64, dbTx pgx.Tx) error {
 	// get next nonce
 	nonce, err := c.etherman.CurrentNonce(ctx, from)
 	if err != nil {
@@ -84,10 +78,6 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 		} else {
 			return err
 		}
-	} else {
-		offset := gasOffsets[owner]
-		gas += offset
-		log.Debugf("Applying gasOffset: %d. Final Gas: %d, Owner: %s", offset, gas, owner)
 	}
 
 	// get gas price
@@ -102,7 +92,7 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 	mTx := monitoredTx{
 		owner: owner, id: id, from: from, to: to,
 		nonce: nonce, value: value, data: data,
-		gas: gas, gasPrice: gasPrice,
+		gas: gas, gasOffset: gasOffset, gasPrice: gasPrice,
 		status: MonitoredTxStatusCreated,
 	}
 
@@ -572,7 +562,7 @@ func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx, m
 	mTxLogger.Debug("reviewing nonce")
 	nonce, err := c.etherman.CurrentNonce(ctx, mTx.from)
 	if err != nil {
-		err := fmt.Errorf("failed to estimate gas: %w", err)
+		err := fmt.Errorf("failed to load current nonce for acc %v: %w", mTx.from.String(), err)
 		mTxLogger.Errorf(err.Error())
 		return err
 	}

@@ -57,6 +57,8 @@ func TestTxGetMined(t *testing.T) {
 		Return(estimatedGas, nil).
 		Once()
 
+	gasOffset := uint64(1)
+
 	suggestedGasPrice := big.NewInt(1)
 	etherman.
 		On("SuggestedGasPrice", ctx).
@@ -67,7 +69,7 @@ func TestTxGetMined(t *testing.T) {
 		Nonce:    currentNonce,
 		To:       to,
 		Value:    value,
-		Gas:      estimatedGas,
+		Gas:      estimatedGas + gasOffset,
 		GasPrice: suggestedGasPrice,
 		Data:     data,
 	})
@@ -124,7 +126,7 @@ func TestTxGetMined(t *testing.T) {
 		Return(block, nil).
 		Once()
 
-	err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, nil)
+	err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, gasOffset, nil)
 	require.NoError(t, err)
 
 	go ethTxManagerClient.Start()
@@ -173,6 +175,8 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 		Return(firstGasEstimation, nil).
 		Once()
 
+	gasOffset := uint64(2)
+
 	firstGasPriceSuggestion := big.NewInt(1)
 	etherman.
 		On("SuggestedGasPrice", ctx).
@@ -184,7 +188,7 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 		Nonce:    currentNonce,
 		To:       to,
 		Value:    value,
-		Gas:      firstGasEstimation,
+		Gas:      firstGasEstimation + gasOffset,
 		GasPrice: firstGasPriceSuggestion,
 		Data:     data,
 	})
@@ -226,7 +230,7 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 		Nonce:    currentNonce,
 		To:       to,
 		Value:    value,
-		Gas:      secondGasEstimation,
+		Gas:      secondGasEstimation + gasOffset,
 		GasPrice: secondGasPriceSuggestion,
 		Data:     data,
 	})
@@ -293,7 +297,7 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 		Return("", nil).
 		Once()
 
-	err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, nil)
+	err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, gasOffset, nil)
 	require.NoError(t, err)
 
 	go ethTxManagerClient.Start()
@@ -337,6 +341,8 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 		Return(estimatedGas, nil).
 		Once()
 
+	gasOffset := uint64(1)
+
 	suggestedGasPrice := big.NewInt(1)
 	etherman.
 		On("SuggestedGasPrice", ctx).
@@ -348,7 +354,7 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 		Nonce:    currentNonce,
 		To:       to,
 		Value:    value,
-		Gas:      estimatedGas,
+		Gas:      estimatedGas + gasOffset,
 		GasPrice: suggestedGasPrice,
 		Data:     data,
 	})
@@ -449,7 +455,7 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 		Return("", nil).
 		Once()
 
-	err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, nil)
+	err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, gasOffset, nil)
 	require.NoError(t, err)
 
 	go ethTxManagerClient.Start()
@@ -525,6 +531,8 @@ func TestExecutionReverted(t *testing.T) {
 		Return(firstGasEstimation, nil).
 		Once()
 
+	gasOffset := uint64(1)
+
 	firstGasPriceSuggestion := big.NewInt(1)
 	etherman.
 		On("SuggestedGasPrice", ctx).
@@ -536,7 +544,7 @@ func TestExecutionReverted(t *testing.T) {
 		Nonce:    currentNonce,
 		To:       to,
 		Value:    value,
-		Gas:      firstGasEstimation,
+		Gas:      firstGasEstimation + gasOffset,
 		GasPrice: firstGasPriceSuggestion,
 		Data:     data,
 	})
@@ -603,7 +611,7 @@ func TestExecutionReverted(t *testing.T) {
 		Nonce:    currentNonce,
 		To:       to,
 		Value:    value,
-		Gas:      secondGasEstimation,
+		Gas:      secondGasEstimation + gasOffset,
 		GasPrice: secondGasPriceSuggestion,
 		Data:     data,
 	})
@@ -669,7 +677,7 @@ func TestExecutionReverted(t *testing.T) {
 		Return("", nil).
 		Once()
 
-	err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, nil)
+	err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, gasOffset, nil)
 	require.NoError(t, err)
 
 	go ethTxManagerClient.Start()
@@ -753,6 +761,8 @@ func TestGasPriceMarginAndLimit(t *testing.T) {
 				Return(estimatedGas, nil).
 				Once()
 
+			gasOffset := uint64(1)
+
 			suggestedGasPrice := big.NewInt(int64(tc.suggestedGasPrice))
 			etherman.
 				On("SuggestedGasPrice", ctx).
@@ -761,12 +771,92 @@ func TestGasPriceMarginAndLimit(t *testing.T) {
 
 			expectedSuggestedGasPrice := big.NewInt(tc.expectedGasPrice)
 
-			err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, nil)
+			err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, gasOffset, nil)
 			require.NoError(t, err)
 
 			monitoredTx, err := storage.Get(ctx, owner, id, nil)
 			require.NoError(t, err)
 			require.Equal(t, monitoredTx.gasPrice.Cmp(expectedSuggestedGasPrice), 0, fmt.Sprintf("expected gas price %v, found %v", expectedSuggestedGasPrice.String(), monitoredTx.gasPrice.String()))
+		})
+	}
+}
+
+func TestGasOffset(t *testing.T) {
+	type testCase struct {
+		name         string
+		estimatedGas uint64
+		gasOffset    uint64
+		expectedGas  uint64
+	}
+
+	testCases := []testCase{
+		{
+			name:         "no gas offset",
+			estimatedGas: 1,
+			gasOffset:    0,
+			expectedGas:  1,
+		},
+		{
+			name:         "gas offset",
+			estimatedGas: 1,
+			gasOffset:    1,
+			expectedGas:  2,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dbCfg := dbutils.NewStateConfigFromEnv()
+			require.NoError(t, dbutils.InitOrResetState(dbCfg))
+
+			etherman := newEthermanMock(t)
+			st := newStateMock(t)
+			storage, err := NewPostgresStorage(dbCfg)
+			require.NoError(t, err)
+
+			var cfg = Config{
+				FrequencyToMonitorTxs: defaultEthTxmanagerConfigForTests.FrequencyToMonitorTxs,
+				WaitTxToBeMined:       defaultEthTxmanagerConfigForTests.WaitTxToBeMined,
+			}
+
+			ethTxManagerClient := New(cfg, etherman, storage, st)
+
+			owner := "owner"
+			id := "unique_id"
+			from := common.HexToAddress("")
+			var to *common.Address
+			var value *big.Int
+			var data []byte = nil
+
+			ctx := context.Background()
+
+			currentNonce := uint64(1)
+			etherman.
+				On("CurrentNonce", ctx, from).
+				Return(currentNonce, nil).
+				Once()
+
+			etherman.
+				On("EstimateGas", ctx, from, to, value, data).
+				Return(tc.estimatedGas, nil).
+				Once()
+
+			suggestedGasPrice := big.NewInt(int64(10))
+			etherman.
+				On("SuggestedGasPrice", ctx).
+				Return(suggestedGasPrice, nil).
+				Once()
+
+			err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, tc.gasOffset, nil)
+			require.NoError(t, err)
+
+			monitoredTx, err := storage.Get(ctx, owner, id, nil)
+			require.NoError(t, err)
+			require.Equal(t, monitoredTx.gas, tc.estimatedGas)
+			require.Equal(t, monitoredTx.gasOffset, tc.gasOffset)
+
+			tx := monitoredTx.Tx()
+			require.Equal(t, tx.Gas(), tc.expectedGas)
 		})
 	}
 }

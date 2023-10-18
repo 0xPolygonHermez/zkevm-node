@@ -23,11 +23,10 @@ type Sequencer struct {
 	cfg      Config
 	batchCfg state.BatchConfig
 
-	pool         txPool
-	state        stateInterface
-	eventLog     *event.EventLog
-	ethTxManager ethTxManager
-	etherman     etherman
+	pool     txPool
+	state    stateInterface
+	eventLog *event.EventLog
+	etherman etherman
 
 	address common.Address
 }
@@ -45,21 +44,20 @@ type ClosingSignalCh struct {
 }
 
 // New init sequencer
-func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
+func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInterface, etherman etherman, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
 
 	sequencer := &Sequencer{
-		cfg:          cfg,
-		batchCfg:     batchCfg,
-		pool:         txPool,
-		state:        state,
-		etherman:     etherman,
-		ethTxManager: manager,
-		address:      addr,
-		eventLog:     eventLog,
+		cfg:      cfg,
+		batchCfg: batchCfg,
+		pool:     txPool,
+		state:    state,
+		etherman: etherman,
+		address:  addr,
+		eventLog: eventLog,
 	}
 
 	return sequencer, nil

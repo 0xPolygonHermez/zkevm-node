@@ -275,7 +275,7 @@ func (a *Aggregator) sendFinalProof() {
 				continue
 			}
 			monitoredTxID := buildMonitoredTxID(proof.BatchNumber, proof.BatchNumberFinal)
-			err = a.EthTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
+			err = a.EthTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, a.cfg.GasOffset, nil)
 			if err != nil {
 				mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, sender, to)
 				mTxLogger.Errorf("Error to add batch verification tx to eth tx manager: %v", err)
