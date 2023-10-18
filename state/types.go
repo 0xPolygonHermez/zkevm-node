@@ -86,18 +86,21 @@ type ProcessTransactionResponse struct {
 
 // EffectiveGasPriceLog contains all the data needed to calculate the effective gas price for logging purposes
 type EffectiveGasPriceLog struct {
-	ValueFinal    *big.Int
-	ValueFirst    *big.Int
-	ValueSecond   *big.Int
-	GasUsedFirst  uint64
-	GasUsedSecond uint64
-	GasPrice      *big.Int
-	Percentage    uint8
-	Reprocess     bool
-	GasPriceOC    bool
-	BalanceOC     bool
-	L1GasPrice    uint64
-	L2GasPrice    uint64
+	Enabled        bool
+	ValueFinal     *big.Int
+	ValueFirst     *big.Int
+	ValueSecond    *big.Int
+	FinalDeviation *big.Int
+	MaxDeviation   *big.Int
+	GasUsedFirst   uint64
+	GasUsedSecond  uint64
+	GasPrice       *big.Int
+	Percentage     uint8
+	Reprocess      bool
+	GasPriceOC     bool
+	BalanceOC      bool
+	L1GasPrice     uint64
+	L2GasPrice     uint64
 }
 
 // StoreTxEGPData contains the data related to the effective gas price that needs to be stored when storing a tx

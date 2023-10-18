@@ -11,6 +11,9 @@ import (
 var (
 	// ErrBreakEvenGasPriceEmpty happens when the breakEven or gasPrice is nil or zero
 	ErrBreakEvenGasPriceEmpty = errors.New("breakEvenGasPrice or gasPrice cannot be nil or zero")
+
+	// ErrEffectiveGasPriceIsZero happens when the calculated EffectiveGasPrice is zero
+	ErrEffectiveGasPriceIsZero = errors.New("effectiveGasPrice cannot be zero")
 )
 
 // EffectiveGasPrice implements the effective gas prices calculations and checks
@@ -99,6 +102,10 @@ func (e *EffectiveGasPrice) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice 
 
 	effectiveGasPrice := new(big.Int)
 	bfEffectiveGasPrice.Int(effectiveGasPrice)
+
+	if effectiveGasPrice.Cmp(new(big.Int).SetUint64(0)) == 0 {
+		return nil, ErrEffectiveGasPriceIsZero
+	}
 
 	return effectiveGasPrice, nil
 }
