@@ -178,7 +178,7 @@ func (m *Manager) SetGenesis(genesisBlockNumber uint64, genesisActions []*state.
 }
 
 // SetForkID sets the initial forkID in db for testing purposes
-func (m *Manager) SetForkID(forkID uint64) error {
+func (m *Manager) SetForkID(blockNum uint64, forkID uint64) error {
 	dbTx, err := m.st.BeginStateTransaction(m.ctx)
 	if err != nil {
 		return err
@@ -190,7 +190,7 @@ func (m *Manager) SetForkID(forkID uint64) error {
 		ToBatchNumber:   math.MaxUint64,
 		ForkId:          forkID,
 		Version:         "forkID",
-		BlockNumber:     102,
+		BlockNumber:     blockNum,
 	}
 	err = m.st.AddForkIDInterval(m.ctx, fID, dbTx)
 
