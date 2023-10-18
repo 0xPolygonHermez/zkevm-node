@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -34,7 +35,11 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 	}
 	vectorFilesDir := "./../vectors/src/state-transition/forced-tx/group1"
 	ctx := context.Background()
-	err := filepath.Walk(vectorFilesDir, func(path string, info os.FileInfo, err error) error {
+	genesisFileAsStr, err := config.LoadGenesisFileAsString("../../test/config/test.genesis.config.json")
+	require.NoError(t, err)
+	genesisConfig, err := config.LoadGenesisFromJSONString(genesisFileAsStr)
+	require.NoError(t, err)
+	err = filepath.Walk(vectorFilesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -63,7 +68,7 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 				log.Info("# Setting Genesis #")
 				log.Info("###################")
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
-				require.NoError(t, opsman.SetGenesis(genesisActions))
+				require.NoError(t, opsman.SetGenesis(genesisConfig.Genesis.GenesisBlockNum, genesisActions))
 				require.NoError(t, opsman.SetForkID(forkID6))
 				require.NoError(t, opsman.Setup())
 
