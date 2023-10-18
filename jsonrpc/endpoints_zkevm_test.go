@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	forkID5 = 5
+	forkID6 = 6
 )
 
 func TestConsolidatedBlockNumber(t *testing.T) {
@@ -714,7 +714,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					batchTxs = append(batchTxs, *tx)
 					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID6)
 				require.NoError(t, err)
 				tc.ExpectedResult.BatchL2Data = batchL2Data
 				batch := &state.Batch{
@@ -833,7 +833,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					batchTxs = append(batchTxs, *tx)
 					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID6)
 				require.NoError(t, err)
 
 				batch := &state.Batch{
@@ -982,7 +982,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					batchTxs = append(batchTxs, *tx)
 					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID6)
 				require.NoError(t, err)
 				var fb uint64 = 1
 				batch := &state.Batch{
