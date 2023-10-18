@@ -300,13 +300,13 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 			continue
 		}
 
-		lastReceiptChecked = *receipt
-
 		// if the tx is not mined yet, check that not all the tx were mined and go to the next
 		if !mined {
 			allHistoryTxsWereMined = false
 			continue
 		}
+
+		lastReceiptChecked = *receipt
 
 		// if the tx was mined successfully we can set it as confirmed and break the loop
 		if lastReceiptChecked.Status == types.ReceiptStatusSuccessful {
