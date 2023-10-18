@@ -61,7 +61,7 @@ func TestForcedBatches(t *testing.T) {
 	unsignedTx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, unsignedTx)
 	require.NoError(t, err)
-	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID5)
+	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID6)
 	require.NoError(t, err)
 	forcedBatch, err := sendForcedBatch(t, encodedTxs, opsman)
 	require.NoError(t, err)
