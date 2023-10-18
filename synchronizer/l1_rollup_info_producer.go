@@ -356,6 +356,9 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 		// If after asking for a new lastBlockOnL1 we are still synchronized then we are synchronized
 		if l.syncStatus.isNodeFullySynchronizedWithL1() {
 			l.setStatus(producerSynchronized)
+		} else {
+			log.Infof("producer: producerWorking: still not synchronized with the new block range launch workers again")
+			l.launchWork()
 		}
 	case producerSynchronized:
 		// renew last block on L1 if needed
