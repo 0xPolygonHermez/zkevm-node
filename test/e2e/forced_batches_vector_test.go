@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	forkID = 5
+	forkID = 6
 )
 
 func TestForcedBatchesVectorFiles(t *testing.T) {
