@@ -81,14 +81,6 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		gasPricesMux:            new(sync.RWMutex),
 	}
 
-	p.refreshBlockedAddresses()
-	go func(cfg *Config, p *Pool) {
-		for {
-			time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
-			p.refreshBlockedAddresses()
-		}
-	}(&cfg, p)
-
 	go func(cfg *Config, p *Pool) {
 		for {
 			p.refreshGasPrices()
