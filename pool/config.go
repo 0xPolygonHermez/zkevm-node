@@ -59,9 +59,9 @@ type EffectiveGasPriceCfg struct {
 	// NetProfit is the profit margin to apply to the calculated breakEvenGasPrice
 	NetProfit float64 `mapstructure:"NetProfit"`
 
-	// MarginBreakEven is the max allowed margin percentage between the breakevenGasPrice and gasPriceSigned of a tx
-	MarginBreakEven uint64 `mapstructure:"MarginBreakEven"`
+	// BreakEvenFactor is the factor to apply to the calculated breakevenGasPrice when comparing it with the gasPriceSigned of a tx
+	BreakEvenFactor float64 `mapstructure:"BreakEvenFactor"`
 
-	// FinalDeviation is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
-	FinalDeviation uint64 `mapstructure:"FinalDeviation"`
+	// FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
+	FinalDeviationPct uint64 `mapstructure:"FinalDeviationPct"`
 }

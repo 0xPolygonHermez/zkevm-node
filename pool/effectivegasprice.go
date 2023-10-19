@@ -35,14 +35,9 @@ func (e *EffectiveGasPrice) IsEffectiveGasPriceEnabled() bool {
 	return e.cfg.Enabled
 }
 
-// GetFinalDeviation return the value for the config parameter FinalDeviation
+// GetFinalDeviation return the value for the config parameter FinalDeviationPct
 func (e *EffectiveGasPrice) GetFinalDeviation() uint64 {
-	return e.cfg.FinalDeviation
-}
-
-// GetMarginBreakEven return the value for the config parameter MarginBreakEven
-func (e *EffectiveGasPrice) GetMarginBreakEven() uint64 {
-	return e.cfg.MarginBreakEven
+	return e.cfg.FinalDeviationPct
 }
 
 // CalculateBreakEvenGasPrice calculates the break even gas price for a transaction

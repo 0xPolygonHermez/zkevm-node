@@ -43,8 +43,8 @@ PollMinAllowedGasPriceInterval = "15s"
 		ByteGasCost = 16
 		ZeroByteGasCost = 4
 		NetProfit = 1
-	    MarginBreakEven = 10			
-		FinalDeviation = 10
+	    BreakEvenFactor = 1.1			
+		FinalDeviationPct = 10
 	[Pool.DB]
 		User = "pool_user"
 		Password = "pool_password"

@@ -592,8 +592,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, repro
 					tx.EffectiveGasPrice.Set(tx.GasPrice)
 					// Warning message indicating we loss fee for thix tx
 					loss := new(big.Int).Sub(tx.EffectiveGasPrice, tx.GasPrice)
-					log.Warnf("egp-loss: gasPrice: %d, effectiveGasPrice1: %d, loss: %d, txHash: %s",
-						tx.GasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
+					log.Warnf("egp-loss: gasPrice: %d, effectiveGasPrice1: %d, loss: %d, txHash: %s", tx.GasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
 
 					tx.IsLastExecution = true
 				}
@@ -617,8 +616,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, repro
 			effectivePercentage = state.MaxEffectivePercentage
 		}
 
-		var effectivePercentageAsDecodedHex []byte
-		effectivePercentageAsDecodedHex, err = hex.DecodeHex(fmt.Sprintf("%x", effectivePercentage))
+		effectivePercentageAsDecodedHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentage))
 		if err != nil {
 			return nil, err
 		}

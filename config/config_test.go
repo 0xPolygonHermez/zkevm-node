@@ -278,11 +278,11 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: float64(1),
 		},
 		{
-			path:          "Pool.EffectiveGasPrice.MarginBreakEven",
-			expectedValue: uint64(10),
+			path:          "Pool.EffectiveGasPrice.BreakEvenFactor",
+			expectedValue: float64(1.1),
 		},
 		{
-			path:          "Pool.EffectiveGasPrice.FinalDeviation",
+			path:          "Pool.EffectiveGasPrice.FinalDeviationPct",
 			expectedValue: uint64(10),
 		},
 		{

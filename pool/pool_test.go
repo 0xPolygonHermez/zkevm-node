@@ -66,13 +66,13 @@ var (
 		AccountQueue:                      15,
 		GlobalQueue:                       20,
 		EffectiveGasPrice: pool.EffectiveGasPriceCfg{
-			Enabled:          true,
-			L1GasPriceFactor: 0.25,
-			ByteGasCost:      16,
-			ZeroByteGasCost:  4,
-			NetProfit:        1,
-			MarginBreakEven:  10,
-			FinalDeviation:   10,
+			Enabled:           true,
+			L1GasPriceFactor:  0.25,
+			ByteGasCost:       16,
+			ZeroByteGasCost:   4,
+			NetProfit:         1,
+			BreakEvenFactor:   1.1,
+			FinalDeviationPct: 10,
 		},
 	}
 	gasPrice   = big.NewInt(1000000000)
