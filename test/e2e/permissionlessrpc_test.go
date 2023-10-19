@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"math/big"
-	"os"
 	"testing"
 	"time"
 
@@ -23,7 +22,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 	// - permissionless RPC + Sync
 	// - trusted node with everything minus EthTxMan (to prevent the trusted state from being virtualized)
 
-	os.Setenv(operations.TestConcensusENV, operations.Validium)
+	// os.Setenv(operations.TestConcensusENV, operations.Validium)
 	if testing.Short() || !operations.IsConcensusRelevant() {
 		t.Skip()
 	}
