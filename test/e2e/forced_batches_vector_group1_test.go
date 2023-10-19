@@ -30,7 +30,13 @@ func TestForcedBatchesVectorFilesGroup1(t *testing.T) {
 	}
 	vectorFilesDir := "./../vectors/src/state-transition/forced-tx/group1"
 	ctx := context.Background()
-	genesisFileAsStr, err := config.LoadGenesisFileAsString("../../test/config/genesis.rollup.json")
+	var genesisFileAsStr string
+	var err error
+	if operations.IsRollup() {
+		genesisFileAsStr, err = config.LoadGenesisFileAsString("../../test/config/genesis.rollup.json")
+	} else {
+		genesisFileAsStr, err = config.LoadGenesisFileAsString("../../test/config/genesis.validium.json")
+	}
 	require.NoError(t, err)
 	genesisConfig, err := config.LoadGenesisFromJSONString(genesisFileAsStr)
 	require.NoError(t, err)
@@ -65,7 +71,14 @@ func TestForcedBatchesVectorFilesGroup1(t *testing.T) {
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
 				require.NoError(t, opsman.SetGenesis(genesisConfig.Genesis.GenesisBlockNum, genesisActions))
 				require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID6))
-				require.NoError(t, opsman.SetupRollup())
+				if operations.IsRollup() {
+					log.Info("Running test with rollup consensus")
+					err = opsman.SetupRollup()
+				} else {
+					log.Info("Running test with validium consensus")
+					err = opsman.SetupValidium()
+				}
+				require.NoError(t, err)
 
 				// Check initial root
 				log.Info("################################")
