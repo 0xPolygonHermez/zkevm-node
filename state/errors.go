@@ -66,6 +66,9 @@ var (
 	// ErrMaxLogsBlockRangeLimitExceeded returned when the range between block number range
 	// to filter logs is bigger than the configured limit
 	ErrMaxLogsBlockRangeLimitExceeded = errors.New("logs are limited to a %v block range")
+	// ErrMaxNativeBlockHashBlockRangeLimitExceeded returned when the range between block number range
+	// to filter native block hashes is bigger than the configured limit
+	ErrMaxNativeBlockHashBlockRangeLimitExceeded = errors.New("native block hashes are limited to a %v block range")
 
 	zkCounterErrPrefix = "ZKCounter: "
 )

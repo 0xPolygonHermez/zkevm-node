@@ -25,6 +25,7 @@ func TestGivenOrquestrationWhenHappyPathThenReturnsBlockAndNoErrorAndProducerIsR
 		return nil
 	})
 	block := state.Block{}
+	mocks.consumer.On("Reset", mock.Anything).Return()
 	mocks.consumer.On("GetLastEthBlockSynced").Return(block, true)
 	mocks.consumer.On("Start", mock.Anything, mock.Anything).Return(func(context.Context, *state.Block) error {
 		time.Sleep(time.Millisecond * 100)

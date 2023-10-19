@@ -663,6 +663,32 @@ func (_m *StateMock) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint
 	return r0, r1
 }
 
+// GetNativeBlockHashesInRange provides a mock function with given fields: ctx, fromBlockNumber, toBlockNumber, dbTx
+func (_m *StateMock) GetNativeBlockHashesInRange(ctx context.Context, fromBlockNumber uint64, toBlockNumber uint64, dbTx pgx.Tx) ([]common.Hash, error) {
+	ret := _m.Called(ctx, fromBlockNumber, toBlockNumber, dbTx)
+
+	var r0 []common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) ([]common.Hash, error)); ok {
+		return rf(ctx, fromBlockNumber, toBlockNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) []common.Hash); ok {
+		r0 = rf(ctx, fromBlockNumber, toBlockNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, fromBlockNumber, toBlockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetNonce provides a mock function with given fields: ctx, address, root
 func (_m *StateMock) GetNonce(ctx context.Context, address common.Address, root common.Hash) (uint64, error) {
 	ret := _m.Called(ctx, address, root)

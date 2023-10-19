@@ -38,6 +38,11 @@ func (_m *l1RollupConsumerInterfaceMock) GetLastEthBlockSynced() (state.Block, b
 	return r0, r1
 }
 
+// Reset provides a mock function with given fields: startingBlockNumber
+func (_m *l1RollupConsumerInterfaceMock) Reset(startingBlockNumber uint64) {
+	_m.Called(startingBlockNumber)
+}
+
 // Start provides a mock function with given fields: ctx, lastEthBlockSynced
 func (_m *l1RollupConsumerInterfaceMock) Start(ctx context.Context, lastEthBlockSynced *state.Block) error {
 	ret := _m.Called(ctx, lastEthBlockSynced)

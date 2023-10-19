@@ -325,6 +325,24 @@
           "$ref": "#/components/schemas/FullBlockOrNull"
         }
       }
+    },
+    {
+      "name": "zkevm_getNativeBlockHashesInRange",
+      "summary": "Returns the list of native block hashes.",
+      "params": [
+        {
+          "name": "filter",
+          "schema": {
+            "$ref": "#/components/schemas/NativeBlockHashBlockRangeFilter"
+          }
+        }
+      ],
+      "result": {
+        "name": "filter",
+          "schema": {
+            "$ref": "#/components/schemas/NativeBlockHashes"
+          }
+      }
     }
   ],
   "components": {
@@ -1115,6 +1133,26 @@
         "type": "string",
         "description": "Hex representation of a variable length byte array",
         "pattern": "^0x([a-fA-F0-9]?)+$"
+      },
+      "NativeBlockHashes": {
+        "title": "native block hashes",
+        "description": "An array of hashes",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Keccak"
+        }
+      },
+      "NativeBlockHashBlockRangeFilter": {
+        "title": "NativeBlockHashBlockRangeFilter",
+        "type": "object",
+        "properties": {
+          "fromBlock": {
+            "$ref": "#/components/schemas/BlockNumber"
+          },
+          "toBlock": {
+            "$ref": "#/components/schemas/BlockNumber"
+          }
+        }
       }
     }
   }
