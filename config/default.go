@@ -75,9 +75,10 @@ WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 500
 SequencerNodeURI = ""
 EnableL2SuggestedGasPricePolling = true
-TraceBatchUseHTTPS = true
 BatchRequestsEnabled = false
 BatchRequestsLimit = 20
+MaxLogsCount = 10000
+MaxLogsBlockRange = 10000
 	[RPC.WebSockets]
 		Enabled = true
 		Host = "0.0.0.0"
@@ -88,6 +89,19 @@ BatchRequestsLimit = 20
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
+UseParallelModeForL1Synchronization = true
+	[Synchronizer.L1ParallelSynchronization]
+		NumberOfParallelOfEthereumClients = 2
+		CapacityOfBufferingRollupInfoFromL1 = 10
+		TimeForCheckLastBlockOnL1Time = "5s"
+		TimeoutForRequestLastBlockOnL1 = "5s"
+		MaxNumberOfRetriesForRequestLastBlockOnL1 = 3
+		TimeForShowUpStatisticsLog = "5m"
+		TimeOutMainLoop = "5m"
+		MinTimeBetweenRetriesForRollupInfo = "5s"
+		[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
+			AcceptableTimeWaitingForNewRollupInfo = "5s"
+			NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo = 10
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
@@ -116,6 +130,10 @@ MaxTxLifetime = "3h"
 		L1GasPriceFactor = 0.25
 		ByteGasCost = 16
 		MarginFactor = 1
+		Enabled = false
+	[Sequencer.StreamServer]
+		Port = 0
+		Filename = ""
 		Enabled = false
 
 [SequenceSender]

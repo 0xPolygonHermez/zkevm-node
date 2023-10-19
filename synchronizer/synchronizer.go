@@ -36,10 +36,11 @@ type Synchronizer interface {
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
 	isTrustedSequencer bool
+	etherMan           EthermanInterface
 	latestFlushID      uint64
 	// If true the lastFlushID is stored in DB and we don't need to check again
 	latestFlushIDIsFulfilled bool
-	etherMan                 ethermanInterface
+	etherManForL1            []EthermanInterface
 	state                    stateInterface
 	pool                     poolInterface
 	ethTxManager             ethTxManager
@@ -60,26 +61,30 @@ type ClientSynchronizer struct {
 	proverID string
 	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
 	previousExecutorFlushID uint64
+	l1SyncOrchestration     *l1SyncOrchestration
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(
 	isTrustedSequencer bool,
-	ethMan ethermanInterface,
+	ethMan EthermanInterface,
+	etherManForL1 []EthermanInterface,
 	st stateInterface,
 	pool poolInterface,
 	ethTxManager ethTxManager,
 	zkEVMClient zkEVMClientInterface,
 	eventLog *event.EventLog,
 	genesis state.Genesis,
-	cfg Config) (Synchronizer, error) {
+	cfg Config,
+	runInDevelopmentMode bool) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
 
-	return &ClientSynchronizer{
+	res := &ClientSynchronizer{
 		isTrustedSequencer:      isTrustedSequencer,
 		state:                   st,
 		etherMan:                ethMan,
+		etherManForL1:           etherManForL1,
 		pool:                    pool,
 		ctx:                     ctx,
 		cancelCtx:               cancel,
@@ -90,10 +95,46 @@ func NewSynchronizer(
 		cfg:                     cfg,
 		proverID:                "",
 		previousExecutorFlushID: 0,
-	}, nil
+		l1SyncOrchestration:     nil,
+	}
+	if cfg.UseParallelModeForL1Synchronization {
+		var err error
+		res.l1SyncOrchestration, err = newL1SyncParallel(ctx, cfg, etherManForL1, res, runInDevelopmentMode)
+		if err != nil {
+			log.Fatalf("Can't initialize L1SyncParallel. Error: %s", err)
+		}
+	}
+	return res, nil
 }
 
 var waitDuration = time.Duration(0)
+
+func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) (*l1SyncOrchestration, error) {
+	chIncommingRollupInfo := make(chan l1SyncMessage, cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
+	cfgConsumer := configConsumer{
+		numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData: cfg.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo,
+		acceptableTimeWaitingForNewRollupInfoData:                       cfg.L1ParallelSynchronization.PerformanceCheck.AcceptableTimeWaitingForNewRollupInfo.Duration,
+	}
+	L1DataProcessor := newL1RollupInfoConsumer(cfgConsumer, sync, chIncommingRollupInfo)
+
+	cfgProducer := configProducer{
+		syncChunkSize:                              cfg.SyncChunkSize,
+		ttlOfLastBlockOnL1:                         cfg.L1ParallelSynchronization.TimeForCheckLastBlockOnL1Time.Duration,
+		timeoutForRequestLastBlockOnL1:             cfg.L1ParallelSynchronization.TimeoutForRequestLastBlockOnL1.Duration,
+		numOfAllowedRetriesForRequestLastBlockOnL1: cfg.L1ParallelSynchronization.MaxNumberOfRetriesForRequestLastBlockOnL1,
+		timeForShowUpStatisticsLog:                 cfg.L1ParallelSynchronization.TimeForShowUpStatisticsLog.Duration,
+		timeOutMainLoop:                            cfg.L1ParallelSynchronization.TimeOutMainLoop.Duration,
+		minTimeBetweenRetriesForRollupInfo:         cfg.L1ParallelSynchronization.MinTimeBetweenRetriesForRollupInfo.Duration,
+	}
+	l1DataRetriever := newL1DataRetriever(cfgProducer, etherManForL1, chIncommingRollupInfo)
+	l1SyncOrchestration := newL1SyncOrchestration(ctx, l1DataRetriever, L1DataProcessor)
+	if runExternalControl {
+		log.Infof("Starting external control")
+		externalControl := newExternalControl(l1DataRetriever, l1SyncOrchestration)
+		externalControl.start()
+	}
+	return l1SyncOrchestration, nil
+}
 
 // Sync function will read the last state synced and will continue from that point.
 // Sync() will read blockchain events to detect rollup updates
@@ -262,13 +303,24 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 			//Sync L1Blocks
 			startL1 := time.Now()
-			lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced)
+			if s.l1SyncOrchestration != nil {
+				log.Infof("Syncing L1 blocks in parallel lastEthBlockSynced=%d", lastEthBlockSynced.BlockNumber)
+				lastEthBlockSynced, err = s.syncBlocksParallel(lastEthBlockSynced)
+			} else {
+				log.Infof("Syncing L1 blocks sequentially lastEthBlockSynced=%d", lastEthBlockSynced.BlockNumber)
+				lastEthBlockSynced, err = s.syncBlocksSequential(lastEthBlockSynced)
+			}
 			metrics.FullL1SyncTime(time.Since(startL1))
 			if err != nil {
 				log.Warn("error syncing blocks: ", err)
 				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
 				if err != nil {
 					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)
+				}
+				if s.l1SyncOrchestration != nil {
+					// If have failed execution and get starting point from DB, we must reset parallel sync to this point
+					// producer must start requesting this block
+					s.l1SyncOrchestration.reset(lastEthBlockSynced.BlockNumber)
 				}
 				if s.ctx.Err() != nil {
 					continue
@@ -281,7 +333,33 @@ func (s *ClientSynchronizer) Sync() error {
 }
 
 // This function syncs the node from a specific block to the latest
-func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
+// lastEthBlockSynced -> last block synced in the db
+func (s *ClientSynchronizer) syncBlocksParallel(lastEthBlockSynced *state.Block) (*state.Block, error) {
+	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
+	block, err := s.checkReorg(lastEthBlockSynced)
+	if err != nil {
+		log.Errorf("error checking reorgs. Retrying... Err: %v", err)
+		return lastEthBlockSynced, fmt.Errorf("error checking reorgs")
+	}
+	if block != nil {
+		log.Infof("reorg detected. Resetting the state from block %v to block %v", lastEthBlockSynced.BlockNumber, block.BlockNumber)
+		err = s.resetState(block.BlockNumber)
+		if err != nil {
+			log.Errorf("error resetting the state to a previous block. Retrying... Err: %v", err)
+			return lastEthBlockSynced, fmt.Errorf("error resetting the state to a previous block")
+		}
+		return block, nil
+	}
+	if !s.l1SyncOrchestration.isProducerRunning() {
+		log.Infof("producer is not running. Resetting the state to start from  block %v (last on DB)", lastEthBlockSynced.BlockNumber)
+		s.l1SyncOrchestration.producer.Reset(lastEthBlockSynced.BlockNumber)
+	}
+	log.Infof("Starting L1 sync orchestrator in parallel block: %d", lastEthBlockSynced.BlockNumber)
+	return s.l1SyncOrchestration.start(lastEthBlockSynced)
+}
+
+// This function syncs the node from a specific block to the latest
+func (s *ClientSynchronizer) syncBlocksSequential(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {
@@ -579,7 +657,9 @@ func (s *ClientSynchronizer) resetState(blockNumber uint64) error {
 		log.Error("error committing the resetted state. Error: ", err)
 		return err
 	}
-
+	if s.l1SyncOrchestration != nil {
+		s.l1SyncOrchestration.reset(blockNumber)
+	}
 	return nil
 }
 
@@ -864,6 +944,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			if errors.Is(err, state.ErrNotFound) {
 				log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
 				// If it is not found, store batch
+				log.Infof("processSequenceBatches: (not found batch) ProcessAndStoreClosedBatch . BatchNumber: %d, BlockNumber: %d", processCtx.BatchNumber, blockNumber)
 				newStateRoot, flushID, proverID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
 				if err != nil {
 					log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
@@ -932,13 +1013,19 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				return err
 			}
 
+			// Clean trustedState sync variables to avoid sync the trusted state from the wrong starting point.
+			// This wrong starting point would force the trusted sync to clean the virtualization of the batch reaching an inconsistency.
+			s.trustedState.lastTrustedBatches = nil
+			s.trustedState.lastStateRoot = nil
+
 			// Reset trusted state
 			previousBatchNumber := batch.BatchNumber - 1
 			if tBatch.StateRoot == (common.Hash{}) {
-				log.Warn("cleaning state before inserting batch from L1. Clean until batch: %d", previousBatchNumber)
+				log.Warnf("cleaning state before inserting batch from L1. Clean until batch: %d", previousBatchNumber)
 			} else {
 				log.Warnf("missmatch in trusted state detected, discarding batches until batchNum %d", previousBatchNumber)
 			}
+			log.Infof("ResetTrustedState: Resetting trusted state. delete batch > %d, ", previousBatchNumber)
 			err = s.state.ResetTrustedState(s.ctx, previousBatchNumber, dbTx) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
 			if err != nil {
 				log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
@@ -950,6 +1037,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				return err
 			}
+			log.Infof("processSequenceBatches: (deleted previous) ProcessAndStoreClosedBatch . BatchNumber: %d, BlockNumber: %d", processCtx.BatchNumber, blockNumber)
 			_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
 			if err != nil {
 				log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
@@ -965,6 +1053,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		}
 
 		// Store virtualBatch
+		log.Infof("processSequenceBatches: Storing virtualBatch. BatchNumber: %d, BlockNumber: %d", virtualBatch.BatchNumber, blockNumber)
 		err = s.state.AddVirtualBatch(s.ctx, &virtualBatch, dbTx)
 		if err != nil {
 			log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch.BatchNumber, blockNumber, err)
@@ -1013,7 +1102,13 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 		log.Errorf("error getting lastVirtualBatchNumber. BlockNumber: %d, error: %v", block.BlockNumber, err)
 		return err
 	}
-	// Second, reset trusted state
+	// Clean trustedState sync variables to avoid sync the trusted state from the wrong starting point.
+	// This wrong starting point would force the trusted sync to clean the virtualization of the batch reaching an inconsistency.
+	s.trustedState.lastTrustedBatches = nil
+	s.trustedState.lastStateRoot = nil
+
+	// Reset trusted state
+	log.Infof("ResetTrustedState: processSequenceForceBatch: Resetting trusted state. delete batch > (lastVirtualizedBatchNumber)%d, ", lastVirtualizedBatchNumber)
 	err = s.state.ResetTrustedState(s.ctx, lastVirtualizedBatchNumber, dbTx) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
 	if err != nil {
 		log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", lastVirtualizedBatchNumber, block.BlockNumber, err)
@@ -1076,6 +1171,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			BatchL2Data:    &forcedBatches[i].RawTxsData,
 		}
 		// Process batch
+		log.Infof("processSequenceFoceBatches: ProcessAndStoreClosedBatch . BatchNumber: %d, BlockNumber: %d", batch.BatchNumber, block.BlockNumber)
 		_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, batch, forcedBatches[i].RawTxsData, dbTx, stateMetrics.SynchronizerCallerLabel)
 		if err != nil {
 			log.Errorf("error processing batch in processSequenceForceBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, block.BlockNumber, err)
@@ -1090,6 +1186,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 		s.pendingFlushID(flushID, proverID)
 
 		// Store virtualBatch
+		log.Infof("processSequenceFoceBatches: Storing virtualBatch. BatchNumber: %d, BlockNumber: %d", virtualBatch.BatchNumber, block.BlockNumber)
 		err = s.state.AddVirtualBatch(s.ctx, &virtualBatch, dbTx)
 		if err != nil {
 			log.Errorf("error storing virtualBatch in processSequenceForceBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch.BatchNumber, block.BlockNumber, err)
@@ -1131,6 +1228,7 @@ func (s *ClientSynchronizer) processForcedBatch(forcedBatch etherman.ForcedBatch
 		RawTxsData:        forcedBatch.RawTxsData,
 		ForcedAt:          forcedBatch.ForcedAt,
 	}
+	log.Infof("processForcedBatch: Storing forcedBatch. BatchNumber: %d  BlockNumber: %d", forcedBatch.ForcedBatchNumber, forcedBatch.BlockNumber)
 	err := s.state.AddForcedBatch(s.ctx, &forcedB, dbTx)
 	if err != nil {
 		log.Errorf("error storing the forcedBatch in processForcedBatch. BlockNumber: %d", forcedBatch.BlockNumber)
@@ -1216,6 +1314,7 @@ func (s *ClientSynchronizer) processTrustedVerifyBatches(lastVerifiedBatch ether
 			TxHash:      lastVerifiedBatch.TxHash,
 			IsTrusted:   true,
 		}
+		log.Infof("processTrustedVerifyBatches: Storing verifiedB. BlockNumber: %d, BatchNumber: %d", verifiedB.BlockNumber, verifiedB.BatchNumber)
 		err = s.state.AddVerifiedBatch(s.ctx, &verifiedB, dbTx)
 		if err != nil {
 			log.Errorf("error storing the verifiedB in processTrustedVerifyBatches. verifiedBatch: %+v, lastVerifiedBatch: %+v", verifiedB, lastVerifiedBatch)
@@ -1281,8 +1380,10 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 
 		// Find txs to be processed and included in the trusted state
 		if *s.trustedState.lastStateRoot == batches[1].StateRoot {
+			prevBatch := uint64(trustedBatch.Number) - 1
+			log.Infof("ResetTrustedState: processTrustedBatch: %d Cleaning state until batch:%d  ", trustedBatch.Number, prevBatch)
 			// Delete txs that were stored before restart. We need to reprocess all txs because the intermediary stateRoot is only stored in memory
-			err := s.state.ResetTrustedState(s.ctx, uint64(trustedBatch.Number)-1, dbTx)
+			err := s.state.ResetTrustedState(s.ctx, prevBatch, dbTx)
 			if err != nil {
 				log.Error("error resetting trusted state. Error: ", err)
 				return nil, nil, err
@@ -1309,6 +1410,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				if forkID >= forkID5 {
 					syncedEfficiencyPercentages = syncedEfficiencyPercentages[len(storedTxs):]
 				}
+				log.Infof("Processing %d new txs with forkID: %d", len(txsToBeAdded), forkID)
 
 				request.Transactions, err = state.EncodeTransactions(txsToBeAdded, syncedEfficiencyPercentages, forkID)
 				if err != nil {
@@ -1505,7 +1607,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 		if state.IsStateRootChanged(executor.RomErrorCode(tx.RomError)) {
 			log.Infof("TrustedBatch info: %+v", processBatchResp)
 			log.Infof("Storing trusted tx %+v", tx)
-			if err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), dbTx); err != nil {
+			if _, err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), dbTx); err != nil {
 				log.Errorf("failed to store transactions for batch: %v. Tx: %s", trustedBatch.Number, tx.TxHash.String())
 				return nil, err
 			}

@@ -1,13 +1,12 @@
 package eth_transfers
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/transactions"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	uniswap "github.com/0xPolygonHermez/zkevm-node/test/scripts/uniswap/pkg"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -18,7 +17,7 @@ import (
 var (
 	gasLimit  = 21000
 	ethAmount = big.NewInt(0)
-	sleepTime = 5 * time.Second
+	sleepTime = 1 * time.Second
 	countTxs  = 0
 )
 
@@ -44,11 +43,9 @@ func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, auth *bind.Transact
 	}
 
 	err = l2Client.SendTransaction(params.Ctx, signedTx)
-	if errors.Is(err, state.ErrStateNotSynchronized) || errors.Is(err, state.ErrInsufficientFunds) {
-		for errors.Is(err, state.ErrStateNotSynchronized) || errors.Is(err, state.ErrInsufficientFunds) {
-			time.Sleep(sleepTime)
-			err = l2Client.SendTransaction(params.Ctx, signedTx)
-		}
+	for transactions.ShouldRetryError(err) {
+		time.Sleep(sleepTime)
+		err = l2Client.SendTransaction(params.Ctx, signedTx)
 	}
 
 	if err == nil {

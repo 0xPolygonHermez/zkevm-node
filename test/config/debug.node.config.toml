@@ -97,6 +97,10 @@ MaxTxLifetime = "3h"
 		ByteGasCost = 16
 		MarginFactor = 1
 		Enabled = false
+	[Sequencer.StreamServer]
+		Port = 6900
+		Filename = "/datastreamer/datastream.bin"
+		Enabled = true
 
 [SequenceSender]
 WaitPeriodSendSequence = "15s"

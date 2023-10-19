@@ -138,7 +138,7 @@ func getL2ChainID(cliCtx *cli.Context, c *config.Config) uint64 {
 }
 
 func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
-	stateDb := state.NewPostgresStorage(sqlDB)
+	stateDb := state.NewPostgresStorage(state.Config{}, sqlDB)
 
 	// Executor
 	var executorClient executor.ExecutorServiceClient

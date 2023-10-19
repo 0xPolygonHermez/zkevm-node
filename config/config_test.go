@@ -133,6 +133,18 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
+			path:          "Sequencer.StreamServer.Port",
+			expectedValue: uint16(0),
+		},
+		{
+			path:          "Sequencer.StreamServer.Filename",
+			expectedValue: "",
+		},
+		{
+			path:          "Sequencer.StreamServer.Enabled",
+			expectedValue: false,
+		},
+		{
 			path:          "SequenceSender.WaitPeriodSendSequence",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
@@ -328,6 +340,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.BatchRequestsLimit",
 			expectedValue: uint(20),
+		},
+		{
+			path:          "RPC.MaxLogsCount",
+			expectedValue: uint64(10000),
+		},
+		{
+			path:          "RPC.MaxLogsBlockRange",
+			expectedValue: uint64(10000),
 		},
 		{
 			path:          "RPC.WebSockets.Enabled",

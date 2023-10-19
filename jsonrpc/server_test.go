@@ -7,6 +7,8 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,9 +31,10 @@ const (
 )
 
 type mockedServer struct {
-	Config    Config
-	Server    *Server
-	ServerURL string
+	Config              Config
+	Server              *Server
+	ServerURL           string
+	ServerWebSocketsURL string
 }
 
 type mocksWrapper struct {
@@ -59,7 +62,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 
 	var newL2BlockEventHandler state.NewL2BlockEventHandler = func(e state.NewL2BlockEvent) {}
 	st.On("RegisterNewL2BlockEventHandler", mock.IsType(newL2BlockEventHandler)).Once()
-	st.On("PrepareWebSocket").Once()
+	st.On("StartToMonitorNewL2Blocks").Once()
 
 	services := []Service{}
 	if _, ok := apis[APIEth]; ok {
@@ -126,10 +129,13 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	ethClient, err := ethclient.Dial(serverURL)
 	require.NoError(t, err)
 
+	serverWebSocketsURL := fmt.Sprintf("ws://%s:%d", cfg.WebSockets.Host, cfg.WebSockets.Port)
+
 	msv := &mockedServer{
-		Config:    cfg,
-		Server:    server,
-		ServerURL: serverURL,
+		Config:              cfg,
+		Server:              server,
+		ServerURL:           serverURL,
+		ServerWebSocketsURL: serverWebSocketsURL,
 	}
 
 	mks := &mocksWrapper{
@@ -150,6 +156,14 @@ func getSequencerDefaultConfig() Config {
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
 		MaxCumulativeGasUsed:      300000,
 		BatchRequestsEnabled:      true,
+		MaxLogsCount:              10000,
+		MaxLogsBlockRange:         10000,
+		WebSockets: WebSocketsConfig{
+			Enabled:   true,
+			Host:      "0.0.0.0",
+			Port:      9133,
+			ReadLimit: 0,
+		},
 	}
 	return cfg
 }
@@ -173,6 +187,15 @@ func newMockedServerWithCustomConfig(t *testing.T, cfg Config) (*mockedServer, *
 func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mockedServer, *mocksWrapper, *ethclient.Client) {
 	cfg := getNonSequencerDefaultConfig(sequencerNodeURI)
 	return newMockedServer(t, cfg)
+}
+
+func (s *mockedServer) GetWSClient() *ethclient.Client {
+	ethClient, err := ethclient.Dial(s.ServerWebSocketsURL)
+	if err != nil {
+		panic(err)
+	}
+
+	return ethClient
 }
 
 func (s *mockedServer) Stop() {
@@ -438,4 +461,93 @@ func TestRequestValidation(t *testing.T) {
 			assert.Equal(t, tc.ExpectedMessage, message)
 		})
 	}
+}
+
+func TestMaxRequestPerIPPerSec(t *testing.T) {
+	// this is the number of requests the test will execute
+	// it's important to keep this number with an amount of
+	// requests that the machine running this test is able
+	// to execute in a single second
+	const numberOfRequests = 100
+	// the number of workers are the amount of go routines
+	// the machine is able to run at the same time without
+	// consuming all the resources and making the go routines
+	// to affect each other performance, this number may vary
+	// depending on the machine spec running the test.
+	// a good number to this generally is a number close to
+	// the number of cores or threads provided by the CPU.
+	const workers = 12
+	// it's important to keep this limit smaller than the
+	// number of requests the test is going to perform, so
+	// the test can have some requests rejected.
+	const maxRequestsPerIPAndSecond = 20
+
+	cfg := getSequencerDefaultConfig()
+	cfg.MaxRequestsPerIPAndSecond = maxRequestsPerIPAndSecond
+	s, m, _ := newMockedServerWithCustomConfig(t, cfg)
+	defer s.Stop()
+
+	// since the limitation is made by second,
+	// the test waits 1 sec before starting because request are made during the
+	// server creation to check its availability. Waiting this second means
+	// we have a fresh second without any other request made.
+	time.Sleep(time.Second)
+
+	// create a wait group to wait for all the requests to return
+	wg := sync.WaitGroup{}
+	wg.Add(numberOfRequests)
+
+	// prepare mocks with specific amount of times it can be called
+	// this makes us sure the code is calling these methods only for
+	// allowed requests
+	times := int(cfg.MaxRequestsPerIPAndSecond)
+	m.DbTx.On("Commit", context.Background()).Return(nil).Times(times)
+	m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Times(times)
+	m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(uint64(1), nil).Times(times)
+
+	// prepare the workers to process the requests as long as a job is available
+	requestsLimitedCount := uint64(0)
+	jobs := make(chan int, numberOfRequests)
+	// put each worker to work
+	for i := 0; i < workers; i++ {
+		// each worker works in a go routine to be able to have many
+		// workers working concurrently
+		go func() {
+			// a worker keeps working indefinitely looking for new jobs
+			for {
+				// waits until a job is available
+				<-jobs
+				// send the request
+				_, err := s.JSONRPCCall("eth_blockNumber")
+				// if the request works well or gets rejected due to max requests per sec, it's ok
+				// otherwise we stop the test and log the error.
+				if err != nil {
+					if err.Error() == "429 - You have reached maximum request limit." {
+						atomic.AddUint64(&requestsLimitedCount, 1)
+					} else {
+						require.NoError(t, err)
+					}
+				}
+
+				// registers in the wait group a request was executed and has returned
+				wg.Done()
+			}
+		}()
+	}
+
+	// add jobs to notify workers accordingly to the number
+	// of requests the test wants to send to the server
+	for i := 0; i < numberOfRequests; i++ {
+		jobs <- i
+	}
+
+	// wait for all the requests to return
+	wg.Wait()
+
+	// checks if all the exceeded requests were limited
+	assert.Equal(t, uint64(numberOfRequests-maxRequestsPerIPAndSecond), requestsLimitedCount)
+
+	// wait the server to process the last requests without breaking the
+	// connection abruptly
+	time.Sleep(time.Second)
 }

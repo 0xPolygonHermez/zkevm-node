@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"time"
 
+	datastreamerlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
@@ -158,6 +159,11 @@ func start(cliCtx *cli.Context) error {
 			}
 			go runAggregator(cliCtx.Context, c.Aggregator, etherman, etm, st)
 		case SEQUENCER:
+			c.Sequencer.StreamServer.Log = datastreamerlog.Config{
+				Environment: datastreamerlog.LogEnvironment(c.Log.Environment),
+				Level:       c.Log.Level,
+				Outputs:     c.Log.Outputs,
+			}
 			ev.Component = event.Component_Sequencer
 			ev.Description = "Running sequencer"
 			err := eventLog.LogEvent(cliCtx.Context, ev)
@@ -296,9 +302,20 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 	}
 	zkEVMClient := client.NewClient(trustedSequencerURL)
 
+	etherManForL1 := []synchronizer.EthermanInterface{}
+	// If synchronizer are using sequential mode, we only need one etherman client
+	if cfg.Synchronizer.UseParallelModeForL1Synchronization {
+		for i := 0; i < int(cfg.Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients); i++ {
+			eth, err := newEtherman(cfg)
+			if err != nil {
+				log.Fatal(err)
+			}
+			etherManForL1 = append(etherManForL1, eth)
+		}
+	}
 	sy, err := synchronizer.NewSynchronizer(
-		cfg.IsTrustedSequencer, etherman, st, pool, ethTxManager,
-		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer,
+		cfg.IsTrustedSequencer, etherman, etherManForL1, st, pool, ethTxManager,
+		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer, cfg.Log.Environment == "development",
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -447,7 +464,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 }
 
 func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
-	stateDb := state.NewPostgresStorage(sqlDB)
+	stateDb := state.NewPostgresStorage(c.State, sqlDB)
 
 	// Executor
 	var executorClient executor.ExecutorServiceClient
@@ -470,6 +487,8 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 		WaitOnResourceExhaustion:     c.Executor.WaitOnResourceExhaustion,
 		ForkUpgradeBatchNumber:       c.ForkUpgradeBatchNumber,
 		ForkUpgradeNewForkId:         c.ForkUpgradeNewForkId,
+		MaxLogsCount:                 c.RPC.MaxLogsCount,
+		MaxLogsBlockRange:            c.RPC.MaxLogsBlockRange,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)

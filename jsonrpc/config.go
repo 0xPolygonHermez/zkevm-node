@@ -38,10 +38,6 @@ type Config struct {
 	// EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.
 	EnableL2SuggestedGasPricePolling bool `mapstructure:"EnableL2SuggestedGasPricePolling"`
 
-	// TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)
-	// to do the parallel requests to RPC.debug_traceTransaction endpoint
-	TraceBatchUseHTTPS bool `mapstructure:"TraceBatchUseHTTPS"`
-
 	// BatchRequestsEnabled defines if the Batch requests are enabled or disabled
 	BatchRequestsEnabled bool `mapstructure:"BatchRequestsEnabled"`
 
@@ -50,6 +46,14 @@ type Config struct {
 
 	// L2Coinbase defines which address is going to receive the fees
 	L2Coinbase common.Address
+
+	// MaxLogsCount is a configuration to set the max number of logs that can be returned
+	// in a single call to the state, if zero it means no limit
+	MaxLogsCount uint64 `mapstructure:"MaxLogsCount"`
+
+	// MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs
+	// logs in a single call to the state, if zero it means no limit
+	MaxLogsBlockRange uint64 `mapstructure:"MaxLogsBlockRange"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support

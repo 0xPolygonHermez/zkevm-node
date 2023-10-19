@@ -3,13 +3,14 @@ package erc20_transfers
 import (
 	"fmt"
 	"math/big"
-
-	"github.com/ethereum/go-ethereum/core/types"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/transactions"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
 	uniswap "github.com/0xPolygonHermez/zkevm-node/test/scripts/uniswap/pkg"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -18,6 +19,7 @@ const (
 )
 
 var (
+	sleepTime     = 1 * time.Second
 	mintAmountBig = big.NewInt(mintAmount)
 	countTxs      = 0
 )
@@ -32,6 +34,11 @@ func TxSender(l2Client *ethclient.Client, gasPrice *big.Int, auth *bind.Transact
 		actualTransferAmount = big.NewInt(1)
 	}
 	tx, err := erc20SC.Transfer(auth, params.To, actualTransferAmount)
+	if transactions.ShouldRetryError(err) {
+		time.Sleep(sleepTime)
+		tx, err = erc20SC.Transfer(auth, params.To, actualTransferAmount)
+	}
+
 	if err == nil {
 		countTxs += 1
 	}

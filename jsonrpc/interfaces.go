@@ -1,6 +1,8 @@
 package jsonrpc
 
 import (
+	"sync/atomic"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -9,10 +11,10 @@ type storageInterface interface {
 	GetAllBlockFiltersWithWSConn() ([]*Filter, error)
 	GetAllLogFiltersWithWSConn() ([]*Filter, error)
 	GetFilter(filterID string) (*Filter, error)
-	NewBlockFilter(wsConn *websocket.Conn) (string, error)
-	NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string, error)
-	NewPendingTransactionFilter(wsConn *websocket.Conn) (string, error)
+	NewBlockFilter(wsConn *atomic.Pointer[websocket.Conn]) (string, error)
+	NewLogFilter(wsConn *atomic.Pointer[websocket.Conn], filter LogFilter) (string, error)
+	NewPendingTransactionFilter(wsConn *atomic.Pointer[websocket.Conn]) (string, error)
 	UninstallFilter(filterID string) error
-	UninstallFilterByWSConn(wsConn *websocket.Conn) error
+	UninstallFilterByWSConn(wsConn *atomic.Pointer[websocket.Conn]) error
 	UpdateFilterLastPoll(filterID string) error
 }
