@@ -65,7 +65,7 @@ func (s *filterToSendOrdererResultsToConsumer) checkValidDataUnsafe(result *l1Sy
 
 // sendResultIfPossibleUnsafe returns true is have send any result
 func (s *filterToSendOrdererResultsToConsumer) sendResultIfPossibleUnsafe(previous []l1SyncMessage) []l1SyncMessage {
-	result_list_packages := previous
+	resultListPackages := previous
 	indexToRemove := []int{}
 	send := false
 	for i := range s.pendingResults {
@@ -73,8 +73,13 @@ func (s *filterToSendOrdererResultsToConsumer) sendResultIfPossibleUnsafe(previo
 		if result.dataIsValid {
 			if s.matchNextBlockUnsafe(&result.data) {
 				send = true
-				result_list_packages = append(result_list_packages, result)
-				highestBlockNumber := result.data.getHighestBlockNumberInResponse()
+				resultListPackages = append(resultListPackages, result)
+				var highestBlockNumber uint64 = invalidBlockNumber
+				if result.data.blockRange.toBlock != latestBlockNumber {
+					highestBlockNumber = result.data.blockRange.toBlock
+				} else {
+					highestBlockNumber = result.data.getHighestBlockNumberInResponse()
+				}
 				s.setLastBlockOnSynchronizerCorrespondingLatBlockRangeSendUnsafe(highestBlockNumber)
 				indexToRemove = append(indexToRemove, i)
 				break
@@ -82,7 +87,7 @@ func (s *filterToSendOrdererResultsToConsumer) sendResultIfPossibleUnsafe(previo
 		} else {
 			// If it's a ctrl package only the first one could be send because it means that the previous one have been send
 			if i == 0 {
-				result_list_packages = append(result_list_packages, result)
+				resultListPackages = append(resultListPackages, result)
 				indexToRemove = append(indexToRemove, i)
 				send = true
 				break
@@ -93,9 +98,9 @@ func (s *filterToSendOrdererResultsToConsumer) sendResultIfPossibleUnsafe(previo
 
 	if send {
 		// Try to send more results
-		result_list_packages = s.sendResultIfPossibleUnsafe(result_list_packages)
+		resultListPackages = s.sendResultIfPossibleUnsafe(resultListPackages)
 	}
-	return result_list_packages
+	return resultListPackages
 }
 
 func (s *filterToSendOrdererResultsToConsumer) removeIndexFromPendingResultsUnsafe(indexToRemove []int) {

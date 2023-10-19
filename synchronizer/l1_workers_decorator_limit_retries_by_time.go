@@ -2,6 +2,7 @@ package synchronizer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -48,27 +49,35 @@ func (w *workerDecoratorLimitRetriesByTime) stop() {
 func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(ctx context.Context, request requestRollupInfoByBlockRange) (chan responseRollupInfoByBlockRange, error) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	ctrl, err := w.processingRanges.getTagByBlockRange(request.blockRange)
-	if err == nil {
+	ctrl, errTagFound := w.processingRanges.getTagByBlockRange(request.blockRange)
+	if errTagFound == nil {
 		lastCallElapsedTime := time.Since(ctrl.time)
 		if lastCallElapsedTime < w.minTimeBetweenCalls {
 			sleepTime := w.minTimeBetweenCalls - lastCallElapsedTime
 			log.Infof("workerDecoratorLimitRetriesByTime: br:%s retries:%d last call elapsed time %s < %s, sleeping %s", request.blockRange.String(), ctrl.retries, lastCallElapsedTime, w.minTimeBetweenCalls, sleepTime)
 			request.sleepBefore = sleepTime - request.sleepBefore
 		}
-		err = w.processingRanges.setTagByBlockRange(request.blockRange, controlWorkerFlux{time: time.Now(), retries: ctrl.retries + 1})
-		if err != nil {
-			log.Warnf("workerDecoratorLimitRetriesByTime: error setting tag %s for blockRange %s", ctrl, request.blockRange.String())
-		}
-	} else {
-		ctrl = controlWorkerFlux{time: time.Now(), retries: 0}
-		err = w.processingRanges.addBlockRangeWithTag(request.blockRange, ctrl)
-		if err != nil {
-			log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s err:%s", request.blockRange.String(), err.Error())
-		}
+
 	}
 
 	res, err := w.workersInterface.asyncRequestRollupInfoByBlockRange(ctx, request)
+
+	if !errors.Is(err, errAllWorkersBusy) {
+		// update the tag
+		if errTagFound == nil {
+			errSetTag := w.processingRanges.setTagByBlockRange(request.blockRange, controlWorkerFlux{time: time.Now(), retries: ctrl.retries + 1})
+			if errSetTag != nil {
+				log.Warnf("workerDecoratorLimitRetriesByTime: error setting tag %s for blockRange %s", ctrl, request.blockRange.String())
+			}
+		} else {
+			ctrl = controlWorkerFlux{time: time.Now(), retries: 0}
+			errAddRange := w.processingRanges.addBlockRangeWithTag(request.blockRange, ctrl)
+			if errAddRange != nil {
+				log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s err:%s", request.blockRange.String(), err.Error())
+			}
+		}
+
+	}
 	w.cleanUpOlderThanUnsafe(cleanUpOlderThan)
 	return res, err
 }

@@ -57,7 +57,7 @@ func (l *l1RollupInfoProducerStatistics) getETA() string {
 	elapsedTime := time.Since(l.startTime)
 	eta := time.Duration(float64(elapsedTime) / float64(l.numRetrievedBlocks) * float64(numTotalOfBlocks-l.numRetrievedBlocks))
 	percent := float64(l.numRetrievedBlocks) / float64(numTotalOfBlocks) * conversionFactorPercentage
-	blocks_per_seconds := float64(l.numRetrievedBlocks) / float64(elapsedTime.Seconds())
+	blocksPerSeconds := float64(l.numRetrievedBlocks) / float64(elapsedTime.Seconds())
 	return fmt.Sprintf("ETA: %s percent:%2.2f  blocks_per_seconds:%2.2f pending_block:%v/%v num_errors:%v",
-		eta, percent, blocks_per_seconds, l.numRetrievedBlocks, numTotalOfBlocks, l.numRollupInfoErrors)
+		eta, percent, blocksPerSeconds, l.numRetrievedBlocks, numTotalOfBlocks, l.numRollupInfoErrors)
 }
