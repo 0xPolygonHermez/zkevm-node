@@ -81,10 +81,10 @@ func TestGEREvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, uint64(2), blocks[1].GlobalExitRoots[0].BlockNumber)
-	assert.NotEqual(t, common.Hash{}, blocks[1].GlobalExitRoots[0].MainnetExitRoot)
-	assert.Equal(t, common.Hash{}, blocks[1].GlobalExitRoots[0].RollupExitRoot)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, uint64(5), blocks[0].GlobalExitRoots[0].BlockNumber)
+	assert.NotEqual(t, common.Hash{}, blocks[0].GlobalExitRoots[0].MainnetExitRoot)
+	assert.Equal(t, common.Hash{}, blocks[0].GlobalExitRoots[0].RollupExitRoot)
 }
 
 func TestForcedBatchEvent(t *testing.T) {
@@ -113,14 +113,14 @@ func TestForcedBatchEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, uint64(2), blocks[1].BlockNumber)
-	assert.Equal(t, uint64(2), blocks[1].ForcedBatches[0].BlockNumber)
-	assert.NotEqual(t, common.Hash{}, blocks[1].ForcedBatches[0].GlobalExitRoot)
-	assert.NotEqual(t, time.Time{}, blocks[1].ForcedBatches[0].ForcedAt)
-	assert.Equal(t, uint64(1), blocks[1].ForcedBatches[0].ForcedBatchNumber)
-	assert.Equal(t, rawTxs, hex.EncodeToString(blocks[1].ForcedBatches[0].RawTxsData))
-	assert.Equal(t, auth.From, blocks[1].ForcedBatches[0].Sequencer)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, uint64(5), blocks[0].BlockNumber)
+	assert.Equal(t, uint64(5), blocks[0].ForcedBatches[0].BlockNumber)
+	assert.NotEqual(t, common.Hash{}, blocks[0].ForcedBatches[0].GlobalExitRoot)
+	assert.NotEqual(t, time.Time{}, blocks[0].ForcedBatches[0].ForcedAt)
+	assert.Equal(t, uint64(1), blocks[0].ForcedBatches[0].ForcedBatchNumber)
+	assert.Equal(t, rawTxs, hex.EncodeToString(blocks[0].ForcedBatches[0].RawTxsData))
+	assert.Equal(t, auth.From, blocks[0].ForcedBatches[0].Sequencer)
 }
 
 func TestSequencedBatchesEvent(t *testing.T) {
@@ -164,7 +164,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	sequences = append(sequences, polygonzkevm.PolygonRollupBaseBatchData{
 		GlobalExitRoot:     ger,
 		Timestamp:          currentBlock.Time(),
-		MinForcedTimestamp: uint64(blocks[2].ForcedBatches[0].ForcedAt.Unix()),
+		MinForcedTimestamp: uint64(blocks[1].ForcedBatches[0].ForcedAt.Unix()),
 		Transactions:       common.Hex2Bytes(rawTxs),
 	})
 	sequences = append(sequences, polygonzkevm.PolygonRollupBaseBatchData{
@@ -185,16 +185,16 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, 4, len(blocks))
-	assert.Equal(t, 1, len(blocks[3].SequencedBatches))
-	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[3].SequencedBatches[0][1].Transactions)
-	assert.Equal(t, currentBlock.Time(), blocks[3].SequencedBatches[0][0].Timestamp)
-	assert.Equal(t, ger, blocks[3].SequencedBatches[0][0].GlobalExitRoot)
-	assert.Equal(t, auth.From, blocks[3].SequencedBatches[0][0].Coinbase)
-	assert.Equal(t, auth.From, blocks[3].SequencedBatches[0][0].SequencerAddr)
-	assert.Equal(t, currentBlock.Time(), blocks[3].SequencedBatches[0][0].MinForcedTimestamp)
-	assert.Equal(t, 0, order[blocks[3].BlockHash][0].Pos)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, 3, len(blocks))
+	assert.Equal(t, 1, len(blocks[2].SequencedBatches))
+	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[2].SequencedBatches[0][1].Transactions)
+	assert.Equal(t, currentBlock.Time(), blocks[2].SequencedBatches[0][0].Timestamp)
+	assert.Equal(t, ger, blocks[2].SequencedBatches[0][0].GlobalExitRoot)
+	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].Coinbase)
+	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].SequencerAddr)
+	assert.Equal(t, currentBlock.Time(), blocks[2].SequencedBatches[0][0].MinForcedTimestamp)
+	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
 }
 
 func TestVerifyBatchEvent(t *testing.T) {
@@ -232,15 +232,15 @@ func TestVerifyBatchEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, uint64(3), blocks[2].BlockNumber)
-	assert.Equal(t, uint64(1), blocks[2].VerifiedBatches[0].BatchNumber)
-	assert.NotEqual(t, common.Address{}, blocks[2].VerifiedBatches[0].Aggregator)
-	assert.NotEqual(t, common.Hash{}, blocks[2].VerifiedBatches[0].TxHash)
-	assert.Equal(t, GlobalExitRootsOrder, order[blocks[2].BlockHash][0].Name)
-	assert.Equal(t, TrustedVerifyBatchOrder, order[blocks[2].BlockHash][1].Name)
-	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
-	assert.Equal(t, 0, order[blocks[2].BlockHash][1].Pos)
+	t.Logf("Blocks: %+v, \nOrder: %+v", blocks, order)
+	assert.Equal(t, uint64(6), blocks[1].BlockNumber)
+	assert.Equal(t, uint64(1), blocks[1].VerifiedBatches[0].BatchNumber)
+	assert.NotEqual(t, common.Address{}, blocks[1].VerifiedBatches[0].Aggregator)
+	assert.NotEqual(t, common.Hash{}, blocks[1].VerifiedBatches[0].TxHash)
+	assert.Equal(t, GlobalExitRootsOrder, order[blocks[1].BlockHash][1].Name)
+	assert.Equal(t, VerifyBatchOrder, order[blocks[1].BlockHash][0].Name)
+	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
+	assert.Equal(t, 0, order[blocks[1].BlockHash][1].Pos)
 }
 
 func TestSequenceForceBatchesEvent(t *testing.T) {
@@ -271,12 +271,12 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
+	t.Logf("Blocks: %+v", blocks)
 
 	forceBatchData := polygonzkevm.PolygonRollupBaseForcedBatchData{
-		Transactions:       blocks[1].ForcedBatches[0].RawTxsData,
-		GlobalExitRoot:     blocks[1].ForcedBatches[0].GlobalExitRoot,
-		MinForcedTimestamp: uint64(blocks[1].ForcedBatches[0].ForcedAt.Unix()),
+		Transactions:       blocks[0].ForcedBatches[0].RawTxsData,
+		GlobalExitRoot:     blocks[0].ForcedBatches[0].GlobalExitRoot,
+		MinForcedTimestamp: uint64(blocks[0].ForcedBatches[0].ForcedAt.Unix()),
 	}
 	_, err = etherman.ZkEVM.SequenceForceBatches(auth, []polygonzkevm.PolygonRollupBaseForcedBatchData{forceBatchData})
 	require.NoError(t, err)
@@ -288,11 +288,11 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	finalBlockNumber = finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, uint64(4), blocks[2].BlockNumber)
-	assert.Equal(t, uint64(1), blocks[2].SequencedForceBatches[0][0].BatchNumber)
-	assert.Equal(t, uint64(20), blocks[2].SequencedForceBatches[0][0].MinForcedTimestamp)
-	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, uint64(7), blocks[1].BlockNumber)
+	assert.Equal(t, uint64(2), blocks[1].SequencedForceBatches[0][0].BatchNumber)
+	assert.Equal(t, uint64(50), blocks[1].SequencedForceBatches[0][0].MinForcedTimestamp)
+	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
 
 func TestSendSequences(t *testing.T) {
@@ -337,15 +337,15 @@ func TestSendSequences(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, 3, len(blocks))
-	assert.Equal(t, 1, len(blocks[2].SequencedBatches))
-	assert.Equal(t, currentBlock.Time()-1, blocks[2].SequencedBatches[0][0].Timestamp)
-	assert.Equal(t, ger, blocks[2].SequencedBatches[0][0].GlobalExitRoot)
-	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].Coinbase)
-	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].SequencerAddr)
-	assert.Equal(t, uint64(0), blocks[2].SequencedBatches[0][0].MinForcedTimestamp)
-	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, 2, len(blocks))
+	assert.Equal(t, 1, len(blocks[1].SequencedBatches))
+	assert.Equal(t, currentBlock.Time()-1, blocks[1].SequencedBatches[0][0].Timestamp)
+	assert.Equal(t, ger, blocks[1].SequencedBatches[0][0].GlobalExitRoot)
+	assert.Equal(t, auth.From, blocks[1].SequencedBatches[0][0].Coinbase)
+	assert.Equal(t, auth.From, blocks[1].SequencedBatches[0][0].SequencerAddr)
+	assert.Equal(t, uint64(0), blocks[1].SequencedBatches[0][0].MinForcedTimestamp)
+	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
 
 func TestGasPrice(t *testing.T) {
@@ -376,7 +376,7 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 
 	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from ethGasStation"))
 	gp := etherman.GetL1GasPrice(ctx)
-	assert.Equal(t, big.NewInt(765625001), gp)
+	assert.Equal(t, big.NewInt(512908937), gp)
 
 	etherscanM := new(etherscanMock)
 	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, etherscanM, ethGasStationM}
@@ -407,10 +407,10 @@ func TestGetForks(t *testing.T) {
 	forks, err := etherman.GetForks(ctx, 0, 132)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(forks))
-	assert.Equal(t, uint64(1), forks[0].ForkId)
+	assert.Equal(t, uint64(5), forks[0].ForkId)
 	assert.Equal(t, uint64(1), forks[0].FromBatchNumber)
 	assert.Equal(t, uint64(math.MaxUint64), forks[0].ToBatchNumber)
-	assert.Equal(t, "v1", forks[0].Version)
+	assert.Equal(t, "", forks[0].Version)
 	// Now read the event
 	finalBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
@@ -423,8 +423,8 @@ func TestGetForks(t *testing.T) {
 	assert.Equal(t, 0, order[blocks[0].BlockHash][0].Pos)
 	assert.Equal(t, ForkIDsOrder, order[blocks[0].BlockHash][0].Name)
 	assert.Equal(t, uint64(0), blocks[0].ForkIDs[0].BatchNumber)
-	assert.Equal(t, uint64(1), blocks[0].ForkIDs[0].ForkID)
-	assert.Equal(t, "v1", blocks[0].ForkIDs[0].Version)
+	assert.Equal(t, uint64(5), blocks[0].ForkIDs[0].ForkID)
+	assert.Equal(t, "", blocks[0].ForkIDs[0].Version)
 }
 
 func TestProof(t *testing.T) {

@@ -1745,9 +1745,9 @@
     {
         "inputs": [
             {
-                "internalType": "uint64",
+                "internalType": "uint32",
                 "name": "rollupTypeID",
-                "type": "uint64"
+                "type": "uint32"
             }
         ],
         "name": "rollupTypeMap",

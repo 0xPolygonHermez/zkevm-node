@@ -9,6 +9,7 @@ gen() {
 }
 
 gen polygonzkevm
+gen oldpolygonzkevm
 gen polygonzkevmbridge
 gen pol
 gen polygonzkevmglobalexitroot

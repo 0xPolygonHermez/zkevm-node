@@ -57,10 +57,10 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	}
 	const posBridge = 1
 	calculatedBridgeAddr := crypto.CreateAddress(auth.From, nonce+posBridge)
-	const posZkEvm = 3
-	calculatedZkEvmAddr := crypto.CreateAddress(auth.From, nonce+posZkEvm)
+	const posRollupManager = 2
+	calculatedRollupManagerAddr := crypto.CreateAddress(auth.From, nonce+posRollupManager)
 	genesis := common.HexToHash("0xfd3434cd8f67e59d73488a2b8da242dd1f02849ea5dd99f0ca22c836c3d5b4a9") // Random value. Needs to be different to 0x0
-	exitManagerAddr, _, globalExitRoot, err := polygonzkevmglobalexitroot.DeployPolygonzkevmglobalexitroot(auth, client, calculatedZkEvmAddr, calculatedBridgeAddr)
+	exitManagerAddr, _, globalExitRoot, err := polygonzkevmglobalexitroot.DeployPolygonzkevmglobalexitroot(auth, client, calculatedRollupManagerAddr, calculatedBridgeAddr)
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
@@ -75,6 +75,10 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
+	}
+	if calculatedRollupManagerAddr != mockRollupManagerAddr {
+		return nil, nil, common.Address{}, nil, fmt.Errorf("RollupManagerAddr (%s) is different from the expected contract address (%s)",
+		mockRollupManagerAddr.String(), calculatedRollupManagerAddr.String())
 	}
 	initZkevmAddr, _, _, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, polAddr, bridgeAddr, mockRollupManagerAddr)
 	if err != nil {
@@ -128,10 +132,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 		return nil, nil, common.Address{}, nil, fmt.Errorf("bridgeAddr (%s) is different from the expected contract address (%s)",
 			bridgeAddr.String(), calculatedBridgeAddr.String())
 	}
-	// if calculatedZkEvmAddr != zkevmAddr {
-	// 	return nil, nil, common.Address{}, nil, fmt.Errorf("zkevmAddr (%s) is different from the expected contract address (%s)",
-	// 	zkevmAddr.String(), calculatedZkEvmAddr.String())
-	// }
+
 	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(mockRollupManagerAddr, client)
 	if err != nil {
 		log.Error("error: ", err)
@@ -174,6 +175,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 		RollupManager:         rollupManager,
 		Pol:                   polContract,
 		GlobalExitRootManager: globalExitRoot,
+		RollupID:              rollupID,
 		SCAddresses:           []common.Address{zkevmAddr, mockRollupManagerAddr, exitManagerAddr},
 		auth:                  map[common.Address]bind.TransactOpts{},
 		cfg:                   cfg,
