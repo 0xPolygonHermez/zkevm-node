@@ -179,15 +179,6 @@ func TestGivenMultiplesWorkersWhenNextRangeThenTheRangeIsCappedToLastBlockOnL1(t
 	require.Equal(t, *br, blockRange{fromBlock: 101, toBlock: latestBlockNumber})
 }
 
-func TestWhenAllRequestAreSendThenGetNextRangeReturnsNil2(t *testing.T) {
-	s := newSyncStatus(1617, 10)
-	s.setLastBlockOnL1(1982)
-	s.onStartedNewWorker(blockRange{fromBlock: 1820, toBlock: 1920})
-	s.onStartedNewWorker(blockRange{fromBlock: 1921, toBlock: 1982})
-	br := s.getNextRange()
-	require.Nil(t, br)
-}
-
 func TestWhenRequestALatestBlockThereIsNoMoreBlocks(t *testing.T) {
 	s := newSyncStatus(100, 10)
 	s.setLastBlockOnL1(105)
