@@ -38,13 +38,18 @@ func (_m *l1RollupConsumerInterfaceMock) GetLastEthBlockSynced() (state.Block, b
 	return r0, r1
 }
 
-// Start provides a mock function with given fields: ctx
-func (_m *l1RollupConsumerInterfaceMock) Start(ctx context.Context) error {
-	ret := _m.Called(ctx)
+// Reset provides a mock function with given fields: startingBlockNumber
+func (_m *l1RollupConsumerInterfaceMock) Reset(startingBlockNumber uint64) {
+	_m.Called(startingBlockNumber)
+}
+
+// Start provides a mock function with given fields: ctx, lastEthBlockSynced
+func (_m *l1RollupConsumerInterfaceMock) Start(ctx context.Context, lastEthBlockSynced *state.Block) error {
+	ret := _m.Called(ctx, lastEthBlockSynced)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, *state.Block) error); ok {
+		r0 = rf(ctx, lastEthBlockSynced)
 	} else {
 		r0 = ret.Error(0)
 	}

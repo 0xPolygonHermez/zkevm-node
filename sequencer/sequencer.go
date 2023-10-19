@@ -91,7 +91,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	// Start stream server if enabled
 	if s.cfg.StreamServer.Enabled {
-		streamServer, err := datastreamer.New(s.cfg.StreamServer.Port, state.StreamTypeSequencer, s.cfg.StreamServer.Filename, &s.cfg.StreamServer.Log)
+		streamServer, err := datastreamer.NewServer(s.cfg.StreamServer.Port, state.StreamTypeSequencer, s.cfg.StreamServer.Filename, &s.cfg.StreamServer.Log)
 		if err != nil {
 			log.Fatalf("failed to create stream server, err: %v", err)
 		}
@@ -161,6 +161,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 }
 
 func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer) {
+	var skipBookMark, skipL2BlockStart bool
 	var currentL2Block uint64
 	var currentTxIndex uint64
 	var err error
@@ -175,6 +176,16 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 		}
 
 		err = streamServer.StartAtomicOp()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		bookMark := state.DSBookMark{
+			Type:          state.BookMarkTypeL2Block,
+			L2BlockNumber: genesisL2Block.L2BlockNumber,
+		}
+
+		_, err = streamServer.AddStreamBookmark(bookMark.Encode())
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -218,23 +229,32 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 
 		log.Infof("Latest entry: %+v", latestEntry)
 
-		switch latestEntry.EntryType {
+		switch latestEntry.Type {
+		case state.EntryTypeBookMark:
+			log.Info("Latest entry type is BookMark")
+			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[1:9])
+			skipBookMark = true
+			currentL2Block--
 		case state.EntryTypeL2BlockStart:
 			log.Info("Latest entry type is L2BlockStart")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
+			skipBookMark = true
+			skipL2BlockStart = true
+			currentL2Block--
 		case state.EntryTypeL2Tx:
 			log.Info("Latest entry type is L2Tx")
-			for latestEntry.EntryType == state.EntryTypeL2Tx {
+			for latestEntry.Type == state.EntryTypeL2Tx {
 				currentTxIndex++
 				latestEntry, err = streamServer.GetEntry(header.TotalEntries - currentTxIndex)
 				if err != nil {
 					log.Fatal(err)
 				}
 			}
-			if latestEntry.EntryType != state.EntryTypeL2BlockStart {
+			if latestEntry.Type != state.EntryTypeL2BlockStart {
 				log.Fatal("Latest entry is not a L2BlockStart")
 			}
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
+			currentL2Block--
 		case state.EntryTypeL2BlockEnd:
 			log.Info("Latest entry type is L2BlockEnd")
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[0:8])
@@ -242,9 +262,6 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 	}
 
 	log.Infof("Current transaction index: %d", currentTxIndex)
-	if currentTxIndex == 0 {
-		currentL2Block++
-	}
 	log.Infof("Current L2 block number: %d", currentL2Block)
 
 	var limit uint64 = 1000
@@ -281,6 +298,20 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 				currentTxIndex = 0
 			}
 
+			bookMark := state.DSBookMark{
+				Type:          state.BookMarkTypeL2Block,
+				L2BlockNumber: l2block.L2BlockNumber,
+			}
+
+			if !skipBookMark {
+				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+				if err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				skipBookMark = false
+			}
+
 			blockStart := state.DSL2BlockStart{
 				BatchNumber:    l2block.BatchNumber,
 				L2BlockNumber:  l2block.L2BlockNumber,
@@ -290,9 +321,13 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 				ForkID:         l2block.ForkID,
 			}
 
-			_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
-			if err != nil {
-				log.Fatal(err)
+			if !skipL2BlockStart {
+				_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
+				if err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				skipL2BlockStart = false
 			}
 
 			entry, err = streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transactions[x].Encode())

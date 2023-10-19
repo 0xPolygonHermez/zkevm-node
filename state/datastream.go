@@ -10,12 +10,16 @@ import (
 const (
 	// StreamTypeSequencer represents a Sequencer stream
 	StreamTypeSequencer datastreamer.StreamType = 1
+	// EntryTypeBookMark represents a bookmark entry
+	EntryTypeBookMark datastreamer.EntryType = datastreamer.EtBookmark
 	// EntryTypeL2BlockStart represents a L2 block start
 	EntryTypeL2BlockStart datastreamer.EntryType = 1
 	// EntryTypeL2Tx represents a L2 transaction
 	EntryTypeL2Tx datastreamer.EntryType = 2
 	// EntryTypeL2BlockEnd represents a L2 block end
 	EntryTypeL2BlockEnd datastreamer.EntryType = 3
+	// BookMarkTypeL2Block represents a L2 block bookmark
+	BookMarkTypeL2Block byte = 0
 )
 
 // DSL2FullBlock represents a data stream L2 full block and its transactions
@@ -87,7 +91,21 @@ type DSL2BlockEnd struct {
 func (b DSL2BlockEnd) Encode() []byte {
 	bytes := make([]byte, 0)
 	bytes = binary.LittleEndian.AppendUint64(bytes, b.L2BlockNumber)
-	bytes = append(bytes, b.BlockHash.Bytes()...)
-	bytes = append(bytes, b.StateRoot.Bytes()...)
+	bytes = append(bytes, b.BlockHash[:]...)
+	bytes = append(bytes, b.StateRoot[:]...)
+	return bytes
+}
+
+// DSBookMark represents a data stream bookmark
+type DSBookMark struct {
+	Type          byte
+	L2BlockNumber uint64
+}
+
+// Encode returns the encoded DSBookMark as a byte slice
+func (b DSBookMark) Encode() []byte {
+	bytes := make([]byte, 0)
+	bytes = append(bytes, b.Type)
+	bytes = binary.LittleEndian.AppendUint64(bytes, b.L2BlockNumber)
 	return bytes
 }

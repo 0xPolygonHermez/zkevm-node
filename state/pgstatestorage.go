@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -1461,7 +1462,10 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 
 // AddL2Block adds a new L2 block to the State Store
 func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, txsEGPData []StoreTxEGPData, dbTx pgx.Tx) error {
-	e := p.getExecQuerier(dbTx)
+	log.Debugf("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())
+	start := time.Now()
+
+  e := p.getExecQuerier(dbTx)
 
 	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage, egp_log) VALUES($1, $2, $3, $4, $5, $6)"
 	const addL2BlockSQL = `
@@ -1533,7 +1537,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			}
 		}
 	}
-
+	log.Debugf("[AddL2Block] l2 block %v took %vms to be added", l2Block.NumberU64(), time.Since(start).Milliseconds())
 	return nil
 }
 
@@ -2604,7 +2608,7 @@ func (p *PostgresStorage) UpdateForkID(ctx context.Context, forkID ForkIDInterva
 
 // GetDSGenesisBlock returns the genesis block
 func (p *PostgresStorage) GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*DSL2Block, error) {
-	const genesisL2BlockSQL = `SELECT 0 as batch_num, l2b.block_num, l2b.created_at, '0x0000000000000000000000000000000000000000' as global_exit_root, l2b.header->>'miner' AS coinbase, 0 as fork_id, l2b.block_hash, l2b.state_root
+	const genesisL2BlockSQL = `SELECT 0 as batch_num, l2b.block_num, l2b.received_at, '0x0000000000000000000000000000000000000000' as global_exit_root, l2b.header->>'miner' AS coinbase, 0 as fork_id, l2b.block_hash, l2b.state_root
 							FROM state.l2block l2b
 							WHERE l2b.block_num  = 0`
 
@@ -2622,7 +2626,7 @@ func (p *PostgresStorage) GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*
 
 // GetDSL2Blocks returns the L2 blocks
 func (p *PostgresStorage) GetDSL2Blocks(ctx context.Context, limit, offset uint64, dbTx pgx.Tx) ([]*DSL2Block, error) {
-	const l2BlockSQL = `SELECT l2b.batch_num, l2b.block_num, l2b.created_at, b.global_exit_root, l2b.header->>'miner' AS coinbase, f.fork_id, l2b.block_hash, l2b.state_root
+	const l2BlockSQL = `SELECT l2b.batch_num, l2b.block_num, l2b.received_at, b.global_exit_root, l2b.header->>'miner' AS coinbase, f.fork_id, l2b.block_hash, l2b.state_root
 						FROM state.l2block l2b, state.batch b, state.fork_id f
 						WHERE l2b.batch_num = b.batch_num AND l2b.batch_num between f.from_batch_num AND f.to_batch_num
 						ORDER BY l2b.block_num ASC limit $1 offset $2`
@@ -2678,7 +2682,7 @@ func scanL2Block(row pgx.Row) (*DSL2Block, error) {
 
 // GetDSL2Transactions returns the L2 transactions
 func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, minL2Block, maxL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error) {
-	const l2TxSQL = `SELECT t.effective_percentage, LENGTH(t.encoded), t.encoded
+	const l2TxSQL = `SELECT t.effective_percentage, t.encoded
 					 FROM state.transaction t
 					 WHERE l2_block_num BETWEEN $1 AND $2
 					 ORDER BY t.l2_block_num ASC`
@@ -2705,13 +2709,25 @@ func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, minL2Block, m
 
 func scanL2Transaction(row pgx.Row) (*DSL2Transaction, error) {
 	l2Transaction := DSL2Transaction{}
+	encoded := []byte{}
 	if err := row.Scan(
 		&l2Transaction.EffectiveGasPricePercentage,
-		&l2Transaction.EncodedLength,
-		&l2Transaction.Encoded,
+		&encoded,
 	); err != nil {
-		return &l2Transaction, err
+		return nil, err
 	}
+	tx, err := DecodeTx(string(encoded))
+	if err != nil {
+		return nil, err
+	}
+
+	binaryTxData, err := tx.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	l2Transaction.Encoded = binaryTxData
+	l2Transaction.EncodedLength = uint32(len(l2Transaction.Encoded))
 	l2Transaction.IsValid = 1
 	return &l2Transaction, nil
 }

@@ -6,8 +6,9 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
+	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/db"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
@@ -20,8 +21,10 @@ const (
 
 // Config is the configuration for the tool
 type Config struct {
+	QuerySize    uint64              `mapstructure:"QuerySize"`
 	StreamServer datastreamer.Config `mapstructure:"StreamServer"`
 	StateDB      db.Config           `mapstructure:"StateDB"`
+	Executor     executor.Config     `mapstructure:"Executor"`
 }
 
 // Default parses the default configuration values.

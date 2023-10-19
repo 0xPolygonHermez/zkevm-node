@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	forkID5          = 5
+	forkID6          = 6
 	senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	senderAddress    = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
 )
@@ -370,7 +370,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81bff"
 	b, err := hex.DecodeHex(batchL2Data)
 	require.NoError(t, err)
-	txs, _, _, err := state.DecodeTxs(b, forkID5)
+	txs, _, _, err := state.DecodeTxs(b, forkID6)
 	require.NoError(t, err)
 
 	tx := txs[0]

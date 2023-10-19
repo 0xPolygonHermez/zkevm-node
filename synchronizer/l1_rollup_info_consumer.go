@@ -44,6 +44,7 @@ type l1RollupInfoConsumer struct {
 	ctx                   context.Context
 	statistics            l1RollupInfoConsumerStatistics
 	lastEthBlockSynced    *state.Block
+	highestBlockProcessed uint64
 }
 
 func newL1RollupInfoConsumer(cfg configConsumer,
@@ -62,11 +63,18 @@ func newL1RollupInfoConsumer(cfg configConsumer,
 			startTime: time.Now(),
 			cfg:       cfg,
 		},
+		highestBlockProcessed: invalidBlockNumber,
 	}
 }
 
-func (l *l1RollupInfoConsumer) Start(ctx context.Context) error {
+func (l *l1RollupInfoConsumer) Start(ctx context.Context, lastEthBlockSynced *state.Block) error {
 	l.ctx = ctx
+	l.lastEthBlockSynced = lastEthBlockSynced
+	if l.highestBlockProcessed == invalidBlockNumber && lastEthBlockSynced != nil {
+		log.Infof("consumer: Starting consumer. setting HighestBlockProcessed: %d (lastEthBlockSynced)", lastEthBlockSynced.BlockNumber)
+		l.highestBlockProcessed = lastEthBlockSynced.BlockNumber
+	}
+	log.Infof("consumer: Starting consumer. HighestBlockProcessed: %d", l.highestBlockProcessed)
 	l.statistics.onStart()
 	err := l.step()
 	for ; err == nil; err = l.step() {
@@ -74,9 +82,18 @@ func (l *l1RollupInfoConsumer) Start(ctx context.Context) error {
 	if err != errConsumerStopped && err != errConsumerStoppedBecauseIsSynchronized {
 		return err
 	}
-	// The errConsumerStopped is not an error, so we return nil meaning that the process finished in a normal way
+	// The errConsumerStopped||errConsumerStoppedBecauseIsSynchronized are not an error, so we return nil meaning that the process finished in a normal way
 	return nil
 }
+
+func (l *l1RollupInfoConsumer) Reset(startingBlockNumber uint64) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	l.highestBlockProcessed = startingBlockNumber
+	l.lastEthBlockSynced = nil
+	l.statistics.onReset()
+}
+
 func (l *l1RollupInfoConsumer) step() error {
 	l.statistics.onStartStep()
 	var err error
@@ -124,13 +141,21 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	var err error
+	if (l.highestBlockProcessed != invalidBlockNumber) && (l.highestBlockProcessed+1 != rollupInfo.blockRange.fromBlock) {
+		log.Warnf("consumer: received a rollupInfo with a wrong block range.  Ignoring it. Highest block synced: %d. RollupInfo block range: %s",
+			l.highestBlockProcessed, rollupInfo.blockRange.String())
+		return nil
+	}
+	l.highestBlockProcessed = rollupInfo.blockRange.toBlock
+	// Uncommented that line to produce a infinite loop of errors, and resets! (just for develop)
+	//return errors.New("forcing an continuous error!")
 	statisticsMsg := l.statistics.onStartProcessIncommingRollupInfoData(rollupInfo)
 	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] statistics:%s", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.String(), len(rollupInfo.blocks), statisticsMsg)
 	timeProcessingStart := time.Now()
 	l.lastEthBlockSynced, err = l.processUnsafe(rollupInfo)
 	l.statistics.onFinishProcessIncommingRollupInfoData(rollupInfo, time.Since(timeProcessingStart), err)
 	if err != nil {
-		log.Info("consumer: error processing rollupInfo. Error: ", err)
+		log.Infof("consumer: error processing rollupInfo %s. Error: %s", rollupInfo.blockRange.String(), err.Error())
 		return err
 	}
 	l.statistics.numProcessedBlocks += uint64(len(rollupInfo.blocks))
@@ -161,16 +186,7 @@ func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeRe
 	blocks := rollupInfo.blocks
 	order := rollupInfo.order
 	var lastEthBlockSynced *state.Block
-	err := l.synchronizer.processBlockRange(blocks, order)
-	if err != nil {
-		log.Info("consumer: Error processing block range: ", rollupInfo.blockRange, " err:", err)
-		return nil, err
-	}
-	if len(blocks) > 0 {
-		tmpStateBlock := convertEthmanBlockToStateBlock(&blocks[len(blocks)-1])
-		lastEthBlockSynced = &tmpStateBlock
-		logBlocks(blocks)
-	}
+
 	if len(blocks) == 0 {
 		lb := rollupInfo.lastBlockOfRange
 		if lb == nil {
@@ -178,7 +194,7 @@ func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeRe
 			return nil, errMissingLastBlock
 		}
 		b := convertL1BlockToEthBlock(lb)
-		err = l.synchronizer.processBlockRange([]etherman.Block{b}, order)
+		err := l.synchronizer.processBlockRange([]etherman.Block{b}, order)
 		if err != nil {
 			log.Error("consumer: Error processing last block of range: ", rollupInfo.blockRange, " err:", err)
 			return nil, err
@@ -186,6 +202,15 @@ func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeRe
 		block := convertL1BlockToStateBlock(lb)
 		lastEthBlockSynced = &block
 		log.Debug("consumer: Storing empty block. BlockNumber: ", b.BlockNumber, ". BlockHash: ", b.BlockHash)
+	} else {
+		tmpStateBlock := convertEthmanBlockToStateBlock(&blocks[len(blocks)-1])
+		lastEthBlockSynced = &tmpStateBlock
+		logBlocks(blocks)
+		err := l.synchronizer.processBlockRange(blocks, order)
+		if err != nil {
+			log.Info("consumer: Error processing block range: ", rollupInfo.blockRange, " err:", err)
+			return nil, err
+		}
 	}
 	return lastEthBlockSynced, nil
 }
