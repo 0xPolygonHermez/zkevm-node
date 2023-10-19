@@ -83,6 +83,8 @@ func (e *externalControl) process(line string) {
 		e.cmdL1ProducerStop(cmd[1:])
 	case "l1_orchestrator_reset":
 		e.cmdL1OrchestratorReset(cmd[1:])
+	case "l1_orchestrator_stop":
+		e.cmdL1OrchestratorAbort(cmd[1:])
 	default:
 		log.Warnf("EXT:process: unknown command: %s", cmd[0])
 	}
@@ -102,6 +104,17 @@ func (e *externalControl) cmdL1OrchestratorReset(args []string) {
 	log.Infof("EXT:cmdL1OrchestratorReset: calling orchestrator reset(%d)", blockNumber)
 	e.orquestrator.reset(blockNumber)
 	log.Infof("EXT:cmdL1OrchestratorReset: calling orchestrator reset(%d) returned", blockNumber)
+}
+
+func (e *externalControl) cmdL1OrchestratorAbort(args []string) {
+	log.Infof("EXT:cmdL1OrchestratorAbort: %s", args)
+	if e.orquestrator == nil {
+		log.Infof("EXT:cmdL1OrchestratorAbort: orquestrator is nil")
+		return
+	}
+	log.Infof("EXT:cmdL1OrchestratorAbort: calling orquestrator stop")
+	e.orquestrator.abort()
+	log.Infof("EXT:cmdL1OrchestratorAbort: calling orquestrator stop returned")
 }
 
 func (e *externalControl) cmdL1ProducerStop(args []string) {

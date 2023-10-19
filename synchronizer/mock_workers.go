@@ -70,6 +70,20 @@ func (_m *workersMock) getResponseChannelForRollupInfo() chan responseRollupInfo
 	return r0
 }
 
+// howManyRunningWorkers provides a mock function with given fields:
+func (_m *workersMock) howManyRunningWorkers() int {
+	ret := _m.Called()
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	return r0
+}
+
 // initialize provides a mock function with given fields:
 func (_m *workersMock) initialize() error {
 	ret := _m.Called()

@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	types "github.com/ethereum/go-ethereum/core/types"
 )
@@ -107,7 +108,7 @@ func (r *rollupInfoByBlockRangeResult) toStringBrief() string {
 		len(r.blocks), len(r.order), isLastBlockOfRangeSet, ispreviousBlockOfRange)
 }
 
-func (r *rollupInfoByBlockRangeResult) getHighestBlockNumberInResponse() uint64 {
+func (r *rollupInfoByBlockRangeResult) getRealHighestBlockNumberInResponse() uint64 {
 	highest := invalidBlockNumber
 	for _, block := range r.blocks {
 		if block.BlockNumber > highest {
@@ -116,6 +117,30 @@ func (r *rollupInfoByBlockRangeResult) getHighestBlockNumberInResponse() uint64 
 	}
 	if r.lastBlockOfRange != nil && r.lastBlockOfRange.Number().Uint64() > highest {
 		highest = r.lastBlockOfRange.Number().Uint64()
+	}
+	return highest
+}
+
+// getHighestBlockNumberInResponse returns the highest block number in the response if toBlock or the real one if latestBlockNumber
+func (r *rollupInfoByBlockRangeResult) getHighestBlockNumberInResponse() uint64 {
+	if r.blockRange.toBlock != latestBlockNumber {
+		return r.blockRange.toBlock
+	} else {
+		return r.getRealHighestBlockNumberInResponse()
+	}
+}
+
+func (r *rollupInfoByBlockRangeResult) getHighestBlockReceived() *state.Block {
+	var highest *state.Block = nil
+	if r.lastBlockOfRange != nil {
+		stateBlock := convertL1BlockToStateBlock(r.lastBlockOfRange)
+		return &stateBlock
+	}
+	for _, block := range r.blocks {
+		if highest == nil || block.BlockNumber > highest.BlockNumber {
+			stateBlock := convertEthmanBlockToStateBlock(&block)
+			highest = &stateBlock
+		}
 	}
 	return highest
 }

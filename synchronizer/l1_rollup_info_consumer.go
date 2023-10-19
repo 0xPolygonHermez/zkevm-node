@@ -24,7 +24,6 @@ var (
 	errConsumerStopped                      = errors.New("consumer:stopped by request")
 	errConsumerStoppedBecauseIsSynchronized = errors.New("consumer:stopped because is synchronized")
 	errL1Reorg                              = errors.New("consumer: L1 reorg detected")
-	errProducerAndConsumerDesynchronized    = errors.New("consumer: producer and consumer desynchronized")
 )
 
 type configConsumer struct {
@@ -45,7 +44,8 @@ type l1RollupInfoConsumer struct {
 	chIncommingRollupInfo chan l1SyncMessage
 	ctx                   context.Context
 	statistics            l1RollupInfoConsumerStatistics
-	lastEthBlockSynced    *state.Block
+	lastEthBlockSynced    *state.Block // Have been written in DB
+	lastEthBlockReceived  *state.Block // is a memory cache
 	highestBlockProcessed uint64
 }
 
@@ -155,9 +155,7 @@ func checkPreviousBlocks(rollupInfo rollupInfoByBlockRangeResult, cachedBlock *s
 			log.Errorf("consumer: Previous block %d parentHash is not the same", cachedBlock.BlockNumber)
 			return errL1Reorg
 		}
-	} else {
-		log.Errorf("consumer: Previous block expected:%d != %d is not the same", cachedBlock.BlockNumber, rollupInfo.previousBlockOfRange.NumberU64())
-		return errProducerAndConsumerDesynchronized
+		log.Infof("consumer: Verified previous block %d  not the same: OK", cachedBlock.BlockNumber)
 	}
 	return nil
 }
@@ -178,11 +176,14 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] statistics:%s", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.String(), len(rollupInfo.blocks), statisticsMsg)
 	timeProcessingStart := time.Now()
 
-	err = checkPreviousBlocks(rollupInfo, l.lastEthBlockSynced)
-	if err != nil {
-		log.Errorf("consumer: error checking previous blocks: %s", err.Error())
-		return err
+	if l.lastEthBlockReceived != nil {
+		err = checkPreviousBlocks(rollupInfo, l.lastEthBlockReceived)
+		if err != nil {
+			log.Errorf("consumer: error checking previous blocks: %s", err.Error())
+			return err
+		}
 	}
+	l.lastEthBlockReceived = rollupInfo.getHighestBlockReceived()
 
 	l.lastEthBlockSynced, err = l.processUnsafe(rollupInfo)
 	l.statistics.onFinishProcessIncommingRollupInfoData(rollupInfo, time.Since(timeProcessingStart), err)

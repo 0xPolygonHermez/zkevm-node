@@ -35,6 +35,10 @@ const (
 	lenCommandsChannels                           = 5
 )
 
+var (
+	errStucked = errors.New("producer: stucked")
+)
+
 type filter interface {
 	ToStringBrief() string
 	Filter(data l1SyncMessage) []l1SyncMessage
@@ -70,6 +74,7 @@ type workersInterface interface {
 	requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) responseL1LastBlock
 	getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange
 	String() string
+	howManyRunningWorkers() int
 }
 
 type producerStatusEnum int32
@@ -245,6 +250,11 @@ func (l *l1RollupInfoProducer) setStatus(newStatus producerStatusEnum) {
 		}
 	}
 }
+func (l *l1RollupInfoProducer) Abort() {
+	l.emptyChannel()
+	l.ctxWithCancel.cancelCtx()
+	l.ctxWithCancel.createWithCancel(l.ctxParent)
+}
 
 func (l *l1RollupInfoProducer) Stop() {
 	log.Infof("producer: Stop() queue cmd")
@@ -347,7 +357,11 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 		}
 	case producerWorking:
 		// launch new Work
-		l.launchWork()
+		_, err := l.launchWork()
+		if err != nil {
+			log.Errorf("producer: producerWorking: error launching work: %s", err.Error())
+			return false
+		}
 		// If I'm have required all blocks to L1?
 		if l.syncStatus.haveRequiredAllBlocksToBeSynchronized() {
 			log.Debugf("producer: producerWorking: haveRequiredAllBlocksToBeSynchronized -> renewLastBlockOnL1IfNeeded")
@@ -358,14 +372,23 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 			l.setStatus(producerSynchronized)
 		} else {
 			log.Infof("producer: producerWorking: still not synchronized with the new block range launch workers again")
-			l.launchWork()
+			_, err := l.launchWork()
+			if err != nil {
+				log.Errorf("producer: producerSynchronized: error launching work: %s", err.Error())
+				return false
+			}
 		}
 	case producerSynchronized:
 		// renew last block on L1 if needed
 		log.Debugf("producer: producerSynchronized")
 		l.renewLastBlockOnL1IfNeeded()
 
-		if l.launchWork() > 0 {
+		numLaunched, err := l.launchWork()
+		if err != nil {
+			log.Errorf("producer: producerSynchronized: error launching work: %s", err.Error())
+			return false
+		}
+		if numLaunched > 0 {
 			l.setStatus(producerWorking)
 		}
 	case producerReseting:
@@ -447,7 +470,7 @@ func (l *l1RollupInfoProducer) canISendNewRequestsUnsafe() (bool, string) {
 
 // launchWork: launch new workers if possible and returns new channels created
 // returns the number of workers launched
-func (l *l1RollupInfoProducer) launchWork() int {
+func (l *l1RollupInfoProducer) launchWork() (int, error) {
 	launchedWorker := 0
 	allowNewRequests, allowNewRequestMsg := l.canISendNewRequestsUnsafe()
 	accDebugStr := "[" + allowNewRequestMsg + "] "
@@ -463,7 +486,12 @@ func (l *l1RollupInfoProducer) launchWork() int {
 			accDebugStr += "[NoNextRange] "
 			break
 		}
-		request := requestRollupInfoByBlockRange{blockRange: *br, sleepBefore: noSleepTime, requestLastBlockIfNoBlocksInAnswer: true, requestPreviousBlock: true}
+		// The request include previous block only if a latest request, because then it starts from l
+		request := requestRollupInfoByBlockRange{blockRange: *br,
+			sleepBefore:                        noSleepTime,
+			requestLastBlockIfNoBlocksInAnswer: true,
+			requestPreviousBlock:               (br.toBlock == latestBlockNumber),
+		}
 		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, request)
 		if err != nil {
 			if errors.Is(err, errAllWorkersBusy) {
@@ -479,7 +507,7 @@ func (l *l1RollupInfoProducer) launchWork() int {
 	}
 	log.Infof("producer: launch_worker:  num of launched workers: %d  result: %s status_comm:%s", launchedWorker, accDebugStr, l.outgoingPackageStatusDebugString())
 
-	return launchedWorker
+	return launchedWorker, nil
 }
 
 func (l *l1RollupInfoProducer) outgoingPackageStatusDebugString() string {

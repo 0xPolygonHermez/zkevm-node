@@ -499,6 +499,11 @@
 								"1m",
 								"300ms"
 							]
+						},
+						"SwitchToSequentialModeIfIsSynchronized": {
+							"type": "boolean",
+							"description": "SwitchToSequentialModeIfIsSynchronized if true switch to sequential mode if the system is synchronized",
+							"default": false
 						}
 					},
 					"additionalProperties": false,

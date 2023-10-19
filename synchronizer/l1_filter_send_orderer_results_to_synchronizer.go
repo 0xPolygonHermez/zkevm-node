@@ -74,12 +74,8 @@ func (s *filterToSendOrdererResultsToConsumer) sendResultIfPossibleUnsafe(previo
 			if s.matchNextBlockUnsafe(&result.data) {
 				send = true
 				resultListPackages = append(resultListPackages, result)
-				var highestBlockNumber uint64 = invalidBlockNumber
-				if result.data.blockRange.toBlock != latestBlockNumber {
-					highestBlockNumber = result.data.blockRange.toBlock
-				} else {
-					highestBlockNumber = result.data.getHighestBlockNumberInResponse()
-				}
+				highestBlockNumber := result.data.getHighestBlockNumberInResponse()
+
 				s.setLastBlockOnSynchronizerCorrespondingLatBlockRangeSendUnsafe(highestBlockNumber)
 				indexToRemove = append(indexToRemove, i)
 				break

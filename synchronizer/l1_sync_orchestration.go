@@ -17,6 +17,8 @@ type l1RollupProducerInterface interface {
 	Start(ctx context.Context) error
 	// Stop cancel current process
 	Stop()
+	// Abort execution
+	Abort()
 	// Reset set a new starting point and cancel current process if any
 	Reset(startingBlockNumber uint64)
 }
@@ -37,11 +39,12 @@ type l1SyncOrchestration struct {
 	producerRunning bool
 	consumerRunning bool
 	// The orchestrator is running?
-	isRunning  bool
-	wg         sync.WaitGroup
-	chProducer chan error
-	chConsumer chan error
-	ctxParent  context.Context
+	isRunning     bool
+	wg            sync.WaitGroup
+	chProducer    chan error
+	chConsumer    chan error
+	ctxParent     context.Context
+	ctxWithCancel contextWithCancel
 }
 
 const (
@@ -49,7 +52,7 @@ const (
 )
 
 func newL1SyncOrchestration(ctx context.Context, producer l1RollupProducerInterface, consumer l1RollupConsumerInterface) *l1SyncOrchestration {
-	return &l1SyncOrchestration{
+	res := l1SyncOrchestration{
 		producer:        producer,
 		consumer:        consumer,
 		producerRunning: false,
@@ -58,6 +61,8 @@ func newL1SyncOrchestration(ctx context.Context, producer l1RollupProducerInterf
 		chConsumer:      make(chan error, 1),
 		ctxParent:       ctx,
 	}
+	res.ctxWithCancel.createWithCancel(ctx)
+	return &res
 }
 
 func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
@@ -72,9 +77,16 @@ func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
 
 func (l *l1SyncOrchestration) start(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	l.isRunning = true
-	l.launchProducer(l.ctxParent, l.chProducer, &l.wg)
-	l.launchConsumer(l.ctxParent, lastEthBlockSynced, l.chConsumer, &l.wg)
+	l.launchProducer(l.ctxWithCancel.ctx, l.chProducer, &l.wg)
+	l.launchConsumer(l.ctxWithCancel.ctx, lastEthBlockSynced, l.chConsumer, &l.wg)
 	return l.orchestrate(l.ctxParent, &l.wg, l.chProducer, l.chConsumer)
+}
+
+func (l *l1SyncOrchestration) abort() {
+	l.producer.Abort()
+	l.ctxWithCancel.cancel()
+	l.wg.Wait()
+	l.ctxWithCancel.createWithCancel(l.ctxParent)
 }
 
 func (l *l1SyncOrchestration) isProducerRunning() bool {

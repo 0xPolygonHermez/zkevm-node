@@ -90,6 +90,16 @@ func (w *workers) initialize() error {
 	return nil
 }
 
+func (w *workers) howManyRunningWorkers() int {
+	result := 0
+	for _, worker := range w.workers {
+		if !worker.worker.isIdle() {
+			result++
+		}
+	}
+	return result
+}
+
 func (w *workers) stop() {
 	log.Infof("workers: stopping workers %s", w.String())
 	for i := range w.workers {

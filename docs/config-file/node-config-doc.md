@@ -1105,6 +1105,7 @@ UseParallelModeForL1Synchronization=true
 | - [TimeForShowUpStatisticsLog](#Synchronizer_L1ParallelSynchronization_TimeForShowUpStatisticsLog )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
 | - [TimeOutMainLoop](#Synchronizer_L1ParallelSynchronization_TimeOutMainLoop )                                                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
 | - [MinTimeBetweenRetriesForRollupInfo](#Synchronizer_L1ParallelSynchronization_MinTimeBetweenRetriesForRollupInfo )               | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+| - [SwitchToSequentialModeIfIsSynchronized](#Synchronizer_L1ParallelSynchronization_SwitchToSequentialModeIfIsSynchronized )       | No      | boolean | No         | -          | SwitchToSequentialModeIfIsSynchronized if true switch to sequential mode if the system is synchronized                                                                                                                                                      |
 
 #### <a name="Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients"></a>9.5.1. `Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients`
 
@@ -1335,6 +1336,20 @@ TimeOutMainLoop="5m0s"
 ```
 [Synchronizer.L1ParallelSynchronization]
 MinTimeBetweenRetriesForRollupInfo="5s"
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_SwitchToSequentialModeIfIsSynchronized"></a>9.5.10. `Synchronizer.L1ParallelSynchronization.SwitchToSequentialModeIfIsSynchronized`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** SwitchToSequentialModeIfIsSynchronized if true switch to sequential mode if the system is synchronized
+
+**Example setting the default value** (false):
+```
+[Synchronizer.L1ParallelSynchronization]
+SwitchToSequentialModeIfIsSynchronized=false
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`
