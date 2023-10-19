@@ -266,3 +266,25 @@ func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (in
 		return rpcBlock, nil
 	})
 }
+
+// GetNativeBlockHashesInRange return the state root for the blocks in range
+func (z *ZKEVMEndpoints) GetNativeBlockHashesInRange(filter NativeBlockHashBlockRangeFilter) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		fromBlockNumber, toBlockNumber, rpcErr := filter.GetNumericBlockNumbers(ctx, z.cfg, z.state, z.etherman, dbTx)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+
+		nativeBlockHashes, err := z.state.GetNativeBlockHashesInRange(ctx, fromBlockNumber, toBlockNumber, dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if errors.Is(err, state.ErrMaxNativeBlockHashBlockRangeLimitExceeded) {
+			errMsg := fmt.Sprintf(state.ErrMaxNativeBlockHashBlockRangeLimitExceeded.Error(), z.cfg.MaxNativeBlockHashBlockRange)
+			return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash from state", err, true)
+		}
+
+		return nativeBlockHashes, nil
+	})
+}

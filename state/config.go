@@ -41,6 +41,10 @@ type Config struct {
 	// MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs
 	// logs in a single call to the state, if zero it means no limit
 	MaxLogsBlockRange uint64
+
+	// MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying
+	// native block hashes in a single call to the state, if zero it means no limit
+	MaxNativeBlockHashBlockRange uint64
 }
 
 // BatchConfig represents the configuration of the batch constraints
