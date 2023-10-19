@@ -279,6 +279,7 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
+	c.Etherman.IsRollup = c.IsRollup
 	etherman, err := etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config)
 	if err != nil {
 		return nil, err
@@ -314,6 +315,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 			etherManForL1 = append(etherManForL1, eth)
 		}
 	}
+	cfg.Synchronizer.IsRollup = cfg.IsRollup
 	sy, err := synchronizer.NewSynchronizer(
 		cfg.IsTrustedSequencer, etherman, etherManForL1, st, pool, ethTxManager,
 		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer, cfg.Log.Environment == "development",
@@ -421,7 +423,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 	cfg.SequenceSender.ForkUpgradeBatchNumber = cfg.ForkUpgradeBatchNumber
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
-
+	cfg.SequenceSender.IsRollup = cfg.IsRollup
 	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, pk)
 	if err != nil {
 		log.Fatal(err)

@@ -25,6 +25,10 @@ func Test_Defaults(t *testing.T) {
 		expectedValue interface{}
 	}{
 		{
+			path:          "IsRollup",
+			expectedValue: true,
+		},
+		{
 			path:          "Log.Environment",
 			expectedValue: log.LogEnvironment("development"),
 		},
@@ -35,10 +39,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Log.Outputs",
 			expectedValue: []string{"stderr"},
-		},
-		{
-			path:          "Synchronizer.IsRollup",
-			expectedValue: true,
 		},
 		{
 			path:          "Synchronizer.SyncChunkSize",
@@ -153,10 +153,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "SequenceSender.IsRollup",
-			expectedValue: true,
-		},
-		{
 			path:          "SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
@@ -167,10 +163,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "SequenceSender.MaxBatchesForL1",
 			expectedValue: uint64(1000),
-		},
-		{
-			path:          "Etherman.IsRollup",
-			expectedValue: true,
 		},
 		{
 			path:          "Etherman.URL",

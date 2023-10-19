@@ -72,6 +72,8 @@ type Config struct {
 	// This define is a trusted node (`true`) or a permission less (`false`). If you don't known
 	// set to `false`
 	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer"`
+	// IsRollup define if the node should operate a rollup protocol, or a validium one (in case of false)
+	IsRollup bool `mapstructure:"IsRollup"`
 	// Last batch number before  a forkid change (fork upgrade). That implies that
 	// greater batch numbers are going to be trusted but no virtualized neither verified.
 	// So after the batch number `ForkUpgradeBatchNumber` is virtualized and verified you could update

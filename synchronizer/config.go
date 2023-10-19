@@ -7,7 +7,7 @@ import (
 // Config represents the configuration of the synchronizer
 type Config struct {
 	// IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)
-	IsRollup bool `mapstructure:"IsRollup"`
+	IsRollup bool
 	// SyncInterval is the delay interval between reading new rollup information
 	SyncInterval types.Duration `mapstructure:"SyncInterval"`
 	// SyncChunkSize is the number of blocks to sync on each chunk

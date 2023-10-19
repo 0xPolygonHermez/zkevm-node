@@ -1,4 +1,5 @@
 IsTrustedSequencer = true
+IsRollup = false
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -47,7 +48,6 @@ PollMinAllowedGasPriceInterval = "15s"
 	MaxConns = 200
 
 [Etherman]
-IsRollup = false
 URL = "http://zkevm-mock-l1-network-validium:8545"
 ForkIDChunkSize = 20000
 MultiGasProvider = false
@@ -67,7 +67,6 @@ EnableL2SuggestedGasPricePolling = true
 		Port = 8133
 
 [Synchronizer]
-IsRollup = false
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc.
@@ -118,7 +117,6 @@ MaxTxLifetime = "3h"
 		Enabled = true
 
 [SequenceSender]
-IsRollup = false
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 MaxTxSizeForL1 = 131072
