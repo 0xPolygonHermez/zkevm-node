@@ -18,8 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const percentFactor = 100
-
 var (
 	// ErrNotFound indicates an object has not been found for the search criteria used
 	ErrNotFound = errors.New("object not found")

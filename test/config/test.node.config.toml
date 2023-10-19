@@ -38,7 +38,7 @@ DefaultMinGasPriceAllowed = 0
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
 	[Pool.EffectiveGasPrice]
-		Enabled = true
+		Enabled = false
 		L1GasPriceFactor = 0.25
 		ByteGasCost = 16
 		ZeroByteGasCost = 4

@@ -293,14 +293,14 @@
 							"description": "NetProfit is the profit margin to apply to the calculated breakEvenGasPrice",
 							"default": 1
 						},
-						"MarginBreakEven": {
-							"type": "integer",
-							"description": "MarginBreakEven is the max allowed margin percentage between the breakevenGasPrice and gasPriceSigned of a tx",
-							"default": 10
+						"BreakEvenFactor": {
+							"type": "number",
+							"description": "BreakEvenFactor is the factor to apply to the calculated breakevenGasPrice when comparing it with the gasPriceSigned of a tx",
+							"default": 1.1
 						},
-						"FinalDeviation": {
+						"FinalDeviationPct": {
 							"type": "integer",
-							"description": "FinalDeviation is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
+							"description": "FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
 							"default": 10
 						}
 					},
