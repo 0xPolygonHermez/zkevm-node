@@ -67,13 +67,13 @@ func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(c
 		if errTagFound == nil {
 			errSetTag := w.processingRanges.setTagByBlockRange(request.blockRange, controlWorkerFlux{time: time.Now(), retries: ctrl.retries + 1})
 			if errSetTag != nil {
-				log.Warnf("workerDecoratorLimitRetriesByTime: error setting tag %s for blockRange %s", ctrl, request.blockRange.String())
+				log.Warnf("workerDecoratorLimitRetriesByTime: error setting tag %s for blockRange %s err:%s", ctrl, request.blockRange.String(), errSetTag.Error())
 			}
 		} else {
 			ctrl = controlWorkerFlux{time: time.Now(), retries: 0}
 			errAddRange := w.processingRanges.addBlockRangeWithTag(request.blockRange, ctrl)
 			if errAddRange != nil {
-				log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s err:%s", request.blockRange.String(), err.Error())
+				log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s err:%s", request.blockRange.String(), errAddRange.Error())
 			}
 		}
 

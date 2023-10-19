@@ -215,6 +215,31 @@ func TestSORMulticase(t *testing.T) {
 			excpectedLastBlockOnSynchronizer: 140,
 		},
 		{
+			description: "a rollupinfo with data",
+			lastBlock:   100,
+			packages: []l1SyncMessage{
+				*newDataPackage(111, 120),
+				*newDataPackageWithData(121, 130, 125),
+				*newDataPackage(131, latestBlockNumber),
+				*newActionPackage(eventNone),
+				*newDataPackage(131, latestBlockNumber),
+				*newActionPackage(eventNone),
+				*newDataPackage(101, 110),
+				*newDataPackage(131, 140),
+			},
+			expected: []l1SyncMessage{
+				*newDataPackage(101, 110),
+				*newDataPackage(111, 120),
+				*newDataPackageWithData(121, 130, 125),
+				*newDataPackage(131, latestBlockNumber),
+				*newActionPackage(eventNone),
+				*newDataPackage(131, latestBlockNumber),
+				*newActionPackage(eventNone),
+				*newDataPackage(131, 140),
+			},
+			excpectedLastBlockOnSynchronizer: 140,
+		},
+		{
 			description: "two latest empty with control in between",
 			lastBlock:   100,
 			packages: []l1SyncMessage{

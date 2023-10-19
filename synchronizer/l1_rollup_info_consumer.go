@@ -23,6 +23,8 @@ var (
 	errContextCanceled                      = errors.New("consumer:context canceled")
 	errConsumerStopped                      = errors.New("consumer:stopped by request")
 	errConsumerStoppedBecauseIsSynchronized = errors.New("consumer:stopped because is synchronized")
+	errL1Reorg                              = errors.New("consumer: L1 reorg detected")
+	errProducerAndConsumerDesynchronized    = errors.New("consumer: producer and consumer desynchronized")
 )
 
 type configConsumer struct {
@@ -146,13 +148,16 @@ func checkPreviousBlocks(rollupInfo rollupInfoByBlockRangeResult, cachedBlock *s
 	}
 	if cachedBlock.BlockNumber == rollupInfo.previousBlockOfRange.NumberU64() {
 		if cachedBlock.BlockHash != rollupInfo.previousBlockOfRange.Hash() {
-			log.Fatalf("consumer: Previous block %d hash is not the same", cachedBlock.BlockNumber)
+			log.Errorf("consumer: Previous block %d hash is not the same", cachedBlock.BlockNumber)
+			return errL1Reorg
 		}
 		if cachedBlock.ParentHash != rollupInfo.previousBlockOfRange.ParentHash() {
-			log.Fatalf("consumer: Previous block %d parentHash is not the same", cachedBlock.BlockNumber)
+			log.Errorf("consumer: Previous block %d parentHash is not the same", cachedBlock.BlockNumber)
+			return errL1Reorg
 		}
 	} else {
-		log.Fatalf("consumer: Previous block expected:%d != %d is not the same", cachedBlock.BlockNumber, rollupInfo.previousBlockOfRange.NumberU64())
+		log.Errorf("consumer: Previous block expected:%d != %d is not the same", cachedBlock.BlockNumber, rollupInfo.previousBlockOfRange.NumberU64())
+		return errProducerAndConsumerDesynchronized
 	}
 	return nil
 }
