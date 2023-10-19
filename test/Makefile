@@ -393,14 +393,26 @@ stop-grafana: ## Stops the grafana service
 	$(STOPGRAFANA)
 
 .PHONY: run-permissionless
-run-permissionless: run-node ## Runs the trusted and permissionless node
+run-permissionless: run-node run-permissionless-dependencies ## Runs the trusted and permissionless node
 	$(RUNPERMISSIONLESSDB)
 	sleep 3
 	$(RUNPERMISSIONLESSZKPROVER)
 	$(RUNPERMISSIONLESSNODE)
 
 .PHONY: stop-permissionless
-stop-permissionless: stop-node## Stops the permissionless node
+stop-permissionless: stop-node stop-permissionless-dependencies ## Stops the permissionless node
+	$(STOPPERMISSIONLESSNODE)
+
+
+PHONY: run-permissionless-dependencies
+run-permissionless-dependencies:  ## Runs the permissionless dependencies (db + prover) without the node
+	$(RUNPERMISSIONLESSDB)
+	sleep 3
+	$(RUNPERMISSIONLESSZKPROVER)
+	
+
+PHONY: stop-permissionless-dependencies
+stop-permissionless-dependencies:  ## Stop the permissionless dependencies (db + prover) without the node
 	$(STOPPERMISSIONLESSNODE)
 	$(STOPPERMISSIONLESSZKPROVER)
 	$(STOPPERMISSIONLESSDB)

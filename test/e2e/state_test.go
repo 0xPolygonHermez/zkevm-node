@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -32,6 +33,15 @@ func TestStateTransition(t *testing.T) {
 	// Load test vectors
 	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/src/state-transition/no-data/general.json")
 	require.NoError(t, err)
+	var genesisFileAsStr string
+	if operations.IsRollup() {
+		genesisFileAsStr, err = config.LoadGenesisFileAsString("../../test/config/genesis.rollup.json")
+	} else {
+		genesisFileAsStr, err = config.LoadGenesisFileAsString("../../test/config/genesis.validium.json")
+	}
+	require.NoError(t, err)
+	genesisConfig, err := config.LoadGenesisFromJSONString(genesisFileAsStr)
+	require.NoError(t, err)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Description, func(t *testing.T) {
@@ -56,7 +66,7 @@ func TestStateTransition(t *testing.T) {
 			for _, gacc := range testCase.GenesisAccounts {
 				genesisAccounts[gacc.Address] = gacc.Balance.Int
 			}
-			require.NoError(t, opsman.SetGenesisAccountsBalance(genesisAccounts))
+			require.NoError(t, opsman.SetGenesisAccountsBalance(genesisConfig.Genesis.GenesisBlockNum, genesisAccounts))
 
 			// Check initial root
 			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedOldRoot))

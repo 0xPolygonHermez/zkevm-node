@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	forkID = 5
+	forkID5 = 5
 )
 
 func TestForcedBatchesVectorFiles(t *testing.T) {
@@ -32,7 +32,7 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 	if testing.Short() || !operations.IsConcensusRelevant() {
 		t.Skip()
 	}
-	vectorFilesDir := "./../vectors/src/state-transition/forced-tx"
+	vectorFilesDir := "./../vectors/src/state-transition/forced-tx/group3"
 	ctx := context.Background()
 	err := filepath.Walk(vectorFilesDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -64,7 +64,14 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 				log.Info("###################")
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
 				require.NoError(t, opsman.SetGenesis(genesisActions))
-				require.NoError(t, opsman.SetupRollup())
+				if operations.IsRollup() {
+					log.Info("Running test with rollup consensus")
+					err = opsman.SetupRollup()
+				} else {
+					log.Info("Running test with validium consensus")
+					err = opsman.SetupValidium()
+				}
+				require.NoError(t, err)
 
 				// Check initial root
 				log.Info("################################")
@@ -75,7 +82,7 @@ func TestForcedBatchesVectorFiles(t *testing.T) {
 				require.Equal(t, testCase.ExpectedOldStateRoot, actualOldStateRoot.Hex())
 				decodedData, err := hex.DecodeHex(testCase.BatchL2Data)
 				require.NoError(t, err)
-				_, txBytes, _, err := state.DecodeTxs(decodedData, forkID)
+				_, txBytes, _, err := state.DecodeTxs(decodedData, forkID5)
 				forcedBatch, err := sendForcedBatchForVector(t, txBytes, opsman)
 				require.NoError(t, err)
 				actualNewStateRoot := forcedBatch.StateRoot

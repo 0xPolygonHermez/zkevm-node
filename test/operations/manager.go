@@ -142,7 +142,7 @@ func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
 }
 
 // SetGenesisAccountsBalance creates the genesis block in the state.
-func (m *Manager) SetGenesisAccountsBalance(genesisAccounts map[string]big.Int) error {
+func (m *Manager) SetGenesisAccountsBalance(genesisBlockNumber uint64, genesisAccounts map[string]big.Int) error {
 	var genesisActions []*state.GenesisAction
 	for address, balanceValue := range genesisAccounts {
 		action := &state.GenesisAction{
@@ -153,18 +153,12 @@ func (m *Manager) SetGenesisAccountsBalance(genesisAccounts map[string]big.Int) 
 		genesisActions = append(genesisActions, action)
 	}
 
-	return m.SetGenesis(genesisActions)
+	return m.SetGenesis(genesisBlockNumber, genesisActions)
 }
 
-func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
-	var blockNum uint64
-	if IsRollup() {
-		blockNum = GenesisBlockRollup
-	} else {
-		blockNum = GenesisBlockValidium
-	}
+func (m *Manager) SetGenesis(genesisBlockNumber uint64, genesisActions []*state.GenesisAction) error {
 	genesisBlock := state.Block{
-		BlockNumber: blockNum,
+		BlockNumber: genesisBlockNumber,
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
@@ -189,19 +183,13 @@ func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
 }
 
 // SetForkID sets the initial forkID in db for testing purposes
-func (m *Manager) SetForkID(forkID uint64) error {
+func (m *Manager) SetForkID(blockNum uint64, forkID uint64) error {
 	dbTx, err := m.st.BeginStateTransaction(m.ctx)
 	if err != nil {
 		return err
 	}
 
 	// Add initial forkID
-	var blockNum uint64
-	if IsRollup() {
-		blockNum = GenesisBlockRollup
-	} else {
-		blockNum = GenesisBlockValidium
-	}
 	fID := state.ForkIDInterval{
 		FromBatchNumber: 1,
 		ToBatchNumber:   math.MaxUint64,

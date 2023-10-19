@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/config"
-
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
@@ -21,6 +19,16 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	toAddressHex      = "0x4d5Cf5032B2a844602278b01199ED191A86c93ff"
+	gerFinalityBlocks = uint64(250)
+	forkID5           = 5
+)
+
+var (
+	toAddress = common.HexToAddress(toAddressHex)
 )
 
 func TestForcedBatches(t *testing.T) {
@@ -54,7 +62,7 @@ func TestForcedBatches(t *testing.T) {
 	unsignedTx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, unsignedTx)
 	require.NoError(t, err)
-	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID6)
+	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID5)
 	require.NoError(t, err)
 	forcedBatch, err := sendForcedBatch(t, encodedTxs, opsman)
 	require.NoError(t, err)
@@ -68,22 +76,13 @@ func TestForcedBatches(t *testing.T) {
 }
 
 func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *bind.TransactOpts, *ethclient.Client, *big.Int, uint64, *big.Int, uint64) {
+
 	err := operations.Teardown()
 	require.NoError(t, err)
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
-	var genesisFileAsStr string
-	if operations.IsRollup() {
-		genesisFileAsStr, err = config.LoadGenesisFileAsString("../../test/config/genesis.rollup.json")
-	} else {
-		genesisFileAsStr, err = config.LoadGenesisFileAsString("../../test/config/genesis.validium.json")
-	}
-	require.NoError(t, err)
-	genesisConfig, err := config.LoadGenesisFromJSONString(genesisFileAsStr)
-	require.NoError(t, err)
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID6))
 	if operations.IsRollup() {
 		log.Info("Running test with rollup consensus")
 		err = opsman.SetupRollup()
