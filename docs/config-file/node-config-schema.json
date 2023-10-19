@@ -7,6 +7,11 @@
 			"description": "This define is a trusted node (`true`) or a permission less (`false`). If you don't known\nset to `false`",
 			"default": false
 		},
+		"IsRollup": {
+			"type": "boolean",
+			"description": "IsRollup define if the node should operate a rollup protocol, or a validium one (in case of false)",
+			"default": true
+		},
 		"ForkUpgradeBatchNumber": {
 			"type": "integer",
 			"description": "Last batch number before  a forkid change (fork upgrade). That implies that\ngreater batch numbers are going to be trusted but no virtualized neither verified.\nSo after the batch number `ForkUpgradeBatchNumber` is virtualized and verified you could update\nthe system (SC,...) to new forkId and remove this value to allow the system to keep\nVirtualizing and verifying the new batchs.\nCheck issue [#2236](https://github.com/0xPolygonHermez/zkevm-node/issues/2236) to known more\nThis value overwrite `SequenceSender.ForkUpgradeBatchNumber`",
@@ -62,7 +67,7 @@
 				"IsRollup": {
 					"type": "boolean",
 					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)",
-					"default": true
+					"default": false
 				},
 				"URL": {
 					"type": "string",
@@ -394,7 +399,7 @@
 				"IsRollup": {
 					"type": "boolean",
 					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)",
-					"default": true
+					"default": false
 				},
 				"SyncInterval": {
 					"type": "string",
@@ -797,7 +802,7 @@
 				"IsRollup": {
 					"type": "boolean",
 					"description": "IsRollup indicates if the sequence sender is supposed to use a rollup consensus (if false it asumes validium)",
-					"default": true
+					"default": false
 				},
 				"WaitPeriodSendSequence": {
 					"type": "string",
