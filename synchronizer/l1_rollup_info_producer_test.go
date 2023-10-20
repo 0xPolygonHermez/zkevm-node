@@ -24,7 +24,8 @@ func TestExploratoryL1Get(t *testing.T) {
 
 	err := sut.initialize(context.Background())
 	require.NoError(t, err)
-	sut.launchWork()
+	_, err = sut.launchWork()
+	require.NoError(t, err)
 }
 
 func TestGivenNeedSyncWhenStartThenAskForRollupInfo(t *testing.T) {
@@ -33,7 +34,8 @@ func TestGivenNeedSyncWhenStartThenAskForRollupInfo(t *testing.T) {
 	expectedRollupInfoCalls(t, ethermans[1], 1)
 	err := sut.initialize(context.Background())
 	require.NoError(t, err)
-	sut.launchWork()
+	_, err = sut.launchWork()
+	require.NoError(t, err)
 	var waitDuration = time.Duration(0)
 
 	sut.step(&waitDuration)

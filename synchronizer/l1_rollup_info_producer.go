@@ -35,10 +35,6 @@ const (
 	lenCommandsChannels                           = 5
 )
 
-var (
-	errStucked = errors.New("producer: stucked")
-)
-
 type filter interface {
 	ToStringBrief() string
 	Filter(data l1SyncMessage) []l1SyncMessage

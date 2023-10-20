@@ -57,7 +57,6 @@ func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(c
 			log.Infof("workerDecoratorLimitRetriesByTime: br:%s retries:%d last call elapsed time %s < %s, sleeping %s", request.blockRange.String(), ctrl.retries, lastCallElapsedTime, w.minTimeBetweenCalls, sleepTime)
 			request.sleepBefore = sleepTime - request.sleepBefore
 		}
-
 	}
 
 	res, err := w.workersInterface.asyncRequestRollupInfoByBlockRange(ctx, request)
@@ -76,7 +75,6 @@ func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(c
 				log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s err:%s", request.blockRange.String(), errAddRange.Error())
 			}
 		}
-
 	}
 	w.cleanUpOlderThanUnsafe(cleanUpOlderThan)
 	return res, err

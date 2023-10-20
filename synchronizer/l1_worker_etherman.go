@@ -138,7 +138,8 @@ func (r *rollupInfoByBlockRangeResult) getHighestBlockReceived() *state.Block {
 	}
 	for _, block := range r.blocks {
 		if highest == nil || block.BlockNumber > highest.BlockNumber {
-			stateBlock := convertEthmanBlockToStateBlock(&block)
+			blockCopy := block
+			stateBlock := convertEthmanBlockToStateBlock(&blockCopy)
 			highest = &stateBlock
 		}
 	}
