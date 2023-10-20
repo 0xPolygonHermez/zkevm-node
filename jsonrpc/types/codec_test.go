@@ -106,14 +106,14 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			expectedBlockNumber: 40,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
-				liSafeBlock := uint64(30)
+				safeBlockNumber := uint64(30)
 				e.
 					On("GetSafeBlockNumber", context.Background()).
-					Return(liSafeBlock, nil).
+					Return(safeBlockNumber, nil).
 					Once()
 
 				s.
-					On("GetSafeL2BlockNumber", context.Background(), liSafeBlock, d).
+					On("GetLastVerifiedL2BlockNumberUntilL1Block", context.Background(), safeBlockNumber, d).
 					Return(uint64(40), nil).
 					Once()
 			},
@@ -124,14 +124,14 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			expectedBlockNumber: 60,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
-				liFinalizedBlock := uint64(50)
+				finalizedBlockNumber := uint64(50)
 				e.
 					On("GetFinalizedBlockNumber", context.Background()).
-					Return(liFinalizedBlock, nil).
+					Return(finalizedBlockNumber, nil).
 					Once()
 
 				s.
-					On("GetFinalizedL2BlockNumber", context.Background(), liFinalizedBlock, d).
+					On("GetLastVerifiedL2BlockNumberUntilL1Block", context.Background(), finalizedBlockNumber, d).
 					Return(uint64(60), nil).
 					Once()
 			},
@@ -187,7 +187,7 @@ func TestGetNumericBatchNumber(t *testing.T) {
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
 				s.
-					On("GetLastBatchNumber", context.Background(), d).
+					On("GetLastClosedBatchNumber", context.Background(), d).
 					Return(uint64(40), nil).
 					Once()
 			},
@@ -199,7 +199,7 @@ func TestGetNumericBatchNumber(t *testing.T) {
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
 				s.
-					On("GetLastBatchNumber", context.Background(), d).
+					On("GetLastClosedBatchNumber", context.Background(), d).
 					Return(uint64(50), nil).
 					Once()
 			},
@@ -207,12 +207,12 @@ func TestGetNumericBatchNumber(t *testing.T) {
 		{
 			name:                "BatchNumber PendingBatchNumber",
 			bn:                  ptr(PendingBatchNumber),
-			expectedBatchNumber: 30,
+			expectedBatchNumber: 90,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
 				s.
 					On("GetLastBatchNumber", context.Background(), d).
-					Return(uint64(30), nil).
+					Return(uint64(90), nil).
 					Once()
 			},
 		},
@@ -229,14 +229,14 @@ func TestGetNumericBatchNumber(t *testing.T) {
 			expectedBatchNumber: 40,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
-				l1Block := uint64(30)
+				safeBlockNumber := uint64(30)
 				e.
 					On("GetSafeBlockNumber", context.Background()).
-					Return(l1Block, nil).
+					Return(safeBlockNumber, nil).
 					Once()
 
 				s.
-					On("GetLastVirtualizedBatchNumberUntilL1Block", context.Background(), l1Block, d).
+					On("GetLastVerifiedBatchNumberUntilL1Block", context.Background(), safeBlockNumber, d).
 					Return(uint64(40), nil).
 					Once()
 			},
@@ -247,14 +247,14 @@ func TestGetNumericBatchNumber(t *testing.T) {
 			expectedBatchNumber: 60,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
-				l1Block := uint64(50)
+				finalizedBlockNumber := uint64(50)
 				e.
 					On("GetFinalizedBlockNumber", context.Background()).
-					Return(l1Block, nil).
+					Return(finalizedBlockNumber, nil).
 					Once()
 
 				s.
-					On("GetLastVirtualizedBatchNumberUntilL1Block", context.Background(), l1Block, d).
+					On("GetLastVerifiedBatchNumberUntilL1Block", context.Background(), finalizedBlockNumber, d).
 					Return(uint64(60), nil).
 					Once()
 			},
