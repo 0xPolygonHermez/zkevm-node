@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -9,12 +10,17 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
+	nodeConfig "github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/config"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/fatih/color"
+	"github.com/google/uuid"
 	"github.com/urfave/cli/v2"
 )
 
@@ -25,6 +31,13 @@ var (
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
 		Usage:    "Configuration `FILE`",
+		Required: false,
+	}
+
+	genesisFileFlag = cli.StringFlag{
+		Name:     config.FlagGenesis,
+		Aliases:  []string{"g"},
+		Usage:    "Genesis `FILE`",
 		Required: false,
 	}
 
@@ -49,6 +62,7 @@ func main() {
 
 	flags := []cli.Flag{
 		&configFileFlag,
+		&genesisFileFlag,
 		&entryFlag,
 		&l2blockFlag,
 	}
@@ -62,17 +76,10 @@ func main() {
 			Flags:   flags,
 		},
 		{
-			Name:    "validate",
+			Name:    "reprocess",
 			Aliases: []string{},
-			Usage:   "Validate stream file form scratch",
-			Action:  validate,
-			Flags:   flags,
-		},
-		{
-			Name:    "rebuild",
-			Aliases: []string{},
-			Usage:   "Rebuild state roots from a block",
-			Action:  rebuild,
+			Usage:   "Reprocess l2block since genesis up to a given l2 block",
+			Action:  reprocess,
 			Flags:   flags,
 		},
 		{
@@ -122,6 +129,11 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 			StreamType: state.StreamTypeSequencer,
 			Definition: reflect.TypeOf(state.DSL2BlockEnd{}),
 		},
+		state.EntryTypeUpdateGER: {
+			Name:       "UpdateGER",
+			StreamType: state.StreamTypeSequencer,
+			Definition: reflect.TypeOf(state.DSUpdateGER{}),
+		},
 	}
 
 	streamServer.SetEntriesDef(entriesDefinition)
@@ -135,7 +147,6 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 }
 
 func generate(cliCtx *cli.Context) error {
-	var skipBookMark, skipL2BlockStart bool
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		log.Fatal(err)
@@ -155,195 +166,7 @@ func generate(cliCtx *cli.Context) error {
 	stateDB := state.NewPostgresStorage(state.Config{}, stateSqlDB)
 	log.Debug("Connected to the database")
 
-	header := streamServer.GetHeader()
-
-	var currentL2Block uint64
-	var currentTxIndex uint64
-
-	if header.TotalEntries == 0 {
-		// Get Genesis block
-		genesisL2Block, err := stateDB.GetDSGenesisBlock(cliCtx.Context, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = streamServer.StartAtomicOp()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		bookMark := state.DSBookMark{
-			Type:          state.BookMarkTypeL2Block,
-			L2BlockNumber: genesisL2Block.L2BlockNumber,
-		}
-
-		_, err = streamServer.AddStreamBookmark(bookMark.Encode())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		genesisBlock := state.DSL2BlockStart{
-			BatchNumber:    genesisL2Block.BatchNumber,
-			L2BlockNumber:  genesisL2Block.L2BlockNumber,
-			Timestamp:      genesisL2Block.Timestamp,
-			GlobalExitRoot: genesisL2Block.GlobalExitRoot,
-			Coinbase:       genesisL2Block.Coinbase,
-			ForkID:         genesisL2Block.ForkID,
-		}
-
-		log.Infof("Genesis block: %+v", genesisBlock)
-
-		_, err = streamServer.AddStreamEntry(1, genesisBlock.Encode())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		genesisBlockEnd := state.DSL2BlockEnd{
-			L2BlockNumber: genesisL2Block.L2BlockNumber,
-			BlockHash:     genesisL2Block.BlockHash,
-			StateRoot:     genesisL2Block.StateRoot,
-		}
-
-		_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, genesisBlockEnd.Encode())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = streamServer.CommitAtomicOp()
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		latestEntry, err := streamServer.GetEntry(header.TotalEntries - 1)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.Infof("Latest entry: %+v", latestEntry)
-
-		switch latestEntry.Type {
-		case state.EntryTypeBookMark:
-			log.Info("Latest entry type is BookMark")
-			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[1:9])
-			skipBookMark = true
-			currentL2Block--
-		case state.EntryTypeL2BlockStart:
-			log.Info("Latest entry type is L2BlockStart")
-			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
-			skipBookMark = true
-			skipL2BlockStart = true
-			currentL2Block--
-		case state.EntryTypeL2Tx:
-			log.Info("Latest entry type is L2Tx")
-			for latestEntry.Type == state.EntryTypeL2Tx {
-				currentTxIndex++
-				latestEntry, err = streamServer.GetEntry(header.TotalEntries - currentTxIndex)
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-			if latestEntry.Type != state.EntryTypeL2BlockStart {
-				log.Fatal("Latest entry is not a L2BlockStart")
-			}
-			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
-			currentL2Block--
-		case state.EntryTypeL2BlockEnd:
-			log.Info("Latest entry type is L2BlockEnd")
-			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[0:8])
-		}
-	}
-
-	log.Infof("Current transaction index: %d", currentTxIndex)
-	log.Infof("Current L2 block number: %d", currentL2Block)
-
-	var limit uint64 = c.QuerySize
-	var offset uint64 = currentL2Block
-	var entry uint64 = header.TotalEntries
-	var l2blocks []*state.DSL2Block
-
-	if entry > 0 {
-		entry--
-	}
-
-	for err == nil {
-		log.Infof("Current entry number: %d", entry)
-
-		l2blocks, err = stateDB.GetDSL2Blocks(cliCtx.Context, limit, offset, nil)
-		offset += limit
-		if len(l2blocks) == 0 {
-			break
-		}
-		// Get transactions for all the retrieved l2 blocks
-		l2Transactions, err := stateDB.GetDSL2Transactions(cliCtx.Context, l2blocks[0].L2BlockNumber, l2blocks[len(l2blocks)-1].L2BlockNumber, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = streamServer.StartAtomicOp()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		for x, l2block := range l2blocks {
-			if currentTxIndex > 0 {
-				x += int(currentTxIndex)
-				currentTxIndex = 0
-			}
-
-			blockStart := state.DSL2BlockStart{
-				BatchNumber:    l2block.BatchNumber,
-				L2BlockNumber:  l2block.L2BlockNumber,
-				Timestamp:      l2block.Timestamp,
-				GlobalExitRoot: l2block.GlobalExitRoot,
-				Coinbase:       l2block.Coinbase,
-				ForkID:         l2block.ForkID,
-			}
-
-			bookMark := state.DSBookMark{
-				Type:          state.BookMarkTypeL2Block,
-				L2BlockNumber: blockStart.L2BlockNumber,
-			}
-
-			if !skipBookMark {
-				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
-				if err != nil {
-					log.Fatal(err)
-				}
-			} else {
-				skipBookMark = false
-			}
-
-			if !skipL2BlockStart {
-				_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
-				if err != nil {
-					log.Fatal(err)
-				}
-			} else {
-				skipL2BlockStart = false
-			}
-
-			entry, err = streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transactions[x].Encode())
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			blockEnd := state.DSL2BlockEnd{
-				L2BlockNumber: l2block.L2BlockNumber,
-				BlockHash:     l2block.BlockHash,
-				StateRoot:     l2block.StateRoot,
-			}
-
-			_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, blockEnd.Encode())
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		err = streamServer.CommitAtomicOp()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
+	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -353,76 +176,7 @@ func generate(cliCtx *cli.Context) error {
 	return nil
 }
 
-func validate(cliCtx *cli.Context) error {
-	c, err := config.Load(cliCtx)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	streamServer, err := initializeStreamServer(c)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	header := streamServer.GetHeader()
-
-	currentEntryNumber := uint64(0)
-	currentBookMarkBlock := uint64(0)
-	currentL2BLockStart := uint64(0)
-	currentL2BlockEnd := uint64(0)
-	previousEntryNumber := uint64(0)
-	previousBookMarkBlock := uint64(0)
-	previousL2BLockStart := uint64(0)
-	previousL2BlockEnd := uint64(0)
-
-	for i := uint64(0); i < header.TotalEntries; i++ {
-		entry, err := streamServer.GetEntry(i)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		currentEntryNumber = entry.Number
-
-		if currentEntryNumber != previousEntryNumber+1 && currentEntryNumber != 0 && previousEntryNumber != 0 {
-			log.Fatalf("Entry number %d does not match previous entry number %d", currentEntryNumber, previousEntryNumber)
-		}
-
-		previousEntryNumber = currentEntryNumber
-
-		switch entry.Type {
-		case state.EntryTypeBookMark:
-			currentBookMarkBlock = binary.LittleEndian.Uint64(entry.Data[1:9])
-			if currentBookMarkBlock != previousBookMarkBlock+1 && currentBookMarkBlock != 0 && previousBookMarkBlock != 0 {
-				log.Fatalf("BookMark block %d does not match previous BookMark block %d for entry %d", currentBookMarkBlock, previousBookMarkBlock, currentEntryNumber)
-			}
-			if currentBookMarkBlock != currentL2BLockStart+1 && currentBookMarkBlock != 0 && currentL2BLockStart != 0 {
-				log.Fatalf("BookMark block %d does not match L2BlockStart block %d for entry %d", currentBookMarkBlock, currentL2BLockStart, currentEntryNumber)
-			}
-			previousBookMarkBlock = currentBookMarkBlock
-		case state.EntryTypeL2BlockStart:
-			currentL2BLockStart = binary.LittleEndian.Uint64(entry.Data[8:16])
-			if currentL2BLockStart != previousL2BLockStart+1 && currentL2BLockStart != 0 && previousL2BLockStart != 0 {
-				log.Fatalf("L2BlockStart block %d does not match previous L2BlockStart block %d for entry %d", currentL2BLockStart, previousL2BLockStart, currentEntryNumber)
-			}
-			previousL2BLockStart = currentL2BLockStart
-		case state.EntryTypeL2BlockEnd:
-			currentL2BlockEnd = binary.LittleEndian.Uint64(entry.Data[0:8])
-			if currentL2BlockEnd != previousL2BlockEnd+1 && currentL2BlockEnd != 0 && previousL2BlockEnd != 0 {
-				log.Fatalf("L2BlockEnd block %d does not match previous L2BlockEnd block %d for entry %d", currentL2BlockEnd, previousL2BlockEnd, currentEntryNumber)
-			}
-			if currentL2BLockStart != currentL2BlockEnd && currentL2BLockStart != 0 && currentL2BlockEnd != 0 {
-				log.Fatalf("L2BlockStart block %d does not match L2BlockEnd block %d for entry %d", currentL2BLockStart, currentL2BlockEnd, currentEntryNumber)
-			}
-			previousL2BlockEnd = currentL2BlockEnd
-		}
-	}
-
-	log.Infof("File looks good")
-
-	return nil
-}
-
-func rebuild(cliCtx *cli.Context) error {
+func reprocess(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		log.Fatal(err)
@@ -430,125 +184,207 @@ func rebuild(cliCtx *cli.Context) error {
 
 	ctx := cliCtx.Context
 
+	genesisFileAsStr, err := nodeConfig.LoadGenesisFileAsString(cliCtx.String(config.FlagGenesis))
+	if err != nil {
+		panic(fmt.Errorf("failed to load genesis file. Error: %v", err))
+	}
+
+	networkConfig, err := nodeConfig.LoadGenesisFromJSONString(genesisFileAsStr)
+	if err != nil {
+		panic(fmt.Errorf("failed to load genesis configuration from file. Error: %v", err))
+	}
+
+	// Load and apply genesis
+	log.Debugf("Loaded genesis file: %+v", networkConfig.Genesis)
+
+	printColored(color.FgHiYellow, "\n\nSetting Genesis block\n\n")
+
+	mtDBServerConfig := merkletree.Config{URI: c.MerkeTree.URI}
+	var mtDBCancel context.CancelFunc
+	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	s := mtDBClientConn.GetState()
+	log.Debugf("stateDbClientConn state: %s", s.String())
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+	}()
+
+	stateTree := merkletree.NewStateTree(mtDBServiceClient)
+
+	stateRoot, err := setGenesis(ctx, stateTree, networkConfig.Genesis)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Debugf("Genesis state root: %s", "0x", common.Bytes2Hex(stateRoot))
+
+	// Get Genesis block from the file and validate the state root
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	oldEndEntry, err := streamServer.GetEntry(1)
+	bookMark := state.DSBookMark{
+		Type:          state.BookMarkTypeL2Block,
+		L2BlockNumber: 0,
+	}
+
+	firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
 	if err != nil {
 		log.Fatal(err)
 	}
+	printEntry(firstEntry, streamServer)
 
-	log.Infof("oldEndEntry: %+v", oldEndEntry)
-
-	startEntry, err := streamServer.GetEntry(2) //nolint:gomnd
+	secondEntry, err := streamServer.GetEntry(firstEntry.Number + 1)
 	if err != nil {
 		log.Fatal(err)
 	}
+	printEntry(secondEntry, streamServer)
 
-	log.Infof("startEntry: %+v", startEntry)
-	log.Infof("Length of data in startEntry: %d", len(startEntry.Data))
-
-	txEntry, err := streamServer.GetEntry(3) //nolint:gomnd
-	if err != nil {
-		log.Fatal(err)
+	if common.Bytes2Hex(stateRoot) != common.Bytes2Hex(secondEntry.Data[40:72]) {
+		printColored(color.FgRed, "\nGenesis state root does not match\n\n")
+	} else {
+		printColored(color.FgGreen, "\nGenesis state root matches\n\n")
 	}
 
-	log.Infof("txEntry: %+v", txEntry)
-
-	endEntry, err := streamServer.GetEntry(4) //nolint:gomnd
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Infof("endEntry: %+v", endEntry)
-
-	forkID := uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78]))
-
-	tx, err := state.DecodeTx(string(txEntry.Data[6:]))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// RLP encode the transaction using the proper fork id
-	batchL2Data, err := state.EncodeTransaction(*tx, 255, forkID) //nolint:gomnd
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	processBatchRequest := &executor.ProcessBatchRequest{
-		OldBatchNum:      uint64(startEntry.Data[0]) - 1,
-		Coinbase:         common.Bytes2Hex(startEntry.Data[56:76]),
-		BatchL2Data:      batchL2Data,
-		OldStateRoot:     oldEndEntry.Data[40:72],
-		GlobalExitRoot:   startEntry.Data[23:55],
-		OldAccInputHash:  []byte{},
-		EthTimestamp:     binary.LittleEndian.Uint64(startEntry.Data[16:24]),
-		UpdateMerkleTree: uint32(0),
-		ChainId:          1001, //nolint:gomnd
-		ForkId:           uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78])),
-	}
-
-	log.Infof("ProcessBatchRequest: %+v", processBatchRequest)
-
-	log.Infof("Old state root:    %s", common.Bytes2Hex(processBatchRequest.OldStateRoot))
-	log.Infof("Expected new root: %s", common.Bytes2Hex(endEntry.Data[40:72]))
-	log.Infof("Batch L2 data:     %s", common.Bytes2Hex(processBatchRequest.BatchL2Data))
-	log.Infof("Coinbase:          %s", processBatchRequest.Coinbase)
-	log.Infof("Timestamp:         %d", processBatchRequest.EthTimestamp)
-	log.Infof("Fork id:           %d", processBatchRequest.ForkId)
-
-	/*
-		if processBatchRequest.ForkId >= 5 {
-			processBatchRequest.BatchL2Data = append(processBatchRequest.BatchL2Data, byte(255))
-		}
-	*/
+	maxL2BlockNumber := cliCtx.Uint64("l2block")
 
 	// Connect to the executor
 	executorClient, executorClientConn, executorCancel := executor.NewExecutorClient(ctx, c.Executor)
-	s := executorClientConn.GetState()
-	log.Infof("executorClientConn state: %s", s.String())
+	s = executorClientConn.GetState()
+	log.Debugf("executorClientConn state: %s", s.String())
 	defer func() {
 		executorCancel()
 		executorClientConn.Close()
 	}()
 
-	/*
-		mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", "toni-prover")}
-		var mtDBCancel context.CancelFunc
-		mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
-		s = mtDBClientConn.GetState()
-		log.Infof("stateDbClientConn state: %s", s.String())
-		defer func() {
-			mtDBCancel()
-			mtDBClientConn.Close()
-		}()
+	currentL2BlockNumber := uint64(1)
 
-		stateTree := merkletree.NewStateTree(mtDBServiceClient)
+	bookMark = state.DSBookMark{
+		Type:          state.BookMarkTypeL2Block,
+		L2BlockNumber: currentL2BlockNumber,
+	}
 
-		// Connect to MT
-		nonce, err := stateTree.GetNonce(ctx, sender, processBatchRequest.OldStateRoot)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.Infof("Nonce in MT: %d", nonce)
-	*/
-
-	// Process batch
-	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	startEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
-		log.Fatal(processBatchResponse.Error)
+	var previousStateRoot = stateRoot
+
+	for x := startEntry.Number; currentL2BlockNumber < maxL2BlockNumber; x++ {
+		printColored(color.FgHiYellow, fmt.Sprintf("\nProcessing entity: %d\n", x))
+
+		currentEntry, err := streamServer.GetEntry(x)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var processBatchRequest *executor.ProcessBatchRequest
+		var expectedNewRoot []byte
+
+		switch currentEntry.Type {
+		case state.EntryTypeBookMark:
+			printEntry(currentEntry, streamServer)
+			continue
+		case state.EntryTypeUpdateGER:
+			printEntry(currentEntry, streamServer)
+			processBatchRequest = &executor.ProcessBatchRequest{
+				OldBatchNum:      uint64(currentEntry.Data[0]) - 1,
+				Coinbase:         common.Bytes2Hex(currentEntry.Data[48:68]),
+				BatchL2Data:      nil,
+				OldStateRoot:     previousStateRoot,
+				GlobalExitRoot:   currentEntry.Data[16:48],
+				OldAccInputHash:  []byte{},
+				EthTimestamp:     binary.LittleEndian.Uint64(currentEntry.Data[8:16]),
+				UpdateMerkleTree: uint32(1),
+				ChainId:          1440, //nolint:gomnd
+				ForkId:           uint64(binary.LittleEndian.Uint16(currentEntry.Data[68:70])),
+			}
+
+			expectedNewRoot = currentEntry.Data[70:102]
+		case state.EntryTypeL2BlockStart:
+			startEntry = currentEntry
+			printEntry(startEntry, streamServer)
+
+			txEntry, err := streamServer.GetEntry(startEntry.Number + 1)
+			if err != nil {
+				log.Fatal(err)
+			}
+			printEntry(txEntry, streamServer)
+
+			endEntry, err := streamServer.GetEntry(startEntry.Number + 2) //nolint:gomnd
+			if err != nil {
+				log.Fatal(err)
+			}
+			printEntry(endEntry, streamServer)
+
+			forkID := uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78]))
+
+			tx, err := state.DecodeTx(common.Bytes2Hex((txEntry.Data[6:])))
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			// Get the old state root
+			l2BlockNumber := binary.LittleEndian.Uint64(startEntry.Data[8:16])
+			oldStateRoot := getOldStateRoot(startEntry.Number, streamServer)
+
+			// RLP encode the transaction using the proper fork id
+			batchL2Data, err := state.EncodeTransaction(*tx, txEntry.Data[0], forkID) //nolint:gomnd
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			processBatchRequest = &executor.ProcessBatchRequest{
+				OldBatchNum:      uint64(startEntry.Data[0]) - 1,
+				Coinbase:         common.Bytes2Hex(startEntry.Data[56:76]),
+				BatchL2Data:      batchL2Data,
+				OldStateRoot:     oldStateRoot,
+				GlobalExitRoot:   startEntry.Data[24:56],
+				OldAccInputHash:  []byte{},
+				EthTimestamp:     binary.LittleEndian.Uint64(startEntry.Data[16:24]),
+				UpdateMerkleTree: uint32(1),
+				ChainId:          1440, //nolint:gomnd
+				ForkId:           uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78])),
+			}
+
+			expectedNewRoot = endEntry.Data[40:72]
+			currentL2BlockNumber = l2BlockNumber
+			x += 2 //nolint:gomnd
+		}
+
+		log.Debugf("Old state root:    %s", common.Bytes2Hex(processBatchRequest.OldStateRoot))
+		log.Debugf("Expected new root: %s", common.Bytes2Hex(expectedNewRoot))
+		log.Debugf("Global exit root:  %s", common.Bytes2Hex(processBatchRequest.GlobalExitRoot))
+		log.Debugf("Batch L2 data:     %s", common.Bytes2Hex(processBatchRequest.BatchL2Data))
+		log.Debugf("Coinbase:          %s", processBatchRequest.Coinbase)
+		log.Debugf("Timestamp:         %d", processBatchRequest.EthTimestamp)
+		log.Debugf("Fork id:           %d", processBatchRequest.ForkId)
+
+		// Process batch
+		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Infof("ProcessBatchResponse: %+v", processBatchResponse)
+
+		if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+			log.Fatal(processBatchResponse.Error)
+		}
+
+		if common.Bytes2Hex(processBatchResponse.NewStateRoot) != common.Bytes2Hex(expectedNewRoot) {
+			printColored(color.FgRed, "\nNew state root does not match\n\n")
+			printColored(color.FgRed, fmt.Sprintf("Old State Root.........: %s\n", "0x"+common.Bytes2Hex(processBatchRequest.GetOldStateRoot())))
+			printColored(color.FgRed, fmt.Sprintf("New State Root.........: %s\n", "0x"+common.Bytes2Hex(processBatchResponse.NewStateRoot)))
+			printColored(color.FgRed, fmt.Sprintf("Expected New State Root: %s\n", "0x"+common.Bytes2Hex(expectedNewRoot)))
+			break
+		} else {
+			printColored(color.FgGreen, "New state root matches\n")
+			previousStateRoot = processBatchResponse.NewStateRoot
+		}
 	}
-
-	log.Infof("ProcessBatchResponse: %+v", processBatchResponse)
-
-	log.Infof("New root: %s", common.Bytes2Hex(processBatchResponse.NewStateRoot))
 
 	return nil
 }
@@ -568,9 +404,6 @@ func decodeEntry(cliCtx *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	printColored(color.FgGreen, "Decoding entry..: ")
-	printColored(color.FgHiWhite, fmt.Sprintf("%d\n", entry.Number))
 
 	printEntry(entry, streamServer)
 
@@ -621,14 +454,18 @@ func decodeL2Block(cliCtx *cli.Context) error {
 func printEntry(entry datastreamer.FileEntry, streamServer *datastreamer.StreamServer) {
 	switch entry.Type {
 	case state.EntryTypeBookMark:
-		printColored(color.FgGreen, "Entry type......: ")
-		printColored(color.FgHiWhite, "BookMark\n")
+		printColored(color.FgGreen, "Entry Type......: ")
+		printColored(color.FgHiYellow, "BookMark\n")
+		printColored(color.FgGreen, "Entry Number....: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", entry.Number))
 		printColored(color.FgGreen, "L2 Block Number.: ")
 		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[1:9])
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", l2BlockNumber))
 	case state.EntryTypeL2BlockStart:
-		printColored(color.FgGreen, "Entry type......: ")
-		printColored(color.FgHiWhite, "L2 Block Start\n")
+		printColored(color.FgGreen, "Entry Type......: ")
+		printColored(color.FgHiYellow, "L2 Block Start\n")
+		printColored(color.FgGreen, "Entry Number....: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", entry.Number))
 		printColored(color.FgGreen, "Batch Number....: ")
 		batchNumber := binary.LittleEndian.Uint64(entry.Data[0:8])
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", batchNumber))
@@ -648,8 +485,10 @@ func printEntry(entry datastreamer.FileEntry, streamServer *datastreamer.StreamS
 		printColored(color.FgGreen, "Fork ID.........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", forkID))
 	case state.EntryTypeL2Tx:
-		printColored(color.FgGreen, "Entry type......: ")
-		printColored(color.FgHiWhite, "L2 Transaction\n")
+		printColored(color.FgGreen, "Entry Type......: ")
+		printColored(color.FgHiYellow, "L2 Transaction\n")
+		printColored(color.FgGreen, "Entry Number....: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", entry.Number))
 		printColored(color.FgGreen, "Effec. Gas Price: ")
 		effectiveGasPricePercentage := entry.Data[0]
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", effectiveGasPricePercentage))
@@ -679,8 +518,10 @@ func printEntry(entry datastreamer.FileEntry, streamServer *datastreamer.StreamS
 		printColored(color.FgGreen, "Nonce...........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", nonce))
 	case state.EntryTypeL2BlockEnd:
-		printColored(color.FgGreen, "Entry type......: ")
-		printColored(color.FgHiWhite, "L2 Block End\n")
+		printColored(color.FgGreen, "Entry Type......: ")
+		printColored(color.FgHiYellow, "L2 Block End\n")
+		printColored(color.FgGreen, "Entry Number....: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", entry.Number))
 		printColored(color.FgGreen, "L2 Block Number.: ")
 		l2BlockNumber := binary.LittleEndian.Uint64(entry.Data[0:8])
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", l2BlockNumber))
@@ -688,10 +529,141 @@ func printEntry(entry datastreamer.FileEntry, streamServer *datastreamer.StreamS
 		printColored(color.FgHiWhite, fmt.Sprint("0x"+common.Bytes2Hex(entry.Data[8:40])+"\n"))
 		printColored(color.FgGreen, "State Root......: ")
 		printColored(color.FgHiWhite, fmt.Sprint("0x"+common.Bytes2Hex(entry.Data[40:72])+"\n"))
+	case state.EntryTypeUpdateGER:
+		printColored(color.FgGreen, "Entry Type......: ")
+		printColored(color.FgHiYellow, "Update GER\n")
+		printColored(color.FgGreen, "Entry Number....: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", entry.Number))
+		printColored(color.FgGreen, "Batch Number....: ")
+		batchNumber := binary.LittleEndian.Uint64(entry.Data[0:8])
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", batchNumber))
+		timestamp := binary.LittleEndian.Uint64(entry.Data[8:16])
+		printColored(color.FgGreen, "Timestamp.......: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%v (%d)\n", time.Unix(int64(timestamp), 0), timestamp))
+		globalExitRoot := "0x" + common.Bytes2Hex(entry.Data[16:48])
+		printColored(color.FgGreen, "Global Exit Root: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", globalExitRoot))
+		coinbase := "0x" + common.Bytes2Hex(entry.Data[48:68])
+		printColored(color.FgGreen, "Coinbase........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", coinbase))
+		forkID := binary.LittleEndian.Uint16(entry.Data[68:70])
+		printColored(color.FgGreen, "Fork ID.........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", forkID))
+		printColored(color.FgGreen, "State Root......: ")
+		printColored(color.FgHiWhite, fmt.Sprint("0x"+common.Bytes2Hex(entry.Data[70:102])+"\n"))
 	}
 }
 
 func printColored(color color.Attribute, text string) {
 	colored := fmt.Sprintf("\x1b[%dm%s\x1b[0m", color, text)
 	fmt.Print(colored)
+}
+
+// setGenesis populates state with genesis information
+func setGenesis(ctx context.Context, tree *merkletree.StateTree, genesis state.Genesis) ([]byte, error) {
+	var (
+		root    common.Hash
+		newRoot []byte
+		err     error
+	)
+
+	if tree == nil {
+		return newRoot, fmt.Errorf("state tree is nil")
+	}
+
+	uuid := uuid.New().String()
+
+	for _, action := range genesis.GenesisActions {
+		address := common.HexToAddress(action.Address)
+		switch action.Type {
+		case int(merkletree.LeafTypeBalance):
+			balance, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
+			if err != nil {
+				return newRoot, err
+			}
+			newRoot, _, err = tree.SetBalance(ctx, address, balance, newRoot, uuid)
+			if err != nil {
+				return newRoot, err
+			}
+		case int(merkletree.LeafTypeNonce):
+			nonce, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
+			if err != nil {
+				return newRoot, err
+			}
+			newRoot, _, err = tree.SetNonce(ctx, address, nonce, newRoot, uuid)
+			if err != nil {
+				return newRoot, err
+			}
+		case int(merkletree.LeafTypeCode):
+			code, err := hex.DecodeHex(action.Bytecode)
+			if err != nil {
+				return newRoot, fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
+			}
+			newRoot, _, err = tree.SetCode(ctx, address, code, newRoot, uuid)
+			if err != nil {
+				return newRoot, err
+			}
+		case int(merkletree.LeafTypeStorage):
+			// Parse position and value
+			positionBI, err := encoding.DecodeBigIntHexOrDecimal(action.StoragePosition)
+			if err != nil {
+				return newRoot, err
+			}
+			valueBI, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
+			if err != nil {
+				return newRoot, err
+			}
+			// Store
+			newRoot, _, err = tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot, uuid)
+			if err != nil {
+				return newRoot, err
+			}
+		case int(merkletree.LeafTypeSCLength):
+			log.Debug("Skipped genesis action of type merkletree.LeafTypeSCLength, these actions will be handled as part of merkletree.LeafTypeCode actions")
+		default:
+			return newRoot, fmt.Errorf("unknown genesis action type %q", action.Type)
+		}
+	}
+
+	root.SetBytes(newRoot)
+
+	// flush state db
+	err = tree.Flush(ctx, uuid)
+	if err != nil {
+		log.Errorf("error flushing state tree after genesis: %v", err)
+		return newRoot, err
+	}
+
+	return newRoot, nil
+}
+
+func getOldStateRoot(entityNumber uint64, streamServer *datastreamer.StreamServer) []byte {
+	var found = false
+	var entry datastreamer.FileEntry
+	var err error
+
+	for !found && entityNumber > 1 {
+		entityNumber--
+		entry, err = streamServer.GetEntry(entityNumber)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if entry.Type == state.EntryTypeL2BlockEnd || entry.Type == state.EntryTypeUpdateGER {
+			found = true
+		}
+	}
+
+	if !found {
+		log.Fatal("Could not find old state root")
+	}
+
+	printColored(color.FgHiYellow, "Getting Old State Root from\n")
+	printEntry(entry, streamServer)
+
+	if entry.Type == state.EntryTypeUpdateGER {
+		return entry.Data[70:102]
+	}
+
+	return entry.Data[40:72]
 }

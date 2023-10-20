@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"reflect"
@@ -111,6 +110,11 @@ func (s *Sequencer) Start(ctx context.Context) {
 				StreamType: state.StreamTypeSequencer,
 				Definition: reflect.TypeOf(state.DSL2BlockEnd{}),
 			},
+			state.EntryTypeUpdateGER: {
+				Name:       "UpdateGER",
+				StreamType: state.StreamTypeSequencer,
+				Definition: reflect.TypeOf(state.DSUpdateGER{}),
+			},
 		}
 
 		streamServer.SetEntriesDef(entriesDefinition)
@@ -159,197 +163,10 @@ func (s *Sequencer) Start(ctx context.Context) {
 }
 
 func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer) {
-	var skipBookMark, skipL2BlockStart bool
-	var currentL2Block uint64
-	var currentTxIndex uint64
-	var err error
-
-	header := streamServer.GetHeader()
-
-	if header.TotalEntries == 0 {
-		// Get Genesis block
-		genesisL2Block, err := s.state.GetDSGenesisBlock(ctx, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = streamServer.StartAtomicOp()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		bookMark := state.DSBookMark{
-			Type:          state.BookMarkTypeL2Block,
-			L2BlockNumber: genesisL2Block.L2BlockNumber,
-		}
-
-		_, err = streamServer.AddStreamBookmark(bookMark.Encode())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		genesisBlock := state.DSL2BlockStart{
-			BatchNumber:    genesisL2Block.BatchNumber,
-			L2BlockNumber:  genesisL2Block.L2BlockNumber,
-			Timestamp:      genesisL2Block.Timestamp,
-			GlobalExitRoot: genesisL2Block.GlobalExitRoot,
-			Coinbase:       genesisL2Block.Coinbase,
-			ForkID:         genesisL2Block.ForkID,
-		}
-
-		log.Infof("Genesis block: %+v", genesisBlock)
-
-		_, err = streamServer.AddStreamEntry(1, genesisBlock.Encode())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		genesisBlockEnd := state.DSL2BlockEnd{
-			L2BlockNumber: genesisL2Block.L2BlockNumber,
-			BlockHash:     genesisL2Block.BlockHash,
-			StateRoot:     genesisL2Block.StateRoot,
-		}
-
-		_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, genesisBlockEnd.Encode())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = streamServer.CommitAtomicOp()
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		latestEntry, err := streamServer.GetEntry(header.TotalEntries - 1)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.Infof("Latest entry: %+v", latestEntry)
-
-		switch latestEntry.Type {
-		case state.EntryTypeBookMark:
-			log.Info("Latest entry type is BookMark")
-			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[1:9])
-			skipBookMark = true
-			currentL2Block--
-		case state.EntryTypeL2BlockStart:
-			log.Info("Latest entry type is L2BlockStart")
-			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
-			skipBookMark = true
-			skipL2BlockStart = true
-			currentL2Block--
-		case state.EntryTypeL2Tx:
-			log.Info("Latest entry type is L2Tx")
-			for latestEntry.Type == state.EntryTypeL2Tx {
-				currentTxIndex++
-				latestEntry, err = streamServer.GetEntry(header.TotalEntries - currentTxIndex)
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-			if latestEntry.Type != state.EntryTypeL2BlockStart {
-				log.Fatal("Latest entry is not a L2BlockStart")
-			}
-			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[8:16])
-			currentL2Block--
-		case state.EntryTypeL2BlockEnd:
-			log.Info("Latest entry type is L2BlockEnd")
-			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[0:8])
-		}
+	err := state.GenerateDataStreamerFile(ctx, streamServer, s.state)
+	if err != nil {
+		log.Fatalf("failed to generate data streamer file, err: %v", err)
 	}
-
-	log.Infof("Current transaction index: %d", currentTxIndex)
-	log.Infof("Current L2 block number: %d", currentL2Block)
-
-	var limit uint64 = 1000
-	var offset uint64 = currentL2Block
-	var entry uint64 = header.TotalEntries
-	var l2blocks []*state.DSL2Block
-
-	if entry > 0 {
-		entry--
-	}
-
-	for err == nil {
-		log.Infof("Current entry number: %d", entry)
-
-		l2blocks, err = s.state.GetDSL2Blocks(ctx, limit, offset, nil)
-		offset += limit
-		if len(l2blocks) == 0 {
-			break
-		}
-		// Get transactions for all the retrieved l2 blocks
-		l2Transactions, err := s.state.GetDSL2Transactions(ctx, l2blocks[0].L2BlockNumber, l2blocks[len(l2blocks)-1].L2BlockNumber, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = streamServer.StartAtomicOp()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		for x, l2block := range l2blocks {
-			if currentTxIndex > 0 {
-				x += int(currentTxIndex)
-				currentTxIndex = 0
-			}
-
-			bookMark := state.DSBookMark{
-				Type:          state.BookMarkTypeL2Block,
-				L2BlockNumber: l2block.L2BlockNumber,
-			}
-
-			if !skipBookMark {
-				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
-				if err != nil {
-					log.Fatal(err)
-				}
-			} else {
-				skipBookMark = false
-			}
-
-			blockStart := state.DSL2BlockStart{
-				BatchNumber:    l2block.BatchNumber,
-				L2BlockNumber:  l2block.L2BlockNumber,
-				Timestamp:      l2block.Timestamp,
-				GlobalExitRoot: l2block.GlobalExitRoot,
-				Coinbase:       l2block.Coinbase,
-				ForkID:         l2block.ForkID,
-			}
-
-			if !skipL2BlockStart {
-				_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
-				if err != nil {
-					log.Fatal(err)
-				}
-			} else {
-				skipL2BlockStart = false
-			}
-
-			entry, err = streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transactions[x].Encode())
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			blockEnd := state.DSL2BlockEnd{
-				L2BlockNumber: l2block.L2BlockNumber,
-				BlockHash:     l2block.BlockHash,
-				StateRoot:     l2block.StateRoot,
-			}
-
-			_, err = streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, blockEnd.Encode())
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		err = streamServer.CommitAtomicOp()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
 	log.Info("Data streamer file updated")
 }
 
