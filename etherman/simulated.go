@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/mockpolygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/mockverifier"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/mockpolygonrollupmanager"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -78,7 +78,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	}
 	if calculatedRollupManagerAddr != mockRollupManagerAddr {
 		return nil, nil, common.Address{}, nil, fmt.Errorf("RollupManagerAddr (%s) is different from the expected contract address (%s)",
-		mockRollupManagerAddr.String(), calculatedRollupManagerAddr.String())
+			mockRollupManagerAddr.String(), calculatedRollupManagerAddr.String())
 	}
 	initZkevmAddr, _, _, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, polAddr, bridgeAddr, mockRollupManagerAddr)
 	if err != nil {
@@ -96,7 +96,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = mockRollupManager.AddNewRollupType(auth, initZkevmAddr, rollupVerifierAddr, 5, 0, genesis, "PolygonZkEvm Rollup")
+	_, err = mockRollupManager.AddNewRollupType(auth, initZkevmAddr, rollupVerifierAddr, 5, 0, genesis, "PolygonZkEvm Rollup") //nolint:gomnd
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
@@ -108,7 +108,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
-	var zkevmChainID uint64= 100
+	var zkevmChainID uint64 = 100
 	_, err = mockRollupManager.CreateNewRollup(auth, rollUpTypeID, zkevmChainID, auth.From, auth.From, common.Address{}, 0, "http://localhost", "PolygonZkEvm Rollup")
 	if err != nil {
 		log.Error("error: ", err)

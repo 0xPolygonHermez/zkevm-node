@@ -16,10 +16,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -40,62 +40,62 @@ import (
 
 var (
 	// Events RollupManager
-	setBatchFeeSignatureHash  = crypto.Keccak256Hash([]byte("SetBatchFee(uint256)"))
-	setTrustedAggregatorSignatureHash = crypto.Keccak256Hash([]byte("SetTrustedAggregator(address)")) // Used in oldZkEvm as well
-	setVerifyBatchTimeTargetSignatureHash = crypto.Keccak256Hash([]byte("SetVerifyBatchTimeTarget(uint64)")) // Used in oldZkEvm as well
-	setMultiplierBatchFeeSignatureHash= crypto.Keccak256Hash([]byte("SetMultiplierBatchFee(uint16)")) // Used in oldZkEvm as well
-	setPendingStateTimeoutSignatureHash= crypto.Keccak256Hash([]byte("SetPendingStateTimeout(uint64)")) // Used in oldZkEvm as well
-	setTrustedAggregatorTimeoutSignatureHash= crypto.Keccak256Hash([]byte("SetTrustedAggregatorTimeout(uint64)")) // Used in oldZkEvm as well
-	overridePendingStateSignatureHash= crypto.Keccak256Hash([]byte("OverridePendingState(uint32,uint64,bytes32,bytes32,address)"))
-	proveNonDeterministicPendingStateSignatureHash= crypto.Keccak256Hash([]byte("ProveNonDeterministicPendingState(bytes32,bytes32)")) // Used in oldZkEvm as well
-	consolidatePendingStateSignatureHash= crypto.Keccak256Hash([]byte("ConsolidatePendingState(uint32,uint64,bytes32,bytes32,uint64)"))
-	verifyBatchesTrustedAggregatorSignatureHash= crypto.Keccak256Hash([]byte("VerifyBatchesTrustedAggregator(uint32,uint64,bytes32,bytes32,address)"))
-	rollupManagerVerifyBatchesSignatureHash= crypto.Keccak256Hash([]byte("VerifyBatches(uint32,uint64,bytes32,bytes32,address)"))
-	onSequenceBatchesSignatureHash= crypto.Keccak256Hash([]byte("OnSequenceBatches(uint32,uint64)"))
-	updateRollupSignatureHash= crypto.Keccak256Hash([]byte("UpdateRollup(uint32,uint32,uint64)"))
-	addExistingRollupSignatureHash= crypto.Keccak256Hash([]byte("AddExistingRollup(uint32,uint64,address,uint64,uint8)"))
-	createNewRollupSignatureHash= crypto.Keccak256Hash([]byte("CreateNewRollup(uint32,uint32,address,uint64,address,uint32)"))
-	obsoleteRollupTypeSignatureHash= crypto.Keccak256Hash([]byte("ObsoleteRollupType(uint32)"))
-	addNewRollupTypeSignatureHash= crypto.Keccak256Hash([]byte("AddNewRollupType(uint32,address,address,uint64,uint8,bytes32,string)"))
+	setBatchFeeSignatureHash                       = crypto.Keccak256Hash([]byte("SetBatchFee(uint256)"))
+	setTrustedAggregatorSignatureHash              = crypto.Keccak256Hash([]byte("SetTrustedAggregator(address)"))       // Used in oldZkEvm as well
+	setVerifyBatchTimeTargetSignatureHash          = crypto.Keccak256Hash([]byte("SetVerifyBatchTimeTarget(uint64)"))    // Used in oldZkEvm as well
+	setMultiplierBatchFeeSignatureHash             = crypto.Keccak256Hash([]byte("SetMultiplierBatchFee(uint16)"))       // Used in oldZkEvm as well
+	setPendingStateTimeoutSignatureHash            = crypto.Keccak256Hash([]byte("SetPendingStateTimeout(uint64)"))      // Used in oldZkEvm as well
+	setTrustedAggregatorTimeoutSignatureHash       = crypto.Keccak256Hash([]byte("SetTrustedAggregatorTimeout(uint64)")) // Used in oldZkEvm as well
+	overridePendingStateSignatureHash              = crypto.Keccak256Hash([]byte("OverridePendingState(uint32,uint64,bytes32,bytes32,address)"))
+	proveNonDeterministicPendingStateSignatureHash = crypto.Keccak256Hash([]byte("ProveNonDeterministicPendingState(bytes32,bytes32)")) // Used in oldZkEvm as well
+	consolidatePendingStateSignatureHash           = crypto.Keccak256Hash([]byte("ConsolidatePendingState(uint32,uint64,bytes32,bytes32,uint64)"))
+	verifyBatchesTrustedAggregatorSignatureHash    = crypto.Keccak256Hash([]byte("VerifyBatchesTrustedAggregator(uint32,uint64,bytes32,bytes32,address)"))
+	rollupManagerVerifyBatchesSignatureHash        = crypto.Keccak256Hash([]byte("VerifyBatches(uint32,uint64,bytes32,bytes32,address)"))
+	onSequenceBatchesSignatureHash                 = crypto.Keccak256Hash([]byte("OnSequenceBatches(uint32,uint64)"))
+	updateRollupSignatureHash                      = crypto.Keccak256Hash([]byte("UpdateRollup(uint32,uint32,uint64)"))
+	addExistingRollupSignatureHash                 = crypto.Keccak256Hash([]byte("AddExistingRollup(uint32,uint64,address,uint64,uint8)"))
+	createNewRollupSignatureHash                   = crypto.Keccak256Hash([]byte("CreateNewRollup(uint32,uint32,address,uint64,address,uint32)"))
+	obsoleteRollupTypeSignatureHash                = crypto.Keccak256Hash([]byte("ObsoleteRollupType(uint32)"))
+	addNewRollupTypeSignatureHash                  = crypto.Keccak256Hash([]byte("AddNewRollupType(uint32,address,address,uint64,uint8,bytes32,string)"))
 
 	// Events new ZkEvm/RollupBase
-	acceptAdminRoleSignatureHash= crypto.Keccak256Hash([]byte("AcceptAdminRole(address)")) // Used in oldZkEvm as well
-	transferAdminRoleSignatureHash= crypto.Keccak256Hash([]byte("TransferAdminRole(address)")) // Used in oldZkEvm as well
-	activateForceBatchesSignatureHash= crypto.Keccak256Hash([]byte("ActivateForceBatches()")) // Used in oldZkEvm as well
-	setForceBatchTimeoutSignatureHash= crypto.Keccak256Hash([]byte("SetForceBatchTimeout(uint64)")) // Used in oldZkEvm as well
-	setTrustedSequencerURLSignatureHash= crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)")) // Used in oldZkEvm as well
-	setTrustedSequencerSignatureHash= crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)")) // Used in oldZkEvm as well
-	verifyBatchesSignatureHash= crypto.Keccak256Hash([]byte("VerifyBatches(uint64,bytes32,address)")) // Used in oldZkEvm as well
-	sequenceForceBatchesSignatureHash= crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)")) // Used in oldZkEvm as well
-	forceBatchSignatureHash= crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)")) // Used in oldZkEvm as well
-	sequenceBatchesSignatureHash= crypto.Keccak256Hash([]byte("SequenceBatches(uint64)")) // Used in oldZkEvm as well
+	acceptAdminRoleSignatureHash        = crypto.Keccak256Hash([]byte("AcceptAdminRole(address)"))                 // Used in oldZkEvm as well
+	transferAdminRoleSignatureHash      = crypto.Keccak256Hash([]byte("TransferAdminRole(address)"))               // Used in oldZkEvm as well
+	activateForceBatchesSignatureHash   = crypto.Keccak256Hash([]byte("ActivateForceBatches()"))                   // Used in oldZkEvm as well
+	setForceBatchTimeoutSignatureHash   = crypto.Keccak256Hash([]byte("SetForceBatchTimeout(uint64)"))             // Used in oldZkEvm as well
+	setTrustedSequencerURLSignatureHash = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))           // Used in oldZkEvm as well
+	setTrustedSequencerSignatureHash    = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))             // Used in oldZkEvm as well
+	verifyBatchesSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatches(uint64,bytes32,address)"))    // Used in oldZkEvm as well
+	sequenceForceBatchesSignatureHash   = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))             // Used in oldZkEvm as well
+	forceBatchSignatureHash             = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)")) // Used in oldZkEvm as well
+	sequenceBatchesSignatureHash        = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))                  // Used in oldZkEvm as well
 
 	// Extra RollupManager
-	initializedSignatureHash= crypto.Keccak256Hash([]byte("Initialized(uint64)")) // Initializable. Used in RollupBase as well
-	roleAdminChangedSignatureHash= crypto.Keccak256Hash([]byte("RoleAdminChanged(bytes32,bytes32,bytes32)")) // IAccessControlUpgradeable
-	roleGrantedSignatureHash= crypto.Keccak256Hash([]byte("RoleGranted(bytes32,address,address)")) // IAccessControlUpgradeable
-	roleRevokedSignatureHash= crypto.Keccak256Hash([]byte("RoleRevoked(bytes32,address,address)")) // IAccessControlUpgradeable
-	emergencyStateActivatedSignatureHash= crypto.Keccak256Hash([]byte("EmergencyStateActivated()")) // EmergencyManager. Used in oldZkEvm as well
-	emergencyStateDeactivatedSignatureHash= crypto.Keccak256Hash([]byte("EmergencyStateDeactivated()")) // EmergencyManager. Used in oldZkEvm as well
+	initializedSignatureHash               = crypto.Keccak256Hash([]byte("Initialized(uint64)"))                       // Initializable. Used in RollupBase as well
+	roleAdminChangedSignatureHash          = crypto.Keccak256Hash([]byte("RoleAdminChanged(bytes32,bytes32,bytes32)")) // IAccessControlUpgradeable
+	roleGrantedSignatureHash               = crypto.Keccak256Hash([]byte("RoleGranted(bytes32,address,address)"))      // IAccessControlUpgradeable
+	roleRevokedSignatureHash               = crypto.Keccak256Hash([]byte("RoleRevoked(bytes32,address,address)"))      // IAccessControlUpgradeable
+	emergencyStateActivatedSignatureHash   = crypto.Keccak256Hash([]byte("EmergencyStateActivated()"))                 // EmergencyManager. Used in oldZkEvm as well
+	emergencyStateDeactivatedSignatureHash = crypto.Keccak256Hash([]byte("EmergencyStateDeactivated()"))               // EmergencyManager. Used in oldZkEvm as well
 
 	// SignatureHash= crypto.Keccak256Hash([]byte(""))
 
 	// Old zkevm events
-	updateGlobalExitRootSignatureHash              = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
+	updateGlobalExitRootSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
 	// forcedBatchSignatureHash                       = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
 	// sequencedBatchesEventSignatureHash             = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
 	// forceSequencedBatchesSignatureHash             = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
-	oldVerifyBatchesTrustedAggregatorSignatureHash    = crypto.Keccak256Hash([]byte("VerifyBatchesTrustedAggregator(uint64,bytes32,address)"))
+	oldVerifyBatchesTrustedAggregatorSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatchesTrustedAggregator(uint64,bytes32,address)"))
 	transferOwnershipSignatureHash                 = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	updateZkEVMVersionSignatureHash                = crypto.Keccak256Hash([]byte("UpdateZkEVMVersion(uint64,uint64,string)"))
-	oldConsolidatePendingStateSignatureHash           = crypto.Keccak256Hash([]byte("ConsolidatePendingState(uint64,bytes32,uint64)"))
-	oldOverridePendingStateSignatureHash              = crypto.Keccak256Hash([]byte("OverridePendingState(uint64,bytes32,address)"))
+	oldConsolidatePendingStateSignatureHash        = crypto.Keccak256Hash([]byte("ConsolidatePendingState(uint64,bytes32,uint64)"))
+	oldOverridePendingStateSignatureHash           = crypto.Keccak256Hash([]byte("OverridePendingState(uint64,bytes32,address)"))
 
 	// Proxy events
-	initializedProxySignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
-	adminChangedSignatureHash   = crypto.Keccak256Hash([]byte("AdminChanged(address,address)"))
-	beaconUpgradedSignatureHash = crypto.Keccak256Hash([]byte("BeaconUpgraded(address)"))
-	upgradedSignatureHash       = crypto.Keccak256Hash([]byte("Upgraded(address)"))
+	initializedProxySignatureHash = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
+	adminChangedSignatureHash     = crypto.Keccak256Hash([]byte("AdminChanged(address,address)"))
+	beaconUpgradedSignatureHash   = crypto.Keccak256Hash([]byte("BeaconUpgraded(address)"))
+	upgradedSignatureHash         = crypto.Keccak256Hash([]byte("Upgraded(address)"))
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("not found")
@@ -226,7 +226,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		gProviders = append(gProviders, ethgasstation.NewEthGasStationService())
 	}
 	metrics.Register()
-    // Get RollupID
+	// Get RollupID
 	rollupID, err := rollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.ZkEVMAddr)
 	if err != nil {
 		return nil, err
@@ -356,7 +356,7 @@ func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64, las
 			}
 			zkevmVersion.ForkID = rollupType.ForkID
 			zkevmVersion.NumBatch = updateRollupEvent.LastVerifiedBatchBeforeUpgrade
-		
+
 		case createNewRollupSignatureHash:
 			log.Debug("createNewRollup Event received")
 			createNewRollupEvent, err := etherMan.RollupManager.ParseCreateNewRollup(l)
@@ -980,11 +980,11 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	for i, seq := range sequences {
 		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
 		sequencedBatches[i] = SequencedBatch{
-			BatchNumber:           bn,
-			SequencerAddr:         sequencer,
-			TxHash:                txHash,
-			Nonce:                 nonce,
-			Coinbase:              coinbase,
+			BatchNumber:                bn,
+			SequencerAddr:              sequencer,
+			TxHash:                     txHash,
+			Nonce:                      nonce,
+			Coinbase:                   coinbase,
 			PolygonRollupBaseBatchData: seq,
 		}
 	}
@@ -998,7 +998,7 @@ func (etherMan *Client) oldVerifyBatchesTrustedAggregatorEvent(ctx context.Conte
 	vb, err := etherMan.OldZkEVM.ParseVerifyBatchesTrustedAggregator(vLog)
 	if err != nil {
 		log.Error("error parsing TrustedVerifyBatches event. Error: ", err)
-		return err		
+		return err
 	}
 	return etherMan.verifyBatches(ctx, vLog, blocks, blocksOrder, vb.NumBatch, vb.StateRoot, vb.Aggregator, TrustedVerifyBatchOrder)
 }
@@ -1013,14 +1013,14 @@ func (etherMan *Client) verifyBatchesEvent(ctx context.Context, vLog types.Log, 
 	return etherMan.verifyBatches(ctx, vLog, blocks, blocksOrder, vb.NumBatch, vb.StateRoot, vb.Aggregator, VerifyBatchOrder)
 }
 func (etherMan *Client) verifyBatches(
-		ctx context.Context,
-		vLog types.Log,
-		blocks *[]Block,
-		blocksOrder *map[common.Hash][]Order,
-		numBatch uint64,
-		stateRoot common.Hash,
-		aggregator common.Address,
-		orderName EventOrder) error {
+	ctx context.Context,
+	vLog types.Log,
+	blocks *[]Block,
+	blocksOrder *map[common.Hash][]Order,
+	numBatch uint64,
+	stateRoot common.Hash,
+	aggregator common.Address,
+	orderName EventOrder) error {
 	var verifyBatch VerifiedBatch
 	verifyBatch.BlockNumber = vLog.BlockNumber
 	verifyBatch.BatchNumber = numBatch

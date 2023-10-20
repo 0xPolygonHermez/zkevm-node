@@ -219,7 +219,7 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				return err
 			}
-			
+
 			if genesisRoot != s.genesis.Root {
 				log.Errorf("Calculated newRoot should be %s instead of %s", s.genesis.Root.String(), genesisRoot.String())
 				rollbackErr := dbTx.Rollback(s.ctx)

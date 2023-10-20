@@ -41,6 +41,7 @@ type GenesisAction struct {
 	Root            string `json:"root"`
 }
 
+// BatchData represents the data of the first batch that contains initial transaction
 type BatchData struct {
 	Transactions   string         `json:"transactions"`
 	GlobalExitRoot common.Hash    `json:"globalExitRoot"`
@@ -51,9 +52,9 @@ type BatchData struct {
 // SetGenesis populates state with genesis information
 func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m metrics.CallerLabel, dbTx pgx.Tx) (common.Hash, common.Hash, uint64, string, error) {
 	var (
-		root    common.Hash
+		root             common.Hash
 		genesisStateRoot []byte
-		err     error
+		err              error
 	)
 	if dbTx == nil {
 		return common.Hash{}, common.Hash{}, 0, "", ErrDBTxNil
