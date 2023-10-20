@@ -2598,7 +2598,7 @@ func (p *PostgresStorage) UpdateForkID(ctx context.Context, forkID ForkIDInterva
 
 // GetDSGenesisBlock returns the genesis block
 func (p *PostgresStorage) GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*DSL2Block, error) {
-	const genesisL2BlockSQL = `SELECT 0 as batch_num, l2b.block_num, l2b.created_at, '0x0000000000000000000000000000000000000000' as global_exit_root, l2b.header->>'miner' AS coinbase, 0 as fork_id, l2b.block_hash, l2b.state_root
+	const genesisL2BlockSQL = `SELECT 0 as batch_num, l2b.block_num, l2b.received_at, '0x0000000000000000000000000000000000000000' as global_exit_root, l2b.header->>'miner' AS coinbase, 0 as fork_id, l2b.block_hash, l2b.state_root
 							FROM state.l2block l2b
 							WHERE l2b.block_num  = 0`
 
@@ -2616,7 +2616,7 @@ func (p *PostgresStorage) GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*
 
 // GetDSL2Blocks returns the L2 blocks
 func (p *PostgresStorage) GetDSL2Blocks(ctx context.Context, limit, offset uint64, dbTx pgx.Tx) ([]*DSL2Block, error) {
-	const l2BlockSQL = `SELECT l2b.batch_num, l2b.block_num, l2b.created_at, b.global_exit_root, l2b.header->>'miner' AS coinbase, f.fork_id, l2b.block_hash, l2b.state_root
+	const l2BlockSQL = `SELECT l2b.batch_num, l2b.block_num, l2b.received_at, b.global_exit_root, l2b.header->>'miner' AS coinbase, f.fork_id, l2b.block_hash, l2b.state_root
 						FROM state.l2block l2b, state.batch b, state.fork_id f
 						WHERE l2b.batch_num = b.batch_num AND l2b.batch_num between f.from_batch_num AND f.to_batch_num
 						ORDER BY l2b.block_num ASC limit $1 offset $2`
@@ -2672,7 +2672,7 @@ func scanL2Block(row pgx.Row) (*DSL2Block, error) {
 
 // GetDSL2Transactions returns the L2 transactions
 func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, minL2Block, maxL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error) {
-	const l2TxSQL = `SELECT t.effective_percentage, LENGTH(t.encoded), t.encoded
+	const l2TxSQL = `SELECT t.effective_percentage, t.encoded
 					 FROM state.transaction t
 					 WHERE l2_block_num BETWEEN $1 AND $2
 					 ORDER BY t.l2_block_num ASC`
@@ -2697,15 +2697,64 @@ func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, minL2Block, m
 	return l2Txs, nil
 }
 
+// GetNativeBlockHashesInRange return the state root for the blocks in range
+func (p *PostgresStorage) GetNativeBlockHashesInRange(ctx context.Context, fromBlock, toBlock uint64, dbTx pgx.Tx) ([]common.Hash, error) {
+	const l2TxSQL = `
+    SELECT l2b.state_root
+      FROM state.l2block l2b
+     WHERE block_num BETWEEN $1 AND $2
+     ORDER BY l2b.block_num ASC`
+
+	if toBlock < fromBlock {
+		return nil, ErrInvalidBlockRange
+	}
+
+	blockRange := toBlock - fromBlock
+	if p.cfg.MaxNativeBlockHashBlockRange > 0 && blockRange > p.cfg.MaxNativeBlockHashBlockRange {
+		return nil, ErrMaxNativeBlockHashBlockRangeLimitExceeded
+	}
+
+	e := p.getExecQuerier(dbTx)
+	rows, err := e.Query(ctx, l2TxSQL, fromBlock, toBlock)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	nativeBlockHashes := []common.Hash{}
+
+	for rows.Next() {
+		var nativeBlockHash string
+		err := rows.Scan(&nativeBlockHash)
+		if err != nil {
+			return nil, err
+		}
+		nativeBlockHashes = append(nativeBlockHashes, common.HexToHash(nativeBlockHash))
+	}
+	return nativeBlockHashes, nil
+}
+
 func scanL2Transaction(row pgx.Row) (*DSL2Transaction, error) {
 	l2Transaction := DSL2Transaction{}
+	encoded := []byte{}
 	if err := row.Scan(
 		&l2Transaction.EffectiveGasPricePercentage,
-		&l2Transaction.EncodedLength,
-		&l2Transaction.Encoded,
+		&encoded,
 	); err != nil {
-		return &l2Transaction, err
+		return nil, err
 	}
+	tx, err := DecodeTx(string(encoded))
+	if err != nil {
+		return nil, err
+	}
+
+	binaryTxData, err := tx.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	l2Transaction.Encoded = binaryTxData
+	l2Transaction.EncodedLength = uint32(len(l2Transaction.Encoded))
 	l2Transaction.IsValid = 1
 	return &l2Transaction, nil
 }

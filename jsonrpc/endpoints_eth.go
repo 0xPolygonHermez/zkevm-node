@@ -486,22 +486,13 @@ func (e *EthEndpoints) GetLogs(filter LogFilter) (interface{}, types.Error) {
 }
 
 func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, types.Error) {
-	var err error
-	var fromBlock uint64 = 0
-	if filter.FromBlock != nil {
-		var rpcErr types.Error
-		fromBlock, rpcErr = filter.FromBlock.GetNumericBlockNumber(ctx, e.state, e.etherman, dbTx)
-		if rpcErr != nil {
-			return nil, rpcErr
-		}
-	}
-
-	toBlock, rpcErr := filter.ToBlock.GetNumericBlockNumber(ctx, e.state, e.etherman, dbTx)
+	fromBlockNumber, toBlockNumber, rpcErr := filter.GetNumericBlockNumbers(ctx, e.cfg, e.state, e.etherman, dbTx)
 	if rpcErr != nil {
 		return nil, rpcErr
 	}
 
-	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash, filter.Since, dbTx)
+	var err error
+	logs, err := e.state.GetLogs(ctx, fromBlockNumber, toBlockNumber, filter.Addresses, filter.Topics, filter.BlockHash, filter.Since, dbTx)
 	if errors.Is(err, state.ErrMaxLogsCountLimitExceeded) {
 		errMsg := fmt.Sprintf(state.ErrMaxLogsCountLimitExceeded.Error(), e.cfg.MaxLogsCount)
 		return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
@@ -845,26 +836,10 @@ func (e *EthEndpoints) NewFilter(filter LogFilter) (interface{}, types.Error) {
 
 // internal
 func (e *EthEndpoints) newFilter(ctx context.Context, wsConn *atomic.Pointer[websocket.Conn], filter LogFilter, dbTx pgx.Tx) (interface{}, types.Error) {
-	shouldFilterByBlockRange := filter.FromBlock != nil || filter.ToBlock != nil
-
-	if shouldFilterByBlockRange {
-		toBlockNumber, rpcErr := filter.ToBlock.GetNumericBlockNumber(ctx, e.state, e.etherman, dbTx)
+	if filter.ShouldFilterByBlockRange() {
+		_, _, rpcErr := filter.GetNumericBlockNumbers(ctx, e.cfg, e.state, e.etherman, nil)
 		if rpcErr != nil {
 			return nil, rpcErr
-		}
-		fromBlockNumber, rpcErr := filter.FromBlock.GetNumericBlockNumber(ctx, e.state, e.etherman, dbTx)
-		if rpcErr != nil {
-			return nil, rpcErr
-		}
-
-		if toBlockNumber < fromBlockNumber {
-			return RPCErrorResponse(types.InvalidParamsErrorCode, state.ErrInvalidBlockRange.Error(), nil, false)
-		}
-
-		blockRange := toBlockNumber - fromBlockNumber
-		if e.cfg.MaxLogsBlockRange > 0 && blockRange > e.cfg.MaxLogsBlockRange {
-			errMsg := fmt.Sprintf(state.ErrMaxLogsBlockRangeLimitExceeded.Error(), e.cfg.MaxLogsBlockRange)
-			return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
 		}
 	}
 

@@ -9,21 +9,28 @@ import (
 )
 
 type l1RollupInfoConsumerStatistics struct {
-	numProcessedRollupInfo         uint64
-	numProcessedBlocks             uint64
-	startTime                      time.Time
-	timePreviousProcessingDuration time.Duration
-	startStepTime                  time.Time
-	cfg                            configConsumer
+	numProcessedRollupInfo             uint64
+	numProcessedRollupInfoForCheckTime uint64
+	numProcessedBlocks                 uint64
+	startTime                          time.Time
+	timePreviousProcessingDuration     time.Duration
+	startStepTime                      time.Time
+	cfg                                configConsumer
 }
 
 func (l *l1RollupInfoConsumerStatistics) onStart() {
 	l.startTime = time.Now()
 	l.startStepTime = time.Time{}
+	l.numProcessedRollupInfoForCheckTime = 0
 }
 
 func (l *l1RollupInfoConsumerStatistics) onStartStep() {
 	l.startStepTime = time.Now()
+}
+
+func (l *l1RollupInfoConsumerStatistics) onReset() {
+	l.numProcessedRollupInfoForCheckTime = 0
+	l.startStepTime = time.Time{}
 }
 
 func (l *l1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult) string {
@@ -31,13 +38,25 @@ func (l *l1RollupInfoConsumerStatistics) onStartProcessIncommingRollupInfoData(r
 	// Time have have been blocked in the select statement
 	waitingTimeForData := now.Sub(l.startStepTime)
 	blocksPerSecond := float64(l.numProcessedBlocks) / time.Since(l.startTime).Seconds()
-	if l.numProcessedRollupInfo > uint64(l.cfg.numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData) && waitingTimeForData > l.cfg.acceptableTimeWaitingForNewRollupInfoData {
+	generatedWarning := false
+	if l.numProcessedRollupInfoForCheckTime > uint64(l.cfg.numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData) && waitingTimeForData > l.cfg.acceptableTimeWaitingForNewRollupInfoData {
 		msg := fmt.Sprintf("wasted waiting for new rollupInfo from L1: %s last_process: %s new range: %s block_per_second: %f",
 			waitingTimeForData, l.timePreviousProcessingDuration, rollupInfo.blockRange.String(), blocksPerSecond)
 		log.Warnf("consumer:: Too much wasted time (waiting to receive a new data):%s", msg)
+		generatedWarning = true
 	}
 	l.numProcessedRollupInfo++
-	msg := fmt.Sprintf("wasted_time_waiting_for_data [%s] last_process_time [%s] block_per_second [%f]", waitingTimeForData.Round(time.Second).String(), l.timePreviousProcessingDuration, blocksPerSecond)
+	l.numProcessedRollupInfoForCheckTime++
+	msg := fmt.Sprintf("wasted_time_waiting_for_data [%s] last_process_time [%s] block_per_second [%f]",
+		waitingTimeForData.Round(time.Second).String(),
+		l.timePreviousProcessingDuration,
+		blocksPerSecond)
+	if waitingTimeForData > l.cfg.acceptableTimeWaitingForNewRollupInfoData {
+		msg = msg + " WASTED_TIME_EXCEED "
+	}
+	if generatedWarning {
+		msg = msg + " WARNING_WASTED_TIME "
+	}
 	return msg
 }
 
