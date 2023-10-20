@@ -2,7 +2,6 @@ package config
 
 // DefaultValues is the default configuration
 const DefaultValues = `
-QuerySize = 1000
 [StreamServer]
 Port = 6901
 Filename = "datastreamer.bin"
@@ -23,4 +22,7 @@ MaxConns = 200
 [Executor]
 URI = "zkevm-prover:50071"
 MaxGRPCMessageSize = 100000000
+
+[MerkeTree]
+URI = "zkevm-prover:50061"
 `
