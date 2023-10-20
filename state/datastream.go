@@ -261,6 +261,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		// Get Next Batch
 		batch, err := stateDB.GetDSBatch(ctx, currentBatchNumber, nil)
 		if err != nil {
+			log.Errorf("Error getting batch %d: %s", currentBatchNumber, err.Error())
 			return err
 		}
 		if batch == nil {
@@ -269,6 +270,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 
 		l2blocks, err = stateDB.GetDSL2Blocks(ctx, currentBatchNumber, nil)
 		if err != nil {
+			log.Errorf("Error getting L2 blocks for batch %d: %s", currentBatchNumber, err.Error())
 			return err
 		}
 
