@@ -85,7 +85,7 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs, common.HexToAddress(cfg.SenderAddress)).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
 				}).Return(nil, nil, errBanana).Once()
 				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Run(func(args mock.Arguments) {
@@ -108,7 +108,7 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs, common.HexToAddress(cfg.SenderAddress)).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
 				}).Return(nil, nil, errBanana).Once()
 				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Run(func(args mock.Arguments) {
@@ -131,7 +131,7 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs, common.HexToAddress(cfg.SenderAddress)).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
 				}).Return(&to, data, nil).Once()
 				monitoredTxID := buildMonitoredTxID(batchNum, batchNumFinal)
@@ -156,7 +156,7 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs, common.HexToAddress(cfg.SenderAddress)).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
 				}).Return(&to, data, nil).Once()
 				monitoredTxID := buildMonitoredTxID(batchNum, batchNumFinal)
