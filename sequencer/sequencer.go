@@ -136,6 +136,11 @@ func (s *Sequencer) Start(ctx context.Context) {
 				StreamType: state.StreamTypeSequencer,
 				Definition: reflect.TypeOf(state.DSL2BlockEnd{}),
 			},
+			state.EntryTypeUpdateGER: {
+				Name:       "UpdateGER",
+				StreamType: state.StreamTypeSequencer,
+				Definition: reflect.TypeOf(state.DSUpdateGER{}),
+			},
 		}
 
 		streamServer.SetEntriesDef(entriesDefinition)
