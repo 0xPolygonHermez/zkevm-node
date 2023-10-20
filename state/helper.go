@@ -59,7 +59,6 @@ func prepareRPLTxData(tx types.Transaction) ([]byte, error) {
 	sign := 1 - (v.Uint64() & 1)
 
 	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
-	log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID, " ")
 
 	rlpFieldsToEncode := []interface{}{
 		nonce,
