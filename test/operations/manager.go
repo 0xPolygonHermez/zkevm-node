@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -168,7 +169,7 @@ func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
 		return err
 	}
 
-	_, err = m.st.SetGenesis(m.ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = m.st.SetGenesis(m.ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 
 	errCommit := dbTx.Commit(m.ctx)
 	if errCommit != nil {

@@ -187,7 +187,7 @@ func (s *ClientSynchronizer) Sync() error {
 				ParentHash:  header.ParentHash,
 				ReceivedAt:  time.Unix(int64(header.Time), 0),
 			}
-			newRoot, err := s.state.SetGenesis(s.ctx, *lastEthBlockSynced, s.genesis, dbTx)
+			genesisRoot, _, flushID, proverID, err := s.state.SetGenesis(s.ctx, *lastEthBlockSynced, s.genesis, stateMetrics.SynchronizerCallerLabel, dbTx)
 			if err != nil {
 				log.Error("error setting genesis: ", err)
 				rollbackErr := dbTx.Rollback(s.ctx)
@@ -197,25 +197,48 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				return err
 			}
+			s.pendingFlushID(flushID, proverID)
+
 			blocks, _, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber, &lastEthBlockSynced.BlockNumber)
 			if err != nil {
-				log.Fatal(err)
+				log.Error("error getting rollupInfoByBlockRange after set the genesis: ", err)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+					return rollbackErr
+				}
+				return err
 			}
 			err = s.processForkID(blocks[0].ForkIDs[0], blocks[0].BlockNumber, dbTx)
 			if err != nil {
 				log.Error("error storing genesis forkID: ", err)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+					return rollbackErr
+				}
 				return err
 			}
-			var root common.Hash
-			root.SetBytes(newRoot)
-			if root != s.genesis.Root {
-				log.Errorf("Calculated newRoot should be %s instead of %s", s.genesis.Root.String(), root.String())
+			
+			if genesisRoot != s.genesis.Root {
+				log.Errorf("Calculated newRoot should be %s instead of %s", s.genesis.Root.String(), genesisRoot.String())
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
 					log.Errorf("error rolling back state. RollbackErr: %v", rollbackErr)
 					return rollbackErr
 				}
-				return fmt.Errorf("Calculated newRoot should be %s instead of %s", s.genesis.Root.String(), root.String())
+				return fmt.Errorf("Calculated newRoot should be %s instead of %s", s.genesis.Root.String(), genesisRoot.String())
+			}
+			// Waiting for the flushID to be stored
+			err = s.checkFlushID(dbTx)
+			if err != nil {
+				log.Error("error checking genesis flushID: ", err)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+					return rollbackErr
+				}
+				return err
 			}
 			log.Debug("Genesis root matches!")
 		} else {

@@ -169,7 +169,7 @@ func TestProcessCloseBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	// processingCtx1 := state.ProcessingContext{
@@ -194,7 +194,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	processingCtx1 := state.ProcessingContext{
@@ -616,7 +616,7 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	processingCtx1 := state.ProcessingContext{
@@ -704,7 +704,7 @@ func TestGenesis(t *testing.T) {
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	stateRoot, _, _, _, err := testState.SetGenesis(ctx, block, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -712,19 +712,19 @@ func TestGenesis(t *testing.T) {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
 		case int(merkletree.LeafTypeBalance):
-			balance, err := stateTree.GetBalance(ctx, address, stateRoot)
+			balance, err := stateTree.GetBalance(ctx, address, stateRoot.Bytes())
 			require.NoError(t, err)
 			require.Equal(t, action.Value, balance.String())
 		case int(merkletree.LeafTypeNonce):
-			nonce, err := stateTree.GetNonce(ctx, address, stateRoot)
+			nonce, err := stateTree.GetNonce(ctx, address, stateRoot.Bytes())
 			require.NoError(t, err)
 			require.Equal(t, action.Value, nonce.String())
 		case int(merkletree.LeafTypeCode):
-			sc, err := stateTree.GetCode(ctx, address, stateRoot)
+			sc, err := stateTree.GetCode(ctx, address, stateRoot.Bytes())
 			require.NoError(t, err)
 			require.Equal(t, common.Hex2Bytes(action.Bytecode), sc)
 		case int(merkletree.LeafTypeStorage):
-			st, err := stateTree.GetStorageAt(ctx, address, new(big.Int).SetBytes(common.Hex2Bytes(action.StoragePosition)), stateRoot)
+			st, err := stateTree.GetStorageAt(ctx, address, new(big.Int).SetBytes(common.Hex2Bytes(action.StoragePosition)), stateRoot.Bytes())
 			require.NoError(t, err)
 			require.Equal(t, new(big.Int).SetBytes(common.Hex2Bytes(action.Value)), st)
 		}
@@ -798,7 +798,7 @@ func TestExecutorRevert(t *testing.T) {
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	stateRoot, _, _, _, err := testState.SetGenesis(ctx, block, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 
 	// Deploy revert.sol
@@ -832,7 +832,7 @@ func TestExecutorRevert(t *testing.T) {
 		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
-		OldStateRoot:     stateRoot,
+		OldStateRoot:     stateRoot.Bytes(),
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
@@ -1008,7 +1008,7 @@ func TestExecutorTransfer(t *testing.T) {
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	stateRoot, _, _, _, err := testState.SetGenesis(ctx, block, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1038,7 +1038,7 @@ func TestExecutorTransfer(t *testing.T) {
 		OldBatchNum:      0,
 		Coinbase:         receiverAddress.String(),
 		BatchL2Data:      batchL2Data,
-		OldStateRoot:     stateRoot,
+		OldStateRoot:     stateRoot.Bytes(),
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(0),
@@ -1273,12 +1273,12 @@ func TestExecutorInvalidNonce(t *testing.T) {
 			}
 			dbTx, err := testState.BeginStateTransaction(ctx)
 			require.NoError(t, err)
-			stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+			stateRoot, _, _, _, err := testState.SetGenesis(ctx, block, genesis, metrics.SynchronizerCallerLabel, dbTx)
 			require.NoError(t, err)
 			require.NoError(t, dbTx.Commit(ctx))
 
 			// Read Sender Balance
-			currentNonce, err := stateTree.GetNonce(ctx, senderAddress, stateRoot)
+			currentNonce, err := stateTree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
 			require.NoError(t, err)
 			assert.Equal(t, testCase.currentNonce, currentNonce.Uint64())
 
@@ -1296,7 +1296,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 				OldBatchNum:      0,
 				Coinbase:         receiverAddress.String(),
 				BatchL2Data:      batchL2Data,
-				OldStateRoot:     stateRoot,
+				OldStateRoot:     stateRoot.Bytes(),
 				GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 				OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 				EthTimestamp:     uint64(0),
@@ -1369,17 +1369,17 @@ func TestGenesisNewLeafType(t *testing.T) {
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	stateRoot, _, _, _, err := testState.SetGenesis(ctx, block, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	log.Debug(string(stateRoot))
-	log.Debug(common.BytesToHash(stateRoot))
-	log.Debug(common.BytesToHash(stateRoot).String())
-	log.Debug(new(big.Int).SetBytes(stateRoot))
-	log.Debug(common.Bytes2Hex(stateRoot))
+	log.Debug(string(stateRoot.Bytes()))
+	log.Debug(common.BytesToHash(stateRoot.Bytes()))
+	log.Debug(common.BytesToHash(stateRoot.Bytes()).String())
+	log.Debug(new(big.Int).SetBytes(stateRoot.Bytes()))
+	log.Debug(common.Bytes2Hex(stateRoot.Bytes()))
 
-	require.Equal(t, "49461512068930131501252998918674096186707801477301326632372959001738876161218", new(big.Int).SetBytes(stateRoot).String())
+	require.Equal(t, "49461512068930131501252998918674096186707801477301326632372959001738876161218", new(big.Int).SetBytes(stateRoot.Bytes()).String())
 }
 
 // TEST COMMENTED BECAUSE IT IS NOT STABLE WHEN RUNNING ON GITHUB ACTIONS
@@ -1609,7 +1609,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 			Value:   "100000000000000000000000",
 		},
 	}}
-	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, dbTx)
+	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	batchCtx := state.ProcessingContext{
 		BatchNumber: 1,
@@ -1999,7 +1999,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	stateRoot, _, _, _, err := testState.SetGenesis(ctx, block, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -2037,7 +2037,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
-		OldStateRoot:     stateRoot,
+		OldStateRoot:     stateRoot.Bytes(),
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
@@ -2319,7 +2319,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	stateRoot, _, _, _, err := testState.SetGenesis(ctx, block, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -2394,7 +2394,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
-		OldStateRoot:     stateRoot,
+		OldStateRoot:     stateRoot.Bytes(),
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
@@ -2664,7 +2664,7 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 			Value:   "100000000000000000000000",
 		},
 	}}
-	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, dbTx)
+	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	batchCtx := state.ProcessingContext{
 		BatchNumber: 1,

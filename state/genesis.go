@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
@@ -24,6 +26,8 @@ type Genesis struct {
 	Root common.Hash
 	// Contracts to be deployed to L2
 	GenesisActions []*GenesisAction
+	// Data of the first batch after the genesis(Batch 1)
+	FirstBatchData BatchData
 }
 
 // GenesisAction represents one of the values set on the SMT during genesis.
@@ -37,18 +41,25 @@ type GenesisAction struct {
 	Root            string `json:"root"`
 }
 
+type BatchData struct {
+	Transactions   string         `json:"transactions"`
+	GlobalExitRoot common.Hash    `json:"globalExitRoot"`
+	Timestamp      uint64         `json:"timestamp"`
+	Sequencer      common.Address `json:"sequencer"`
+}
+
 // SetGenesis populates state with genesis information
-func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, dbTx pgx.Tx) ([]byte, error) {
+func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m metrics.CallerLabel, dbTx pgx.Tx) (common.Hash, common.Hash, uint64, string, error) {
 	var (
 		root    common.Hash
-		newRoot []byte
+		genesisStateRoot []byte
 		err     error
 	)
 	if dbTx == nil {
-		return newRoot, ErrDBTxNil
+		return common.Hash{}, common.Hash{}, 0, "", ErrDBTxNil
 	}
 	if s.tree == nil {
-		return newRoot, ErrStateTreeNil
+		return common.Hash{}, common.Hash{}, 0, "", ErrStateTreeNil
 	}
 
 	uuid := uuid.New().String()
@@ -59,65 +70,65 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		case int(merkletree.LeafTypeBalance):
 			balance, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, common.Hash{}, 0, "", err
 			}
-			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot, uuid)
+			genesisStateRoot, _, err = s.tree.SetBalance(ctx, address, balance, genesisStateRoot, uuid)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, common.Hash{}, 0, "", err
 			}
 		case int(merkletree.LeafTypeNonce):
 			nonce, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, common.Hash{}, 0, "", err
 			}
-			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot, uuid)
+			genesisStateRoot, _, err = s.tree.SetNonce(ctx, address, nonce, genesisStateRoot, uuid)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, common.Hash{}, 0, "", err
 			}
 		case int(merkletree.LeafTypeCode):
 			code, err := hex.DecodeHex(action.Bytecode)
 			if err != nil {
-				return newRoot, fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
+				return common.Hash{}, common.Hash{}, 0, "", fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
 			}
-			newRoot, _, err = s.tree.SetCode(ctx, address, code, newRoot, uuid)
+			genesisStateRoot, _, err = s.tree.SetCode(ctx, address, code, genesisStateRoot, uuid)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, common.Hash{}, 0, "", err
 			}
 		case int(merkletree.LeafTypeStorage):
 			// Parse position and value
 			positionBI, err := encoding.DecodeBigIntHexOrDecimal(action.StoragePosition)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, common.Hash{}, 0, "", err
 			}
 			valueBI, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, common.Hash{}, 0, "", err
 			}
 			// Store
-			newRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot, uuid)
+			genesisStateRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, genesisStateRoot, uuid)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, common.Hash{}, 0, "", err
 			}
 		case int(merkletree.LeafTypeSCLength):
 			log.Debug("Skipped genesis action of type merkletree.LeafTypeSCLength, these actions will be handled as part of merkletree.LeafTypeCode actions")
 		default:
-			return newRoot, fmt.Errorf("unknown genesis action type %q", action.Type)
+			return common.Hash{}, common.Hash{}, 0, "", fmt.Errorf("unknown genesis action type %q", action.Type)
 		}
 	}
 
-	root.SetBytes(newRoot)
+	root.SetBytes(genesisStateRoot)
 
 	// flush state db
 	err = s.tree.Flush(ctx, uuid)
 	if err != nil {
 		log.Errorf("error flushing state tree after genesis: %v", err)
-		return newRoot, err
+		return common.Hash{}, common.Hash{}, 0, "", err
 	}
 
 	// store L1 block related to genesis batch
 	err = s.AddBlock(ctx, &block, dbTx)
 	if err != nil {
-		return newRoot, err
+		return common.Hash{}, common.Hash{}, 0, "", err
 	}
 
 	// store genesis batch
@@ -135,7 +146,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 
 	err = s.storeGenesisBatch(ctx, batch, dbTx)
 	if err != nil {
-		return newRoot, err
+		return common.Hash{}, common.Hash{}, 0, "", err
 	}
 
 	// mark the genesis batch as virtualized
@@ -147,7 +158,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	}
 	err = s.AddVirtualBatch(ctx, virtualBatch, dbTx)
 	if err != nil {
-		return newRoot, err
+		return common.Hash{}, common.Hash{}, 0, "", err
 	}
 
 	// mark the genesis batch as verified/consolidated
@@ -159,7 +170,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	}
 	err = s.AddVerifiedBatch(ctx, verifiedBatch, dbTx)
 	if err != nil {
-		return newRoot, err
+		return common.Hash{}, common.Hash{}, 0, "", err
 	}
 
 	// store L2 genesis block
@@ -177,5 +188,51 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = block.ReceivedAt
 
-	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, MaxEffectivePercentage, dbTx)
+	err = s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, MaxEffectivePercentage, dbTx)
+	if err != nil {
+		return common.Hash{}, common.Hash{}, 0, "", err
+	}
+
+	// Process FirstTransaction included in batch 1
+	batchL2Data := common.Hex2Bytes(genesis.FirstBatchData.Transactions[2:])
+	processCtx := ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       genesis.FirstBatchData.Sequencer,
+		Timestamp:      time.Unix(int64(genesis.FirstBatchData.Timestamp), 0),
+		GlobalExitRoot: genesis.FirstBatchData.GlobalExitRoot,
+		BatchL2Data:    &batchL2Data,
+	}
+	newStateRoot, flushID, proverID, err := s.ProcessAndStoreClosedBatch(ctx, processCtx, batch.BatchL2Data, dbTx, m)
+	if err != nil {
+		log.Errorf("error storing batch 1. Error: ", err)
+		return common.Hash{}, common.Hash{}, 0, "", err
+	}
+	var gRoot common.Hash
+	gRoot.SetBytes(genesisStateRoot)
+
+	// Virtualize Batch and add sequence
+	virtualBatch1 := VirtualBatch{
+		BatchNumber:   1,
+		TxHash:        ZeroHash,
+		Coinbase:      genesis.FirstBatchData.Sequencer,
+		BlockNumber:   genesis.GenesisBlockNum,
+		SequencerAddr: genesis.FirstBatchData.Sequencer,
+	}
+	err = s.AddVirtualBatch(ctx, &virtualBatch1, dbTx)
+	if err != nil {
+		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch.BatchNumber, genesis.GenesisBlockNum, err)
+		return common.Hash{}, common.Hash{}, 0, "", err
+	}
+	// Insert the sequence to allow the aggregator verify the sequence batches
+	seq := Sequence{
+		FromBatchNumber: 1,
+		ToBatchNumber:   1,
+	}
+	err = s.AddSequence(ctx, seq, dbTx)
+	if err != nil {
+		log.Errorf("error adding sequence. Sequence: %+v", seq)
+		return common.Hash{}, common.Hash{}, 0, "", err
+	}
+	// DEVOLVER EL flushID proverID y newStateRoot para que la sync continue desde ese punto
+	return gRoot, newStateRoot, flushID, proverID, nil
 }

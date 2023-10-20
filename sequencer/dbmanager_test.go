@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -107,7 +108,7 @@ func TestOpenBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 
-	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 
 	processingContext := state.ProcessingContext{
@@ -131,7 +132,7 @@ func TestGetLastBatchNumber(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 
-	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 
 	processingContext := state.ProcessingContext{
@@ -158,7 +159,7 @@ func TestCreateFirstBatch(t *testing.T) {
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
+	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	err = dbTx.Commit(ctx)
 	require.NoError(t, err)

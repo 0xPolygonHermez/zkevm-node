@@ -2,7 +2,6 @@ package state_test
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -14,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/tools/genesis/genesisparser"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -92,11 +92,11 @@ func genesisCase(t *testing.T, tv genesisTestVectorReader) {
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	root, err := testState.SetGenesis(ctx, state.Block{}, genesis, dbTx)
+	genesisRoot, _, _, _, err := testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	err = dbTx.Commit(ctx)
 	require.NoError(t, err)
 	expectedRoot, _ := big.NewInt(0).SetString(tv.Root, 10)
-	actualRoot, _ := big.NewInt(0).SetString(hex.EncodeToString(root), 16)
+	actualRoot, _ := big.NewInt(0).SetString(genesisRoot.String(), 16)
 	assert.Equal(t, expectedRoot, actualRoot)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -92,7 +93,7 @@ func setupTest(t *testing.T) {
 	// Set genesis batch
 	dbTx, err := localState.BeginStateTransaction(localCtx)
 	require.NoError(t, err)
-	_, err = localState.SetGenesis(localCtx, state.Block{}, state.Genesis{}, dbTx)
+	_, _, _, _, err = localState.SetGenesis(localCtx, state.Block{}, state.Genesis{}, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(localCtx))
 }

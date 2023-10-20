@@ -23,6 +23,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -124,7 +125,7 @@ func Test_AddTx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -205,7 +206,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -271,7 +272,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -342,7 +343,7 @@ func Test_GetPendingTxs(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -402,7 +403,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -462,7 +463,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -522,7 +523,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -613,7 +614,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -750,7 +751,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -842,7 +843,7 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -917,7 +918,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1057,7 +1058,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1236,7 +1237,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			ctx := context.Background()
 			dbTx, err := st.BeginStateTransaction(ctx)
 			require.NoError(t, err)
-			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 			require.NoError(t, err)
 			require.NoError(t, dbTx.Commit(ctx))
 
@@ -1295,7 +1296,7 @@ func Test_AddRevertedTx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1375,7 +1376,7 @@ func Test_BlockedAddress(t *testing.T) {
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1511,7 +1512,7 @@ func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 			ctx := context.Background()
 			dbTx, err := st.BeginStateTransaction(ctx)
 			require.NoError(t, err)
-			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 			require.NoError(t, err)
 			require.NoError(t, dbTx.Commit(ctx))
 
@@ -1585,7 +1586,7 @@ func Test_AddTx_AccountQueueLimit(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1686,7 +1687,7 @@ func Test_AddTx_GlobalQueueLimit(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1772,7 +1773,7 @@ func Test_AddTx_NonceTooHigh(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1842,7 +1843,7 @@ func Test_AddTx_IPValidation(t *testing.T) {
 			ctx := context.Background()
 			dbTx, err := st.BeginStateTransaction(ctx)
 			require.NoError(t, err)
-			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			_, _, _, _, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 			require.NoError(t, err)
 			require.NoError(t, dbTx.Commit(ctx))
 
