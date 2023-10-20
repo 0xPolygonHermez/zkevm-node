@@ -204,7 +204,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	}
 	newStateRoot, flushID, proverID, err := s.ProcessAndStoreClosedBatch(ctx, processCtx, batch.BatchL2Data, dbTx, m)
 	if err != nil {
-		log.Errorf("error storing batch 1. Error: ", err)
+		log.Error("error storing batch 1. Error: ", err)
 		return common.Hash{}, common.Hash{}, 0, "", err
 	}
 	var gRoot common.Hash
@@ -215,12 +215,12 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 		BatchNumber:   1,
 		TxHash:        ZeroHash,
 		Coinbase:      genesis.FirstBatchData.Sequencer,
-		BlockNumber:   genesis.GenesisBlockNum,
+		BlockNumber:   block.BlockNumber,
 		SequencerAddr: genesis.FirstBatchData.Sequencer,
 	}
 	err = s.AddVirtualBatch(ctx, &virtualBatch1, dbTx)
 	if err != nil {
-		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch.BatchNumber, genesis.GenesisBlockNum, err)
+		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch1.BatchNumber, genesis.GenesisBlockNum, err)
 		return common.Hash{}, common.Hash{}, 0, "", err
 	}
 	// Insert the sequence to allow the aggregator verify the sequence batches

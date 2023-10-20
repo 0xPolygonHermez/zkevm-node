@@ -42,7 +42,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 	err = testState.AddBlock(ctx, block, dbTx)
 	assert.NoError(t, err)
 
-	batchNumber := uint64(1)
+	batchNumber := uint64(2)
 	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 	assert.NoError(t, err)
 
@@ -70,7 +70,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 	}
 
 	header := &types.Header{
-		Number:     big.NewInt(1),
+		Number:     big.NewInt(2),
 		ParentHash: state.ZeroHash,
 		Coinbase:   state.ZeroAddress,
 		Root:       state.ZeroHash,
