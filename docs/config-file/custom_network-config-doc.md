@@ -9,6 +9,7 @@
 | - [genesisBlockNumber](#genesisBlockNumber ) | No      | integer         | No         | -          | L1: block number of the genesis block                                       |
 | - [genesis](#genesis )                       | No      | array of object | No         | -          | L2:  List of states contracts used to populate merkle tree at initial state |
 | - [L1Config](#L1Config )                     | No      | object          | No         | -          | L1: configuration of the network                                            |
+| - [firstBatchData](#firstBatchData )         | No      | object          | No         | -          | Data of the first batch after the genesis(Batch 1)                          |
 
 ## <a name="root"></a>1. `root`
 
@@ -87,12 +88,13 @@
 **Type:** : `object`
 **Description:** L1: configuration of the network
 
-| Property                                                                            | Pattern | Type             | Deprecated | Definition | Title/Description                                |
-| ----------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------ |
-| - [chainId](#L1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                       |
-| - [polygonZkEVMAddress](#L1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | Address of the L1 contract                       |
-| - [maticTokenAddress](#L1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | Address of the L1 Matic token Contract           |
-| - [polygonZkEVMGlobalExitRootAddress](#L1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | Address of the L1 GlobalExitRootManager contract |
+| Property                                                                            | Pattern | Type             | Deprecated | Definition | Title/Description                                                          |
+| ----------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | -------------------------------------------------------------------------- |
+| - [chainId](#L1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                                                 |
+| - [polygonZkEVMAddress](#L1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | ZkEVMAddr Address of the L1 contract polygonZkEVMAddress                   |
+| - [polygonRollupManagerAddr](#L1Config_polygonRollupManagerAddr )                   | No      | array of integer | No         | -          | RollupManagerAddr Address of the L1 contract                               |
+| - [polTokenAddress](#L1Config_polTokenAddress )                                     | No      | array of integer | No         | -          | PolAddr Address of the L1 Pol token Contract                               |
+| - [polygonZkEVMGlobalExitRootAddress](#L1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract |
 
 ### <a name="L1Config_chainId"></a>4.1. `L1Config.chainId`
 
@@ -102,17 +104,50 @@
 ### <a name="L1Config_polygonZkEVMAddress"></a>4.2. `L1Config.polygonZkEVMAddress`
 
 **Type:** : `array of integer`
-**Description:** Address of the L1 contract
+**Description:** ZkEVMAddr Address of the L1 contract polygonZkEVMAddress
 
-### <a name="L1Config_maticTokenAddress"></a>4.3. `L1Config.maticTokenAddress`
-
-**Type:** : `array of integer`
-**Description:** Address of the L1 Matic token Contract
-
-### <a name="L1Config_polygonZkEVMGlobalExitRootAddress"></a>4.4. `L1Config.polygonZkEVMGlobalExitRootAddress`
+### <a name="L1Config_polygonRollupManagerAddr"></a>4.3. `L1Config.polygonRollupManagerAddr`
 
 **Type:** : `array of integer`
-**Description:** Address of the L1 GlobalExitRootManager contract
+**Description:** RollupManagerAddr Address of the L1 contract
+
+### <a name="L1Config_polTokenAddress"></a>4.4. `L1Config.polTokenAddress`
+
+**Type:** : `array of integer`
+**Description:** PolAddr Address of the L1 Pol token Contract
+
+### <a name="L1Config_polygonZkEVMGlobalExitRootAddress"></a>4.5. `L1Config.polygonZkEVMGlobalExitRootAddress`
+
+**Type:** : `array of integer`
+**Description:** GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
+
+## <a name="firstBatchData"></a>5. `[firstBatchData]`
+
+**Type:** : `object`
+**Description:** Data of the first batch after the genesis(Batch 1)
+
+| Property                                            | Pattern | Type             | Deprecated | Definition | Title/Description |
+| --------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
+| - [transactions](#firstBatchData_transactions )     | No      | string           | No         | -          | -                 |
+| - [globalExitRoot](#firstBatchData_globalExitRoot ) | No      | array of integer | No         | -          | -                 |
+| - [timestamp](#firstBatchData_timestamp )           | No      | integer          | No         | -          | -                 |
+| - [sequencer](#firstBatchData_sequencer )           | No      | array of integer | No         | -          | -                 |
+
+### <a name="firstBatchData_transactions"></a>5.1. `firstBatchData.transactions`
+
+**Type:** : `string`
+
+### <a name="firstBatchData_globalExitRoot"></a>5.2. `firstBatchData.globalExitRoot`
+
+**Type:** : `array of integer`
+
+### <a name="firstBatchData_timestamp"></a>5.3. `firstBatchData.timestamp`
+
+**Type:** : `integer`
+
+### <a name="firstBatchData_sequencer"></a>5.4. `firstBatchData.sequencer`
+
+**Type:** : `array of integer`
 
 ----------------------------------------------------------------------------------------------------------------------------
 Generated using [json-schema-for-humans](https://github.com/coveooss/json-schema-for-humans)

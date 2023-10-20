@@ -974,16 +974,25 @@
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 contract"
+							"description": "ZkEVMAddr Address of the L1 contract polygonZkEVMAddress"
 						},
-						"maticTokenAddress": {
+						"polygonRollupManagerAddr": {
 							"items": {
 								"type": "integer"
 							},
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 Matic token Contract"
+							"description": "RollupManagerAddr Address of the L1 contract"
+						},
+						"polTokenAddress": {
+							"items": {
+								"type": "integer"
+							},
+							"type": "array",
+							"maxItems": 20,
+							"minItems": 20,
+							"description": "PolAddr Address of the L1 Pol token Contract"
 						},
 						"polygonZkEVMGlobalExitRootAddress": {
 							"items": {
@@ -992,30 +1001,12 @@
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 GlobalExitRootManager contract"
+							"description": "GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract"
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
 					"description": "L1: Configuration related to L1"
-				},
-				"L2GlobalExitRootManagerAddr": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "DEPRECATED L2: address of the `PolygonZkEVMGlobalExitRootL2 proxy` smart contract"
-				},
-				"L2BridgeAddr": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "L2: address of the `PolygonZkEVMBridge proxy` smart contract"
 				},
 				"Genesis": {
 					"properties": {
@@ -1064,6 +1055,37 @@
 							},
 							"type": "array",
 							"description": "Contracts to be deployed to L2"
+						},
+						"FirstBatchData": {
+							"properties": {
+								"transactions": {
+									"type": "string",
+									"default": ""
+								},
+								"globalExitRoot": {
+									"items": {
+										"type": "integer"
+									},
+									"type": "array",
+									"maxItems": 32,
+									"minItems": 32
+								},
+								"timestamp": {
+									"type": "integer",
+									"default": 0
+								},
+								"sequencer": {
+									"items": {
+										"type": "integer"
+									},
+									"type": "array",
+									"maxItems": 20,
+									"minItems": 20
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Data of the first batch after the genesis(Batch 1)"
 						}
 					},
 					"additionalProperties": false,
