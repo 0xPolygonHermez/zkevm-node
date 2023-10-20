@@ -73,7 +73,7 @@ func setupTest(t *testing.T) {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	localStateTree := merkletree.NewStateTree(localMtDBServiceClient)
-	localState = state.NewState(stateCfg, state.NewPostgresStorage(state.Config{}, localStateDb), localExecutorClient, localStateTree, eventLog)
+	localState = state.NewState(stateCfg, state.NewPostgresStorage(stateCfg, localStateDb), localExecutorClient, localStateTree, eventLog)
 
 	batchConstraints := state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
@@ -93,7 +93,15 @@ func setupTest(t *testing.T) {
 	// Set genesis batch
 	dbTx, err := localState.BeginStateTransaction(localCtx)
 	require.NoError(t, err)
-	_, _, _, _, err = localState.SetGenesis(localCtx, state.Block{}, state.Genesis{}, metrics.SynchronizerCallerLabel, dbTx)
+	genesis := state.Genesis{
+		FirstBatchData: state.BatchData{
+			Transactions:   "0xf8c380808401c9c380942a3dd3eb832af982ec71669e178424b10dca2ede80b8a4d3476afe000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a40d5f56745a118d0906a34e69aec8c0db1cb8fa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005ca1ab1e0000000000000000000000000000000000000000000000000000000005ca1ab1e1bff",
+    		GlobalExitRoot: common.Hash{},
+    		Timestamp:      1697640780,
+    		Sequencer:      common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
+		},
+	}
+	_, _, _, _, err = localState.SetGenesis(localCtx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(localCtx))
 }
