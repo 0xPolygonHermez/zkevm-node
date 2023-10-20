@@ -261,11 +261,11 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		// Get Next Batch
 		batch, err := stateDB.GetDSBatch(ctx, currentBatchNumber, nil)
 		if err != nil {
+			if err == ErrStateNotSynchronized {
+				break
+			}
 			log.Errorf("Error getting batch %d: %s", currentBatchNumber, err.Error())
 			return err
-		}
-		if batch == nil {
-			break
 		}
 
 		l2blocks, err = stateDB.GetDSL2Blocks(ctx, currentBatchNumber, nil)
