@@ -54,7 +54,7 @@ func TestForcedBatches(t *testing.T) {
 	unsignedTx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, unsignedTx)
 	require.NoError(t, err)
-	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID6)
+	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID)
 	require.NoError(t, err)
 	forcedBatch, err := sendForcedBatch(t, encodedTxs, opsman)
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *
 	require.NoError(t, err)
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
-	require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID6))
+	require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID))
 	err = opsman.Setup()
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)
@@ -154,9 +154,9 @@ func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*sta
 	require.NoError(t, err)
 	rootInContractHash := common.BytesToHash(rootInContract[:])
 
-	disallowed, err := zkEvm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
+	allowed, err := zkEvm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
-	if disallowed {
+	if !allowed {
 		tx, err := zkEvm.ActivateForceBatches(auth)
 		require.NoError(t, err)
 		err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)

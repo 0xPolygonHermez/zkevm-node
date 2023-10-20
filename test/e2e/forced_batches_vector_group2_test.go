@@ -60,7 +60,7 @@ func TestForcedBatchesVectorFilesGroup2(t *testing.T) {
 				log.Info("###################")
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
 				require.NoError(t, opsman.SetGenesis(genesisConfig.Genesis.GenesisBlockNum, genesisActions))
-				require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID6))
+				require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID))
 				require.NoError(t, opsman.Setup())
 
 				// Check initial root
@@ -72,7 +72,7 @@ func TestForcedBatchesVectorFilesGroup2(t *testing.T) {
 				require.Equal(t, testCase.ExpectedOldStateRoot, actualOldStateRoot.Hex())
 				decodedData, err := hex.DecodeHex(testCase.BatchL2Data)
 				require.NoError(t, err)
-				_, txBytes, _, err := state.DecodeTxs(decodedData, forkID6)
+				_, txBytes, _, err := state.DecodeTxs(decodedData, forkID)
 				forcedBatch, err := sendForcedBatchForVector(t, txBytes, opsman)
 				require.NoError(t, err)
 				actualNewStateRoot := forcedBatch.StateRoot
