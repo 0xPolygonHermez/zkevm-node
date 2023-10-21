@@ -73,6 +73,17 @@ func (b DSL2BlockStart) Encode() []byte {
 	return bytes
 }
 
+// Decode decodes the DSL2BlockStart from a byte slice
+func (b DSL2BlockStart) Decode(data []byte) DSL2BlockStart {
+	b.BatchNumber = binary.LittleEndian.Uint64(data[0:8])
+	b.L2BlockNumber = binary.LittleEndian.Uint64(data[8:16])
+	b.Timestamp = int64(binary.LittleEndian.Uint64(data[16:24]))
+	b.GlobalExitRoot = common.BytesToHash(data[24:56])
+	b.Coinbase = common.BytesToAddress(data[56:76])
+	b.ForkID = binary.LittleEndian.Uint16(data[76:78])
+	return b
+}
+
 // DSL2Transaction represents a data stream L2 transaction
 type DSL2Transaction struct {
 	EffectiveGasPricePercentage uint8  // 1 byte
@@ -91,6 +102,15 @@ func (l DSL2Transaction) Encode() []byte {
 	return bytes
 }
 
+// Decode decodes the DSL2Transaction from a byte slice
+func (l DSL2Transaction) Decode(data []byte) DSL2Transaction {
+	l.EffectiveGasPricePercentage = uint8(data[0])
+	l.IsValid = uint8(data[1])
+	l.EncodedLength = binary.LittleEndian.Uint32(data[2:6])
+	l.Encoded = data[6:]
+	return l
+}
+
 // DSL2BlockEnd represents a L2 block end
 type DSL2BlockEnd struct {
 	L2BlockNumber uint64      // 8 bytes
@@ -107,6 +127,14 @@ func (b DSL2BlockEnd) Encode() []byte {
 	return bytes
 }
 
+// Decode decodes the DSL2BlockEnd from a byte slice
+func (b DSL2BlockEnd) Decode(data []byte) DSL2BlockEnd {
+	b.L2BlockNumber = binary.LittleEndian.Uint64(data[0:8])
+	b.BlockHash = common.BytesToHash(data[8:40])
+	b.StateRoot = common.BytesToHash(data[40:72])
+	return b
+}
+
 // DSBookMark represents a data stream bookmark
 type DSBookMark struct {
 	Type          byte
@@ -119,6 +147,13 @@ func (b DSBookMark) Encode() []byte {
 	bytes = append(bytes, b.Type)
 	bytes = binary.LittleEndian.AppendUint64(bytes, b.L2BlockNumber)
 	return bytes
+}
+
+// Decode decodes the DSBookMark from a byte slice
+func (b DSBookMark) Decode(data []byte) DSBookMark {
+	b.Type = byte(data[0])
+	b.L2BlockNumber = binary.LittleEndian.Uint64(data[1:9])
+	return b
 }
 
 // DSUpdateGER represents a data stream GER update
@@ -141,6 +176,17 @@ func (g DSUpdateGER) Encode() []byte {
 	bytes = binary.LittleEndian.AppendUint16(bytes, g.ForkID)
 	bytes = append(bytes, g.StateRoot[:]...)
 	return bytes
+}
+
+// Decode decodes the DSUpdateGER from a byte slice
+func (g DSUpdateGER) Decode(data []byte) DSUpdateGER {
+	g.BatchNumber = binary.LittleEndian.Uint64(data[0:8])
+	g.Timestamp = int64(binary.LittleEndian.Uint64(data[8:16]))
+	g.GlobalExitRoot = common.BytesToHash(data[16:48])
+	g.Coinbase = common.BytesToAddress(data[48:68])
+	g.ForkID = binary.LittleEndian.Uint16(data[68:70])
+	g.StateRoot = common.BytesToHash(data[70:102])
+	return g
 }
 
 // DSState gathers the methods required to interact with the data stream state.
