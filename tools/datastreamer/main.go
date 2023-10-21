@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"reflect"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
@@ -111,32 +110,6 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 	if err != nil {
 		return nil, err
 	}
-
-	// Set entities definition
-	entriesDefinition := map[datastreamer.EntryType]datastreamer.EntityDefinition{
-		state.EntryTypeL2BlockStart: {
-			Name:       "L2BlockStart",
-			StreamType: state.StreamTypeSequencer,
-			Definition: reflect.TypeOf(state.DSL2BlockStart{}),
-		},
-		state.EntryTypeL2Tx: {
-			Name:       "L2Transaction",
-			StreamType: state.StreamTypeSequencer,
-			Definition: reflect.TypeOf(state.DSL2Transaction{}),
-		},
-		state.EntryTypeL2BlockEnd: {
-			Name:       "L2BlockEnd",
-			StreamType: state.StreamTypeSequencer,
-			Definition: reflect.TypeOf(state.DSL2BlockEnd{}),
-		},
-		state.EntryTypeUpdateGER: {
-			Name:       "UpdateGER",
-			StreamType: state.StreamTypeSequencer,
-			Definition: reflect.TypeOf(state.DSUpdateGER{}),
-		},
-	}
-
-	streamServer.SetEntriesDef(entriesDefinition)
 
 	err = streamServer.Start()
 	if err != nil {
