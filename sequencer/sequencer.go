@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
@@ -92,32 +91,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 		if err != nil {
 			log.Fatalf("failed to create stream server, err: %v", err)
 		}
-
-		// Set entities definition
-		entriesDefinition := map[datastreamer.EntryType]datastreamer.EntityDefinition{
-			state.EntryTypeL2BlockStart: {
-				Name:       "L2BlockStart",
-				StreamType: state.StreamTypeSequencer,
-				Definition: reflect.TypeOf(state.DSL2BlockStart{}),
-			},
-			state.EntryTypeL2Tx: {
-				Name:       "L2Transaction",
-				StreamType: state.StreamTypeSequencer,
-				Definition: reflect.TypeOf(state.DSL2Transaction{}),
-			},
-			state.EntryTypeL2BlockEnd: {
-				Name:       "L2BlockEnd",
-				StreamType: state.StreamTypeSequencer,
-				Definition: reflect.TypeOf(state.DSL2BlockEnd{}),
-			},
-			state.EntryTypeUpdateGER: {
-				Name:       "UpdateGER",
-				StreamType: state.StreamTypeSequencer,
-				Definition: reflect.TypeOf(state.DSUpdateGER{}),
-			},
-		}
-
-		streamServer.SetEntriesDef(entriesDefinition)
 
 		dbManager.streamServer = &streamServer
 		err = dbManager.streamServer.Start()

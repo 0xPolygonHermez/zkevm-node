@@ -148,9 +148,6 @@ func start(cliCtx *cli.Context) error {
 	if c.Metrics.ProfilingEnabled {
 		go startProfilingHttpServer(c.Metrics)
 	}
-	if c.Metrics.Enabled {
-		go startMetricsHttpServer(c.Metrics)
-	}
 	for _, component := range components {
 		switch component {
 		case AGGREGATOR:
@@ -242,6 +239,10 @@ func start(cliCtx *cli.Context) error {
 			}
 			go runL2GasPriceSuggester(c.L2GasPriceSuggester, st, poolInstance, etherman)
 		}
+	}
+
+	if c.Metrics.Enabled {
+		go startMetricsHttpServer(c.Metrics)
 	}
 
 	waitSignal(cancelFuncs)
