@@ -178,6 +178,7 @@ func (g DSUpdateGER) Encode() []byte {
 	return bytes
 }
 
+// Decode decodes the DSUpdateGER from a byte slice
 func (g DSUpdateGER) Decode(data []byte) DSUpdateGER {
 	g.BatchNumber = binary.LittleEndian.Uint64(data[0:8])
 	g.Timestamp = int64(binary.LittleEndian.Uint64(data[8:16]))
