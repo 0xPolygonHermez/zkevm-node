@@ -185,7 +185,10 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 	}
 	l.lastEthBlockReceived = rollupInfo.getHighestBlockReceived()
 
-	l.lastEthBlockSynced, err = l.processUnsafe(rollupInfo)
+	lastBlockProcessed, err := l.processUnsafe(rollupInfo)
+	if err == nil && lastBlockProcessed != nil {
+		l.lastEthBlockSynced = lastBlockProcessed
+	}
 	l.statistics.onFinishProcessIncommingRollupInfoData(rollupInfo, time.Since(timeProcessingStart), err)
 	if err != nil {
 		log.Infof("consumer: error processing rollupInfo %s. Error: %s", rollupInfo.blockRange.String(), err.Error())
@@ -223,8 +226,8 @@ func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeRe
 	if len(blocks) == 0 {
 		lb := rollupInfo.lastBlockOfRange
 		if lb == nil {
-			log.Warn("consumer: Error processing block range: ", rollupInfo.blockRange, " err: need the last block of range and got a nil")
-			return nil, errMissingLastBlock
+			log.Info("consumer: Empty block range: ", rollupInfo.blockRange.String())
+			return nil, nil
 		}
 		b := convertL1BlockToEthBlock(lb)
 		err := l.synchronizer.processBlockRange([]etherman.Block{b}, order)
