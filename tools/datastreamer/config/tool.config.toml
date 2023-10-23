@@ -21,4 +21,4 @@ URI = "zkevm-prover:50071"
 MaxGRPCMessageSize = 100000000
 
 [MerkeTree]
-URI = "toni-prover:50061"
+URI = "zkevm-prover:50061"
