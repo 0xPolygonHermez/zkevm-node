@@ -12,11 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/didip/tollbooth/v6"
 	"github.com/gorilla/websocket"
+
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/nacos"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
 const (
@@ -79,6 +81,7 @@ func NewServer(
 // Start initializes the JSON RPC server to listen for request
 func (s *Server) Start() error {
 	metrics.Register()
+	s.registerNacos()
 
 	if s.config.WebSockets.Enabled {
 		go s.startWS()
@@ -413,4 +416,11 @@ func combinedLog(r *http.Request, start time.Time, httpStatus, dataLen int) {
 		r.Host,
 		r.UserAgent(),
 	)
+}
+
+func (s *Server) registerNacos() {
+	// start nacos client for registering restful service
+	if s.config.Nacos.URLs != "" {
+		nacos.StartNacosClient(s.config.Nacos.URLs, s.config.Nacos.NamespaceId, s.config.Nacos.ApplicationName, s.config.Nacos.ExternalListenAddr)
+	}
 }

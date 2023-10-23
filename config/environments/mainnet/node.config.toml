@@ -47,6 +47,11 @@ EnableL2SuggestedGasPricePolling = false
 	[RPC.WebSockets]
 		Enabled = true
 		Port = 8546
+	[RCP.Nacos]
+		URLs = ""
+		NamespaceId = "public"
+		ApplicationName = ""
+		ExternalListenAddr = "127.0.0.1:8123"
 
 [Synchronizer]
 SyncInterval = "2s"
