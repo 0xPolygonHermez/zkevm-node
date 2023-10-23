@@ -1,6 +1,7 @@
 package synchronizer
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -798,15 +799,27 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 	return fmt.Errorf("new ForkID detected, reseting synchronizarion")
 }
 
+func isZeroByteArray(bytesArray [32]byte) bool {
+	var zero = [32]byte{}
+	return bytes.Equal(bytesArray[:], zero[:])
+}
+
 func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {
 	if len(sequencedBatches) == 0 {
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
 		return nil
 	}
 	for _, sbatch := range sequencedBatches {
-		batchL2Data, err := s.getBatchL2Data(sbatch.BatchNumber, sbatch.TransactionsHash)
-		if err != nil {
-			return err
+		var batchL2Data []byte
+		log.Infof("sbatch.Transactions len:%d, txs hash:%s", len(sbatch.Transactions), hex.EncodeToString(sbatch.TransactionsHash[:]))
+		var err error
+		if len(sbatch.Transactions) > 0 || (len(sbatch.Transactions) == 0 && isZeroByteArray(sbatch.TransactionsHash)) {
+			batchL2Data = sbatch.Transactions
+		} else {
+			batchL2Data, err = s.getBatchL2Data(sbatch.BatchNumber, sbatch.TransactionsHash)
+			if err != nil {
+				return err
+			}
 		}
 
 		virtualBatch := state.VirtualBatch{

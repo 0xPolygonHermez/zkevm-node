@@ -1359,6 +1359,11 @@
         {
           "components": [
             {
+              "internalType": "bytes",
+              "name": "transactions",
+              "type": "bytes"
+            },
+            {
               "internalType": "bytes32",
               "name": "transactionsHash",
               "type": "bytes32"
@@ -1456,6 +1461,19 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint16",
+          "name": "newBatchFee",
+          "type": "uint16"
+        }
+      ],
+      "name": "setBatchFee",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {

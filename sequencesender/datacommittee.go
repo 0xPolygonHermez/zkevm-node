@@ -30,6 +30,10 @@ func (s *SequenceSender) getSignaturesAndAddrsFromDataCommittee(ctx context.Cont
 		return nil, err
 	}
 
+	if len(committee.Members) <= 0 {
+		return nil, nil
+	}
+
 	// Get last accInputHash
 	var accInputHash common.Hash
 	if sequences[0].BatchNumber != 0 {
@@ -50,7 +54,7 @@ func (s *SequenceSender) getSignaturesAndAddrsFromDataCommittee(ctx context.Cont
 			Number:         jTypes.ArgUint64(seq.BatchNumber),
 			GlobalExitRoot: seq.GlobalExitRoot,
 			Timestamp:      jTypes.ArgUint64(seq.Timestamp),
-			Coinbase:       s.cfg.SenderAddress,
+			Coinbase:       s.cfg.L2Coinbase,
 			L2Data:         seq.BatchL2Data,
 		})
 	}

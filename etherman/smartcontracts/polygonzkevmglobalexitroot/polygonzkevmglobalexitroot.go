@@ -26,7 +26,6 @@ var (
 	_ = common.Big1
 	_ = types.BloomLookup
 	_ = event.NewSubscription
-	_ = abi.ConvertType
 )
 
 // PolygonzkevmglobalexitrootMetaData contains all meta data concerning the Polygonzkevmglobalexitroot contract.
@@ -157,11 +156,11 @@ func NewPolygonzkevmglobalexitrootFilterer(address common.Address, filterer bind
 
 // bindPolygonzkevmglobalexitroot binds a generic wrapper to an already deployed contract.
 func bindPolygonzkevmglobalexitroot(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := PolygonzkevmglobalexitrootMetaData.GetAbi()
+	parsed, err := abi.JSON(strings.NewReader(PolygonzkevmglobalexitrootABI))
 	if err != nil {
 		return nil, err
 	}
-	return bind.NewBoundContract(address, *parsed, caller, transactor, filterer), nil
+	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
 }
 
 // Call invokes the (constant) contract method with params as input values and

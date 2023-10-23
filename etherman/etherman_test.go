@@ -166,13 +166,13 @@ func TestSequencedBatchesEvent(t *testing.T) {
 		GlobalExitRoot:     ger,
 		Timestamp:          currentBlock.Time(),
 		MinForcedTimestamp: uint64(blocks[2].ForcedBatches[0].ForcedAt.Unix()),
-		Transactions:       crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
+		TransactionsHash:   crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
 	})
 	sequences = append(sequences, polygonzkevm.PolygonZkEVMBatchData{
 		GlobalExitRoot:     ger,
 		Timestamp:          currentBlock.Time() + 1,
 		MinForcedTimestamp: 0,
-		Transactions:       crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
+		TransactionsHash:   crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
 	})
 	_, err = etherman.ZkEVM.SequenceBatches(auth, sequences, auth.From, []byte{})
 	require.NoError(t, err)
@@ -213,7 +213,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 		GlobalExitRoot:     common.Hash{},
 		Timestamp:          initBlock.Time(),
 		MinForcedTimestamp: 0,
-		Transactions:       crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
+		TransactionsHash:   crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
 	}
 	_, err = etherman.ZkEVM.SequenceBatches(auth, []polygonzkevm.PolygonZkEVMBatchData{tx}, auth.From, []byte{})
 	require.NoError(t, err)
@@ -327,7 +327,7 @@ func TestSendSequences(t *testing.T) {
 		Timestamp:      int64(currentBlock.Time() - 1),
 		BatchL2Data:    batchL2Data,
 	}
-	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, auth.From)
+	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, auth.From, nil)
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
 	ethBackend.Commit()

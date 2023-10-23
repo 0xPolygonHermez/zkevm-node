@@ -3,6 +3,7 @@ package etherman
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -554,18 +555,39 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 
 func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, committeeSignaturesAndAddrs []byte) (*types.Transaction, error) {
 	var batches []polygonzkevm.PolygonZkEVMBatchData
-	for _, seq := range sequences {
-		batch := polygonzkevm.PolygonZkEVMBatchData{
-			TransactionsHash:   crypto.Keccak256Hash(seq.BatchL2Data),
-			GlobalExitRoot:     seq.GlobalExitRoot,
-			Timestamp:          uint64(seq.Timestamp),
-			MinForcedTimestamp: uint64(seq.ForcedBatchTimestamp),
+
+	var tx *types.Transaction
+	var err error
+	if len(committeeSignaturesAndAddrs) > 0 {
+		for _, seq := range sequences {
+			batch := polygonzkevm.PolygonZkEVMBatchData{
+				TransactionsHash:   crypto.Keccak256Hash(seq.BatchL2Data),
+				GlobalExitRoot:     seq.GlobalExitRoot,
+				Timestamp:          uint64(seq.Timestamp),
+				MinForcedTimestamp: uint64(seq.ForcedBatchTimestamp),
+			}
+
+			batches = append(batches, batch)
 		}
 
-		batches = append(batches, batch)
+		log.Infof("Sequence batches with validium.")
+		tx, err = etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase, committeeSignaturesAndAddrs)
+	} else {
+		for _, seq := range sequences {
+			batch := polygonzkevm.PolygonZkEVMBatchData{
+				Transactions:       seq.BatchL2Data,
+				GlobalExitRoot:     seq.GlobalExitRoot,
+				Timestamp:          uint64(seq.Timestamp),
+				MinForcedTimestamp: uint64(seq.ForcedBatchTimestamp),
+			}
+
+			batches = append(batches, batch)
+		}
+
+		log.Infof("Sequence batches with rollup.")
+		tx, err = etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase, nil)
 	}
 
-	tx, err := etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase, committeeSignaturesAndAddrs)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
@@ -813,6 +835,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 			Coinbase:              coinbase,
 			PolygonZkEVMBatchData: seq,
 		}
+		log.Infof("decodeSequences txs len:%d, tx hash:%s", len(seq.Transactions), hex.EncodeToString(seq.TransactionsHash[:]))
 	}
 
 	return sequencedBatches, nil
