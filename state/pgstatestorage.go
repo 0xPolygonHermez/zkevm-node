@@ -2764,7 +2764,7 @@ func (p *PostgresStorage) GetDSBatch(ctx context.Context, batchNumber uint64, db
 	const getBatchByNumberSQL = `
 		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num, f.fork_id
 		  FROM state.batch b, state.fork_id f
-		 WHERE batch_num = $1 AND batch_num between f.from_batch_num AND f.to_batch_num`
+		 WHERE b.state_root is not null AND batch_num = $1 AND batch_num between f.from_batch_num AND f.to_batch_num`
 
 	e := p.getExecQuerier(dbTx)
 	row := e.QueryRow(ctx, getBatchByNumberSQL, batchNumber)

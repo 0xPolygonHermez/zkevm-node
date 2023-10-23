@@ -303,7 +303,8 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 	var err error
 
 	for err == nil {
-		log.Infof("Current entry number: %d", entry)
+		log.Debugf("Current entry number: %d", entry)
+		log.Debugf("Current batch number: %d", currentBatchNumber)
 		// Get Next Batch
 		batch, err := stateDB.GetDSBatch(ctx, currentBatchNumber, nil)
 		if err != nil {
