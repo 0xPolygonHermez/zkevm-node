@@ -29,7 +29,7 @@ type syncStatus struct {
 	errorRanges liveBlockRanges
 }
 
-func (s *syncStatus) toStringBrief() string {
+func (s *syncStatus) String() string {
 	return fmt.Sprintf(" lastBlockStoreOnStateDB: %s, highestBlockRequested:%s, lastBlockOnL1: %s, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
 		blockNumberToString(s.lastBlockStoreOnStateDB),
 		blockNumberToString(s.highestBlockRequested),
@@ -37,7 +37,7 @@ func (s *syncStatus) toStringBrief() string {
 }
 
 func (s *syncStatus) toString() string {
-	brief := s.toStringBrief()
+	brief := s.String()
 	brief += fmt.Sprintf(" processingRanges:{ %s }", s.processingRanges.String())
 	brief += fmt.Sprintf(" errorRanges:{ %s }", s.errorRanges.String())
 	return brief
@@ -56,7 +56,7 @@ func newSyncStatus(lastBlockStoreOnStateDB uint64, amountOfBlocksInEachRange uin
 		processingRanges:          newLiveBlockRanges(),
 	}
 }
-func (s *syncStatus) reset(lastBlockStoreOnStateDB uint64) {
+func (s *syncStatus) Reset(lastBlockStoreOnStateDB uint64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.lastBlockStoreOnStateDB = lastBlockStoreOnStateDB
@@ -65,22 +65,22 @@ func (s *syncStatus) reset(lastBlockStoreOnStateDB uint64) {
 	//s.lastBlockOnL1 = invalidLastBlock
 }
 
-func (s *syncStatus) getLastBlockOnL1() uint64 {
+func (s *syncStatus) GetLastBlockOnL1() uint64 {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.lastBlockOnL1
 }
 
 // All pending blocks have been requested or are currently being requested
-func (s *syncStatus) haveRequiredAllBlocksToBeSynchronized() bool {
+func (s *syncStatus) HaveRequiredAllBlocksToBeSynchronized() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.lastBlockOnL1 <= s.highestBlockRequested
 }
 
-// isNodeFullySynchronizedWithL1 returns true if the node is fully synchronized with L1
+// IsNodeFullySynchronizedWithL1 returns true if the node is fully synchronized with L1
 // it means that all blocks until the last block on L1 are requested (maybe not finish yet) and there are no pending errors
-func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
+func (s *syncStatus) IsNodeFullySynchronizedWithL1() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if s.lastBlockOnL1 == invalidLastBlock {
@@ -95,7 +95,7 @@ func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
 	return false
 }
 
-func (s *syncStatus) getNextRangeOnlyRetries() *blockRange {
+func (s *syncStatus) GetNextRangeOnlyRetries() *blockRange {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.getNextRangeOnlyRetriesUnsafe()
@@ -127,10 +127,10 @@ func (s *syncStatus) getHighestBlockRequestedUnsafe() uint64 {
 	return res
 }
 
-// getNextRange: if there are pending work it returns the next block to ask for
+// GetNextRange: if there are pending work it returns the next block to ask for
 //
 //	it could be a retry from a previous error or a new range
-func (s *syncStatus) getNextRange() *blockRange {
+func (s *syncStatus) GetNextRange() *blockRange {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	// Check if there are any range that need to be retried
@@ -157,7 +157,7 @@ func (s *syncStatus) getNextRange() *blockRange {
 	return br
 }
 
-func (s *syncStatus) onStartedNewWorker(br blockRange) {
+func (s *syncStatus) OnStartedNewWorker(br blockRange) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	// Try to remove from error Blocks
@@ -178,10 +178,10 @@ func (s *syncStatus) onStartedNewWorker(br blockRange) {
 }
 
 // return true is a valid blockRange
-func (s *syncStatus) onFinishWorker(br blockRange, successful bool, highestBlockNumberInResponse uint64) bool {
+func (s *syncStatus) OnFinishWorker(br blockRange, successful bool, highestBlockNumberInResponse uint64) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	log.Debugf("onFinishWorker(br=%s, successful=%v) initial_status: %s", br.String(), successful, s.toStringBrief())
+	log.Debugf("onFinishWorker(br=%s, successful=%v) initial_status: %s", br.String(), successful, s.String())
 	// The work have been done, remove the range from pending list
 	// also move the s.lastBlockStoreOnStateDB to the end of the range if needed
 	err := s.processingRanges.removeBlockRange(br)
@@ -209,7 +209,7 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool, highestBlock
 			log.Fatal(err)
 		}
 	}
-	log.Debugf("onFinishWorker final_status: %s", s.toStringBrief())
+	log.Debugf("onFinishWorker final_status: %s", s.String())
 	return true
 }
 
@@ -249,10 +249,10 @@ func (n *onNewLastBlockResponse) toString() string {
 	return res
 }
 
-func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse {
+func (s *syncStatus) OnNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	log.Debugf("onNewLastBlockOnL1(%v) initial_status: %s", lastBlock, s.toStringBrief())
+	log.Debugf("onNewLastBlockOnL1(%v) initial_status: %s", lastBlock, s.String())
 	response := onNewLastBlockResponse{
 		fullRange: blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: lastBlock},
 	}
@@ -286,23 +286,17 @@ func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
 		response.fullRange = blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: lastBlock}
 		return response
 	}
-	log.Debugf("onNewLastBlockOnL1(%d) final_status: %s", lastBlock, s.toStringBrief())
+	log.Debugf("onNewLastBlockOnL1(%d) final_status: %s", lastBlock, s.String())
 	return response
 }
 
-func (s *syncStatus) isSetLastBlockOnL1Value() bool {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	return s.lastBlockOnL1 == invalidLastBlock
-}
-
-func (s *syncStatus) doesItHaveAllTheNeedDataToWork() bool {
+func (s *syncStatus) DoesItHaveAllTheNeedDataToWork() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.lastBlockOnL1 != invalidLastBlock && s.lastBlockStoreOnStateDB != invalidBlockNumber
 }
 
-func (s *syncStatus) verify() error {
+func (s *syncStatus) Verify() error {
 	if s.amountOfBlocksInEachRange == 0 {
 		return errSyncChunkSizeMustBeGreaterThanZero
 	}

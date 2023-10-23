@@ -180,7 +180,7 @@ func newRequestNoSleep(blockRange blockRange) requestRollupInfoByBlockRange {
 	return requestRollupInfoByBlockRange{
 		blockRange:                         blockRange,
 		sleepBefore:                        noSleepTime,
-		requestLastBlockIfNoBlocksInAnswer: true,
+		requestLastBlockIfNoBlocksInAnswer: requestLastBlockModeIfNoBlocksInAnswer,
 	}
 }
 
@@ -188,6 +188,6 @@ func newRequestSleep(blockRange blockRange, sleep time.Duration) requestRollupIn
 	return requestRollupInfoByBlockRange{
 		blockRange:                         blockRange,
 		sleepBefore:                        sleep,
-		requestLastBlockIfNoBlocksInAnswer: true,
+		requestLastBlockIfNoBlocksInAnswer: requestLastBlockModeIfNoBlocksInAnswer,
 	}
 }
