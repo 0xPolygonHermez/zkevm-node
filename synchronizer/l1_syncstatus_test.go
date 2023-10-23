@@ -65,6 +65,22 @@ func TestGivenSychronizationIAliveWhenWeAreInLatestBlockThenResponseNoNewBlockRa
 	br = s.GetNextRange()
 	require.Nil(t, br)
 }
+func TestGivenThereAreALatestBlockErrorRangeIfMoveLastBlockBeyoundChunkThenDiscardErrorBR(t *testing.T) {
+	s := newSyncStatus(1819, 10)
+	s.setLastBlockOnL1(1823)
+	br := s.GetNextRange()
+	require.Equal(t, blockRange{fromBlock: 1820, toBlock: latestBlockNumber}, *br)
+	s.OnStartedNewWorker(blockRange{fromBlock: 1820, toBlock: latestBlockNumber})
+	s.setLastBlockOnL1(1824)
+	// Only could be 1 request to latest block
+	br = s.GetNextRange()
+	require.Nil(t, br)
+	s.OnFinishWorker(blockRange{fromBlock: 1820, toBlock: latestBlockNumber}, false, invalidBlockNumber)
+	s.setLastBlockOnL1(1850)
+	// We have a new segment to ask for because the last block have moved to 1984
+	br = s.GetNextRange()
+	require.Equal(t, blockRange{fromBlock: 1820, toBlock: 1830}, *br)
+}
 
 func TestFirstRunWithPendingBlocksToRetrieve(t *testing.T) {
 	tcs := []struct {

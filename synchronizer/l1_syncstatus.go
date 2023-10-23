@@ -105,6 +105,15 @@ func (s *syncStatus) getNextRangeOnlyRetriesUnsafe() *blockRange {
 	// Check if there are any range that need to be retried
 	blockRangeToRetry, err := s.errorRanges.getFirstBlockRange()
 	if err == nil {
+		if blockRangeToRetry.toBlock == latestBlockNumber {
+			// If is a latestBlockNumber must be discarded
+			log.Debugf("Discarding error block range: %s because it's a latestBlockNumber", blockRangeToRetry.String())
+			err := s.errorRanges.removeBlockRange(blockRangeToRetry)
+			if err != nil {
+				log.Errorf("syncstatus: error removing an error br: %s current_status:%s err:%s", blockRangeToRetry.String(), s.String(), err.Error())
+			}
+			return nil
+		}
 		return &blockRangeToRetry
 	}
 	return nil
