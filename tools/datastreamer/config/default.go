@@ -2,6 +2,7 @@ package config
 
 // DefaultValues is the default configuration
 const DefaultValues = `
+ChainID = 1440
 [StreamServer]
 Port = 6901
 Filename = "datastreamer.bin"

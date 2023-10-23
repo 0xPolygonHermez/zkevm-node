@@ -24,6 +24,7 @@ const (
 
 // Config is the configuration for the tool
 type Config struct {
+	ChainID      uint64              `mapstructure:"ChainID"`
 	StreamServer datastreamer.Config `mapstructure:"StreamServer"`
 	StateDB      db.Config           `mapstructure:"StateDB"`
 	Executor     executor.Config     `mapstructure:"Executor"`
