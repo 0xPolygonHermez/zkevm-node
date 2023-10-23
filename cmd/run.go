@@ -278,11 +278,7 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	etherman, err := etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config)
-	if err != nil {
-		return nil, err
-	}
-	return etherman, nil
+	return etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config)
 }
 
 func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
