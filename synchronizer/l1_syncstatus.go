@@ -147,7 +147,11 @@ func (s *syncStatus) GetNextRange() *blockRange {
 		log.Debug("No blocks to ask, we have requested all blocks from L1!")
 		return nil
 	}
-
+	highestBlockInProcess := s.getHighestBlockRequestedUnsafe()
+	if highestBlockInProcess == latestBlockNumber {
+		log.Debug("No blocks to ask, we have requested all blocks from L1!")
+		return nil
+	}
 	br := getNextBlockRangeFromUnsafe(max(s.lastBlockStoreOnStateDB, s.getHighestBlockRequestedUnsafe()), s.lastBlockOnL1, s.amountOfBlocksInEachRange)
 	err := br.isValid()
 	if err != nil {

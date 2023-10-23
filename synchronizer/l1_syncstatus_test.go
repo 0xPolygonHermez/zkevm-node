@@ -30,6 +30,42 @@ func TestGivenObjectWithDataWhenResetAndSetLastBlockOnL1ThenGetNextRangeReturnsN
 	require.Equal(t, *br, blockRange{fromBlock: 1235, toBlock: 1245})
 }
 
+// Only could be 1 request to latest block
+func TestGivenSychronizationWithThereAreARequestToLatestBlockWhenAskForNewBlockRangeItResponseNil(t *testing.T) {
+	s := newSyncStatus(1617, 10)
+	s.setLastBlockOnL1(1982)
+	s.OnStartedNewWorker(blockRange{fromBlock: 1820, toBlock: latestBlockNumber})
+	s.setLastBlockOnL1(1983)
+	// Only could be 1 request to latest block
+	br := s.GetNextRange()
+	require.Nil(t, br)
+	s.OnFinishWorker(blockRange{fromBlock: 1820, toBlock: latestBlockNumber}, true, uint64(1984))
+	// We have a new segment to ask for because the last block have moved to 1984
+	br = s.GetNextRange()
+	require.Equal(t, blockRange{fromBlock: 1985, toBlock: latestBlockNumber}, *br)
+}
+
+func TestGivenSychronizationIAliveWhenWeAreInLatestBlockThenResponseNoNewBlockRange(t *testing.T) {
+	s := newSyncStatus(1819, 10)
+	s.setLastBlockOnL1(1823)
+	br := s.GetNextRange()
+	require.Equal(t, blockRange{fromBlock: 1820, toBlock: latestBlockNumber}, *br)
+	s.OnStartedNewWorker(blockRange{fromBlock: 1820, toBlock: latestBlockNumber})
+	s.setLastBlockOnL1(1824)
+	// Only could be 1 request to latest block
+	br = s.GetNextRange()
+	require.Nil(t, br)
+	s.OnFinishWorker(blockRange{fromBlock: 1820, toBlock: latestBlockNumber}, true, invalidBlockNumber)
+	// We have a new segment to ask for because the last block have moved to 1984
+	br = s.GetNextRange()
+	require.Equal(t, blockRange{fromBlock: 1820, toBlock: latestBlockNumber}, *br)
+	s.OnStartedNewWorker(blockRange{fromBlock: 1820, toBlock: latestBlockNumber})
+	s.OnFinishWorker(blockRange{fromBlock: 1820, toBlock: latestBlockNumber}, true, 1830)
+	// We have the latest block 1830, so we don't need to ask for something els until we update the last block on L1 (setLastBlockOnL1)
+	br = s.GetNextRange()
+	require.Nil(t, br)
+}
+
 func TestFirstRunWithPendingBlocksToRetrieve(t *testing.T) {
 	tcs := []struct {
 		description           string
