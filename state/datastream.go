@@ -326,7 +326,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		if len(l2blocks) == 0 {
 			// Empty batch
 			// Check if there is a GER update
-			if batch.GlobalExitRoot != currentGER && batch.GlobalExitRoot != (common.Hash{}) && batch.StateRoot != (common.Hash{}) {
+			if batch.GlobalExitRoot != currentGER && batch.GlobalExitRoot != (common.Hash{}) {
 				updateGer := DSUpdateGER{
 					BatchNumber:    batch.BatchNumber,
 					Timestamp:      batch.Timestamp.Unix(),
