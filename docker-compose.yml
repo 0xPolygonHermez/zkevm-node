@@ -70,8 +70,7 @@ services:
     volumes:
       - ./db/scripts/init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
       - ${ZKEVM_NODE_STATEDB_DATA_DIR}:/var/lib/postgresql/data
-      - ${HOME}:/home
-      #- ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/${ZKEVM_NETWORK}}/postgresql.conf:/etc/postgresql.conf
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/${ZKEVM_NETWORK}}/postgresql.conf:/etc/postgresql.conf
     environment:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
@@ -80,8 +79,8 @@ services:
       - "postgres"
       - "-N"
       - "500"
-      #- "-c"
-      #- "config_file=/etc/postgresql.conf"
+      - "-c"
+      - "config_file=/etc/postgresql.conf"
 
   zkevm-pool-db:
     container_name: zkevm-pool-db
@@ -116,7 +115,6 @@ services:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      #- ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/${ZKEVM_NETWORK}}/prover.config.json:/usr/src/app/config.json
-      - ./test/config/test.prover.config.json:/usr/src/app/config.json
+      - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/${ZKEVM_NETWORK}}/prover.config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
