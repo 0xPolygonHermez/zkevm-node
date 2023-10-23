@@ -71,6 +71,9 @@ type syncStatusInterface interface {
 	OnFinishWorker(br blockRange, successful bool, highestBlockNumberInResponse uint64) bool
 	// OnNewLastBlockOnL1 a new last block on L1 has been received
 	OnNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
+	// BlockNumberIsInsideUnsafeArea returns if this block is beyond Finalized (so it could be reorg)
+	// If blockNumber == invalidBlockNumber then it uses the highestBlockRequested (the last block requested)
+	BlockNumberIsInsideUnsafeArea(blockNumber uint64) bool
 }
 
 type workersInterface interface {
@@ -377,6 +380,10 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 			log.Debugf("producer: producerWorking: haveRequiredAllBlocksToBeSynchronized -> renewLastBlockOnL1IfNeeded")
 			l.renewLastBlockOnL1IfNeeded()
 		}
+		if l.syncStatus.BlockNumberIsInsideUnsafeArea(invalidBlockNumber) {
+			log.Debugf("producer: producerWorking: we are inside unsafe area!, renewLastBlockOnL1IfNeeded")
+			l.renewLastBlockOnL1IfNeeded()
+		}
 		// If after asking for a new lastBlockOnL1 we are still synchronized then we are synchronized
 		if l.syncStatus.IsNodeFullySynchronizedWithL1() {
 			l.setStatus(producerSynchronized)
@@ -504,9 +511,8 @@ func (l *l1RollupInfoProducer) launchWork() (int, error) {
 		}
 		// GetLastBlockOnL1 is the lastest block on L1, if we are not in safe zone of reorgs we ask for previous and last block
 		//   to be able to check that there is no reorgs
-		distanceInBlockToLatest := l.syncStatus.GetLastBlockOnL1() - br.fromBlock
-		if distanceInBlockToLatest >= maximumBlockDistanceFromLatestToFinalized {
-			log.Debugf("L1 unsafe zone: asking for previous and last block distance: %d", distanceInBlockToLatest)
+		if l.syncStatus.BlockNumberIsInsideUnsafeArea(br.fromBlock) {
+			log.Debugf("L1 unsafe zone: asking for previous and last block")
 			request.requestLastBlockIfNoBlocksInAnswer = requestLastBlockModeAlways
 			request.requestPreviousBlock = true
 		}

@@ -305,3 +305,15 @@ func (s *syncStatus) Verify() error {
 	}
 	return nil
 }
+
+// It returns if this block is beyond Finalized (so it could be reorg)
+// If blockNumber == invalidBlockNumber then it uses the highestBlockRequested (the last block requested)
+func (s *syncStatus) BlockNumberIsInsideUnsafeArea(blockNumber uint64) bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if blockNumber == invalidBlockNumber {
+		blockNumber = s.highestBlockRequested
+	}
+	distanceInBlockToLatest := s.lastBlockOnL1 - blockNumber
+	return distanceInBlockToLatest < maximumBlockDistanceFromLatestToFinalized
+}

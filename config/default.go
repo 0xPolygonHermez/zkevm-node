@@ -102,7 +102,7 @@ UseParallelModeForL1Synchronization = true
 		[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
 			AcceptableTimeWaitingForNewRollupInfo = "5s"
 			NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo = 10
-			SwitchToSequentialModeIfIsSynchronized = true
+			SwitchToSequentialModeIfIsSynchronized = false
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
