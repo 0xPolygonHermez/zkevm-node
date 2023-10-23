@@ -11,6 +11,7 @@ gen() {
 gen polygonzkevm
 gen oldpolygonzkevm
 gen polygonzkevmbridge
+gen oldpolygonzkevmbridge
 gen pol
 gen polygonzkevmglobalexitroot
 gen polygonrollupmanager
