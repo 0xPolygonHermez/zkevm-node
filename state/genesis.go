@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -50,17 +49,17 @@ type BatchData struct {
 }
 
 // SetGenesis populates state with genesis information
-func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m metrics.CallerLabel, dbTx pgx.Tx) (common.Hash, common.Hash, uint64, string, error) {
+func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m metrics.CallerLabel, dbTx pgx.Tx) (common.Hash, error) {
 	var (
 		root             common.Hash
 		genesisStateRoot []byte
 		err              error
 	)
 	if dbTx == nil {
-		return common.Hash{}, common.Hash{}, 0, "", ErrDBTxNil
+		return common.Hash{}, ErrDBTxNil
 	}
 	if s.tree == nil {
-		return common.Hash{}, common.Hash{}, 0, "", ErrStateTreeNil
+		return common.Hash{}, ErrStateTreeNil
 	}
 
 	uuid := uuid.New().String()
@@ -71,49 +70,49 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 		case int(merkletree.LeafTypeBalance):
 			balance, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
 			if err != nil {
-				return common.Hash{}, common.Hash{}, 0, "", err
+				return common.Hash{}, err
 			}
 			genesisStateRoot, _, err = s.tree.SetBalance(ctx, address, balance, genesisStateRoot, uuid)
 			if err != nil {
-				return common.Hash{}, common.Hash{}, 0, "", err
+				return common.Hash{}, err
 			}
 		case int(merkletree.LeafTypeNonce):
 			nonce, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
 			if err != nil {
-				return common.Hash{}, common.Hash{}, 0, "", err
+				return common.Hash{}, err
 			}
 			genesisStateRoot, _, err = s.tree.SetNonce(ctx, address, nonce, genesisStateRoot, uuid)
 			if err != nil {
-				return common.Hash{}, common.Hash{}, 0, "", err
+				return common.Hash{}, err
 			}
 		case int(merkletree.LeafTypeCode):
 			code, err := hex.DecodeHex(action.Bytecode)
 			if err != nil {
-				return common.Hash{}, common.Hash{}, 0, "", fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
+				return common.Hash{}, fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
 			}
 			genesisStateRoot, _, err = s.tree.SetCode(ctx, address, code, genesisStateRoot, uuid)
 			if err != nil {
-				return common.Hash{}, common.Hash{}, 0, "", err
+				return common.Hash{}, err
 			}
 		case int(merkletree.LeafTypeStorage):
 			// Parse position and value
 			positionBI, err := encoding.DecodeBigIntHexOrDecimal(action.StoragePosition)
 			if err != nil {
-				return common.Hash{}, common.Hash{}, 0, "", err
+				return common.Hash{}, err
 			}
 			valueBI, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
 			if err != nil {
-				return common.Hash{}, common.Hash{}, 0, "", err
+				return common.Hash{}, err
 			}
 			// Store
 			genesisStateRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, genesisStateRoot, uuid)
 			if err != nil {
-				return common.Hash{}, common.Hash{}, 0, "", err
+				return common.Hash{}, err
 			}
 		case int(merkletree.LeafTypeSCLength):
 			log.Debug("Skipped genesis action of type merkletree.LeafTypeSCLength, these actions will be handled as part of merkletree.LeafTypeCode actions")
 		default:
-			return common.Hash{}, common.Hash{}, 0, "", fmt.Errorf("unknown genesis action type %q", action.Type)
+			return common.Hash{}, fmt.Errorf("unknown genesis action type %q", action.Type)
 		}
 	}
 
@@ -123,13 +122,13 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	err = s.tree.Flush(ctx, uuid)
 	if err != nil {
 		log.Errorf("error flushing state tree after genesis: %v", err)
-		return common.Hash{}, common.Hash{}, 0, "", err
+		return common.Hash{}, err
 	}
 
 	// store L1 block related to genesis batch
 	err = s.AddBlock(ctx, &block, dbTx)
 	if err != nil {
-		return common.Hash{}, common.Hash{}, 0, "", err
+		return common.Hash{}, err
 	}
 
 	// store genesis batch
@@ -147,7 +146,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 
 	err = s.storeGenesisBatch(ctx, batch, dbTx)
 	if err != nil {
-		return common.Hash{}, common.Hash{}, 0, "", err
+		return common.Hash{}, err
 	}
 
 	// mark the genesis batch as virtualized
@@ -159,7 +158,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	}
 	err = s.AddVirtualBatch(ctx, virtualBatch, dbTx)
 	if err != nil {
-		return common.Hash{}, common.Hash{}, 0, "", err
+		return common.Hash{}, err
 	}
 
 	// mark the genesis batch as verified/consolidated
@@ -171,7 +170,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	}
 	err = s.AddVerifiedBatch(ctx, verifiedBatch, dbTx)
 	if err != nil {
-		return common.Hash{}, common.Hash{}, 0, "", err
+		return common.Hash{}, err
 	}
 
 	// store L2 genesis block
@@ -191,49 +190,48 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 
 	err = s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, MaxEffectivePercentage, dbTx)
 	if err != nil {
-		return common.Hash{}, common.Hash{}, 0, "", err
+		return common.Hash{}, err
 	}
 
-	// Process FirstTransaction included in batch 1
-	batchL2Data := common.Hex2Bytes(genesis.FirstBatchData.Transactions[2:])
-	processCtx := ProcessingContext{
-		BatchNumber:    1,
-		Coinbase:       genesis.FirstBatchData.Sequencer,
-		Timestamp:      time.Unix(int64(genesis.FirstBatchData.Timestamp), 0),
-		GlobalExitRoot: genesis.FirstBatchData.GlobalExitRoot,
-		BatchL2Data:    &batchL2Data,
-	}
-	newStateRoot, flushID, proverID, err := s.ProcessAndStoreClosedBatch(ctx, processCtx, batch.BatchL2Data, dbTx, m)
-	if err != nil {
-		log.Error("error storing batch 1. Error: ", err)
-		return common.Hash{}, common.Hash{}, 0, "", err
-	}
-	var gRoot common.Hash
-	gRoot.SetBytes(genesisStateRoot)
+	// // Process FirstTransaction included in batch 1
+	// batchL2Data := common.Hex2Bytes(genesis.FirstBatchData.Transactions[2:])
+	// processCtx := ProcessingContext{
+	// 	BatchNumber:    1,
+	// 	Coinbase:       genesis.FirstBatchData.Sequencer,
+	// 	Timestamp:      time.Unix(int64(genesis.FirstBatchData.Timestamp), 0),
+	// 	GlobalExitRoot: genesis.FirstBatchData.GlobalExitRoot,
+	// 	BatchL2Data:    &batchL2Data,
+	// }
+	// newStateRoot, flushID, proverID, err := s.ProcessAndStoreClosedBatch(ctx, processCtx, batch.BatchL2Data, dbTx, m)
+	// if err != nil {
+	// 	log.Error("error storing batch 1. Error: ", err)
+	// 	return common.Hash{}, common.Hash{}, 0, "", err
+	// }
+	// var gRoot common.Hash
+	// gRoot.SetBytes(genesisStateRoot)
 
-	// Virtualize Batch and add sequence
-	virtualBatch1 := VirtualBatch{
-		BatchNumber:   1,
-		TxHash:        ZeroHash,
-		Coinbase:      genesis.FirstBatchData.Sequencer,
-		BlockNumber:   block.BlockNumber,
-		SequencerAddr: genesis.FirstBatchData.Sequencer,
-	}
-	err = s.AddVirtualBatch(ctx, &virtualBatch1, dbTx)
-	if err != nil {
-		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch1.BatchNumber, genesis.GenesisBlockNum, err)
-		return common.Hash{}, common.Hash{}, 0, "", err
-	}
-	// Insert the sequence to allow the aggregator verify the sequence batches
-	seq := Sequence{
-		FromBatchNumber: 1,
-		ToBatchNumber:   1,
-	}
-	err = s.AddSequence(ctx, seq, dbTx)
-	if err != nil {
-		log.Errorf("error adding sequence. Sequence: %+v", seq)
-		return common.Hash{}, common.Hash{}, 0, "", err
-	}
-	// DEVOLVER EL flushID proverID y newStateRoot para que la sync continue desde ese punto
-	return gRoot, newStateRoot, flushID, proverID, nil
+	// // Virtualize Batch and add sequence
+	// virtualBatch1 := VirtualBatch{
+	// 	BatchNumber:   1,
+	// 	TxHash:        ZeroHash,
+	// 	Coinbase:      genesis.FirstBatchData.Sequencer,
+	// 	BlockNumber:   block.BlockNumber,
+	// 	SequencerAddr: genesis.FirstBatchData.Sequencer,
+	// }
+	// err = s.AddVirtualBatch(ctx, &virtualBatch1, dbTx)
+	// if err != nil {
+	// 	log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch1.BatchNumber, genesis.GenesisBlockNum, err)
+	// 	return common.Hash{}, common.Hash{}, 0, "", err
+	// }
+	// // Insert the sequence to allow the aggregator verify the sequence batches
+	// seq := Sequence{
+	// 	FromBatchNumber: 1,
+	// 	ToBatchNumber:   1,
+	// }
+	// err = s.AddSequence(ctx, seq, dbTx)
+	// if err != nil {
+	// 	log.Errorf("error adding sequence. Sequence: %+v", seq)
+	// 	return common.Hash{}, common.Hash{}, 0, "", err
+	// }
+	return root, nil
 }

@@ -101,7 +101,7 @@ func setupTest(t *testing.T) {
 			Sequencer:      common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
 		},
 	}
-	_, _, _, _, err = localState.SetGenesis(localCtx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
+	_, err = localState.SetGenesis(localCtx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(localCtx))
 }

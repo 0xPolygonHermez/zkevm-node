@@ -930,10 +930,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	if err != nil {
 		return err
 	}
-	if sb.NumBatch == 1 {
-		log.Info("ignoring initial transaction...")
-		return nil
-	}
+
 	// Read the tx for this event.
 	tx, isPending, err := etherMan.EthClient.TransactionByHash(ctx, vLog.TxHash)
 	if err != nil {
@@ -945,9 +942,21 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	if err != nil {
 		return err
 	}
-	sequences, err := decodeSequences(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce)
-	if err != nil {
-		return fmt.Errorf("error decoding the sequences: %v", err)
+
+	var sequences []SequencedBatch
+	if sb.NumBatch != 1 {
+		sequences, err = decodeSequences(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce)
+		if err != nil {
+			return fmt.Errorf("error decoding the sequences: %v", err)
+		}
+	} else {
+		log.Info("initial transaction sequence...")
+		sequences = append(sequences, SequencedBatch{
+			BatchNumber: 1,
+			SequencerAddr: msg.From,
+			TxHash: vLog.TxHash,
+			Nonce: msg.Nonce,
+		})
 	}
 
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {

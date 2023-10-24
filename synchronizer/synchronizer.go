@@ -187,7 +187,7 @@ func (s *ClientSynchronizer) Sync() error {
 				ParentHash:  header.ParentHash,
 				ReceivedAt:  time.Unix(int64(header.Time), 0),
 			}
-			genesisRoot, _, flushID, proverID, err := s.state.SetGenesis(s.ctx, *lastEthBlockSynced, s.genesis, stateMetrics.SynchronizerCallerLabel, dbTx)
+			genesisRoot, err := s.state.SetGenesis(s.ctx, *lastEthBlockSynced, s.genesis, stateMetrics.SynchronizerCallerLabel, dbTx)
 			if err != nil {
 				log.Error("error setting genesis: ", err)
 				rollbackErr := dbTx.Rollback(s.ctx)
@@ -197,7 +197,6 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				return err
 			}
-			s.pendingFlushID(flushID, proverID)
 
 			blocks, _, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber, &lastEthBlockSynced.BlockNumber)
 			if err != nil {
@@ -215,6 +214,16 @@ func (s *ClientSynchronizer) Sync() error {
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
 					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+					return rollbackErr
+				}
+				return err
+			}
+			err = s.setInitialBatch(blocks[0].BlockNumber, dbTx)
+			if err != nil {
+				log.Error("error setting initial tx Batch. BatchNum: ", blocks[0].SequencedBatches[0][0].BatchNumber)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", blocks[0].BlockNumber, rollbackErr.Error(), err)
 					return rollbackErr
 				}
 				return err
@@ -1830,4 +1839,48 @@ func (s *ClientSynchronizer) halt(ctx context.Context, err error) {
 		log.Error("halting the Synchronizer")
 		time.Sleep(5 * time.Second) //nolint:gomnd
 	}
+}
+
+func (s *ClientSynchronizer) setInitialBatch(blockNumber uint64, dbTx pgx.Tx) error {
+	log.Debug("Setting initial transaction batch 1")
+	// Process FirstTransaction included in batch 1
+	batchL2Data := common.Hex2Bytes(s.genesis.FirstBatchData.Transactions[2:])
+	processCtx := state.ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       s.genesis.FirstBatchData.Sequencer,
+		Timestamp:      time.Unix(int64(s.genesis.FirstBatchData.Timestamp), 0),
+		GlobalExitRoot: s.genesis.FirstBatchData.GlobalExitRoot,
+		BatchL2Data:    &batchL2Data,
+	}
+	_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
+	if err != nil {
+		log.Error("error storing batch 1. Error: ", err)
+		return err
+	}
+	s.pendingFlushID(flushID, proverID)
+
+	// Virtualize Batch and add sequence
+	virtualBatch1 := state.VirtualBatch{
+		BatchNumber:   1,
+		TxHash:        state.ZeroHash,
+		Coinbase:      s.genesis.FirstBatchData.Sequencer,
+		BlockNumber:   blockNumber,
+		SequencerAddr: s.genesis.FirstBatchData.Sequencer,
+	}
+	err = s.state.AddVirtualBatch(s.ctx, &virtualBatch1, dbTx)
+	if err != nil {
+		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch1.BatchNumber, s.genesis.GenesisBlockNum, err)
+		return err
+	}
+	// Insert the sequence to allow the aggregator verify the sequence batches
+	seq := state.Sequence{
+		FromBatchNumber: 1,
+		ToBatchNumber:   1,
+	}
+	err = s.state.AddSequence(s.ctx, seq, dbTx)
+	if err != nil {
+		log.Errorf("error adding sequence. Sequence: %+v", seq)
+		return err
+	}
+	return nil
 }

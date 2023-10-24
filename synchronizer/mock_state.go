@@ -641,15 +641,12 @@ func (_m *stateMock) ResetTrustedState(ctx context.Context, batchNumber uint64, 
 }
 
 // SetGenesis provides a mock function with given fields: ctx, block, genesis, m, dbTx
-func (_m *stateMock) SetGenesis(ctx context.Context, block state.Block, genesis state.Genesis, m metrics.CallerLabel, dbTx pgx.Tx) (common.Hash, common.Hash, uint64, string, error) {
+func (_m *stateMock) SetGenesis(ctx context.Context, block state.Block, genesis state.Genesis, m metrics.CallerLabel, dbTx pgx.Tx) (common.Hash, error) {
 	ret := _m.Called(ctx, block, genesis, m, dbTx)
 
 	var r0 common.Hash
-	var r1 common.Hash
-	var r2 uint64
-	var r3 string
-	var r4 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) (common.Hash, common.Hash, uint64, string, error)); ok {
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) (common.Hash, error)); ok {
 		return rf(ctx, block, genesis, m, dbTx)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) common.Hash); ok {
@@ -660,33 +657,13 @@ func (_m *stateMock) SetGenesis(ctx context.Context, block state.Block, genesis 
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) common.Hash); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) error); ok {
 		r1 = rf(ctx, block, genesis, m, dbTx)
 	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(common.Hash)
-		}
+		r1 = ret.Error(1)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) uint64); ok {
-		r2 = rf(ctx, block, genesis, m, dbTx)
-	} else {
-		r2 = ret.Get(2).(uint64)
-	}
-
-	if rf, ok := ret.Get(3).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) string); ok {
-		r3 = rf(ctx, block, genesis, m, dbTx)
-	} else {
-		r3 = ret.Get(3).(string)
-	}
-
-	if rf, ok := ret.Get(4).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) error); ok {
-		r4 = rf(ctx, block, genesis, m, dbTx)
-	} else {
-		r4 = ret.Error(4)
-	}
-
-	return r0, r1, r2, r3, r4
+	return r0, r1
 }
 
 // SetInitSyncBatch provides a mock function with given fields: ctx, batchNumber, dbTx

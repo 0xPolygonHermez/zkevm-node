@@ -129,11 +129,11 @@ func TestOpenBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 
-	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
+	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 
 	processingContext := state.ProcessingContext{
-		BatchNumber:    2,
+		BatchNumber:    1,
 		Coinbase:       common.Address{},
 		Timestamp:      time.Now().UTC(),
 		GlobalExitRoot: common.Hash{},
@@ -153,11 +153,11 @@ func TestGetLastBatchNumber(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 
-	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
+	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 
 	processingContext := state.ProcessingContext{
-		BatchNumber:    2,
+		BatchNumber:    1,
 		Coinbase:       common.Address{},
 		Timestamp:      time.Now().UTC(),
 		GlobalExitRoot: common.Hash{},
@@ -170,7 +170,7 @@ func TestGetLastBatchNumber(t *testing.T) {
 
 	lastBatchNum, err := testDbManager.GetLastBatchNumber(ctx)
 	require.NoError(t, err)
-	require.Equal(t, uint64(2), lastBatchNum)
+	require.Equal(t, uint64(1), lastBatchNum)
 	cleanupDBManager()
 }
 
@@ -180,7 +180,7 @@ func TestCreateFirstBatch(t *testing.T) {
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, _, _, _, err = testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
+	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	err = dbTx.Commit(ctx)
 	require.NoError(t, err)

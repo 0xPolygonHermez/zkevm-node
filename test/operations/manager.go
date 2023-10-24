@@ -169,7 +169,7 @@ func (m *Manager) SetGenesis(genesisBlockNumber uint64, genesisActions []*state.
 		return err
 	}
 
-	_, _, _, _, err = m.st.SetGenesis(m.ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
+	_, err = m.st.SetGenesis(m.ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 
 	errCommit := dbTx.Commit(m.ctx)
 	if errCommit != nil {
