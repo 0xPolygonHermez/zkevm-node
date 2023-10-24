@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	cleanUpOlderThan = time.Hour
+	timeOfLiveOfEntries = time.Hour
 )
 
 type controlWorkerFlux struct {
@@ -24,16 +24,20 @@ func (c *controlWorkerFlux) String() string {
 }
 
 // TODO: Change processingRanges by a cache that take full requests in consideration (no sleep time!)
+
 type workerDecoratorLimitRetriesByTime struct {
 	mutex sync.Mutex
 	workersInterface
-
-	processingRanges    liveBlockRangesGeneric[controlWorkerFlux]
+	processingRanges    Cache[blockRange, controlWorkerFlux]
 	minTimeBetweenCalls time.Duration
 }
 
 func newWorkerDecoratorLimitRetriesByTime(workers workersInterface, minTimeBetweenCalls time.Duration) *workerDecoratorLimitRetriesByTime {
-	return &workerDecoratorLimitRetriesByTime{workersInterface: workers, minTimeBetweenCalls: minTimeBetweenCalls}
+	return &workerDecoratorLimitRetriesByTime{
+		workersInterface:    workers,
+		minTimeBetweenCalls: minTimeBetweenCalls,
+		processingRanges:    *NewCache[blockRange, controlWorkerFlux](DefaultTimeProvider{}, timeOfLiveOfEntries),
+	}
 }
 
 func (w *workerDecoratorLimitRetriesByTime) String() string {
@@ -43,14 +47,15 @@ func (w *workerDecoratorLimitRetriesByTime) String() string {
 func (w *workerDecoratorLimitRetriesByTime) stop() {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	w.processingRanges = newLiveBlockRangesWithTag[controlWorkerFlux]()
+	w.processingRanges.Clear()
 }
 
 func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(ctx context.Context, request requestRollupInfoByBlockRange) (chan responseRollupInfoByBlockRange, error) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	ctrl, errTagFound := w.processingRanges.getTagByBlockRange(request.blockRange)
-	if errTagFound == nil {
+	//ctrl, found := w.processingRanges.getTagByBlockRange(request.blockRange)
+	ctrl, found := w.processingRanges.Get(request.blockRange)
+	if found {
 		lastCallElapsedTime := time.Since(ctrl.time)
 		if lastCallElapsedTime < w.minTimeBetweenCalls {
 			sleepTime := w.minTimeBetweenCalls - lastCallElapsedTime
@@ -63,31 +68,8 @@ func (w *workerDecoratorLimitRetriesByTime) asyncRequestRollupInfoByBlockRange(c
 
 	if !errors.Is(err, errAllWorkersBusy) {
 		// update the tag
-		if errTagFound == nil {
-			errSetTag := w.processingRanges.setTagByBlockRange(request.blockRange, controlWorkerFlux{time: time.Now(), retries: ctrl.retries + 1})
-			if errSetTag != nil {
-				log.Warnf("workerDecoratorLimitRetriesByTime: error setting tag %s for blockRange %s err:%s", ctrl, request.blockRange.String(), errSetTag.Error())
-			}
-		} else {
-			ctrl = controlWorkerFlux{time: time.Now(), retries: 0}
-			errAddRange := w.processingRanges.addBlockRangeWithTag(request.blockRange, ctrl)
-			if errAddRange != nil {
-				log.Warnf("workerDecoratorLimitRetriesByTime: error adding blockRange %s err:%s", request.blockRange.String(), errAddRange.Error())
-			}
-		}
+		w.processingRanges.Set(request.blockRange, controlWorkerFlux{time: time.Now(), retries: ctrl.retries + 1})
 	}
-	w.cleanUpOlderThanUnsafe(cleanUpOlderThan)
+	w.processingRanges.DeleteOutdated()
 	return res, err
-}
-
-func (w *workerDecoratorLimitRetriesByTime) cleanUpOlderThanUnsafe(timeout time.Duration) {
-	brs := w.processingRanges.filterBlockRangesByTag(func(br blockRange, tag controlWorkerFlux) bool {
-		return tag.time.Add(timeout).Before(time.Now())
-	})
-	for _, br := range brs {
-		err := w.processingRanges.removeBlockRange(br)
-		if err != nil {
-			log.Warnf("workerDecoratorLimitRetriesByTime: error removing outdated blockRange %s", br)
-		}
-	}
 }

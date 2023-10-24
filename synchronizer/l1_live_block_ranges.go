@@ -5,19 +5,15 @@ import (
 	"fmt"
 )
 
-type liveBlockRangeItem[T any] struct {
+type liveBlockRangeItem struct {
 	blockRange blockRange
-	// Tag is a generic field to store any kind of data as extra information, you can use to store related information
-	tag T
 }
 
-type liveBlockRangesGeneric[T any] struct {
-	ranges []liveBlockRangeItem[T]
+type liveBlockRanges struct {
+	ranges []liveBlockRangeItem
 }
 
-type liveBlockRanges = liveBlockRangesGeneric[int]
-
-func (l *liveBlockRangesGeneric[T]) String() string {
+func (l *liveBlockRanges) String() string {
 	res := l.toStringBrief() + "["
 	for _, r := range l.ranges {
 		res += fmt.Sprintf("%s ,", r.blockRange.String())
@@ -25,7 +21,7 @@ func (l *liveBlockRangesGeneric[T]) String() string {
 	return res + "]"
 }
 
-func (l *liveBlockRangesGeneric[T]) toStringBrief() string {
+func (l *liveBlockRanges) toStringBrief() string {
 	return fmt.Sprintf("len(ranges): %v", len(l.ranges))
 }
 
@@ -39,47 +35,18 @@ func newLiveBlockRanges() liveBlockRanges {
 	return liveBlockRanges{}
 }
 
-func newLiveBlockRangesWithTag[T any]() liveBlockRangesGeneric[T] {
-	return liveBlockRangesGeneric[T]{}
-}
-
-func (l *liveBlockRangesGeneric[T]) addBlockRange(br blockRange) error {
-	var zeroValue T
-	return l.addBlockRangeWithTag(br, zeroValue)
-}
-
-func (l *liveBlockRangesGeneric[T]) addBlockRangeWithTag(br blockRange, tag T) error {
+func (l *liveBlockRanges) addBlockRange(br blockRange) error {
 	if err := br.isValid(); err != nil {
 		return err
 	}
 	if l.overlaps(br) {
 		return errBlockRangeInvalidOverlap
 	}
-	l.ranges = append(l.ranges, liveBlockRangeItem[T]{blockRange: br, tag: tag})
+	l.ranges = append(l.ranges, liveBlockRangeItem{br})
 	return nil
 }
 
-func (l *liveBlockRangesGeneric[T]) setTagByBlockRange(br blockRange, tag T) error {
-	for i, r := range l.ranges {
-		if r.blockRange == br {
-			l.ranges[i].tag = tag
-			return nil
-		}
-	}
-	return errBlockRangeNotFound
-}
-
-func (l *liveBlockRangesGeneric[T]) filterBlockRangesByTag(filter func(blockRange, T) bool) []blockRange {
-	result := make([]blockRange, 0)
-	for _, r := range l.ranges {
-		if filter(r.blockRange, r.tag) {
-			result = append(result, r.blockRange)
-		}
-	}
-	return result
-}
-
-func (l *liveBlockRangesGeneric[T]) removeBlockRange(br blockRange) error {
+func (l *liveBlockRanges) removeBlockRange(br blockRange) error {
 	for i, r := range l.ranges {
 		if r.blockRange == br {
 			l.ranges = append(l.ranges[:i], l.ranges[i+1:]...)
@@ -89,24 +56,14 @@ func (l *liveBlockRangesGeneric[T]) removeBlockRange(br blockRange) error {
 	return errBlockRangeNotFound
 }
 
-func (l *liveBlockRangesGeneric[T]) getFirstBlockRange() (blockRange, error) {
+func (l *liveBlockRanges) getFirstBlockRange() (blockRange, error) {
 	if l.len() == 0 {
 		return blockRange{}, errBlockRangeIsEmpty
 	}
 	return l.ranges[0].blockRange, nil
 }
 
-func (l *liveBlockRangesGeneric[T]) getTagByBlockRange(br blockRange) (T, error) {
-	for _, r := range l.ranges {
-		if r.blockRange == br {
-			return r.tag, nil
-		}
-	}
-	var zeroValue T
-	return zeroValue, errBlockRangeNotFound
-}
-
-func (l *liveBlockRangesGeneric[T]) getSuperBlockRange() *blockRange {
+func (l *liveBlockRanges) getSuperBlockRange() *blockRange {
 	fromBlock := invalidBlockNumber
 	toBlock := invalidBlockNumber
 	for i, r := range l.ranges {
@@ -128,11 +85,11 @@ func (l *liveBlockRangesGeneric[T]) getSuperBlockRange() *blockRange {
 	return nil
 }
 
-func (l *liveBlockRangesGeneric[T]) len() int {
+func (l *liveBlockRanges) len() int {
 	return len(l.ranges)
 }
 
-func (l *liveBlockRangesGeneric[T]) overlaps(br blockRange) bool {
+func (l *liveBlockRanges) overlaps(br blockRange) bool {
 	for _, r := range l.ranges {
 		if r.blockRange.overlaps(br) {
 			return true
