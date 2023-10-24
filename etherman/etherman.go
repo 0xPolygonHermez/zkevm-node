@@ -952,10 +952,10 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	} else {
 		log.Info("initial transaction sequence...")
 		sequences = append(sequences, SequencedBatch{
-			BatchNumber: 1,
+			BatchNumber:   1,
 			SequencerAddr: msg.From,
-			TxHash: vLog.TxHash,
-			Nonce: msg.Nonce,
+			TxHash:        vLog.TxHash,
+			Nonce:         msg.Nonce,
 		})
 	}
 
