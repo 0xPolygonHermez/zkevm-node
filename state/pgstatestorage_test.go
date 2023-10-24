@@ -921,7 +921,12 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 			receipt.BlockHash = l2Block.Hash()
 		}
 
-		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+		storeTxsEGPData := []state.StoreTxEGPData{}
+		for range transactions {
+			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+		}
+
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 
 		nativeBlockHashes = append(nativeBlockHashes, l2Block.Header().Root)
