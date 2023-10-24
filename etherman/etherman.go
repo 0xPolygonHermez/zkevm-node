@@ -802,7 +802,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 		&opts,
 		etherMan.RollupID,
 		pendStateNum,
-		lastVerifiedBatch+1,
+		lastVerifiedBatch,
 		newVerifiedBatch,
 		newLocalExitRoot,
 		newStateRoot,
