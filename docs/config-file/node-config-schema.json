@@ -976,7 +976,7 @@
 							"minItems": 20,
 							"description": "ZkEVMAddr Address of the L1 contract polygonZkEVMAddress"
 						},
-						"polygonRollupManagerAddr": {
+						"polygonRollupManagerAddress": {
 							"items": {
 								"type": "integer"
 							},

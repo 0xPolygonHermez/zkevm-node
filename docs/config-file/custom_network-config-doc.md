@@ -92,7 +92,7 @@
 | ----------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | -------------------------------------------------------------------------- |
 | - [chainId](#L1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                                                 |
 | - [polygonZkEVMAddress](#L1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | ZkEVMAddr Address of the L1 contract polygonZkEVMAddress                   |
-| - [polygonRollupManagerAddr](#L1Config_polygonRollupManagerAddr )                   | No      | array of integer | No         | -          | RollupManagerAddr Address of the L1 contract                               |
+| - [polygonRollupManagerAddress](#L1Config_polygonRollupManagerAddress )             | No      | array of integer | No         | -          | RollupManagerAddr Address of the L1 contract                               |
 | - [polTokenAddress](#L1Config_polTokenAddress )                                     | No      | array of integer | No         | -          | PolAddr Address of the L1 Pol token Contract                               |
 | - [polygonZkEVMGlobalExitRootAddress](#L1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract |
 
@@ -106,7 +106,7 @@
 **Type:** : `array of integer`
 **Description:** ZkEVMAddr Address of the L1 contract polygonZkEVMAddress
 
-### <a name="L1Config_polygonRollupManagerAddr"></a>4.3. `L1Config.polygonRollupManagerAddr`
+### <a name="L1Config_polygonRollupManagerAddress"></a>4.3. `L1Config.polygonRollupManagerAddress`
 
 **Type:** : `array of integer`
 **Description:** RollupManagerAddr Address of the L1 contract
