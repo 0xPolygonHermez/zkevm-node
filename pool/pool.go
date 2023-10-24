@@ -297,6 +297,10 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 		} else {
 			response.isOOC = isOOC
 			response.isOOG = isOOG
+			if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
+				response.usedZkCounters = processBatchResponse.UsedZkCounters
+				response.txResponse = processBatchResponse.Responses[0]
+			}
 			return response, nil
 		}
 	}
