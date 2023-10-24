@@ -267,12 +267,12 @@ func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transacti
 			reject = true
 		} else {
 			// accept loss
-			loss = loss.Sub(breakEvenGasPrice, tx.GasPrice())
+			loss = loss.Sub(breakEvenGasPriceWithFactor, tx.GasPrice())
 		}
 	}
 
-	log.Infof("egp-log: tx.GasPrice(): %v, breakEvenGasPrice: %v, breakEvenGasPriceWithFactor: %v, reject: %t, loss: %v, L1GasPrice: %d, L2GasPrice: %d, EGPEnabled:%t, tx: %s",
-		tx.GasPrice(), breakEvenGasPrice, breakEvenGasPriceWithFactor, reject, loss, gasPrices.L1GasPrice, gasPrices.L2GasPrice, p.cfg.EffectiveGasPrice.Enabled, tx.Hash().String())
+	log.Infof("egp-log: tx.GasPrice(): %v, breakEvenGasPrice: %v, breakEvenGasPriceWithFactor: %v, gasUsed: %v, reject: %t, loss: %v, L1GasPrice: %d, L2GasPrice: %d, EGPEnabled: %t, tx: %s",
+		tx.GasPrice(), breakEvenGasPrice, breakEvenGasPriceWithFactor, preExecutionGasUsed, reject, loss, gasPrices.L1GasPrice, gasPrices.L2GasPrice, p.cfg.EffectiveGasPrice.Enabled, tx.Hash().String())
 
 	// Reject transaction if EffetiveGasPrice is enabled
 	if p.cfg.EffectiveGasPrice.Enabled && reject {
