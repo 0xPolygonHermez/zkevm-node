@@ -33,11 +33,8 @@ func NewStorage() *Storage {
 
 // NewLogFilter persists a new log filter
 func (s *Storage) NewLogFilter(wsConn *atomic.Pointer[websocket.Conn], filter LogFilter) (string, error) {
-	shouldFilterByBlockHash := filter.BlockHash != nil
-	shouldFilterByBlockRange := filter.FromBlock != nil || filter.ToBlock != nil
-
-	if shouldFilterByBlockHash && shouldFilterByBlockRange {
-		return "", ErrFilterInvalidPayload
+	if err := filter.Validate(); err != nil {
+		return "", err
 	}
 
 	return s.createFilter(FilterTypeLog, filter, wsConn)

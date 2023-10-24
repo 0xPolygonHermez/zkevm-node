@@ -303,10 +303,15 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 			//Sync L1Blocks
 			startL1 := time.Now()
-			if s.l1SyncOrchestration != nil {
+			if s.l1SyncOrchestration != nil && (latestSyncedBatch < latestSequencedBatchNumber || !s.cfg.L1ParallelSynchronization.SwitchToSequentialModeIfIsSynchronized) {
 				log.Infof("Syncing L1 blocks in parallel lastEthBlockSynced=%d", lastEthBlockSynced.BlockNumber)
 				lastEthBlockSynced, err = s.syncBlocksParallel(lastEthBlockSynced)
 			} else {
+				if s.l1SyncOrchestration != nil {
+					log.Infof("Switching to sequential mode, stopping parallel sync and deleting object")
+					s.l1SyncOrchestration.abort()
+					s.l1SyncOrchestration = nil
+				}
 				log.Infof("Syncing L1 blocks sequentially lastEthBlockSynced=%d", lastEthBlockSynced.BlockNumber)
 				lastEthBlockSynced, err = s.syncBlocksSequential(lastEthBlockSynced)
 			}
@@ -346,6 +351,7 @@ func (s *ClientSynchronizer) syncBlocksParallel(lastEthBlockSynced *state.Block)
 		err = s.resetState(block.BlockNumber)
 		if err != nil {
 			log.Errorf("error resetting the state to a previous block. Retrying... Err: %v", err)
+			s.l1SyncOrchestration.reset(lastEthBlockSynced.BlockNumber)
 			return lastEthBlockSynced, fmt.Errorf("error resetting the state to a previous block")
 		}
 		return block, nil
@@ -463,17 +469,17 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 		return nil
 	}
 
-	log.Info("Getting trusted state info")
+	log.Info("syncTrustedState: Getting trusted state info")
 	start := time.Now()
 	lastTrustedStateBatchNumber, err := s.zkEVMClient.BatchNumber(s.ctx)
 	metrics.GetTrustedBatchNumberTime(time.Since(start))
 	if err != nil {
-		log.Warn("error syncing trusted state. Error: ", err)
+		log.Warn("syncTrustedState: error syncing trusted state. Error: ", err)
 		return err
 	}
 
-	log.Debug("lastTrustedStateBatchNumber ", lastTrustedStateBatchNumber)
-	log.Debug("latestSyncedBatch ", latestSyncedBatch)
+	log.Debug("syncTrustedState: lastTrustedStateBatchNumber ", lastTrustedStateBatchNumber)
+	log.Debug("syncTrustedState: latestSyncedBatch ", latestSyncedBatch)
 	if lastTrustedStateBatchNumber < latestSyncedBatch {
 		return nil
 	}
@@ -488,41 +494,41 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 		batchToSync, err := s.zkEVMClient.BatchByNumber(s.ctx, big.NewInt(0).SetUint64(batchNumberToSync))
 		metrics.GetTrustedBatchInfoTime(time.Since(start))
 		if err != nil {
-			log.Warnf("failed to get batch %d from trusted state. Error: %v", batchNumberToSync, err)
+			log.Warnf("syncTrustedState: failed to get batch %d from trusted state. Error: %v", batchNumberToSync, err)
 			return err
 		}
 
 		dbTx, err := s.state.BeginStateTransaction(s.ctx)
 		if err != nil {
-			log.Errorf("error creating db transaction to sync trusted batch %d: %v", batchNumberToSync, err)
+			log.Errorf("syncTrustedState: error creating db transaction to sync trusted batch %d: %v", batchNumberToSync, err)
 			return err
 		}
 		start = time.Now()
 		cbatches, lastStateRoot, err := s.processTrustedBatch(batchToSync, dbTx)
 		metrics.ProcessTrustedBatchTime(time.Since(start))
 		if err != nil {
-			log.Errorf("error processing trusted batch %d: %v", batchNumberToSync, err)
+			log.Errorf("syncTrustedState: error processing trusted batch %d: %v", batchNumberToSync, err)
 			rollbackErr := dbTx.Rollback(s.ctx)
 			if rollbackErr != nil {
-				log.Errorf("error rolling back db transaction to sync trusted batch %d: %v", batchNumberToSync, rollbackErr)
+				log.Errorf("syncTrustedState: error rolling back db transaction to sync trusted batch %d: %v", batchNumberToSync, rollbackErr)
 				return rollbackErr
 			}
 			return err
 		}
-		log.Debug("Checking FlushID to commit trustedState data to db")
+		log.Debug("syncTrustedState: Checking FlushID to commit trustedState data to db")
 		err = s.checkFlushID(dbTx)
 		if err != nil {
-			log.Errorf("error checking flushID. Error: %v", err)
+			log.Errorf("syncTrustedState: error checking flushID. Error: %v", err)
 			rollbackErr := dbTx.Rollback(s.ctx)
 			if rollbackErr != nil {
-				log.Errorf("error rolling back state. RollbackErr: %s, Error : %v", rollbackErr.Error(), err)
+				log.Errorf("syncTrustedState: error rolling back state. RollbackErr: %s, Error : %v", rollbackErr.Error(), err)
 				return rollbackErr
 			}
 			return err
 		}
 
 		if err := dbTx.Commit(s.ctx); err != nil {
-			log.Errorf("error committing db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
+			log.Errorf("syncTrustedState: error committing db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
 			return err
 		}
 		s.trustedState.lastTrustedBatches = cbatches
@@ -530,7 +536,7 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 		batchNumberToSync++
 	}
 
-	log.Info("Trusted state fully synchronized")
+	log.Info("syncTrustedState: Trusted state fully synchronized")
 	return nil
 }
 
@@ -689,6 +695,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 		}
 		// Compare hashes
 		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.genesis.GenesisBlockNum {
+			log.Infof("checkReorg: Bad block %d hashOk %t parentHashOk %t", latestBlock.BlockNumber, block.Hash() == latestBlock.BlockHash, block.ParentHash() == latestBlock.ParentHash)
 			log.Debug("[checkReorg function] => latestBlockNumber: ", latestBlock.BlockNumber)
 			log.Debug("[checkReorg function] => latestBlockHash: ", latestBlock.BlockHash)
 			log.Debug("[checkReorg function] => latestBlockHashParent: ", latestBlock.ParentHash)
@@ -726,7 +733,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 		}
 	}
 	if latestEthBlockSynced.BlockHash != latestBlock.BlockHash {
-		log.Info("Reorg detected in block: ", latestEthBlockSynced.BlockNumber)
+		log.Info("Reorg detected in block: ", latestEthBlockSynced.BlockNumber, " last block OK: ", latestBlock.BlockNumber)
 		return latestBlock, nil
 	}
 	return nil, nil

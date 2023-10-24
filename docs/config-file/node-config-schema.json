@@ -420,6 +420,11 @@
 					"type": "integer",
 					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
 					"default": 10000
+				},
+				"MaxNativeBlockHashBlockRange": {
+					"type": "integer",
+					"description": "MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying\nnative block hashes in a single call to the state, if zero it means no limit",
+					"default": 60000
 				}
 			},
 			"additionalProperties": false,
@@ -458,12 +463,12 @@
 						"NumberOfParallelOfEthereumClients": {
 							"type": "integer",
 							"description": "NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1\n(if UseParallelModeForL1Synchronization is true)",
-							"default": 2
+							"default": 10
 						},
 						"CapacityOfBufferingRollupInfoFromL1": {
 							"type": "integer",
 							"description": "CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsugested twice of NumberOfParallelOfEthereumClients\n(if UseParallelModeForL1Synchronization is true)",
-							"default": 10
+							"default": 25
 						},
 						"TimeForCheckLastBlockOnL1Time": {
 							"type": "string",
@@ -541,6 +546,11 @@
 								"1m",
 								"300ms"
 							]
+						},
+						"SwitchToSequentialModeIfIsSynchronized": {
+							"type": "boolean",
+							"description": "SwitchToSequentialModeIfIsSynchronized if true switch to sequential mode if the system is synchronized",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
@@ -1481,6 +1491,11 @@
 				"MaxLogsBlockRange": {
 					"type": "integer",
 					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
+					"default": 0
+				},
+				"MaxNativeBlockHashBlockRange": {
+					"type": "integer",
+					"description": "MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying\nnative block hashes in a single call to the state, if zero it means no limit",
 					"default": 0
 				}
 			},

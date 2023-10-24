@@ -13,6 +13,11 @@ type l1RollupProducerInterfaceMock struct {
 	mock.Mock
 }
 
+// Abort provides a mock function with given fields:
+func (_m *l1RollupProducerInterfaceMock) Abort() {
+	_m.Called()
+}
+
 // Reset provides a mock function with given fields: startingBlockNumber
 func (_m *l1RollupProducerInterfaceMock) Reset(startingBlockNumber uint64) {
 	_m.Called(startingBlockNumber)

@@ -358,6 +358,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(10000),
 		},
 		{
+			path:          "RPC.MaxNativeBlockHashBlockRange",
+			expectedValue: uint64(60000),
+		},
+		{
 			path:          "RPC.WebSockets.Enabled",
 			expectedValue: true,
 		},
