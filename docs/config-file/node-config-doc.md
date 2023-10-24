@@ -1121,36 +1121,37 @@ UseParallelModeForL1Synchronization=true
 | - [TimeForShowUpStatisticsLog](#Synchronizer_L1ParallelSynchronization_TimeForShowUpStatisticsLog )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
 | - [TimeOutMainLoop](#Synchronizer_L1ParallelSynchronization_TimeOutMainLoop )                                                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
 | - [MinTimeBetweenRetriesForRollupInfo](#Synchronizer_L1ParallelSynchronization_MinTimeBetweenRetriesForRollupInfo )               | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                    |
+| - [SwitchToSequentialModeIfIsSynchronized](#Synchronizer_L1ParallelSynchronization_SwitchToSequentialModeIfIsSynchronized )       | No      | boolean | No         | -          | SwitchToSequentialModeIfIsSynchronized if true switch to sequential mode if the system is synchronized                                                                                                                                                      |
 
 #### <a name="Synchronizer_L1ParallelSynchronization_NumberOfParallelOfEthereumClients"></a>9.5.1. `Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients`
 
 **Type:** : `integer`
 
-**Default:** `2`
+**Default:** `10`
 
 **Description:** NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1
 (if UseParallelModeForL1Synchronization is true)
 
-**Example setting the default value** (2):
+**Example setting the default value** (10):
 ```
 [Synchronizer.L1ParallelSynchronization]
-NumberOfParallelOfEthereumClients=2
+NumberOfParallelOfEthereumClients=10
 ```
 
 #### <a name="Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1"></a>9.5.2. `Synchronizer.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1`
 
 **Type:** : `integer`
 
-**Default:** `10`
+**Default:** `25`
 
 **Description:** CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync
 sugested twice of NumberOfParallelOfEthereumClients
 (if UseParallelModeForL1Synchronization is true)
 
-**Example setting the default value** (10):
+**Example setting the default value** (25):
 ```
 [Synchronizer.L1ParallelSynchronization]
-CapacityOfBufferingRollupInfoFromL1=10
+CapacityOfBufferingRollupInfoFromL1=25
 ```
 
 #### <a name="Synchronizer_L1ParallelSynchronization_TimeForCheckLastBlockOnL1Time"></a>9.5.3. `Synchronizer.L1ParallelSynchronization.TimeForCheckLastBlockOnL1Time`
@@ -1351,6 +1352,20 @@ TimeOutMainLoop="5m0s"
 ```
 [Synchronizer.L1ParallelSynchronization]
 MinTimeBetweenRetriesForRollupInfo="5s"
+```
+
+#### <a name="Synchronizer_L1ParallelSynchronization_SwitchToSequentialModeIfIsSynchronized"></a>9.5.10. `Synchronizer.L1ParallelSynchronization.SwitchToSequentialModeIfIsSynchronized`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** SwitchToSequentialModeIfIsSynchronized if true switch to sequential mode if the system is synchronized
+
+**Example setting the default value** (false):
+```
+[Synchronizer.L1ParallelSynchronization]
+SwitchToSequentialModeIfIsSynchronized=false
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`

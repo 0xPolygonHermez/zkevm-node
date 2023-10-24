@@ -19,10 +19,10 @@ const (
 )
 
 var (
-	errMissingLastBlock                     = errors.New("consumer:the received rollupinfo have no blocks and need to fill last block")
 	errContextCanceled                      = errors.New("consumer:context canceled")
 	errConsumerStopped                      = errors.New("consumer:stopped by request")
 	errConsumerStoppedBecauseIsSynchronized = errors.New("consumer:stopped because is synchronized")
+	errL1Reorg                              = errors.New("consumer: L1 reorg detected")
 )
 
 type configConsumer struct {
@@ -43,7 +43,8 @@ type l1RollupInfoConsumer struct {
 	chIncommingRollupInfo chan l1SyncMessage
 	ctx                   context.Context
 	statistics            l1RollupInfoConsumerStatistics
-	lastEthBlockSynced    *state.Block
+	lastEthBlockSynced    *state.Block // Have been written in DB
+	lastEthBlockReceived  *state.Block // is a memory cache
 	highestBlockProcessed uint64
 }
 
@@ -137,6 +138,27 @@ func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1Consu
 	return nil
 }
 
+func checkPreviousBlocks(rollupInfo rollupInfoByBlockRangeResult, cachedBlock *state.Block) error {
+	if cachedBlock == nil {
+		return nil
+	}
+	if rollupInfo.previousBlockOfRange == nil {
+		return nil
+	}
+	if cachedBlock.BlockNumber == rollupInfo.previousBlockOfRange.NumberU64() {
+		if cachedBlock.BlockHash != rollupInfo.previousBlockOfRange.Hash() {
+			log.Errorf("consumer: Previous block %d hash is not the same", cachedBlock.BlockNumber)
+			return errL1Reorg
+		}
+		if cachedBlock.ParentHash != rollupInfo.previousBlockOfRange.ParentHash() {
+			log.Errorf("consumer: Previous block %d parentHash is not the same", cachedBlock.BlockNumber)
+			return errL1Reorg
+		}
+		log.Infof("consumer: Verified previous block %d  not the same: OK", cachedBlock.BlockNumber)
+	}
+	return nil
+}
+
 func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupInfoByBlockRangeResult) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
@@ -146,13 +168,26 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 			l.highestBlockProcessed, rollupInfo.blockRange.String())
 		return nil
 	}
-	l.highestBlockProcessed = rollupInfo.blockRange.toBlock
+	l.highestBlockProcessed = rollupInfo.getHighestBlockNumberInResponse()
 	// Uncommented that line to produce a infinite loop of errors, and resets! (just for develop)
 	//return errors.New("forcing an continuous error!")
 	statisticsMsg := l.statistics.onStartProcessIncommingRollupInfoData(rollupInfo)
 	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] statistics:%s", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.String(), len(rollupInfo.blocks), statisticsMsg)
 	timeProcessingStart := time.Now()
-	l.lastEthBlockSynced, err = l.processUnsafe(rollupInfo)
+
+	if l.lastEthBlockReceived != nil {
+		err = checkPreviousBlocks(rollupInfo, l.lastEthBlockReceived)
+		if err != nil {
+			log.Errorf("consumer: error checking previous blocks: %s", err.Error())
+			return err
+		}
+	}
+	l.lastEthBlockReceived = rollupInfo.getHighestBlockReceived()
+
+	lastBlockProcessed, err := l.processUnsafe(rollupInfo)
+	if err == nil && lastBlockProcessed != nil {
+		l.lastEthBlockSynced = lastBlockProcessed
+	}
 	l.statistics.onFinishProcessIncommingRollupInfoData(rollupInfo, time.Since(timeProcessingStart), err)
 	if err != nil {
 		log.Infof("consumer: error processing rollupInfo %s. Error: %s", rollupInfo.blockRange.String(), err.Error())
@@ -190,8 +225,8 @@ func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeRe
 	if len(blocks) == 0 {
 		lb := rollupInfo.lastBlockOfRange
 		if lb == nil {
-			log.Warn("consumer: Error processing block range: ", rollupInfo.blockRange, " err: need the last block of range and got a nil")
-			return nil, errMissingLastBlock
+			log.Info("consumer: Empty block range: ", rollupInfo.blockRange.String())
+			return nil, nil
 		}
 		b := convertL1BlockToEthBlock(lb)
 		err := l.synchronizer.processBlockRange([]etherman.Block{b}, order)
