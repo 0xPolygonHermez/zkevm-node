@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - develop
+      - feature/sonarcloud-coverage
 
 jobs:
   sonarqube:
@@ -14,6 +15,16 @@ jobs:
         # Disabling shallow clone is recommended for improving relevancy of reporting.
         fetch-depth: 0
 
+    - name: Compile SCs
+      run: make compile-scs
+      working-directory: test
+
+    - name: Test
+      env:
+        ZKPROVER_URI: 127.0.0.1
+      run: make test-full-non-e2e
+      working-directory: test
+    
     # Triggering SonarQube analysis as results of it are required by Quality Gate check.
     - name: SonarQube Scan
       uses: sonarsource/sonarqube-scan-action@master
