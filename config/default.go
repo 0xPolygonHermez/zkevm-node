@@ -91,8 +91,8 @@ SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
 UseParallelModeForL1Synchronization = true
 	[Synchronizer.L1ParallelSynchronization]
-		NumberOfParallelOfEthereumClients = 2
-		CapacityOfBufferingRollupInfoFromL1 = 10
+		NumberOfParallelOfEthereumClients = 10
+		CapacityOfBufferingRollupInfoFromL1 = 25
 		TimeForCheckLastBlockOnL1Time = "5s"
 		TimeoutForRequestLastBlockOnL1 = "5s"
 		MaxNumberOfRetriesForRequestLastBlockOnL1 = 3

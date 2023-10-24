@@ -39,6 +39,7 @@ func (c *Cache[K, T]) Get(key K) (T, bool) {
 	}
 	// We extend the life of the item if it is used
 	item.validTime = c.timerProvider.Now().Add(c.timeOfLiveItems)
+	c.data[key] = item
 	return item.value, true
 }
 
@@ -83,10 +84,14 @@ func (c *Cache[K, T]) Clear() {
 // DeleteOutdated deletes the outdated items from the cache
 func (c *Cache[K, T]) DeleteOutdated() {
 	for k, v := range c.data {
-		if v.validTime.Before(c.timerProvider.Now()) {
+		if isOutdated(v.validTime, c.timerProvider.Now()) {
 			delete(c.data, k)
 		}
 	}
+}
+
+func isOutdated(validTime time.Time, now time.Time) bool {
+	return validTime.Before(now)
 }
 
 // RenewEntry renews the entry of the key
