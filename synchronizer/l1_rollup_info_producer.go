@@ -509,24 +509,27 @@ func (l *l1RollupInfoProducer) launchWork() (int, error) {
 			requestLastBlockIfNoBlocksInAnswer: requestLastBlockModeIfNoBlocksInAnswer,
 			requestPreviousBlock:               false,
 		}
+		unsafeAreaMsg := ""
 		// GetLastBlockOnL1 is the lastest block on L1, if we are not in safe zone of reorgs we ask for previous and last block
 		//   to be able to check that there is no reorgs
 		if l.syncStatus.BlockNumberIsInsideUnsafeArea(br.fromBlock) {
 			log.Debugf("L1 unsafe zone: asking for previous and last block")
 			request.requestLastBlockIfNoBlocksInAnswer = requestLastBlockModeAlways
 			request.requestPreviousBlock = true
+			unsafeAreaMsg = "/UNSAFE"
 		}
+		blockRangeMsg := br.String() + unsafeAreaMsg
 		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, request)
 		if err != nil {
 			if errors.Is(err, errAllWorkersBusy) {
-				accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
+				accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", blockRangeMsg, err.Error())
 			}
 			break
 		} else {
-			accDebugStr += fmt.Sprintf(" segment %s -> [LAUNCHED] ", br.String())
+			accDebugStr += fmt.Sprintf(" segment %s -> [LAUNCHED] ", blockRangeMsg)
 		}
 		launchedWorker++
-		log.Debugf("producer: launch_worker: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.String(), launchedWorker)
+		log.Debugf("producer: launch_worker: Launched worker for segment %s, num_workers_in_this_iteration: %d", blockRangeMsg, launchedWorker)
 		l.syncStatus.OnStartedNewWorker(*br)
 	}
 	log.Infof("producer: launch_worker:  num of launched workers: %d  result: %s status_comm:%s", launchedWorker, accDebugStr, l.outgoingPackageStatusDebugString())
