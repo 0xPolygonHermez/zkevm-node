@@ -416,12 +416,12 @@
 						"NumberOfParallelOfEthereumClients": {
 							"type": "integer",
 							"description": "NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1\n(if UseParallelModeForL1Synchronization is true)",
-							"default": 2
+							"default": 10
 						},
 						"CapacityOfBufferingRollupInfoFromL1": {
 							"type": "integer",
 							"description": "CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsugested twice of NumberOfParallelOfEthereumClients\n(if UseParallelModeForL1Synchronization is true)",
-							"default": 10
+							"default": 25
 						},
 						"TimeForCheckLastBlockOnL1Time": {
 							"type": "string",

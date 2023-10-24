@@ -1111,31 +1111,31 @@ UseParallelModeForL1Synchronization=true
 
 **Type:** : `integer`
 
-**Default:** `2`
+**Default:** `10`
 
 **Description:** NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1
 (if UseParallelModeForL1Synchronization is true)
 
-**Example setting the default value** (2):
+**Example setting the default value** (10):
 ```
 [Synchronizer.L1ParallelSynchronization]
-NumberOfParallelOfEthereumClients=2
+NumberOfParallelOfEthereumClients=10
 ```
 
 #### <a name="Synchronizer_L1ParallelSynchronization_CapacityOfBufferingRollupInfoFromL1"></a>9.5.2. `Synchronizer.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1`
 
 **Type:** : `integer`
 
-**Default:** `10`
+**Default:** `25`
 
 **Description:** CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync
 sugested twice of NumberOfParallelOfEthereumClients
 (if UseParallelModeForL1Synchronization is true)
 
-**Example setting the default value** (10):
+**Example setting the default value** (25):
 ```
 [Synchronizer.L1ParallelSynchronization]
-CapacityOfBufferingRollupInfoFromL1=10
+CapacityOfBufferingRollupInfoFromL1=25
 ```
 
 #### <a name="Synchronizer_L1ParallelSynchronization_TimeForCheckLastBlockOnL1Time"></a>9.5.3. `Synchronizer.L1ParallelSynchronization.TimeForCheckLastBlockOnL1Time`
