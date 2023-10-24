@@ -737,7 +737,7 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 
 	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, nil, false, dbTx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
 	return response, nil
