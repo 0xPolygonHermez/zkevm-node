@@ -4,34 +4,27 @@ import (
 	"time"
 )
 
-type TimeProvider interface {
-	Now() time.Time
-}
-
-type DefaultTimeProvider struct{}
-
-func (d DefaultTimeProvider) Now() time.Time {
-	return time.Now()
-}
-
-type CacheItem[T any] struct {
+type cacheItem[T any] struct {
 	value     T
 	validTime time.Time
 }
 
+// Cache is a generic cache implementation with TOL (time of live) for each item
 type Cache[K comparable, T any] struct {
-	data            map[K]CacheItem[T] // map[K]T is a map with key type K and value type T
+	data            map[K]cacheItem[T] // map[K]T is a map with key type K and value type T
 	timeOfLiveItems time.Duration
 	timerProvider   TimeProvider
 }
 
+// NewCache creates a new cache
 func NewCache[K comparable, T any](timerProvider TimeProvider, timeOfLiveItems time.Duration) *Cache[K, T] {
 	return &Cache[K, T]{
-		data:            make(map[K]CacheItem[T]),
+		data:            make(map[K]cacheItem[T]),
 		timeOfLiveItems: timeOfLiveItems,
 		timerProvider:   timerProvider}
 }
 
+// Get returns the value of the key and true if the key exists and is not outdated
 func (c *Cache[K, T]) Get(key K) (T, bool) {
 	item, ok := c.data[key]
 	if !ok {
@@ -49,18 +42,22 @@ func (c *Cache[K, T]) Get(key K) (T, bool) {
 	return item.value, true
 }
 
+// Set sets the value of the key
 func (c *Cache[K, T]) Set(key K, value T) {
-	c.data[key] = CacheItem[T]{value: value, validTime: c.timerProvider.Now().Add(c.timeOfLiveItems)}
+	c.data[key] = cacheItem[T]{value: value, validTime: c.timerProvider.Now().Add(c.timeOfLiveItems)}
 }
 
+// Delete deletes the key from the cache
 func (c *Cache[K, T]) Delete(key K) {
 	delete(c.data, key)
 }
 
+// Len returns the number of items in the cache
 func (c *Cache[K, T]) Len() int {
 	return len(c.data)
 }
 
+// Keys returns the keys of the cache
 func (c *Cache[K, T]) Keys() []K {
 	keys := make([]K, 0, len(c.data))
 	for k := range c.data {
@@ -69,6 +66,7 @@ func (c *Cache[K, T]) Keys() []K {
 	return keys
 }
 
+// Values returns the values of the cache
 func (c *Cache[K, T]) Values() []T {
 	values := make([]T, 0, len(c.data))
 	for _, v := range c.data {
@@ -77,10 +75,12 @@ func (c *Cache[K, T]) Values() []T {
 	return values
 }
 
+// Clear clears the cache
 func (c *Cache[K, T]) Clear() {
-	c.data = make(map[K]CacheItem[T])
+	c.data = make(map[K]cacheItem[T])
 }
 
+// DeleteOutdated deletes the outdated items from the cache
 func (c *Cache[K, T]) DeleteOutdated() {
 	for k, v := range c.data {
 		if v.validTime.Before(c.timerProvider.Now()) {
@@ -89,6 +89,7 @@ func (c *Cache[K, T]) DeleteOutdated() {
 	}
 }
 
+// RenewEntry renews the entry of the key
 func (c *Cache[K, T]) RenewEntry(key K, validTime time.Time) {
 	item, ok := c.data[key]
 	if ok {

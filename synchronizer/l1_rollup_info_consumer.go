@@ -19,7 +19,6 @@ const (
 )
 
 var (
-	errMissingLastBlock                     = errors.New("consumer:the received rollupinfo have no blocks and need to fill last block")
 	errContextCanceled                      = errors.New("consumer:context canceled")
 	errConsumerStopped                      = errors.New("consumer:stopped by request")
 	errConsumerStoppedBecauseIsSynchronized = errors.New("consumer:stopped because is synchronized")
