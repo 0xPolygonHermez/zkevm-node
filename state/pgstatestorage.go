@@ -1460,6 +1460,31 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 	return logs, nil
 }
 
+// GetTransactionEGPLogByHash gets the EGP log accordingly to the provided transaction hash
+func (p *PostgresStorage) GetTransactionEGPLogByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*EffectiveGasPriceLog, error) {
+	var (
+		egpLogData []byte
+		egpLog     EffectiveGasPriceLog
+	)
+	const getTransactionByHashSQL = "SELECT egp_log FROM state.transaction WHERE hash = $1"
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash.String()).Scan(&egpLogData)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(egpLogData, &egpLog)
+	if err != nil {
+		return nil, err
+	}
+
+	return &egpLog, nil
+}
+
 // AddL2Block adds a new L2 block to the State Store
 func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, txsEGPData []StoreTxEGPData, dbTx pgx.Tx) error {
 	log.Debugf("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())

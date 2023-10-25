@@ -225,9 +225,12 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			log.Errorf("error adding event: %v", err)
 		}
 	}
-	var gasPrices GasPrices
-	// This is function get the gasPrice from memory (updated each 5s)
-	gasPrices.L1GasPrice, gasPrices.L2GasPrice = p.GetL1AndL2GasPrice()
+
+	gasPrices, err := p.GetGasPrices(ctx)
+	if err != nil {
+		return err
+	}
+
 	err = p.ValidateBreakEvenGasPrice(ctx, tx, preExecutionResponse.txResponse.GasUsed, gasPrices)
 	if err != nil {
 		return err
