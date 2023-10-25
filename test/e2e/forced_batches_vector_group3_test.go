@@ -59,8 +59,13 @@ func TestForcedBatchesVectorFilesGroup3(t *testing.T) {
 				log.Info("# Setting Genesis #")
 				log.Info("###################")
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
+				genesisConfig.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 				require.NoError(t, opsman.SetGenesis(genesisConfig.Genesis.GenesisBlockNum, genesisActions))
 				require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID))
+				dbTx, err := opsman.BeginStateTransaction()
+				require.NoError(t, err)
+				require.NoError(t, opsman.SetInitialBatch(genesisConfig.Genesis, dbTx))
+				require.NoError(t, dbTx.Commit(ctx))
 				require.NoError(t, opsman.Setup())
 
 				// Check initial root

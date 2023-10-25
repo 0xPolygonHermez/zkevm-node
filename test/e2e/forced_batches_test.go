@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
@@ -33,11 +34,38 @@ func TestForcedBatches(t *testing.T) {
 		require.NoError(t, operations.Teardown())
 	}()
 
-	var err error
-	nTxs := 10
 	ctx := context.Background()
+	nTxs := 10
 	opsman, auth, client, amount, gasLimit, gasPrice, nonce := setupEnvironment(ctx, t)
 
+	// Connect to ethereum node
+	ethClient, err := ethclient.Dial(operations.DefaultL1NetworkURL)
+	require.NoError(t, err)
+	authL1, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
+	require.NoError(t, err)
+	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMSmartContract)
+	zkEvm, err := polygonzkevm.NewPolygonzkevm(zkEvmAddr, ethClient)
+	require.NoError(t, err)
+	pol, err := pol.NewPol(common.HexToAddress(operations.DefaultL1PolSmartContract), ethClient)
+	require.NoError(t, err)
+	polAmount, _ := big.NewInt(0).SetString("9999999999999999999999", 0)
+	_, err = pol.Transfer(authL1, common.HexToAddress(operations.DefaultForcedBatchesAddress), polAmount)
+	require.NoError(t, err)
+	// Create smc client
+	allowed, err := zkEvm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
+	require.NoError(t, err)
+	if !allowed {
+		log.Debug("Activating ForcedBatches...")
+		// Load account with balance on local genesis
+		authForcedBatch, err := operations.GetAuth(operations.DefaultForcedBatchesPrivateKey, operations.DefaultL1ChainID)
+		require.NoError(t, err)
+		_, err = pol.Approve(authForcedBatch, zkEvmAddr, polAmount)
+		require.NoError(t, err)
+		tx, err := zkEvm.ActivateForceBatches(authL1)
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+	}
 	txs := make([]*types.Transaction, 0, nTxs)
 	for i := 0; i < nTxs; i++ {
 		tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
@@ -56,7 +84,7 @@ func TestForcedBatches(t *testing.T) {
 	require.NoError(t, err)
 	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID)
 	require.NoError(t, err)
-	forcedBatch, err := sendForcedBatch(t, encodedTxs, opsman)
+	forcedBatch, err := sendForcedBatch(t, encodedTxs, opsman, ethClient, zkEvm, zkEvmAddr)
 	require.NoError(t, err)
 
 	// Checking if all txs sent before the forced batch were processed within previous closed batch
@@ -78,7 +106,13 @@ func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *
 	require.NoError(t, err)
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
+	genesisConfig.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	require.NoError(t, opsman.SetGenesis(genesisConfig.Genesis.GenesisBlockNum, genesisConfig.Genesis.GenesisActions))
 	require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID))
+	dbTx, err := opsman.BeginStateTransaction()
+	require.NoError(t, err)
+	require.NoError(t, opsman.SetInitialBatch(genesisConfig.Genesis, dbTx))
+	require.NoError(t, dbTx.Commit(ctx))
 	err = opsman.Setup()
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)
@@ -108,32 +142,25 @@ func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *
 
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
+
 	return opsman, auth, client, amount, gasLimit, gasPrice, nonce
 }
 
-func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*state.Batch, error) {
+func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager, ethClient *ethclient.Client, zkEvm *polygonzkevm.Polygonzkevm, zkEvmAddr common.Address) (*state.Batch, error) {
 	ctx := context.Background()
 	st := opsman.State()
-	// Connect to ethereum node
-	ethClient, err := ethclient.Dial(operations.DefaultL1NetworkURL)
-	require.NoError(t, err)
 
 	initialGer, _, err := st.GetLatestGer(ctx, gerFinalityBlocks)
-	require.NoError(t, err)
-
-	// Create smc client
-	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMSmartContract)
-	zkEvm, err := polygonzkevm.NewPolygonzkevm(zkEvmAddr, ethClient)
 	require.NoError(t, err)
 
 	rollupManagerAddr := common.HexToAddress(operations.DefaultL1RollupManagerSmartContract)
 	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(rollupManagerAddr, ethClient)
 	require.NoError(t, err)
 
-	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
+	authForcedBatch, err := operations.GetAuth(operations.DefaultForcedBatchesPrivateKey, operations.DefaultL1ChainID)
 	require.NoError(t, err)
 
-	log.Info("Using address: ", auth.From)
+	log.Info("Using address: ", authForcedBatch.From)
 
 	num, err := zkEvm.LastForceBatch(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
@@ -154,22 +181,16 @@ func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*sta
 	require.NoError(t, err)
 	rootInContractHash := common.BytesToHash(rootInContract[:])
 
-	allowed, err := zkEvm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
-	require.NoError(t, err)
-	if !allowed {
-		tx, err := zkEvm.ActivateForceBatches(auth)
-		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
-		require.NoError(t, err)
-	}
-
 	currentBlock, err := ethClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
 	log.Debug("currentBlock.Time(): ", currentBlock.Time())
 
+	allowed, err := zkEvm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
+	require.NoError(t, err)
+	t.Log("IsForcedBatchAllowed and tip: ", allowed, tip)
 	// Send forceBatch
-	tx, err := zkEvm.ForceBatch(auth, txs, tip)
+	tx, err := zkEvm.ForceBatch(authForcedBatch, txs, tip)
 	require.NoError(t, err)
 
 	log.Info("TxHash: ", tx.Hash())
