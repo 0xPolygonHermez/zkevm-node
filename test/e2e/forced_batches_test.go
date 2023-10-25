@@ -3,9 +3,12 @@ package e2e
 import (
 	"context"
 	"math/big"
-	"sync"
 	"testing"
 	"time"
+
+	"github.com/0xPolygonHermez/zkevm-node/config"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
@@ -16,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
@@ -42,27 +44,21 @@ func TestForcedBatches(t *testing.T) {
 		txs = append(txs, tx)
 	}
 
-	wgNormalL2Transfers := new(sync.WaitGroup)
-	wgNormalL2Transfers.Add(1)
 	var l2BlockNumbers []*big.Int
-	go func() {
-		defer wgNormalL2Transfers.Done()
-		l2BlockNumbers, err = operations.ApplyL2Txs(ctx, txs, auth, client, operations.VerifiedConfirmationLevel)
-		require.NoError(t, err)
-	}()
+	l2BlockNumbers, err = operations.ApplyL2Txs(ctx, txs, auth, client, operations.VerifiedConfirmationLevel)
+	require.NoError(t, err)
 
 	time.Sleep(2 * time.Second)
 	amount = big.NewInt(0).Add(amount, big.NewInt(10))
 	unsignedTx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, unsignedTx)
 	require.NoError(t, err)
-	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID)
+	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID6)
 	require.NoError(t, err)
 	forcedBatch, err := sendForcedBatch(t, encodedTxs, opsman)
 	require.NoError(t, err)
 
 	// Checking if all txs sent before the forced batch were processed within previous closed batch
-	wgNormalL2Transfers.Wait()
 	for _, l2blockNum := range l2BlockNumbers {
 		batch, err := opsman.State().GetBatchByL2BlockNumber(ctx, l2blockNum.Uint64(), nil)
 		require.NoError(t, err)
@@ -75,8 +71,13 @@ func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *
 	require.NoError(t, err)
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
+	genesisFileAsStr, err := config.LoadGenesisFileAsString("../../test/config/test.genesis.config.json")
+	require.NoError(t, err)
+	genesisConfig, err := config.LoadGenesisFromJSONString(genesisFileAsStr)
+	require.NoError(t, err)
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
+	require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID6))
 	err = opsman.Setup()
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)

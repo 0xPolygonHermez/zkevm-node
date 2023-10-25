@@ -8,12 +8,12 @@ docs/                   @agnusmor @joanestebanr
 etherman/               @ARR552 @joanestebanr
 ethtxmanager/           @tclemos
 gasprice/               @ARR552
-jsonrpc/                @tclemos @Psykepro
+jsonrpc/                @tclemos
 merkletree/             @ToniRamirezM
-pool/                   @tclemos @Psykepro
+pool/                   @tclemos
 proto/                  @ToniRamirezM
-sequencer/              @ToniRamirezM @Psykepro @agnusmor
-sequencesender/         @ToniRamirezM @Psykepro @agnusmor
+sequencer/              @ToniRamirezM @dpunish3r @agnusmor
+sequencesender/         @ToniRamirezM @dpunish3r @agnusmor
 state/                  @ToniRamirezM @tclemos
 synchronizer/           @ARR552 @joanestebanr
 test/                   @tclemos

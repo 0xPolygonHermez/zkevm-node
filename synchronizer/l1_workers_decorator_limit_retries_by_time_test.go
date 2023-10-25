@@ -20,12 +20,35 @@ func TestWorkerDecoratorLimitRetriesByTime_asyncRequestRollupInfoByBlockRange(t 
 
 	// Test the case where there is no previous call to the block range
 	ctx := context.Background()
-	workersMock.On("asyncRequestRollupInfoByBlockRange", ctx, blockRange, noSleepTime).Return(nil, nil).Once()
-	_, err := decorator.asyncRequestRollupInfoByBlockRange(ctx, blockRange, noSleepTime)
+	workersMock.On("asyncRequestRollupInfoByBlockRange", ctx, requestRollupInfoByBlockRange{blockRange: blockRange, sleepBefore: noSleepTime, requestLastBlockIfNoBlocksInAnswer: requestLastBlockModeIfNoBlocksInAnswer}).Return(nil, nil).Once()
+	_, err := decorator.asyncRequestRollupInfoByBlockRange(ctx, newRequestNoSleep(blockRange))
 	assert.NoError(t, err)
 
 	// Test the case where there is a previous call to the block range
-	workersMock.On("asyncRequestRollupInfoByBlockRange", ctx, blockRange, mock.MatchedBy(func(sleep time.Duration) bool { return sleep > 0 })).Return(nil, nil).Once()
-	_, err = decorator.asyncRequestRollupInfoByBlockRange(ctx, blockRange, noSleepTime)
+	workersMock.On("asyncRequestRollupInfoByBlockRange", ctx, mock.MatchedBy(func(req requestRollupInfoByBlockRange) bool { return req.sleepBefore > 0 })).Return(nil, nil).Once()
+	_, err = decorator.asyncRequestRollupInfoByBlockRange(ctx, newRequestNoSleep(blockRange))
+	assert.NoError(t, err)
+}
+
+func TestWorkerDecoratorLimitRetriesByTimeIfRealWorkerReturnsAllBusyDoesntCountAsRetry(t *testing.T) {
+	// Create a new worker decorator with a minimum time between calls of 1 second
+	workersMock := newWorkersMock(t)
+	decorator := newWorkerDecoratorLimitRetriesByTime(workersMock, time.Second)
+
+	// Create a block range to use for testing
+	blockRange := blockRange{1, 10}
+
+	// Test the case where there is no previous call to the block range
+	ctx := context.Background()
+	workersMock.On("asyncRequestRollupInfoByBlockRange", ctx, requestRollupInfoByBlockRange{blockRange: blockRange, sleepBefore: noSleepTime, requestLastBlockIfNoBlocksInAnswer: requestLastBlockModeIfNoBlocksInAnswer}).
+		Return(nil, errAllWorkersBusy).
+		Once()
+	_, err := decorator.asyncRequestRollupInfoByBlockRange(ctx, newRequestNoSleep(blockRange))
+	assert.Error(t, err)
+
+	// Test the case where there is a previous call to the block range
+	workersMock.On("asyncRequestRollupInfoByBlockRange", ctx, mock.MatchedBy(func(req requestRollupInfoByBlockRange) bool { return req.sleepBefore == 0 })).Return(nil, nil).
+		Once()
+	_, err = decorator.asyncRequestRollupInfoByBlockRange(ctx, newRequestNoSleep(blockRange))
 	assert.NoError(t, err)
 }

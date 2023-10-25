@@ -65,6 +65,7 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 - `zkevm_getBatchByNumber`
 - `zkevm_getFullBlockByHash`
 - `zkevm_getFullBlockByNumber`
+- `zkevm_getNativeBlockHashesInRange`
 - `zkevm_isBlockConsolidated`
 - `zkevm_isBlockVirtualized`
 - `zkevm_verifiedBatchNumber`
