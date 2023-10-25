@@ -860,3 +860,125 @@ func TestGasOffset(t *testing.T) {
 		})
 	}
 }
+
+func TestFailedToEstimateTxWithForcedGasGetMined(t *testing.T) {
+	dbCfg := dbutils.NewStateConfigFromEnv()
+	require.NoError(t, dbutils.InitOrResetState(dbCfg))
+
+	etherman := newEthermanMock(t)
+	st := newStateMock(t)
+	storage, err := NewPostgresStorage(dbCfg)
+	require.NoError(t, err)
+
+	// set forced gas
+	defaultEthTxmanagerConfigForTests.ForcedGas = 300000000
+
+	ethTxManagerClient := New(defaultEthTxmanagerConfigForTests, etherman, storage, st)
+
+	owner := "owner"
+	id := "unique_id"
+	from := common.HexToAddress("")
+	var to *common.Address
+	var value *big.Int
+	var data []byte = nil
+
+	ctx := context.Background()
+
+	currentNonce := uint64(1)
+	etherman.
+		On("CurrentNonce", ctx, from).
+		Return(currentNonce, nil).
+		Once()
+
+	// forces the estimate gas to fail
+	etherman.
+		On("EstimateGas", ctx, from, to, value, data).
+		Return(uint64(0), fmt.Errorf("failed to estimate gas")).
+		Once()
+
+	// set estimated gas as the config ForcedGas
+	estimatedGas := defaultEthTxmanagerConfigForTests.ForcedGas
+	gasOffset := uint64(1)
+
+	suggestedGasPrice := big.NewInt(1)
+	etherman.
+		On("SuggestedGasPrice", ctx).
+		Return(suggestedGasPrice, nil).
+		Once()
+
+	signedTx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    currentNonce,
+		To:       to,
+		Value:    value,
+		Gas:      estimatedGas + gasOffset,
+		GasPrice: suggestedGasPrice,
+		Data:     data,
+	})
+	etherman.
+		On("SignTx", ctx, from, mock.IsType(&ethTypes.Transaction{})).
+		Return(signedTx, nil).
+		Once()
+
+	etherman.
+		On("GetTx", ctx, signedTx.Hash()).
+		Return(nil, false, ethereum.NotFound).
+		Once()
+	etherman.
+		On("GetTx", ctx, signedTx.Hash()).
+		Return(signedTx, false, nil).
+		Once()
+
+	etherman.
+		On("SendTx", ctx, signedTx).
+		Return(nil).
+		Once()
+
+	etherman.
+		On("WaitTxToBeMined", ctx, signedTx, mock.IsType(time.Second)).
+		Return(true, nil).
+		Once()
+
+	blockNumber := big.NewInt(1)
+
+	receipt := &ethTypes.Receipt{
+		BlockNumber: blockNumber,
+		Status:      ethTypes.ReceiptStatusSuccessful,
+	}
+	etherman.
+		On("GetTxReceipt", ctx, signedTx.Hash()).
+		Return(receipt, nil).
+		Once()
+	etherman.
+		On("GetTxReceipt", ctx, signedTx.Hash()).
+		Run(func(args mock.Arguments) { ethTxManagerClient.Stop() }). // stops the management cycle to avoid problems with mocks
+		Return(receipt, nil).
+		Once()
+
+	etherman.
+		On("GetRevertMessage", ctx, signedTx).
+		Return("", nil).
+		Once()
+
+	block := &state.Block{
+		BlockNumber: blockNumber.Uint64(),
+	}
+	st.
+		On("GetLastBlock", ctx, nil).
+		Return(block, nil).
+		Once()
+
+	err = ethTxManagerClient.Add(ctx, owner, id, from, to, value, data, gasOffset, nil)
+	require.NoError(t, err)
+
+	go ethTxManagerClient.Start()
+
+	time.Sleep(time.Second)
+	result, err := ethTxManagerClient.Result(ctx, owner, id, nil)
+	require.NoError(t, err)
+	require.Equal(t, id, result.ID)
+	require.Equal(t, MonitoredTxStatusConfirmed, result.Status)
+	require.Equal(t, 1, len(result.Txs))
+	require.Equal(t, signedTx, result.Txs[signedTx.Hash()].Tx)
+	require.Equal(t, receipt, result.Txs[signedTx.Hash()].Receipt)
+	require.Equal(t, "", result.Txs[signedTx.Hash()].RevertMessage)
+}

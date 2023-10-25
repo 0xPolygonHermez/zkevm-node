@@ -259,8 +259,14 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 	for _, mTx := range mTxs {
 		mTx := mTx // force variable shadowing to avoid pointer conflicts
 		go func(c *Client, mTx monitoredTx) {
-			defer wg.Done()
-			c.monitorTx(ctx, mTx)
+			mTxLogger := createMonitoredTxLogger(mTx)
+			defer func(mTx monitoredTx, mTxLogger *log.Logger) {
+				if err := recover(); err != nil {
+					mTxLogger.Error("monitoring recovered from this err: %v", err)
+				}
+				wg.Done()
+			}(mTx, mTxLogger)
+			c.monitorTx(ctx, mTx, mTxLogger)
 		}(c, mTx)
 	}
 	wg.Wait()
@@ -269,10 +275,9 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 }
 
 // monitorTx does all the monitoring steps to the monitored tx
-func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
+func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Logger) {
 	var err error
-	mTxLogger := createMonitoredTxLogger(mTx)
-	mTxLogger.Info("processing")
+	logger.Info("processing")
 	// check if any of the txs in the history was confirmed
 	var lastReceiptChecked types.Receipt
 	// monitored tx is confirmed until we find a successful receipt
@@ -286,7 +291,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 	for txHash := range mTx.history {
 		mined, receipt, err := c.etherman.CheckTxWasMined(ctx, txHash)
 		if err != nil {
-			mTxLogger.Errorf("failed to check if tx %v was mined: %v", txHash.String(), err)
+			logger.Errorf("failed to check if tx %v was mined: %v", txHash.String(), err)
 			continue
 		}
 
@@ -323,15 +328,15 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 	// in case of the monitored tx is not confirmed yet, all tx were mined and none of them were
 	// mined successfully, we need to review the nonce
 	if !confirmed && hasFailedReceipts && allHistoryTxsWereMined {
-		mTxLogger.Infof("nonce needs to be updated")
-		err := c.reviewMonitoredTxNonce(ctx, &mTx, mTxLogger)
+		logger.Infof("nonce needs to be updated")
+		err := c.reviewMonitoredTxNonce(ctx, &mTx, logger)
 		if err != nil {
-			mTxLogger.Errorf("failed to review monitored tx nonce: %v", err)
+			logger.Errorf("failed to review monitored tx nonce: %v", err)
 			return
 		}
 		err = c.storage.Update(ctx, mTx, nil)
 		if err != nil {
-			mTxLogger.Errorf("failed to update monitored tx nonce change: %v", err)
+			logger.Errorf("failed to update monitored tx nonce change: %v", err)
 			return
 		}
 	}
@@ -360,71 +365,71 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 
 		// review tx and increase gas and gas price if needed
 		if mTx.status == MonitoredTxStatusSent {
-			err := c.reviewMonitoredTx(ctx, &mTx, mTxLogger)
+			err := c.reviewMonitoredTx(ctx, &mTx, logger)
 			if err != nil {
-				mTxLogger.Errorf("failed to review monitored tx: %v", err)
+				logger.Errorf("failed to review monitored tx: %v", err)
 				return
 			}
 			err = c.storage.Update(ctx, mTx, nil)
 			if err != nil {
-				mTxLogger.Errorf("failed to update monitored tx review change: %v", err)
+				logger.Errorf("failed to update monitored tx review change: %v", err)
 				return
 			}
 		}
 
 		// rebuild transaction
 		tx := mTx.Tx()
-		mTxLogger.Debugf("unsigned tx %v created", tx.Hash().String())
+		logger.Debugf("unsigned tx %v created", tx.Hash().String())
 
 		// sign tx
 		signedTx, err = c.etherman.SignTx(ctx, mTx.from, tx)
 		if err != nil {
-			mTxLogger.Errorf("failed to sign tx %v: %v", tx.Hash().String(), err)
+			logger.Errorf("failed to sign tx %v: %v", tx.Hash().String(), err)
 			return
 		}
-		mTxLogger.Debugf("signed tx %v created", signedTx.Hash().String())
+		logger.Debugf("signed tx %v created", signedTx.Hash().String())
 
 		// add tx to monitored tx history
 		err = mTx.AddHistory(signedTx)
 		if errors.Is(err, ErrAlreadyExists) {
-			mTxLogger.Infof("signed tx already existed in the history")
+			logger.Infof("signed tx already existed in the history")
 		} else if err != nil {
-			mTxLogger.Errorf("failed to add signed tx %v to monitored tx history: %v", signedTx.Hash().String(), err)
+			logger.Errorf("failed to add signed tx %v to monitored tx history: %v", signedTx.Hash().String(), err)
 			return
 		} else {
 			// update monitored tx changes into storage
 			err = c.storage.Update(ctx, mTx, nil)
 			if err != nil {
-				mTxLogger.Errorf("failed to update monitored tx: %v", err)
+				logger.Errorf("failed to update monitored tx: %v", err)
 				return
 			}
-			mTxLogger.Debugf("signed tx added to the monitored tx history")
+			logger.Debugf("signed tx added to the monitored tx history")
 		}
 
 		// check if the tx is already in the network, if not, send it
 		_, _, err = c.etherman.GetTx(ctx, signedTx.Hash())
 		// if not found, send it tx to the network
 		if errors.Is(err, ethereum.NotFound) {
-			mTxLogger.Debugf("signed tx not found in the network")
+			logger.Debugf("signed tx not found in the network")
 			err := c.etherman.SendTx(ctx, signedTx)
 			if err != nil {
-				mTxLogger.Errorf("failed to send tx %v to network: %v", signedTx.Hash().String(), err)
+				logger.Errorf("failed to send tx %v to network: %v", signedTx.Hash().String(), err)
 				return
 			}
-			mTxLogger.Infof("signed tx sent to the network: %v", signedTx.Hash().String())
+			logger.Infof("signed tx sent to the network: %v", signedTx.Hash().String())
 			if mTx.status == MonitoredTxStatusCreated {
 				// update tx status to sent
 				mTx.status = MonitoredTxStatusSent
-				mTxLogger.Debugf("status changed to %v", string(mTx.status))
+				logger.Debugf("status changed to %v", string(mTx.status))
 				// update monitored tx changes into storage
 				err = c.storage.Update(ctx, mTx, nil)
 				if err != nil {
-					mTxLogger.Errorf("failed to update monitored tx changes: %v", err)
+					logger.Errorf("failed to update monitored tx changes: %v", err)
 					return
 				}
 			}
 		} else {
-			mTxLogger.Infof("signed tx already found in the network")
+			logger.Infof("signed tx already found in the network")
 		}
 
 		log.Infof("waiting signedTx to be mined...")
@@ -432,7 +437,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		// wait tx to get mined
 		confirmed, err = c.etherman.WaitTxToBeMined(ctx, signedTx, c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
-			mTxLogger.Errorf("failed to wait tx to be mined: %v", err)
+			logger.Errorf("failed to wait tx to be mined: %v", err)
 			return
 		}
 		if !confirmed {
@@ -444,7 +449,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		var txReceipt *types.Receipt
 		txReceipt, err = c.etherman.GetTxReceipt(ctx, signedTx.Hash())
 		if err != nil {
-			mTxLogger.Errorf("failed to get tx receipt for tx %v: %v", signedTx.Hash().String(), err)
+			logger.Errorf("failed to get tx receipt for tx %v: %v", signedTx.Hash().String(), err)
 			return
 		}
 		lastReceiptChecked = *txReceipt
@@ -458,18 +463,18 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		// where the tx was mined
 		block, err := c.state.GetLastBlock(ctx, nil)
 		if errors.Is(err, state.ErrStateNotSynchronized) {
-			mTxLogger.Debugf("state not synchronized yet, waiting for L1 block %v to be synced", receiptBlockNum)
+			logger.Debugf("state not synchronized yet, waiting for L1 block %v to be synced", receiptBlockNum)
 			return
 		} else if err != nil {
-			mTxLogger.Errorf("failed to check if L1 block %v is already synced: %v", receiptBlockNum, err)
+			logger.Errorf("failed to check if L1 block %v is already synced: %v", receiptBlockNum, err)
 			return
 		} else if block.BlockNumber < receiptBlockNum {
-			mTxLogger.Debugf("L1 block %v not synchronized yet, waiting for L1 block to be synced in order to confirm monitored tx", receiptBlockNum)
+			logger.Debugf("L1 block %v not synchronized yet, waiting for L1 block to be synced in order to confirm monitored tx", receiptBlockNum)
 			return
 		} else {
 			mTx.status = MonitoredTxStatusConfirmed
 			mTx.blockNumber = lastReceiptChecked.BlockNumber
-			mTxLogger.Info("confirmed")
+			logger.Info("confirmed")
 		}
 	} else {
 		// if we should continue to monitor, we move to the next one and this will
@@ -480,13 +485,13 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx) {
 		// otherwise we understand this monitored tx has failed
 		mTx.status = MonitoredTxStatusFailed
 		mTx.blockNumber = lastReceiptChecked.BlockNumber
-		mTxLogger.Info("failed")
+		logger.Info("failed")
 	}
 
 	// update monitored tx changes into storage
 	err = c.storage.Update(ctx, mTx, nil)
 	if err != nil {
-		mTxLogger.Errorf("failed to update monitored tx: %v", err)
+		logger.Errorf("failed to update monitored tx: %v", err)
 		return
 	}
 }
