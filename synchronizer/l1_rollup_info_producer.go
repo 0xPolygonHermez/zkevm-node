@@ -33,6 +33,7 @@ const (
 	timeForShowUpStatisticsLog                    = time.Second * 60
 	conversionFactorPercentage                    = 100
 	lenCommandsChannels                           = 5
+	maximumBlockDistanceFromLatestToFinalized     = 96 // https://www.alchemy.com/overviews/ethereum-commitment-levels
 )
 
 type filter interface {
@@ -43,20 +44,36 @@ type filter interface {
 }
 
 type syncStatusInterface interface {
-	verify() error
-	reset(lastBlockStoreOnStateDB uint64)
-	toStringBrief() string
-	getNextRange() *blockRange
-	getNextRangeOnlyRetries() *blockRange
-	isNodeFullySynchronizedWithL1() bool
-	haveRequiredAllBlocksToBeSynchronized() bool
-	isSetLastBlockOnL1Value() bool
-	doesItHaveAllTheNeedDataToWork() bool
-	getLastBlockOnL1() uint64
+	// Verify that configuration and lastBlock are right
+	Verify() error
+	// Reset synchronization to a new starting point
+	Reset(lastBlockStoreOnStateDB uint64)
+	// String returns a string representation of the object
+	String() string
+	// GetNextRange returns the next Block to be retrieved
+	GetNextRange() *blockRange
+	// GetNextRangeOnlyRetries returns the fist Block pending to retry
+	GetNextRangeOnlyRetries() *blockRange
+	// IsNodeFullySynchronizedWithL1 returns true there nothing pending to retrieved and have finished all workers
+	//    so all the rollupinfo are in the channel to be processed by consumer
+	IsNodeFullySynchronizedWithL1() bool
+	// HaveRequiredAllBlocksToBeSynchronized returns true if have been requested all rollupinfo
+	//     but maybe there are some pending retries or still working in some BlockRange
+	HaveRequiredAllBlocksToBeSynchronized() bool
+	// DoesItHaveAllTheNeedDataToWork returns true if have all the data to start working
+	DoesItHaveAllTheNeedDataToWork() bool
+	// GetLastBlockOnL1 returns the last block on L1 or InvalidBlock if not set
+	GetLastBlockOnL1() uint64
 
-	onStartedNewWorker(br blockRange)
-	onFinishWorker(br blockRange, successful bool) bool
-	onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
+	// OnStartedNewWorker a new worker has been started
+	OnStartedNewWorker(br blockRange)
+	// OnFinishWorker a worker has finished, returns true if the data have to be processed
+	OnFinishWorker(br blockRange, successful bool, highestBlockNumberInResponse uint64) bool
+	// OnNewLastBlockOnL1 a new last block on L1 has been received
+	OnNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
+	// BlockNumberIsInsideUnsafeArea returns if this block is beyond Finalized (so it could be reorg)
+	// If blockNumber == invalidBlockNumber then it uses the highestBlockRequested (the last block requested)
+	BlockNumberIsInsideUnsafeArea(blockNumber uint64) bool
 }
 
 type workersInterface interface {
@@ -66,10 +83,11 @@ type workersInterface interface {
 	stop()
 	// waits until all workers have finish the current task
 	waitFinishAllWorkers()
-	asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange, sleepBefore time.Duration) (chan responseRollupInfoByBlockRange, error)
+	asyncRequestRollupInfoByBlockRange(ctx context.Context, request requestRollupInfoByBlockRange) (chan responseRollupInfoByBlockRange, error)
 	requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) responseL1LastBlock
 	getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange
 	String() string
+	howManyRunningWorkers() int
 }
 
 type producerStatusEnum int32
@@ -167,7 +185,7 @@ func (l *l1RollupInfoProducer) toStringBrief() string {
 }
 
 func (l *l1RollupInfoProducer) toStringBriefUnsafe() string {
-	return fmt.Sprintf("status:%s syncStatus:[%s] workers:[%s] filter:[%s] cfg:[%s]", l.getStatus(), l.syncStatus.toStringBrief(), l.workers.String(), l.filterToSendOrdererResultsToConsumer.ToStringBrief(), l.cfg.String())
+	return fmt.Sprintf("status:%s syncStatus:[%s] workers:[%s] filter:[%s] cfg:[%s]", l.getStatus(), l.syncStatus.String(), l.workers.String(), l.filterToSendOrdererResultsToConsumer.ToStringBrief(), l.cfg.String())
 }
 
 // l1DataRetrieverStatistics : create an instance of l1RollupInfoProducer
@@ -207,7 +225,7 @@ func (l *l1RollupInfoProducer) resetUnsafe(startingBlockNumber uint64) {
 	l.setStatusReseting()
 	log.Debugf("producer: Reset(%d): stop previous run (state=%s)", startingBlockNumber, l.getStatus().String())
 	log.Debugf("producer: Reset(%d): syncStatus.reset", startingBlockNumber)
-	l.syncStatus.reset(startingBlockNumber)
+	l.syncStatus.Reset(startingBlockNumber)
 	l.statistics.reset(startingBlockNumber)
 	log.Debugf("producer: Reset(%d): stopping workers", startingBlockNumber)
 	l.workers.stop()
@@ -245,6 +263,11 @@ func (l *l1RollupInfoProducer) setStatus(newStatus producerStatusEnum) {
 		}
 	}
 }
+func (l *l1RollupInfoProducer) Abort() {
+	l.emptyChannel()
+	l.ctxWithCancel.cancelCtx()
+	l.ctxWithCancel.createWithCancel(l.ctxParent)
+}
 
 func (l *l1RollupInfoProducer) Stop() {
 	log.Infof("producer: Stop() queue cmd")
@@ -272,7 +295,7 @@ func (l *l1RollupInfoProducer) emptyChannel() {
 
 // verify: test params and status without if not allowModify avoid doing connection or modification of objects
 func (l *l1RollupInfoProducer) verify() error {
-	return l.syncStatus.verify()
+	return l.syncStatus.Verify()
 }
 
 func (l *l1RollupInfoProducer) initialize(ctx context.Context) error {
@@ -295,7 +318,7 @@ func (l *l1RollupInfoProducer) initialize(ctx context.Context) error {
 
 // Before calling Start you must set lastBlockOnDB calling ResetAndStop
 func (l *l1RollupInfoProducer) Start(ctx context.Context) error {
-	log.Infof("producer: starting L1 sync from:%s", l.syncStatus.toStringBrief())
+	log.Infof("producer: starting L1 sync from:%s", l.syncStatus.String())
 	err := l.initialize(ctx)
 	if err != nil {
 		log.Infof("producer:  can't start because: %s", err.Error())
@@ -336,36 +359,53 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 	switch l.getStatus() {
 	case producerIdle:
 		// Is ready to start working?
-		l.renewLastBlockOnL1IfNeeded()
-		if l.syncStatus.doesItHaveAllTheNeedDataToWork() {
-			log.Infof("producer: producerIdle: have all the data to work, moving to working status.  status:%s", l.syncStatus.toStringBrief())
+		l.renewLastBlockOnL1IfNeeded("idle")
+		if l.syncStatus.DoesItHaveAllTheNeedDataToWork() {
+			log.Infof("producer: producerIdle: have all the data to work, moving to working status.  status:%s", l.syncStatus.String())
 			l.setStatus(producerWorking)
 			// This is for wakeup the step again to launch a new work
 			l.channelCmds <- producerCmd{cmd: producerNop}
 		} else {
-			log.Infof("producer: producerIdle: still dont have all the data to work status:%s", l.syncStatus.toStringBrief())
+			log.Infof("producer: producerIdle: still dont have all the data to work status:%s", l.syncStatus.String())
 		}
 	case producerWorking:
 		// launch new Work
-		l.launchWork()
+		_, err := l.launchWork()
+		if err != nil {
+			log.Errorf("producer: producerWorking: error launching work: %s", err.Error())
+			return false
+		}
 		// If I'm have required all blocks to L1?
-		if l.syncStatus.haveRequiredAllBlocksToBeSynchronized() {
+		if l.syncStatus.HaveRequiredAllBlocksToBeSynchronized() {
 			log.Debugf("producer: producerWorking: haveRequiredAllBlocksToBeSynchronized -> renewLastBlockOnL1IfNeeded")
-			l.renewLastBlockOnL1IfNeeded()
+			l.renewLastBlockOnL1IfNeeded("HaveRequiredAllBlocksToBeSynchronized")
+		}
+		if l.syncStatus.BlockNumberIsInsideUnsafeArea(invalidBlockNumber) {
+			log.Debugf("producer: producerWorking: we are inside unsafe area!, renewLastBlockOnL1IfNeeded")
+			l.renewLastBlockOnL1IfNeeded("unsafe block area")
 		}
 		// If after asking for a new lastBlockOnL1 we are still synchronized then we are synchronized
-		if l.syncStatus.isNodeFullySynchronizedWithL1() {
+		if l.syncStatus.IsNodeFullySynchronizedWithL1() {
 			l.setStatus(producerSynchronized)
 		} else {
 			log.Infof("producer: producerWorking: still not synchronized with the new block range launch workers again")
-			l.launchWork()
+			_, err := l.launchWork()
+			if err != nil {
+				log.Errorf("producer: producerSynchronized: error launching work: %s", err.Error())
+				return false
+			}
 		}
 	case producerSynchronized:
 		// renew last block on L1 if needed
 		log.Debugf("producer: producerSynchronized")
-		l.renewLastBlockOnL1IfNeeded()
+		l.renewLastBlockOnL1IfNeeded("producerSynchronized")
 
-		if l.launchWork() > 0 {
+		numLaunched, err := l.launchWork()
+		if err != nil {
+			log.Errorf("producer: producerSynchronized: error launching work: %s", err.Error())
+			return false
+		}
+		if numLaunched > 0 {
 			l.setStatus(producerWorking)
 		}
 	case producerReseting:
@@ -423,7 +463,7 @@ func (l *l1RollupInfoProducer) getNextTimeout() time.Duration {
 
 // OnNewLastBlock is called when a new last block on L1 is received
 func (l *l1RollupInfoProducer) onNewLastBlock(lastBlock uint64) onNewLastBlockResponse {
-	resp := l.syncStatus.onNewLastBlockOnL1(lastBlock)
+	resp := l.syncStatus.OnNewLastBlockOnL1(lastBlock)
 	l.statistics.updateLastBlockNumber(resp.fullRange.toBlock)
 	l.timeLastBLockOnL1 = time.Now()
 	if resp.extendedRange != nil {
@@ -447,50 +487,66 @@ func (l *l1RollupInfoProducer) canISendNewRequestsUnsafe() (bool, string) {
 
 // launchWork: launch new workers if possible and returns new channels created
 // returns the number of workers launched
-func (l *l1RollupInfoProducer) launchWork() int {
+func (l *l1RollupInfoProducer) launchWork() (int, error) {
 	launchedWorker := 0
 	allowNewRequests, allowNewRequestMsg := l.canISendNewRequestsUnsafe()
 	accDebugStr := "[" + allowNewRequestMsg + "] "
 	for {
 		var br *blockRange
 		if allowNewRequests {
-			br = l.syncStatus.getNextRange()
+			br = l.syncStatus.GetNextRange()
 		} else {
-			br = l.syncStatus.getNextRangeOnlyRetries()
+			br = l.syncStatus.GetNextRangeOnlyRetries()
 		}
 		if br == nil {
 			// No more work to do
 			accDebugStr += "[NoNextRange] "
 			break
 		}
-		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, *br, noSleepTime)
+		// The request include previous block only if a latest request, because then it starts from l
+		request := requestRollupInfoByBlockRange{blockRange: *br,
+			sleepBefore:                        noSleepTime,
+			requestLastBlockIfNoBlocksInAnswer: requestLastBlockModeIfNoBlocksInAnswer,
+			requestPreviousBlock:               false,
+		}
+		unsafeAreaMsg := ""
+		// GetLastBlockOnL1 is the lastest block on L1, if we are not in safe zone of reorgs we ask for previous and last block
+		//   to be able to check that there is no reorgs
+		if l.syncStatus.BlockNumberIsInsideUnsafeArea(br.fromBlock) {
+			log.Debugf("L1 unsafe zone: asking for previous and last block")
+			request.requestLastBlockIfNoBlocksInAnswer = requestLastBlockModeAlways
+			request.requestPreviousBlock = true
+			unsafeAreaMsg = "/UNSAFE"
+		}
+		blockRangeMsg := br.String() + unsafeAreaMsg
+		_, err := l.workers.asyncRequestRollupInfoByBlockRange(l.ctxWithCancel.ctx, request)
 		if err != nil {
 			if errors.Is(err, errAllWorkersBusy) {
-				accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", br.String(), err.Error())
+				accDebugStr += fmt.Sprintf(" segment %s -> [Error:%s] ", blockRangeMsg, err.Error())
 			}
 			break
 		} else {
-			accDebugStr += fmt.Sprintf(" segment %s -> [LAUNCHED] ", br.String())
+			accDebugStr += fmt.Sprintf(" segment %s -> [LAUNCHED] ", blockRangeMsg)
 		}
 		launchedWorker++
-		log.Debugf("producer: launch_worker: Launched worker for segment %s, num_workers_in_this_iteration: %d", br.String(), launchedWorker)
-		l.syncStatus.onStartedNewWorker(*br)
+		log.Debugf("producer: launch_worker: Launched worker for segment %s, num_workers_in_this_iteration: %d", blockRangeMsg, launchedWorker)
+		l.syncStatus.OnStartedNewWorker(*br)
 	}
 	log.Infof("producer: launch_worker:  num of launched workers: %d  result: %s status_comm:%s", launchedWorker, accDebugStr, l.outgoingPackageStatusDebugString())
 
-	return launchedWorker
+	return launchedWorker, nil
 }
 
 func (l *l1RollupInfoProducer) outgoingPackageStatusDebugString() string {
 	return fmt.Sprintf("outgoint_channel[%d/%d], filter:%s workers:%s", len(l.outgoingChannel), cap(l.outgoingChannel), l.filterToSendOrdererResultsToConsumer.ToStringBrief(), l.workers.String())
 }
 
-func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded() {
+func (l *l1RollupInfoProducer) renewLastBlockOnL1IfNeeded(reason string) {
 	elapsed := time.Since(l.timeLastBLockOnL1)
 	ttl := l.ttlOfLastBlockOnL1()
-	oldBlock := l.syncStatus.getLastBlockOnL1()
+	oldBlock := l.syncStatus.GetLastBlockOnL1()
 	if elapsed > ttl {
-		log.Infof("producer: Need a new value for Last Block On L1, doing the request")
+		log.Infof("producer: Need a new value for Last Block On L1, doing the request reason:%s", reason)
 		result := l.workers.requestLastBlockWithRetries(l.ctxWithCancel.ctx, l.cfg.timeoutForRequestLastBlockOnL1, l.cfg.numOfAllowedRetriesForRequestLastBlockOnL1)
 		log.Infof("producer: Need a new value for Last Block On L1, doing the request old_block:%v -> new block:%v", oldBlock, result.result.block)
 		if result.generic.err != nil {
@@ -509,12 +565,17 @@ func (l *l1RollupInfoProducer) onResponseRollupInfo(result responseRollupInfoByB
 	}
 	l.statistics.onResponseRollupInfo(result)
 	isOk := (result.generic.err == nil)
-	if !l.syncStatus.onFinishWorker(result.result.blockRange, isOk) {
+	var highestBlockNumberInResponse uint64 = invalidBlockNumber
+	if isOk {
+		highestBlockNumberInResponse = result.getHighestBlockNumberInResponse()
+	}
+	if !l.syncStatus.OnFinishWorker(result.result.blockRange, isOk, highestBlockNumberInResponse) {
 		log.Infof("producer: Ignoring result because the range is not longer valid: %s", result.toStringBrief())
 		return
 	}
 	if isOk {
 		outgoingPackages := l.filterToSendOrdererResultsToConsumer.Filter(*newL1SyncMessageData(result.result))
+		log.Infof("producer: filtered Br[%s/%d], outgoing %d filter_status:%s", result.result.blockRange.String(), result.result.getHighestBlockNumberInResponse(), len(outgoingPackages), l.filterToSendOrdererResultsToConsumer.ToStringBrief())
 		l.sendPackages(outgoingPackages)
 	} else {
 		if errors.Is(result.generic.err, context.Canceled) {
