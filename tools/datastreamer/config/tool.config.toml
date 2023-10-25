@@ -1,5 +1,4 @@
-QuerySize = 10000
-
+ChainID = 1440
 [StreamServer]
 Port = 6901
 Filename = "datastream.bin"
@@ -20,3 +19,6 @@ MaxConns = 200
 [Executor]
 URI = "zkevm-prover:50071"
 MaxGRPCMessageSize = 100000000
+
+[MerkeTree]
+URI = "zkevm-prover:50061"

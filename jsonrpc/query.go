@@ -1,6 +1,7 @@
 package jsonrpc
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync/atomic"
@@ -8,8 +9,10 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/websocket"
+	"github.com/jackc/pgx/v4"
 )
 
 const (
@@ -265,4 +268,72 @@ func (f *LogFilter) Match(log *types.Log) bool {
 	}
 
 	return true
+}
+
+// GetNumericBlockNumbers load the numeric block numbers from state accordingly
+// to the provided from and to block number
+func (f *LogFilter) GetNumericBlockNumbers(ctx context.Context, cfg Config, s types.StateInterface, e types.EthermanInterface, dbTx pgx.Tx) (uint64, uint64, types.Error) {
+	return getNumericBlockNumbers(ctx, s, e, f.FromBlock, f.ToBlock, cfg.MaxLogsBlockRange, state.ErrMaxLogsBlockRangeLimitExceeded, dbTx)
+}
+
+// ShouldFilterByBlockHash if the filter should consider the block hash value
+func (f *LogFilter) ShouldFilterByBlockHash() bool {
+	return f.BlockHash != nil
+}
+
+// ShouldFilterByBlockRange if the filter should consider the block range values
+func (f *LogFilter) ShouldFilterByBlockRange() bool {
+	return f.FromBlock != nil || f.ToBlock != nil
+}
+
+// Validate check if the filter instance is valid
+func (f *LogFilter) Validate() error {
+	if f.ShouldFilterByBlockHash() && f.ShouldFilterByBlockRange() {
+		return ErrFilterInvalidPayload
+	}
+	return nil
+}
+
+// NativeBlockHashBlockRangeFilter is a filter to filter native block hash by block by number
+type NativeBlockHashBlockRangeFilter struct {
+	FromBlock types.BlockNumber `json:"fromBlock"`
+	ToBlock   types.BlockNumber `json:"toBlock"`
+}
+
+// GetNumericBlockNumbers load the numeric block numbers from state accordingly
+// to the provided from and to block number
+func (f *NativeBlockHashBlockRangeFilter) GetNumericBlockNumbers(ctx context.Context, cfg Config, s types.StateInterface, e types.EthermanInterface, dbTx pgx.Tx) (uint64, uint64, types.Error) {
+	return getNumericBlockNumbers(ctx, s, e, &f.FromBlock, &f.ToBlock, cfg.MaxNativeBlockHashBlockRange, state.ErrMaxNativeBlockHashBlockRangeLimitExceeded, dbTx)
+}
+
+// getNumericBlockNumbers load the numeric block numbers from state accordingly
+// to the provided from and to block number
+func getNumericBlockNumbers(ctx context.Context, s types.StateInterface, e types.EthermanInterface, fromBlock, toBlock *types.BlockNumber, maxBlockRange uint64, maxBlockRangeErr error, dbTx pgx.Tx) (uint64, uint64, types.Error) {
+	var fromBlockNumber uint64 = 0
+	if fromBlock != nil {
+		fbn, rpcErr := fromBlock.GetNumericBlockNumber(ctx, s, e, dbTx)
+		if rpcErr != nil {
+			return 0, 0, rpcErr
+		}
+		fromBlockNumber = fbn
+	}
+
+	toBlockNumber, rpcErr := toBlock.GetNumericBlockNumber(ctx, s, e, dbTx)
+	if rpcErr != nil {
+		return 0, 0, rpcErr
+	}
+
+	if toBlockNumber < fromBlockNumber {
+		_, rpcErr := RPCErrorResponse(types.InvalidParamsErrorCode, state.ErrInvalidBlockRange.Error(), nil, false)
+		return 0, 0, rpcErr
+	}
+
+	blockRange := toBlockNumber - fromBlockNumber
+	if maxBlockRange > 0 && blockRange > maxBlockRange {
+		errMsg := fmt.Sprintf(maxBlockRangeErr.Error(), maxBlockRange)
+		_, rpcErr := RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
+		return 0, 0, rpcErr
+	}
+
+	return fromBlockNumber, toBlockNumber, nil
 }

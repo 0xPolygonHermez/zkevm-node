@@ -81,7 +81,8 @@ type stateInterface interface {
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
 	GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*state.DSL2Block, error)
-	GetDSL2Blocks(ctx context.Context, limit, offset uint64, dbTx pgx.Tx) ([]*state.DSL2Block, error)
+	GetDSBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.DSBatch, error)
+	GetDSL2Blocks(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*state.DSL2Block, error)
 	GetDSL2Transactions(ctx context.Context, minL2Block, maxL2Block uint64, dbTx pgx.Tx) ([]*state.DSL2Transaction, error)
 }
 

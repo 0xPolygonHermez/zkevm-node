@@ -29,13 +29,15 @@ type syncStatus struct {
 	errorRanges liveBlockRanges
 }
 
-func (s *syncStatus) toStringBrief() string {
-	return fmt.Sprintf(" lastBlockStoreOnStateDB: %v, highestBlockRequested:%v, lastBlockOnL1: %v, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
-		s.lastBlockStoreOnStateDB, s.highestBlockRequested, s.lastBlockOnL1, s.amountOfBlocksInEachRange, s.processingRanges.toStringBrief(), s.errorRanges.toStringBrief())
+func (s *syncStatus) String() string {
+	return fmt.Sprintf(" lastBlockStoreOnStateDB: %s, highestBlockRequested:%s, lastBlockOnL1: %s, amountOfBlocksInEachRange: %d, processingRanges: %s, errorRanges: %s",
+		blockNumberToString(s.lastBlockStoreOnStateDB),
+		blockNumberToString(s.highestBlockRequested),
+		blockNumberToString(s.lastBlockOnL1), s.amountOfBlocksInEachRange, s.processingRanges.toStringBrief(), s.errorRanges.toStringBrief())
 }
 
 func (s *syncStatus) toString() string {
-	brief := s.toStringBrief()
+	brief := s.String()
 	brief += fmt.Sprintf(" processingRanges:{ %s }", s.processingRanges.String())
 	brief += fmt.Sprintf(" errorRanges:{ %s }", s.errorRanges.String())
 	return brief
@@ -54,7 +56,7 @@ func newSyncStatus(lastBlockStoreOnStateDB uint64, amountOfBlocksInEachRange uin
 		processingRanges:          newLiveBlockRanges(),
 	}
 }
-func (s *syncStatus) reset(lastBlockStoreOnStateDB uint64) {
+func (s *syncStatus) Reset(lastBlockStoreOnStateDB uint64) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.lastBlockStoreOnStateDB = lastBlockStoreOnStateDB
@@ -63,22 +65,22 @@ func (s *syncStatus) reset(lastBlockStoreOnStateDB uint64) {
 	//s.lastBlockOnL1 = invalidLastBlock
 }
 
-func (s *syncStatus) getLastBlockOnL1() uint64 {
+func (s *syncStatus) GetLastBlockOnL1() uint64 {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.lastBlockOnL1
 }
 
 // All pending blocks have been requested or are currently being requested
-func (s *syncStatus) haveRequiredAllBlocksToBeSynchronized() bool {
+func (s *syncStatus) HaveRequiredAllBlocksToBeSynchronized() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.lastBlockOnL1 <= s.highestBlockRequested
 }
 
-// isNodeFullySynchronizedWithL1 returns true if the node is fully synchronized with L1
+// IsNodeFullySynchronizedWithL1 returns true if the node is fully synchronized with L1
 // it means that all blocks until the last block on L1 are requested (maybe not finish yet) and there are no pending errors
-func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
+func (s *syncStatus) IsNodeFullySynchronizedWithL1() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if s.lastBlockOnL1 == invalidLastBlock {
@@ -93,7 +95,7 @@ func (s *syncStatus) isNodeFullySynchronizedWithL1() bool {
 	return false
 }
 
-func (s *syncStatus) getNextRangeOnlyRetries() *blockRange {
+func (s *syncStatus) GetNextRangeOnlyRetries() *blockRange {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.getNextRangeOnlyRetriesUnsafe()
@@ -103,15 +105,41 @@ func (s *syncStatus) getNextRangeOnlyRetriesUnsafe() *blockRange {
 	// Check if there are any range that need to be retried
 	blockRangeToRetry, err := s.errorRanges.getFirstBlockRange()
 	if err == nil {
+		if blockRangeToRetry.toBlock == latestBlockNumber {
+			// If is a latestBlockNumber must be discarded
+			log.Debugf("Discarding error block range: %s because it's a latestBlockNumber", blockRangeToRetry.String())
+			err := s.errorRanges.removeBlockRange(blockRangeToRetry)
+			if err != nil {
+				log.Errorf("syncstatus: error removing an error br: %s current_status:%s err:%s", blockRangeToRetry.String(), s.String(), err.Error())
+			}
+			return nil
+		}
 		return &blockRangeToRetry
 	}
 	return nil
 }
 
-// getNextRange: if there are pending work it returns the next block to ask for
+func (s *syncStatus) getHighestBlockRequestedUnsafe() uint64 {
+	res := invalidBlockNumber
+	for _, r := range s.processingRanges.ranges {
+		if r.blockRange.toBlock > res {
+			res = r.blockRange.toBlock
+		}
+	}
+
+	for _, r := range s.errorRanges.ranges {
+		if r.blockRange.toBlock > res {
+			res = r.blockRange.toBlock
+		}
+	}
+
+	return res
+}
+
+// GetNextRange: if there are pending work it returns the next block to ask for
 //
 //	it could be a retry from a previous error or a new range
-func (s *syncStatus) getNextRange() *blockRange {
+func (s *syncStatus) GetNextRange() *blockRange {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	// Check if there are any range that need to be retried
@@ -119,8 +147,6 @@ func (s *syncStatus) getNextRange() *blockRange {
 	if blockRangeToRetry != nil {
 		return blockRangeToRetry
 	}
-
-	brs := &blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: s.highestBlockRequested} //s.processingRanges.GetSuperBlockRange()
 
 	if s.lastBlockOnL1 == invalidLastBlock {
 		log.Debug("Last block is no valid: ", s.lastBlockOnL1)
@@ -130,8 +156,12 @@ func (s *syncStatus) getNextRange() *blockRange {
 		log.Debug("No blocks to ask, we have requested all blocks from L1!")
 		return nil
 	}
-
-	br := getNextBlockRangeFromUnsafe(brs.toBlock, s.lastBlockOnL1, s.amountOfBlocksInEachRange)
+	highestBlockInProcess := s.getHighestBlockRequestedUnsafe()
+	if highestBlockInProcess == latestBlockNumber {
+		log.Debug("No blocks to ask, we have requested all blocks from L1!")
+		return nil
+	}
+	br := getNextBlockRangeFromUnsafe(max(s.lastBlockStoreOnStateDB, s.getHighestBlockRequestedUnsafe()), s.lastBlockOnL1, s.amountOfBlocksInEachRange)
 	err := br.isValid()
 	if err != nil {
 		log.Error(s.toString())
@@ -140,7 +170,7 @@ func (s *syncStatus) getNextRange() *blockRange {
 	return br
 }
 
-func (s *syncStatus) onStartedNewWorker(br blockRange) {
+func (s *syncStatus) OnStartedNewWorker(br blockRange) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	// Try to remove from error Blocks
@@ -153,17 +183,18 @@ func (s *syncStatus) onStartedNewWorker(br blockRange) {
 		log.Error(s.toString())
 		log.Fatal(err)
 	}
-
-	if br.toBlock > s.highestBlockRequested {
+	if br.toBlock == latestBlockNumber {
+		s.highestBlockRequested = s.lastBlockOnL1
+	} else if br.toBlock > s.highestBlockRequested {
 		s.highestBlockRequested = br.toBlock
 	}
 }
 
 // return true is a valid blockRange
-func (s *syncStatus) onFinishWorker(br blockRange, successful bool) bool {
+func (s *syncStatus) OnFinishWorker(br blockRange, successful bool, highestBlockNumberInResponse uint64) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	log.Debugf("onFinishWorker(br=%s, successful=%v) initial_status: %s", br.String(), successful, s.toStringBrief())
+	log.Debugf("onFinishWorker(br=%s, successful=%v) initial_status: %s", br.String(), successful, s.String())
 	// The work have been done, remove the range from pending list
 	// also move the s.lastBlockStoreOnStateDB to the end of the range if needed
 	err := s.processingRanges.removeBlockRange(br)
@@ -178,8 +209,8 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) bool {
 		// 		 lbs  = 99
 		// 		 pending = [100, 200], [201, 300], [301, 400]
 		// 		 if process the [100,200] -> lbs = 200
-		if s.lastBlockStoreOnStateDB+1 == br.fromBlock {
-			newValue := br.toBlock
+		if highestBlockNumberInResponse != invalidBlockNumber && highestBlockNumberInResponse > s.lastBlockStoreOnStateDB {
+			newValue := highestBlockNumberInResponse
 			log.Debugf("Moving s.lastBlockStoreOnStateDB from %d to %d (diff %d)", s.lastBlockStoreOnStateDB, newValue, newValue-s.lastBlockStoreOnStateDB)
 			s.lastBlockStoreOnStateDB = newValue
 		}
@@ -191,13 +222,16 @@ func (s *syncStatus) onFinishWorker(br blockRange, successful bool) bool {
 			log.Fatal(err)
 		}
 	}
-	log.Debugf("onFinishWorker final_status: %s", s.toStringBrief())
+	log.Debugf("onFinishWorker final_status: %s", s.String())
 	return true
 }
 
 func getNextBlockRangeFromUnsafe(lastBlockInState uint64, lastBlockInL1 uint64, amountOfBlocksInEachRange uint64) *blockRange {
 	fromBlock := lastBlockInState + 1
 	toBlock := min(lastBlockInL1, fromBlock+amountOfBlocksInEachRange)
+	if toBlock == lastBlockInL1 {
+		toBlock = latestBlockNumber
+	}
 	return &blockRange{fromBlock: fromBlock, toBlock: toBlock}
 }
 
@@ -228,10 +262,10 @@ func (n *onNewLastBlockResponse) toString() string {
 	return res
 }
 
-func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse {
+func (s *syncStatus) OnNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	log.Debugf("onNewLastBlockOnL1(%v) initial_status: %s", lastBlock, s.toStringBrief())
+	log.Debugf("onNewLastBlockOnL1(%v) initial_status: %s", lastBlock, s.String())
 	response := onNewLastBlockResponse{
 		fullRange: blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: lastBlock},
 	}
@@ -265,23 +299,17 @@ func (s *syncStatus) onNewLastBlockOnL1(lastBlock uint64) onNewLastBlockResponse
 		response.fullRange = blockRange{fromBlock: s.lastBlockStoreOnStateDB, toBlock: lastBlock}
 		return response
 	}
-	log.Debugf("onNewLastBlockOnL1(%d) final_status: %s", lastBlock, s.toStringBrief())
+	log.Debugf("onNewLastBlockOnL1(%d) final_status: %s", lastBlock, s.String())
 	return response
 }
 
-func (s *syncStatus) isSetLastBlockOnL1Value() bool {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	return s.lastBlockOnL1 == invalidLastBlock
-}
-
-func (s *syncStatus) doesItHaveAllTheNeedDataToWork() bool {
+func (s *syncStatus) DoesItHaveAllTheNeedDataToWork() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	return s.lastBlockOnL1 != invalidLastBlock && s.lastBlockStoreOnStateDB != invalidBlockNumber
 }
 
-func (s *syncStatus) verify() error {
+func (s *syncStatus) Verify() error {
 	if s.amountOfBlocksInEachRange == 0 {
 		return errSyncChunkSizeMustBeGreaterThanZero
 	}
@@ -289,4 +317,16 @@ func (s *syncStatus) verify() error {
 		return errStartingBlockNumberMustBeDefined
 	}
 	return nil
+}
+
+// It returns if this block is beyond Finalized (so it could be reorg)
+// If blockNumber == invalidBlockNumber then it uses the highestBlockRequested (the last block requested)
+func (s *syncStatus) BlockNumberIsInsideUnsafeArea(blockNumber uint64) bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if blockNumber == invalidBlockNumber {
+		blockNumber = s.highestBlockRequested
+	}
+	distanceInBlockToLatest := s.lastBlockOnL1 - blockNumber
+	return distanceInBlockToLatest < maximumBlockDistanceFromLatestToFinalized
 }

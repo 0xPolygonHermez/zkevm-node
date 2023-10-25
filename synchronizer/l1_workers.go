@@ -23,7 +23,7 @@ var (
 // worker: is the expected functions of a worker
 type worker interface {
 	String() string
-	asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, blockRange blockRange, sleepBefore time.Duration) error
+	asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, request requestRollupInfoByBlockRange) error
 	requestLastBlock(ctx context.Context) responseL1LastBlock
 	isIdle() bool
 }
@@ -90,6 +90,16 @@ func (w *workers) initialize() error {
 	return nil
 }
 
+func (w *workers) howManyRunningWorkers() int {
+	result := 0
+	for _, worker := range w.workers {
+		if !worker.worker.isIdle() {
+			result++
+		}
+	}
+	return result
+}
+
 func (w *workers) stop() {
 	log.Infof("workers: stopping workers %s", w.String())
 	for i := range w.workers {
@@ -106,10 +116,10 @@ func (w *workers) getResponseChannelForRollupInfo() chan responseRollupInfoByBlo
 	return w.chOutgoingRollupInfo
 }
 
-func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, blockRange blockRange, sleepBefore time.Duration) (chan responseRollupInfoByBlockRange, error) {
-	requestStrForDebug := fmt.Sprintf("GetRollupInfoByBlockRange(%s, sleep=%s)", blockRange.String(), sleepBefore.String())
+func (w *workers) asyncRequestRollupInfoByBlockRange(ctx context.Context, request requestRollupInfoByBlockRange) (chan responseRollupInfoByBlockRange, error) {
+	requestStrForDebug := fmt.Sprintf("GetRollupInfoByBlockRange(%s)", request.String())
 	f := func(worker worker, ctx contextWithCancel, wg *sync.WaitGroup) error {
-		res := worker.asyncRequestRollupInfoByBlockRange(ctx, w.getResponseChannelForRollupInfo(), wg, blockRange, sleepBefore)
+		res := worker.asyncRequestRollupInfoByBlockRange(ctx, w.getResponseChannelForRollupInfo(), wg, request)
 		return res
 	}
 	res := w.asyncGenericRequest(ctx, typeRequestRollupInfo, requestStrForDebug, f)

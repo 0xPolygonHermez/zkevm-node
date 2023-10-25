@@ -488,6 +488,7 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 		ForkUpgradeNewForkId:         c.ForkUpgradeNewForkId,
 		MaxLogsCount:                 c.RPC.MaxLogsCount,
 		MaxLogsBlockRange:            c.RPC.MaxLogsBlockRange,
+		MaxNativeBlockHashBlockRange: c.RPC.MaxNativeBlockHashBlockRange,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)
