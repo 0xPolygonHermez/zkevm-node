@@ -138,11 +138,11 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
 		result.ChangesStateRoot = IsStateRootChanged(response.Error)
-		callTrace, err := convertToCallTrace(response.CallTrace)
+		fullTrace, err := convertToFullTrace(response.FullTrace)
 		if err != nil {
 			return nil, err
 		}
-		result.CallTrace = *callTrace
+		result.FullTrace = *fullTrace
 		result.EffectiveGasPrice = response.EffectiveGasPrice
 		result.EffectivePercentage = response.EffectivePercentage
 
@@ -246,11 +246,11 @@ func convertToProperMap(responses map[string]string) map[common.Hash]common.Hash
 	return results
 }
 
-func convertToCallTrace(callTrace *executor.CallTrace) (*instrumentation.CallTrace, error) {
-	trace := new(instrumentation.CallTrace)
-	if callTrace != nil {
-		trace.Context = convertToContext(callTrace.Context)
-		steps, err := convertToInstrumentationSteps(callTrace.Steps)
+func convertToFullTrace(fullTrace *executor.FullTrace) (*instrumentation.FullTrace, error) {
+	trace := new(instrumentation.FullTrace)
+	if fullTrace != nil {
+		trace.Context = convertToContext(fullTrace.Context)
+		steps, err := convertToInstrumentationSteps(fullTrace.Steps)
 		if err != nil {
 			return nil, err
 		}

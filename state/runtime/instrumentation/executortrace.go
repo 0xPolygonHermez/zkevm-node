@@ -6,8 +6,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// CallTrace contents executor call trace steps.
-type CallTrace struct {
+// FullTrace contents executor call trace steps.
+type FullTrace struct {
 	Context Context `json:"context"`
 	Steps   []Step  `json:"steps"`
 }

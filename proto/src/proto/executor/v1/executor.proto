@@ -87,10 +87,8 @@ message TraceConfig {
     uint32 enable_memory = 3;
     // Enables return data (default=false)
     uint32 enable_return_data = 4;
-    // Hash of tx in batch to retrieve the execution trace
-    bytes tx_hash_to_generate_execute_trace = 5;
-    // Hash of tx in batch to retrieve the call trace
-    bytes tx_hash_to_generate_call_trace = 6;
+    // Hash of tx in batch to retrieve the trace
+    bytes tx_hash_to_generate_full_trace = 5;
 }
 message InfoReadWrite {
     // If nonce="" then it has not been set; if set, string is in decimal (base 10)
@@ -99,7 +97,7 @@ message InfoReadWrite {
     string balance = 2;
 }
 
-message CallTrace {
+message FullTrace {
     TransactionContext context = 1;
     repeated TransactionStep steps = 2;
 }
@@ -160,6 +158,8 @@ message TransactionStep {
     Contract contract = 13;
     // Error
     RomError error = 14;
+    // Content of the storage
+    map<string, string> storage = 15;
 }
 
 message Contract {
@@ -196,8 +196,7 @@ message ProcessTransactionResponse {
     // Logs emited by LOG opcode
     repeated Log logs = 11;
     // Trace
-    repeated ExecutionTraceStep execution_trace = 13;
-    CallTrace call_trace = 14;
+    FullTrace full_trace = 14;
     // Efective Gas Price
     string effective_gas_price = 15;
     uint32 effective_percentage = 16;
@@ -220,35 +219,6 @@ message Log {
     bytes batch_hash = 7;
     // Index of the log in the block
     uint32 index = 8;
-}
-
-message ExecutionTraceStep {
-    // Program Counter
-    uint64 pc = 1;
-    // OpCode
-    string op = 2;
-    // Remaining gas
-    uint64 remaining_gas = 3;
-    // Gas cost of the operation
-    uint64 gas_cost = 4;
-    // Content of memory, starting at memory_offset, showing only changes vs. previous step
-    bytes memory = 5;
-    // Total size of memory
-    uint32 memory_size = 6;
-    // Offset of memory changes
-    uint32 memory_offset = 7;
-    // Content of the stack
-    repeated string stack = 8;
-    // Returned data
-    bytes return_data = 9;
-    // Content of the storage
-    map<string, string> storage = 10;
-    // Call depth
-    uint32 depth = 11;
-    // Gas refund
-    uint64 gas_refund = 12;
-    // Error
-    RomError error = 13;
 }
 
 enum RomError {

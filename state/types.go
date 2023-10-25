@@ -70,8 +70,8 @@ type ProcessTransactionResponse struct {
 	ChangesStateRoot bool
 	// Tx is the whole transaction object
 	Tx types.Transaction
-	// CallTrace contains the call trace.
-	CallTrace instrumentation.CallTrace
+	// FullTrace contains the call trace.
+	FullTrace instrumentation.FullTrace
 	// EffectiveGasPrice effective gas price used for the tx
 	EffectiveGasPrice string
 	//EffectivePercentage effective percentage used for the tx

@@ -246,7 +246,7 @@ type ExecutionResult struct {
 	Err           error  // Any error encountered during the execution, listed below
 	CreateAddress common.Address
 	StateRoot     []byte
-	CallTrace     instrumentation.CallTrace
+	FullTrace     instrumentation.FullTrace
 	TraceResult   json.RawMessage
 }
 
