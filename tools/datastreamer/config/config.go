@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
+	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/mitchellh/mapstructure"
@@ -36,6 +36,7 @@ type Config struct {
 	StateDB   db.Config           `mapstructure:"StateDB"`
 	Executor  executor.Config     `mapstructure:"Executor"`
 	MerkeTree merkletree.Config   `mapstructure:"MerkeTree"`
+	Log       log.Config          `mapstructure:"Log"`
 }
 
 // Default parses the default configuration values.

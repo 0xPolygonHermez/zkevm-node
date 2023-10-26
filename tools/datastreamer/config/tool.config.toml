@@ -1,14 +1,12 @@
 ChainID = 1440
+
 [Online]
-URI = "stream.internal.zkevm-test.net:6900"
+URI = "zkevm-sequencer:6900"
 StreamType = 1
+
 [Offline]
 Port = 6901
 Filename = "datastream.bin"
-    [OfflineServer.Log]
-    Environment = "development"
-    Level = "error"
-    Outputs = ["stdout"]
 
 [StateDB]
 User = "state_user"
@@ -25,3 +23,8 @@ MaxGRPCMessageSize = 100000000
 
 [MerkeTree]
 URI = "zkevm-prover:50061"
+
+[Log]
+Environment = "development"
+Level = "error"
+Outputs = ["stdout"]
