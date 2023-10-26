@@ -5,7 +5,7 @@ const DefaultValues = `
 ChainID = 1440
 
 [Online]
-URI = "stream.internal.zkevm-test.net:6900"
+URI = "zkevm-sequencer:6900"
 StreamType = 1
 
 [Offline]
