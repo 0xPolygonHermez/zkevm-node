@@ -110,7 +110,7 @@ It's recommended to use `make` for building, and testing the code, ... Run `make
 
 ### Requirements
 
-- Go 1.19
+- Go 1.21
 - Docker
 - Docker Compose
 - Make
