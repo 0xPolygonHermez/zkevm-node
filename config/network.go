@@ -40,7 +40,7 @@ type GenesisFromJSON struct {
 	// L1: configuration of the network
 	L1Config etherman.L1Config
 	// Data of the first batch after the genesis(Batch 1)
-	FirstBatchData state.BatchData `json:"firstBatchData"`
+	FirstBatchData *state.BatchData `json:"firstBatchData"`
 }
 
 type genesisAccountFromJSON struct {
