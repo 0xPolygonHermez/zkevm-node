@@ -218,20 +218,15 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				return err
 			}
-			if s.genesis.FirstBatchData != nil {
-				log.Info("Initial transaction found in genesis file. Applying...")
-				err = s.setInitialBatch(blocks[0].BlockNumber, dbTx)
-				if err != nil {
-					log.Error("error setting initial tx Batch. BatchNum: ", blocks[0].SequencedBatches[0][0].BatchNumber)
-					rollbackErr := dbTx.Rollback(s.ctx)
-					if rollbackErr != nil {
-						log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", blocks[0].BlockNumber, rollbackErr.Error(), err)
-						return rollbackErr
-					}
-					return err
+			err = s.setInitialBatch(blocks[0].BlockNumber, dbTx)
+			if err != nil {
+				log.Error("error setting initial tx Batch. BatchNum: ", blocks[0].SequencedBatches[0][0].BatchNumber)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", blocks[0].BlockNumber, rollbackErr.Error(), err)
+					return rollbackErr
 				}
-			} else {
-				log.Info("No initial transaction found in genesis file")
+				return err
 			}
 
 			if genesisRoot != s.genesis.Root {
