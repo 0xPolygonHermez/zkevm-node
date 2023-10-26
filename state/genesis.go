@@ -26,7 +26,7 @@ type Genesis struct {
 	// Contracts to be deployed to L2
 	GenesisActions []*GenesisAction
 	// Data of the first batch after the genesis(Batch 1)
-	FirstBatchData BatchData
+	FirstBatchData *BatchData
 }
 
 // GenesisAction represents one of the values set on the SMT during genesis.
@@ -192,46 +192,5 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	if err != nil {
 		return common.Hash{}, err
 	}
-
-	// // Process FirstTransaction included in batch 1
-	// batchL2Data := common.Hex2Bytes(genesis.FirstBatchData.Transactions[2:])
-	// processCtx := ProcessingContext{
-	// 	BatchNumber:    1,
-	// 	Coinbase:       genesis.FirstBatchData.Sequencer,
-	// 	Timestamp:      time.Unix(int64(genesis.FirstBatchData.Timestamp), 0),
-	// 	GlobalExitRoot: genesis.FirstBatchData.GlobalExitRoot,
-	// 	BatchL2Data:    &batchL2Data,
-	// }
-	// newStateRoot, flushID, proverID, err := s.ProcessAndStoreClosedBatch(ctx, processCtx, batch.BatchL2Data, dbTx, m)
-	// if err != nil {
-	// 	log.Error("error storing batch 1. Error: ", err)
-	// 	return common.Hash{}, common.Hash{}, 0, "", err
-	// }
-	// var gRoot common.Hash
-	// gRoot.SetBytes(genesisStateRoot)
-
-	// // Virtualize Batch and add sequence
-	// virtualBatch1 := VirtualBatch{
-	// 	BatchNumber:   1,
-	// 	TxHash:        ZeroHash,
-	// 	Coinbase:      genesis.FirstBatchData.Sequencer,
-	// 	BlockNumber:   block.BlockNumber,
-	// 	SequencerAddr: genesis.FirstBatchData.Sequencer,
-	// }
-	// err = s.AddVirtualBatch(ctx, &virtualBatch1, dbTx)
-	// if err != nil {
-	// 	log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch1.BatchNumber, genesis.GenesisBlockNum, err)
-	// 	return common.Hash{}, common.Hash{}, 0, "", err
-	// }
-	// // Insert the sequence to allow the aggregator verify the sequence batches
-	// seq := Sequence{
-	// 	FromBatchNumber: 1,
-	// 	ToBatchNumber:   1,
-	// }
-	// err = s.AddSequence(ctx, seq, dbTx)
-	// if err != nil {
-	// 	log.Errorf("error adding sequence. Sequence: %+v", seq)
-	// 	return common.Hash{}, common.Hash{}, 0, "", err
-	// }
 	return root, nil
 }
