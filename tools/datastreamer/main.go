@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
+	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	nodeConfig "github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -155,7 +155,7 @@ func main() {
 
 func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error) {
 	// Create a stream server
-	streamServer, err := datastreamer.NewServer(c.Offline.Port, state.StreamTypeSequencer, c.Offline.Filename, &c.Offline.Log)
+	streamServer, err := datastreamer.NewServer(c.Offline.Port, state.StreamTypeSequencer, c.Offline.Filename, &c.Log)
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +174,8 @@ func generate(cliCtx *cli.Context) error {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	log.Init(c.Log)
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
@@ -208,6 +210,8 @@ func reprocess(cliCtx *cli.Context) error {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	log.Init(c.Log)
 
 	ctx := cliCtx.Context
 
@@ -439,6 +443,8 @@ func decodeEntry(cliCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
+	log.Init(c.Log)
+
 	client, err := datastreamer.NewClient(c.Online.URI, c.Online.StreamType)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -468,6 +474,8 @@ func decodeL2Block(cliCtx *cli.Context) error {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	log.Init(c.Log)
 
 	client, err := datastreamer.NewClient(c.Online.URI, c.Online.StreamType)
 	if err != nil {
@@ -529,6 +537,8 @@ func decodeEntryOffline(cliCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
+	log.Init(c.Log)
+
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -552,6 +562,8 @@ func decodeL2BlockOffline(cliCtx *cli.Context) error {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	log.Init(c.Log)
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
@@ -598,6 +610,8 @@ func truncate(cliCtx *cli.Context) error {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	log.Init(c.Log)
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
