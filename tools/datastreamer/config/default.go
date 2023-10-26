@@ -3,7 +3,10 @@ package config
 // DefaultValues is the default configuration
 const DefaultValues = `
 ChainID = 1440
-[StreamServer]
+[Online]
+URI = "stream.internal.zkevm-test.net:6900"
+StreamType = 1
+[Offline]
 Port = 6901
 Filename = "datastreamer.bin"
 	[Log]

@@ -7,8 +7,11 @@ check-go:
 # Targets that require the checks
 generate-file: check-go
 reprocess: check-go
+decode-entry-offline: check-go
+decode-l2block-offline: check-go
 decode-entry: check-go
 decode-l2block: check-go
+truncate: check-go
 
 arguments := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 
@@ -23,6 +26,18 @@ decode-entry: ## Runs the tool to decode a given entry number
 .PHONY: decode-l2block
 decode-l2block: ## Runs the tool to decode a given L2 block
 	go run main.go decode-l2block -cfg config/tool.config.toml -l2block $(arguments)
+
+.PHONY: decode-entry-offline
+decode-entry-offline: ## Runs the offline tool to decode a given entry number
+	go run main.go decode-entry-offline -cfg config/tool.config.toml -entry $(arguments)
+
+.PHONY: decode-l2block-offline
+decode-l2block-offline: ## Runs the offline tool to decode a given L2 block
+	go run main.go decode-l2block-offline -cfg config/tool.config.toml -l2block $(arguments)
+
+.PHONY: truncate
+truncate: ## Runs the offline tool to truncate the stream file
+	go run main.go truncate -cfg config/tool.config.toml -entry $(arguments)
 
 # .PHONY: reprocess
 reprocess: ## Runs the tool to reprocess the information in the stream up to a given l2 block
