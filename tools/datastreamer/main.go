@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -24,7 +25,7 @@ import (
 
 const (
 	appName  = "zkevm-data-streamer-tool" //nolint:gosec
-	appUsage = "zkevm datastream offline tool"
+	appUsage = "zkevm datastream tool"
 )
 
 var (
@@ -94,6 +95,26 @@ func main() {
 			},
 		},
 		{
+			Name:    "decode-entry-offline",
+			Aliases: []string{},
+			Usage:   "Decodes an entry offline",
+			Action:  decodeEntryOffline,
+			Flags: []cli.Flag{
+				&configFileFlag,
+				&entryFlag,
+			},
+		},
+		{
+			Name:    "decode-l2block-offline",
+			Aliases: []string{},
+			Usage:   "Decodes a l2 block offline",
+			Action:  decodeL2BlockOffline,
+			Flags: []cli.Flag{
+				&configFileFlag,
+				&l2blockFlag,
+			},
+		},
+		{
 			Name:    "decode-entry",
 			Aliases: []string{},
 			Usage:   "Decodes an entry",
@@ -113,6 +134,16 @@ func main() {
 				&l2blockFlag,
 			},
 		},
+		{
+			Name:    "truncate",
+			Aliases: []string{},
+			Usage:   "Truncates the stream file",
+			Action:  truncate,
+			Flags: []cli.Flag{
+				&configFileFlag,
+				&entryFlag,
+			},
+		},
 	}
 
 	err := app.Run(os.Args)
@@ -124,7 +155,7 @@ func main() {
 
 func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error) {
 	// Create a stream server
-	streamServer, err := datastreamer.NewServer(c.StreamServer.Port, state.StreamTypeSequencer, c.StreamServer.Filename, &c.StreamServer.Log)
+	streamServer, err := datastreamer.NewServer(c.Offline.Port, state.StreamTypeSequencer, c.Offline.Filename, &c.Offline.Log)
 	if err != nil {
 		return nil, err
 	}
@@ -158,6 +189,7 @@ func generate(cliCtx *cli.Context) error {
 	}
 	defer stateSqlDB.Close()
 	stateDB := state.NewPostgresStorage(stateSqlDB)
+	log.Debug("Connected to the database")
 
 	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB)
 	if err != nil {
@@ -230,14 +262,14 @@ func reprocess(cliCtx *cli.Context) error {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
-		printEntry(firstEntry, streamServer)
+		printEntry(firstEntry)
 
 		secondEntry, err := streamServer.GetEntry(firstEntry.Number + 1)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
-		printEntry(secondEntry, streamServer)
+		printEntry(secondEntry)
 
 		if common.Bytes2Hex(stateRoot) != common.Bytes2Hex(secondEntry.Data[40:72]) {
 			printColored(color.FgRed, "\nError: Genesis state root does not match\n\n")
@@ -280,13 +312,15 @@ func reprocess(cliCtx *cli.Context) error {
 
 		var processBatchRequest *executor.ProcessBatchRequest
 		var expectedNewRoot []byte
+		var entryToUpdate *datastreamer.FileEntry
 
 		switch currentEntry.Type {
 		case state.EntryTypeBookMark:
-			printEntry(currentEntry, streamServer)
+			printEntry(currentEntry)
+			entryToUpdate = nil
 			continue
 		case state.EntryTypeUpdateGER:
-			printEntry(currentEntry, streamServer)
+			printEntry(currentEntry)
 			processBatchRequest = &executor.ProcessBatchRequest{
 				OldBatchNum:      binary.LittleEndian.Uint64(currentEntry.Data[0:8]) - 1,
 				Coinbase:         common.Bytes2Hex(currentEntry.Data[48:68]),
@@ -301,23 +335,24 @@ func reprocess(cliCtx *cli.Context) error {
 			}
 
 			expectedNewRoot = currentEntry.Data[70:102]
+			entryToUpdate = nil
 		case state.EntryTypeL2BlockStart:
 			startEntry = currentEntry
-			printEntry(startEntry, streamServer)
+			printEntry(startEntry)
 
 			txEntry, err := streamServer.GetEntry(startEntry.Number + 1)
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
 				os.Exit(1)
 			}
-			printEntry(txEntry, streamServer)
+			printEntry(txEntry)
 
 			endEntry, err := streamServer.GetEntry(startEntry.Number + 2) //nolint:gomnd
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
 				os.Exit(1)
 			}
-			printEntry(endEntry, streamServer)
+			printEntry(endEntry)
 
 			forkID := uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78]))
 
@@ -351,6 +386,7 @@ func reprocess(cliCtx *cli.Context) error {
 			}
 
 			expectedNewRoot = endEntry.Data[40:72]
+			entryToUpdate = &endEntry
 			x += 2 //nolint:gomnd
 		}
 
@@ -371,18 +407,25 @@ func reprocess(cliCtx *cli.Context) error {
 			printColored(color.FgRed, fmt.Sprintf("Old State Root.........: %s\n", "0x"+common.Bytes2Hex(processBatchRequest.GetOldStateRoot())))
 			printColored(color.FgRed, fmt.Sprintf("New State Root.........: %s\n", "0x"+common.Bytes2Hex(processBatchResponse.NewStateRoot)))
 			printColored(color.FgRed, fmt.Sprintf("Expected New State Root: %s\n", "0x"+common.Bytes2Hex(expectedNewRoot)))
-			break
+			// Check if we must update the file with the new state root
+			if cliCtx.Bool("update") {
+				if entryToUpdate.Type != state.EntryTypeL2BlockEnd {
+					printColored(color.FgRed, "Error: Entry to update is not a L2BlockEnd\n")
+					os.Exit(1)
+				}
+				blockEnd := state.DSL2BlockEnd{}.Decode(entryToUpdate.Data)
+				blockEnd.StateRoot = common.BytesToHash(processBatchResponse.NewStateRoot)
+				err = streamServer.UpdateEntryData(entryToUpdate.Number, state.EntryTypeL2BlockEnd, blockEnd.Encode())
+				if err != nil {
+					printColored(color.FgRed, fmt.Sprintf("Error: %v\n", err))
+					os.Exit(1)
+				}
+			} else {
+				break
+			}
 		} else {
 			printColored(color.FgGreen, "New state root matches\n")
 			previousStateRoot = processBatchResponse.NewStateRoot
-
-			// Check if we must update the file with the new state root
-			// TODO: Update file
-			/*
-				if cliCtx.Bool("update") {
-
-				}
-			*/
 		}
 	}
 
@@ -390,6 +433,96 @@ func reprocess(cliCtx *cli.Context) error {
 }
 
 func decodeEntry(cliCtx *cli.Context) error {
+	c, err := config.Load(cliCtx)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	client, err := datastreamer.NewClient(c.Online.URI, c.Online.StreamType)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	err = client.Start()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	client.FromEntry = cliCtx.Uint64("entry")
+	err = client.ExecCommand(datastreamer.CmdEntry)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	printEntry(client.Entry)
+	return nil
+}
+
+func decodeL2Block(cliCtx *cli.Context) error {
+	c, err := config.Load(cliCtx)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	client, err := datastreamer.NewClient(c.Online.URI, c.Online.StreamType)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	err = client.Start()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	l2BlockNumber := cliCtx.Uint64("l2block")
+
+	bookMark := state.DSBookMark{
+		Type:          state.BookMarkTypeL2Block,
+		L2BlockNumber: l2BlockNumber,
+	}
+
+	client.FromBookmark = bookMark.Encode()
+	err = client.ExecCommand(datastreamer.CmdBookmark)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	firstEntry := client.Entry
+	printEntry(firstEntry)
+
+	client.FromEntry = firstEntry.Number + 1
+	err = client.ExecCommand(datastreamer.CmdEntry)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	secondEntry := client.Entry
+	printEntry(secondEntry)
+
+	if l2BlockNumber != 0 {
+		client.FromEntry = firstEntry.Number + 2 //nolint:gomnd
+		err = client.ExecCommand(datastreamer.CmdEntry)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		thirdEntry := client.Entry
+		printEntry(thirdEntry)
+	}
+
+	return nil
+}
+
+func decodeEntryOffline(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -408,12 +541,12 @@ func decodeEntry(cliCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	printEntry(entry, streamServer)
+	printEntry(entry)
 
 	return nil
 }
 
-func decodeL2Block(cliCtx *cli.Context) error {
+func decodeL2BlockOffline(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -438,14 +571,14 @@ func decodeL2Block(cliCtx *cli.Context) error {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
-	printEntry(firstEntry, streamServer)
+	printEntry(firstEntry)
 
 	secondEntry, err := streamServer.GetEntry(firstEntry.Number + 1)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
-	printEntry(secondEntry, streamServer)
+	printEntry(secondEntry)
 
 	if l2BlockNumber != 0 {
 		thirdEntry, err := streamServer.GetEntry(firstEntry.Number + 2) //nolint:gomnd
@@ -453,13 +586,37 @@ func decodeL2Block(cliCtx *cli.Context) error {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
-		printEntry(thirdEntry, streamServer)
+		printEntry(thirdEntry)
 	}
 
 	return nil
 }
 
-func printEntry(entry datastreamer.FileEntry, streamServer *datastreamer.StreamServer) {
+func truncate(cliCtx *cli.Context) error {
+	c, err := config.Load(cliCtx)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	streamServer, err := initializeStreamServer(c)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	err = streamServer.TruncateFile(cliCtx.Uint64("entry"))
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	printColored(color.FgGreen, "File truncated\n")
+
+	return nil
+}
+
+func printEntry(entry datastreamer.FileEntry) {
 	switch entry.Type {
 	case state.EntryTypeBookMark:
 		bookmark := state.DSBookMark{}.Decode(entry.Data)
@@ -657,7 +814,7 @@ func getOldStateRoot(entityNumber uint64, streamServer *datastreamer.StreamServe
 	}
 
 	printColored(color.FgHiYellow, "Getting Old State Root from\n")
-	printEntry(entry, streamServer)
+	printEntry(entry)
 
 	if entry.Type == state.EntryTypeUpdateGER {
 		return entry.Data[70:102]
