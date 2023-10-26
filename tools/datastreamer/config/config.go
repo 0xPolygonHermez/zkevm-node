@@ -22,13 +22,20 @@ const (
 	FlagGenesis = "genesis"
 )
 
+// OnlineConfig is the configuration for the online data streamer
+type OnlineConfig struct {
+	URI        string                  `mapstructure:"URI"`
+	StreamType datastreamer.StreamType `mapstructure:"StreamType"`
+}
+
 // Config is the configuration for the tool
 type Config struct {
-	ChainID      uint64              `mapstructure:"ChainID"`
-	StreamServer datastreamer.Config `mapstructure:"StreamServer"`
-	StateDB      db.Config           `mapstructure:"StateDB"`
-	Executor     executor.Config     `mapstructure:"Executor"`
-	MerkeTree    merkletree.Config   `mapstructure:"MerkeTree"`
+	ChainID   uint64              `mapstructure:"ChainID"`
+	Online    OnlineConfig        `mapstructure:"Online"`
+	Offline   datastreamer.Config `mapstructure:"Offline"`
+	StateDB   db.Config           `mapstructure:"StateDB"`
+	Executor  executor.Config     `mapstructure:"Executor"`
+	MerkeTree merkletree.Config   `mapstructure:"MerkeTree"`
 }
 
 // Default parses the default configuration values.
