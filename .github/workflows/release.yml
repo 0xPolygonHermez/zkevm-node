@@ -40,7 +40,7 @@ jobs:
           mkdir -p testnet/db/scripts
           cp config/environments/testnet/* testnet/config/environments/testnet
           cp docker-compose.yml testnet
-          sed -i 's/\/config\/environments\/${ZKEVM_NETWORK}/\/config\/environments\/testnet/g' mainnet/docker-compose.yml
+          sed -i 's/\/config\/environments\/${ZKEVM_NETWORK}/\/config\/environments\/testnet/g' testnet/docker-compose.yml
           cp db/scripts/init_prover_db.sql testnet/db/scripts
           mv testnet/config/environments/testnet/example.env testnet
           sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" testnet/docker-compose.yml
