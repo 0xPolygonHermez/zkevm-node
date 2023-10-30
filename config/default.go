@@ -145,6 +145,7 @@ LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 MaxTxSizeForL1 = 131072
 L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+GasOffset = 80000
 
 [Aggregator]
 Host = "0.0.0.0"
@@ -156,6 +157,7 @@ TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
+GasOffset = 0
 
 [L2GasPriceSuggester]
 Type = "follower"

@@ -14,15 +14,17 @@ func TestTx(t *testing.T) {
 	value := big.NewInt(2)
 	data := []byte("data")
 	gas := uint64(3)
-	gasPrice := big.NewInt(4)
+	gasOffset := uint64(4)
+	gasPrice := big.NewInt(5)
 
 	mTx := monitoredTx{
-		to:       &to,
-		nonce:    nonce,
-		value:    value,
-		data:     data,
-		gas:      gas,
-		gasPrice: gasPrice,
+		to:        &to,
+		nonce:     nonce,
+		value:     value,
+		data:      data,
+		gas:       gas,
+		gasOffset: gasOffset,
+		gasPrice:  gasPrice,
 	}
 
 	tx := mTx.Tx()
@@ -31,6 +33,6 @@ func TestTx(t *testing.T) {
 	assert.Equal(t, nonce, tx.Nonce())
 	assert.Equal(t, value, tx.Value())
 	assert.Equal(t, data, tx.Data())
-	assert.Equal(t, gas, tx.Gas())
+	assert.Equal(t, gas+gasOffset, tx.Gas())
 	assert.Equal(t, gasPrice, tx.GasPrice())
 }
