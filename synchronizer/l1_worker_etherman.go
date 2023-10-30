@@ -269,7 +269,7 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 		//ch <- newResponseRollupInfo(nil, time.Second, typeRequestRollupInfo, &rollupInfoByBlockRangeResult{blockRange, nil, nil, nil})
 
 		now := time.Now()
-		err, data := w.executeRequestRollupInfoByBlockRange(ctx, ch, request)
+		data, err := w.executeRequestRollupInfoByBlockRange(ctx, ch, request)
 		duration := time.Since(now)
 		result := newResponseRollupInfo(err, duration, typeRequestRollupInfo, data)
 		w.setStatus(ethermanIdle)
@@ -282,21 +282,21 @@ func (w *workerEtherman) asyncRequestRollupInfoByBlockRange(ctx contextWithCance
 	return nil
 }
 
-func (w *workerEtherman) executeRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, request requestRollupInfoByBlockRange) (error, *rollupInfoByBlockRangeResult) {
+func (w *workerEtherman) executeRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, request requestRollupInfoByBlockRange) (*rollupInfoByBlockRangeResult, error) {
 	resultRollupInfo := rollupInfoByBlockRangeResult{request.blockRange, nil, nil, nil, nil}
 	if err := w.fillLastBlock(&resultRollupInfo, ctx, request, false); err != nil {
-		return err, nil
+		return &resultRollupInfo, err
 	}
 	if err := w.fillRollup(&resultRollupInfo, ctx, request); err != nil {
-		return err, nil
+		return &resultRollupInfo, err
 	}
 	if err := w.fillLastBlock(&resultRollupInfo, ctx, request, true); err != nil {
-		return err, nil
+		return &resultRollupInfo, err
 	}
 	if err := w.fillPreviousBlock(&resultRollupInfo, ctx, request); err != nil {
-		return err, nil
+		return &resultRollupInfo, err
 	}
-	return nil, &resultRollupInfo
+	return &resultRollupInfo, nil
 }
 
 func (w *workerEtherman) fillPreviousBlock(result *rollupInfoByBlockRangeResult, ctx contextWithCancel, request requestRollupInfoByBlockRange) error {

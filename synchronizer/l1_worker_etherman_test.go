@@ -3,6 +3,7 @@ package synchronizer
 import (
 	context "context"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 	"testing"
@@ -148,6 +149,91 @@ func TestCheckIsIdleFunction(t *testing.T) {
 	}
 }
 
+func TestIfRollupInfoFailGettingLastBlockContainBlockRange(t *testing.T) {
+	sut, mockEtherman, ch := setupWorkerEthermanTest(t)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	ctx := newContextWithTimeout(context.Background(), time.Second)
+	blockRange := blockRange{fromBlock: 100, toBlock: 20000}
+	request := newRequestNoSleep(blockRange)
+	request.requestPreviousBlock = true
+	request.requestLastBlockIfNoBlocksInAnswer = requestLastBlockModeAlways
+
+	mockEtherman.
+		On("EthBlockByNumber", mock.Anything, blockRange.toBlock).
+		Return(ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(int64(blockRange.toBlock))}), fmt.Errorf("error")).
+		Once()
+	mockEtherman.
+		On("GetRollupInfoByBlockRange", mock.Anything, blockRange.fromBlock, mock.Anything).
+		Return([]etherman.Block{}, map[common.Hash][]etherman.Order{}, nil).
+		Maybe()
+
+	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, &wg, request)
+	require.NoError(t, err)
+	result := <-ch
+	require.Error(t, result.generic.err)
+	require.True(t, result.result != nil)
+	require.Equal(t, result.result.blockRange, blockRange)
+}
+
+func TestIfRollupInfoFailGettingRollupContainBlockRange(t *testing.T) {
+	sut, mockEtherman, ch := setupWorkerEthermanTest(t)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	ctx := newContextWithTimeout(context.Background(), time.Second)
+	blockRange := blockRange{fromBlock: 100, toBlock: 20000}
+	request := newRequestNoSleep(blockRange)
+	request.requestPreviousBlock = true
+	request.requestLastBlockIfNoBlocksInAnswer = requestLastBlockModeAlways
+
+	mockEtherman.
+		On("EthBlockByNumber", mock.Anything, blockRange.toBlock).
+		Return(ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(int64(blockRange.toBlock))}), nil).
+		Maybe()
+	mockEtherman.
+		On("GetRollupInfoByBlockRange", mock.Anything, blockRange.fromBlock, mock.Anything).
+		Return([]etherman.Block{}, map[common.Hash][]etherman.Order{}, fmt.Errorf("error")).
+		Once()
+
+	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, &wg, request)
+	require.NoError(t, err)
+	result := <-ch
+	require.Error(t, result.generic.err)
+	require.True(t, result.result != nil)
+	require.Equal(t, result.result.blockRange, blockRange)
+}
+
+func TestIfRollupInfoFailPreviousBlockContainBlockRange(t *testing.T) {
+	sut, mockEtherman, ch := setupWorkerEthermanTest(t)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	ctx := newContextWithTimeout(context.Background(), time.Second)
+	blockRange := blockRange{fromBlock: 100, toBlock: 20000}
+	request := newRequestNoSleep(blockRange)
+	request.requestPreviousBlock = true
+	request.requestLastBlockIfNoBlocksInAnswer = requestLastBlockModeAlways
+
+	mockEtherman.
+		On("EthBlockByNumber", mock.Anything, blockRange.toBlock).
+		Return(ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(int64(blockRange.toBlock))}), nil).
+		Maybe()
+	mockEtherman.
+		On("GetRollupInfoByBlockRange", mock.Anything, blockRange.fromBlock, mock.Anything).
+		Return([]etherman.Block{}, map[common.Hash][]etherman.Order{}, nil).
+		Maybe()
+	mockEtherman.
+		On("EthBlockByNumber", mock.Anything, blockRange.fromBlock-1).
+		Return(ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(int64(blockRange.fromBlock - 1))}), fmt.Errorf("error")).
+		Once()
+
+	err := sut.asyncRequestRollupInfoByBlockRange(ctx, ch, &wg, request)
+	require.NoError(t, err)
+	result := <-ch
+	require.Error(t, result.generic.err)
+	require.True(t, result.result != nil)
+	require.Equal(t, result.result.blockRange, blockRange)
+}
+
 func expectedCallsForEmptyRollupInfo(mockEtherman *ethermanMock, blockRange blockRange, getRollupError error, ethBlockError error) {
 	mockEtherman.
 		On("GetRollupInfoByBlockRange", mock.Anything, blockRange.fromBlock, mock.Anything).
@@ -174,6 +260,7 @@ func newRequestNoSleep(blockRange blockRange) requestRollupInfoByBlockRange {
 		blockRange:                         blockRange,
 		sleepBefore:                        noSleepTime,
 		requestLastBlockIfNoBlocksInAnswer: requestLastBlockModeIfNoBlocksInAnswer,
+		requestPreviousBlock:               false,
 	}
 }
 
