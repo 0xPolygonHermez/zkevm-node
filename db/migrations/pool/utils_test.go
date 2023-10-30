@@ -53,17 +53,17 @@ func runMigrationTest(t *testing.T, migrationNumber int, miter migrationTester) 
 	// Initialize an empty DB
 	d, err := initCleanSQLDB(dbutils.NewPoolConfigFromEnv())
 	require.NoError(t, err)
-	require.NoError(t, runMigrationsDown(d, 0, db.StateMigrationName))
+	require.NoError(t, runMigrationsDown(d, 0, db.PoolMigrationName))
 	// Run migrations until migration to test
-	require.NoError(t, runMigrationsUp(d, migrationNumber-1, db.StateMigrationName))
+	require.NoError(t, runMigrationsUp(d, migrationNumber-1, db.PoolMigrationName))
 	// Insert data into table(s) affected by migration
 	require.NoError(t, miter.InsertData(d))
 	// Run migration that is being tested
-	require.NoError(t, runMigrationsUp(d, 1, db.StateMigrationName))
+	require.NoError(t, runMigrationsUp(d, 1, db.PoolMigrationName))
 	// Check that data is persisted properly after migration up
 	miter.RunAssertsAfterMigrationUp(t, d)
 	// Revert migration to test
-	require.NoError(t, runMigrationsDown(d, 1, db.StateMigrationName))
+	require.NoError(t, runMigrationsDown(d, 1, db.PoolMigrationName))
 	// Check that data is persisted properly after migration down
 	miter.RunAssertsAfterMigrationDown(t, d)
 }
