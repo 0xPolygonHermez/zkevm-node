@@ -10,6 +10,6 @@ CREATE INDEX IF NOT EXISTS idx_transaction_hash ON pool.transaction (hash);
 -- +migrate Down
 DROP TABLE pool.whitelisted;
 
-DROP INDEX IF EXISTS pool.idx_transaction_from_nonce
-DROP INDEX IF EXISTS pool.idx_transaction_status
-DROP INDEX IF EXISTS pool.idx_transaction_hash
+DROP INDEX IF EXISTS pool.idx_transaction_from_nonce;
+DROP INDEX IF EXISTS pool.idx_transaction_status;
+DROP INDEX IF EXISTS pool.idx_transaction_hash;
