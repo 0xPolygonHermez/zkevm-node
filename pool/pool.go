@@ -274,7 +274,7 @@ func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transacti
 		}
 	}
 
-	log.Infof("egp-log: tx.GasPrice(): %v, breakEvenGasPrice: %v, breakEvenGasPriceWithFactor: %v, gasUsed: %v, reject: %t, loss: %v, L1GasPrice: %d, L2GasPrice: %d, EGPEnabled: %t, tx: %s",
+	log.Infof("egp-log: tx.GasPrice(): %v, breakEvenGasPrice: %v, breakEvenGasPriceWithFactor: %v, gasUsed: %v, reject: %t, loss: %v, L1GasPrice: %d, L2GasPrice: %d, Enabled: %t, tx: %s",
 		tx.GasPrice(), breakEvenGasPrice, breakEvenGasPriceWithFactor, preExecutionGasUsed, reject, loss, gasPrices.L1GasPrice, gasPrices.L2GasPrice, p.cfg.EffectiveGasPrice.Enabled, tx.Hash().String())
 
 	// Reject transaction if EffetiveGasPrice is enabled

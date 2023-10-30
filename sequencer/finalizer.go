@@ -595,12 +595,15 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, repro
 				tx.EGPLog.L1GasPrice = tx.L1GasPrice
 				tx.EGPLog.L2GasPrice = tx.L2GasPrice
 
-				// If EffectiveGasPrice > tx.GasPrice, we process the tx with tx.GasPrice
-				if tx.EffectiveGasPrice.Cmp(tx.GasPrice) > 0 {
+				// If EffectiveGasPrice >= tx.GasPrice, we process the tx with tx.GasPrice
+				if tx.EffectiveGasPrice.Cmp(tx.GasPrice) >= 0 {
 					tx.EffectiveGasPrice.Set(tx.GasPrice)
-					// Warning message indicating we loss fee for thix tx
+
 					loss := new(big.Int).Sub(tx.EffectiveGasPrice, tx.GasPrice)
-					log.Warnf("egp-loss: gasPrice: %d, effectiveGasPrice1: %d, loss: %d, txHash: %s", tx.GasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
+					// If loss > 0 the warning message indicating we loss fee for thix tx
+					if loss.Cmp(new(big.Int).SetUint64(0)) == 1 {
+						log.Warnf("egp-loss: gasPrice: %d, effectiveGasPrice1: %d, loss: %d, txHash: %s", tx.GasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
+					}
 
 					tx.IsLastExecution = true
 				}
@@ -829,19 +832,21 @@ func (f *finalizer) CompareTxEffectiveGasPrice(ctx context.Context, tx *TxTracke
 
 	// if (diff > finalDeviation)
 	if diff.Cmp(maxDeviation) == 1 {
-		if newEffectiveGasPrice.Cmp(tx.GasPrice) <= 0 {
+		// if newEfectiveGasPrice < tx.GasPrice
+		if newEffectiveGasPrice.Cmp(tx.GasPrice) == -1 {
 			if hasGasPriceOC || hasBalanceOC {
 				tx.EffectiveGasPrice.Set(tx.GasPrice)
 			} else {
 				tx.EffectiveGasPrice.Set(newEffectiveGasPrice)
 			}
 		} else {
-			// Warning message indicating we loss fee for thix tx
-			loss := new(big.Int).Sub(newEffectiveGasPrice, tx.GasPrice)
-			log.Warnf("egp-loss: gasPrice: %d, EffectiveGasPrice2: %d, loss: %d, txHash: %s",
-				tx.GasPrice, newEffectiveGasPrice, loss, tx.HashStr)
-
 			tx.EffectiveGasPrice.Set(tx.GasPrice)
+
+			loss := new(big.Int).Sub(newEffectiveGasPrice, tx.GasPrice)
+			// If loss > 0 the warning message indicating we loss fee for thix tx
+			if loss.Cmp(new(big.Int).SetUint64(0)) == 1 {
+				log.Warnf("egp-loss: gasPrice: %d, EffectiveGasPrice2: %d, loss: %d, txHash: %s", tx.GasPrice, newEffectiveGasPrice, loss, tx.HashStr)
+			}
 		}
 
 		// Save Reprocess for later logging

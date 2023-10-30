@@ -20,13 +20,13 @@ type TxTracker struct {
 	GasPrice          *big.Int
 	Cost              *big.Int             // Cost = Amount + Benefit
 	BatchResources    state.BatchResources // To check if it fits into a batch
-	EGPLog            state.EffectiveGasPriceLog
 	RawTx             []byte
 	ReceivedAt        time.Time // To check if it has been in the txSortedList for too long
 	IP                string    // IP of the tx sender
 	FailedReason      *string   // FailedReason is the reason why the tx failed, if it failed
 	EffectiveGasPrice *big.Int
 	IsLastExecution   bool
+	EGPLog            state.EffectiveGasPriceLog
 	L1GasPrice        uint64
 	L2GasPrice        uint64
 }
