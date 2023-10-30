@@ -925,7 +925,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBatchNumber", context.Background(), m.DbTx).
+					On("GetLastClosedBatchNumber", context.Background(), m.DbTx).
 					Return(uint64(tc.ExpectedResult.Number), nil).
 					Once()
 
@@ -1063,7 +1063,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBatchNumber", context.Background(), m.DbTx).
+					On("GetLastClosedBatchNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last batch number")).
 					Once()
 			},
@@ -1085,7 +1085,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBatchNumber", context.Background(), m.DbTx).
+					On("GetLastClosedBatchNumber", context.Background(), m.DbTx).
 					Return(uint64(1), nil).
 					Once()
 
