@@ -425,6 +425,11 @@
 					"type": "integer",
 					"description": "MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying\nnative block hashes in a single call to the state, if zero it means no limit",
 					"default": 60000
+				},
+				"EnableHttpLog": {
+					"type": "boolean",
+					"description": "EnableHttpLog allows the user to enable or disable the logs related to the HTTP\nrequests to be captured by the server.",
+					"default": true
 				}
 			},
 			"additionalProperties": false,
@@ -864,6 +869,11 @@
 					"type": "integer",
 					"description": "Batch number where there is a forkid change (fork upgrade)",
 					"default": 0
+				},
+				"GasOffset": {
+					"type": "integer",
+					"description": "GasOffset is the amount of gas to be added to the gas estimation in order\nto provide an amount that is higher than the estimated one. This is used\nto avoid the TX getting reverted in case something has changed in the network\nstate after the estimation which can cause the TX to require more gas to be\nexecuted.\n\nex:\ngas estimation: 1000\ngas offset: 100\nfinal gas: 1100",
+					"default": 80000
 				}
 			},
 			"additionalProperties": false,
@@ -962,6 +972,11 @@
 					"type": "string",
 					"description": "GeneratingProofCleanupThreshold represents the time interval after\nwhich a proof in generating state is considered to be stuck and\nallowed to be cleared.",
 					"default": "10m"
+				},
+				"GasOffset": {
+					"type": "integer",
+					"description": "GasOffset is the amount of gas to be added to the gas estimation in order\nto provide an amount that is higher than the estimated one. This is used\nto avoid the TX getting reverted in case something has changed in the network\nstate after the estimation which can cause the TX to require more gas to be\nexecuted.\n\nex:\ngas estimation: 1000\ngas offset: 100\nfinal gas: 1100",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,

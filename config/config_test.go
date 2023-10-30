@@ -137,6 +137,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(131072),
 		},
 		{
+			path:          "SequenceSender.GasOffset",
+			expectedValue: uint64(80000),
+		},
+		{
 			path:          "Etherman.URL",
 			expectedValue: "http://localhost:8545",
 		},
@@ -362,6 +366,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(60000),
 		},
 		{
+			path:          "RPC.EnableHttpLog",
+			expectedValue: true,
+		},
+		{
 			path:          "RPC.WebSockets.Enabled",
 			expectedValue: true,
 		},
@@ -441,7 +449,10 @@ func Test_Defaults(t *testing.T) {
 			path:          "Aggregator.GeneratingProofCleanupThreshold",
 			expectedValue: "10m",
 		},
-
+		{
+			path:          "Aggregator.GasOffset",
+			expectedValue: uint64(0),
+		},
 		{
 			path:          "State.Batch.Constraints.MaxTxsPerBatch",
 			expectedValue: uint64(300),

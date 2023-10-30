@@ -215,7 +215,7 @@ func (s *ClientSynchronizer) Sync() error {
 					log.Errorf("error rolling back state. RollbackErr: %v", rollbackErr)
 					return rollbackErr
 				}
-				return fmt.Errorf("Calculated newRoot should be %s instead of %s", s.genesis.Root.String(), root.String())
+				return fmt.Errorf("calculated newRoot should be %s instead of %s", s.genesis.Root.String(), root.String())
 			}
 			log.Debug("Genesis root matches!")
 		} else {

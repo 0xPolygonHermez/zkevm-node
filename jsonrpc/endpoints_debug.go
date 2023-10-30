@@ -170,7 +170,7 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 	const bufferSize = 10
 
 	return d.txMan.NewDbTxScope(d.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		batchNumber, rpcErr := number.GetNumericBatchNumber(ctx, d.state, dbTx)
+		batchNumber, rpcErr := number.GetNumericBatchNumber(ctx, d.state, d.etherman, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}

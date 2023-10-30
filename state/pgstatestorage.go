@@ -1610,34 +1610,10 @@ func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, 
 	return lastConsolidatedBlockNumber, nil
 }
 
-// GetSafeL2BlockNumber gets the last l2 block virtualized that was mined
-// on or after the safe block on L1
-func (p *PostgresStorage) GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	var l2SafeBlockNumber uint64
-	const query = `
-    SELECT b.block_num
-      FROM state.l2block b
-     INNER JOIN state.virtual_batch vb
-        ON vb.batch_num = b.batch_num
-	 WHERE vb.block_num <= $1
-     ORDER BY b.block_num DESC LIMIT 1`
-
-	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, l1SafeBlockNumber).Scan(&l2SafeBlockNumber)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, ErrNotFound
-	} else if err != nil {
-		return 0, err
-	}
-
-	return l2SafeBlockNumber, nil
-}
-
-// GetFinalizedL2BlockNumber gets the last l2 block verified that was mined
-// on or after the finalized block on L1
-func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	var l2FinalizedBlockNumber uint64
+// GetLastVerifiedL2BlockNumberUntilL1Block gets the last block number that was verified in
+// or before the provided l1 block number. This is used to identify if a l2 block is safe or finalized.
+func (p *PostgresStorage) GetLastVerifiedL2BlockNumberUntilL1Block(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var blockNumber uint64
 	const query = `
     SELECT b.block_num
       FROM state.l2block b
@@ -1647,7 +1623,7 @@ func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1Final
      ORDER BY b.block_num DESC LIMIT 1`
 
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, l1FinalizedBlockNumber).Scan(&l2FinalizedBlockNumber)
+	err := q.QueryRow(ctx, query, l1FinalizedBlockNumber).Scan(&blockNumber)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrNotFound
@@ -1655,7 +1631,29 @@ func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1Final
 		return 0, err
 	}
 
-	return l2FinalizedBlockNumber, nil
+	return blockNumber, nil
+}
+
+// GetLastVerifiedBatchNumberUntilL1Block gets the last batch number that was verified in
+// or before the provided l1 block number. This is used to identify if a batch is safe or finalized.
+func (p *PostgresStorage) GetLastVerifiedBatchNumberUntilL1Block(ctx context.Context, l1BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var batchNumber uint64
+	const query = `
+    SELECT vb.batch_num
+      FROM state.verified_batch vb
+	 WHERE vb.block_num <= $1
+     ORDER BY vb.batch_num DESC LIMIT 1`
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, l1BlockNumber).Scan(&batchNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return batchNumber, nil
 }
 
 // GetLastL2BlockNumber gets the last l2 block number
@@ -2465,6 +2463,26 @@ func (p *PostgresStorage) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (
 		return nil, err
 	}
 	return &batch, nil
+}
+
+// GetLastClosedBatchNumber returns the latest closed batch
+func (p *PostgresStorage) GetLastClosedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	const getLastClosedBatchSQL = `
+		SELECT bt.batch_num
+			FROM state.batch bt
+			WHERE global_exit_root IS NOT NULL AND state_root IS NOT NULL
+			ORDER BY bt.batch_num DESC
+			LIMIT 1;`
+
+	batchNumber := uint64(0)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getLastClosedBatchSQL).Scan(&batchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrStateNotSynchronized
+	} else if err != nil {
+		return 0, err
+	}
+	return batchNumber, nil
 }
 
 // UpdateBatchL2Data updates data tx data in a batch

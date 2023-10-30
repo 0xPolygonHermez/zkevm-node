@@ -260,7 +260,7 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 		respLen = s.handleBatchRequest(req, w, data)
 	}
 	metrics.RequestDuration(start)
-	combinedLog(req, start, http.StatusOK, respLen)
+	s.combinedLog(req, start, http.StatusOK, respLen)
 }
 
 // validateRequest returns a non-zero response code and error message if the
@@ -517,7 +517,11 @@ func RPCErrorResponseWithData(code int, message string, data *[]byte, err error,
 	return nil, types.NewRPCErrorWithData(code, message, data)
 }
 
-func combinedLog(r *http.Request, start time.Time, httpStatus, dataLen int) {
+func (s *Server) combinedLog(r *http.Request, start time.Time, httpStatus, dataLen int) {
+	if !s.config.EnableHttpLog {
+		return
+	}
+
 	log.Infof("%s - - %s \"%s %s %s\" %d %d \"%s\" \"%s\"",
 		r.RemoteAddr,
 		start.Format("[02/Jan/2006:15:04:05 -0700]"),
