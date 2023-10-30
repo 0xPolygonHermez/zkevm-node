@@ -110,6 +110,7 @@ func setupNoResetCall(t *testing.T) (*l1RollupInfoProducer, []*ethermanMock, cha
 	cfg := configProducer{
 		syncChunkSize:      100,
 		ttlOfLastBlockOnL1: time.Second,
+		timeOutMainLoop:    time.Second,
 	}
 
 	sut := newL1DataRetriever(cfg, ethermans, resultChannel)
