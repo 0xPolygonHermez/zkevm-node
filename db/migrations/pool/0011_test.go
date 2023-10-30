@@ -16,10 +16,7 @@ func (m migrationTest0011) InsertData(db *sql.DB) error {
 
 var indexes = []string{
 	"idx_transaction_from_nonce",
-	"idx_transaction_wip_status",
-	"idx_transaction_status_gas_price",
-	"idx_transaction_status_received_at",
-	"idx_transaction_from_status",
+	"idx_transaction_status",
 	"idx_transaction_hash",
 }
 
