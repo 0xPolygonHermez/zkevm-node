@@ -30,8 +30,8 @@ func NewEffectiveGasPrice(cfg EffectiveGasPriceCfg, minGasPriceAllowed uint64) *
 	}
 }
 
-// IsEffectiveGasPriceEnabled return if effectiveGasPrice calculation is enabled
-func (e *EffectiveGasPrice) IsEffectiveGasPriceEnabled() bool {
+// IsEnabled return if effectiveGasPrice calculation is enabled
+func (e *EffectiveGasPrice) IsEnabled() bool {
 	return e.cfg.Enabled
 }
 

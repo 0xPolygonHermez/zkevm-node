@@ -1594,7 +1594,7 @@ func Test_processTransaction(t *testing.T) {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
 			}
 
-			errWg, err := f.processTransaction(tc.ctx, tc.tx, false)
+			errWg, err := f.processTransaction(tc.ctx, tc.tx, true)
 
 			if tc.expectedStoredTx.batchResponse != nil {
 				close(f.pendingTransactionsToStore) // ensure the channel is closed

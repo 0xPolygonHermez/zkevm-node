@@ -320,7 +320,7 @@ func (f *finalizer) addPendingTxToStore(ctx context.Context, txToStore transacti
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
 func (f *finalizer) finalizeBatches(ctx context.Context) {
 	log.Debug("finalizer init loop")
-	notFoundFirst := true // used to log debug only the first message when there is no txs to process
+	showNotFoundTxLog := true // used to log debug only the first message when there is no txs to process
 	for {
 		start := now()
 		if f.batch.batchNumber == f.cfg.StopSequencerOnBatchNum {
@@ -331,16 +331,16 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
-			notFoundFirst = true
+			showNotFoundTxLog = true
 
-			reprocessTx := false
+			firstTxProcess := true
 
 			f.sharedResourcesMux.Lock()
 			for {
-				_, err := f.processTransaction(ctx, tx, reprocessTx)
+				_, err := f.processTransaction(ctx, tx, firstTxProcess)
 				if err != nil {
 					if err == ErrEffectiveGasPriceReprocess {
-						reprocessTx = true
+						firstTxProcess = false
 						log.Info("reprocessing tx because of effective gas price calculation: %s", tx.Hash.Hex())
 						continue
 					} else {
@@ -353,9 +353,9 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
-			if notFoundFirst {
+			if showNotFoundTxLog {
 				log.Debug("no transactions to be processed. Waiting...")
-				notFoundFirst = false
+				showNotFoundTxLog = false
 			}
 			if f.cfg.SleepDuration.Duration > 0 {
 				time.Sleep(f.cfg.SleepDuration.Duration)
@@ -489,7 +489,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// We need to process the batch to update the state root before closing the batch
 	if f.batch.initialStateRoot == f.batch.stateRoot {
 		log.Info("reprocessing batch because the state root has not changed...")
-		_, err = f.processTransaction(ctx, nil, false)
+		_, err = f.processTransaction(ctx, nil, true)
 		if err != nil {
 			return nil, err
 		}
@@ -550,7 +550,7 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 }
 
 // processTransaction processes a single transaction.
-func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, reprocessTx bool) (errWg *sync.WaitGroup, err error) {
+func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, firstTxProcess bool) (errWg *sync.WaitGroup, err error) {
 	var txHash string
 	if tx != nil {
 		txHash = tx.Hash.String()
@@ -573,13 +573,13 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, repro
 		hashStr = tx.HashStr
 
 		// If it is the first time we process this tx then we calculate the EffectiveGasPrice
-		if !reprocessTx {
+		if firstTxProcess {
 			// Get L1 gas price and store in txTracker to make it consistent during the lifespan of the transaction
 			tx.L1GasPrice, tx.L2GasPrice = f.dbManager.GetL1AndL2GasPrice()
 			// Calculate EffectiveGasPrice
 			egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, tx.GasPrice, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPrice, tx.L2GasPrice)
 			if err != nil {
-				if f.effectiveGasPrice.IsEffectiveGasPriceEnabled() {
+				if f.effectiveGasPrice.IsEnabled() {
 					return nil, err
 				} else {
 					log.Warnf("EffectiveGasPrice is disabled, but failed to calculate EffectiveGasPrice: %s", err)
@@ -612,7 +612,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, repro
 
 		effectivePercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.EffectiveGasPrice)
 		if err != nil {
-			if f.effectiveGasPrice.IsEffectiveGasPriceEnabled() {
+			if f.effectiveGasPrice.IsEnabled() {
 				return nil, err
 			} else {
 				log.Warnf("EffectiveGasPrice is disabled, but failed to to CalculateEffectiveGasPricePercentage#1: %s", err)
@@ -624,7 +624,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, repro
 		}
 
 		// If EGP is disabled we use tx GasPrice (MaxEffectivePercentage=255)
-		if !f.effectiveGasPrice.IsEffectiveGasPriceEnabled() {
+		if !f.effectiveGasPrice.IsEnabled() {
 			effectivePercentage = state.MaxEffectivePercentage
 		}
 
@@ -697,7 +697,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		return nil, err
 	}
 
-	egpEnabled := f.effectiveGasPrice.IsEffectiveGasPriceEnabled()
+	egpEnabled := f.effectiveGasPrice.IsEnabled()
 
 	if !tx.IsLastExecution {
 		tx.IsLastExecution = true
