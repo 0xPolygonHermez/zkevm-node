@@ -654,9 +654,12 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 	forcedBatch.GlobalExitRoot = fb.LastGlobalExitRoot
 
 	// Read the tx for this batch.
-	tx, err := etherMan.getTxFromLog(ctx, &vLog)
+	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
 	if err != nil {
 		return err
+	}
+	if tx.Hash() != vLog.TxHash {
+		return fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
 	}
 
 	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
@@ -720,9 +723,12 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 		return err
 	}
 	// Read the tx for this event.
-	tx, err := etherMan.getTxFromLog(ctx, &vLog)
+	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
 	if err != nil {
 		return err
+	}
+	if tx.Hash() != vLog.TxHash {
+		return fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
 	}
 	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
 	if err != nil {
@@ -843,9 +849,12 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 	}
 
 	// Read the tx for this batch.
-	tx, err := etherMan.getTxFromLog(ctx, &vLog)
+	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
 	if err != nil {
 		return err
+	}
+	if tx.Hash() != vLog.TxHash {
+		return fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
 	}
 	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
 	if err != nil {
@@ -1157,29 +1166,6 @@ func (etherMan *Client) LoadAuthFromKeyStore(path, password string) (*bind.Trans
 	log.Infof("loaded authorization for address: %v", auth.From.String())
 	etherMan.auth[auth.From] = auth
 	return &auth, nil
-}
-
-// getTxFromLog gets the transaction from a log struct, because go-ethereum will prune the old txindex,
-// so we prefer to read the tx with block hash and tx index
-func (etherMan *Client) getTxFromLog(ctx context.Context, vLog *types.Log) (*types.Transaction, error) {
-	if ethClient, ok := etherMan.EthClient.(*ethclient.Client); ok {
-		tx, err := ethClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
-		if err != nil {
-			return nil, err
-		}
-		if tx.Hash() != vLog.TxHash {
-			return nil, fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
-		}
-		return tx, nil
-	}
-
-	tx, isPending, err := etherMan.EthClient.TransactionByHash(ctx, vLog.TxHash)
-	if err != nil {
-		return nil, err
-	} else if isPending {
-		return nil, fmt.Errorf("error: tx is still pending. TxHash: %s", tx.Hash().String())
-	}
-	return tx, nil
 }
 
 // newKeyFromKeystore creates an instance of a keystore key from a keystore file
