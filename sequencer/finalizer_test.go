@@ -153,10 +153,12 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 		EffectiveGasPrice: effectiveGasPrice,
 		L1GasPrice:        l1GasPrice,
 		EGPLog: state.EffectiveGasPriceLog{
-			ValueFinal:  new(big.Int).SetUint64(0),
-			ValueFirst:  new(big.Int).SetUint64(0),
-			ValueSecond: new(big.Int).SetUint64(0),
-			GasPrice:    new(big.Int).SetUint64(0),
+			ValueFinal:     new(big.Int).SetUint64(0),
+			ValueFirst:     new(big.Int).SetUint64(0),
+			ValueSecond:    new(big.Int).SetUint64(0),
+			FinalDeviation: new(big.Int).SetUint64(0),
+			MaxDeviation:   new(big.Int).SetUint64(0),
+			GasPrice:       new(big.Int).SetUint64(0),
 		},
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
@@ -1468,10 +1470,12 @@ func Test_processTransaction(t *testing.T) {
 		EffectiveGasPrice: effectiveGasPrice,
 		L1GasPrice:        l1GasPrice,
 		EGPLog: state.EffectiveGasPriceLog{
-			ValueFinal:  new(big.Int).SetUint64(0),
-			ValueFirst:  new(big.Int).SetUint64(0),
-			ValueSecond: new(big.Int).SetUint64(0),
-			GasPrice:    new(big.Int).SetUint64(0),
+			ValueFinal:     new(big.Int).SetUint64(0),
+			ValueFirst:     new(big.Int).SetUint64(0),
+			ValueSecond:    new(big.Int).SetUint64(0),
+			FinalDeviation: new(big.Int).SetUint64(0),
+			MaxDeviation:   new(big.Int).SetUint64(0),
+			GasPrice:       new(big.Int).SetUint64(0),
 		},
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
