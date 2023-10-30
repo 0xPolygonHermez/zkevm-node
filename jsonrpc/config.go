@@ -58,6 +58,10 @@ type Config struct {
 	// MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying
 	// native block hashes in a single call to the state, if zero it means no limit
 	MaxNativeBlockHashBlockRange uint64 `mapstructure:"MaxNativeBlockHashBlockRange"`
+
+	// EnableHttpLog allows the user to enable or disable the logs related to the HTTP
+	// requests to be captured by the server.
+	EnableHttpLog bool `mapstructure:"EnableHttpLog"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support

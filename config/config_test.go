@@ -354,6 +354,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(60000),
 		},
 		{
+			path:          "RPC.EnableHttpLog",
+			expectedValue: true,
+		},
+		{
 			path:          "RPC.WebSockets.Enabled",
 			expectedValue: true,
 		},

@@ -735,6 +735,7 @@ GlobalQueue=1024
 | - [MaxLogsCount](#RPC_MaxLogsCount )                                         | No      | integer          | No         | -          | MaxLogsCount is a configuration to set the max number of logs that can be returned<br />in a single call to the state, if zero it means no limit                                      |
 | - [MaxLogsBlockRange](#RPC_MaxLogsBlockRange )                               | No      | integer          | No         | -          | MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs<br />logs in a single call to the state, if zero it means no limit                       |
 | - [MaxNativeBlockHashBlockRange](#RPC_MaxNativeBlockHashBlockRange )         | No      | integer          | No         | -          | MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying<br />native block hashes in a single call to the state, if zero it means no limit |
+| - [EnableHttpLog](#RPC_EnableHttpLog )                                       | No      | boolean          | No         | -          | EnableHttpLog allows the user to enable or disable the logs related to the HTTP<br />requests to be captured by the server.                                                           |
 
 ### <a name="RPC_Host"></a>8.1. `RPC.Host`
 
@@ -1020,6 +1021,21 @@ native block hashes in a single call to the state, if zero it means no limit
 ```
 [RPC]
 MaxNativeBlockHashBlockRange=60000
+```
+
+### <a name="RPC_EnableHttpLog"></a>8.16. `RPC.EnableHttpLog`
+
+**Type:** : `boolean`
+
+**Default:** `true`
+
+**Description:** EnableHttpLog allows the user to enable or disable the logs related to the HTTP
+requests to be captured by the server.
+
+**Example setting the default value** (true):
+```
+[RPC]
+EnableHttpLog=true
 ```
 
 ## <a name="Synchronizer"></a>9. `[Synchronizer]`
