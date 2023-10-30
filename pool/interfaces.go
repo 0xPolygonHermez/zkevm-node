@@ -25,6 +25,7 @@ type storage interface {
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	SetGasPrices(ctx context.Context, l2GasPrice uint64, l1GasPrice uint64) error
 	DeleteGasPricesHistoryOlderThan(ctx context.Context, date time.Time) error
+	DeleteFailedTransactionsOlderThan(ctx context.Context, date time.Time) error
 	UpdateTxsStatus(ctx context.Context, updateInfo []TxStatusUpdateInfo) error
 	UpdateTxStatus(ctx context.Context, updateInfo TxStatusUpdateInfo) error
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error

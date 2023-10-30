@@ -20,6 +20,7 @@ import (
 // txPool contains the methods required to interact with the tx pool.
 type txPool interface {
 	DeleteTransactionsByHashes(ctx context.Context, hashes []common.Hash) error
+	DeleteFailedTransactionsOlderThan(ctx context.Context, date time.Time) error
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
 	GetNonWIPPendingTxs(ctx context.Context) ([]pool.Transaction, error)

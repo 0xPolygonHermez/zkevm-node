@@ -415,6 +415,16 @@ func (p *PostgresPoolStorage) DeleteTransactionsByHashes(ctx context.Context, ha
 	return nil
 }
 
+// DeleteFailedTransactionsOlderThan deletes all failed transactions older than the given date
+func (p *PostgresPoolStorage) DeleteFailedTransactionsOlderThan(ctx context.Context, date time.Time) error {
+	sql := `DELETE FROM pool.transaction WHERE status = 'failed' and received_at < $1`
+
+	if _, err := p.db.Exec(ctx, sql); err != nil {
+		return err
+	}
+	return nil
+}
+
 // SetGasPrices sets the latest l2 and l1 gas prices
 func (p *PostgresPoolStorage) SetGasPrices(ctx context.Context, l2GasPrice, l1GasPrice uint64) error {
 	sql := "INSERT INTO pool.gas_price (price, l1_price, timestamp) VALUES ($1, $2, $3)"
