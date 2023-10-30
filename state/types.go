@@ -101,6 +101,7 @@ type EffectiveGasPriceLog struct {
 	BalanceOC      bool
 	L1GasPrice     uint64
 	L2GasPrice     uint64
+	Error          string
 }
 
 // StoreTxEGPData contains the data related to the effective gas price that needs to be stored when storing a tx

@@ -56,9 +56,10 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*
 			Bytes:      tx.Size(),
 			ZKCounters: counters,
 		},
-		RawTx:      rawTx,
-		ReceivedAt: time.Now(),
-		IP:         ip,
+		RawTx:             rawTx,
+		ReceivedAt:        time.Now(),
+		IP:                ip,
+		EffectiveGasPrice: new(big.Int).SetUint64(0),
 		EGPLog: state.EffectiveGasPriceLog{
 			ValueFinal:     new(big.Int).SetUint64(0),
 			ValueFirst:     new(big.Int).SetUint64(0),

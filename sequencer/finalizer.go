@@ -320,6 +320,7 @@ func (f *finalizer) addPendingTxToStore(ctx context.Context, txToStore transacti
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
 func (f *finalizer) finalizeBatches(ctx context.Context) {
 	log.Debug("finalizer init loop")
+	notFoundFirst := true // used to log debug only the first message when there is no txs to process
 	for {
 		start := now()
 		if f.batch.batchNumber == f.cfg.StopSequencerOnBatchNum {
@@ -330,6 +331,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
+			notFoundFirst = true
 
 			reprocessTx := false
 
@@ -351,7 +353,10 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
-			log.Debugf("no transactions to be processed. Sleeping for %v", f.cfg.SleepDuration.Duration)
+			if notFoundFirst {
+				log.Debug("no transactions to be processed. Waiting...")
+				notFoundFirst = false
+			}
 			if f.cfg.SleepDuration.Duration > 0 {
 				time.Sleep(f.cfg.SleepDuration.Duration)
 			}
@@ -572,14 +577,17 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, repro
 			// Get L1 gas price and store in txTracker to make it consistent during the lifespan of the transaction
 			tx.L1GasPrice, tx.L2GasPrice = f.dbManager.GetL1AndL2GasPrice()
 			// Calculate EffectiveGasPrice
-			tx.EffectiveGasPrice, err = f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, tx.GasPrice, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPrice, tx.L2GasPrice)
+			egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, tx.GasPrice, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPrice, tx.L2GasPrice)
 			if err != nil {
 				if f.effectiveGasPrice.IsEffectiveGasPriceEnabled() {
 					return nil, err
 				} else {
 					log.Warnf("EffectiveGasPrice is disabled, but failed to calculate EffectiveGasPrice: %s", err)
+					tx.EGPLog.Error = fmt.Sprintf("CalculateEffectiveGasPrice#1: %s", err)
 				}
 			} else {
+				tx.EffectiveGasPrice.Set(egp)
+
 				// Save initial values for later logging
 				tx.EGPLog.ValueFirst.Set(tx.EffectiveGasPrice)
 				tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.CumulativeGasUsed
@@ -604,7 +612,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, repro
 			if f.effectiveGasPrice.IsEffectiveGasPriceEnabled() {
 				return nil, err
 			} else {
-				log.Warnf("EffectiveGasPrice is disabled, but failed to to calculate EffectiveGasPrice percentage: %s", err)
+				log.Warnf("EffectiveGasPrice is disabled, but failed to to CalculateEffectiveGasPricePercentage#1: %s", err)
+				tx.EGPLog.Error = fmt.Sprintf("%s; CalculateEffectiveGasPricePercentage#1: %s", tx.EGPLog.Error, err)
 			}
 		} else {
 			// Save percentage for later logging
@@ -697,6 +706,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 				return nil, err
 			} else {
 				log.Warnf("EffectiveGasPrice is disabled, but failed to calculate EffectiveGasPrice with new gasUsed for tx %s, error: %s", tx.HashStr, err.Error())
+				tx.EGPLog.Error = fmt.Sprintf("%s; CalculateEffectiveGasPrice#2: %s", tx.EGPLog.Error, err)
 			}
 		} else {
 			// Save new (second) gas used and second effective gas price calculation for later logging
@@ -709,7 +719,8 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 			if !egpEnabled {
 				effectivePercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.EffectiveGasPrice)
 				if err != nil {
-					log.Warnf("EffectiveGasPrice is disabled, but failed to to calculate EffectiveGasPrice percentage: %s", err)
+					log.Warnf("EffectiveGasPrice is disabled, but failed to CalculateEffectiveGasPricePercentage#2: %s", err)
+					tx.EGPLog.Error = fmt.Sprintf("%s, CalculateEffectiveGasPricePercentage#2: %s", tx.EGPLog.Error, err)
 				} else {
 					// Save percentage for later logging
 					tx.EGPLog.Percentage = effectivePercentage

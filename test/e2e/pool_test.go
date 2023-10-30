@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/HasOpCode"
@@ -216,6 +217,8 @@ func TestHasOpCode(t *testing.T) {
 
 	client := operations.MustGetClient(operations.DefaultL2NetworkURL)
 	auth := operations.MustGetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
+
+	time.Sleep(2 * time.Second)
 
 	log.Debug("deploying HasOpCode SC")
 	_, scTx, sc, err := HasOpCode.DeployHasOpCode(auth, client)
