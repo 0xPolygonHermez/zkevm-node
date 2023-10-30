@@ -2607,14 +2607,6 @@ GenesisBlockNum=0
 
 **Type:** : `string`
 
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[NetworkConfig.Genesis.FirstBatchData]
-transactions=""
-```
-
 ##### <a name="NetworkConfig_Genesis_FirstBatchData_globalExitRoot"></a>13.2.4.2. `NetworkConfig.Genesis.FirstBatchData.globalExitRoot`
 
 **Type:** : `array of integer`
@@ -2622,14 +2614,6 @@ transactions=""
 ##### <a name="NetworkConfig_Genesis_FirstBatchData_timestamp"></a>13.2.4.3. `NetworkConfig.Genesis.FirstBatchData.timestamp`
 
 **Type:** : `integer`
-
-**Default:** `0`
-
-**Example setting the default value** (0):
-```
-[NetworkConfig.Genesis.FirstBatchData]
-timestamp=0
-```
 
 ##### <a name="NetworkConfig_Genesis_FirstBatchData_sequencer"></a>13.2.4.4. `NetworkConfig.Genesis.FirstBatchData.sequencer`
 

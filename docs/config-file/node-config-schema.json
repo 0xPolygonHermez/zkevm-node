@@ -1059,8 +1059,7 @@
 						"FirstBatchData": {
 							"properties": {
 								"transactions": {
-									"type": "string",
-									"default": ""
+									"type": "string"
 								},
 								"globalExitRoot": {
 									"items": {
@@ -1071,8 +1070,7 @@
 									"minItems": 32
 								},
 								"timestamp": {
-									"type": "integer",
-									"default": 0
+									"type": "integer"
 								},
 								"sequencer": {
 									"items": {
