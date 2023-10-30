@@ -419,7 +419,7 @@ func (p *PostgresPoolStorage) DeleteTransactionsByHashes(ctx context.Context, ha
 func (p *PostgresPoolStorage) DeleteFailedTransactionsOlderThan(ctx context.Context, date time.Time) error {
 	sql := `DELETE FROM pool.transaction WHERE status = 'failed' and received_at < $1`
 
-	if _, err := p.db.Exec(ctx, sql); err != nil {
+	if _, err := p.db.Exec(ctx, sql, date); err != nil {
 		return err
 	}
 	return nil
