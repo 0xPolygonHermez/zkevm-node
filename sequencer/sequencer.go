@@ -206,13 +206,22 @@ func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
 			log.Errorf("failed to get txs hashes to delete, err: %v", err)
 			continue
 		}
-		log.Infof("will try to delete %d redundant txs", len(txHashes))
+		log.Infof("trying to delete %d selected txs", len(txHashes))
 		err = s.pool.DeleteTransactionsByHashes(ctx, txHashes)
 		if err != nil {
-			log.Errorf("failed to delete txs from the pool, err: %v", err)
+			log.Errorf("failed to delete selected txs from the pool, err: %v", err)
 			continue
 		}
 		log.Infof("deleted %d selected txs from the pool", len(txHashes))
+
+		log.Infof("trying to delete failed txs from the pool")
+		// Delete failed txs older than a certain date (14 seconds per L1 block)
+		err = s.pool.DeleteFailedTransactionsOlderThan(ctx, time.Now().Add(-time.Duration(s.cfg.BlocksAmountForTxsToBeDeleted*14)*time.Second)) //nolint:gomnd
+		if err != nil {
+			log.Errorf("failed to delete failed txs from the pool, err: %v", err)
+			continue
+		}
+		log.Infof("failed txs deleted from the pool")
 	}
 }
 
