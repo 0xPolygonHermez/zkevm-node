@@ -1614,7 +1614,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 		if state.IsStateRootChanged(executor.RomErrorCode(tx.RomError)) {
 			log.Infof("TrustedBatch info: %+v", processBatchResp)
 			log.Infof("Storing trusted tx %+v", tx)
-			if _, err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), dbTx); err != nil {
+			if _, err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), nil, dbTx); err != nil {
 				log.Errorf("failed to store transactions for batch: %v. Tx: %s", trustedBatch.Number, tx.TxHash.String())
 				return nil, err
 			}

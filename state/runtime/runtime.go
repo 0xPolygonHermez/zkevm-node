@@ -229,6 +229,8 @@ var (
 	ErrExecutorErrorInvalidContractsBytecodeKey = errors.New("contracts_bytecode key is invalid")
 	// ErrExecutorErrorInvalidContractsBytecodeValue indicates that the input parameter contracts_bytecode value is invalid
 	ErrExecutorErrorInvalidContractsBytecodeValue = errors.New("contracts_bytecode value is invalid")
+	// ErrExecutorErrorInvalidGetKey indicates that the input parameter key value is invalid
+	ErrExecutorErrorInvalidGetKey = errors.New("key is invalid")
 
 	// GRPC ERRORS
 	// ===========

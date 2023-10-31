@@ -86,7 +86,12 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
 	receipt.BlockHash = l2Block.Hash()
 
-	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+	storeTxsEGPData := []state.StoreTxEGPData{}
+	for range transactions {
+		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+	}
+
+	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 	require.NoError(t, err)
 	result, err := pgStateStorage.BatchNumberByL2BlockNumber(ctx, l2Block.Number().Uint64(), dbTx)
 	require.NoError(t, err)
@@ -570,7 +575,13 @@ func TestGetLastVerifiedL2BlockNumberUntilL1Block(t *testing.T) {
 
 		// add l2 block
 		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0).SetUint64(blockNumber + uint64(10))})
-		err = testState.AddL2Block(ctx, batchNumber, l2Block, []*types.Receipt{}, uint8(0), dbTx)
+
+		storeTxsEGPData := []state.StoreTxEGPData{}
+		for range l2Block.Transactions() {
+			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(0)})
+		}
+
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, []*types.Receipt{}, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 
 		virtualBatch := state.VirtualBatch{BlockNumber: blockNumber, BatchNumber: batchNumber, Coinbase: addr, SequencerAddr: addr, TxHash: hash}
@@ -779,7 +790,12 @@ func TestGetLogs(t *testing.T) {
 			receipt.BlockHash = l2Block.Hash()
 		}
 
-		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+		storeTxsEGPData := []state.StoreTxEGPData{}
+		for range transactions {
+			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+		}
+
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 	}
 
@@ -897,7 +913,12 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 			receipt.BlockHash = l2Block.Hash()
 		}
 
-		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+		storeTxsEGPData := []state.StoreTxEGPData{}
+		for range transactions {
+			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+		}
+
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 
 		nativeBlockHashes = append(nativeBlockHashes, l2Block.Header().Root)

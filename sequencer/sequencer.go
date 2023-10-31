@@ -20,6 +20,7 @@ import (
 type Sequencer struct {
 	cfg      Config
 	batchCfg state.BatchConfig
+	poolCfg  pool.Config
 
 	pool     txPool
 	state    stateInterface
@@ -101,7 +102,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog)
+	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog)
 
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)

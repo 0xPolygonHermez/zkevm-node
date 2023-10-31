@@ -269,7 +269,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	l2BlockHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
+	l2BlockHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), tx.egpLog, dbTx)
 	if err != nil {
 		return err
 	}
@@ -704,8 +704,8 @@ func (d *dbManager) GetDefaultMinGasPriceAllowed() uint64 {
 	return d.txPool.GetDefaultMinGasPriceAllowed()
 }
 
-func (d *dbManager) GetL1GasPrice() uint64 {
-	return d.txPool.GetL1GasPrice()
+func (d *dbManager) GetL1AndL2GasPrice() (uint64, uint64) {
+	return d.txPool.GetL1AndL2GasPrice()
 }
 
 // GetStoredFlushID returns the stored flush ID and prover ID

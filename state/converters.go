@@ -151,6 +151,8 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 		result.CallTrace = *callTrace
 		result.EffectiveGasPrice = response.EffectiveGasPrice
 		result.EffectivePercentage = response.EffectivePercentage
+		result.HasGaspriceOpcode = (response.HasGaspriceOpcode == 1)
+		result.HasBalanceOpcode = (response.HasBalanceOpcode == 1)
 
 		tx := new(types.Transaction)
 

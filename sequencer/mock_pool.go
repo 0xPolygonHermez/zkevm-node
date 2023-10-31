@@ -101,18 +101,28 @@ func (_m *PoolMock) GetGasPrices(ctx context.Context) (pool.GasPrices, error) {
 	return r0, r1
 }
 
-// GetL1GasPrice provides a mock function with given fields:
-func (_m *PoolMock) GetL1GasPrice() uint64 {
+// GetL1AndL2GasPrice provides a mock function with given fields:
+func (_m *PoolMock) GetL1AndL2GasPrice() (uint64, uint64) {
 	ret := _m.Called()
 
 	var r0 uint64
+	var r1 uint64
+	if rf, ok := ret.Get(0).(func() (uint64, uint64)); ok {
+		return rf()
+	}
 	if rf, ok := ret.Get(0).(func() uint64); ok {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func() uint64); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Get(1).(uint64)
+	}
+
+	return r0, r1
 }
 
 // GetNonWIPPendingTxs provides a mock function with given fields: ctx
