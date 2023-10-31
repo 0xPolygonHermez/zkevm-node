@@ -6,7 +6,6 @@ Level = "debug"
 Outputs = ["stderr"]
 
 [State]
-AccountQueue = 64
 	[State.DB]
 	User = "state_user"
 	Password = "state_password"
@@ -37,6 +36,8 @@ MaxTxDataBytesSize=30000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
+AccountQueue = 64
+GlobalQueue = 1024
 	[Pool.EffectiveGasPrice]
 		Enabled = false
 		L1GasPriceFactor = 0.25
