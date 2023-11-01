@@ -1,7 +1,7 @@
 version: "3.5"
 networks:
   default:
-    name: Xgon
+    name: xgon
 services:
   xgon-rpc:
     container_name: xgon-rpc
@@ -107,7 +107,7 @@ services:
   xgon-prover:
     container_name: xgon-prover
     restart: unless-stopped
-    image: hermeznetwork/xgon-prover:v2.2.0
+    image: hermeznetwork/zkevm-prover:v2.2.0
     depends_on:
       xgon-state-db:
         condition: service_healthy

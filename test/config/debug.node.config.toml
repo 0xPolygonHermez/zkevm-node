@@ -97,7 +97,7 @@ MaxTxLifetime = "3h"
 [SequenceSender]
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
-MaxTxSizeForL1 = 131072
+MaxBatchesForL1 = 10
 L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 PrivateKey = {Path = "./test/sequencer.keystore", Password = "testonly"}
 
@@ -126,10 +126,10 @@ DefaultGasPriceWei = 1000000000
 MaxGasPriceWei = 0
 
 [MTClient]
-URI = "127.0.0.1:50061"
+URI = "xgon-prover:50061"
 
 [Executor]
-URI = "127.0.0.1:50071"
+URI = "xgon-prover:50071"
 MaxGRPCMessageSize = 100000000
 
 [Metrics]

@@ -21,7 +21,7 @@ func TestEthTransfer(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	//defer func() { require.NoError(t, operations.Teardown()) }()
+	defer func() { require.NoError(t, operations.Teardown()) }()
 
 	err := operations.Teardown()
 	require.NoError(t, err)
@@ -38,6 +38,7 @@ func TestEthTransfer(t *testing.T) {
 	// Load eth client
 	client, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
+
 	// Send txs
 	nTxs := 10
 	amount := big.NewInt(10000)

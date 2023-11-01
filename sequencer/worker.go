@@ -3,13 +3,13 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"math/big"
 	"runtime"
 	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -319,8 +319,6 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 
 	if foundAt != -1 {
 		log.Infof("GetBestFittingTx found tx(%s) at index(%d) with gasPrice(%d)", tx.Hash.String(), foundAt, tx.GasPrice)
-	} else {
-		// log.Debugf("GetBestFittingTx no tx found")
 	}
 
 	return tx

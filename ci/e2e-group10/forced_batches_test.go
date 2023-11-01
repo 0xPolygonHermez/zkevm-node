@@ -23,7 +23,7 @@ import (
 
 const (
 	toAddressHex      = "0x4d5Cf5032B2a844602278b01199ED191A86c93ff"
-	gerFinalityBlocks = uint64(250)
+	gerFinalityBlocks = uint64(2500)
 	forkID5           = 5
 )
 
@@ -166,6 +166,8 @@ func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*sta
 	require.NoError(t, err)
 
 	log.Debug("currentBlock.Time(): ", currentBlock.Time())
+	temp, _, err := st.GetLatestGer(ctx, gerFinalityBlocks)
+	log.Infof("temp: %v", temp.GlobalExitRoot.String())
 
 	// Send forceBatch
 	tx, err := zkEvm.ForceBatch(auth, txs, tip)
@@ -226,6 +228,7 @@ func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*sta
 			finalGer, _, err := st.GetLatestGer(ctx, gerFinalityBlocks)
 			require.NoError(t, err)
 			if finalGer.GlobalExitRoot != rootInContractHash {
+				log.Infof("initialGer.GlobalExitRoot: %v, finalGer.GlobalExitRoot: %v, rootInContractHash: %v", initialGer.GlobalExitRoot.String(), finalGer.GlobalExitRoot.String(), rootInContractHash.String())
 				log.Fatal("global exit root is not updated")
 			}
 		}

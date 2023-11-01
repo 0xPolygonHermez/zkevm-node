@@ -17,7 +17,7 @@ func InitOrResetState(cfg db.Config) error {
 // InitOrResetPool will initializes the Pool db running the migrations or
 // will reset all the known data and rerun the migrations
 func InitOrResetPool(cfg db.Config) error {
-	return initOrReset(cfg, "zkevm-pool-db")
+	return initOrReset(cfg, "xgon-pool-db")
 }
 
 // initOrReset will initializes the db running the migrations or

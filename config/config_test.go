@@ -181,8 +181,8 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "SequenceSender.MaxTxSizeForL1",
-			expectedValue: uint64(131072),
+			path:          "SequenceSender.MaxBatchesForL1",
+			expectedValue: uint64(10),
 		},
 		{
 			path:          "Etherman.URL",
@@ -242,7 +242,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "MTClient.URI",
-			expectedValue: "zkevm-prover:50061",
+			expectedValue: "xgon-prover:50061",
 		},
 		{
 			path:          "StateDB.User",
@@ -258,7 +258,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "StateDB.Host",
-			expectedValue: "zkevm-state-db",
+			expectedValue: "xgon-state-db",
 		},
 		{
 			path:          "StateDB.Port",
@@ -319,7 +319,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Pool.DB.Host",
-			expectedValue: "zkevm-pool-db",
+			expectedValue: "xgon-pool-db",
 		},
 		{
 			path:          "Pool.DB.Port",
@@ -375,7 +375,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Executor.URI",
-			expectedValue: "zkevm-prover:50071",
+			expectedValue: "xgon-prover:50071",
 		},
 		{
 			path:          "Executor.MaxResourceExhaustedAttempts",

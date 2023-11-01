@@ -191,22 +191,24 @@ To configure your Metamask to use your local environment, follow these steps:
 
 | Address | Description |
 |---|---|
-| 0x610178dA211FEF7D417bC0e6FeD39F05609AD788 | Proof of Efficiency |
-| 0xff0EE8ea08cEf5cb4322777F5CC3E8A584B8A4A0 | Bridge |
-| 0x5FbDB2315678afecb367f032d93F642f64180aa3 | Matic token |
-| 0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6 | GlobalExitRootManager |
+| 0x0D9088C72Cd4F08e9dDe474D8F5394147f64b22C | Proof of Efficiency |
+| 0x10B65c586f795aF3eCCEe594fE4E38E1F059F780 | Bridge |
+| 0xcFE6D77a653b988203BfAc9C6a69eA9D583bdC2b | Matic token |
+| 0x82109a709138A2953C720D3d775168717b668ba6 | L1 OKB token |
+| 0x82109a709138A2953C720D3d775168717b668ba6 | L2 WETH token |
+| 0xEd236da21Ff62bC7B62608AdB818da49E8549fa7 | GlobalExitRootManager |
 
-## Deployer Account
-
+## Admin Account
 | Address | Private Key |
 |---|---|
-| 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 | 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 |
+| 0x2ECF31eCe36ccaC2d3222A303b1409233ECBB225 | 0xde3ca643a52f5543e84ba984c4419ff40dbabd0e483c31c1d09fee8168d68e38 |
 
 ## Sequencer Account
 
 | Address | Private Key |
 |---|---|
 | 0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D | 0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e |
+| 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 | 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 |
 
 ## Accounts
 

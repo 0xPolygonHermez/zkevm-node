@@ -14,9 +14,9 @@ import (
 
 const (
 	// StateMigrationName is the name of the migration used by packr to pack the migration file
-	StateMigrationName = "zkevm-state-db"
+	StateMigrationName = "xgon-state-db"
 	// PoolMigrationName is the name of the migration used by packr to pack the migration file
-	PoolMigrationName = "zkevm-pool-db"
+	PoolMigrationName = "xgon-pool-db"
 )
 
 var packrMigrations = map[string]*packr.Box{

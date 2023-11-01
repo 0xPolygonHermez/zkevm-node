@@ -1,31 +1,36 @@
 DOCKERCOMPOSE := docker-compose -f docker-compose.yml
-DOCKERCOMPOSEAPPSEQ := zkevm-sequencer
-DOCKERCOMPOSEAPPSEQSENDER := zkevm-sequence-sender
-DOCKERCOMPOSEAPPL2GASP := zkevm-l2gaspricer
-DOCKERCOMPOSEAPPAGG := zkevm-aggregator
-DOCKERCOMPOSEAPPRPC := zkevm-json-rpc
-DOCKERCOMPOSEAPPSYNC := zkevm-sync
-DOCKERCOMPOSEAPPETHTXMANAGER := zkevm-eth-tx-manager
-DOCKERCOMPOSESTATEDB := zkevm-state-db
-DOCKERCOMPOSEPOOLDB := zkevm-pool-db
-DOCKERCOMPOSEEVENTDB := zkevm-event-db
-DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
-DOCKERCOMPOSEEXPLORERL1 := zkevm-explorer-l1
-DOCKERCOMPOSEEXPLORERL1DB := zkevm-explorer-l1-db
-DOCKERCOMPOSEEXPLORERL2 := zkevm-explorer-l2
-DOCKERCOMPOSEEXPLORERL2DB := zkevm-explorer-l2-db
-DOCKERCOMPOSEEXPLORERRPC := zkevm-explorer-json-rpc
-DOCKERCOMPOSEZKPROVER := zkevm-prover
-DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
-DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
-DOCKERCOMPOSEPERMISSIONLESSZKPROVER := zkevm-permissionless-prover
-DOCKERCOMPOSENODEAPPROVE := zkevm-approve
-DOCKERCOMPOSEMETRICS := zkevm-metrics
+DOCKERCOMPOSEAPPSEQ := xgon-sequencer
+DOCKERCOMPOSEAPPSEQSENDER := xgon-sequence-sender
+DOCKERCOMPOSEAPPL2GASP := xgon-l2gaspricer
+DOCKERCOMPOSEAPPAGG := xgon-aggregator
+DOCKERCOMPOSEAPPRPC := xgon-json-rpc
+DOCKERCOMPOSEAPPSYNC := xgon-sync
+DOCKERCOMPOSEAPPETHTXMANAGER := xgon-eth-tx-manager
+DOCKERCOMPOSESTATEDB := xgon-state-db
+DOCKERCOMPOSEPOOLDB := xgon-pool-db
+DOCKERCOMPOSEEVENTDB := xgon-event-db
+DOCKERCOMPOSEDACDB := xgon-data-availability-db
+DOCKERCOMPOSENETWORK := xgon-mock-l1-network
+DOCKERCOMPOSEEXPLORERL1 := xgon-explorer-l1
+DOCKERCOMPOSEEXPLORERL1DB := xgon-explorer-l1-db
+DOCKERCOMPOSEEXPLORERL2 := xgon-explorer-l2
+DOCKERCOMPOSEEXPLORERL2DB := xgon-explorer-l2-db
+DOCKERCOMPOSEEXPLORERRPC := xgon-explorer-json-rpc
+DOCKERCOMPOSEDACNODE := xgon-data-availability
+DOCKERCOMPOSEZKPROVER := xgon-prover
+DOCKERCOMPOSEPERMISSIONLESSDB := xgon-permissionless-db
+DOCKERCOMPOSEPERMISSIONLESSNODE := xgon-permissionless-node
+DOCKERCOMPOSEPERMISSIONLESSNODEDAC := xgon-permissionless-node-forced-DAC
+DOCKERCOMPOSEPERMISSIONLESSZKPROVER := xgon-permissionless-prover
+DOCKERCOMPOSENODEAPPROVE := xgon-approve
+DOCKERCOMPOSEMETRICS := xgon-metrics
 DOCKERCOMPOSEGRAFANA := grafana
 
 RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
 RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
 RUNEVENTDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEVENTDB)
+RUNDACDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDACDB)
+RUNDACNODE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDACNODE)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
 RUNSEQUENCESENDER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQSENDER)
 RUNL2GASPRICER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPL2GASP)
@@ -45,6 +50,7 @@ RUNZKPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVER)
 
 RUNPERMISSIONLESSDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSDB)
 RUNPERMISSIONLESSNODE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSNODE)
+RUNPERMISSIONLESSNODEDAC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSNODEDAC)
 RUNPERMISSIONLESSZKPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSZKPROVER)
 
 RUNAPPROVE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENODEAPPROVE)
@@ -56,6 +62,8 @@ RUN := $(DOCKERCOMPOSE) up -d
 STOPSTATEDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSESTATEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSESTATEDB)
 STOPPOOLDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPOOLDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPOOLDB)
 STOPEVENTDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEVENTDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEVENTDB)
+STOPDACDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEDACDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEDACDB)
+STOPDACNODE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEDACNODE) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEDACNODE)
 STOPSEQUENCER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
 STOPSEQUENCESENDER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQSENDER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQSENDER)
 STOPL2GASPRICER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPL2GASP) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPL2GASP)
@@ -75,6 +83,7 @@ STOPZKPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVER) && $(DOCKERCOMPOS
 
 STOPPERMISSIONLESSDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSDB)
 STOPPERMISSIONLESSNODE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSNODE) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSNODE)
+STOPPERMISSIONLESSNODEDAC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSNODEDAC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSNODEDAC)
 STOPPERMISSIONLESSZKPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSZKPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSZKPROVER)
 
 STOPAPPROVE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENODEAPPROVE) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENODEAPPROVE)
@@ -88,6 +97,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 2
 	$(RUNZKPROVER)
 	sleep 7
@@ -101,6 +111,7 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -112,6 +123,7 @@ test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -123,6 +135,7 @@ test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -134,6 +147,7 @@ test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -145,6 +159,7 @@ test-e2e-group-5: stop ## Runs group 5 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -156,6 +171,7 @@ test-e2e-group-6: stop ## Runs group 6 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -167,6 +183,7 @@ test-e2e-group-7: stop ## Runs group 7 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -178,6 +195,7 @@ test-e2e-group-8: stop ## Runs group 8 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -190,6 +208,7 @@ test-e2e-group-9: stop ## Runs group 9 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -202,6 +221,7 @@ test-e2e-group-10: stop ## Runs group 10 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
@@ -214,11 +234,24 @@ test-e2e-group-11: stop ## Runs group 11 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group11/...
+
+
+.PHONY: test-e2e-e2e-group-dac-1
+test-e2e-group-dac-1: stop ## Runs xgon-validium-1 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNEVENTDB)
+	sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -race -v -p 1 -timeout 2000s ../ci/e2e-group-dac-1/...
 
 .PHONY: benchmark-sequencer-eth-transfers
 benchmark-sequencer-eth-transfers: stop
@@ -226,6 +259,7 @@ benchmark-sequencer-eth-transfers: stop
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	$(RUNSYNC)
@@ -245,6 +279,7 @@ benchmark-sequencer-erc20-transfers: stop
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	sleep 5
 	$(RUNZKPROVER)
 	$(RUNSYNC)
@@ -263,18 +298,21 @@ run-db: ## Runs the node database
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 
 .PHONY: stop-db
 stop-db: ## Stops the node database
 	$(STOPEVENTDB)
 	$(STOPPOOLDB)
 	$(STOPSTATEDB)
+	$(STOPDACDB)
 
 .PHONY: run-node
 run-node: ## Runs the node
 	$(RUNETHTXMANAGER)
 	$(RUNSYNC)
 	sleep 2
+	$(RUNDACNODE)
 	$(RUNSEQUENCER)
 	$(RUNSEQUENCESENDER)
 	$(RUNL2GASPRICER)
@@ -283,6 +321,7 @@ run-node: ## Runs the node
 
 .PHONY: stop-node
 stop-node: ## Stops the node
+	$(STOPDACNODE)
 	$(STOPSEQUENCER)
 	$(STOPSEQUENCESENDER)
 	$(STOPJSONRPC)
@@ -419,8 +458,21 @@ run-permissionless: run-node ## Runs the trusted and permissionless node
 	$(RUNPERMISSIONLESSNODE)
 
 .PHONY: stop-permissionless
-stop-permissionless: stop-node## Stops the permissionless node
+stop-permissionless: stop-node## Stops the trusted and permissionless node
 	$(STOPPERMISSIONLESSNODE)
+	$(STOPPERMISSIONLESSZKPROVER)
+	$(STOPPERMISSIONLESSDB)
+
+.PHONY: run-permissionless-dac
+run-permissionless-dac: ## Runs a permissionless node that is forced to sync through DAC
+	$(RUNPERMISSIONLESSDB)
+	sleep 1
+	$(RUNPERMISSIONLESSZKPROVER)
+	$(RUNPERMISSIONLESSNODEDAC)
+
+.PHONY: stop-permissionless-dac
+stop-permissionless-dac: ## Stops the permissionless node that is forced to sync through DAC
+	$(STOPPERMISSIONLESSNODEDAC)
 	$(STOPPERMISSIONLESSZKPROVER)
 	$(STOPPERMISSIONLESSDB)
 
@@ -437,6 +489,7 @@ run: ## Runs a full node
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
+	$(RUNDACDB)
 	$(RUNL1NETWORK)
 	sleep 1
 	$(RUNZKPROVER)
@@ -444,6 +497,7 @@ run: ## Runs a full node
 	sleep 3
 	$(RUNSYNC)
 	sleep 2
+	$(RUNDACNODE)
 	$(RUNETHTXMANAGER)
 	$(RUNSEQUENCER)
 	$(RUNSEQUENCESENDER)
@@ -472,6 +526,15 @@ run-metrics: ## Runs the metrics container
 .PHONY: stop-metrics
 stop-metrics: ## Stops the metrics container
 	$(STOPMETRICS)
+
+.PHONY: run-dac-db
+run-dac-db: ## Suns the DAC DB
+	$(RUNDACDB)
+
+.PHONY: stop-dac-db
+stop-dac-db: ## Stops the DAC DB
+	$(STOPDACDB)
+
 
 .PHONY: init-network
 init-network: ## Initializes the network
@@ -518,6 +581,8 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=poolInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=poolMock --filename=mock_pool.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=zkEVMClientInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=zkEVMClientMock --filename=mock_zkevmclient.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ClientFactoryInterface --srcpkg=github.com/okx/Xgon-data-availability/client --output=../synchronizer --outpkg=synchronizer --structname=dataCommitteeClientFactoryMock --filename=mock_datacommitteeclientfactory.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ClientInterface --srcpkg=github.com/okx/Xgon-data-availability/client --output=../synchronizer --outpkg=synchronizer --structname=dataCommitteeClientMock --filename=mock_datacommitteeclient.go
 
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=GasPricer --srcpkg=github.com/ethereum/go-ethereum --output=../etherman --outpkg=etherman --structname=etherscanMock --filename=mock_etherscan.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=GasPricer --srcpkg=github.com/ethereum/go-ethereum --output=../etherman --outpkg=etherman --structname=ethGasStationMock --filename=mock_ethgasstation.go

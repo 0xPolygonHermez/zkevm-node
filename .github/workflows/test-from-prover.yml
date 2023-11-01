@@ -1,4 +1,4 @@
-name: Test from zkevm-prover call
+name: Test from xgon-prover call
 on:
   workflow_call:
     inputs:

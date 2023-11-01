@@ -6,13 +6,14 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/0xPolygonHermez/zkevm-node/log"
-	kafka "github.com/segmentio/kafka-go"
-	"github.com/segmentio/kafka-go/sasl/plain"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	kafka "github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/plain"
 )
 
 const (
