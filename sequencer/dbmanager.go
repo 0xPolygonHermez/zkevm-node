@@ -30,7 +30,6 @@ type dbManager struct {
 	numberOfReorgs   uint64
 	streamServer     *datastreamer.StreamServer
 	dataToStream     chan state.DSL2FullBlock
-	currentDSGER     common.Hash
 }
 
 func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
@@ -175,41 +174,6 @@ func (d *dbManager) sendDataToStreamer() {
 				continue
 			}
 
-			if len(l2Transactions) == 0 {
-				// Empty batch
-				// Check if there is a GER update
-				if l2Block.GlobalExitRoot != d.currentDSGER && l2Block.GlobalExitRoot != (common.Hash{}) {
-					updateGer := state.DSUpdateGER{
-						BatchNumber:    l2Block.BatchNumber,
-						Timestamp:      l2Block.Timestamp,
-						GlobalExitRoot: l2Block.GlobalExitRoot,
-						Coinbase:       l2Block.Coinbase,
-						ForkID:         l2Block.ForkID,
-						StateRoot:      l2Block.StateRoot,
-					}
-
-					err = d.streamServer.StartAtomicOp()
-					if err != nil {
-						log.Errorf("failed to start atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
-						continue
-					}
-
-					_, err = d.streamServer.AddStreamEntry(state.EntryTypeUpdateGER, updateGer.Encode())
-					if err != nil {
-						log.Errorf("failed to add stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
-						continue
-					}
-
-					err = d.streamServer.CommitAtomicOp()
-					if err != nil {
-						log.Errorf("failed to commit atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
-						continue
-					}
-				}
-				d.currentDSGER = l2Block.GlobalExitRoot
-				continue
-			}
-
 			bookMark := state.DSBookMark{
 				Type:          state.BookMarkTypeL2Block,
 				L2BlockNumber: l2Block.L2BlockNumber,
@@ -261,8 +225,6 @@ func (d *dbManager) sendDataToStreamer() {
 				log.Errorf("failed to commit atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
 				continue
 			}
-
-			d.currentDSGER = l2Block.GlobalExitRoot
 		}
 	}
 }
