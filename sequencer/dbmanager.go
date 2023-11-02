@@ -216,7 +216,8 @@ func (d *dbManager) sendDataToStreamer() {
 
 			_, err = d.streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, blockEnd.Encode())
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("failed to add stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
+				continue
 			}
 
 			err = d.streamServer.CommitAtomicOp()
@@ -307,10 +308,12 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	// Change Tx status to selected
-	err = d.txPool.UpdateTxStatus(ctx, tx.response.TxHash, pool.TxStatusSelected, false, nil)
-	if err != nil {
-		return err
+	if !tx.isForcedBatch {
+		// Change Tx status to selected
+		err = d.txPool.UpdateTxStatus(ctx, tx.response.TxHash, pool.TxStatusSelected, false, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", tx.response.TxHash.String(), tx.batchNumber)
