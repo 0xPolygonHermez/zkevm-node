@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -70,6 +71,7 @@ type finalizer struct {
 	proverID                     string
 	lastPendingFlushID           uint64
 	pendingFlushIDCond           *sync.Cond
+	streamServer                 *datastreamer.StreamServer
 }
 
 type transactionToStore struct {
@@ -116,6 +118,7 @@ func newFinalizer(
 	closingSignalCh ClosingSignalCh,
 	batchConstraints batchConstraints,
 	eventLog *event.EventLog,
+	streamServer *datastreamer.StreamServer,
 ) *finalizer {
 	f := finalizer{
 		cfg:                  cfg,
@@ -150,6 +153,7 @@ func newFinalizer(
 		proverID:           "",
 		lastPendingFlushID: 0,
 		pendingFlushIDCond: sync.NewCond(&sync.Mutex{}),
+		streamServer:       streamServer,
 	}
 
 	f.reprocessFullBatchError.Store(false)
@@ -1020,7 +1024,34 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		}
 
 		f.handleForcedTxsProcessResp(ctx, request, response, stateRoot)
+	} else {
+		if f.lastGERHash != forcedBatch.GlobalExitRoot && f.streamServer != nil {
+			updateGer := state.DSUpdateGER{
+				BatchNumber:    request.BatchNumber,
+				Timestamp:      request.Timestamp.Unix(),
+				GlobalExitRoot: request.GlobalExitRoot,
+				Coinbase:       f.sequencerAddress,
+				ForkID:         uint16(f.dbManager.GetForkIDByBatchNumber(request.BatchNumber)),
+				StateRoot:      response.NewStateRoot,
+			}
+
+			err = f.streamServer.StartAtomicOp()
+			if err != nil {
+				log.Errorf("failed to start atomic op for forced batch %v: %v", forcedBatch.ForcedBatchNumber, err)
+			}
+
+			_, err = f.streamServer.AddStreamEntry(state.EntryTypeUpdateGER, updateGer.Encode())
+			if err != nil {
+				log.Errorf("failed to add stream entry for forced batch %v: %v", forcedBatch.ForcedBatchNumber, err)
+			}
+
+			err = f.streamServer.CommitAtomicOp()
+			if err != nil {
+				log.Errorf("failed to commit atomic op for forced batch %v: %v", forcedBatch.ForcedBatchNumber, err)
+			}
+		}
 	}
+
 	f.nextGERMux.Lock()
 	f.lastGERHash = forcedBatch.GlobalExitRoot
 	f.nextGERMux.Unlock()
