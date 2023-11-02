@@ -205,9 +205,8 @@ func (d *dbManager) sendDataToStreamer() {
 						log.Errorf("failed to commit atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
 						continue
 					}
-
-					d.currentDSGER = l2Block.GlobalExitRoot
 				}
+				d.currentDSGER = l2Block.GlobalExitRoot
 				continue
 			}
 
@@ -262,6 +261,8 @@ func (d *dbManager) sendDataToStreamer() {
 				log.Errorf("failed to commit atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
 				continue
 			}
+
+			d.currentDSGER = l2Block.GlobalExitRoot
 		}
 	}
 }
