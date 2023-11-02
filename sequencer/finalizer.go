@@ -1025,11 +1025,11 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 
 		f.handleForcedTxsProcessResp(ctx, request, response, stateRoot)
 	} else {
-		if !response.IsRomOOCError && f.lastGERHash != forcedBatch.GlobalExitRoot && f.streamServer != nil {
+		if f.lastGERHash != forcedBatch.GlobalExitRoot && f.streamServer != nil {
 			updateGer := state.DSUpdateGER{
 				BatchNumber:    request.BatchNumber,
 				Timestamp:      request.Timestamp.Unix(),
-				GlobalExitRoot: forcedBatch.GlobalExitRoot,
+				GlobalExitRoot: request.GlobalExitRoot,
 				Coinbase:       f.sequencerAddress,
 				ForkID:         uint16(f.dbManager.GetForkIDByBatchNumber(request.BatchNumber)),
 				StateRoot:      response.NewStateRoot,
