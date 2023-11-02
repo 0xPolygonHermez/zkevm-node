@@ -85,6 +85,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		gasPricesMux:            new(sync.RWMutex),
 		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice, cfg.DefaultMinGasPriceAllowed),
 	}
+	log.Infof("Starting refreshGasPrices go routine")
 	p.refreshGasPrices()
 	go func(cfg *Config, p *Pool) {
 		for {
@@ -105,6 +106,7 @@ func (p *Pool) refreshGasPrices() {
 	}
 
 	p.gasPricesMux.Lock()
+	log.Infof("Updating gas prices L1: %d, L2: %d", gasPrices.L1GasPrice, gasPrices.L2GasPrice)
 	p.gasPrices = gasPrices
 	p.gasPricesMux.Unlock()
 }
