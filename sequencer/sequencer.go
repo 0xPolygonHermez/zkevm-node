@@ -118,13 +118,13 @@ func (s *Sequencer) Start(ctx context.Context) {
 			log.Fatalf("failed to create stream server, err: %v", err)
 		}
 
-		dbManager.streamServer = &streamServer
+		dbManager.streamServer = streamServer
 		err = dbManager.streamServer.Start()
 		if err != nil {
 			log.Fatalf("failed to start stream server, err: %v", err)
 		}
 
-		s.updateDataStreamerFile(ctx, &streamServer)
+		s.updateDataStreamerFile(ctx, streamServer)
 	}
 
 	go dbManager.Start()

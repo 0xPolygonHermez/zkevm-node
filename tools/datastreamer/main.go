@@ -165,7 +165,7 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 		return nil, err
 	}
 
-	return &streamServer, nil
+	return streamServer, nil
 }
 
 func generate(cliCtx *cli.Context) error {
