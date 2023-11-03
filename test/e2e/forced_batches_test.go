@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -35,7 +36,8 @@ func TestForcedBatches(t *testing.T) {
 	var err error
 	nTxs := 10
 	ctx := context.Background()
-	opsman, auth, client, amount, gasLimit, gasPrice, nonce := setupEnvironment(ctx, t)
+	opsman, auth, clientL2, amount, gasLimit, gasPrice, nonce := setupEnvironment(ctx, t)
+	l1 := setupEnvironmentL1(ctx, t)
 
 	txs := make([]*types.Transaction, 0, nTxs)
 	for i := 0; i < nTxs; i++ {
@@ -45,7 +47,7 @@ func TestForcedBatches(t *testing.T) {
 	}
 
 	var l2BlockNumbers []*big.Int
-	l2BlockNumbers, err = operations.ApplyL2Txs(ctx, txs, auth, client, operations.VerifiedConfirmationLevel)
+	l2BlockNumbers, err = operations.ApplyL2Txs(ctx, txs, auth, clientL2, operations.VerifiedConfirmationLevel)
 	require.NoError(t, err)
 
 	time.Sleep(2 * time.Second)
@@ -55,7 +57,7 @@ func TestForcedBatches(t *testing.T) {
 	require.NoError(t, err)
 	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID6)
 	require.NoError(t, err)
-	forcedBatch, err := sendForcedBatch(t, encodedTxs, opsman)
+	forcedBatch, err := sendForcedBatch(ctx, t, encodedTxs, opsman, l1)
 	require.NoError(t, err)
 
 	// Checking if all txs sent before the forced batch were processed within previous closed batch
@@ -64,6 +66,48 @@ func TestForcedBatches(t *testing.T) {
 		require.NoError(t, err)
 		require.Less(t, batch.BatchNumber, forcedBatch.BatchNumber)
 	}
+}
+
+type L1Stuff struct {
+	ethClient       *ethclient.Client
+	authSequencer   *bind.TransactOpts
+	authForcedBatch *bind.TransactOpts
+	zkEvmAddr       common.Address
+	zkEvm           *polygonzkevm.Polygonzkevm
+}
+
+func setupEnvironmentL1(ctx context.Context, t *testing.T) *L1Stuff {
+	// Connect to ethereum node
+	ethClient, err := ethclient.Dial(operations.DefaultL1NetworkURL)
+	require.NoError(t, err)
+	authSequencer, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
+	require.NoError(t, err)
+	authForcedBatch, err := operations.GetAuth(operations.DefaultForcedBatchesPrivateKey, operations.DefaultL1ChainID)
+	require.NoError(t, err)
+	maticSmc, err := matic.NewMatic(common.HexToAddress(operations.DefaultL1MaticSmartContract), ethClient)
+	require.NoError(t, err)
+	maticAmount, _ := big.NewInt(0).SetString("9999999999999999999999", 0)
+	txValue, err := maticSmc.Transfer(authSequencer, common.HexToAddress(operations.DefaultForcedBatchesAddress), maticAmount)
+	require.NoError(t, err)
+	log.Debug(txValue)
+	log.Debugf("Waiting for tx %s to be mined (transfer of matic from sequencer -> forcedBatches)", txValue.Hash().String())
+	err = operations.WaitTxToBeMined(ctx, ethClient, txValue, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+	balance, err := maticSmc.BalanceOf(&bind.CallOpts{Pending: false}, common.HexToAddress(operations.DefaultSequencerAddress))
+	require.NoError(t, err)
+	log.Debugf("Account (sequencer) %s MATIC balance %s", operations.DefaultSequencerAddress, balance.String())
+
+	balance, err = maticSmc.BalanceOf(&bind.CallOpts{Pending: false}, common.HexToAddress(operations.DefaultForcedBatchesAddress))
+	require.NoError(t, err)
+	log.Debugf("Account (force_batches) %s MATIC balance %s", operations.DefaultForcedBatchesAddress, balance.String())
+	log.Debugf("Approve to zkEVM SMC to spend %s MATIC", maticAmount.String())
+	_, err = maticSmc.Approve(authForcedBatch, common.HexToAddress(operations.DefaultL1ZkEVMSmartContract), maticAmount)
+	require.NoError(t, err)
+
+	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMSmartContract)
+	zkEvm, err := polygonzkevm.NewPolygonzkevm(zkEvmAddr, ethClient)
+	require.NoError(t, err)
+	return &L1Stuff{ethClient: ethClient, authSequencer: authSequencer, authForcedBatch: authForcedBatch, zkEvmAddr: zkEvmAddr, zkEvm: zkEvm}
 }
 
 func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *bind.TransactOpts, *ethclient.Client, *big.Int, uint64, *big.Int, uint64) {
@@ -110,84 +154,72 @@ func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *
 	return opsman, auth, client, amount, gasLimit, gasPrice, nonce
 }
 
-func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*state.Batch, error) {
-	ctx := context.Background()
+func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *operations.Manager, l1 *L1Stuff) (*state.Batch, error) {
 	st := opsman.State()
-	// Connect to ethereum node
-	ethClient, err := ethclient.Dial(operations.DefaultL1NetworkURL)
-	require.NoError(t, err)
 
 	initialGer, _, err := st.GetLatestGer(ctx, gerFinalityBlocks)
 	require.NoError(t, err)
 
-	// Create smc client
-	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMSmartContract)
-	zkEvm, err := polygonzkevm.NewPolygonzkevm(zkEvmAddr, ethClient)
-	require.NoError(t, err)
+	log.Info("Using address: ", l1.authForcedBatch.From)
 
-	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
-	require.NoError(t, err)
-
-	log.Info("Using address: ", auth.From)
-
-	num, err := zkEvm.LastForceBatch(&bind.CallOpts{Pending: false})
+	num, err := l1.zkEvm.LastForceBatch(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 
 	log.Info("Number of forceBatches in the smc: ", num)
 
 	// Get tip
-	tip, err := zkEvm.GetForcedBatchFee(&bind.CallOpts{Pending: false})
+	tip, err := l1.zkEvm.GetForcedBatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 
-	managerAddress, err := zkEvm.GlobalExitRootManager(&bind.CallOpts{Pending: false})
+	managerAddress, err := l1.zkEvm.GlobalExitRootManager(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 
-	manager, err := polygonzkevmglobalexitroot.NewPolygonzkevmglobalexitroot(managerAddress, ethClient)
+	manager, err := polygonzkevmglobalexitroot.NewPolygonzkevmglobalexitroot(managerAddress, l1.ethClient)
 	require.NoError(t, err)
 
 	rootInContract, err := manager.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	rootInContractHash := common.BytesToHash(rootInContract[:])
 
-	disallowed, err := zkEvm.IsForcedBatchDisallowed(&bind.CallOpts{Pending: false})
+	disallowed, err := l1.zkEvm.IsForcedBatchDisallowed(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	if disallowed {
-		tx, err := zkEvm.ActivateForceBatches(auth)
+		tx, err := l1.zkEvm.ActivateForceBatches(l1.authSequencer)
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, l1.ethClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 	}
 
-	currentBlock, err := ethClient.BlockByNumber(ctx, nil)
+	currentBlock, err := l1.ethClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
 	log.Debug("currentBlock.Time(): ", currentBlock.Time())
 
 	// Send forceBatch
-	tx, err := zkEvm.ForceBatch(auth, txs, tip)
+	tx, err := l1.zkEvm.ForceBatch(l1.authForcedBatch, txs, tip)
 	require.NoError(t, err)
 
 	log.Info("TxHash: ", tx.Hash())
 	time.Sleep(1 * time.Second)
 
-	err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
+	err = operations.WaitTxToBeMined(ctx, l1.ethClient, tx, operations.DefaultTimeoutTxToBeMined)
 	require.NoError(t, err)
 
 	query := ethereum.FilterQuery{
 		FromBlock: currentBlock.Number(),
-		Addresses: []common.Address{zkEvmAddr},
+		Addresses: []common.Address{l1.zkEvmAddr},
 	}
-	logs, err := ethClient.FilterLogs(ctx, query)
+	logs, err := l1.ethClient.FilterLogs(ctx, query)
 	require.NoError(t, err)
 
 	var forcedBatch *state.Batch
-	for _, vLog := range logs {
+	for _, vLog := range logs { // TODO check if that make sense
 		if vLog.Topics[0] != constants.ForcedBatchSignatureHash {
-			logs, err = ethClient.FilterLogs(ctx, query)
+			logs, err = l1.ethClient.FilterLogs(ctx, query)
 			require.NoError(t, err)
 			continue
 		}
-		fb, err := zkEvm.ParseForceBatch(vLog)
+		fb, err := l1.zkEvm.ParseForceBatch(vLog)
 		if err != nil {
 			log.Errorf("failed to parse force batch log event, err: ", err)
 		}
@@ -195,7 +227,7 @@ func sendForcedBatch(t *testing.T, txs []byte, opsman *operations.Manager) (*sta
 		ger := fb.LastGlobalExitRoot
 		log.Info("GlobalExitRoot: ", ger)
 		log.Info("Transactions: ", common.Bytes2Hex(fb.Transactions))
-		fullBlock, err := ethClient.BlockByHash(ctx, vLog.BlockHash)
+		fullBlock, err := l1.ethClient.BlockByHash(ctx, vLog.BlockHash)
 		if err != nil {
 			log.Errorf("error getting hashParent. BlockNumber: %d. Error: %v", vLog.BlockNumber, err)
 			return nil, err
