@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
@@ -67,10 +68,15 @@ func (e *EffectiveGasPrice) CalculateBreakEvenGasPrice(rawTx []byte, txGasPrice 
 	txZeroBytes := uint64(bytes.Count(rawTx, []byte{0}))
 	txNonZeroBytes := uint64(len(rawTx)) - txZeroBytes
 
+	log.Infof("txZeroBytes=%d, txNonZeroBytes=%d, txGasUsed=%d, l2MinGasPrice=%d, l1GasPrice=%d, NetPRofit=%d",
+		txZeroBytes, txNonZeroBytes, txGasUsed, l2MinGasPrice, l1GasPrice, e.cfg.NetProfit)
+
 	// Calculate BreakEvenGasPrice
 	totalTxPrice := (txGasUsed * l2MinGasPrice) +
 		((constBytesTx+txNonZeroBytes)*e.cfg.ByteGasCost+txZeroBytes*e.cfg.ZeroByteGasCost)*l1GasPrice
+	log.Infof("totalTxPrice=%d", totalTxPrice)
 	breakEvenGasPrice := new(big.Int).SetUint64(uint64(float64(totalTxPrice/txGasUsed) * e.cfg.NetProfit))
+	log.Infof("breakEvenGasPrice=%d", breakEvenGasPrice)
 
 	return breakEvenGasPrice, nil
 }
@@ -93,10 +99,13 @@ func (e *EffectiveGasPrice) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice 
 		ratioPriority = new(big.Float).Quo(bfTxGasPrice, bfL2GasPrice)
 	}
 
+	log.Infof("ratioPriority=%d", ratioPriority)
 	bfEffectiveGasPrice := new(big.Float).Mul(new(big.Float).SetInt(breakEvenGasPrice), ratioPriority)
+	log.Infof("bfEffectiveGasPrice=%f", bfEffectiveGasPrice)
 
 	effectiveGasPrice := new(big.Int)
 	bfEffectiveGasPrice.Int(effectiveGasPrice)
+	log.Infof("effectiveGasPrice=%d", effectiveGasPrice)
 
 	if effectiveGasPrice.Cmp(new(big.Int).SetUint64(0)) == 0 {
 		return nil, ErrEffectiveGasPriceIsZero
